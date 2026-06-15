@@ -44,7 +44,7 @@ on:
         default: false
 steps:
   - id: audit
-    run: python3 scripts/ci/validate_agent_guidance.py
+    run: python3 scripts/ci/validate_agent_setup.py
   - if: steps.audit.outputs.needs_ai == 'true'
     uses: openai/codex-action@v1
 """,
@@ -170,6 +170,41 @@ steps:
         codes = self.codes()
         self.assertIn("skill-name", codes)
         self.assertIn("skill-description", codes)
+
+    def test_enforces_exact_skill_set(self):
+        self.budget["expected_skill_names"] = {
+            ".agents/skills": ["example-bridge"],
+            ".github/skills": ["example"],
+        }
+        self.write_budget()
+        self.write(
+            ".agents/skills/unexpected/SKILL.md",
+            "---\nname: unexpected\ndescription: Unexpected workflow.\n---\n\n# Unexpected\n",
+        )
+        self.assertIn("skill-set", self.codes())
+
+    def test_requires_valid_codex_skill_metadata(self):
+        self.budget["skill_budgets"] = {
+            ".agents/skills": {
+                "max_description_chars": 100,
+                "max_body_chars": 100,
+                "require_openai_yaml": True,
+            }
+        }
+        self.write_budget()
+        self.assertIn("skill-metadata", self.codes())
+
+        self.write(
+            ".agents/skills/example-bridge/agents/openai.yaml",
+            """interface:
+  display_name: "Example Bridge"
+  short_description: "Load the canonical example workflow"
+  default_prompt: "Use $example-bridge to handle this example task."
+policy:
+  allow_implicit_invocation: true
+""",
+        )
+        self.assertNotIn("skill-metadata", self.codes())
 
     def test_rejects_unmatched_path_scope(self):
         self.write(

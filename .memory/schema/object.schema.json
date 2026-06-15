@@ -1,0 +1,296 @@
+{
+  "$id": "https://aictx.dev/schemas/v4/object.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "status": {
+            "enum": [
+              "active",
+              "stale",
+              "superseded"
+            ]
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "const": "question"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "enum": [
+              "stale",
+              "superseded",
+              "open",
+              "closed"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "body_path": {
+      "pattern": "^memory\\/.+\\.md$",
+      "type": "string"
+    },
+    "content_hash": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "created_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "memory",
+              "relation",
+              "file",
+              "commit",
+              "task",
+              "source"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "facets": {
+      "additionalProperties": false,
+      "properties": {
+        "applies_to": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "category": {
+          "enum": [
+            "project-description",
+            "architecture",
+            "stack",
+            "convention",
+            "file-layout",
+            "product-feature",
+            "testing",
+            "decision-rationale",
+            "abandoned-attempt",
+            "workflow",
+            "gotcha",
+            "debugging-fact",
+            "source",
+            "product-intent",
+            "feature-map",
+            "roadmap",
+            "agent-guidance",
+            "concept",
+            "open-question",
+            "domain",
+            "bounded-context",
+            "capability",
+            "business-rule",
+            "unresolved-conflict"
+          ]
+        },
+        "load_modes": {
+          "items": {
+            "enum": [
+              "coding",
+              "debugging",
+              "review",
+              "architecture",
+              "onboarding"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "category"
+      ],
+      "type": "object"
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9-]*$",
+      "type": "string"
+    },
+    "origin": {
+      "additionalProperties": false,
+      "properties": {
+        "captured_at": {
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+          "type": "string"
+        },
+        "digest": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "file",
+            "url",
+            "user",
+            "external"
+          ]
+        },
+        "locator": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "media_type": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "locator"
+      ],
+      "type": "object"
+    },
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "project",
+            "branch",
+            "task"
+          ]
+        },
+        "project": {
+          "pattern": "^project\\.[a-z0-9][a-z0-9-]*$",
+          "type": "string"
+        },
+        "task": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "project",
+        "branch",
+        "task"
+      ],
+      "type": "object"
+    },
+    "source": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "agent",
+            "user",
+            "cli",
+            "mcp",
+            "system"
+          ]
+        },
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "stale",
+        "superseded",
+        "open",
+        "closed"
+      ]
+    },
+    "superseded_by": {
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9-]*$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tags": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9-]*$",
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "title": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "project",
+        "architecture",
+        "source",
+        "synthesis",
+        "decision",
+        "constraint",
+        "question",
+        "fact",
+        "gotcha",
+        "workflow",
+        "note",
+        "concept"
+      ]
+    },
+    "updated_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "status",
+    "title",
+    "body_path",
+    "scope",
+    "content_hash",
+    "created_at",
+    "updated_at"
+  ],
+  "type": "object"
+}

@@ -1,6 +1,6 @@
 ---
 name: ci-failure-investigator
-description: Investigate GitHub Actions or SHAFT Allure failures and separate code defects from infrastructure or provider failures.
+description: Use when a GitHub Actions job, SHAFT Allure report, or provider E2E run fails; identify the first actionable failure and separate code defects from infrastructure, credentials, and provider faults.
 ---
 
 # CI Failure Investigator

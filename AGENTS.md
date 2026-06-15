@@ -2,88 +2,71 @@
 
 ## Repository
 
-SHAFT_ENGINE is a Maven-published Java 25 test-automation framework.
-Executable configuration (`pom.xml`, `.java-version`, `.sdkmanrc`,
-`.mvn/jvm.config`, and workflows) overrides prose.
+SHAFT_ENGINE is a Maven-published Java 25 automation framework.
+Executable configuration overrides prose.
 
-Key locations:
+`shaft-engine/` is the core module; sibling `shaft-*` directories contain
+optional or publication modules. Deterministic tools live in `scripts/ci/`.
+Canonical docs are at `https://shaftengine.netlify.app`.
 
-- `shaft-engine/`: core framework, tests, resources, and compatibility artifact.
-- `shaft-browserstack/`, `shaft-video/`, `shaft-visual/`: optional modules.
-- `shaft-bom/`, `legacy-shaft-engine/`, `report-aggregate/`: publication modules.
-- `scripts/ci/`: deterministic validators and report tools.
-- `https://shaftengine.netlify.app`: canonical product and maintainer docs,
-  sourced from `ShaftHQ/shafthq.github.io`.
-
-Start with the user goal and directly relevant files. Prefer `rg`, targeted
-excerpts, structured parsers, and existing local scripts. Expand context only
-to resolve a concrete uncertainty, and reuse valid command evidence.
+Start from the goal and relevant files. Prefer `rg`, targeted excerpts,
+structured parsers and scripts. Expand context only for a concrete uncertainty.
 
 ## Routing
 
-Codex discovers task guidance in `.agents/skills/`. Load only the matching
-skill:
+Load only the matching `.agents/skills/` workflow:
 
 - Production Java: `framework-source-rules`
 - Test Java: `java-test-rules`
-- CI failures: `ci-failure-investigator`
-- Flaky tests: `flaky-test-stabilizer`
-- Releases or dependency currency: `release-dependency-guard`
+- CI or Allure failure: `ci-failure-investigator`
+- Intermittent test: `flaky-test-stabilizer`
+- Release or dependency work: `release-dependency-guard`
 
-The bridge skills point to canonical rules under `.github/instructions/` and
-`.github/skills/`; do not preload or duplicate those bodies.
+Bridge skills point to canonical `.github/` rules; do not preload them.
 
 ## Working Rules
 
-- Read before editing, follow existing patterns, and keep changes focused.
-- Preserve user changes in a dirty worktree. Never revert unrelated work.
+- Read before editing, follow existing patterns, keep changes focused, and
+  preserve unrelated user work.
 - Use structured APIs for XML, JSON, YAML, and other structured data.
-- Reproduce bugs and add focused regression coverage when practical.
-- Public documentation lives only in `ShaftHQ/shafthq.github.io`; recurring
-  commands and versions belong in its shared data/components, not this repo.
-- Deliver user-facing changes site-first: verify the docs preview, deploy it,
-  and confirm canonical production routes return HTTP 200 before merging a
-  dependent engine cleanup or removing its previous documentation.
-- Do not add local public guides or non-root README files.
-- Preserve public API compatibility; removals and renames require deprecation.
-- Never expose secrets or credentials.
-- Do not run deployment, publication, history rewrites, destructive cleanup,
-  or credentialed cloud suites unless the user explicitly requires them.
-- Do not commit `target/`, reports, downloaded binaries, or generated assets
-  unless explicitly requested.
-- Run browser tests headlessly; headed-only validation requires user approval.
-- For a user-assigned GitHub ticket, sync the default branch, create a dedicated
-  branch, implement and validate the work, then open a pull request.
+- Reproduce defects and add focused regression coverage when practical.
+- Preserve public API compatibility; deprecate before removing or renaming.
+- Public docs live in `ShaftHQ/shafthq.github.io`; do not add local public
+  guides or non-root READMEs.
+- Never expose secrets or run deployment, publication, history rewrites,
+  destructive cleanup, or credentialed cloud suites unless explicitly required.
+- Do not commit generated reports, binaries, or `target/`.
+- Run browser tests headlessly unless headed validation is explicitly approved.
+- For assigned GitHub work, sync the default branch, use a dedicated branch,
+  implement and validate, then open a pull request.
+
+## Memory
+
+Memory lives in `.memory/`; current code, tests, config, and the request win.
+
+- Do not load memory automatically or for routine, self-contained work.
+- Use at most one `load_memory` call when history or a known pitfall is material
+  and current files do not answer it. Add file/subsystem hints; budget <= 600.
+- Save only novel durable decisions, constraints, gotchas, workflows, or user
+  corrections with reviewable evidence. Do not save diaries, transient status,
+  or facts clear from code or active guidance.
+- Do not save automatically at session end; use `remember_memory` only when the
+  preceding rule applies.
 
 ## Validation
 
 Use the smallest check that proves the change:
 
-- Guidance/docs: relevant validator, documentation-boundary check, and
-  `git diff --check`.
+- Guidance or memory: `python3 scripts/ci/validate_agent_setup.py`
 - Localized code: affected tests, then one compile/package pass.
-- Shared API, concurrency, build, or release: targeted tests, module checks,
-  then full compile/package.
-- Visual behavior: relevant test plus image or browser evidence.
+- Shared API, concurrency, build, or release: targeted checks, then full
+  compile/package.
+- Visual behavior: relevant test plus image/browser evidence.
 - External/cloud E2E: only when infrastructure is available and required.
 
-Common commands:
-
-```bash
-mvn -pl shaft-engine -am test -Dtest=TestClassName
-mvn clean install -DskipTests -Dgpg.skip
-mvn -pl shaft-engine javadoc:javadoc
-python3 scripts/ci/validate_agent_guidance.py
-python3 scripts/ci/validate_documentation_boundaries.py
-python3 scripts/ci/validate_modular_documentation.py
-```
-
-On PowerShell, single-quote every Maven `-D` argument. For SHAFT tests, confirm
-Allure result files are populated before trusting the verdict; Surefire may be
-supporting diagnostics because failures can be ignored for report generation.
+On PowerShell, single-quote Maven `-D` arguments. Confirm Allure result files
+are populated before trusting SHAFT test verdicts.
 
 ## Completion
 
-Report changed behavior, files, checks and outcomes, plus unverified risk or
-environment limits. Claim branch, issue, pull-request, or remote results only
-after verification.
+Report changes, checks, outcomes, and unverified risk. Verify remote claims.

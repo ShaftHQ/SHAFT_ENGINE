@@ -94,3 +94,10 @@ __pycache__/
 /src/main/resources/examples/*/*/generate_allure_report.bat
 /src/test/resources/META-INF/services/
 /src/main/resources/examples/*/*/performanceReport/
+
+.memory/index/
+.memory/context/
+.memory/exports/
+.memory/recovery/
+.memory/.backup/
+.memory/.lock

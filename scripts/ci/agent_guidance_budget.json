@@ -1,7 +1,7 @@
 {
   "file_budgets": {
     "AGENTS.md": {
-      "max_bytes": 4096
+      "max_bytes": 3072
     },
     "CLAUDE.md": {
       "max_bytes": 1536,
@@ -40,11 +40,12 @@
       ".agents/skills/*/SKILL.md"
     ]
   },
-  "max_estimated_tokens_per_host": 2500,
+  "max_estimated_tokens_per_host": 2100,
   "active_guidance_globs": [
     "AGENTS.md",
     "CLAUDE.md",
     ".agents/skills/*/SKILL.md",
+    ".agents/skills/*/agents/openai.yaml",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
     ".github/skills/*/SKILL.md"
@@ -60,7 +61,28 @@
     ".github/codex/prompts/refresh-agent-instructions.md"
   ],
   "reduction_baseline_bytes": 145162,
-  "minimum_reduction_percent": 80,
+  "minimum_reduction_percent": 85,
+  "expected_skill_names": {
+    ".agents/skills": [
+      "ci-failure-investigator",
+      "flaky-test-stabilizer",
+      "framework-source-rules",
+      "java-test-rules",
+      "release-dependency-guard"
+    ],
+    ".github/skills": [
+      "ci-failure-investigator",
+      "flaky-test-stabilizer",
+      "release-dependency-guard"
+    ]
+  },
+  "skill_budgets": {
+    ".agents/skills": {
+      "max_description_chars": 220,
+      "max_body_chars": 300,
+      "require_openai_yaml": true
+    }
+  },
   "reference_scan_globs": [
     "AGENTS.md",
     "CLAUDE.md",

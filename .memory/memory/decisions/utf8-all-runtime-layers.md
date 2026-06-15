@@ -1,0 +1,1 @@
+Cross-host Unicode correctness requires explicit UTF-8 configuration for the Maven JVM, forked test JVMs, and CI job environment; host defaults are insufficient.

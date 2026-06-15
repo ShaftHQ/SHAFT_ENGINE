@@ -1,0 +1,41 @@
+{
+  "body_path": "memory/gotchas/java25-isuite-mocking.md",
+  "content_hash": "sha256:9e368b7d4687941f42c52f2f717403cdc1f681dd5ebbbf5e22eba1ceaf8dd7a4",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/listeners/internal/TestNGListenerHelper.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/test/java/testPackage/unitTests/TestNGListenerHelperCoverageUnitTest.java",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-engine/src/main/java/com/shaft/listeners/internal/TestNGListenerHelper.java"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.java25-isuite-mocking",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "java25",
+    "testng",
+    "mocking"
+  ],
+  "title": "Avoid mocking TestNG ISuite on Java 25",
+  "type": "gotcha",
+  "updated_at": "2026-06-15T17:06:51+03:00"
+}

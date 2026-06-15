@@ -1,0 +1,84 @@
+{
+  "$id": "https://aictx.dev/schemas/v4/event.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "pattern": "^memory\\."
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "pattern": "^relation\\."
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "relation_id"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "actor": {
+      "enum": [
+        "agent",
+        "user",
+        "cli",
+        "mcp",
+        "system"
+      ]
+    },
+    "event": {
+      "enum": [
+        "memory.created",
+        "memory.updated",
+        "memory.marked_stale",
+        "memory.superseded",
+        "memory.deleted",
+        "relation.created",
+        "relation.updated",
+        "relation.deleted",
+        "index.rebuilt",
+        "context.generated"
+      ]
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9-]*$",
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "relation_id": {
+      "pattern": "^rel\\.[a-z0-9][a-z0-9-]*$",
+      "type": "string"
+    },
+    "timestamp": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event",
+    "actor",
+    "timestamp"
+  ],
+  "type": "object"
+}

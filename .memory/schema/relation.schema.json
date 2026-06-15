@@ -1,0 +1,99 @@
+{
+  "$id": "https://aictx.dev/schemas/v4/relation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "confidence": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "content_hash": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "created_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "memory",
+              "relation",
+              "file",
+              "commit",
+              "task",
+              "source"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "from": {
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9-]*$",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^rel\\.[a-z0-9][a-z0-9-]*$",
+      "type": "string"
+    },
+    "predicate": {
+      "enum": [
+        "affects",
+        "requires",
+        "depends_on",
+        "supersedes",
+        "conflicts_with",
+        "supports",
+        "challenges",
+        "derived_from",
+        "summarizes",
+        "documents",
+        "mentions",
+        "implements",
+        "related_to"
+      ]
+    },
+    "status": {
+      "enum": [
+        "active",
+        "stale",
+        "rejected"
+      ]
+    },
+    "to": {
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9-]*$",
+      "type": "string"
+    },
+    "updated_at": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "from",
+    "predicate",
+    "to",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "type": "object"
+}

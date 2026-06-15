@@ -7,16 +7,20 @@ on:
       - 'CLAUDE.md'
       - 'CONTRIBUTING.md'
       - '.agents/skills/**'
+      - '.codex/**'
       - '.github/copilot-instructions.md'
       - '.github/instructions/**'
       - '.github/skills/**'
+      - '.memory/**'
       - '.github/pull_request_template.md'
       - '.github/codex/prompts/refresh-agent-instructions.md'
       - '.github/workflows/agent-guidance-check.yml'
       - '.github/workflows/refresh-agent-instructions.yml'
       - 'scripts/ci/agent_guidance_budget.json'
+      - 'scripts/ci/validate_agent_setup.py'
       - 'scripts/ci/validate_agent_guidance.py'
       - 'scripts/ci/validate_documentation_boundaries.py'
+      - 'tests/scripts/test_validate_agent_setup.py'
       - 'tests/scripts/test_validate_agent_guidance.py'
   push:
     branches: [ main ]
@@ -25,16 +29,20 @@ on:
       - 'CLAUDE.md'
       - 'CONTRIBUTING.md'
       - '.agents/skills/**'
+      - '.codex/**'
       - '.github/copilot-instructions.md'
       - '.github/instructions/**'
       - '.github/skills/**'
+      - '.memory/**'
       - '.github/pull_request_template.md'
       - '.github/codex/prompts/refresh-agent-instructions.md'
       - '.github/workflows/agent-guidance-check.yml'
       - '.github/workflows/refresh-agent-instructions.yml'
       - 'scripts/ci/agent_guidance_budget.json'
+      - 'scripts/ci/validate_agent_setup.py'
       - 'scripts/ci/validate_agent_guidance.py'
       - 'scripts/ci/validate_documentation_boundaries.py'
+      - 'tests/scripts/test_validate_agent_setup.py'
       - 'tests/scripts/test_validate_agent_guidance.py'
   workflow_dispatch:
 
@@ -47,9 +55,14 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
       - name: Validate Agent Guidance
-        run: |
-          python3 scripts/ci/validate_agent_guidance.py
-          python3 scripts/ci/validate_documentation_boundaries.py
+        run: python3 scripts/ci/validate_agent_setup.py
       - name: Test Agent Guidance Validator
-        run: python3 -m unittest tests.scripts.test_validate_agent_guidance
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_validate_agent_guidance
+          tests.scripts.test_validate_agent_setup

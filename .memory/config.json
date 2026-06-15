@@ -1,0 +1,15 @@
+{
+  "git": {
+    "trackContextPacks": false
+  },
+  "memory": {
+    "autoIndex": true,
+    "defaultTokenBudget": 600,
+    "saveContextPacks": false
+  },
+  "project": {
+    "id": "project.shaft-engine",
+    "name": "Shaft Engine"
+  },
+  "version": 4
+}

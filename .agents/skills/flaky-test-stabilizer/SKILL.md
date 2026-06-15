@@ -1,6 +1,6 @@
 ---
 name: flaky-test-stabilizer
-description: Diagnose and stabilize intermittent SHAFT tests involving parallelism, shared state, files, drivers, timing, or external dependencies.
+description: Use when a SHAFT test is intermittent, retry-only, parallel-only, or environment-sensitive; diagnose shared state, files, drivers, timing, and external dependencies without weakening assertions.
 ---
 
 # Flaky Test Stabilizer

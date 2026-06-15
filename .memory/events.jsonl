@@ -1,0 +1,16 @@
+{"actor":"agent","event":"memory.created","id":"decision.agent-guidance-progressive-disclosure","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.paid-agent-work-audit-gated","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.public-docs-external","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.utf8-all-runtime-layers","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.allure-result-population","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.windows-allure-root-race","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.testng-method-parallel-shared-instance-fields","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.testng-single-threaded-static-state","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.java25-isuite-mocking","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.coverage-constructors-start-browser","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.namespaced-video-capabilities","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.maven-central-version-immutability","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.updated","id":"project.shaft-engine","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.updated","id":"architecture.current","timestamp":"2026-06-15T17:06:51+03:00"}
+{"actor":"agent","event":"memory.updated","id":"decision.public-docs-external","timestamp":"2026-06-15T17:09:35+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.testng-method-parallel-shared-instance-fields","timestamp":"2026-06-15T17:09:35+03:00"}

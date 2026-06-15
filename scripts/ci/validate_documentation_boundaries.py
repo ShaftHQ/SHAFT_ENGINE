@@ -28,6 +28,8 @@ ALLOWED_GLOBS = (
     ".github/instructions/*.instructions.md",
     ".github/ISSUE_TEMPLATE/*.md",
     ".github/skills/*/SKILL.md",
+    ".memory/memory/*.md",
+    ".memory/memory/**/*.md",
     "*/src/test/resources/fixtures/**/*.md",
 )
 FORBIDDEN_LINK_FRAGMENTS = (
@@ -45,9 +47,9 @@ IGNORED_DIRECTORIES = {
 }
 
 
-def tracked_markdown() -> list[str]:
+def tracked_markdown(root: Path = ROOT) -> list[str]:
     paths: list[str] = []
-    for directory, child_directories, files in os.walk(ROOT):
+    for directory, child_directories, files in os.walk(root):
         child_directories[:] = [
             child for child in child_directories
             if child not in IGNORED_DIRECTORIES
@@ -56,7 +58,7 @@ def tracked_markdown() -> list[str]:
             if Path(filename).suffix.lower() not in {".md", ".mdx"}:
                 continue
             paths.append(
-                (Path(directory) / filename).relative_to(ROOT).as_posix()
+                (Path(directory) / filename).relative_to(root).as_posix()
             )
     return sorted(paths)
 
@@ -65,9 +67,9 @@ def is_allowed(path: str) -> bool:
     return path in ALLOWED_EXACT or any(fnmatch(path, pattern) for pattern in ALLOWED_GLOBS)
 
 
-def main() -> int:
+def validate_repository(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
-    markdown = tracked_markdown()
+    markdown = tracked_markdown(root)
 
     for path in markdown:
         if not is_allowed(path):
@@ -76,7 +78,7 @@ def main() -> int:
             if path != ".github/skills/README.md":
                 errors.append(f"non-root README is prohibited: {path}")
 
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    readme = (root / "README.md").read_text(encoding="utf-8")
     if len(readme.splitlines()) > 160:
         errors.append("README.md exceeds the 160-line landing-page budget")
     for route in (
@@ -98,18 +100,25 @@ def main() -> int:
         if path != "shaft-doctor/src/test/resources/fixtures/golden/doctor-report.md"
     ]
     for path in scan_paths:
-        content = (ROOT / path).read_text(encoding="utf-8")
+        content = (root / path).read_text(encoding="utf-8")
         for fragment in FORBIDDEN_LINK_FRAGMENTS:
             if fragment in content:
                 errors.append(f"{path}: links to deleted repository documentation")
 
-    if (ROOT / "docs").exists():
+    if (root / "docs").exists():
         errors.append("the local docs/ tree must not exist")
 
+    return errors
+
+
+def main() -> int:
+    errors = validate_repository()
     if errors:
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
-    print(f"Documentation boundary is valid ({len(markdown)} tracked Markdown files).")
+    print(
+        f"Documentation boundary is valid ({len(tracked_markdown())} tracked Markdown files)."
+    )
     return 0
 
 
