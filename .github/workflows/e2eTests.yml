@@ -5,8 +5,6 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches: [ main ]
   schedule:
     - cron: '00 1 * * *'
   workflow_dispatch:
@@ -18,7 +16,30 @@ env:
 jobs:
   Workflow_Summary:
     if: always()
-    needs: [Ubuntu_Database, Ubuntu_APIs, Ubuntu_Visual_Module, Ubuntu_Desktop_Video_Module, Ubuntu_Firefox_Grid, Ubuntu_Chrome_Grid, Ubuntu_MicrosoftEdge_Grid, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack, MacOSX_Safari_BrowserStack, Ubuntu_Chrome_Cucumber_Grid, MacOSX_Safari_Cucumber_BrowserStack]
+    needs:
+      - Ubuntu_Database
+      - Ubuntu_APIs
+      - Ubuntu_Visual_Module
+      - Ubuntu_Desktop_Video_Module
+      - Ubuntu_Firefox_Grid
+      - Ubuntu_Chrome_Grid
+      - Ubuntu_MicrosoftEdge_Grid
+      - Android_Native_BrowserStack
+      - iOS_Web_SAFARI_BrowserStack
+      - Android_Web_Chrome_BrowserStack
+      - MacOSX_Safari_BrowserStack
+      - Ubuntu_Chrome_Cucumber_Grid
+      - MacOSX_Safari_Cucumber_BrowserStack
+      - Windows_Edge_Local
+      - MacOSX_Safari_Local
+      - Windows_Chrome_Local
+      - MacOSX_Chrome_Local
+      - Windows_Edge_Cucumber_Local
+      - LambdaTest_NativeAndroid
+      - LambdaTest_NativeIOS
+      - LambdaTest_WebApp
+      - LambdaTest_DesktopWeb
+      - Ubuntu_Chrome_Moon
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -446,4 +467,395 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: MacOSX_Safari_Cucumber_BrowserStack
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Windows_Edge_Local:
+    runs-on: windows-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install optional visual test runtime
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Print Edge version
+        continue-on-error: true
+        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Edge_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  MacOSX_Safari_Local:
+    runs-on: macos-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install optional visual test runtime
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}, !%regex[.*MobileEmulation.*]"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: MacOSX_Safari_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Windows_Chrome_Local:
+    runs-on: windows-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install optional visual test runtime
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Chrome_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  MacOSX_Chrome_Local:
+    runs-on: macos-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install optional visual test runtime
+        run: mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ env.GLOBAL_TESTING_SCOPE }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: MacOSX_Chrome_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Windows_Edge_Cucumber_Local:
+    runs-on: windows-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: 'lts/*'
+      - name: Print Edge version
+        continue-on-error: true
+        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*CucumberTests.*]"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Edge_Cucumber_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  LambdaTest_NativeAndroid:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: 'lts/*'
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTMobAPK*.*]"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: LambdaTest_NativeAndroid
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  LambdaTest_NativeIOS:
+    runs-on: ubuntu-latest
+    needs: [ LambdaTest_NativeAndroid ]
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: 'lts/*'
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTMobIPA*.*]"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: LambdaTest_NativeIOS
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  LambdaTest_WebApp:
+    runs-on: ubuntu-latest
+    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: 'lts/*'
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTWebApp*.*]"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: LambdaTest_WebApp
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  LambdaTest_DesktopWeb:
+    runs-on: ubuntu-latest
+    needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: 'lts/*'
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTDesktopWeb.*], %regex[.*LambdaTestHelperUnitTest.*], %regex[.*LambdaTestSetPropertyCoverageUnitTest.*]"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: LambdaTest_DesktopWeb
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Chrome_Moon:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Create Kubernetes Kind Cluster
+        uses: helm/kind-action@v1.14.0
+        with:
+          cluster_name: moon
+          wait: 120s
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v5.0.0
+        with:
+          version: v3.18.4
+
+      - name: Install Moon
+        shell: bash
+        run: |
+          helm repo add aerokube https://charts.aerokube.com/
+          helm repo update
+          helm upgrade --install moon aerokube/moon2 \
+            --create-namespace \
+            --namespace moon \
+            --version "${MOON_CHART_VERSION}" \
+            --set deployment.replicas=1 \
+            --set deployment.moonCallbackURL=http://localhost:4444
+          kubectl -n moon rollout status deployment/moon --timeout=5m
+          kubectl -n moon get pods -o wide
+
+      - name: Forward Moon WebDriver Port
+        shell: bash
+        run: |
+          kubectl -n moon port-forward service/moon 4444:4444 > moon-port-forward.log 2>&1 &
+          echo "$!" > moon-port-forward.pid
+
+          for attempt in {1..60}; do
+            if curl -fsS "${MOON_URL%/wd/hub}/status" >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat moon-port-forward.log || true
+          exit 1
+
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+
+      - name: Enable JUnit Test Runtime
+        shell: bash
+        run: |
+          mkdir -p shaft-engine/src/test/resources/META-INF/services
+          rm -f shaft-engine/src/test/resources/META-INF/services/org.testng.ITestNGListener
+          printf 'com.shaft.listeners.JunitListener\n' > shaft-engine/src/test/resources/META-INF/services/org.junit.platform.launcher.LauncherSessionListener
+
+      - name: Run Moon Tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          mvn -e -Pjunit -pl shaft-engine -am test \
+            "-DskipTestNG=true" \
+            "-DdefaultElementIdentificationTimeout=5" \
+            "-DretryMaximumNumberOfAttempts=1" \
+            "-DexecutionAddress=${MOON_URL}" \
+            "-DtargetOperatingSystem=LINUX" \
+            "-DtargetBrowserName=chrome" \
+            "-DheadlessExecution=true" \
+            "-DremoteServerInstanceCreationTimeout=10" \
+            "-DgenerateAllureReportArchive=true" \
+            "-Dtest=MoonTests"
+
+      - name: Verify Moon Test Results Exist
+        if: always()
+        shell: bash
+        run: |
+          RESULT_COUNT=$(find shaft-engine/allure-results -name '*-result.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+          echo "Allure result files: ${RESULT_COUNT}"
+          if [ "${RESULT_COUNT}" -lt 2 ]; then
+            echo "::error::Expected MoonTests to generate at least 2 Allure result files."
+            exit 1
+          fi
+
+      - name: Collect Moon Diagnostics
+        if: always()
+        shell: bash
+        run: |
+          kubectl -n moon get all || true
+          kubectl -n moon logs deployment/moon -c moon --tail=200 || true
+          kubectl -n moon logs deployment/moon -c moon-conf --tail=200 || true
+          kubectl -n moon logs deployment/moon -c moon-ui --tail=200 || true
+          cat moon-port-forward.log || true
+
+      - name: Stop Moon Port Forward
+        if: always()
+        shell: bash
+        run: |
+          if [ -f moon-port-forward.pid ]; then
+            kill "$(cat moon-port-forward.pid)" || true
+          fi
+
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Chrome_Moon
           codecov-token: ${{ secrets.CODECOV_TOKEN }}

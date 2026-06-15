@@ -36,6 +36,15 @@ jobs:
           -Dtest=ShaftMcpInstallerTest
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dgpg.skip
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: >-
+            ./shaft-engine/target/jacoco/jacoco.xml,
+            ./shaft-mcp/target/jacoco/jacoco.xml
+          required-files: ./shaft-mcp/target/jacoco/jacoco.xml
 
   package-and-smoke:
     needs: installer-tests
@@ -61,16 +70,14 @@ jobs:
         run: mvn --batch-mode -pl shaft-mcp -am test -Dgpg.skip
       - name: Upload coverage to Codecov
         if: always()
-        uses: codecov/codecov-action@v7
+        uses: ./.github/actions/upload-jacoco-coverage
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          disable_search: true
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
           files: >-
             ./target/jacoco/jacoco.xml,
             ./shaft-engine/target/jacoco/jacoco.xml,
             ./shaft-mcp/target/jacoco/jacoco.xml
-          verbose: true
+          required-files: ./shaft-mcp/target/jacoco/jacoco.xml
       - name: Verify MCP Allure results
         run: test -n "$(find shaft-mcp/allure-results -name '*-result.json' -type f -print -quit)"
       - name: Package and smoke transports

@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
  *
  * <p>Tests load the bundled {@code coverageTestPage.html} file so no internet
  * access is required.  The tests are designed to run with a headless Chrome browser
- * (the same setup used by the project CI in {@code e2eLocalTests.yml}).
+ * (the same setup used by the project CI in {@code e2eTests.yml}).
  */
 public class E2ECoverageTests {
 

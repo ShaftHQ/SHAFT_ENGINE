@@ -61,6 +61,8 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         errors.append("Surefire JVM arguments must suppress Java 25 Unsafe and CDS agent warnings")
     if "<mockitoAgentArgLine>" not in root_pom_text:
         errors.append("root pom.xml must define the Mockito startup agent")
+    if root_pom.find("m:build/m:plugins/m:plugin[m:artifactId='jacoco-maven-plugin']", NS) is None:
+        errors.append("root build plugins must inherit managed JaCoCo execution for module reports")
     errors.extend(validate_maven_jvm_configuration(root))
 
     aggregate_path = root / "report-aggregate" / "pom.xml"
@@ -106,7 +108,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     )
     codecov_count = (workflow_text + action_text).count("codecov/codecov-action@")
 
-    codeql = (root / ".github" / "workflows" / "codeql-analysis.yml").read_text(encoding="utf-8")
+    codeql = (root / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
     selector = "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am"
     if selector not in codeql:
         errors.append("CodeQL build must compile every Java-bearing module")
@@ -152,20 +154,18 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         if f"<exclude>{artifact}</exclude>" not in engine_pom:
             errors.append(f"shaft-engine dependency boundary does not ban {artifact}")
 
-    workflow_expectations = (
-        ("e2eLocalTests.yml", 4, 'mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"'),
-        ("e2eTests.yml", 4, 'mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"'),
-    )
-    for workflow_name, expected_jobs, visual_install_command in workflow_expectations:
-        workflow = (root / ".github" / "workflows" / workflow_name).read_text(encoding="utf-8")
-        install_count = workflow.count(visual_install_command)
-        activation_count = workflow.count('"-DincludeVisualTestRuntime"')
-        if install_count != expected_jobs or activation_count != expected_jobs:
-            errors.append(
-                f"{workflow_name} must prepare and activate the visual test runtime "
-                f"for {expected_jobs} broad browser jobs"
-            )
     e2e_workflow = (root / ".github" / "workflows" / "e2eTests.yml").read_text(encoding="utf-8")
+    grid_install_count = e2e_workflow.count('mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"')
+    local_install_count = (
+        e2e_workflow.count('mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"')
+        - grid_install_count
+    )
+    activation_count = e2e_workflow.count('"-DincludeVisualTestRuntime"')
+    if grid_install_count != 4 or local_install_count != 4 or activation_count != 8:
+        errors.append(
+            "e2eTests.yml must prepare and activate the visual test runtime "
+            "for 4 grid/cloud and 4 local broad browser jobs"
+        )
     for cucumber_argument in (
         '"-Dcucumber.features=src/test/resources/CucumberFeatures,src/test/resources/CustomCucumberFeatures"',
         '"-Dcucumber.glue=customCucumberSteps,com.shaft.cucumber"',

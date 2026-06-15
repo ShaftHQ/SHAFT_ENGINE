@@ -58,9 +58,6 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
     def test_workflows_resolve_sdk_only_for_browserstack_jobs(self):
         workflows = [
             ROOT / ".github/workflows/e2eTests.yml",
-            ROOT / ".github/workflows/e2eLocalTests.yml",
-            ROOT / ".github/workflows/e2eLambdaTestTests.yml",
-            ROOT / ".github/workflows/e2eMoonTests.yml",
         ]
         commands = [
             line.strip()
