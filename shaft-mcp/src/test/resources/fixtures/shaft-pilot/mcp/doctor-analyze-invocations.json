@@ -3,12 +3,16 @@
   "tool": "doctor_analyze_failed_allure",
   "clients": [
     {
+      "name": "ChatGPT",
+      "transport": "streamable-http"
+    },
+    {
       "name": "Codex",
-      "transport": "stdio"
+      "transport": "stdio-or-streamable-http"
     },
     {
       "name": "Claude",
-      "transport": "stdio"
+      "transport": "stdio-or-streamable-http"
     },
     {
       "name": "Gemini",
@@ -16,7 +20,7 @@
     },
     {
       "name": "GitHub Copilot",
-      "transport": "stdio"
+      "transport": "stdio-or-streamable-http"
     }
   ],
   "arguments": {

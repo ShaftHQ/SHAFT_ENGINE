@@ -124,7 +124,7 @@ class DoctorServiceTest {
         assertEquals("doctor_analyze_failed_allure", fixture.path("tool").asText());
         Set<String> clients = new java.util.LinkedHashSet<>();
         fixture.path("clients").forEach(client -> clients.add(client.path("name").asText()));
-        assertEquals(Set.of("Codex", "Claude", "Gemini", "GitHub Copilot"), clients);
+        assertEquals(Set.of("ChatGPT", "Codex", "Claude", "Gemini", "GitHub Copilot"), clients);
         assertTrue(fixture.path("arguments").path("includeScreenshots").isBoolean());
         assertTrue(fixture.path("arguments").path("includePageSnapshots").isBoolean());
         assertTrue(fixture.path("arguments").path("useAi").isBoolean());
