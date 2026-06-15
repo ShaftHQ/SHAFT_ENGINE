@@ -53,6 +53,14 @@ def validate(root: Path = ROOT) -> list[str]:
     mcp_pom_text = (root / "shaft-mcp" / "pom.xml").read_text(encoding="utf-8")
     if "shaft_engine.version" in mcp_pom_text:
         errors.append("shaft-mcp must not define an independent SHAFT engine version")
+    if "<Implementation-Version>${project.version}</Implementation-Version>" not in mcp_pom_text:
+        errors.append("shaft-mcp executable manifest must expose the reactor Implementation-Version")
+
+    application_source = (
+        root / "shaft-mcp/src/main/java/com/shaft/mcp/ShaftMcpApplication.java"
+    ).read_text(encoding="utf-8")
+    if '"install".equalsIgnoreCase(args[0])' not in application_source:
+        errors.append("shaft-mcp must route the install command before Spring MCP startup")
 
     engine_pom = (root / "shaft-engine" / "pom.xml").read_text(encoding="utf-8")
     if "<artifactId>shaft-mcp</artifactId>" in engine_pom:
@@ -108,6 +116,14 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("shaft-mcp workflow must run manually and once daily with local E2E workflows")
     if "pull_request:" in mcp_workflow or "\n  push:" in mcp_workflow:
         errors.append("shaft-mcp workflow must not run on pull_request or push")
+    for runner in ("ubuntu-22.04", "macos-15", "windows-2025"):
+        if runner not in mcp_workflow:
+            errors.append(f"shaft-mcp installer tests must run on {runner}")
+    central_workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(encoding="utf-8")
+    if "verify_shaft_mcp_installer_release.py" not in central_workflow:
+        errors.append("Maven Central delivery must verify the public shaft-mcp LATEST installer")
+    if "needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]" not in central_workflow:
+        errors.append("release announcements must wait for the public shaft-mcp installer matrix")
 
     for dockerfile in (root / "shaft-mcp").glob("Dockerfile*"):
         content = dockerfile.read_text(encoding="utf-8")
