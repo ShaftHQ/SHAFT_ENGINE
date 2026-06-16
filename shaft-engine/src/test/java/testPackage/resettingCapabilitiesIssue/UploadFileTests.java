@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
+import testPackage.TestPageServer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -14,7 +15,7 @@ public class UploadFileTests {
     @Test
     public void uploadFile_visibleUploadInput() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
-            driver.get().browser().navigateToURL("https://the-internet.herokuapp.com/upload");
+            driver.get().browser().navigateToURL(uploadFixture());
             driver.get().element().typeFileLocationForUpload(By.cssSelector("input[id='file-upload']"), "src/main/resources/images/shaft.png");
             driver.get().element().click(By.id("file-submit"));
             driver.get().assertThat().element(By.tagName("h3")).text().contains("File Uploaded!");
@@ -25,7 +26,7 @@ public class UploadFileTests {
     @Test
     public void uploadFile_invisibleUploadInput() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")) {
-            driver.get().browser().navigateToURL("https://the-internet.herokuapp.com/upload");
+            driver.get().browser().navigateToURL(uploadFixture());
             WebDriver nativeDriver = driver.get().getDriver();
             ((JavascriptExecutor) nativeDriver).executeScript("arguments[0].setAttribute('hidden', 'true')", nativeDriver.findElement(By.cssSelector("input[id='file-upload']")));
 
@@ -44,5 +45,9 @@ public class UploadFileTests {
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
+    }
+
+    private static String uploadFixture() {
+        return TestPageServer.url("uploadFixture.html");
     }
 }

@@ -631,6 +631,9 @@ jobs:
 
   LambdaTest_NativeAndroid:
     runs-on: ubuntu-latest
+    env:
+      LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+      LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -660,6 +663,9 @@ jobs:
 
   LambdaTest_NativeIOS:
     runs-on: ubuntu-latest
+    env:
+      LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+      LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
     needs: [ LambdaTest_NativeAndroid ]
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
@@ -689,6 +695,9 @@ jobs:
 
   LambdaTest_WebApp:
     runs-on: ubuntu-latest
+    env:
+      LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+      LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
@@ -718,6 +727,9 @@ jobs:
 
   LambdaTest_DesktopWeb:
     runs-on: ubuntu-latest
+    env:
+      LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+      LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
@@ -749,6 +761,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      MOON_URL: http://localhost:4444/wd/hub
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}

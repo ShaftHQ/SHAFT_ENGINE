@@ -9,7 +9,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_LTMobIPAAppURL {
-    SHAFT.TestData.JSON testData;
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
@@ -21,7 +20,6 @@ public class Test_LTMobIPAAppURL {
 
     @BeforeMethod
     public void setup() {
-        testData = new SHAFT.TestData.JSON("credentials.json");
         // common attributes
         SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.toString());
         SHAFT.Properties.mobile.set().automationName("XCUITest");
@@ -30,8 +28,7 @@ public class Test_LTMobIPAAppURL {
         SHAFT.Properties.lambdaTest.set().deviceName("iPhone 13");
         SHAFT.Properties.lambdaTest.set().appUrl("lt://APP10160612541701952809945764");
         SHAFT.Properties.mobile.set().browserName("");
-        SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
-        SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
+        LambdaTestCredentials.apply();
         SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
         driver.set(new SHAFT.GUI.WebDriver());
 
@@ -39,6 +36,9 @@ public class Test_LTMobIPAAppURL {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 }

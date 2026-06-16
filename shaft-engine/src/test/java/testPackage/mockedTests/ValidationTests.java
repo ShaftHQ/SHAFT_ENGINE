@@ -5,6 +5,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
+import testPackage.TestPageServer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -281,11 +282,6 @@ public class ValidationTests {
     @BeforeMethod(onlyForGroups = {"WebBased"})
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        String testElement = "data:text/html;charset=utf-8,<html dir='rtl'><body>"
-                + "<input id='primaryInput' type='text'>"
-                + "<input id='englishInput' type='text' dir='ltr' value='Automation'>"
-                + "<input id='arabicInput' type='text' dir='rtl' value='&#1605;&#1585;&#1581;&#1576;&#1575;'>"
-                + "</body></html>";
-        driver.get().browser().navigateToURL(testElement);
+        driver.get().browser().navigateToURL(TestPageServer.url("validationTextFixture.html"));
     }
 }

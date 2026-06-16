@@ -13,11 +13,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.awt.HeadlessException;
+import java.io.File;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.anyMap;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -63,8 +63,9 @@ public class BrowserActionsHelperCoverageUnitTest {
         when(driver.getCurrentUrl()).thenReturn("https://example.com/initial", "https://example.com/final");
         helper.checkNavigationWasSuccessful(driver, "https://example.com/initial", "https://example.com/source", "https://example.com/final");
 
-        helper.navigateToNewUrl(driver, "about:blank", SHAFT.Properties.paths.testData() + "/dummy.html", "");
-        verify(navigation).to(startsWith("file://"));
+        String targetFixture = SHAFT.Properties.paths.testData() + "/dummy.html";
+        helper.navigateToNewUrl(driver, "about:blank", targetFixture, "");
+        verify(navigation).to(new File(targetFixture).toURI().toString());
     }
 
     @Test

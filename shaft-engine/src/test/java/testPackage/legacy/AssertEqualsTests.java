@@ -1,8 +1,8 @@
 package testPackage.legacy;
 
-import com.shaft.driver.SHAFT;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
+import testPackage.TestPageServer;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import testPackage.Tests;
@@ -37,6 +37,6 @@ public class AssertEqualsTests extends Tests {
 
     @BeforeMethod // Set-up method, to be run once before the first test
     public void beforeMethod() {
-        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "searchFixture.html");
+        driver.get().browser().navigateToURL(TestPageServer.url("searchFixture.html"));
     }
 }

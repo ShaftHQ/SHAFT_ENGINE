@@ -9,6 +9,8 @@ services:
     shm_size: 2gb
     depends_on:
       - selenium-hub
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_NODE_GRID_URL=http://localhost:4444
@@ -21,6 +23,8 @@ services:
     shm_size: 2gb
     depends_on:
       - selenium-hub
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_NODE_GRID_URL=http://localhost:4444
@@ -33,6 +37,8 @@ services:
     shm_size: 2gb
     depends_on:
       - selenium-hub
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_NODE_GRID_URL=http://localhost:4444

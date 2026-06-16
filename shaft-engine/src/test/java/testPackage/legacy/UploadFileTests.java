@@ -1,6 +1,7 @@
 package testPackage.legacy;
 
 import org.openqa.selenium.By;
+import testPackage.TestPageServer;
 import org.testng.annotations.Test;
 import testPackage.Tests;
 
@@ -8,24 +9,24 @@ public class UploadFileTests extends Tests {
     @Test
     public void uploadFileViaVisibleInput() {
         driver.get().browser()
-                .navigateToURL("https://the-internet.herokuapp.com/upload")
+                .navigateToURL(uploadFixture())
                 .element()
                 .typeFileLocationForUpload(By.cssSelector("input[id='file-upload']"), "src/test/resources/testDataFiles/sample.pdf")
-                .click("Upload")
+                .click(By.id("file-submit"))
                 .assertThat(By.tagName("h3")).text().contains("File Uploaded!");
     }
     @Test
     public void uploadFileViaHiddenInput(){
         driver.get().browser()
-                .navigateToURL("https://codyhouse.co/app/components/demo/demo-drag-drop-file")
+                .navigateToURL(uploadFixture())
                 .element()
-                .typeFileLocationForUpload(By.cssSelector("input[type='file']"), "src/test/resources/testDataFiles/sample.pdf")
+                .typeFileLocationForUpload(By.id("upload-file"), "src/test/resources/testDataFiles/sample.pdf")
                 .assertThat(By.tagName("body")).text().contains("1 selected file");
     }
     @Test
     public void uploadFileViaDragAndDrop() {
         driver.get().browser()
-                .navigateToURL("https://codyhouse.co/app/components/demo/demo-drag-drop-file")
+                .navigateToURL(uploadFixture())
                 .element()
                 .dropFileToUpload(By.cssSelector("label[for='upload-file']"), "src/test/resources/testDataFiles/sample.pdf")
                 .assertThat(By.tagName("body")).text().contains("1 selected file");
@@ -46,9 +47,13 @@ public class UploadFileTests extends Tests {
     @Test
     public void uploadFileViaAjax(){
         driver.get().browser()
-                .navigateToURL("https://www.west-wind.com/wconnect/wcscripts/fileupload.wwd")
+                .navigateToURL(uploadFixture())
                 .element()
                 .typeFileLocationForUpload(By.id("ajaxUpload"), "src/test/resources/testDataFiles/youtube.png")
                 .assertThat(By.cssSelector("div[id='ImageList'] > img")).domAttribute("src").contains("youtube.png");
+    }
+
+    private static String uploadFixture() {
+        return TestPageServer.url("uploadFixture.html");
     }
 }

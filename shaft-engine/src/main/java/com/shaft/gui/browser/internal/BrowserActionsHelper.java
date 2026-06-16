@@ -247,7 +247,7 @@ public class BrowserActionsHelper {
     }
 
     /**
-     * Navigates the browser to a new URL. Handles local file paths by prepending the {@code file://} scheme,
+     * Navigates the browser to a new URL. Handles local test-data file paths by converting them to file URIs,
      * and prefers the W3C BiDi {@link BrowsingContext} API for navigation when available. Falls back to
      * the classic {@link WebDriver#navigate()} API for non-BiDi drivers or on timeout.
      *
@@ -266,7 +266,7 @@ public class BrowserActionsHelper {
         var internalURL = targetUrl;
         try {
             if (targetUrl.startsWith(SHAFT.Properties.paths.testData())) {
-                internalURL = "file://" + new File(targetUrl).getAbsolutePath();
+                internalURL = new File(targetUrl).toURI().toString();
             }
         } catch (Exception exception) {
             ReportManagerHelper.logDiscrete(exception, Level.DEBUG);
