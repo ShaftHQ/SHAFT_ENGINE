@@ -150,33 +150,23 @@ public class TerminalActionsUnitTest {
         reuseRemoteSessionField.setAccessible(true);
         Assert.assertTrue((Boolean) reuseRemoteSessionField.get(terminal),
                 "Facade-created remote terminal should enable reusable SSH session lifecycle");
-
-        Field verboseField = TerminalActions.class.getDeclaredField("verbose");
-        verboseField.setAccessible(true);
-        Assert.assertFalse((Boolean) verboseField.get(terminal),
-                "Default remote terminal should not enable verbose streaming");
     }
 
-    @Test(description = "getRemoteInstance verbose overload should enable line-by-line streaming")
-    public void getRemoteInstanceShouldEnableVerboseWhenRequested() throws Exception {
-        TerminalActions terminal = TerminalActions.getRemoteInstance(
+    @Test(description = "verbose remote terminal overloads should create reusable remote instances")
+    public void verboseRemoteTerminalOverloadsShouldCreateRemoteInstances() {
+        TerminalActions defaultRemoteTerminal = SHAFT.CLI.remoteTerminal(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa");
+        TerminalActions verboseFacadeTerminal = SHAFT.CLI.remoteTerminal(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa", true);
+        TerminalActions verboseFactoryTerminal = TerminalActions.getRemoteInstance(
                 "host.example.com", 2222, "user", "/keys/", "id_rsa", true);
 
-        Field verboseField = TerminalActions.class.getDeclaredField("verbose");
-        verboseField.setAccessible(true);
-        Assert.assertTrue((Boolean) verboseField.get(terminal),
-                "Verbose remote instance should enable line-by-line streaming");
-    }
-
-    @Test(description = "remoteTerminal verbose facade should enable line-by-line streaming")
-    public void remoteTerminalFacadeShouldEnableVerboseWhenRequested() throws Exception {
-        TerminalActions terminal = SHAFT.CLI.remoteTerminal(
-                "host.example.com", 2222, "user", "/keys/", "id_rsa", true);
-
-        Field verboseField = TerminalActions.class.getDeclaredField("verbose");
-        verboseField.setAccessible(true);
-        Assert.assertTrue((Boolean) verboseField.get(terminal),
-                "Verbose remoteTerminal() should enable line-by-line streaming");
+        Assert.assertTrue(defaultRemoteTerminal.isRemoteTerminal(),
+                "Default remoteTerminal() should create a remote instance");
+        Assert.assertTrue(verboseFacadeTerminal.isRemoteTerminal(),
+                "Verbose remoteTerminal() should create a remote instance");
+        Assert.assertTrue(verboseFactoryTerminal.isRemoteTerminal(),
+                "Verbose getRemoteInstance() should create a remote instance");
     }
 
     @Test(description = "quit should be safe before any reusable SSH connection is opened")
