@@ -35,6 +35,7 @@ on:
       - 'scripts/ci/validate_shaft_mcp_transports.py'
       - 'scripts/ci/verify_maven_central_release.py'
       - 'scripts/ci/verify_shaft_mcp_installer_release.py'
+      - 'scripts/mcp/**'
   workflow_dispatch:
 
 jobs:

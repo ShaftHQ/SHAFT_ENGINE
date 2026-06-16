@@ -26,7 +26,13 @@ and optional agent tools without rebuilding the framework for every surface.
 Connect Codex to SHAFT browser automation, Capture, and Doctor:
 
 ```bash
-codex mcp add shaft-mcp -- docker run --rm -i ghcr.io/shafthq/shaft-engine-mcp:latest
+curl -fsSL https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp.sh | sh -s -- --codex
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp.ps1 | iex; Install-ShaftMcp -Client codex
 ```
 
 Then ask:

@@ -18,6 +18,7 @@ on:
       - "scripts/ci/validate_shaft_pilot_release.py"
       - "scripts/ci/validate_maven_publication.py"
       - "scripts/ci/validate_reactor_versions.py"
+      - "scripts/mcp/**"
       - "tools/modularization/consumer-fixtures/**"
       - ".github/actions/upload-jacoco-coverage/action.yml"
       - ".github/workflows/shaft-pilot-release.yml"
