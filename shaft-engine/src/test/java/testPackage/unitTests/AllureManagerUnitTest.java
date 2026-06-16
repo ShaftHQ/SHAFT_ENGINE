@@ -110,6 +110,56 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(getResultsPath.invoke(null).toString()).isEqualTo("").perform();
     }
 
+    @Test(description = "Absolute allureResultsFolderPath should define the Allure execution root")
+    public void absoluteAllureResultsPathShouldDefineExecutionRoot() throws Exception {
+        Path executionRoot = Path.of(System.getProperty("user.dir"), "target", "allure-absolute-execution-root")
+                .toAbsolutePath()
+                .normalize();
+        Path resultsDirectory = executionRoot.resolve("allure-results");
+        Files.createDirectories(resultsDirectory);
+        setStaticField(AllureManager.class, "allureResultsFolderPath", resultsDirectory.toString());
+        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "echo");
+        setStaticField(AllureManager.class, "cachedIsAllure2", false);
+        SHAFT.Properties.allure.set().forceConfiguredCliVersion(true).accumulateHistory(true);
+
+        Method reportDirectoryPath = AllureManager.class.getDeclaredMethod("reportDirectoryPath");
+        Method reportOutputDirectoryPath = AllureManager.class.getDeclaredMethod("reportOutputDirectoryPath");
+        Method allureConfigPath = AllureManager.class.getDeclaredMethod("allureConfigPath");
+        Method writeGenerateReportShellFiles = AllureManager.class.getDeclaredMethod("writeGenerateReportShellFilesToProjectDirectory");
+        Method writeAllureConfig = AllureManager.class.getDeclaredMethod("writeAllureConfig", String.class, String.class);
+        Method getCommandToCreateAllureReport = AllureManager.class.getDeclaredMethod("getCommandToCreateAllureReport");
+        reportDirectoryPath.setAccessible(true);
+        reportOutputDirectoryPath.setAccessible(true);
+        allureConfigPath.setAccessible(true);
+        writeGenerateReportShellFiles.setAccessible(true);
+        writeAllureConfig.setAccessible(true);
+        getCommandToCreateAllureReport.setAccessible(true);
+
+        Path reportDirectory = (Path) reportDirectoryPath.invoke(null);
+        Path reportOutputDirectory = (Path) reportOutputDirectoryPath.invoke(null);
+        Path configPath = (Path) allureConfigPath.invoke(null);
+        writeGenerateReportShellFiles.invoke(null);
+        writeAllureConfig.invoke(null, "Absolute Root Report", reportOutputDirectory.toString());
+        setStaticField(AllureManager.class, "allureOutPutDirectory", reportOutputDirectory.toString());
+        String command = (String) getCommandToCreateAllureReport.invoke(null);
+
+        String scriptFileName = SystemUtils.IS_OS_WINDOWS ? "generate_allure_report.bat" : "generate_allure_report.sh";
+        Path scriptPath = executionRoot.resolve(scriptFileName);
+        String scriptContent = Files.readString(scriptPath, StandardCharsets.UTF_8);
+        String configContent = Files.readString(configPath, StandardCharsets.UTF_8);
+
+        SHAFT.Validations.assertThat().object(reportDirectory).isEqualTo(executionRoot.resolve("allure-report")).perform();
+        SHAFT.Validations.assertThat().object(reportOutputDirectory).isEqualTo(executionRoot.resolve("target").resolve("allure-report")).perform();
+        SHAFT.Validations.assertThat().object(configPath).isEqualTo(executionRoot.resolve("allurerc.yaml")).perform();
+        SHAFT.Validations.assertThat().object(scriptContent).contains(configPath.toString()).perform();
+        SHAFT.Validations.assertThat().object(scriptContent).contains(resultsDirectory.toString()).perform();
+        SHAFT.Validations.assertThat().object(configContent).contains(reportOutputDirectory.toString().replace("\\", "/")).perform();
+        SHAFT.Validations.assertThat().object(configContent).contains(executionRoot.resolve("target").resolve("history.jsonl").toString().replace("\\", "/")).perform();
+        SHAFT.Validations.assertThat().object(command).contains(configPath.toString()).perform();
+        SHAFT.Validations.assertThat().object(command).contains(resultsDirectory.toString()).perform();
+        SHAFT.Validations.assertThat().object(command).contains(reportOutputDirectory.toString()).perform();
+    }
+
     @Test(description = "cleanAllureResultsDirectory should leave the results directory ready for parallel Allure writers")
     public void cleanAllureResultsDirectoryShouldRecreateResultsDirectory() throws Exception {
         Path resultsDirectory = Files.createTempDirectory("shaft-allure-results");
@@ -609,6 +659,7 @@ public class AllureManagerUnitTest {
         writeAllureReport.invoke(null);
 
         Files.deleteIfExists(Path.of(System.getProperty("user.dir"), "allurerc.yaml"));
+        Files.deleteIfExists(resultsDirectory.getParent().resolve("allurerc.yaml"));
     }
 
     @Test(description = "resolveAllureCommandPrefix should support legacy resolution and cached-empty shortcut")
@@ -798,7 +849,8 @@ public class AllureManagerUnitTest {
         setStaticField(AllureManager.class, "cachedIsAllure2", true);
 
         SHAFT.Properties.allure.set().generateArchive(true);
-        try (Stream<Path> existingArchives = Files.list(Path.of(System.getProperty("user.dir")))) {
+        Path archiveRoot = resultsDirectory.getParent();
+        try (Stream<Path> existingArchives = Files.list(archiveRoot)) {
             existingArchives.filter(path -> path.getFileName().toString().startsWith("generatedReport_")
                             && path.getFileName().toString().endsWith(".zip"))
                     .forEach(path -> {
@@ -811,14 +863,14 @@ public class AllureManagerUnitTest {
 
         AllureManager.generateAllureReportArchive();
 
-        try (Stream<Path> generatedArchives = Files.list(Path.of(System.getProperty("user.dir")))) {
+        try (Stream<Path> generatedArchives = Files.list(archiveRoot)) {
             long archiveCount = generatedArchives.filter(path -> path.getFileName().toString().startsWith("generatedReport_")
                             && path.getFileName().toString().endsWith(".zip"))
                     .count();
             SHAFT.Validations.assertThat().number((int) archiveCount).isEqualTo(1).perform();
         } finally {
             SHAFT.Properties.allure.set().generateArchive(false);
-            try (Stream<Path> generatedArchives = Files.list(Path.of(System.getProperty("user.dir")))) {
+            try (Stream<Path> generatedArchives = Files.list(archiveRoot)) {
                 generatedArchives.filter(path -> path.getFileName().toString().startsWith("generatedReport_")
                                 && path.getFileName().toString().endsWith(".zip"))
                         .forEach(path -> {

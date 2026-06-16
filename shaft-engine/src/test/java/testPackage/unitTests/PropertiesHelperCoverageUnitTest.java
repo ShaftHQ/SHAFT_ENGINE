@@ -12,6 +12,8 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Test(singleThreaded = true)
@@ -80,6 +82,25 @@ public class PropertiesHelperCoverageUnitTest {
         Assert.assertTrue(Properties.isInitialized(), "AI-agent initialization should load properties.");
         Assert.assertTrue(new File("target" + File.separator + "temp" + File.separator + "properties").exists(),
                 "AI-agent initialization should create the temporary properties directory.");
+    }
+
+    @Test
+    public void aiAgentPathResolverShouldUseConfiguredWorkspaceRootForRelativePaths() throws Exception {
+        Path workspaceRoot = Path.of(System.getProperty("user.dir"), "target", "ai-agent-workspace-root-test")
+                .toAbsolutePath()
+                .normalize();
+        Files.createDirectories(workspaceRoot);
+        SHAFT.Properties.paths.set().aiAgentWorkspaceRoot(workspaceRoot.toString());
+
+        Method resolver = PropertiesHelper.class.getDeclaredMethod("resolveAiAgentPath", String.class);
+        resolver.setAccessible(true);
+        String relativePath = "target" + File.separator + "temp" + File.separator + "properties";
+        String absolutePath = workspaceRoot.resolve("absolute-properties").toString();
+
+        Assert.assertEquals(resolver.invoke(null, relativePath),
+                workspaceRoot.resolve(relativePath).normalize().toString());
+        Assert.assertEquals(resolver.invoke(null, absolutePath),
+                Path.of(absolutePath).normalize().toString());
     }
 
     @Test

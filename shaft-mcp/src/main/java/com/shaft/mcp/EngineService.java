@@ -12,13 +12,27 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Service
 public class EngineService {
     private static final Logger logger = LoggerFactory.getLogger(EngineService.class);
     private static SHAFT.GUI.WebDriver driver;
     private static boolean engineInitialized = false;
+    private static final String[][] MCP_PATH_PROPERTIES = {
+            {"allureResultsFolderPath", "allure-results"},
+            {"propertiesFolderPath", "src/main/resources/properties"},
+            {"downloadsFolderPath", "target/downloadedFiles"},
+            {"video.folder", "allure-results/videos"},
+            {"servicesFolderPath", "src/test/resources/META-INF/services"},
+            {"dynamicObjectRepositoryPath", "src/main/resources/dynamicObjectRepository"},
+            {"testDataFolderPath", "src/test/resources/testDataFiles"},
+            {"extentReportsFolderPath", "extent-reports"},
+            {"executionSummaryReportFolderPath", "execution-summary"},
+            {"PerformanceReportFolderPath", "performanceReport"}
+    };
 
     /**
      * Called by Spring after this bean is constructed.
@@ -33,6 +47,7 @@ public class EngineService {
         if (System.getProperty("rp.enable") == null) {
             System.setProperty("rp.enable", "false");
         }
+        configureRuntimePaths();
 
         // Configure remote WebDriver if REMOTE_DRIVER_ADDRESS environment variable is set.
         // SHAFT Engine uses a single "executionAddress" property:
@@ -112,28 +127,47 @@ public class EngineService {
         // Initialize engine setup only once to avoid repeated initialization warnings
         if (!engineInitialized) {
             logger.info("Initializing SHAFT Engine for AI Agent mode...");
-
-            // Pre-create directories to prevent issues during SHAFT Engine initialization.
-            // The allure-results directory must exist before Allure lifecycle is initialized.
-            // The properties directory must exist (empty) before engineSetup() to prevent
-            // SHAFT Engine from extracting default property files with subdirectories that
-            // cause "Is a directory" IOException during ReportHelper.attachPropertyFiles().
-            for (String dirPath : new String[]{
-                    System.getProperty("user.dir") + File.separator + "allure-results",
-                    "src" + File.separator + "main" + File.separator + "resources" + File.separator + "properties"
-            }) {
-                File dir = new File(dirPath);
-                if (!dir.exists()) {
-                    if (dir.mkdirs()) {
-                        logger.debug("Created directory: {}", dirPath);
-                    } else {
-                        logger.warn("Failed to create directory: {}", dirPath);
-                    }
-                }
-            }
-
+            configureRuntimePaths();
             TestNGListener.engineSetup(ProjectStructureManager.RunType.AI_AGENT);
             engineInitialized = true;
+        }
+    }
+
+    static Path configureRuntimePaths() {
+        return configureRuntimePaths(McpRuntimePaths.currentRoot());
+    }
+
+    static Path configureRuntimePaths(Path runtimeRoot) {
+        Path root = runtimeRoot.toAbsolutePath().normalize();
+        setPathProperty("aiAgentWorkspaceRoot", root, root.toString());
+        for (String[] pathProperty : MCP_PATH_PROPERTIES) {
+            setPathProperty(pathProperty[0], root, pathProperty[1]);
+        }
+        for (String[] pathProperty : MCP_PATH_PROPERTIES) {
+            createDirectory(System.getProperty(pathProperty[0]), pathProperty[0]);
+        }
+        return root;
+    }
+
+    private static void setPathProperty(String key, Path root, String defaultValue) {
+        String configured = System.getProperty(key);
+        String value = configured == null || configured.isBlank()
+                ? defaultValue
+                : configured;
+        Path path = Path.of(value);
+        if (!path.isAbsolute()) {
+            path = root.resolve(path).normalize();
+        }
+        System.setProperty(key, path.toString());
+    }
+
+    private static void createDirectory(String configuredPath, String propertyKey) {
+        try {
+            Files.createDirectories(Path.of(configuredPath));
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Could not create MCP runtime directory for " + propertyKey + ": " + configuredPath,
+                    exception);
         }
     }
 

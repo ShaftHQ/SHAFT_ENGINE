@@ -34,6 +34,10 @@ public interface Paths extends EngineProperties<Paths> {
     @DefaultValue("src/main/resources/properties/default")
     String defaultProperties();
 
+    @Key("aiAgentWorkspaceRoot")
+    @DefaultValue("")
+    String aiAgentWorkspaceRoot();
+
     @Key("dynamicObjectRepositoryPath")
     @DefaultValue("src/main/resources/dynamicObjectRepository/")
     String dynamicObjectRepository();
@@ -82,6 +86,11 @@ public interface Paths extends EngineProperties<Paths> {
     class SetProperty implements EngineProperties.SetProperty {
         public SetProperty properties(String value) {
             setProperty("propertiesFolderPath", value);
+            return this;
+        }
+
+        public SetProperty aiAgentWorkspaceRoot(String value) {
+            setProperty("aiAgentWorkspaceRoot", value);
             return this;
         }
 

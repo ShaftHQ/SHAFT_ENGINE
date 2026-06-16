@@ -19,6 +19,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -77,7 +78,6 @@ public class AllureManager {
     // ─── Allure 3 report paths & config ────────────────────────────────────────
     private static final String allureReportPath = "allure-report";
     private static final String allureConfigFileName = "allurerc.yaml";
-    private static final String allureRealtimeLogFile = System.getProperty("user.dir") + File.separator + "target" + File.separator + "allure-watch.log";
 
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────
     /** Cache directory for the downloaded portable Node.js distribution. */
@@ -154,7 +154,7 @@ public class AllureManager {
     }
 
     private static void copyAndOpenAllure() {
-        internalFileSession.copyFolder(allureOutPutDirectory, allureReportPath);
+        internalFileSession.copyFolder(allureOutPutDirectory, reportDirectoryPath().toString());
         internalFileSession.deleteFile(allureOutPutDirectory);
         String newFileName = renameAllureReport();
         if (newFileName != null) {
@@ -172,7 +172,7 @@ public class AllureManager {
         String newFileName = "AllureReport.html";
         if (SHAFT.Properties.allure.accumulateReports())
             newFileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + "_AllureReport.html";
-        String sourceFile = System.getProperty("user.dir") + File.separator + allureReportPath + File.separator + "index.html";
+        String sourceFile = reportDirectoryPath().resolve("index.html").toString();
         if (!internalFileSession.doesFileExist(sourceFile)) {
             // Allure report was not generated (CLI bootstrap failed or allure-results was empty)
             ReportManager.logDiscrete("Allure report 'index.html' not found — 'allure generate' may have failed."
@@ -184,7 +184,7 @@ public class AllureManager {
     }
 
     private static void openAllureReport(String newFileName) {
-        String reportPath = new File(allureReportPath, newFileName).getAbsolutePath();
+        String reportPath = reportDirectoryPath().resolve(newFileName).toFile().getAbsolutePath();
         if (SystemUtils.IS_OS_WINDOWS) {
             reportPath = reportPath.replace("'", "''");
             internalTerminalSession.performTerminalCommand(
@@ -239,6 +239,39 @@ public class AllureManager {
         return allureResultsFolderPath;
     }
 
+    private static Path getExecutionRootPath() {
+        String resultsPath = getResultsPath();
+        if (resultsPath != null && !resultsPath.isBlank()) {
+            Path configuredResultsPath = Path.of(resultsPath);
+            if (configuredResultsPath.isAbsolute()) {
+                Path normalizedResultsPath = configuredResultsPath.toAbsolutePath().normalize();
+                Path parent = normalizedResultsPath.getParent();
+                return parent == null ? normalizedResultsPath : parent;
+            }
+        }
+        return Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+    }
+
+    private static Path resolveExecutionPath(String first, String... more) {
+        return getExecutionRootPath().resolve(Path.of(first, more)).normalize();
+    }
+
+    private static Path reportDirectoryPath() {
+        return resolveExecutionPath(allureReportPath);
+    }
+
+    private static Path reportOutputDirectoryPath() {
+        return resolveExecutionPath("target", allureReportPath);
+    }
+
+    private static Path allureConfigPath() {
+        return resolveExecutionPath(allureConfigFileName);
+    }
+
+    private static Path allureRealtimeLogPath() {
+        return resolveExecutionPath("target", "allure-watch.log");
+    }
+
     private static void writeGenerateReportShellFilesToProjectDirectory() {
         // create generate_allure_report.sh or generate_allure_report.bat
         // These scripts re-generate the report from allure-results and serve it via HTTP.
@@ -251,22 +284,24 @@ public class AllureManager {
                         "@echo off",
                         "allure serve \"" + resultsPath + "\"",
                         "pause", "exit");
-                internalFileSession.writeToFile("", "generate_allure_report.bat", commands);
+                internalFileSession.writeToFile(resolveExecutionPath("generate_allure_report.bat").toString(),
+                        String.join(System.lineSeparator(), commands));
             } else {
                 List<String> commands = Arrays.asList(
                         "#!/bin/bash",
                         "allure serve \"" + resultsPath + "\"");
-                internalFileSession.writeToFile("", "generate_allure_report.sh", commands);
-                internalTerminalSession.performTerminalCommand("chmod u+x generate_allure_report.sh");
+                Path scriptPath = resolveExecutionPath("generate_allure_report.sh");
+                internalFileSession.writeToFile(scriptPath.toString(), String.join(System.lineSeparator(), commands));
+                internalTerminalSession.performTerminalCommand("chmod u+x \"" + scriptPath + "\"");
             }
             return;
         }
 
-        // Allure 3 mode: --config allurerc.yaml is passed explicitly so the singleFile/groupBy/reportName
+        // Allure 3 mode: --config is passed explicitly so the singleFile/groupBy/reportName
         // options written by writeAllureConfig() are honoured when the user runs the script manually.
         String allure3Version = SHAFT.Properties.internal.allure3Version();
         boolean enforceConfiguredCliVersion = SHAFT.Properties.allure.forceConfiguredCliVersion();
-        String serveArguments = "serve --config allurerc.yaml \"" + resultsPath + "\"";
+        String serveArguments = "serve --config \"" + allureConfigPath() + "\" \"" + resultsPath + "\"";
         List<String> commandsToServeAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
             if (enforceConfiguredCliVersion) {
@@ -280,7 +315,8 @@ public class AllureManager {
                         "where allure >nul 2>&1 && (allure " + serveArguments + ") || (npx --yes allure@" + allure3Version + " " + serveArguments + ")",
                         "pause", "exit");
             }
-            internalFileSession.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
+            internalFileSession.writeToFile(resolveExecutionPath("generate_allure_report.bat").toString(),
+                    String.join(System.lineSeparator(), commandsToServeAllureReport));
         } else {
             if (enforceConfiguredCliVersion) {
                 commandsToServeAllureReport = Arrays.asList(
@@ -295,9 +331,10 @@ public class AllureManager {
                         "  npx --yes allure@" + allure3Version + " " + serveArguments,
                         "fi");
             }
-            internalFileSession.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
+            Path scriptPath = resolveExecutionPath("generate_allure_report.sh");
+            internalFileSession.writeToFile(scriptPath.toString(), String.join(System.lineSeparator(), commandsToServeAllureReport));
             // make script executable on Unix-based shells
-            internalTerminalSession.performTerminalCommand("chmod u+x generate_allure_report.sh");
+            internalTerminalSession.performTerminalCommand("chmod u+x \"" + scriptPath + "\"");
         }
     }
 
@@ -356,15 +393,15 @@ public class AllureManager {
         // clean allure-report directory before execution
         if (!SHAFT.Properties.allure.accumulateReports()) {
             try {
-                internalFileSession.deleteFolder(allureReportPath);
+                internalFileSession.deleteFolder(reportDirectoryPath().toString());
             } catch (Exception t) {
-                ReportManager.log("Failed to delete '" + allureReportPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
+                ReportManager.log("Failed to delete '" + reportDirectoryPath() + "' as it is currently open. Kindly restart your device to unlock the directory.");
             }
         }
     }
 
     private static void writeAllureReport() {
-        allureOutPutDirectory = System.getProperty("user.dir") + File.separator + "target" + File.separator + allureReportPath;
+        allureOutPutDirectory = reportOutputDirectoryPath().toString();
         var customReportName = SHAFT.Properties.allure.customTitle();
         internalFileSession.createFolder(allureOutPutDirectory);
 
@@ -409,8 +446,7 @@ public class AllureManager {
         configBuilder.append("output: \"").append(safeOutputDir).append("\"\n");
 
         if (SHAFT.Properties.allure.accumulateHistory()) {
-            String historyPath = escapeYamlString((System.getProperty("user.dir") + File.separator + "target"
-                    + File.separator + "history.jsonl").replace("\\", "/"));
+            String historyPath = escapeYamlString(resolveExecutionPath("target", "history.jsonl").toString().replace("\\", "/"));
             configBuilder.append("historyPath: \"").append(historyPath).append("\"\n");
             configBuilder.append("appendHistory: true\n");
         }
@@ -433,7 +469,7 @@ public class AllureManager {
         }
 
         internalFileSession.writeToFile(
-                System.getProperty("user.dir") + File.separator + allureConfigFileName,
+                allureConfigPath().toString(),
                 configBuilder.toString());
     }
 
@@ -453,7 +489,7 @@ public class AllureManager {
         ProcessBuilder processBuilder = SystemUtils.IS_OS_WINDOWS
                 ? new ProcessBuilder("cmd.exe", "/c", command)
                 : new ProcessBuilder("sh", "-c", command);
-        processBuilder.directory(new File(System.getProperty("user.dir")));
+        processBuilder.directory(getExecutionRootPath().toFile());
 
         ExecutorService streamReaders = Executors.newFixedThreadPool(2);
         try {
@@ -558,9 +594,15 @@ public class AllureManager {
             ProcessBuilder processBuilder = SystemUtils.IS_OS_WINDOWS
                     ? new ProcessBuilder("cmd.exe", "/c", command)
                     : new ProcessBuilder("sh", "-c", command);
-            processBuilder.directory(new File(System.getProperty("user.dir")));
+            Path executionRoot = getExecutionRootPath();
+            if (!Files.isDirectory(executionRoot)) {
+                return null;
+            }
+            Path realtimeLogPath = allureRealtimeLogPath();
+            Files.createDirectories(realtimeLogPath.getParent());
+            processBuilder.directory(executionRoot.toFile());
             processBuilder.redirectErrorStream(true);
-            processBuilder.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(allureRealtimeLogFile)));
+            processBuilder.redirectOutput(ProcessBuilder.Redirect.appendTo(realtimeLogPath.toFile()));
             return processBuilder.start();
         } catch (IOException e) {
             ReportManager.logDiscrete("Failed to start Allure real-time monitoring: " + e.getMessage());
@@ -787,7 +829,7 @@ public class AllureManager {
         }
 
         // Allure 3: pass --config explicitly so allurerc.yaml is always applied
-        String configPath = System.getProperty("user.dir") + File.separator + allureConfigFileName;
+        String configPath = allureConfigPath().toString();
         return prefix + " generate --config \"" + configPath + "\" \""
                 + resultsPath + "\" -o \"" + allureOutPutDirectory + "\"";
     }
@@ -1158,7 +1200,8 @@ public class AllureManager {
     }
 
     private static void createAllureReportArchive() {
-        internalFileSession.zipFiles(allureOutPutDirectory, "generatedReport_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + ".zip");
+        String archivePath = resolveExecutionPath("generatedReport_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")) + ".zip").toString();
+        internalFileSession.zipFiles(allureOutPutDirectory, archivePath);
     }
 
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {

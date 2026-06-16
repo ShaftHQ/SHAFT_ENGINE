@@ -142,7 +142,9 @@ public class AllureManagerCoverageUnitTest {
         String scriptContents = Files.readString(script, StandardCharsets.UTF_8);
 
         Assert.assertTrue(scriptContents.contains("npx --yes allure@" + SHAFT.Properties.internal.allure3Version()), scriptContents);
-        Assert.assertTrue(scriptContents.contains("serve --config allurerc.yaml " + quote(allureResultsDirectory.toString())), scriptContents);
+        Assert.assertTrue(scriptContents.contains("serve --config "
+                + quote(Path.of("allurerc.yaml").toAbsolutePath().toString())
+                + " " + quote(allureResultsDirectory.toString())), scriptContents);
         Assert.assertFalse(scriptContents.contains(allureResultsDirectory + File.separator + "\""), scriptContents);
     }
 

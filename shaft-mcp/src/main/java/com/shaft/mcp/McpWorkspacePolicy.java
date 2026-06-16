@@ -10,8 +10,6 @@ import java.util.List;
  * Local MCP workspace boundary for user-supplied filesystem paths.
  */
 final class McpWorkspacePolicy {
-    private static final String WORKSPACE_ENVIRONMENT_VARIABLE = "SHAFT_MCP_WORKSPACE_ROOT";
-
     private final Path root;
 
     private McpWorkspacePolicy(Path root) {
@@ -19,16 +17,12 @@ final class McpWorkspacePolicy {
     }
 
     /**
-     * Creates a policy from {@code SHAFT_MCP_WORKSPACE_ROOT}, or the current working directory when unset.
+     * Creates a policy from the effective MCP runtime root.
      *
      * @return effective workspace policy
      */
     static McpWorkspacePolicy current() {
-        String configured = System.getenv(WORKSPACE_ENVIRONMENT_VARIABLE);
-        Path root = configured == null || configured.isBlank()
-                ? Path.of("")
-                : Path.of(configured);
-        return new McpWorkspacePolicy(root);
+        return new McpWorkspacePolicy(McpRuntimePaths.currentRoot());
     }
 
     /**
