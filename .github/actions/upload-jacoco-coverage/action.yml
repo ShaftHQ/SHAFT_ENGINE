@@ -24,6 +24,10 @@ inputs:
     description: 'JaCoCo XML files that must exist and be non-empty'
     required: false
     default: ''
+  allow-missing-coverage:
+    description: 'Whether missing required/matching JaCoCo reports should be treated as non-fatal'
+    required: false
+    default: 'false'
   fail-ci-if-error:
     description: 'Whether Codecov upload errors should fail the job'
     required: false
@@ -32,6 +36,9 @@ outputs:
   files:
     description: 'Existing JaCoCo XML files uploaded to Codecov'
     value: ${{ steps.resolve.outputs.files }}
+  has-files:
+    description: 'Whether any JaCoCo XML files were discovered'
+    value: ${{ steps.resolve.outputs.has-files }}
 runs:
   using: 'composite'
   steps:
@@ -40,6 +47,9 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+
+        allow_missing_coverage="${{ inputs.allow-missing-coverage }}"
+        echo "has-files=false" >> "$GITHUB_OUTPUT"
 
         normalize_paths() {
           local value="$1"
@@ -57,13 +67,21 @@ runs:
         while IFS= read -r required_file; do
           [ -z "$required_file" ] && continue
           if [ ! -s "$required_file" ]; then
-            echo "::error::Expected JaCoCo XML report was not generated: $required_file"
-            required_missing=true
+            if [ "$allow_missing_coverage" = "true" ]; then
+              echo "::notice::Expected JaCoCo XML report was not generated (skipped): $required_file"
+            else
+              echo "::error::Expected JaCoCo XML report was not generated: $required_file"
+              required_missing=true
+            fi
           fi
         done < <(normalize_paths "${{ inputs.required-files }}")
 
         if [ "$required_missing" = true ]; then
-          exit 1
+          if [ "$allow_missing_coverage" = "true" ]; then
+            echo "::notice::Coverage files are optional for this module; continuing without required JaCoCo validation."
+          else
+            exit 1
+          fi
         fi
 
         existing_files=()
@@ -77,16 +95,22 @@ runs:
         done < <(normalize_paths "${{ inputs.files }}")
 
         if [ "${#existing_files[@]}" -eq 0 ]; then
+          if [ "$allow_missing_coverage" = "true" ]; then
+            echo "::notice::No JaCoCo XML reports were found for Codecov upload."
+            echo "files=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           echo "::error::No JaCoCo XML reports were found for Codecov upload."
           exit 1
         fi
 
         joined_files=$(IFS=,; echo "${existing_files[*]}")
         echo "files=${joined_files}" >> "$GITHUB_OUTPUT"
+        echo "has-files=true" >> "$GITHUB_OUTPUT"
         echo "Uploading JaCoCo XML reports: ${joined_files}"
 
     - name: Upload coverage to Codecov
-      if: always() && steps.resolve.outcome == 'success'
+      if: always() && steps.resolve.outcome == 'success' && steps.resolve.outputs.has-files == 'true'
       uses: codecov/codecov-action@v7
       with:
         token: ${{ inputs.codecov-token }}
