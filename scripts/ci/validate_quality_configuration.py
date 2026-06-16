@@ -31,6 +31,10 @@ DEPENDABOT_DIRECTORIES = {
 }
 JAVA_25_UNSAFE_FLAG = "--sun-misc-unsafe-memory-access=allow"
 IGNORE_UNRECOGNIZED_VM_OPTIONS = "-XX:+IgnoreUnrecognizedVMOptions"
+FORBIDDEN_OPTIONAL_COVERAGE_SETTINGS = (
+    "require-coverage: false",
+    "allow-missing-coverage: true",
+)
 
 
 def text(element: ET.Element, path: str) -> str | None:
@@ -50,6 +54,43 @@ def validate_maven_jvm_configuration(root: Path = ROOT) -> list[str]:
     return []
 
 
+def validate_surefire_jacoco_arg_lines(root: Path = ROOT) -> list[str]:
+    errors: list[str] = []
+    for module in sorted(JAVA_MODULES):
+        pom_path = root / module / "pom.xml"
+        if not pom_path.is_file():
+            continue
+        try:
+            project = ET.parse(pom_path).getroot()
+        except ET.ParseError as error:
+            errors.append(f"{pom_path.relative_to(root).as_posix()} is not valid XML: {error}")
+            continue
+        plugins = project.findall(".//m:plugin[m:artifactId='maven-surefire-plugin']", NS)
+        for plugin in plugins:
+            arg_line = plugin.find("m:configuration/m:argLine", NS)
+            if arg_line is not None and "@{argLine}" not in (arg_line.text or ""):
+                errors.append(
+                    f"{module} Surefire argLine must preserve JaCoCo's @{{argLine}} injection"
+                )
+    return errors
+
+
+def validate_workflow_coverage_policy(root: Path = ROOT) -> list[str]:
+    errors: list[str] = []
+    workflows = root / ".github" / "workflows"
+    if not workflows.is_dir():
+        return errors
+
+    for path in sorted(workflows.glob("*.yml")):
+        workflow = path.read_text(encoding="utf-8")
+        for forbidden in FORBIDDEN_OPTIONAL_COVERAGE_SETTINGS:
+            if forbidden in workflow:
+                errors.append(
+                    f"{path.relative_to(root).as_posix()} must not mark JaCoCo coverage optional with {forbidden!r}"
+                )
+    return errors
+
+
 def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     root_pom = ET.parse(root / "pom.xml").getroot()
@@ -64,6 +105,8 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     if root_pom.find("m:build/m:plugins/m:plugin[m:artifactId='jacoco-maven-plugin']", NS) is None:
         errors.append("root build plugins must inherit managed JaCoCo execution for module reports")
     errors.extend(validate_maven_jvm_configuration(root))
+    errors.extend(validate_surefire_jacoco_arg_lines(root))
+    errors.extend(validate_workflow_coverage_policy(root))
 
     aggregate_path = root / "report-aggregate" / "pom.xml"
     if not aggregate_path.is_file():
