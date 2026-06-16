@@ -1,6 +1,7 @@
 package com.shaft.heal.internal;
 
 import com.shaft.gui.internal.healing.HealingActionOutcome;
+import com.shaft.gui.internal.healing.HealingExplanation;
 import com.shaft.gui.internal.healing.HealingObservation;
 import com.shaft.gui.internal.healing.HealingProvider;
 import com.shaft.gui.internal.healing.HealingRequest;
@@ -11,6 +12,7 @@ import com.shaft.heal.model.HealingDecision;
 import com.shaft.heal.model.HealingContext;
 import com.shaft.heal.model.HealingReport;
 import com.shaft.heal.model.LocatorFingerprint;
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 import java.time.Instant;
@@ -103,11 +105,34 @@ public class ShaftHealingProvider implements HealingProvider {
                 result.selected(),
                 retained.get(),
                 configuration,
-                request.driver()));
+                request.driver(),
+                request.originalLocator()));
         return Optional.of(new HealingResolution(
                 attemptId,
                 List.of(result.selected().element()),
                 result.selected().locator()));
+    }
+
+    @Override
+    public Optional<HealingExplanation> explain(String attemptId) {
+        PendingRecovery pending = pendingRecoveries.get(attemptId);
+        if (pending == null) {
+            return Optional.empty();
+        }
+        HealingReport report = pending.report();
+        HealingReport.ProviderMetadata provider = report.provider();
+        String providerStatus = provider.enabled()
+                ? provider.provider() + ":" + provider.status()
+                : "deterministic";
+        return Optional.of(new HealingExplanation(
+                attemptId,
+                pending.originalLocator(),
+                pending.selected().locator(),
+                report.decision().confidence(),
+                pending.configuration().minimumConfidence(),
+                pending.selected().report().evidence(),
+                providerStatus,
+                report.decision().reason()));
     }
 
     @Override
@@ -237,6 +262,7 @@ public class ShaftHealingProvider implements HealingProvider {
             RankedCandidate selected,
             HistoryRecord history,
             HealingConfiguration configuration,
-            WebDriver driver) {
+            WebDriver driver,
+            By originalLocator) {
     }
 }

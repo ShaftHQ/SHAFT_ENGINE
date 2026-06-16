@@ -63,12 +63,14 @@ public class ShaftMcpApplication {
             EngineService engineService,
             BrowserService browserService,
             ElementService elementService,
+            NaturalActionService naturalActionService,
             MobileService mobileService,
             CaptureService captureService,
             DoctorService doctorService) {
         var engineServiceList = List.of(ToolCallbacks.from(engineService));
         var browserServiceList = List.of(ToolCallbacks.from(browserService));
         var elementServiceList = List.of(ToolCallbacks.from(elementService));
+        var naturalActionServiceList = List.of(ToolCallbacks.from(naturalActionService));
         var mobileServiceList = List.of(ToolCallbacks.from(mobileService));
         var captureServiceList = List.of(ToolCallbacks.from(captureService));
         var doctorServiceList = List.of(ToolCallbacks.from(doctorService));
@@ -77,6 +79,7 @@ public class ShaftMcpApplication {
         serviceList.addAll(engineServiceList);
         serviceList.addAll(browserServiceList);
         serviceList.addAll(elementServiceList);
+        serviceList.addAll(naturalActionServiceList);
         serviceList.addAll(mobileServiceList);
         serviceList.addAll(captureServiceList);
         serviceList.addAll(doctorServiceList);

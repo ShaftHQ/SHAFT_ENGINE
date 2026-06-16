@@ -32,6 +32,11 @@ public interface Healing extends EngineProperties<Healing> {
     @DefaultValue("0.75")
     double minimumConfidence();
 
+    /** @return preferred minimum accepted trust percentage, or -1 to use healing.minimumConfidence */
+    @Key("healing.minimumTrustPercentage")
+    @DefaultValue("-1")
+    int minimumTrustPercentage();
+
     /** @return required score separation from the next candidate */
     @Key("healing.ambiguityMargin")
     @DefaultValue("0.10")
@@ -104,6 +109,12 @@ public interface Healing extends EngineProperties<Healing> {
         /** @param value minimum confidence @return this builder */
         public SetProperty minimumConfidence(double value) {
             setProperty("healing.minimumConfidence", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value minimum trust percentage from 0 to 100 @return this builder */
+        public SetProperty minimumTrustPercentage(int value) {
+            setProperty("healing.minimumTrustPercentage", String.valueOf(value));
             return this;
         }
 

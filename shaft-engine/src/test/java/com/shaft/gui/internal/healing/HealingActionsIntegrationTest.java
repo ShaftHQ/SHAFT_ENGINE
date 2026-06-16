@@ -5,7 +5,9 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
@@ -20,6 +22,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -83,6 +87,35 @@ public class HealingActionsIntegrationTest {
                 driver, ORIGINAL, "CLICK", true, null, null, null);
 
         org.testng.Assert.assertTrue(resolution.isEmpty());
+    }
+
+    @Test
+    public void acceptedProviderResolutionShouldLogWarningWithOriginalAndHealedLocators() {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingResolution recoveredResolution = new HealingResolution("attempt-1", List.of(recovered), By.id("new-id"));
+        when(provider.resolve(any())).thenReturn(Optional.of(recoveredResolution));
+        when(provider.explain("attempt-1")).thenReturn(Optional.of(new HealingExplanation(
+                "attempt-1",
+                ORIGINAL,
+                By.id("new-id"),
+                0.91,
+                0.75,
+                List.of("accessibility=1.000"),
+                "deterministic",
+                "A unique candidate passed deterministic confidence and action preconditions.")));
+        HealingProviderRegistry.setProviderForTesting(provider);
+
+        try (var reportManager = org.mockito.Mockito.mockStatic(ReportManager.class)) {
+            Optional<HealingResolution> resolution = HealingManager.resolve(
+                    driver, ORIGINAL, "CLICK", true, null, null, null);
+
+            org.testng.Assert.assertTrue(resolution.isPresent());
+            reportManager.verify(() -> ReportManager.log(
+                    argThat(message -> message.contains("old-id") && message.contains("new-id")),
+                    eq(Level.WARN)));
+        }
     }
 
     @Test

@@ -1,0 +1,1 @@
+When editing, adding, or removing SHAFT functionality, update the official user guide repository `ShaftHQ/shafthq.github.io` as part of the same task. If publishing changes, open a separate human-review PR for the docs update alongside the implementation PR. Evidence: user explicitly instructed this on 2026-06-16 after natural actions/healing implementation.

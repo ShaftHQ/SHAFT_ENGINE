@@ -12,6 +12,7 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.AsyncElementActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.internal.natural.NaturalActionExecutor;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.*;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -172,6 +173,28 @@ public class SHAFT {
              */
             public BrowserActions browser() {
                 return new BrowserActions(helper);
+            }
+
+            /**
+             * Performs an enabled natural-language browser, element, or touch action.
+             *
+             * <p>The intent is first converted into a structured SHAFT action plan,
+             * validated against the configured trust threshold, and then executed
+             * through the normal deterministic SHAFT action APIs. User-supplied
+             * arguments are passed to the plan as data values and are not included in
+             * natural-action report messages.</p>
+             *
+             * <pre>{@code
+             * driver.act("Login with valid credentials", username, password);
+             * }</pre>
+             *
+             * @param intent the natural-language action intent
+             * @param args optional action arguments referenced by the intent
+             * @return this driver instance for fluent chaining
+             */
+            public WebDriver act(String intent, Object... args) {
+                NaturalActionExecutor.perform(helper, intent, args);
+                return this;
             }
 
             /**

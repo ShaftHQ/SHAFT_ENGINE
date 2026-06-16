@@ -3,6 +3,7 @@ package com.shaft.heal.internal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.healing.HealingActionOutcome;
+import com.shaft.gui.internal.healing.HealingExplanation;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingObservation;
 import com.shaft.gui.internal.healing.HealingRequest;
@@ -142,6 +143,30 @@ public class ShaftHealingProviderTest {
 
         Assert.assertEquals(ShaftHeal.lastReport().orElseThrow().action().outcome(), "PASSED");
         HealingManager.clear(driver);
+    }
+
+    @Test
+    public void acceptedRecoveryShouldExposeWarningExplanationMetadata() {
+        WebDriver driver = driver();
+        WebElement original = element("old-id", "Username");
+        WebElement candidate = element("new-id", "Username");
+        configureSearch(driver, List.of(candidate));
+        ShaftHealingProvider provider = new ShaftHealingProvider();
+        By originalLocator = By.id("old-id");
+        provider.observe(new HealingObservation(driver, originalLocator, original, "CLICK", null, null, null));
+
+        HealingResolution resolution = provider.resolve(new HealingRequest(
+                        driver, originalLocator, "CLICK", true, null, null, null))
+                .orElseThrow();
+        HealingExplanation explanation = provider.explain(resolution.attemptId()).orElseThrow();
+
+        Assert.assertEquals(explanation.originalLocator(), originalLocator);
+        Assert.assertEquals(explanation.healedLocator(), resolution.selectedLocator());
+        Assert.assertTrue(explanation.confidence() >= 0.75);
+        Assert.assertEquals(explanation.threshold(), 0.75);
+        Assert.assertFalse(explanation.evidence().isEmpty());
+        Assert.assertEquals(explanation.providerStatus(), "deterministic");
+        Assert.assertTrue(explanation.reason().contains("unique candidate"));
     }
 
     @Test

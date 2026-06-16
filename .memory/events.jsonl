@@ -14,3 +14,7 @@
 {"actor":"agent","event":"memory.updated","id":"architecture.current","timestamp":"2026-06-15T17:06:51+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.public-docs-external","timestamp":"2026-06-15T17:09:35+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.testng-method-parallel-shared-instance-fields","timestamp":"2026-06-15T17:09:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.update-official-user-guide-for-functionality-changes","timestamp":"2026-06-16T08:11:16+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.proactive-memory-use-when-material","timestamp":"2026-06-16T08:30:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.start-new-tasks-from-origin-main","timestamp":"2026-06-16T08:33:26+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.low-token-user-guide-work","timestamp":"2026-06-16T08:34:31+03:00"}

@@ -44,8 +44,11 @@ public record HealingConfiguration(
      */
     public static HealingConfiguration current() {
         var properties = SHAFT.Properties.healing;
+        double minimumConfidence = properties.minimumTrustPercentage() >= 0
+                ? properties.minimumTrustPercentage() / 100.0
+                : properties.minimumConfidence();
         return new HealingConfiguration(
-                bounded(properties.minimumConfidence(), 0.75),
+                bounded(minimumConfidence, 0.75),
                 bounded(properties.ambiguityMargin(), 0.10),
                 split(properties.evidenceCategories()).stream()
                         .map(value -> value.toLowerCase(Locale.ROOT))

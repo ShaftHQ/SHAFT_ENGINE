@@ -3,14 +3,14 @@
 ## Repository
 
 SHAFT_ENGINE is a Maven-published Java 25 automation framework.
-Executable configuration overrides prose.
+Config overrides prose.
 
 `shaft-engine/` is the core module; sibling `shaft-*` directories contain
 optional or publication modules. Deterministic tools live in `scripts/ci/`.
 Canonical docs are at `https://shaftengine.netlify.app`.
 
-Start from the goal and relevant files. Prefer `rg`, targeted excerpts,
-structured parsers and scripts. Expand context only for a concrete uncertainty.
+Start from goal and files. Prefer `rg`, excerpts, parsers, scripts. Expand only
+for concrete uncertainty.
 
 ## Routing
 
@@ -26,32 +26,34 @@ Bridge skills point to canonical `.github/` rules; do not preload them.
 
 ## Working Rules
 
-- Read before editing, follow existing patterns, keep changes focused, and
-  preserve unrelated user work.
-- Use structured APIs for XML, JSON, YAML, and other structured data.
-- Reproduce defects and add focused regression coverage when practical.
-- Preserve public API compatibility; deprecate before removing or renaming.
-- Public docs live in `ShaftHQ/shafthq.github.io`; do not add local public
-  guides or non-root READMEs.
+- Read first, follow patterns, keep scope tight, and preserve unrelated work.
+- Use structured APIs for structured data.
+- Reproduce defects and add focused regression coverage.
+- Preserve public API compatibility; deprecate before removal/rename.
+- Public docs: `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; use targeted
+  `rg`/excerpts, no broad loads or local public guides.
+- Functionality changes require user-guide updates and a separate docs PR.
 - Never expose secrets or run deployment, publication, history rewrites,
-  destructive cleanup, or credentialed cloud suites unless explicitly required.
+  cleanup, or credentialed cloud suites unless explicitly required.
 - Do not commit generated reports, binaries, or `target/`.
 - Run browser tests headlessly unless headed validation is explicitly approved.
-- For assigned GitHub work, sync the default branch, use a dedicated branch,
-  implement and validate, then open a pull request.
+- Start new edit/PR tasks from a fresh branch off `origin/main`; use a clean
+  worktree if dirty, then implement, validate, and PR.
 
 ## Memory
 
 Memory lives in `.memory/`; current code, tests, config, and the request win.
 
-- Do not load memory automatically or for routine, self-contained work.
-- Use at most one `load_memory` call when history or a known pitfall is material
-  and current files do not answer it. Add file/subsystem hints; budget <= 600.
+- Use memory proactively when material; do not wait for a user request.
+- Do not load memory for routine, self-contained work.
+- Use at most one `load_memory` call when history, pitfalls, durable
+  instructions, or continuity matter and files do not answer it.
+  Add file/subsystem hints; budget <= 600.
 - Save only novel durable decisions, constraints, gotchas, workflows, or user
-  corrections with reviewable evidence. Do not save diaries, transient status,
-  or facts clear from code or active guidance.
-- Do not save automatically at session end; use `remember_memory` only when the
-  preceding rule applies.
+  corrections with evidence. Do not save diaries, transient status, or facts
+  clear from code or active guidance.
+- Do not save at session end; use `remember_memory` when the preceding rule
+  applies.
 
 ## Validation
 
