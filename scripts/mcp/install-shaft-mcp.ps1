@@ -1,5 +1,3 @@
-#requires -Version 5.1
-[CmdletBinding()]
 param(
     [string] $Client,
     [string] $Version = $env:SHAFT_MCP_VERSION,
@@ -16,43 +14,25 @@ function Install-ShaftMcp {
     )
 
     Set-StrictMode -Version Latest
-
     $ErrorActionPreference = "Stop"
-    $mavenVersion = "3.9.12"
-    $dependencyGoal = "org.apache.maven.plugins:maven-dependency-plugin:3.9.0:copy"
-    $artifact = "io.github.shafthq:shaft-mcp"
-    $targets = @{
-        "codex" = "--codex"
-        "codex-app" = "--codex-app"
-        "claude" = "--claude"
-        "claude-desktop" = "--claude-desktop"
-        "copilot" = "--copilot"
-        "copilot-vscode" = "--copilot-vscode"
+    $ProgressPreference = "SilentlyContinue"
+
+    $pythonRelease = "20260610"
+    $pythonVersion = "3.13.14"
+    $pythonAssets = @{
+        "x86_64-pc-windows-msvc" = @{
+            Url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.13.14%2B20260610-x86_64-pc-windows-msvc-install_only.tar.gz"
+            Sha256 = "9a77f87ec431f16e79fc7e90d9115edf187d18b64100b6f6c27189f419fd79be"
+        }
+        "aarch64-pc-windows-msvc" = @{
+            Url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.13.14%2B20260610-aarch64-pc-windows-msvc-install_only.tar.gz"
+            Sha256 = "7146b88d4b8fcd2f7154f516dee051b0891536bf48a1c2fe625a540c7bc06be6"
+        }
     }
 
     function Fail([string] $Message, [int] $Code = 1) {
         [Console]::Error.WriteLine("install-shaft-mcp: $Message")
         exit $Code
-    }
-
-    function Debug-Log([string] $Message) {
-        if ($env:SHAFT_MCP_DEBUG -eq "1") {
-            Write-Host "install-shaft-mcp debug: $Message"
-        }
-    }
-
-    function Use-Client([string] $NamedClient, [string[]] $Remaining) {
-        if ([string]::IsNullOrWhiteSpace($NamedClient) -and $Remaining.Count -eq 1) {
-            $candidate = $Remaining[0]
-            if ($candidate.StartsWith("--")) {
-                $candidate = $candidate.Substring(2)
-            }
-            $NamedClient = $candidate
-        }
-        if ([string]::IsNullOrWhiteSpace($NamedClient) -or -not $targets.ContainsKey($NamedClient)) {
-            Fail "Usage: install-shaft-mcp.ps1 -Client <codex|codex-app|claude|claude-desktop|copilot|copilot-vscode>" 2
-        }
-        return $NamedClient
     }
 
     function Bootstrap-Root {
@@ -66,269 +46,163 @@ function Install-ShaftMcp {
         return (Join-Path $base "ShaftHQ\shaft-mcp\bootstrap")
     }
 
-    function Save-Url([string] $Url, [string] $OutFile) {
-        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
-        Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $OutFile
-    }
-
-    function Java-Feature([string] $Java) {
-        $previousErrorActionPreference = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        try {
-            $output = & $Java -version 2>&1 | Out-String
-            $exitCode = $LASTEXITCODE
-        } catch {
-            return $null
-        } finally {
-            $ErrorActionPreference = $previousErrorActionPreference
-        }
-        if ($exitCode -ne 0) {
-            return $null
-        }
-        $raw = $null
-        if ($output -match 'version "([^"]+)"') {
-            $raw = $Matches[1]
-        } elseif ($output -match 'openjdk\s+([0-9][^\s]*)') {
-            $raw = $Matches[1]
-        }
-        if ([string]::IsNullOrWhiteSpace($raw)) {
-            return $null
-        }
-        if ($raw.StartsWith("1.")) {
-            return [int]($raw.Split(".")[1])
-        }
-        return [int]($raw -replace "[._-].*$", "")
-    }
-
-    function Java-25([string] $Java) {
-        return (Java-Feature $Java) -eq 25
-    }
-
-    function Java-Command-Path([string] $Name) {
-        $command = Get-Command $Name -ErrorAction SilentlyContinue
-        if ($null -eq $command) {
-            return $null
-        }
-        return $command.Source
-    }
-
-    function Cached-Java([string] $Root) {
-        if (-not (Test-Path -LiteralPath $Root)) {
-            return $null
-        }
-        foreach ($candidate in Get-ChildItem -LiteralPath $Root -Filter "java.exe" -Recurse -ErrorAction SilentlyContinue) {
-            if ($candidate.FullName -notmatch "\\bin\\java\.exe$") {
-                continue
-            }
-            $feature = Java-Feature $candidate.FullName
-            Debug-Log "Java candidate $($candidate.FullName) has feature version $feature."
-            if ($feature -eq 25) {
-                return $candidate.FullName
-            }
-        }
-        return $null
-    }
-
-    function Architecture {
-        switch (([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture).ToString()) {
-            "X64" {
-                return "x64"
-            }
-            "Arm64" {
-                return "aarch64"
-            }
-            default {
-                Fail "Unsupported Windows architecture: $([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)" 3
-            }
-        }
-    }
-
-    function Download-Java25([string] $Root) {
-        $arch = Architecture
-        $javaRoot = Join-Path $Root "tools\jdk\temurin-25-windows-$arch"
-        $cached = Cached-Java $javaRoot
-        if ($null -ne $cached) {
-            return $cached
-        }
-        $archive = Join-Path $Root "downloads\temurin-jdk-25-windows-$arch.zip"
-        $url = "https://api.adoptium.net/v3/binary/latest/25/ga/windows/$arch/jdk/hotspot/normal/eclipse"
-        Write-Host "Downloading Java 25 for Windows $arch..."
-        Remove-Item -LiteralPath $javaRoot -Recurse -Force -ErrorAction SilentlyContinue
-        New-Item -ItemType Directory -Force -Path $javaRoot | Out-Null
-        Save-Url $url $archive
-        Expand-Archive -Path $archive -DestinationPath $javaRoot -Force
-        $java = Cached-Java $javaRoot
-        if ($null -eq $java) {
-            Fail "Downloaded Java archive did not contain bin\java.exe." 3
-        }
-        return $java
-    }
-
-    function Java-Home([string] $Java) {
-        $javaPath = (Resolve-Path -LiteralPath $Java).Path
-        return (Resolve-Path -LiteralPath (Join-Path (Split-Path -Parent $javaPath) "..")).Path
-    }
-
-    function Get-Java25([string] $Root) {
-        $force = $env:SHAFT_MCP_FORCE_BOOTSTRAP_JAVA -eq "1"
-        if (-not $force -and -not [string]::IsNullOrWhiteSpace($env:JAVA_HOME)) {
-            $javaHomeCandidate = Join-Path $env:JAVA_HOME "bin\java.exe"
-            Debug-Log "Checking JAVA_HOME Java candidate $javaHomeCandidate."
-            if ((Test-Path -LiteralPath $javaHomeCandidate) -and (Java-25 $javaHomeCandidate)) {
-                return (Resolve-Path -LiteralPath $javaHomeCandidate).Path
-            }
-        }
-        if (-not $force) {
-            $pathJava = Java-Command-Path "java.exe"
-            if ($null -eq $pathJava) {
-                $pathJava = Java-Command-Path "java"
-            }
-            Debug-Log "Checking PATH Java candidate $pathJava."
-            if ($null -ne $pathJava -and (Java-25 $pathJava)) {
-                return $pathJava
-            }
-        }
-        $cached = Cached-Java (Join-Path $Root "tools\jdk")
-        if ($null -ne $cached -and -not $force) {
-            return $cached
-        }
-        return Download-Java25 $Root
-    }
-
-    function Maven-OK([string] $Maven) {
-        $previousErrorActionPreference = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        try {
-            $output = & $Maven --version 2>&1 | Out-String
-            $exitCode = $LASTEXITCODE
-        } catch {
-            return $false
-        } finally {
-            $ErrorActionPreference = $previousErrorActionPreference
-        }
-        if ($exitCode -ne 0 -or $output -notmatch "Apache Maven\s+(\d+)\.(\d+)") {
-            return $false
-        }
-        $major = [int]$Matches[1]
-        $minor = [int]$Matches[2]
-        return $major -gt 3 -or ($major -eq 3 -and $minor -ge 9)
-    }
-
-    function File-Sha512([string] $Path) {
+    function File-Sha256([string] $Path) {
         $stream = [System.IO.File]::OpenRead($Path)
         try {
-            $sha512 = [System.Security.Cryptography.SHA512]::Create()
+            $sha256 = [System.Security.Cryptography.SHA256]::Create()
             try {
-                $hash = $sha512.ComputeHash($stream)
+                $hash = $sha256.ComputeHash($stream)
                 return -join ($hash | ForEach-Object { $_.ToString("x2") })
             } finally {
-                $sha512.Dispose()
+                $sha256.Dispose()
             }
         } finally {
             $stream.Dispose()
         }
     }
 
-    function Verify-Sha512([string] $Archive, [string] $Checksum) {
-        $expected = ((Get-Content -Raw -Path $Checksum).Trim() -split "\s+")[0].ToLowerInvariant()
-        $actual = File-Sha512 $Archive
-        if ($actual -ne $expected) {
-            Fail "Checksum verification failed for $Archive." 3
+    function Save-Url([string] $Url, [string] $OutFile) {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutFile) | Out-Null
+        $lastError = $null
+        for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+                Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $OutFile
+                return
+            } catch {
+                $lastError = $_.Exception
+                Start-Sleep -Seconds $attempt
+            }
+        }
+        throw $lastError
+    }
+
+    function Test-PythonCommand([string] $Executable, [string[]] $Prefix = @()) {
+        try {
+            & $Executable @Prefix -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" 2>$null | Out-Null
+            return $LASTEXITCODE -eq 0
+        } catch {
+            return $false
         }
     }
 
-    function Download-Maven([string] $Root) {
-        $mavenHome = Join-Path $Root "tools\maven\apache-maven-$mavenVersion"
-        $maven = Join-Path $mavenHome "bin\mvn.cmd"
-        if ((Test-Path -LiteralPath $maven) -and (Maven-OK $maven)) {
-            return $maven
+    function Find-Python {
+        foreach ($name in @("python", "python3")) {
+            $command = Get-Command $name -ErrorAction SilentlyContinue
+            if ($null -ne $command -and (Test-PythonCommand $command.Source)) {
+                return [pscustomobject] @{ Command = $command.Source; Prefix = @() }
+            }
         }
-        $archive = Join-Path $Root "downloads\apache-maven-$mavenVersion-bin.zip"
-        $checksum = "$archive.sha512"
-        $url = "https://archive.apache.org/dist/maven/maven-3/$mavenVersion/binaries/apache-maven-$mavenVersion-bin.zip"
-        Write-Host "Downloading Apache Maven $mavenVersion..."
-        Save-Url $url $archive
-        Save-Url "$url.sha512" $checksum
-        Verify-Sha512 $archive $checksum
-        Remove-Item -LiteralPath $mavenHome -Recurse -Force -ErrorAction SilentlyContinue
-        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $mavenHome) | Out-Null
-        Expand-Archive -Path $archive -DestinationPath (Split-Path -Parent $mavenHome) -Force
-        if (-not (Maven-OK $maven)) {
-            Fail "Downloaded Maven $mavenVersion is not executable." 3
+        $launcher = Get-Command "py" -ErrorAction SilentlyContinue
+        if ($null -ne $launcher -and (Test-PythonCommand $launcher.Source @("-3"))) {
+            return [pscustomobject] @{ Command = $launcher.Source; Prefix = @("-3") }
         }
-        return $maven
+        return $null
     }
 
-    function Get-Maven([string] $Root) {
-        if ($env:SHAFT_MCP_FORCE_BOOTSTRAP_MAVEN -ne "1") {
-            foreach ($name in @("mvn.cmd", "mvn")) {
-                $candidate = Java-Command-Path $name
-                if ($null -ne $candidate -and (Maven-OK $candidate)) {
-                    return $candidate
+    function Python-Target {
+        switch (([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture).ToString()) {
+            "X64" { return "x86_64-pc-windows-msvc" }
+            "Arm64" { return "aarch64-pc-windows-msvc" }
+            default { Fail "Unsupported Windows architecture: $([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)" 3 }
+        }
+    }
+
+    function Find-PortablePython([string] $InstallRoot) {
+        foreach ($name in @("python.exe", "python3.exe")) {
+            foreach ($candidate in Get-ChildItem -LiteralPath $InstallRoot -Filter $name -Recurse -ErrorAction SilentlyContinue) {
+                if (Test-PythonCommand $candidate.FullName) {
+                    return $candidate.FullName
                 }
             }
         }
-        return Download-Maven $Root
+        return $null
     }
 
-    $Client = Use-Client $Client $Arguments
-    if ([string]::IsNullOrWhiteSpace($Version)) {
-        $Version = "LATEST"
+    function Install-PortablePython([string] $Root) {
+        $target = Python-Target
+        $asset = $pythonAssets[$target]
+        $installRoot = Join-Path $Root "tools\python\$pythonVersion-$pythonRelease-$target"
+        $cached = if (Test-Path -LiteralPath $installRoot) { Find-PortablePython $installRoot } else { $null }
+        if ($null -ne $cached) {
+            return [pscustomobject] @{ Command = $cached; Prefix = @() }
+        }
+
+        $tar = Get-Command "tar" -ErrorAction SilentlyContinue
+        if ($null -eq $tar) {
+            Fail "Python is unavailable and tar is required to extract the portable Python runtime." 3
+        }
+
+        $download = Join-Path $Root "downloads\python-$pythonVersion-$pythonRelease-$target.tar.gz"
+        Write-Host "Downloading portable Python $pythonVersion for $target..."
+        Save-Url $asset.Url $download
+        $actual = File-Sha256 $download
+        if ($actual -ne $asset.Sha256) {
+            Fail "Checksum verification failed for the portable Python runtime." 3
+        }
+
+        $temporary = Join-Path $Root "tools\python\.extract-$PID"
+        Remove-Item -LiteralPath $temporary -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $installRoot -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $temporary | Out-Null
+        & $tar.Source -xzf $download -C $temporary
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Could not extract the portable Python runtime." 3
+        }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $installRoot) | Out-Null
+        Move-Item -LiteralPath $temporary -Destination $installRoot -Force
+        $python = Find-PortablePython $installRoot
+        if ($null -eq $python) {
+            Fail "Portable Python archive did not contain a usable Python executable." 3
+        }
+        return [pscustomobject] @{ Command = $python; Prefix = @() }
+    }
+
+    function Resolve-PythonInstallerScript([string] $Root) {
+        if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+            $local = Join-Path $PSScriptRoot "install_shaft_mcp.py"
+            if (Test-Path -LiteralPath $local) {
+                return (Resolve-Path -LiteralPath $local).Path
+            }
+        }
+        $ref = if ([string]::IsNullOrWhiteSpace($env:SHAFT_MCP_INSTALLER_REF)) { "main" } else { $env:SHAFT_MCP_INSTALLER_REF }
+        $url = if ([string]::IsNullOrWhiteSpace($env:SHAFT_MCP_INSTALLER_PYTHON_URL)) {
+            "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/$ref/scripts/mcp/install_shaft_mcp.py"
+        } else {
+            $env:SHAFT_MCP_INSTALLER_PYTHON_URL
+        }
+        $target = Join-Path $Root "scripts\install_shaft_mcp.py"
+        Save-Url $url $target
+        return $target
     }
 
     $root = Bootstrap-Root
     New-Item -ItemType Directory -Force -Path $root | Out-Null
+    $python = Find-Python
+    if ($null -eq $python) {
+        $python = Install-PortablePython $root
+    }
+    $installer = Resolve-PythonInstallerScript $root
 
-    $java = Get-Java25 $root
-    $javaHome = Java-Home $java
-    $env:JAVA_HOME = $javaHome
-    $env:PATH = "$(Split-Path -Parent $java);$env:PATH"
-
-    $maven = Get-Maven $root
-    $env:PATH = "$(Split-Path -Parent $maven);$env:PATH"
-
-    $jarDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "shaft-mcp-bootstrap"
-    $workDirectory = Join-Path $root "work"
-    New-Item -ItemType Directory -Force -Path $jarDirectory, $workDirectory | Out-Null
-
-    $mavenArguments = @(
-        "--batch-mode",
-        "--no-transfer-progress",
-        "-U",
-        "-N",
-        $dependencyGoal,
-        "-Dartifact=${artifact}:$Version",
-        "-DoutputDirectory=$jarDirectory",
-        "-Dmdep.stripVersion=true",
-        "-Dmdep.overWriteReleases=true"
-    )
-
-    Write-Host "Resolving ${artifact}:$Version..."
-    Push-Location $workDirectory
-    try {
-        & $maven @mavenArguments
-        if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-        }
-    } finally {
-        Pop-Location
+    $installerArguments = @($installer)
+    if (-not [string]::IsNullOrWhiteSpace($Client)) {
+        $installerArguments += @("--client", $Client)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Version)) {
+        $installerArguments += @("--version", $Version)
+    }
+    if ($null -ne $Arguments -and $Arguments.Count -gt 0) {
+        $installerArguments += $Arguments
     }
 
-    $jar = Join-Path $jarDirectory "shaft-mcp.jar"
-    if (-not (Test-Path -LiteralPath $jar)) {
-        Fail "Maven did not copy shaft-mcp.jar into $jarDirectory." 4
+    $pythonArguments = @()
+    if ($null -ne $python.Prefix -and $python.Prefix.Count -gt 0) {
+        $pythonArguments += $python.Prefix
     }
-
-    Write-Host "Configuring shaft-mcp for $Client..."
-    & $java -jar $jar install $targets[$Client]
+    $pythonArguments += $installerArguments
+    & $python.Command @pythonArguments
     exit $LASTEXITCODE
 }
 
 if ($PSCommandPath) {
-    try {
-        Install-ShaftMcp -Client $Client -Version $Version -Arguments $RemainingArguments
-    } catch {
-        [Console]::Error.WriteLine("install-shaft-mcp: $($_.Exception.Message)")
-        exit 1
-    }
+    Install-ShaftMcp -Client $Client -Version $Version -Arguments $RemainingArguments
 }

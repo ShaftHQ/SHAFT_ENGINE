@@ -43,7 +43,7 @@ def write_fake_copilot(bin_directory: Path) -> None:
     executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
 
 
-def installer_command() -> list[str]:
+def installer_command(client: str) -> list[str]:
     if platform.system() == "Windows":
         return [
             "powershell",
@@ -53,9 +53,9 @@ def installer_command() -> list[str]:
             "-File",
             str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.ps1"),
             "-Client",
-            "copilot",
+            client,
         ]
-    return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh"), "--copilot"]
+    return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh"), f"--{client}"]
 
 
 def sha256(path: Path) -> str:
@@ -82,9 +82,37 @@ def installed_jar(root: Path, home: Path, environment: dict[str, str]) -> Path:
     return jars[0].resolve()
 
 
-def verify_configuration(configuration: Path, java: Path, jar: Path) -> None:
+def expected_java(environment: dict[str, str]) -> Path:
+    executable = "java.exe" if platform.system() == "Windows" else "java"
+    java_home = environment.get("JAVA_HOME", "")
+    if java_home:
+        candidate = Path(java_home) / "bin" / executable
+        if candidate.is_file():
+            return candidate.resolve()
+    resolved = shutil.which(executable, path=environment.get("PATH"))
+    if not resolved:
+        raise RuntimeError("Expected Java executable was not found on PATH.")
+    return Path(resolved).resolve()
+
+
+def configuration_path(client: str, root: Path, home: Path, environment: dict[str, str]) -> Path:
+    system = platform.system()
+    if client == "copilot":
+        return home / ".copilot" / "mcp-config.json"
+    if client == "copilot-intellij":
+        if system == "Windows":
+            return root / "local-app-data" / "github-copilot" / "intellij" / "mcp.json"
+        return Path(environment["XDG_CONFIG_HOME"]) / "github-copilot" / "intellij" / "mcp.json"
+    if client == "claude-desktop":
+        if system == "Windows":
+            return root / "roaming-app-data" / "Claude" / "claude_desktop_config.json"
+        return home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+    raise RuntimeError(f"Unsupported installer verification client: {client}")
+
+
+def verify_configuration(configuration: Path, java: Path, jar: Path, root_property: str) -> None:
     root = json.loads(configuration.read_text(encoding="utf-8"))
-    entry = root["mcpServers"]["shaft-mcp"]
+    entry = root[root_property]["shaft-mcp"]
     if Path(entry["command"]).resolve() != java.resolve():
         raise RuntimeError(f"Unexpected Java command in {configuration}: {entry['command']}")
     if entry["args"] != ["-jar", str(jar)]:
@@ -111,24 +139,31 @@ def main() -> int:
         environment["XDG_DATA_HOME"] = str(root / "xdg-data")
         environment["XDG_CONFIG_HOME"] = str(root / "xdg-config")
         environment["SHAFT_MCP_BOOTSTRAP_HOME"] = str(root / "bootstrap")
-        environment["SHAFT_MCP_FORCE_BOOTSTRAP_MAVEN"] = "1"
         environment["PATH"] = str(fake_bin) + os.pathsep + environment.get("PATH", "")
         java_options = f"-Duser.home={home} -Djava.io.tmpdir={java_temp}"
         existing_options = environment.get("JAVA_TOOL_OPTIONS", "").strip()
         environment["JAVA_TOOL_OPTIONS"] = f"{existing_options} {java_options}".strip()
 
-        command = installer_command()
-        subprocess.run(command, cwd=root, env=environment, check=True)
+        clients = ["copilot", "copilot-intellij"]
+        if platform.system() in {"Darwin", "Windows"}:
+            clients.append("claude-desktop")
+
+        java = expected_java(environment)
+        for client in clients:
+            subprocess.run(installer_command(client), cwd=root, env=environment, check=True)
+
         jar = installed_jar(root, home, environment)
         first_hash = sha256(jar)
         first_timestamp = jar.stat().st_mtime_ns
-        configuration = copilot_home / "mcp-config.json"
-        verify_configuration(configuration, Path(shutil.which("java") or "java"), jar)
 
-        subprocess.run(command, cwd=root, env=environment, check=True)
+        for client in clients:
+            root_property = "mcpServers" if client in {"copilot", "claude-desktop"} else "servers"
+            verify_configuration(configuration_path(client, root, home, environment), java, jar, root_property)
+
+        subprocess.run(installer_command(clients[0]), cwd=root, env=environment, check=True)
         if sha256(jar) != first_hash or jar.stat().st_mtime_ns != first_timestamp:
             raise RuntimeError("Repeated public installation did not reuse the verified JAR.")
-        verify_configuration(configuration, Path(shutil.which("java") or "java"), jar)
+        verify_configuration(configuration_path(clients[0], root, home, environment), java, jar, "mcpServers")
         print(f"Verified public shaft-mcp LATEST installer on {platform.system()}: {jar.parent.name}")
     return 0
 

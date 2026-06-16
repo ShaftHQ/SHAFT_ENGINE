@@ -40,7 +40,7 @@ Then ask:
 > Use SHAFT to open `https://example.com`, verify the page title, and summarize
 > the generated test evidence.
 
-[Copilot / VS Code setup](https://shaftengine.netlify.app/docs/agentic/mcp) ·
+[Copilot / IntelliJ IDEA setup](https://shaftengine.netlify.app/docs/agentic/mcp) ·
 [Doctor command](https://shaftengine.netlify.app/docs/agentic/doctor) ·
 [Heal command](https://shaftengine.netlify.app/docs/agentic/heal)
 
