@@ -23,6 +23,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -261,10 +262,10 @@ public class PropertiesHelper {
         }
     }
 
-    private static void downloadDefaultProperties(){
-        ReportManager.logDiscrete("Downloading default properties to user.home...");
+    private static void downloadDefaultProperties() {
+        ReportManager.logDiscrete("Downloading default properties to AI-agent runtime workspace...");
 
-        var propertiesFolderPath = "target" + File.separator + "temp" + File.separator + "properties";
+        var propertiesFolderPath = resolveAiAgentPath("target" + File.separator + "temp" + File.separator + "properties");
         Properties.paths.set().properties(propertiesFolderPath);
 
         Arrays.asList(
@@ -309,34 +310,37 @@ public class PropertiesHelper {
             }
         }
         // override target properties only if they do not exist
-        overrideTargetProperties();
+        overrideTargetProperties(forceDownload);
     }
 
-    private static void overrideTargetProperties(){
+    private static void overrideTargetProperties(boolean aiAgentMode) {
         var fileActions = FileActions.getInstance(true);
         var propertiesFolderPath = Properties.paths.properties();
         boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
+        var targetPropertiesFolderPath = aiAgentMode
+                ? resolveAiAgentPath(TARGET_PROPERTIES_FOLDER_PATH)
+                : TARGET_PROPERTIES_FOLDER_PATH;
 
         Arrays.asList("/custom.properties")
                 .forEach(file -> {
-                    if (!fileActions.doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + file)) {
+                    if (!fileActions.doesFileExist(targetPropertiesFolderPath + file)) {
                         if (isExternalRun) {
                             var tempPath = propertiesFolderPath.replace("/default", "");
                             try {
                                 if (tempPath.contains("file:")) {
-                                    fileActions.copyFileFromJar(tempPath, TARGET_PROPERTIES_FOLDER_PATH, file.replace("/", ""));
+                                    fileActions.copyFileFromJar(tempPath, targetPropertiesFolderPath, file.replace("/", ""));
                                 } else {
                                     throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
                                 }
                             } catch (Throwable ignored) {
-                                fileActions.copyFile(tempPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                                fileActions.copyFile(tempPath + file, targetPropertiesFolderPath + file);
                             }
                         } else {
-                            fileActions.copyFile(propertiesFolderPath + file, TARGET_PROPERTIES_FOLDER_PATH + file);
+                            fileActions.copyFile(propertiesFolderPath + file, targetPropertiesFolderPath + file);
                         }
                     }
                 });
-        Properties.paths.set().properties(TARGET_PROPERTIES_FOLDER_PATH);
+        Properties.paths.set().properties(targetPropertiesFolderPath);
     }
 
     private static void downloadPropertiesFile(String fileName) {
@@ -346,9 +350,22 @@ public class PropertiesHelper {
     }
 
     private static void attachPropertyFiles() {
-        ReportManager.logDiscrete("Reading properties directory: " + TARGET_PROPERTIES_FOLDER_PATH, Level.DEBUG);
-        FileUtils.listFiles(new File(TARGET_PROPERTIES_FOLDER_PATH), new String[]{"properties"},
+        var targetPropertiesFolderPath = Properties.paths.properties();
+        ReportManager.logDiscrete("Reading properties directory: " + targetPropertiesFolderPath, Level.DEBUG);
+        FileUtils.listFiles(new File(targetPropertiesFolderPath), new String[]{"properties"},
                 false).forEach(propertyFile -> ReportManager.logDiscrete("Loading properties file: " + propertyFile, Level.DEBUG));
+    }
+
+    private static String resolveAiAgentPath(String path) {
+        String workspaceRoot = SHAFT.Properties.paths.aiAgentWorkspaceRoot();
+        if (workspaceRoot == null || workspaceRoot.isBlank()) {
+            return path;
+        }
+        Path configuredPath = Path.of(path);
+        if (configuredPath.isAbsolute()) {
+            return configuredPath.normalize().toString();
+        }
+        return Path.of(workspaceRoot).resolve(configuredPath).normalize().toString();
     }
 
     private static void overridePropertiesForMaximumPerformanceMode() {
