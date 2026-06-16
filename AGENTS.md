@@ -33,6 +33,9 @@ Bridge skills point to canonical `.github/` rules; do not preload them.
 - Preserve public API compatibility; deprecate before removing or renaming.
 - Public docs live in `ShaftHQ/shafthq.github.io`; do not add local public
   guides or non-root READMEs.
+- When editing, adding, or removing SHAFT functionality, update the official
+  user guide repository in the same work and publish a separate docs PR when
+  opening implementation PRs.
 - Never expose secrets or run deployment, publication, history rewrites,
   destructive cleanup, or credentialed cloud suites unless explicitly required.
 - Do not commit generated reports, binaries, or `target/`.

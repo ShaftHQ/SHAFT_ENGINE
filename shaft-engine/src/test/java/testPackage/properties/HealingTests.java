@@ -18,6 +18,7 @@ public class HealingTests {
         Assert.assertFalse(SHAFT.Properties.healing.aiEnabled());
         Assert.assertFalse(SHAFT.Properties.healing.visualEnabled());
         Assert.assertFalse(SHAFT.Properties.healing.sourcePatchEnabled());
+        Assert.assertEquals(SHAFT.Properties.healing.minimumTrustPercentage(), -1);
     }
 
     @Test
@@ -25,11 +26,13 @@ public class HealingTests {
         SHAFT.Properties.healing.set()
                 .strategy("shaft-heal")
                 .minimumConfidence(0.8)
+                .minimumTrustPercentage(82)
                 .ambiguityMargin(0.2)
                 .historyMaxEntries(25);
 
         Assert.assertEquals(SHAFT.Properties.healing.strategy(), "shaft-heal");
         Assert.assertEquals(SHAFT.Properties.healing.minimumConfidence(), 0.8);
+        Assert.assertEquals(SHAFT.Properties.healing.minimumTrustPercentage(), 82);
         Assert.assertEquals(SHAFT.Properties.healing.ambiguityMargin(), 0.2);
         Assert.assertEquals(SHAFT.Properties.healing.historyMaxEntries(), 25);
     }

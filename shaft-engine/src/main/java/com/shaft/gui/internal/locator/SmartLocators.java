@@ -75,203 +75,221 @@ public class SmartLocators {
         return switch (strategy) {
             case INPUT_CONTAINS_PLACEHOLDER -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//input[contains(@placeholder,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//input[contains(@placeholder,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case INPUT_CONTAINS_ID -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//input[contains(@id,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//input[contains(@id,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case INPUT_CONTAINS_ARIA_LABEL -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//input[contains(@aria-label,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//input[contains(@aria-label,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case INPUT_CHILD_OF_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),'").append(potentialFieldName).append("')]/input)[1]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]/input)[1]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case TEXTAREA_CONTAINS_PLACEHOLDER -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//textarea[contains(@placeholder,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//textarea[contains(@placeholder,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case TEXTAREA_CONTAINS_ID -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//textarea[contains(@id,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//textarea[contains(@id,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case TEXTAREA_CONTAINS_ARIA_LABEL -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//textarea[contains(@aria-label,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//textarea[contains(@aria-label,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case TEXTAREA_CHILD_OF_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),'").append(potentialFieldName).append("')]/textarea)[1]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]/textarea)[1]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case INPUT_RELATIVE_STRAIGHT_RIGHT_OF_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(text(),'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield RelativeLocator.with(By.tagName("input")).straightRightOf(By.xpath(xpath.toString()));
             }
             case INPUT_FOLLOWING_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),'").append(potentialFieldName).append("')]/following::input)[1]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]/following::input)[1]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case INPUT_PRECEDING_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),'").append(potentialFieldName).append("')]/preceding::input)[1]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]/preceding::input)[1]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case INPUT_TYPE_SUBMIT_CONTAINS_VALUE -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//input[@type='submit' and contains(@value,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//input[@type='submit' and contains(@value,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case BUTTON_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(text(),'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case BUTTON_CONTAINS_ID -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@id,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@id,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case BUTTON_CONTAINS_NAME -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@name,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@name,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case BUTTON_CONTAINS_ARIA_LABEL -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@aria-label,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@aria-label,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case BUTTON_CONTAINS_TITLE -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@title,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@title,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case BUTTON_CONTAINS_VALUE -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@value,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//button[contains(@value,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case LINK_CONTAINS_ID -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@id,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@id,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case LINK_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(text(),'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case LINK_CONTAINS_TITLE -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@title,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@title,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case LINK_CONTAINS_VALUE -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@value,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@value,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case LINK_CONTAINS_NAME -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@name,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@name,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case LINK_CONTAINS_ARIA_LABEL -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@aria-label,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//a[contains(@aria-label,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case ANY_EXACT_TEXT_CLICKABLE -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//*[text()='").append(potentialFieldName).append("' and (@role='button' or @type='submit')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//*[text()=").append(xpathLiteral(potentialFieldName)).append(" and (@role='button' or @type='submit')]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case INPUT_IMAGE_CONTAINS_ALT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//input[@type='image' and contains(@alt,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//input[@type='image' and contains(@alt,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case INPUT_TYPE_BUTTON_CONTAINS_VALUE -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//input[@type='button' and contains(@value,'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//input[@type='button' and contains(@value,").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case ROLE_BUTTON_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(@role,'button') and contains(text(),'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(@role,'button') and contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case ROLE_LINK_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(@role,'link') and contains(text(),'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(@role,'link') and contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case ROLE_TAB_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(@role,'tab') and contains(text(),'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(@role,'tab') and contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case ROLE_MENUITEM_CONTAINS_TEXT -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(@role,'menuitem') and contains(text(),'").append(potentialFieldName).append("')]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("//*[contains(@role,'menuitem') and contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case ANY_CONTAINS_TEXT_FOLLOWING_BUTTON -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),'").append(potentialFieldName).append("')]/following::button)[1]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]/following::button)[1]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
             case ANY_CONTAINS_TEXT_FOLLOWING_LINK -> {
                 Arrays.stream(potentialFieldNames).iterator()
-                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),'").append(potentialFieldName).append("')]/following::a)[1]|"));
+                        .forEachRemaining(potentialFieldName -> xpath.append("(//*[contains(text(),").append(xpathLiteral(potentialFieldName)).append(")]/following::a)[1]|"));
                 xpath.deleteCharAt(xpath.length() - 1);
                 yield By.xpath(xpath.toString());
             }
         };
+    }
+
+    private static String xpathLiteral(String value) {
+        if (!value.contains("'")) {
+            return "'" + value + "'";
+        }
+        if (!value.contains("\"")) {
+            return "\"" + value + "\"";
+        }
+        String[] parts = value.split("'", -1);
+        StringBuilder literal = new StringBuilder("concat(");
+        for (int index = 0; index < parts.length; index++) {
+            if (index > 0) {
+                literal.append(", \"'\", ");
+            }
+            literal.append("'").append(parts[index]).append("'");
+        }
+        return literal.append(")").toString();
     }
 
     private enum PathStrategy {

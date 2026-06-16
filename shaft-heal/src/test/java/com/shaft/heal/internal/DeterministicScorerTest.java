@@ -57,13 +57,29 @@ public class DeterministicScorerTest {
         Assert.assertNull(result.selected());
     }
 
+    @Test
+    public void providerScoreShouldNotOverrideMinimumDeterministicConfidence() {
+        HealingConfiguration configuration = configuration(0.75, 0.10);
+        RankedCandidate aiBoostedCandidate = candidate("a", 0.70, 0.98, 0.98);
+
+        HealingDecisionEngine.DecisionResult result = HealingDecisionEngine.decide(
+                List.of(aiBoostedCandidate), configuration, true);
+
+        Assert.assertEquals(result.decision().status(), HealingDecision.Status.BELOW_THRESHOLD);
+        Assert.assertNull(result.selected());
+    }
+
     private static RankedCandidate candidate(String id, double score) {
+        return candidate(id, score, null, score);
+    }
+
+    private static RankedCandidate candidate(String id, double deterministicScore, Double providerScore, double finalScore) {
         LocatorFingerprint fingerprint = fingerprint(id, "Username");
         HealingCandidate report = new HealingCandidate(
                 id,
                 By.id(id).toString(),
                 fingerprint,
-                new HealingScore(score, null, null, score, Map.of("accessibility", 1.0)),
+                new HealingScore(deterministicScore, null, providerScore, finalScore, Map.of("accessibility", 1.0)),
                 List.of("accessibility=1.000"),
                 true,
                 true,

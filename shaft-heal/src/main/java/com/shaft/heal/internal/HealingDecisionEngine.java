@@ -35,14 +35,25 @@ final class HealingDecisionEngine {
             return result(HealingDecision.Status.REJECTED_PRECONDITION, null, 0,
                     "Candidates failed uniqueness, context, visibility, or interactability checks.");
         }
-        RankedCandidate top = eligible.getFirst();
-        double confidence = top.report().score().finalScore();
-        if (top.report().score().deterministicScore() < configuration.minimumConfidence()) {
+        List<RankedCandidate> deterministicEligible = eligible.stream()
+                .filter(candidate -> candidate.report().score().deterministicScore() >= configuration.minimumConfidence())
+                .toList();
+        if (deterministicEligible.isEmpty()) {
+            RankedCandidate top = eligible.getFirst();
+            double confidence = top.report().score().finalScore();
             return result(HealingDecision.Status.BELOW_THRESHOLD, null, confidence,
                     "The best deterministic candidate did not meet the minimum confidence.");
         }
-        if (eligible.size() > 1) {
-            double margin = confidence - eligible.get(1).report().score().finalScore();
+        List<RankedCandidate> finalEligible = deterministicEligible.stream()
+                .sorted(Comparator
+                        .comparingDouble((RankedCandidate candidate) -> candidate.report().score().finalScore())
+                        .reversed()
+                        .thenComparing(candidate -> candidate.report().candidateId()))
+                .toList();
+        RankedCandidate top = finalEligible.getFirst();
+        double confidence = top.report().score().finalScore();
+        if (finalEligible.size() > 1) {
+            double margin = confidence - finalEligible.get(1).report().score().finalScore();
             if (margin < configuration.ambiguityMargin()) {
                 return result(HealingDecision.Status.AMBIGUOUS, null, confidence,
                         "The leading candidate was not sufficiently separated from the next candidate.");

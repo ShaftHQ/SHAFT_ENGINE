@@ -60,6 +60,7 @@
     {"name": "element_is_displayed", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "element_is_enabled", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "element_is_selected", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "natural_act", "mutation": true, "sensitive": true, "deprecated": false},
     {"name": "capture_start", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "capture_status", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "capture_stop", "mutation": true, "sensitive": false, "deprecated": false},

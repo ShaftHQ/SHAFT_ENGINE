@@ -21,6 +21,16 @@ public interface HealingProvider {
     Optional<HealingResolution> resolve(HealingRequest request);
 
     /**
+     * Returns a safe explanation for a recovery attempt.
+     *
+     * @param attemptId provider-owned safe correlation identifier
+     * @return explanation when available
+     */
+    default Optional<HealingExplanation> explain(String attemptId) {
+        return Optional.empty();
+    }
+
+    /**
      * Records evidence from a unique successful original resolution.
      *
      * @param observation successful observation

@@ -2,6 +2,7 @@ package com.shaft.gui.internal.healing;
 
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
@@ -9,12 +10,18 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Guards optional SHAFT Heal provider calls and preserves deterministic fallback.
  */
 public final class HealingManager {
+    private static final Pattern SECRET_ASSIGNMENT = Pattern.compile(
+            "(?i)(password|passwd|secret|token|api[-_]?key|authorization|cookie)\\s*[:=]\\s*[^\\s,;]+");
+    private static final Pattern LONG_TOKEN = Pattern.compile("\\b[a-zA-Z0-9_-]{32,}\\b");
+
     private HealingManager() {
         throw new IllegalStateException("Utility class");
     }
@@ -50,9 +57,12 @@ public final class HealingManager {
                         "SHAFT Heal was requested but io.github.shafthq:shaft-heal is not on the runtime classpath.");
                 return Optional.empty();
             }
-            Optional<HealingResolution> resolution = provider.get().resolve(new HealingRequest(
+            HealingProvider healingProvider = provider.get();
+            Optional<HealingResolution> resolution = healingProvider.resolve(new HealingRequest(
                     driver, locator, action, visibilityRequired, frameLocator, shadowHostLocator, shadowContentLocator));
-            return resolution.filter(value -> value.elements().size() == 1);
+            Optional<HealingResolution> accepted = resolution.filter(value -> value.elements().size() == 1);
+            accepted.ifPresent(value -> reportAcceptedRecovery(healingProvider, value, locator));
+            return accepted;
         } catch (RuntimeException exception) {
             ReportManagerHelper.logDiscrete(exception);
             ReportManager.logDiscrete("SHAFT Heal recovery failed; preserving the original locator failure.");
@@ -185,5 +195,53 @@ public final class HealingManager {
         } catch (WebDriverException exception) {
             return "UNVERIFIABLE";
         }
+    }
+
+    private static void reportAcceptedRecovery(
+            HealingProvider provider,
+            HealingResolution resolution,
+            By originalLocator) {
+        Optional<HealingExplanation> explanation = provider.explain(resolution.attemptId());
+        String message = explanation
+                .map(HealingManager::formatExplanation)
+                .orElseGet(() -> "SHAFT Heal recovered locator with provider-validated trust. Original locator: \""
+                        + safe(originalLocator) + "\", healed locator: \""
+                        + safe(resolution.selectedLocator()) + "\".");
+        ReportManager.log(message, Level.WARN);
+    }
+
+    private static String formatExplanation(HealingExplanation explanation) {
+        String evidence = explanation.evidence().isEmpty()
+                ? ""
+                : ", evidence: " + safe(String.join(", ", explanation.evidence()));
+        String providerStatus = explanation.providerStatus().isBlank()
+                ? ""
+                : ", provider: " + safe(explanation.providerStatus());
+        String reason = explanation.reason().isBlank()
+                ? ""
+                : ", reason: " + safe(explanation.reason());
+        return "SHAFT Heal recovered locator. Original locator: \"" + safe(explanation.originalLocator())
+                + "\", healed locator: \"" + safe(explanation.healedLocator())
+                + "\", trust: " + percent(explanation.confidence())
+                + ", threshold: " + percent(explanation.threshold())
+                + providerStatus
+                + evidence
+                + reason
+                + ".";
+    }
+
+    private static String percent(double value) {
+        return String.format(Locale.ROOT, "%.0f%%", value * 100);
+    }
+
+    private static String safe(By locator) {
+        return safe(locator == null ? "" : locator.toString());
+    }
+
+    private static String safe(String value) {
+        String sanitized = value == null ? "" : value;
+        sanitized = SECRET_ASSIGNMENT.matcher(sanitized).replaceAll("$1=[REDACTED]");
+        sanitized = LONG_TOKEN.matcher(sanitized).replaceAll("[REDACTED]");
+        return sanitized.replaceAll("[\\p{Cntrl}&&[^\\r\\n\\t]]", "").trim();
     }
 }

@@ -49,6 +49,7 @@ public class Properties {
     static LambdaTest baseLambdaTest;
     static API baseApi;
     static Pilot basePilot;
+    static NaturalActions baseNaturalActions;
 
     // -------------------------------------------------------------------------
     // Thread-local override configs – updated by set() calls on each thread.
@@ -71,6 +72,7 @@ public class Properties {
     static final ThreadLocal<LambdaTest> lambdaTestOverride = new ThreadLocal<>();
     static final ThreadLocal<API> apiOverride = new ThreadLocal<>();
     static final ThreadLocal<Pilot> pilotOverride = new ThreadLocal<>();
+    static final ThreadLocal<NaturalActions> naturalActionsOverride = new ThreadLocal<>();
 
     // -------------------------------------------------------------------------
     // Public proxy fields – fully API-compatible with the previous static fields.
@@ -94,6 +96,10 @@ public class Properties {
     public static final LambdaTest lambdaTest = createProxy(LambdaTest.class, lambdaTestOverride, () -> baseLambdaTest);
     public static final API api = createProxy(API.class, apiOverride, () -> baseApi);
     public static final Pilot pilot = createProxy(Pilot.class, pilotOverride, () -> basePilot);
+    public static final NaturalActions naturalActions = createProxy(
+            NaturalActions.class,
+            naturalActionsOverride,
+            () -> baseNaturalActions);
 
     // Read-only properties – not mutable after initialisation, no proxy needed.
     public static Internal internal;
@@ -222,5 +228,6 @@ public class Properties {
         lambdaTestOverride.remove();
         apiOverride.remove();
         pilotOverride.remove();
+        naturalActionsOverride.remove();
     }
 }
