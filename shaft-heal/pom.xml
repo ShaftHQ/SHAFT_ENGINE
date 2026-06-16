@@ -97,7 +97,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <argLine>${surefireArgLine} ${mockitoAgentArgLine}</argLine>
+                    <argLine>@{argLine} ${surefireArgLine} ${mockitoAgentArgLine}</argLine>
                     <failIfNoSpecifiedTests>${surefire.failIfNoSpecifiedTests}</failIfNoSpecifiedTests>
                     <systemPropertyVariables>
                         <alwaysLogDiscreetly>true</alwaysLogDiscreetly>

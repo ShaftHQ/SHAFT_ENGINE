@@ -19,6 +19,7 @@ PILOT_MODULES = (
     "shaft-capture",
     "shaft-doctor",
     "shaft-ai",
+    "shaft-heal",
     "shaft-mcp",
 )
 PUBLIC_ARTIFACTS = {
@@ -26,6 +27,7 @@ PUBLIC_ARTIFACTS = {
     "shaft-capture": "shaft-capture",
     "shaft-doctor": "shaft-doctor",
     "shaft-ai": "shaft-ai",
+    "shaft-heal": "shaft-heal",
     "shaft-mcp": "shaft-mcp",
 }
 SECRET_CANARIES = (

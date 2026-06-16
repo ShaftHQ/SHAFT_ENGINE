@@ -156,7 +156,6 @@ jobs:
           job-name: Ubuntu_Visual_Module
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           module-directory: shaft-visual
-          require-coverage: false
 
   Ubuntu_Desktop_Video_Module:
     runs-on: ubuntu-latest
@@ -186,7 +185,6 @@ jobs:
           job-name: Ubuntu_Desktop_Video_Module
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           module-directory: shaft-video
-          require-coverage: false
 
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
@@ -295,7 +293,6 @@ jobs:
         with:
           job-name: Ubuntu_MicrosoftEdge_Grid
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          require-coverage: false
 
   Android_Native_BrowserStack:
     runs-on: ubuntu-latest
@@ -504,7 +501,6 @@ jobs:
         with:
           job-name: Windows_Edge_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          require-coverage: false
 
   MacOSX_Safari_Local:
     runs-on: macos-latest
@@ -535,7 +531,6 @@ jobs:
         with:
           job-name: MacOSX_Safari_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          require-coverage: false
 
   Windows_Chrome_Local:
     runs-on: windows-latest
@@ -566,7 +561,6 @@ jobs:
         with:
           job-name: Windows_Chrome_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          require-coverage: false
 
   MacOSX_Chrome_Local:
     runs-on: macos-latest
@@ -659,7 +653,6 @@ jobs:
         with:
           job-name: LambdaTest_NativeAndroid
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          require-coverage: false
 
   LambdaTest_NativeIOS:
     runs-on: ubuntu-latest
@@ -886,4 +879,3 @@ jobs:
         with:
           job-name: Ubuntu_Chrome_Moon
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          require-coverage: false

@@ -1,5 +1,5 @@
 name: 'Upload JaCoCo Coverage'
-description: 'Verifies expected JaCoCo XML reports exist, then uploads existing reports to Codecov.'
+description: 'Generates missing JaCoCo XML reports from execution data, verifies expected reports exist, then uploads them to Codecov.'
 inputs:
   codecov-token:
     description: 'Codecov upload token'
@@ -42,6 +42,56 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Generate missing JaCoCo XML reports
+      if: always()
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        normalize_paths() {
+          local value="$1"
+          value="${value//$'\r'/ }"
+          value="${value//$'\n'/ }"
+          value="${value//$'\t'/ }"
+          value="${value//,/ }"
+          value="${value//;/ }"
+          for item in $value; do
+            item="${item//\\//}"
+            printf '%s\n' "$item"
+          done
+        }
+
+        coverage_targets="${{ inputs.required-files }}"
+        if [ -z "$(normalize_paths "$coverage_targets" | tr -d '[:space:]')" ]; then
+          coverage_targets="${{ inputs.files }}"
+        fi
+
+        while IFS= read -r coverage_file; do
+          [ -z "$coverage_file" ] && continue
+          [ -s "$coverage_file" ] && continue
+
+          case "$coverage_file" in
+            */target/jacoco/jacoco.xml)
+              module_dir="${coverage_file%/target/jacoco/jacoco.xml}"
+              ;;
+            *)
+              echo "::notice::Cannot infer Maven module for JaCoCo report: $coverage_file"
+              continue
+              ;;
+          esac
+
+          [ -n "$module_dir" ] || module_dir="."
+          jacoco_exec="${module_dir}/target/jacoco.exec"
+          pom_file="${module_dir}/pom.xml"
+
+          if [ -s "$jacoco_exec" ] && [ -f "$pom_file" ]; then
+            echo "Generating JaCoCo XML report for ${module_dir} from ${jacoco_exec}"
+            mvn --batch-mode -f "$pom_file" jacoco:report@default-report -DskipTests -Dgpg.skip
+          else
+            echo "::notice::Cannot generate $coverage_file; missing $jacoco_exec or $pom_file"
+          fi
+        done < <(normalize_paths "$coverage_targets")
+
     - name: Resolve JaCoCo XML files
       id: resolve
       shell: bash
@@ -59,6 +109,7 @@ runs:
           value="${value//,/ }"
           value="${value//;/ }"
           for item in $value; do
+            item="${item//\\//}"
             printf '%s\n' "$item"
           done
         }

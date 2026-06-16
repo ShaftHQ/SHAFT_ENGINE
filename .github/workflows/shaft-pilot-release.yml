@@ -9,6 +9,7 @@ on:
       - "shaft-capture/**"
       - "shaft-doctor/**"
       - "shaft-ai/**"
+      - "shaft-heal/**"
       - "shaft-mcp/**"
       - "shaft-bom/**"
       - "report-aggregate/**"
@@ -59,18 +60,18 @@ jobs:
       - name: Install SHAFT Pilot prerequisites without tests
         run: >-
           mvn --batch-mode
-          -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-mcp
+          -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-mcp
           -am install -DskipTests -Dgpg.skip
       - name: Reset Pilot Allure result contents
         run: |
-          for module in shaft-pilot-core shaft-capture shaft-doctor shaft-ai shaft-mcp; do
+          for module in shaft-pilot-core shaft-capture shaft-doctor shaft-ai shaft-heal shaft-mcp; do
             mkdir -p "${module}/allure-results"
             find "${module}/allure-results" -mindepth 1 -delete
           done
       - name: Run deterministic SHAFT Pilot tests
         run: >-
           mvn --batch-mode
-          -pl shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-mcp
+          -pl shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-mcp
           test -Dgpg.skip
       - name: Verify populated Pilot Allure results
         run: python3 scripts/ci/validate_shaft_pilot_release.py --check-test-results
