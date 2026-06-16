@@ -62,7 +62,7 @@
         <cucumber.bom.version>7.34.3</cucumber.bom.version>
         <jackson.version>2.22.0</jackson.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
-        <selenium.version>4.44.0</selenium.version>
+        <selenium.version>4.45.0</selenium.version>
         <slf4j.version>2.0.18</slf4j.version>
         <grpc.version>1.82.0</grpc.version>
         <protobuf.version>4.35.1</protobuf.version>
