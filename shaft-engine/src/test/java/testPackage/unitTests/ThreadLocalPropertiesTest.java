@@ -287,7 +287,11 @@ public class ThreadLocalPropertiesTest {
     @Test(description = "Failed-test retry enables debug file logging diagnostics")
     public void testRetryDiagnosticsLoggingLifecycle() throws java.io.IOException {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
-        File logFile = new File(SHAFT.Properties.log4j.appenderFile_FileName());
+        String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
+        Path tempDirectory = Files.createTempDirectory("shaft-retry-diagnostics");
+        Path isolatedLogPath = tempDirectory.resolve("engine.log");
+        ThreadLocalPropertiesManager.setProperty("appender.file.fileName", isolatedLogPath.toString());
+        File logFile = isolatedLogPath.toFile();
         resetRetryDiagnosticLoggingForCurrentThread();
         if (logFile.exists()) {
             Files.deleteIfExists(logFile.toPath());
@@ -316,7 +320,9 @@ public class ThreadLocalPropertiesTest {
             Assert.assertFalse(logFile.exists(), "Generated retry diagnostics log should be attached and removed");
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
+            ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
             Files.deleteIfExists(logFile.toPath());
+            Files.deleteIfExists(tempDirectory);
             Properties.clearForCurrentThread();
         }
     }

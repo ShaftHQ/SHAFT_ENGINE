@@ -2,6 +2,7 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.validation.accessibility.AccessibilityHelper;
+import testPackage.TestPageServer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -16,7 +17,7 @@ public class AccessibilityTest {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "coverageTestPage.html");
+        driver.get().browser().navigateToURL(TestPageServer.url("coverageTestPage.html"));
     }
 
     /* ==========================

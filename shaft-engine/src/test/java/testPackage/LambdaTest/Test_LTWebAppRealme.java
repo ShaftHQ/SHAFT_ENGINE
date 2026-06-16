@@ -18,7 +18,6 @@ public class Test_LTWebAppRealme {
     private final String exploreAllMacText = "Explore All Mac";
     private final String appleUrl = "https://www.apple.com/";
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    SHAFT.TestData.JSON testData;
 
 
     @Test
@@ -52,7 +51,6 @@ public class Test_LTWebAppRealme {
 
     @BeforeMethod
     public void beforeMethod() {
-        testData = new SHAFT.TestData.JSON("credentials.json");
         // common attributes
         SHAFT.Properties.lambdaTest.set().deviceName("Pixel 7");
         SHAFT.Properties.lambdaTest.set().platformVersion("13");
@@ -62,13 +60,15 @@ public class Test_LTWebAppRealme {
         SHAFT.Properties.mobile.set().browserName(Browser.CHROME.browserName());
         SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
         SHAFT.Properties.lambdaTest.set().osVersion("11");
-        SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
-        SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
+        LambdaTestCredentials.apply();
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 }

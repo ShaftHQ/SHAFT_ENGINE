@@ -10,7 +10,6 @@ import org.testng.annotations.Test;
 
 public class Test_LTDesktopWebWindows {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-    SHAFT.TestData.JSON testData;
 
     //locators of test_ClickUsingJavaScript
     By emailField = By.xpath("//input[@name='user-name']");
@@ -32,7 +31,6 @@ public class Test_LTDesktopWebWindows {
 
     @BeforeMethod
     public void beforeMethod() {
-        testData = new SHAFT.TestData.JSON("credentials.json");
         SHAFT.Properties.lambdaTest.set().browserVersion("114.0");
         SHAFT.Properties.platform.set().targetPlatform(Platform.WINDOWS.name());
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
@@ -41,13 +39,15 @@ public class Test_LTDesktopWebWindows {
         SHAFT.Properties.lambdaTest.set().osVersion("11");
         SHAFT.Properties.lambdaTest.set().isRealMobile(false);
         SHAFT.Properties.lambdaTest.set().selenium_version("4.8.0");
-        SHAFT.Properties.lambdaTest.set().username(testData.getTestData("LambdaTestUserName"));
-        SHAFT.Properties.lambdaTest.set().accessKey(testData.getTestData("LambdaTestAccessKey"));
+        LambdaTestCredentials.apply();
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().quit();
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
     }
 }

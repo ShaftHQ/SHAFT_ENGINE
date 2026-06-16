@@ -5,6 +5,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
+import testPackage.TestPageServer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -44,8 +45,7 @@ public class E2ECoverageTests {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL(
-                SHAFT.Properties.paths.testData() + "coverageTestPage.html");
+        driver.get().browser().navigateToURL(TestPageServer.url("coverageTestPage.html"));
     }
 
     @AfterMethod(alwaysRun = true)

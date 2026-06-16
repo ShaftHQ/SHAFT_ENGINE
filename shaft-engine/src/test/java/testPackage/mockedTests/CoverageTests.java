@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.remote.Browser;
+import testPackage.TestPageServer;
 import org.testng.annotations.*;
 
 public class CoverageTests {
@@ -14,7 +15,7 @@ public class CoverageTests {
     public void getElementsCount() {
         if (SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
-            int numberOfOptions = driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "hoverDemo.html")
+            int numberOfOptions = driver.get().browser().navigateToURL(TestPageServer.url("hoverDemo.html"))
                     .and().element().getElementsCount(SHAFT.GUI.Locator.hasTagName("a").build());
             SHAFT.Validations.assertThat().number(numberOfOptions).isGreaterThan(1).perform();
         }
@@ -40,7 +41,7 @@ public class CoverageTests {
 
     @Test
     public void alerts_getText_and_accept() {
-        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "alertFixture.html");
+        driver.get().browser().navigateToURL(TestPageServer.url("alertFixture.html"));
         var alert = driver.get().element().click(By.id("alert-button"))
                 .and().alert();
         alert.getAlertText();
@@ -93,7 +94,7 @@ public class CoverageTests {
 
     @Test
     public void alerts_dismiss() {
-        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "alertFixture.html");
+        driver.get().browser().navigateToURL(TestPageServer.url("alertFixture.html"));
         driver.get().element().click(By.id("confirm-button"))
                 .and().alert().dismissAlert();
         driver.get().element().assertThat(By.id("confirm-result")).text().isEqualTo("false").perform();
@@ -101,7 +102,7 @@ public class CoverageTests {
 
     @Test
     public void alerts_type() {
-        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "alertFixture.html");
+        driver.get().browser().navigateToURL(TestPageServer.url("alertFixture.html"));
         driver.get().element().click(By.id("prompt-button"))
                 .and().alert().typeIntoPromptAlert("nachos").acceptAlert();
         driver.get().element().assertThat(By.id("prompt-result")).text().isEqualTo("nachos").perform();

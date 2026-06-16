@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
+import testPackage.TestPageServer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -24,7 +25,7 @@ public class BrowserValidationsTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        String url = SHAFT.Properties.paths.testData() + "coverageTestPage.html";
+        String url = TestPageServer.url("coverageTestPage.html");
         new BrowserActions(driver.get().getDriver()).navigateToURL(url);
     }
 
