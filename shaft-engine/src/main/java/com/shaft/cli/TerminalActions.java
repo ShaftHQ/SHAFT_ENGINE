@@ -12,10 +12,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Pattern;
 
 /**
  * Executes shell commands on local or remote terminals.
@@ -59,6 +61,12 @@ public class TerminalActions {
     private final List<Integer> activeLocalPortForwards = new ArrayList<>();
     private final List<Integer> activeRemotePortForwards = new ArrayList<>();
 
+    private static final Pattern TERMINAL_LOG_SECRET_PATTERN = Pattern.compile(
+            "(?i)(?<![A-Za-z0-9_])(password|passwd|token|secret|api[-_]?key|access[-_]?token|authorization)\\s*[=:]\\s*(?!\\*\\*\\*)\\S+");
+    private static final Pattern TERMINAL_LOG_BEARER_PATTERN = Pattern.compile(
+            "(?i)authorization\\s*:\\s*bearer\\s+\\S+");
+    private static final Pattern TERMINAL_LOG_URI_CREDENTIALS_PATTERN = Pattern.compile(
+            "(?i)(https?://)([^@/\\s]+)@");
 
     /**
      * This constructor is used for local terminal actions.
@@ -193,8 +201,33 @@ public class TerminalActions {
         return terminalActions;
     }
 
+    private static String redactTerminalLogForReporting(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+        String redacted = redactUriCredentialsFromTerminalLog(value);
+        redacted = TERMINAL_LOG_BEARER_PATTERN.matcher(redacted).replaceAll("authorization: ***");
+        return TERMINAL_LOG_SECRET_PATTERN.matcher(redacted).replaceAll("$1=***");
+    }
+
+    private static String redactUriCredentialsFromTerminalLog(String value) {
+        String redacted = TERMINAL_LOG_URI_CREDENTIALS_PATTERN.matcher(value).replaceAll("$1***:***@");
+        try {
+            URI uri = URI.create(redacted);
+            String userInfo = uri.getUserInfo();
+            if (userInfo != null && !userInfo.isEmpty()) {
+                return redacted.replace(userInfo + "@", "***:***@");
+            }
+        } catch (IllegalArgumentException ignored) {
+            // keep value when the string is not a standalone URI
+        }
+        return redacted;
+    }
+
     private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
+        String redactedTestData = redactTerminalLogForReporting(testData);
+        String redactedLog = redactTerminalLogForReporting(log);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Terminal action \"" + actionName + "\" completed.";
@@ -203,16 +236,16 @@ public class TerminalActions {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && testData.length() >= 500) {
+        if (redactedTestData != null && redactedTestData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("Terminal Action Test Data - " + actionName,
-                    "Actual Value", testData);
+                    "Actual Value", redactedTestData);
             attachments.add(actualValueAttachment);
-        } else if (testData != null && !testData.isEmpty()) {
-            message = message + " Input: \"" + testData + "\".";
+        } else if (redactedTestData != null && !redactedTestData.isEmpty()) {
+            message = message + " Input: \"" + redactedTestData + "\".";
         }
 
-        if (log != null && !log.trim().isEmpty()) {
-            attachments.add(Arrays.asList("Terminal Action Actual Result", "Command Log", log));
+        if (redactedLog != null && !redactedLog.trim().isEmpty()) {
+            attachments.add(Arrays.asList("Terminal Action Actual Result", "Command Log", redactedLog));
         }
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
@@ -690,7 +723,7 @@ public class TerminalActions {
         String finalDirectory = directory;
         internalCommands.forEach(command -> {
             command = command.contains(".bat") && !command.contains(".\\") && !command.matches("(^.:\\\\.*$)") ? ".\\" + command : command;
-            ReportManager.logDiscrete("Executing local command: \"" + command + "\".");
+            ReportManager.logDiscrete("Executing local command: \"" + redactTerminalLogForReporting(command) + "\".");
             try {
                 if (Thread.currentThread().isInterrupted()) {
                     throw new InterruptedException("Current thread was interrupted before local command execution.");
@@ -706,7 +739,7 @@ public class TerminalActions {
                          BufferedReader rdr = new BufferedReader(isr)) {
                         while ((line = rdr.readLine()) != null) {
                             if (Boolean.TRUE.equals(verbose)) {
-                                ReportManager.logDiscrete(line);
+                                ReportManager.logDiscrete(redactTerminalLogForReporting(line));
                             }
                             logs.append(line);
                             logs.append("\n");
@@ -716,7 +749,7 @@ public class TerminalActions {
                          BufferedReader rdr = new BufferedReader(isr)) {
                         while ((line = rdr.readLine()) != null) {
                             if (Boolean.TRUE.equals(verbose)) {
-                                ReportManager.logDiscrete(line);
+                                ReportManager.logDiscrete(redactTerminalLogForReporting(line));
                             }
                             logs.append("\n");
                             logs.append(line);
@@ -776,7 +809,7 @@ public class TerminalActions {
         StringBuilder exitStatuses = new StringBuilder();
         int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
         // remote execution
-        ReportManager.logDiscrete("Executing remote command: \"" + longCommand + "\".");
+        ReportManager.logDiscrete("Executing remote command: \"" + redactTerminalLogForReporting(longCommand) + "\".");
         Session remoteSession = getRemoteSession();
         ChannelExec remoteChannelExecutor = null;
         if (remoteSession != null) {
