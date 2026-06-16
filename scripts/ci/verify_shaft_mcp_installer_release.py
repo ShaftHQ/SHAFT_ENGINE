@@ -13,18 +13,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-ARTIFACT = "io.github.shafthq:shaft-mcp:LATEST"
-DEPENDENCY_GOAL = "org.apache.maven.plugins:maven-dependency-plugin:3.9.0:copy"
-EXEC_GOAL = "org.codehaus.mojo:exec-maven-plugin:3.6.3:exec"
-
-
-def maven_executable() -> str:
-    candidates = ("mvn.cmd", "mvn") if platform.system() == "Windows" else ("mvn",)
-    for candidate in candidates:
-        executable = shutil.which(candidate)
-        if executable:
-            return executable
-    raise RuntimeError("Maven 3.9+ was not found on PATH.")
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def write_fake_copilot(bin_directory: Path) -> None:
@@ -55,21 +44,18 @@ def write_fake_copilot(bin_directory: Path) -> None:
 
 
 def installer_command() -> list[str]:
-    return [
-        maven_executable(),
-        "--batch-mode",
-        "--no-transfer-progress",
-        "-U",
-        "-N",
-        DEPENDENCY_GOAL,
-        EXEC_GOAL,
-        f"-Dartifact={ARTIFACT}",
-        "-DoutputDirectory=${java.io.tmpdir}/shaft-mcp-bootstrap",
-        "-Dmdep.stripVersion=true",
-        "-Dmdep.overWriteReleases=true",
-        "-Dexec.executable=java",
-        '-Dexec.args=-jar "${java.io.tmpdir}/shaft-mcp-bootstrap/shaft-mcp.jar" install --copilot',
-    ]
+    if platform.system() == "Windows":
+        return [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.ps1"),
+            "-Client",
+            "copilot",
+        ]
+    return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh"), "--copilot"]
 
 
 def sha256(path: Path) -> str:
@@ -124,6 +110,8 @@ def main() -> int:
         environment["APPDATA"] = str(root / "roaming-app-data")
         environment["XDG_DATA_HOME"] = str(root / "xdg-data")
         environment["XDG_CONFIG_HOME"] = str(root / "xdg-config")
+        environment["SHAFT_MCP_BOOTSTRAP_HOME"] = str(root / "bootstrap")
+        environment["SHAFT_MCP_FORCE_BOOTSTRAP_MAVEN"] = "1"
         environment["PATH"] = str(fake_bin) + os.pathsep + environment.get("PATH", "")
         java_options = f"-Duser.home={home} -Djava.io.tmpdir={java_temp}"
         existing_options = environment.get("JAVA_TOOL_OPTIONS", "").strip()

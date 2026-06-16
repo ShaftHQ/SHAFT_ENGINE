@@ -164,6 +164,14 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("Maven Central delivery must verify the public shaft-mcp LATEST installer")
     if "needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]" not in central_workflow:
         errors.append("release announcements must wait for the public shaft-mcp installer matrix")
+    for installer in ("scripts/mcp/install-shaft-mcp.ps1", "scripts/mcp/install-shaft-mcp.sh"):
+        if not (root / installer).is_file():
+            errors.append(f"missing standalone MCP installer bootstrap: {installer}")
+    public_installer = (root / "scripts/ci/verify_shaft_mcp_installer_release.py").read_text(encoding="utf-8")
+    if "exec-maven-plugin" in public_installer:
+        errors.append("public shaft-mcp installer verification must not depend on the Maven exec plugin")
+    if "SHAFT_MCP_FORCE_BOOTSTRAP_MAVEN" not in public_installer:
+        errors.append("public shaft-mcp installer verification must exercise Maven bootstrapping")
 
     for dockerfile in (root / "shaft-mcp").glob("Dockerfile*"):
         content = dockerfile.read_text(encoding="utf-8")
