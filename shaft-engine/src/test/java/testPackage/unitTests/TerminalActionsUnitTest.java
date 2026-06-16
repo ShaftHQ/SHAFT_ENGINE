@@ -462,7 +462,7 @@ public class TerminalActionsUnitTest {
 
         String passMessage = (String) reportActionResult.invoke(null,
                 "performTerminalCommand", "inputData", "sample logs", true, new Exception[]{});
-        Assert.assertTrue(passMessage.contains("successfully performed"));
+        Assert.assertTrue(passMessage.contains("completed"));
         Assert.assertTrue(passMessage.contains("inputData"));
 
         String longTestData = "x".repeat(600);
@@ -473,7 +473,35 @@ public class TerminalActionsUnitTest {
 
         String passWithoutAttachments = (String) reportActionResult.invoke(null,
                 "performTerminalCommand", null, null, true, new Exception[]{});
-        Assert.assertTrue(passWithoutAttachments.contains("successfully performed"));
+        Assert.assertTrue(passWithoutAttachments.contains("completed"));
+    }
+
+    @Test(description = "reportActionResult should redact sensitive command data before logging")
+    public void reportActionResultShouldRedactSensitiveCommandData() throws Exception {
+        Method reportActionResult = TerminalActions.class.getDeclaredMethod("reportActionResult",
+                String.class, String.class, String.class, Boolean.class, Exception[].class);
+        reportActionResult.setAccessible(true);
+
+        String uriAndKeyMessage = (String) reportActionResult.invoke(null,
+                "performTerminalCommand",
+                "curl https://user:secret@example.com --api-key=live-key",
+                "authorization: Bearer leaked-token",
+                true,
+                new Exception[]{});
+        Assert.assertFalse(uriAndKeyMessage.contains("user:secret@"));
+        Assert.assertFalse(uriAndKeyMessage.contains("live-key"));
+        Assert.assertTrue(uriAndKeyMessage.contains("api-key=***"));
+        Assert.assertTrue(uriAndKeyMessage.contains("***:***@"));
+
+        String tokenMessage = (String) reportActionResult.invoke(null,
+                "performTerminalCommand",
+                "deploy --token=abc123 --region=eu",
+                null,
+                true,
+                new Exception[]{});
+        Assert.assertFalse(tokenMessage.contains("abc123"));
+        Assert.assertTrue(tokenMessage.contains("token=***"));
+        Assert.assertTrue(tokenMessage.contains("--region=eu"));
     }
 
     @Test(description = "private pass/fail action helpers should execute and propagate failures")
@@ -501,6 +529,14 @@ public class TerminalActionsUnitTest {
                 () -> failActionWithoutActionName.invoke(terminal, "input",
                         (Object) new Exception[]{new RuntimeException("forced failure")}));
         Assert.assertTrue(secondFailure.getCause() instanceof RuntimeException);
+    }
+
+    @Test(description = "performTerminalCommand should return unredacted output for assertions")
+    public void performTerminalCommandShouldReturnUnredactedOutputForAssertions() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        String log = terminal.performTerminalCommand("echo token=visible");
+        Assert.assertTrue(log.contains("token=visible"),
+                "Returned command output should remain available for assertions");
     }
 
     @Test(description = "createSSHsession should surface connection failures for invalid settings")
