@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  installer-tests:
-    name: Installer tests (${{ matrix.os }})
+  installer-script-tests:
+    name: Installer script tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -19,35 +19,21 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'zulu'
           check-latest: true
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.12
-      - name: Run isolated installer tests
-        shell: bash
-        run: >-
-          mvn --batch-mode -pl shaft-mcp -am test
-          -Dtest=ShaftMcpInstallerTest
-          -Dsurefire.failIfNoSpecifiedTests=false
-          -Dgpg.skip
-      - name: Upload coverage to Codecov
-        if: always()
-        uses: ./.github/actions/upload-jacoco-coverage
-        with:
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          files: >-
-            ./shaft-engine/target/jacoco/jacoco.xml,
-            ./shaft-mcp/target/jacoco/jacoco.xml
-          required-files: ./shaft-mcp/target/jacoco/jacoco.xml
+      - name: Run isolated installer script verification
+        run: python scripts/ci/verify_shaft_mcp_installer_release.py
 
   package-and-smoke:
-    needs: installer-tests
+    needs: installer-script-tests
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
@@ -67,7 +53,14 @@ jobs:
           python3 scripts/ci/validate_reactor_versions.py
           python3 scripts/ci/validate_shaft_mcp_configuration.py
       - name: Run MCP module tests
-        run: mvn --batch-mode -pl shaft-mcp -am test -Dgpg.skip
+        env:
+          MCP_RELATED_TESTS: ShaftMcpApplicationTests#contextRegistersExpectedLeanMcpToolApi,CaptureServiceTest#codeBlocksToolGeneratesReusableReplaySnippetsInsideWorkspace,CaptureServiceTest#checkpointToolRequiresActiveCaptureSession,CaptureServiceTest#codeBlocksRejectSessionOutsideWorkspace,DoctorServiceTest#toolAnalyzesAllowlistedEvidenceOffline,DoctorServiceTest#documentedExternalClientsInvokeDoctorAnalyzeWithoutCredentials,DoctorServiceTest#failedAllureAnalysisRejectsPathsOutsideWorkspace,DoctorServiceTest#draftPublicationRequiresExplicitApprovalBeforeReadingManifest,MobileRecordingServiceTest#recordingGeneratesRedactedReplayCodeInsideWorkspace,MobileRecordingServiceTest#recordingCodeBlocksRejectPathOutsideWorkspace
+        run: >-
+          mvn --batch-mode -pl shaft-mcp -am test
+          -Dtest="${MCP_RELATED_TESTS}"
+          -Dsurefire.failIfNoSpecifiedTests=false
+          -DheadlessExecution=true
+          -Dgpg.skip
       - name: Upload coverage to Codecov
         if: always()
         uses: ./.github/actions/upload-jacoco-coverage

@@ -206,10 +206,6 @@ jobs:
           java-version: '25'
           distribution: 'zulu'
           check-latest: true
-      - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.12
       - name: Run the public LATEST installer twice
         run: python scripts/ci/verify_shaft_mcp_installer_release.py
 

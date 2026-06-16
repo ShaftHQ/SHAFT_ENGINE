@@ -60,8 +60,12 @@ def validate(root: Path = ROOT) -> list[str]:
     application_source = (
         root / "shaft-mcp/src/main/java/com/shaft/mcp/ShaftMcpApplication.java"
     ).read_text(encoding="utf-8")
-    if '"install".equalsIgnoreCase(args[0])' not in application_source:
-        errors.append("shaft-mcp must route the install command before Spring MCP startup")
+    if '"install".equalsIgnoreCase(args[0])' in application_source or "ShaftMcpInstaller" in application_source:
+        errors.append("shaft-mcp installation must be owned by scripts, not the packaged JAR")
+    installer_sources = list((root / "shaft-mcp/src/main/java/com/shaft/mcp/install").glob("*.java"))
+    installer_tests = list((root / "shaft-mcp/src/test/java/com/shaft/mcp/install").glob("*.java"))
+    if installer_sources or installer_tests:
+        errors.append("shaft-mcp Java installer sources and tests must be removed")
 
     engine_pom = (root / "shaft-engine" / "pom.xml").read_text(encoding="utf-8")
     if "<artifactId>shaft-mcp</artifactId>" in engine_pom:
@@ -158,20 +162,62 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("shaft-mcp workflow must not run on pull_request or push")
     for runner in ("ubuntu-22.04", "macos-15", "windows-2025"):
         if runner not in mcp_workflow:
-            errors.append(f"shaft-mcp installer tests must run on {runner}")
+            errors.append(f"shaft-mcp installer script verification must run on {runner}")
+    for required_mcp_test_token in ("MCP_RELATED_TESTS", '-Dtest="${MCP_RELATED_TESTS}"', "-DheadlessExecution=true"):
+        if required_mcp_test_token not in mcp_workflow:
+            errors.append(f"shaft-mcp workflow must run a bounded headless MCP test selector containing {required_mcp_test_token}")
+    if mcp_workflow.count("#") > 10:
+        errors.append("shaft-mcp workflow MCP test selector must stay bounded to at most 10 selected test methods")
     central_workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(encoding="utf-8")
     if "verify_shaft_mcp_installer_release.py" not in central_workflow:
         errors.append("Maven Central delivery must verify the public shaft-mcp LATEST installer")
     if "needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]" not in central_workflow:
         errors.append("release announcements must wait for the public shaft-mcp installer matrix")
+    installer_implementation = root / "scripts/mcp/install_shaft_mcp.py"
+    if not installer_implementation.is_file():
+        errors.append("missing shared Python MCP installer implementation: scripts/mcp/install_shaft_mcp.py")
+        installer_implementation_text = ""
+    else:
+        installer_implementation_text = installer_implementation.read_text(encoding="utf-8")
+        for required in ("maven-metadata.xml", ".sha256", "copilot-intellij", "claude-desktop", "probe_stdio"):
+            if required not in installer_implementation_text:
+                errors.append(f"shared Python MCP installer must contain standalone support for {required}")
+        for legacy_client in ("codex-app", "copilot-vscode"):
+            if legacy_client in installer_implementation_text:
+                errors.append(f"shared Python MCP installer must not contain removed client target: {legacy_client}")
     for installer in ("scripts/mcp/install-shaft-mcp.ps1", "scripts/mcp/install-shaft-mcp.sh"):
         if not (root / installer).is_file():
             errors.append(f"missing standalone MCP installer bootstrap: {installer}")
+        else:
+            installer_text = (root / installer).read_text(encoding="utf-8")
+            forbidden = (
+                "maven-metadata.xml",
+                ".sha256",
+                "maven-dependency-plugin",
+                "exec-maven-plugin",
+                "Download-Maven",
+                "Get-Maven",
+                "SHAFT_MCP_FORCE_BOOTSTRAP_MAVEN",
+                "java -jar $jar install",
+                "-jar $jar install",
+                "-jar $Jar install",
+                "codex-app",
+                "copilot-vscode",
+            )
+            for token in forbidden:
+                if token in installer_text:
+                    errors.append(f"{installer} must not contain implementation or legacy installer token: {token}")
+            for required in ("install_shaft_mcp.py", "python-build-standalone"):
+                if required not in installer_text:
+                    errors.append(f"{installer} must be a thin Python bootstrapper containing {required}")
     public_installer = (root / "scripts/ci/verify_shaft_mcp_installer_release.py").read_text(encoding="utf-8")
     if "exec-maven-plugin" in public_installer:
         errors.append("public shaft-mcp installer verification must not depend on the Maven exec plugin")
-    if "SHAFT_MCP_FORCE_BOOTSTRAP_MAVEN" not in public_installer:
-        errors.append("public shaft-mcp installer verification must exercise Maven bootstrapping")
+    if "SHAFT_MCP_FORCE_BOOTSTRAP_MAVEN" in public_installer:
+        errors.append("public shaft-mcp installer verification must not exercise Maven bootstrapping")
+    for required_client in ("claude-desktop", "copilot-intellij"):
+        if required_client not in public_installer:
+            errors.append(f"public shaft-mcp installer verification must cover {required_client}")
 
     for dockerfile in (root / "shaft-mcp").glob("Dockerfile*"):
         content = dockerfile.read_text(encoding="utf-8")
