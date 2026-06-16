@@ -32,13 +32,13 @@ public class ProjectStructureManager {
         var isUsingCucumber = stacktraceSupplier.get()
                 .anyMatch(io.cucumber.core.runner.Runner.class.getCanonicalName()::equals);
         if (isUsingJunitDiscovery || isUsingTestNG) {
-            logger.info("TestNG run detected...");
+            logger.debug("Detected TestNG execution.");
             return RunType.TESTNG;
         } else if (isUsingCucumber) {
-            logger.info("Cucumber run detected...");
+            logger.debug("Detected Cucumber execution.");
             return RunType.CUCUMBER;
         } else {
-            logger.info("JUnit5 run detected...");
+            logger.debug("Detected JUnit 5 execution.");
             return RunType.JUNIT;
         }
     }
@@ -49,7 +49,7 @@ public class ProjectStructureManager {
      * @param runType current execution framework mode
      */
     public static void initialize(RunType runType) {
-        ReportManager.logDiscrete("Initializing Project Structure...");
+        ReportManager.logDiscrete("Preparing SHAFT project structure.");
         if (Properties.platform.executionAddress().equals("local")
                 && !Paths.get(System.getProperty("user.dir")).getFileName().toString().equals("shaft-engine")) {
             FileActions.getInstance(true).createFolder(Properties.paths.properties());

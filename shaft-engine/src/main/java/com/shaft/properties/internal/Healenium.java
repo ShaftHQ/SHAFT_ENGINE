@@ -1,6 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -19,7 +18,7 @@ public interface Healenium extends EngineProperties<Healenium> {
     private static void setProperty(String key, String value) {
         ThreadLocalPropertiesManager.setProperty(key, value);
         Properties.healeniumOverride.set(ConfigFactory.create(Healenium.class, ThreadLocalPropertiesManager.getOverrides()));
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+        EngineProperties.logPropertyUpdate(key, value);
     }
 
     @Key("recovery-tries")

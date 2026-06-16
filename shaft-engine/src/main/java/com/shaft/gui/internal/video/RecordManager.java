@@ -57,10 +57,10 @@ public class RecordManager {
                 } else if (driver instanceof IOSDriver iosDriver) {
                     iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions().withVideoType("libx264").withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM).withTimeLimit(Duration.ofMinutes(30)));
                 }
-                ReportManager.logDiscrete("Started recording device screen");
+                ReportManager.logDiscrete("Started device screen recording.");
                 isRecordingStarted = true;
             } catch (WebDriverException exception) {
-                ReportManager.logDiscrete("Failed to start recording device screen");
+                ReportManager.logDiscrete("Could not start device screen recording.");
             }
         } else if (driver == null || shouldFallbackToDesktopRecorder(driver)) {
             startVideoRecording();
@@ -155,7 +155,7 @@ public class RecordManager {
                     base64EncodedRecording = iosDriver.stopRecordingScreen();
                 }
             } catch (WebDriverException e) {
-                ReportManager.logDiscrete("Failed to stop recording device screen (command may not be supported on this device)");
+                ReportManager.logDiscrete("Could not stop device screen recording. The command may not be supported on this device.");
                 ReportManagerHelper.logDiscrete(e);
             }
             if (base64EncodedRecording != null && !base64EncodedRecording.isBlank()) {

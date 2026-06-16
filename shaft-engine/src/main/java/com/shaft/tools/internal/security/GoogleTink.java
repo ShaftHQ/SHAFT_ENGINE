@@ -61,24 +61,24 @@ public class GoogleTink {
     public static void encrypt() {
         if (!"".equals(keysetFilename)) {
             String relativeFolderPath = SHAFT.Properties.paths.testData();
-            ReportManager.logDiscrete("Loading test data files from target directory \"" + relativeFolderPath + "\" to be encrypted...");
+            ReportManager.logDiscrete("Preparing test data files in \"" + relativeFolderPath + "\" for encryption.");
             SHAFT.Properties.reporting.set().disableLogging(true);
             var filesList = FileActions.getInstance(true).getFileList(relativeFolderPath);
             SHAFT.Properties.reporting.set().disableLogging(false);
             filesList.forEach(file -> encrypt(file.getParent() + File.separator, file.getName()));
-            ReportManager.log("Successfully Encrypted the test data directory \"" + relativeFolderPath + "\".");
+            ReportManager.log("Encrypted the test data directory \"" + relativeFolderPath + "\".");
         }
     }
 
     public static void decrypt() {
         if (!"".equals(keysetFilename)) {
             String relativeFolderPath = SHAFT.Properties.paths.testData();
-            ReportManager.logDiscrete("Loading test data files from target directory \"" + relativeFolderPath + "\" to be decrypted...");
+            ReportManager.logDiscrete("Preparing test data files in \"" + relativeFolderPath + "\" for decryption.");
             SHAFT.Properties.reporting.set().disableLogging(true);
             var filesList = FileActions.getInstance(true).getFileList(relativeFolderPath);
             SHAFT.Properties.reporting.set().disableLogging(false);
             filesList.forEach(file -> decrypt(file.getParent() + File.separator, file.getName()));
-            ReportManager.log("Successfully Decrypted the test data directory \"" + relativeFolderPath + "\".");
+            ReportManager.log("Decrypted the test data directory \"" + relativeFolderPath + "\".");
         }
     }
 
@@ -87,9 +87,9 @@ public class GoogleTink {
         try {
             ciphertext = internal_encrypt(FileActions.getInstance(true).readFileAsByteArray(relativeFolderPath + targetFileName));
             FileActions.getInstance(true).writeToFile(relativeFolderPath, targetFileName, ciphertext);
-            ReportManager.log("Successfully Encrypted \"" + targetFileName + "\".");
+            ReportManager.log("Encrypted \"" + targetFileName + "\".");
         } catch (GeneralSecurityException e) {
-            FailureReporter.fail(GoogleTink.class, "Failed to Encrypt \"" + targetFileName + "\".", e);
+            FailureReporter.fail(GoogleTink.class, "Could not encrypt \"" + targetFileName + "\".", e);
         }
     }
 
@@ -98,10 +98,10 @@ public class GoogleTink {
         try {
             decryptedText = internal_decrypt(FileActions.getInstance(true).readFileAsByteArray(relativeFolderPath + targetFileName));
             FileActions.getInstance(true).writeToFile(relativeFolderPath, targetFileName, decryptedText);
-            ReportManager.log("Successfully Decrypted \"" + targetFileName + "\".");
+            ReportManager.log("Decrypted \"" + targetFileName + "\".");
         } catch (GeneralSecurityException e) {
             ReportManagerHelper.logDiscrete(e);
-            ReportManager.log("Failed to Decrypt \"" + targetFileName + "\". It may already be in plaintext.");
+            ReportManager.log("Could not decrypt \"" + targetFileName + "\". It may already be in plaintext.");
 //            FailureReporter.fail(GoogleTink.class,"Failed to Decrypt \""+targetFileName+"\".", e);
         }
     }

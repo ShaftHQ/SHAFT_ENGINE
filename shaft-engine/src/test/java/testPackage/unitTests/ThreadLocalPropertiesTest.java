@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -285,7 +286,7 @@ public class ThreadLocalPropertiesTest {
     }
 
     @Test(description = "Failed-test retry enables debug file logging diagnostics")
-    public void testRetryDiagnosticsLoggingLifecycle() throws java.io.IOException {
+    public void testRetryDiagnosticsLoggingLifecycle() throws Exception {
         int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
         String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();
         Path tempDirectory = Files.createTempDirectory("shaft-retry-diagnostics");
@@ -310,14 +311,17 @@ public class ThreadLocalPropertiesTest {
             Assert.assertTrue(isRetryDebugFileLoggingEnabled(),
                     "Retry diagnostics should enable debug file logging while retry evidence is active");
             Assert.assertTrue(logFile.isFile(), "Retry diagnostics should ensure the log file exists");
-            Assert.assertTrue(logFile.length() > 0, "Retry diagnostics should write to the log file");
+            waitForFileToContain(logFile.toPath(), "Retry #1/1 for test: retryLoggingTest");
             String retryLog = Files.readString(logFile.toPath(), StandardCharsets.UTF_8);
             Assert.assertTrue(retryLog.contains("[DEBUG"),
                     "Retry diagnostics should include at least one debug-level entry");
+            Assert.assertTrue(retryLog.contains("Retry #1/1 for test: retryLoggingTest"),
+                    "Retry diagnostics should include the retry attempt context");
             ReportManagerHelper.attachEngineLog("retry-diagnostics-test");
             Assert.assertFalse(isRetryDebugFileLoggingEnabled(),
                     "Retry diagnostics should be disabled after engine log attachment completes");
-            Assert.assertFalse(logFile.exists(), "Generated retry diagnostics log should be attached and removed");
+            Assert.assertTrue(logFile.exists(), "Engine log attachment should preserve the live log file");
+            waitForFileToContain(logFile.toPath(), "Retry #1/1 for test: retryLoggingTest");
         } finally {
             SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(originalRetryCount);
             ThreadLocalPropertiesManager.setProperty("appender.file.fileName", originalLogFilePath);
@@ -366,6 +370,7 @@ public class ThreadLocalPropertiesTest {
             enableDebugFileLogging.invoke(null);
             writeToDebugLogFile.invoke(null, unicodeLogEntry, Level.DEBUG);
 
+            waitForFileToContain(logFilePath, unicodeLogEntry);
             String writtenLog = Files.readString(logFilePath, StandardCharsets.UTF_8);
             Assert.assertTrue(writtenLog.contains(unicodeLogEntry),
                     "Retry debug log writer should preserve Unicode characters when written/read as UTF-8");
@@ -397,6 +402,18 @@ public class ThreadLocalPropertiesTest {
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("Could not inspect retry diagnostics debug logging state", e);
         }
+    }
+
+    private void waitForFileToContain(Path file, String expectedContent) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            if (Files.isRegularFile(file)
+                    && Files.readString(file, StandardCharsets.UTF_8).contains(expectedContent)) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        Assert.fail("Timed out waiting for '" + file + "' to contain: " + expectedContent);
     }
 
     @Test(description = "Engine log attachment should collapse consecutive duplicate lines")

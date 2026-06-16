@@ -1,6 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -23,7 +22,7 @@ public interface Flags extends EngineProperties<Flags> {
             ThreadLocalPropertiesManager.setGlobalProperty(key, value);
             Properties.baseFlags = ConfigFactory.create(Flags.class, ThreadLocalPropertiesManager.getGlobalOverrides());
         }
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+        EngineProperties.logPropertyUpdate(key, value);
     }
 
     @Key("automaticallyAddRecommendedChromeOptions")

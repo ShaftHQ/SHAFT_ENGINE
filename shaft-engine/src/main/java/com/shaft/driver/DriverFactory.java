@@ -75,11 +75,11 @@ public class DriverFactory {
      */
     public static boolean reloadProperties() {
         if (!com.shaft.properties.internal.Properties.isInitialized()) {
-            logger.warn("Execution Listeners are not loaded properly... Self-Healing... Initializing minimalistic test run...");
+            logger.warn("SHAFT listeners are not initialized. Starting a minimal test runtime.");
             var runType = ProjectStructureManager.identifyRunType();
             if (runType.equals(ProjectStructureManager.RunType.CUCUMBER)) {
                 // stuck on minimalistic test run in case of native cucumber execution without manual plugin configuration
-                logger.warn("To unlock the full capabilities of SHAFT kindly follow these steps to configure SHAFT's Cucumber plugin:");
+                logger.warn("Configure SHAFT's Cucumber plugin to enable the full listener lifecycle:");
                 logger.warn("https://github.com/ShaftHQ/SHAFT_ENGINE?tab=readme-ov-file#23-cucumber");
             }
             PropertiesHelper.bootstrapEngine(runType);

@@ -115,11 +115,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         if (this.isReportPortalEnabledForListener) {
             this.reportPortalTestNGService = REPORT_PORTAL_SERVICE.get();
             if (REPORT_PORTAL_INSTANCES.incrementAndGet() > 1) {
-                String warning = "WARNING! More than one ReportPortal listener is added";
+                String warning = "More than one ReportPortal listener is configured.";
                 ReportManagerHelper.logDiscrete(warning, Level.WARN);
             }
-            String info = "Initializing ReportPortal Reporting Environment.";
-            ReportManagerHelper.logDiscrete(info, Level.INFO);
+            ReportManagerHelper.logDiscrete("Starting ReportPortal reporting.", Level.DEBUG);
             this.reportPortalTestNGService.startLaunch();
         }
     }

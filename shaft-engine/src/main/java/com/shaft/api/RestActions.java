@@ -105,6 +105,18 @@ public class RestActions {
     private final RestAssuredConfig sessionConfig;
     private SHAFT.API driver;
 
+    private static String maskSensitiveHeaderValue(String headerKey, String headerValue) {
+        String normalizedHeaderKey = headerKey == null ? "" : headerKey.toLowerCase(Locale.ROOT);
+        if (normalizedHeaderKey.contains("authorization")
+                || normalizedHeaderKey.contains("token")
+                || normalizedHeaderKey.contains("secret")
+                || normalizedHeaderKey.contains("apikey")
+                || normalizedHeaderKey.contains("api-key")) {
+            return "********";
+        }
+        return headerValue;
+    }
+
     public RestActions(String serviceURI, SHAFT.API driver) {
         initializeSystemProperties();
         headerAuthorization = "";
@@ -125,8 +137,8 @@ public class RestActions {
      * @return Response object
      */
     private static Response graphQlRequestHelper(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: "
-                + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod + "]");
+        ReportManager.logDiscrete("Sending GraphQL request. Service URL: "
+                + base_URI_forHelperMethod + "graphql, request body: " + requestBody_forHelperMethod + ".");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).performRequest().getResponse();
     }
@@ -151,9 +163,9 @@ public class RestActions {
      * @return Response object
      */
     private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: "
+        ReportManager.logDiscrete("Sending GraphQL request. Service URL: "
                 + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod
-                + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + headerValue_forHelperMethod + "\"]");
+                + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + maskSensitiveHeaderValue(headerKey_forHelperMethod, headerValue_forHelperMethod) + "\".");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest().getResponse();
     }
@@ -313,11 +325,11 @@ public class RestActions {
             failAction(jsonPath, rootCauseException);
         }
         if (searchPool != null) {
-            ReportManager.logDiscrete("Get response JSON value; " + jsonPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response JSON value: " + jsonPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
-            ReportManager.logDiscrete("Get response JSON value; " + jsonPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response JSON value: " + jsonPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -395,11 +407,11 @@ public class RestActions {
             failAction(jsonPath, rootCauseException);
         }
         if (searchPool != null) {
-            ReportManager.logDiscrete("Get response JSON value; " + jsonPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response JSON value: " + jsonPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
-            ReportManager.logDiscrete("Get response JSON value; " + jsonPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response JSON value: " + jsonPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -439,11 +451,11 @@ public class RestActions {
         }
 
         if (searchPool != null) {
-            ReportManager.logDiscrete("Get response JSON value as list; " + jsonPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response JSON list value: " + jsonPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
-            ReportManager.logDiscrete("Get response JSON value as list; " + jsonPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response JSON list value: " + jsonPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -474,7 +486,7 @@ public class RestActions {
         if (Objects.equals(value, "")) {
             failAction("Can't find the reference value [" + valueReference + "] in the list with the [" + jsonPathToValueReference + "] JSON Path");
         } else {
-            ReportManager.logDiscrete("Get response JSON value from list; " + value + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response JSON list item: " + value + ".", Level.DEBUG);
         }
         return value;
     }
@@ -497,11 +509,11 @@ public class RestActions {
 
         }
         if (searchPool != null) {
-            ReportManager.logDiscrete("Get response XML value; " + xmlPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response XML value: " + xmlPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
-            ReportManager.logDiscrete("Get response XML value; " + xmlPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response XML value: " + xmlPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -524,11 +536,11 @@ public class RestActions {
 
         }
         if (output != null) {
-            ReportManager.logDiscrete("Get response XML value; " + xmlPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response XML value: " + xmlPath + ".", Level.DEBUG);
             return output;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
-            ReportManager.logDiscrete("Get response XML value; " + xmlPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response XML value: " + xmlPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -558,11 +570,11 @@ public class RestActions {
             searchPool = Arrays.asList(nodes.toArray());
         }
         if (searchPool != null) {
-            ReportManager.logDiscrete("Get response XML value as list; " + xmlPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response XML list value: " + xmlPath + ".", Level.DEBUG);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
-            ReportManager.logDiscrete("Get response XML value as list; " + xmlPath + ".", Level.DEBUG);
+            ReportManager.logDiscrete("Read response XML list value: " + xmlPath + ".", Level.DEBUG);
             return null;
         }
     }
@@ -575,7 +587,7 @@ public class RestActions {
      */
     public static int getResponseStatusCode(Response response) {
         int statusCode = response.getStatusCode();
-        ReportManager.logDiscrete("Get response status code; " + statusCode + ".", Level.DEBUG);
+        ReportManager.logDiscrete("Response status code: " + statusCode + ".", Level.DEBUG);
         return statusCode;
     }
 
@@ -587,7 +599,7 @@ public class RestActions {
      */
     public static long getResponseTime(Response response) {
         long time = response.timeIn(TimeUnit.MILLISECONDS);
-        ReportManager.logDiscrete("Get response time; " + time + "ms.", Level.DEBUG);
+        ReportManager.logDiscrete("Response time: " + time + "ms.", Level.DEBUG);
         return time;
     }
 
@@ -1348,17 +1360,17 @@ public class RestActions {
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             var statusCode = response.getStatusCode();
-            ReportManager.logDiscrete("Response status code: \"" + statusCode + "\", status line: \"" + response.getStatusLine() + "\"", Level.DEBUG);
+            ReportManager.logDiscrete("Response status: " + statusCode + " (" + response.getStatusLine() + ").", Level.DEBUG);
             if (AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE) {
                 if (targetStatusCode != 0) {
                     if (targetStatusCode == statusCode) {
-                        ReportManager.logDiscrete("Actual response status code \"" + statusCode + "\" matches the expected one \"" + targetStatusCode + "\".", Level.DEBUG);
+                        ReportManager.logDiscrete("Response status matched the expected code " + targetStatusCode + ".", Level.DEBUG);
                     } else {
                         failAction("Actual response status code \"" + statusCode + "\" does not match the expected one \"" + targetStatusCode + "\".");
                     }
                 } else {
                     if (statusCode >= 200 && statusCode < 300) {
-                        ReportManager.logDiscrete("Actual response status code \"" + statusCode + "\" is successful (Between 200 and 299).", Level.DEBUG);
+                        ReportManager.logDiscrete("Response status is successful (2xx).", Level.DEBUG);
                     } else {
                         failAction("Actual response status code \"" + statusCode + "\" is a failure (Not between 200 and 299).");
                     }

@@ -53,10 +53,10 @@ public class CSVFileManager {
             records = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
             RowReader = new FileReader(csvFilePath);
             RowRecords = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(RowReader);
-            ReportManager.logDiscrete("Reading test data from the following file. [" + this.csvFilePath + "]", Level.INFO);
+            ReportManager.logDiscrete("Reading CSV test data from [" + this.csvFilePath + "].", Level.DEBUG);
         } catch (IOException | OutOfMemoryError e) {
-            FailureReporter.fail(this.getClass(), "Couldn't find the desired file. [" + this.csvFilePath + "] ", e);
-            ReportManager.logDiscrete("Couldn't find the desired file. [" + this.csvFilePath + "] ", Level.ERROR);
+            FailureReporter.fail(this.getClass(), "Could not find the desired file. [" + this.csvFilePath + "] ", e);
+            ReportManager.logDiscrete("Could not find the desired file. [" + this.csvFilePath + "] ", Level.ERROR);
         }
 
     }
@@ -77,9 +77,9 @@ public class CSVFileManager {
                 }
                 rows.add(row);
             }
-            ReportManager.logDiscrete("Successfully retrieved all rows from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read all CSV rows from [" + csvFilePath + "].", Level.DEBUG);
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving rows: " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve rows: " + e.getMessage(), Level.ERROR);
         }
         return rows;
     }
@@ -92,10 +92,10 @@ public class CSVFileManager {
     public List<String> getColumns() {
         try {
             List<String> columns = new ArrayList<>(records.getHeaderNames());
-            ReportManager.logDiscrete("Successfully retrieved column names from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read CSV column names from [" + csvFilePath + "].", Level.DEBUG);
             return columns;
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving columns: " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve columns: " + e.getMessage(), Level.ERROR);
             return Collections.emptyList();
         }
     }
@@ -121,7 +121,7 @@ public class CSVFileManager {
                 ColumnWithRows.put(columns.get(i), columnData);
             }
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while mapping columns with data: " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not map CSV columns to row data: " + e.getMessage(), Level.ERROR);
         }
         return ColumnWithRows;
     }
@@ -136,7 +136,7 @@ public class CSVFileManager {
             List<String> columns = getColumns();
             return columns.getLast();
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving the last column: " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve the last column: " + e.getMessage(), Level.ERROR);
             return null;
         }
     }
@@ -151,7 +151,7 @@ public class CSVFileManager {
         try {
             return getColumns().get(ColumnNum - 1);
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving column name at index " + ColumnNum + ": " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve column name at index " + ColumnNum + ": " + e.getMessage(), Level.ERROR);
             return null;
         }
     }
@@ -166,7 +166,7 @@ public class CSVFileManager {
         try {
             return getColumnsWithData().get(ColumnName);
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving data for column: " + ColumnName + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve data for column: " + ColumnName + ". " + e.getMessage(), Level.ERROR);
             return Collections.emptyList();
         }
     }
@@ -181,7 +181,7 @@ public class CSVFileManager {
         try {
             return getColumnsWithData().get(getSpecificColumnName(ColumnIndex - 1));
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving data for column: " + getSpecificColumnName(ColumnIndex - 1) + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve data for column: " + getSpecificColumnName(ColumnIndex - 1) + ". " + e.getMessage(), Level.ERROR);
             return Collections.emptyList();
         }
     }
@@ -199,7 +199,7 @@ public class CSVFileManager {
             List<String> columns = getColumns();
             return row[columns.indexOf(ColumnName)];
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving cell data for Row: " + RowNum + ", Column: " + ColumnName + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve cell data for Row: " + RowNum + ", Column: " + ColumnName + ". " + e.getMessage(), Level.ERROR);
             return null;
         }
     }
@@ -217,7 +217,7 @@ public class CSVFileManager {
             List<String> columns = getColumns();
             return row[columns.indexOf(getSpecificColumnName(ColumnIndex - 1))];
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving cell data for Row: " + RowNum + ", Column: " + getSpecificColumnName(ColumnIndex - 1) + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve cell data for Row: " + RowNum + ", Column: " + getSpecificColumnName(ColumnIndex - 1) + ". " + e.getMessage(), Level.ERROR);
             return null;
         }
     }
@@ -230,10 +230,10 @@ public class CSVFileManager {
     public String getFirstColumn() {
         try {
             List<String> columns = getColumns();
-            ReportManager.logDiscrete("Successfully retrieved the first column name from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read first CSV column name from [" + csvFilePath + "].", Level.DEBUG);
             return columns.getFirst();
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error while retrieving the first column: " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve the first column: " + e.getMessage(), Level.ERROR);
             return null;
         }
     }
@@ -254,10 +254,10 @@ public class CSVFileManager {
                     min = num;
                 }
             }
-            ReportManager.logDiscrete("Successfully retrieved Min cell value= " + min + " of column : " + columnName + " from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read minimum CSV cell value " + min + " of column : " + columnName + " from [" + csvFilePath + "].", Level.DEBUG);
             return min;
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error calculating min value for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not calculate min value for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
             return Double.NaN;
         }
     }
@@ -278,10 +278,10 @@ public class CSVFileManager {
                     min = num;
                 }
             }
-            ReportManager.logDiscrete("Successfully retrieved Min cell value= " + min + " of column : " + getColumns().get(columnIndex) + " from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read minimum CSV cell value " + min + " of column : " + getColumns().get(columnIndex) + " from [" + csvFilePath + "].", Level.DEBUG);
             return min;
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error calculating min value for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not calculate min value for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
             return Double.NaN;
         }
     }
@@ -302,10 +302,10 @@ public class CSVFileManager {
                     max = num;
                 }
             }
-            ReportManager.logDiscrete("Successfully retrieved Max cell value= " + max + " of column : " + columnName + " from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read maximum CSV cell value " + max + " of column : " + columnName + " from [" + csvFilePath + "].", Level.DEBUG);
             return max;
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error calculating min value for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not calculate max value for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
             return Double.NaN;
         }
     }
@@ -326,10 +326,10 @@ public class CSVFileManager {
                     max = num;
                 }
             }
-            ReportManager.logDiscrete("Successfully retrieved Max cell value = " + max + " of column : " + getColumns().get(columnIndex) + " from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read maximum CSV cell value " + max + " of column : " + getColumns().get(columnIndex) + " from [" + csvFilePath + "].", Level.DEBUG);
             return max;
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error calculating min value for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not calculate max value for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
             return Double.NaN;
         }
     }
@@ -342,10 +342,10 @@ public class CSVFileManager {
      */
     public int getCellCount(String columnName) {
         try {
-            ReportManager.logDiscrete("Successfully retrieved cell count of column : " + columnName + " from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read CSV cell count for column " + columnName + " from [" + csvFilePath + "].", Level.DEBUG);
             return getColumnsWithData().get(columnName).size();
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error calculating count for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not calculate count for column: " + columnName + ". " + e.getMessage(), Level.ERROR);
             return 0;
         }
     }
@@ -358,10 +358,10 @@ public class CSVFileManager {
      */
     public int getCellCount(int columnIndex) {
         try {
-            ReportManager.logDiscrete("Successfully retrieved cell count of column : " + getColumns().get(columnIndex) + " from [" + csvFilePath + "].", Level.INFO);
+            ReportManager.logDiscrete("Read CSV cell count for column " + getColumns().get(columnIndex) + " from [" + csvFilePath + "].", Level.DEBUG);
             return getColumnsWithData().get(getColumns().get(columnIndex)).size();
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error calculating count for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not calculate count for column: " + getColumns().get(columnIndex) + ". " + e.getMessage(), Level.ERROR);
             return 0;
         }
     }

@@ -1,6 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -23,7 +22,7 @@ public interface Paths extends EngineProperties<Paths> {
     private static void setProperty(String key, String value) {
         ThreadLocalPropertiesManager.setProperty(key, value);
         Properties.pathsOverride.set(ConfigFactory.create(Paths.class, ThreadLocalPropertiesManager.getOverrides()));
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+        EngineProperties.logPropertyUpdate(key, value);
     }
 
     @Key("propertiesFolderPath")

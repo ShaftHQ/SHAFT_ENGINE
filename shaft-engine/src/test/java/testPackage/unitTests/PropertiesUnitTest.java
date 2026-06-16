@@ -2,6 +2,9 @@ package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.ReportManager;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -79,6 +82,19 @@ public class PropertiesUnitTest {
         // Set back to original value
         SHAFT.Properties.reporting.set().attachFullLog(originalValue);
         Assert.assertEquals(SHAFT.Properties.reporting.attachFullLog(), originalValue, "attachFullLog should be reset to original value");
+    }
+
+    @Test(description = "Sensitive property updates should be masked in logs")
+    public void testSensitivePropertySetterLogsMaskedValue() {
+        try (MockedStatic<ReportManager> reportManager = Mockito.mockStatic(ReportManager.class)) {
+            SHAFT.Properties.browserStack.set().accessKey("plain-secret-value");
+
+            reportManager.verify(() -> ReportManager.logDiscrete(
+                    "Updated property \"browserStack.accessKey\" to \"********\"."));
+            reportManager.verifyNoMoreInteractions();
+        } finally {
+            Properties.clearForCurrentThread();
+        }
     }
 
     @Test(description = "Thread isolation: property set in one thread must not affect another thread")

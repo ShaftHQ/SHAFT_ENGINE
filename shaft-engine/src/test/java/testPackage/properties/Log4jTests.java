@@ -27,9 +27,11 @@ public class Log4jTests {
 
         Assert.assertTrue(rootLogger.toLowerCase(Locale.ROOT).startsWith("info"),
                 "Default root logger level should be info");
-        Assert.assertFalse(rootLogger.contains("LOGFILE"),
-                "Default root logger should keep file logging disabled until retry diagnostics enable it");
-        Assert.assertTrue(rootLogger.contains("ReportPortalAppender"),
+        Assert.assertTrue(rootLogger.contains("ASYNC_STDOUT"),
+                "Default root logger should write console output through the async appender");
+        Assert.assertTrue(rootLogger.contains("ASYNC_LOGFILE"),
+                "Default root logger should write the engine log through the async file appender");
+        Assert.assertTrue(rootLogger.contains("ASYNC_REPORT_PORTAL"),
                 "Default root logger should stay aligned with the bundled default log4j2.properties appenders");
         Assert.assertFalse(appenderConsoleLayoutNoConsoleNoAnsi,
                 "Console ANSI output should remain enabled for styled logs even in non-console contexts");

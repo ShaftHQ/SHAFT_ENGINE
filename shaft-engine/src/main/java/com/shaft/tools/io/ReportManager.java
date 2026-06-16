@@ -61,7 +61,7 @@ public class ReportManager {
      * @param logText the text that will be logged by action
      */
     public static void logDiscrete(String logText) {
-        logDiscrete(logText, Level.INFO);
+        logDiscrete(logText, isInternalStep() ? Level.DEBUG : Level.INFO);
     }
 
     /**

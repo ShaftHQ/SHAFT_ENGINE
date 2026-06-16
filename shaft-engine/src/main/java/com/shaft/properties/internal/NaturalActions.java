@@ -1,6 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -18,7 +17,7 @@ public interface NaturalActions extends EngineProperties<NaturalActions> {
         Properties.naturalActionsOverride.set(ConfigFactory.create(
                 NaturalActions.class,
                 ThreadLocalPropertiesManager.getOverrides()));
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+        EngineProperties.logPropertyUpdate(key, value);
     }
 
     /** @return whether natural-language actions are enabled */

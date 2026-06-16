@@ -1,6 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -19,7 +18,7 @@ public interface Visuals extends EngineProperties<Visuals> {
     private static void setProperty(String key, String value) {
         ThreadLocalPropertiesManager.setProperty(key, value);
         Properties.visualsOverride.set(ConfigFactory.create(Visuals.class, ThreadLocalPropertiesManager.getOverrides()));
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+        EngineProperties.logPropertyUpdate(key, value);
     }
 
     @Key("visualMatchingThreshold")

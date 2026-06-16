@@ -44,7 +44,7 @@ public interface Log4j extends EngineProperties<Log4j> {
     String appenderConsoleLayoutCharset();
 
     @Key("appender.console.layout.pattern")
-    @DefaultValue("%highlight{[%p]}{FATAL=red blink, ERROR=red bold, WARN=yellow bold, INFO=fg_#0060a8 bold, DEBUG=fg_#43b02a bold, TRACE=black} %style{%m} %style{| @%d{hh:mm:ss a}}{bright_black} %n")
+    @DefaultValue("%highlight{[%p]}{FATAL=red blink, ERROR=red bold, WARN=yellow bold, INFO=fg_#0060a8 bold, DEBUG=fg_#43b02a bold, TRACE=black} %style{%d{HH:mm:ss}}{bright_black} %style{|}{bright_black} %m%n")
     String appenderConsoleLayoutPattern();
 
     @Key("appender.console.filter.threshold.type")
@@ -88,7 +88,7 @@ public interface Log4j extends EngineProperties<Log4j> {
     String appenderFileFilterThresholdLevel();
 
     @Key("rootLogger")
-    @DefaultValue("info, STDOUT, ReportPortalAppender")
+    @DefaultValue("info, ASYNC_STDOUT, ASYNC_LOGFILE, ASYNC_REPORT_PORTAL")
     String rootLogger();
 
     @Key("logger.app.name")

@@ -538,7 +538,7 @@ public class ElementActionsHelper {
                 // take a screenshot
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
-                ReportManager.logDiscrete("Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
+                ReportManager.logDiscrete("Could not take an element screenshot because the element is no longer available. Capturing the full page instead.");
                 return new ScreenshotManager().takeScreenshot(driver, null, actionName, true);
             }
         } else {

@@ -1,0 +1,51 @@
+{
+  "body_path": "memory/gotchas/surefire-testng-deletes-module.md",
+  "content_hash": "sha256:ec9fb607e1e04bb20533be51fe606425d70562d709297513e3c280c6e43dece2",
+  "created_at": "2026-06-16T21:59:50+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/target/surefire-reports/2026-06-16T21-46-45_816-jvmRun1.dump",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/main/java",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-engine",
+      "maven-surefire-plugin",
+      "TestNGListener",
+      "ReportManagerHelper",
+      "RealtimeReporter"
+    ],
+    "category": "gotcha",
+    "load_modes": [
+      "coding",
+      "debugging"
+    ]
+  },
+  "id": "gotcha.surefire-testng-deletes-module",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Logging refresh implementation encountered destructive Surefire/TestNG bootstrap behavior"
+  },
+  "status": "active",
+  "tags": [
+    "maven",
+    "surefire",
+    "testng",
+    "worktree",
+    "validation"
+  ],
+  "title": "Avoid Surefire/TestNG runs that delete the SHAFT module worktree",
+  "type": "gotcha",
+  "updated_at": "2026-06-16T21:59:50+03:00"
+}

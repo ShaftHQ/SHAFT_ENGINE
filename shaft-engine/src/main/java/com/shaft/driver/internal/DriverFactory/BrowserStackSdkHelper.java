@@ -3,6 +3,7 @@ package com.shaft.driver.internal.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
@@ -58,10 +59,10 @@ public class BrowserStackSdkHelper {
         if (customYmlPath != null && !customYmlPath.isEmpty()) {
             return useCustomBrowserStackYml(customYmlPath);
         }
-        ReportManager.logDiscrete("Generating browserstack.yml from SHAFT properties...");
+        ReportManager.logDiscrete("Generating BrowserStack SDK configuration from SHAFT properties.");
         var config = buildConfiguration();
         var yamlPath = writeYamlFile(config);
-        ReportManager.logDiscrete("Generated browserstack.yml at: " + yamlPath);
+        ReportManager.logDiscrete("Generated BrowserStack SDK configuration: " + yamlPath);
         return yamlPath;
     }
 
@@ -88,7 +89,7 @@ public class BrowserStackSdkHelper {
 
         // If source is already at the target location, no copy needed
         if (sourceFile.getAbsolutePath().equals(targetFile.getAbsolutePath())) {
-            ReportManager.logDiscrete("Using custom browserstack.yml at project root: " + targetPath);
+            ReportManager.logDiscrete("Using custom BrowserStack SDK configuration at project root: " + targetPath);
             return targetPath;
         }
 
@@ -96,11 +97,11 @@ public class BrowserStackSdkHelper {
             java.nio.file.Files.copy(sourceFile.toPath(), targetFile.toPath(),
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to copy custom browserstack.yml from: "
+            throw new IllegalStateException("Could not copy custom BrowserStack SDK configuration from: "
                     + sourceFile.getAbsolutePath() + " to: " + targetPath, e);
         }
 
-        ReportManager.logDiscrete("Using custom browserstack.yml from: " + sourceFile.getAbsolutePath());
+        ReportManager.logDiscrete("Using custom BrowserStack SDK configuration from: " + sourceFile.getAbsolutePath());
         return targetPath;
     }
 
@@ -206,8 +207,8 @@ public class BrowserStackSdkHelper {
             }
             return platforms.isEmpty() ? null : platforms;
         } catch (Exception e) {
-            ReportManager.logDiscrete("Warning: Failed to parse browserStack.platformsList JSON: " + e.getMessage()
-                    + ". Falling back to single-platform configuration.");
+            ReportManager.logDiscrete("Could not parse browserStack.platformsList JSON: " + e.getMessage()
+                    + ". Falling back to single-platform configuration.", Level.WARN);
             return null;
         }
     }

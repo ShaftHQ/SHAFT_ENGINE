@@ -264,9 +264,9 @@ public class DatabaseActions {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Database Action \"" + actionName + "\" successfully performed.";
+            message = "Database action \"" + actionName + "\" completed.";
         } else {
-            message = "Database Action \"" + actionName + "\" failed.";
+            message = "Database action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -275,7 +275,7 @@ public class DatabaseActions {
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data \"" + testData + "\".";
+            message = message + " Input: \"" + testData + "\".";
         }
 
         if (queryResult != null && !queryResult.trim().isEmpty()) {
@@ -526,7 +526,7 @@ public class DatabaseActions {
                         connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case IBM_DB2 -> connectionString = "jdbc:db2://" + dbServerIP + ":" + dbPort + "/" + dbName;
                 default -> {
-                    ReportManager.log("Database not supported");
+                    ReportManager.log("Database type is not supported: " + dbType + ".");
                     failAction(dbType.toString());
                 }
             }
@@ -543,9 +543,9 @@ public class DatabaseActions {
         }
 
         if (connection != null) {
-            ReportManager.logDiscrete("Connection created successfully");
+            ReportManager.logDiscrete("Database connection created.");
         } else {
-            failAction("Failed to create a connection with this string \"" + connectionString
+            failAction("Could not create a database connection with this connection string \"" + connectionString
                     + "\" due to an unhandled exception.");
         }
         return connection;
@@ -566,9 +566,9 @@ public class DatabaseActions {
         }
 
         if (statement != null) {
-            ReportManager.logDiscrete("Statement created successfully");
+            ReportManager.logDiscrete("Database statement created.");
         } else {
-            failAction("Failed to create a statement with this string \"" + connection
+            failAction("Could not create a database statement with this connection \"" + connection
                     + "\" due to an unhandled exception.");
         }
 

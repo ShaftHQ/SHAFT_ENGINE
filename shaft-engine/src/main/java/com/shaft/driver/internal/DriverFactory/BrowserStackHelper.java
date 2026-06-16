@@ -106,16 +106,16 @@ public class BrowserStackHelper {
      */
     private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
         SHAFT.Properties.timeouts.set().apiSocketTimeout(600); //increasing socket timeout to 10 minutes to upload a new app file
-        ReportManager.logDiscrete("Setting up BrowserStack configuration for new native app version...");
-        String testData = "Username: " + username + ", Password: " + "•".repeat(password.length()) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
+        ReportManager.logDiscrete("Configuring BrowserStack native-app execution with a new app upload.");
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
 
         // upload app to browserstack api
         String appPath = FileActions.getInstance(true).getAbsolutePath(relativePathToAppFile);
-        ReportManager.logDiscrete("BrowserStack appPath: " + appPath);
+        ReportManager.logDiscrete("BrowserStack app upload path: " + appPath);
 
         String userProvidedCustomID = SHAFT.Properties.browserStack.customID();
         String custom_id = "".equals(userProvidedCustomID) ? "shaft-engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
-        ReportManager.logDiscrete("BrowserStack custom_id: " + custom_id);
+        ReportManager.logDiscrete("BrowserStack app custom ID: " + custom_id);
 
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("file", new File(appPath));
@@ -131,7 +131,7 @@ public class BrowserStackHelper {
             var response = session.getResponse();
             var tempAppUrl = RestActions.getResponseJSONValue(response, "app_url");
             appUrl = Objects.requireNonNull(tempAppUrl);
-            ReportManager.logDiscrete("BrowserStack app_url: " + appUrl);
+            ReportManager.logDiscrete("BrowserStack uploaded app URL: " + appUrl);
         } catch (NullPointerException exception) {
             failAction(testData, exception);
         }
@@ -155,8 +155,8 @@ public class BrowserStackHelper {
      * @return native app capabilities
      */
     private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
-        ReportManager.logDiscrete("Setting up BrowserStack configuration for existing native app version...");
-        String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
+        ReportManager.logDiscrete("Configuring BrowserStack native-app execution with an existing app URL.");
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
         MutableCapabilities browserStackCapabilities = setBrowserStackProperties(username, password, deviceName, osVersion, appUrl);
         passAction(testData);
@@ -164,13 +164,13 @@ public class BrowserStackHelper {
     }
 
     private static MutableCapabilities setupMobileWebExecution() {
-        ReportManager.logDiscrete("Setting up BrowserStack configuration for mobile web execution...");
+        ReportManager.logDiscrete("Configuring BrowserStack mobile-web execution.");
         String username = SHAFT.Properties.browserStack.userName();
         String password = SHAFT.Properties.browserStack.accessKey();
         String os = SHAFT.Properties.platform.targetPlatform();
         String osVersion = SHAFT.Properties.browserStack.osVersion();
 
-        String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Operating System: " + os + ", Operating System Version: " + osVersion;
         // set properties
         SHAFT.Properties.platform.set().executionAddress(constructExecutionAddress(username, password));
 
@@ -197,13 +197,13 @@ public class BrowserStackHelper {
     }
 
     private static MutableCapabilities setupDesktopWebExecution() {
-        ReportManager.logDiscrete("Setting up BrowserStack configuration for desktop web execution...");
+        ReportManager.logDiscrete("Configuring BrowserStack desktop-web execution.");
         String username = SHAFT.Properties.browserStack.userName();
         String password = SHAFT.Properties.browserStack.accessKey();
         String os = SHAFT.Properties.platform.targetPlatform();
         String osVersion = SHAFT.Properties.browserStack.osVersion();
 
-        String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Operating System: " + os + ", Operating System Version: " + osVersion;
         // set properties
         SHAFT.Properties.platform.set().executionAddress(constructExecutionAddress(username, password));
         SHAFT.Properties.mobile.set().browserName(SHAFT.Properties.web.targetBrowserName());
@@ -287,12 +287,12 @@ public class BrowserStackHelper {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "BrowserStack API Action \"" + actionName + "\" successfully performed.";
+            message = "BrowserStack API action \"" + actionName + "\" completed.";
         } else {
-            message = "BrowserStack API Action \"" + actionName + "\" failed.";
+            message = "BrowserStack API action \"" + actionName + "\" failed.";
         }
         if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data \"" + testData + "\".";
+            message = message + " Input: \"" + testData + "\".";
         }
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
@@ -306,5 +306,9 @@ public class BrowserStackHelper {
         }
 
         return message;
+    }
+
+    private static String maskSecret(String secret) {
+        return secret == null || secret.isEmpty() ? "" : "********";
     }
 }

@@ -304,7 +304,7 @@ public class PropertiesHelper {
                         throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
                     }
                 } catch (Throwable ignored) {
-                    ReportManager.logDiscrete("Failed to copy default properties from jar.");
+                    ReportManager.logDiscrete("Could not copy default properties from the jar. Downloading defaults instead.");
                     downloadDefaultProperties();
                 }
             }
