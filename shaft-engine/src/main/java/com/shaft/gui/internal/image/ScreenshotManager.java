@@ -140,8 +140,9 @@ public class ScreenshotManager {
             List<WebElement> skippedElementsList = new ArrayList<>();
             String[] skippedElementLocators = SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
             for (String locator : skippedElementLocators) {
-                if (elementActionsHelper.getElementsCount(driver, By.xpath(locator)) == 1) {
-                    skippedElementsList.add(((WebElement) elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, By.xpath(locator)).get(1)));
+                WebElement skippedElement = findUniqueElementIgnoringVisibility(driver, By.xpath(locator));
+                if (skippedElement != null) {
+                    skippedElementsList.add(skippedElement);
                 }
             }
             WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
@@ -159,8 +160,9 @@ public class ScreenshotManager {
     private byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean
             returnRegularScreenshotInCaseOfFailure) {
         try {
-            if (targetElementLocator != null && elementActionsHelper.getElementsCount(driver, targetElementLocator) == 1) {
-                return ((WebElement) elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, targetElementLocator).get(1)).getScreenshotAs(OutputType.BYTES);
+            WebElement targetElement = findUniqueElementIgnoringVisibility(driver, targetElementLocator);
+            if (targetElement != null) {
+                return targetElement.getScreenshotAs(OutputType.BYTES);
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
                     return this.takeViewportScreenshot(driver);
@@ -176,6 +178,17 @@ public class ScreenshotManager {
                 return new byte[]{};
             }
         }
+    }
+
+    private WebElement findUniqueElementIgnoringVisibility(WebDriver driver, By targetElementLocator) {
+        if (targetElementLocator == null) {
+            return null;
+        }
+        List<Object> elementInformation = elementActionsHelper.getMatchingElementsInformation(driver, targetElementLocator, false);
+        if (Integer.parseInt(elementInformation.getFirst().toString()) == 1) {
+            return (WebElement) elementInformation.get(1);
+        }
+        return null;
     }
 
     private List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName, boolean shouldCaptureScreenshot, boolean isPass) {

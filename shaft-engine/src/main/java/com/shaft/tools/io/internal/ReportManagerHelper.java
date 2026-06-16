@@ -782,11 +782,17 @@ public class ReportManagerHelper {
      */
     private static void createDebugCompanionLogEntry(String logText, Level sourceLevel) {
         if (!Level.DEBUG.equals(sourceLevel)) {
+            boolean debugLoggingEnabled = logger != null && logger.isDebugEnabled();
+            if (!debugLoggingEnabled && !debugFileLoggingEnabled) {
+                return;
+            }
             String caller = getCallingMethodFullName();
             String debugLogText = caller == null || caller.isBlank()
                     ? "Debug action details: " + logText
                     : "Debug action details [caller=" + caller + "]: " + logText;
-            logger.debug(debugLogText);
+            if (debugLoggingEnabled) {
+                logger.debug(debugLogText);
+            }
             writeToDebugLogFileIfEnabled(debugLogText, Level.DEBUG);
         }
     }

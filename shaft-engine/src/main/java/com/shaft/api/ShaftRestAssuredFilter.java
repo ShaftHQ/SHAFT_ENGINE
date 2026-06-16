@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
@@ -48,6 +49,7 @@ import java.nio.charset.StandardCharsets;
  *      io.restassured.specification.RequestSpecification)
  */
 public class ShaftRestAssuredFilter implements Filter {
+    private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /**
      * Intercepts every REST Assured request, attaches the request and response
@@ -328,8 +330,7 @@ public class ShaftRestAssuredFilter implements Filter {
     public String formatBody(String body, String contentType) {
         if ("application/json".equals(contentType)) {
             try {
-                return new GsonBuilder().setPrettyPrinting().create()
-                        .toJson(JsonParser.parseString(body));
+                return PRETTY_GSON.toJson(JsonParser.parseString(body));
             } catch (JsonParseException ignored) {
                 // If parsing fails return the original
             }

@@ -115,6 +115,7 @@ public class ScreenshotManagerCoverageUnitTest {
         SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
         SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
         SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
+        SHAFT.Properties.visuals.set().screenshotParamsSkippedElementsFromScreenshot("");
 
         WebDriver delegateDriver = mock(WebDriver.class);
         SelfHealingDriver healingDriver = mock(SelfHealingDriver.class);
@@ -125,14 +126,17 @@ public class ScreenshotManagerCoverageUnitTest {
 
         try (MockedConstruction<ElementActionsHelper> helperMocked = Mockito.mockConstruction(ElementActionsHelper.class,
                 (mock, context) -> {
-                    when(mock.getElementsCount(any(WebDriver.class), any(By.class))).thenReturn(1, 0);
-                    when(mock.identifyUniqueElementIgnoringVisibility(any(WebDriver.class), any(By.class)))
-                            .thenReturn(List.of(1, element, By.id("x"), "", "", "", "", new Rectangle(1, 2, 3, 4)));
+                    when(mock.getMatchingElementsInformation(any(WebDriver.class), any(By.class), anyBoolean()))
+                            .thenReturn(
+                                    List.of(1, element, By.id("x"), "", "", "", "", new Rectangle(1, 2, 3, 4)),
+                                    Arrays.asList(0, null, By.id("x"), "", "", "", "", null));
                 });
              MockedStatic<ScreenshotHelper> screenshotHelperMocked = Mockito.mockStatic(ScreenshotHelper.class);
              MockedStatic<AnimatedGifManager> animatedGifMocked = Mockito.mockStatic(AnimatedGifManager.class)) {
             byte[] viewport = createPng(20, 20, Color.RED);
             screenshotHelperMocked.when(() -> ScreenshotHelper.makeFullScreenshot(any(WebDriver.class), any(WebElement[].class)))
+                    .thenThrow(new RuntimeException("force full failure"));
+            screenshotHelperMocked.when(() -> ScreenshotHelper.makeFullScreenshot(any(WebDriver.class)))
                     .thenThrow(new RuntimeException("force full failure"));
             screenshotHelperMocked.when(() -> ScreenshotHelper.takeViewportScreenshot(any(WebDriver.class), anyInt()))
                     .thenReturn(viewport);
@@ -153,7 +157,10 @@ public class ScreenshotManagerCoverageUnitTest {
             Assert.assertTrue(Arrays.equals(fallbackElement, viewport));
 
             ElementActionsHelper helper = helperMocked.constructed().getFirst();
-            when(helper.getElementsCount(any(WebDriver.class), any(By.class))).thenThrow(new RuntimeException("boom"));
+            Mockito.verify(helper, Mockito.never()).getElementsCount(any(WebDriver.class), any(By.class));
+            Mockito.verify(helper, Mockito.never()).identifyUniqueElementIgnoringVisibility(any(WebDriver.class), any(By.class));
+            when(helper.getMatchingElementsInformation(any(WebDriver.class), any(By.class), anyBoolean()))
+                    .thenThrow(new RuntimeException("boom"));
             byte[] noFallback = (byte[]) elementPrivate.invoke(manager, delegateDriver, By.id("x"), false);
             Assert.assertEquals(noFallback.length, 0);
         }
@@ -176,7 +183,8 @@ public class ScreenshotManagerCoverageUnitTest {
 
         try (MockedConstruction<ElementActionsHelper> helperMocked = Mockito.mockConstruction(ElementActionsHelper.class,
                 (mock, context) -> {
-                    when(mock.getElementsCount(any(WebDriver.class), any(By.class))).thenReturn(1);
+                    when(mock.getMatchingElementsInformation(any(WebDriver.class), any(By.class), anyBoolean()))
+                            .thenReturn(List.of(1, element, By.id("x"), "", "", "", "", new Rectangle(10, 10, 25, 25)));
                     when(mock.identifyUniqueElementIgnoringVisibility(any(WebDriver.class), any(By.class)))
                             .thenReturn(List.of(1, element, By.id("x"), "", "", "", "", new Rectangle(10, 10, 25, 25)));
                 });
@@ -234,6 +242,9 @@ public class ScreenshotManagerCoverageUnitTest {
             Assert.assertEquals(failed.length, 0);
 
             Assert.assertTrue(helperMocked.constructed().size() >= 1);
+            ElementActionsHelper helper = helperMocked.constructed().getFirst();
+            Mockito.verify(helper, Mockito.atLeastOnce()).getMatchingElementsInformation(any(WebDriver.class), any(By.class), anyBoolean());
+            Mockito.verify(helper, Mockito.never()).getElementsCount(any(WebDriver.class), any(By.class));
         }
     }
 

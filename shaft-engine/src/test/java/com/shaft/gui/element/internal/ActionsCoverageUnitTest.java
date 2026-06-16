@@ -25,6 +25,7 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebElement;
+import org.mockito.MockedConstruction;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -527,7 +528,14 @@ public class ActionsCoverageUnitTest {
         try (var ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
              var screenshotHelper = org.mockito.Mockito.mockStatic(ScreenshotHelper.class);
              var animatedGif = org.mockito.Mockito.mockStatic(AnimatedGifManager.class);
-             var imageProcessing = org.mockito.Mockito.mockStatic(ImageProcessingActions.class)) {
+             var imageProcessing = org.mockito.Mockito.mockStatic(ImageProcessingActions.class);
+             MockedConstruction<ElementActionsHelper> helperConstruction = org.mockito.Mockito.mockConstruction(ElementActionsHelper.class,
+                     (mock, context) -> {
+                         List<Object> skippedElementInformation = new ArrayList<>(List.of(
+                                 1, element, By.xpath("//div[@id='skip']"), "div", "skip", "", "", ""));
+                         when(mock.getMatchingElementsInformation(any(WebDriver.class), any(By.class), eq(false)))
+                                 .thenReturn(skippedElementInformation);
+                     })) {
             screenshotHelper.when(() -> ScreenshotHelper.makeFullScreenshot(any(WebDriver.class))).thenReturn(PNG);
             screenshotHelper.when(() -> ScreenshotHelper.makeFullScreenshot(any(WebDriver.class), any(WebElement[].class))).thenReturn(PNG);
             imageProcessing.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), any(Color.class))).thenReturn(PNG);
@@ -536,9 +544,13 @@ public class ActionsCoverageUnitTest {
 
             SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Always");
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("FULL");
-            SHAFT.Properties.visuals.set().screenshotParamsSkippedElementsFromScreenshot("");
+            SHAFT.Properties.visuals.set().screenshotParamsSkippedElementsFromScreenshot("//div[@id='skip']");
             Assert.assertNotNull(invoke(actions, "takeActionScreenshot", new Class[]{WebElement.class}, element));
             Assert.assertNotNull(invoke(actions, "takeFailureScreenshot", new Class[]{WebElement.class}, element));
+            ElementActionsHelper mockedHelper = helperConstruction.constructed().getFirst();
+            verify(mockedHelper, atLeastOnce()).getMatchingElementsInformation(any(WebDriver.class), any(By.class), eq(false));
+            verify(mockedHelper, org.mockito.Mockito.never()).getElementsCount(any(WebDriver.class), any(By.class));
+            verify(mockedHelper, org.mockito.Mockito.never()).identifyUniqueElementIgnoringVisibility(any(WebDriver.class), any(By.class));
 
             SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("ELEMENT");
             Assert.assertNotNull(invoke(actions, "captureScreenshot", new Class[]{WebElement.class, boolean.class}, element, true));

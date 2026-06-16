@@ -9,12 +9,15 @@ import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 
 import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,6 +42,10 @@ import java.util.Map;
 public class JSONFileManager {
     private static final ThreadLocal<FileReader> reader = new ThreadLocal<>();
     private final String jsonFilePath;
+    private final Path resolvedJsonFilePath;
+    private String cachedJsonContent;
+    private long cachedFileSize = -1L;
+    private FileTime cachedLastModifiedTime;
 
     /**
      * Creates a new instance of the test data json reader using the target json
@@ -50,18 +57,10 @@ public class JSONFileManager {
         DriverFactory.reloadProperties();
         jsonFilePath = JavaHelper.appendTestDataToRelativePath(jsonFilePath);
         this.jsonFilePath = jsonFilePath;
-        initializeReader();
-        // Reader was opened only to validate file existence; close it immediately so no
-        // ThreadLocal reference lingers until the first getTestData() call.
-        closeReader();
+        this.resolvedJsonFilePath = Paths.get(FileActions.getInstance(true).getAbsolutePath(jsonFilePath));
         List<List<Object>> attachments = new ArrayList<>();
-        List<Object> testDataFileAttachment = null;
-        try {
-            byte[] raw = Files.readAllBytes(Paths.get(jsonFilePath));
-            testDataFileAttachment = Arrays.asList("Test Data", "JSON", new ByteArrayInputStream(raw));
-        } catch (IOException e) {
-            ReportManagerHelper.logDiscrete(e);
-        }
+        byte[] raw = readJsonBytes();
+        List<Object> testDataFileAttachment = Arrays.asList("Test Data", "JSON", new ByteArrayInputStream(raw));
         attachments.add(testDataFileAttachment);
         ReportManagerHelper.log("Loaded Test Data: \"" + jsonFilePath + "\".", attachments);
     }
@@ -156,60 +155,63 @@ public class JSONFileManager {
      */
     private Object getTestData(String jsonPath, DataType dataType) {
         Object testData = null;
-        initializeReader();
         try {
+            String jsonContent = getJsonContent();
             switch (dataType) {
-                case STRING -> testData = JsonPath.from(reader.get()).getString(jsonPath);
-                case LIST -> testData = JsonPath.from(reader.get()).getList(jsonPath);
-                case MAP -> testData = JsonPath.from(reader.get()).getMap(jsonPath);
-                case JSON -> testData = JsonPath.from(reader.get()).getJsonObject(jsonPath);
+                case STRING -> testData = JsonPath.from(jsonContent).getString(jsonPath);
+                case LIST -> testData = JsonPath.from(jsonContent).getList(jsonPath);
+                case MAP -> testData = JsonPath.from(jsonContent).getMap(jsonPath);
+                case JSON -> testData = JsonPath.from(jsonContent).getJsonObject(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
             FailureReporter.fail(this.getClass(), "Incorrect jsonPath. [" + jsonPath + "].", rootCauseException);
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
             FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
-        } finally {
-            closeReader();
         }
         return testData;
     }
 
     /**
-     * initializes the json reader using the target json file path
+     * Returns cached JSON content, refreshing it when the underlying file changes.
+     *
+     * @return JSON content as UTF-8 text
      */
-    private void initializeReader() {
+    private synchronized String getJsonContent() {
+        if (isCacheStale()) {
+            readJsonBytes();
+        }
+        return cachedJsonContent;
+    }
+
+    private synchronized byte[] readJsonBytes() {
         try {
-            // Close existing reader before creating a new one to prevent resource leaks
-            FileReader existingReader = reader.get();
-            if (existingReader != null) {
-                try {
-                    existingReader.close();
-                } catch (IOException ignored) {
-                    // best-effort close
-                }
-            }
-            reader.set(new FileReader(FileActions.getInstance(true).getAbsolutePath(jsonFilePath), StandardCharsets.UTF_8));
-        } catch (FileNotFoundException rootCauseException) {
+            BasicFileAttributes attributes = Files.readAttributes(resolvedJsonFilePath, BasicFileAttributes.class);
+            byte[] raw = Files.readAllBytes(resolvedJsonFilePath);
+            cachedJsonContent = new String(raw, StandardCharsets.UTF_8);
+            cachedFileSize = attributes.size();
+            cachedLastModifiedTime = attributes.lastModifiedTime();
+            reader.remove();
+            return raw;
+        } catch (NoSuchFileException rootCauseException) {
             FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
         } catch (IOException formatException) {
             FailureReporter.fail(this.getClass(), "file didn't match the specified format. [" + this.jsonFilePath + "].", formatException);
         }
+        return new byte[0];
     }
 
-    /**
-     * Closes the current thread-local {@link FileReader} and removes it from the
-     * {@link ThreadLocal} to prevent memory leaks on pooled or long-lived threads.
-     */
-    private void closeReader() {
-        FileReader existingReader = reader.get();
-        if (existingReader != null) {
-            try {
-                existingReader.close();
-            } catch (IOException ignored) {
-                // best-effort close
-            }
-            reader.remove();
+    private boolean isCacheStale() {
+        if (cachedJsonContent == null || cachedLastModifiedTime == null) {
+            return true;
         }
+        try {
+            BasicFileAttributes attributes = Files.readAttributes(resolvedJsonFilePath, BasicFileAttributes.class);
+            return cachedFileSize != attributes.size()
+                    || !cachedLastModifiedTime.equals(attributes.lastModifiedTime());
+        } catch (IOException formatException) {
+            FailureReporter.fail(this.getClass(), "file didn't match the specified format. [" + this.jsonFilePath + "].", formatException);
+        }
+        return true;
     }
 
     public enum DataType {

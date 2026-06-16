@@ -862,8 +862,9 @@ public class Actions extends ElementActions {
                         List<WebElement> skippedElementsList = new ArrayList<>();
                         String[] skippedElementLocators = SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
                         for (String locator : skippedElementLocators) {
-                            if (elementActionsHelper.getElementsCount(driverFactoryHelper.getDriver(), By.xpath(locator)) == 1) {
-                                skippedElementsList.add(((WebElement) elementActionsHelper.identifyUniqueElementIgnoringVisibility(driverFactoryHelper.getDriver(), By.xpath(locator)).get(1)));
+                            WebElement skippedElement = findUniqueElementIgnoringVisibility(By.xpath(locator));
+                            if (skippedElement != null) {
+                                skippedElementsList.add(skippedElement);
                             }
                         }
                         WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
@@ -894,6 +895,15 @@ public class Actions extends ElementActions {
         //append shaft watermark
         screenshot = appendShaftWatermark(screenshot);
         return screenshot;
+    }
+
+    private WebElement findUniqueElementIgnoringVisibility(By targetElementLocator) {
+        List<Object> elementInformation = elementActionsHelper.getMatchingElementsInformation(
+                driverFactoryHelper.getDriver(), targetElementLocator, false);
+        if (Integer.parseInt(elementInformation.getFirst().toString()) == 1) {
+            return (WebElement) elementInformation.get(1);
+        }
+        return null;
     }
 
     private byte[] takeAIHighlightedScreenshot(WebElement element, boolean isPass) {
