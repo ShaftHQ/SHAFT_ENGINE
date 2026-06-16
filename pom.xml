@@ -73,7 +73,7 @@
         <log4j2.version>2.26.0</log4j2.version>
         <testng.version>7.12.0</testng.version>
         <appium.version>10.1.1</appium.version>
-        <browserstack.sdk.version>1.59.9</browserstack.sdk.version>
+        <browserstack.sdk.version>1.60.0</browserstack.sdk.version>
         <webdrivermanager.version>6.3.4</webdrivermanager.version>
         <aspectj.version>1.9.25.1</aspectj.version>
         <commons.csv.version>1.14.1</commons.csv.version>
