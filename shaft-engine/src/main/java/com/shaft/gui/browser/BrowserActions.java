@@ -370,7 +370,7 @@ public class BrowserActions extends FluentWebDriverAction {
             }
             initialURL = driverFactoryHelper.getDriver().getCurrentUrl();
         } catch (UnsupportedCommandException exception) {
-            ReportManager.logDiscrete("Failed to get current URL, attempting to navigate to target URL.", Level.WARN);
+            ReportManager.logDiscrete("Could not read the current URL. Navigating to the target URL.", Level.WARN);
         }
 
         try {
@@ -679,7 +679,7 @@ public class BrowserActions extends FluentWebDriverAction {
     }
 
     private BrowserActions internalIntercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
-        ReportManager.logDiscrete("Attempting to configure network interceptor for \"" + requestPredicate + "\", will provide mocked response.");
+        ReportManager.logDiscrete("Configuring network interceptor for \"" + requestPredicate + "\" with a mocked response.");
         ReportManagerHelper.attach("HTTP Response", "Mocked HTTP Response", String.valueOf(mockedResponse));
         try {
             if (driverFactoryHelper.getDriver() instanceof HasDevTools hasDevTools) {
@@ -687,7 +687,7 @@ public class BrowserActions extends FluentWebDriverAction {
                         driverFactoryHelper.getDriver(),
                         Route.matching(requestPredicate)
                                 .to(() -> req -> mockedResponse));
-                browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Successfully configured network interceptor.");
+                browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Configured network interceptor.");
             } else {
                 browserActionsHelper.failAction(driverFactoryHelper.getDriver(), "Network Interceptor is not supported by the current driver type.");
             }
@@ -704,7 +704,7 @@ public class BrowserActions extends FluentWebDriverAction {
      */
     public BrowserActions fullScreenWindow() {
         Dimension initialWindowSize = driverFactoryHelper.getDriver().manage().window().getSize();
-        ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.width + "x" + initialWindowSize.height + ".");
 
         if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")
                 && SHAFT.Properties.web.headlessExecution()) {

@@ -126,7 +126,7 @@ public class FileActions {
                     TrueFileFilter.TRUE);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-            failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
+            failAction("Could not list files in directory \"" + targetDirectory + "\".", rootCauseException);
         }
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
         return files.toString().trim();
@@ -139,7 +139,7 @@ public class FileActions {
                     recursively);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-            failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
+            failAction("Could not list files in directory \"" + targetDirectory + "\".", rootCauseException);
         }
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
         return files.toString().trim();
@@ -153,7 +153,7 @@ public class FileActions {
                     TrueFileFilter.TRUE);
             filesList.forEach(file -> files.append(file.getAbsolutePath()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-            failAction("Failed to list absolute file paths in this directory: \"" + targetDirectory + "\"", rootCauseException);
+            failAction("Could not list absolute file paths in directory \"" + targetDirectory + "\".", rootCauseException);
         }
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
         return filesList;
@@ -212,7 +212,7 @@ public class FileActions {
             fileBytes = Files.readAllBytes(Paths.get(targetFilePath));
             sha256 = Hashing.sha256().hashBytes(fileBytes).toString();
         } catch (IOException rootCauseException) {
-            failAction("Failed to read file \"" + targetFilePath + "\"", rootCauseException);
+            failAction("Could not read file \"" + targetFilePath + "\".", rootCauseException);
         }
         passAction("Target File: \"" + targetFilePath + "\" | SHA-256: \"" + sha256 + "\"");
         return sha256;
@@ -511,7 +511,7 @@ public class FileActions {
                     if (jarEntry.isDirectory()) {
                         boolean success = currentFile.mkdirs();
                         if (success) {
-                            ReportManager.logDiscrete("Directory Created successfully...");
+                            ReportManager.logDiscrete("Created directory: " + currentFile + ".");
                         }
                     } else {
                         InputStream is = jarFile.getInputStream(jarEntry);
@@ -555,7 +555,7 @@ public class FileActions {
                     if (jarEntry.isDirectory()) {
                         boolean success = currentFile.mkdirs();
                         if (success) {
-                            ReportManager.logDiscrete("Directory Created successfully...");
+                            ReportManager.logDiscrete("Created directory: " + currentFile + ".");
                         }
                     } else {
                         InputStream is = jarFile.getInputStream(jarEntry);
@@ -674,11 +674,11 @@ public class FileActions {
             boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(false);
             try {
-                ReportManager.logDiscrete("Downloading a file from this url \"" + targetFileURL + "\" to this directory \""
-                        + destinationFilePath + "\", please wait as downloading may take some time...");
+                ReportManager.logDiscrete("Downloading file from \"" + targetFileURL + "\" to \""
+                        + destinationFilePath + "\".");
                 FileUtils.copyURLToFile(URI.create(targetFileURL).toURL(), new File(destinationFilePath), connectionTimeout,
                         readTimeout);
-                ReportManager.logDiscrete("Downloading completed successfully.");
+                ReportManager.logDiscrete("File download completed.");
                 URL downloadedFile = new File(destinationFilePath).toURI().toURL();
                 passAction("Target File URL\"" + targetFileURL + "\" | Destination Folder: \"" + destinationFilePath
                         + "\" | Connection Timeout: \"" + connectionTimeout + "\" | Read Timeout: \"" + readTimeout
@@ -734,9 +734,9 @@ public class FileActions {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "File Action \"" + actionName + "\" successfully performed.";
+            message = "File action \"" + actionName + "\" completed.";
         } else {
-            message = "File Action \"" + actionName + "\" failed.";
+            message = "File action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -745,7 +745,7 @@ public class FileActions {
                     testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data \"" + testData + "\".";
+            message = message + " Input: \"" + testData + "\".";
         }
 
         if (log != null && !log.trim().isEmpty()) {
@@ -783,7 +783,7 @@ public class FileActions {
             } else if (SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_MAC) {
                 return true;
             } else {
-                ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");
+                ReportManager.logDiscrete("Unsupported OS type. Falling back to Unix-style commands.");
                 return true;
             }
         } else {

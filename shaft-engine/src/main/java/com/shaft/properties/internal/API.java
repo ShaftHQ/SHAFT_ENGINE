@@ -1,6 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -24,7 +23,7 @@ public interface API extends EngineProperties<API> {
     private static void setProperty(String key, String value) {
         ThreadLocalPropertiesManager.setProperty(key, value);
         Properties.apiOverride.set(ConfigFactory.create(API.class, ThreadLocalPropertiesManager.getOverrides()));
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+        EngineProperties.logPropertyUpdate(key, value);
     }
 
     /**

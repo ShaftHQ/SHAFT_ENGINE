@@ -9,6 +9,8 @@ import org.testng.annotations.Test;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -67,6 +69,25 @@ public class AttachmentReporterUnitTest {
                     "No attachment found in Allure test-case for type='" + attachmentType
                             + "', name='" + attachmentName + "'. "
                             + "AttachmentReporter.attachBasedOnFileType() may have failed silently.");
+        }
+        return capturedType.get();
+    }
+
+    private String captureFileBackedAttachmentMimeType(String attachmentType, String attachmentName, Path contentPath) {
+        AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, contentPath,
+                attachmentType + " - " + attachmentName);
+
+        AtomicReference<String> capturedType = new AtomicReference<>(null);
+        Allure.getLifecycle().updateTestCase(result -> {
+            List<Attachment> attachments = result.getAttachments();
+            if (!attachments.isEmpty()) {
+                capturedType.set(attachments.getLast().getType());
+            }
+        });
+        if (capturedType.get() == null) {
+            throw new AssertionError(
+                    "No file-backed attachment found in Allure test-case for type='" + attachmentType
+                            + "', name='" + attachmentName + "'.");
         }
         return capturedType.get();
     }
@@ -163,6 +184,19 @@ public class AttachmentReporterUnitTest {
     public void engineLogsAttachmentShouldUseTextPlainMimeType() {
         String mimeType = captureAttachmentMimeType("engine logs", "execution.log");
         SHAFT.Validations.assertThat().object(mimeType).isEqualTo("text/plain").perform();
+    }
+
+    /** File-backed engine log attachments must use {@code text/plain}. */
+    @Test(description = "File-backed engine logs attachment should use text/plain MIME type")
+    public void fileBackedEngineLogsAttachmentShouldUseTextPlainMimeType() throws Exception {
+        Path engineLog = Files.createTempFile("shaft-engine-log-attachment-", ".txt");
+        try {
+            Files.writeString(engineLog, "sample engine log", StandardCharsets.UTF_8);
+            String mimeType = captureFileBackedAttachmentMimeType("engine logs", "execution.log", engineLog);
+            SHAFT.Validations.assertThat().object(mimeType).isEqualTo("text/plain").perform();
+        } finally {
+            Files.deleteIfExists(engineLog);
+        }
     }
 
     /** Page snapshot / MHTML attachments must use {@code multipart/related}. */

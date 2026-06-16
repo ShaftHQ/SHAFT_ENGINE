@@ -67,15 +67,15 @@ public class LambdaTestHelper {
      */
     private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
         SHAFT.Properties.timeouts.set().apiSocketTimeout(600); //increasing socket timeout to 10 minutes to upload a new app file
-        ReportManager.logDiscrete("Setting up LambdaTest configuration for new native app version...");
-        String testData = "Username: " + username + ", Password: " + "•".repeat(password.length()) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
+        ReportManager.logDiscrete("Configuring LambdaTest native-app execution with a new app upload.");
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
         // upload app to LambdaTest api
         String appPath = FileActions.getInstance(true).getAbsolutePath(relativePathToAppFile);
-        ReportManager.logDiscrete("LambdaTest appPath: " + appPath);
+        ReportManager.logDiscrete("LambdaTest app upload path: " + appPath);
 
         String userProvidedCustomID = SHAFT.Properties.lambdaTest.customID();
         String custom_id = "".equals(userProvidedCustomID) ? "shaft-engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
-        ReportManager.logDiscrete("LambdaTest custom_id: " + custom_id);
+        ReportManager.logDiscrete("LambdaTest app custom ID: " + custom_id);
 
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("appFile", new File(appPath));
@@ -83,7 +83,7 @@ public class LambdaTestHelper {
         var appUrl = "";
         try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to LambdaTest...")) {
             appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new SHAFT.API(serviceUri).post(appUploadServiceName).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC).perform(), "app_url"));
-            ReportManager.logDiscrete("LambdaTest app_url: " + appUrl);
+            ReportManager.logDiscrete("LambdaTest uploaded app URL: " + appUrl);
         } catch (NullPointerException exception) {
             failAction(testData, exception);
         }
@@ -123,8 +123,8 @@ public class LambdaTestHelper {
      * @return native app capabilities
      */
     private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
-        ReportManager.logDiscrete("Setting up LambdaTest configuration for existing native app version...");
-        String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
+        ReportManager.logDiscrete("Configuring LambdaTest native-app execution with an existing app URL.");
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
         passAction(testData);
 
@@ -147,13 +147,13 @@ public class LambdaTestHelper {
     }
 
     private static MutableCapabilities setupMobileWebExecution() {
-        ReportManager.logDiscrete("Setting up LambdaTest configuration for mobile web execution...");
+        ReportManager.logDiscrete("Configuring LambdaTest mobile-web execution.");
         String username = SHAFT.Properties.lambdaTest.username();
         String password = SHAFT.Properties.lambdaTest.accessKey();
         String os = SHAFT.Properties.platform.targetPlatform();
         String osVersion = SHAFT.Properties.lambdaTest.osVersion();
 
-        String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Operating System: " + os + ", Operating System Version: " + osVersion;
 
         // set properties
         SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@mobile-" + hubUrl);
@@ -195,13 +195,13 @@ public class LambdaTestHelper {
     }
 
     private static MutableCapabilities setupDesktopWebExecution() {
-        ReportManager.logDiscrete("Setting up LambdaTest configuration for desktop web execution...");
+        ReportManager.logDiscrete("Configuring LambdaTest desktop-web execution.");
         String username = SHAFT.Properties.lambdaTest.username();
         String password = SHAFT.Properties.lambdaTest.accessKey();
         String os = SHAFT.Properties.platform.targetPlatform();
         String osVersion = SHAFT.Properties.lambdaTest.osVersion();
 
-        String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Operating System: " + os + ", Operating System Version: " + osVersion;
 
         // set properties
         SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
@@ -266,12 +266,12 @@ public class LambdaTestHelper {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "LambdaTest API Action \"" + actionName + "\" successfully performed.";
+            message = "LambdaTest API action \"" + actionName + "\" completed.";
         } else {
-            message = "LambdaTest API Action \"" + actionName + "\" failed.";
+            message = "LambdaTest API action \"" + actionName + "\" failed.";
         }
         if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data \"" + testData + "\".";
+            message = message + " Input: \"" + testData + "\".";
         }
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
@@ -284,5 +284,9 @@ public class LambdaTestHelper {
         }
 
         return message;
+    }
+
+    private static String maskSecret(String secret) {
+        return secret == null || secret.isEmpty() ? "" : "********";
     }
 }

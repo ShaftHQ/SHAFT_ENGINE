@@ -57,7 +57,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     private void enableSupportingEvidenceCapture() {
         try {
             if (SHAFT.Properties.flags.forceCaptureSupportingEvidenceOnRetry()) {
-                ReportManager.logDiscrete("Enabling enhanced evidence capture for retry attempt...");
+                ReportManager.logDiscrete("Enabling enhanced evidence capture for the retry attempt.");
                 SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
                 SHAFT.Properties.visuals.set().createAnimatedGif(true);
                 SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Always");

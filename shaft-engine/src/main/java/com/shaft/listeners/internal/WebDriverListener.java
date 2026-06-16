@@ -65,12 +65,12 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void afterClose(WebDriver driver) {
         currentWebDriver = driver;
-        ReportManager.log("Successfully Closed Driver.");
+        ReportManager.log("Closed the WebDriver window.");
     }
 
     public void afterQuit(WebDriver driver) {
         currentWebDriver = driver;
-        ReportManager.log("Successfully Quit Driver.");
+        ReportManager.log("Quit the WebDriver session.");
     }
 
     // WebElement

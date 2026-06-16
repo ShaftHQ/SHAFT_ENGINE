@@ -57,8 +57,8 @@ import java.util.concurrent.TimeUnit;
  * Internal helper responsible for initializing, managing, and closing WebDriver sessions.
  */
 public class DriverFactoryHelper {
-    private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination. Please note that if a new browser/driver executable will be downloaded it may take some time depending on your connection...";
-    private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time depending on your connection...";
+    private static final String WEB_DRIVER_MANAGER_MESSAGE = "Resolving the local browser driver binary.";
+    private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Resolving the Docker browser image and driver binary.";
     private static final String SELENIUM_WEBSOCKET_LISTENER_LOGGER = "org.openqa.selenium.remote.http.WebSocket$Listener";
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
     private static final Object LOCAL_DRIVER_INITIALIZATION_LOCK = new Object();
@@ -530,10 +530,10 @@ public class DriverFactoryHelper {
                 HealingManager.clear(driver);
                 seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
                 webDriverManager.remove();
-                ReportManager.log("Successfully Closed Driver.");
+                ReportManager.log("Closed the WebDriver session.");
             }
         } else {
-            ReportManager.log("Driver is already closed.");
+            ReportManager.log("WebDriver session was already closed.");
         }
     }
 
@@ -551,8 +551,8 @@ public class DriverFactoryHelper {
                 devTools.send(new Command<>("Network.clearBrowserCookies", Map.copyOf(new LinkedHashMap<>())));
             }
         } catch (DevToolsException e) {
-            ReportManagerHelper.logDiscrete(e);
-            ReportManager.logDiscrete("We recommend disabling this property 'SHAFT.Properties.flags.disableCache()' or downgrading your browser.");
+            ReportManagerHelper.logDiscrete(e, Level.DEBUG);
+            ReportManager.logDiscrete("Could not disable browser cache. Disable 'SHAFT.Properties.flags.disableCache()' or use a compatible browser version.");
         }
     }
 
@@ -564,9 +564,9 @@ public class DriverFactoryHelper {
 
     private void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
         String targetPlatform = Properties.platform.targetPlatform().toLowerCase();
-        String initialLog = "Attempting to run locally on: \"" + targetPlatform + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
+        String initialLog = "Starting local WebDriver session: \"" + targetPlatform + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (SHAFT.Properties.web.headlessExecution()) {
-            initialLog = initialLog + ", Headless Execution";
+            initialLog = initialLog + ", headless";
         }
         initialLog = initialLog.replace(targetPlatform, JavaHelper.convertToSentenceCase(targetPlatform));
         ReportManager.logDiscrete(initialLog + ".");
@@ -595,7 +595,7 @@ public class DriverFactoryHelper {
                                 failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
                     }
                 });
-                String successMessage = initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".";
+                String successMessage = initialLog.replace("Starting local WebDriver session", "Started local WebDriver session") + ".";
                 successMessage = successMessage + " (attempt " + (attempt + 1) + "/" + (retryAttempts + 1) + ", elapsed " + (System.currentTimeMillis() - initializationStartTime) + "ms).";
                 List<Object> launchScreenshot = captureLaunchScreenshot();
                 if (launchScreenshot != null) {
@@ -705,9 +705,9 @@ public class DriverFactoryHelper {
     }
 
     private void createNewDockerizedDriverInstance(DriverType driverType) {
-        String initialLog = "Attempting to run dockerized on: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
+        String initialLog = "Starting Docker WebDriver session: \"" + Properties.platform.targetPlatform() + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (SHAFT.Properties.web.headlessExecution()) {
-            initialLog = initialLog + ", Headless Execution";
+            initialLog = initialLog + ", headless";
         }
         ReportManager.log(initialLog + ".");
 
@@ -731,7 +731,7 @@ public class DriverFactoryHelper {
             remoteWebDriver.setFileDetector(new LocalFileDetector());
 //            driver =ThreadGuard.protect(remoteWebDriver));
             setDriver(remoteWebDriver);
-            String successMessageDockerized = "Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".";
+            String successMessageDockerized = "Started Docker WebDriver session for " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".";
             List<Object> launchScreenshotDockerized = captureLaunchScreenshot();
             if (launchScreenshotDockerized != null) {
                 ReportManagerHelper.log(successMessageDockerized, List.of(launchScreenshotDockerized));
@@ -745,7 +745,7 @@ public class DriverFactoryHelper {
 
     private void createNewRemoteDriverInstance(DriverType driverType) {
         var initialLog = new StringBuilder();
-        initialLog.append("Attempting to run remotely on: \"").append(Properties.platform.targetPlatform());
+        initialLog.append("Starting remote WebDriver session: \"").append(Properties.platform.targetPlatform());
 
         if (!Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             initialLog.append(" | ").append(JavaHelper.convertToSentenceCase(driverType.getValue()));
@@ -754,7 +754,7 @@ public class DriverFactoryHelper {
         initialLog.append(" | ").append(redactUriCredentials(getTargetHubUrl())).append("\"");
 
         if (SHAFT.Properties.web.headlessExecution() && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
-            initialLog.append(", Headless Execution");
+            initialLog.append(", headless");
         }
         ReportManager.log(initialLog + ".");
 
@@ -775,7 +775,7 @@ public class DriverFactoryHelper {
                     getTargetHubUrl()));
         } catch (WebDriverException e) {
             if (e.getMessage() !=null && e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(getTargetHubUrl()) + "\".");
+                ReportManager.logDiscrete("Remote WebDriver session failed for \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(getTargetHubUrl()) + "\".");
                 failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", createSessionInitializationFailure(
                         "remote session orchestration",
                         remoteSessionStartTime,
@@ -783,7 +783,7 @@ public class DriverFactoryHelper {
                         List.of(e),
                         getTargetHubUrl()));
             } else {
-                ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(getTargetHubUrl()) + "\".");
+                ReportManager.logDiscrete("Remote WebDriver session failed for \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(getTargetHubUrl()) + "\".");
                 failAction("Unhandled Error.", createSessionInitializationFailure(
                         "remote session orchestration",
                         remoteSessionStartTime,
@@ -805,7 +805,7 @@ public class DriverFactoryHelper {
     private void setRemoteDriverInstance(Capabilities capabilities) {
         // stage 1: ensure that the server is up and running
         if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
-            ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
+            ReportManager.logDiscrete("Waiting up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + " minute(s) for the remote server to become ready.");
             var remoteReadinessStart = System.currentTimeMillis();
             try {
                 var targetHubUrl = getTargetHubUrl();
@@ -814,9 +814,9 @@ public class DriverFactoryHelper {
                         : targetHubUrl);
                 if (Properties.flags.forceCheckStatusOfRemoteServer()) {
                     var statusCode = attemptRemoteServerPing();
-                    ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
+                    ReportManager.logDiscrete("Remote server is ready. Status code: " + statusCode + ".");
                 }
-                ReportManager.logDiscrete("Remote server readiness stage completed in " + (System.currentTimeMillis() - remoteReadinessStart) + "ms.");
+                ReportManager.logDiscrete("Remote server readiness completed in " + (System.currentTimeMillis() - remoteReadinessStart) + "ms.");
             } catch (Throwable throwable) {
                 ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
                 failAction(
@@ -831,7 +831,7 @@ public class DriverFactoryHelper {
         }
 
         // stage 2: create remote driver instance (requires some time with dockerized appium)
-        ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
+        ReportManager.logDiscrete("Creating the remote WebDriver session. Timeout: " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minute(s).");
         var remoteCreationStart = System.currentTimeMillis();
         try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             setDriver(attemptRemoteServerConnection(capabilities));
@@ -855,14 +855,14 @@ public class DriverFactoryHelper {
 //        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
 //        https://github.com/appium/appium-uiautomator2-driver
             }
-            ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
-            ReportManager.logDiscrete("Remote session instantiation completed in " + (System.currentTimeMillis() - remoteCreationStart) + "ms.");
+            ReportManager.logDiscrete("Remote WebDriver session was created.");
+            ReportManager.logDiscrete("Remote WebDriver session creation completed in " + (System.currentTimeMillis() - remoteCreationStart) + "ms.");
         } catch (Throwable throwable) {
             //Root cause: "java.lang.NumberFormatException: Error at index 4 in: "4723wd""
             //this happens when the URL has an unsupported format
             Throwable throwable1 = throwable;
             if (FailureReporter.getRootCause(throwable1).contains("NumberFormatException")) {
-                var newException = new MalformedURLException("Invalid remote server URL `" + getTargetHubUrl() + "`. Kindly ensure using one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http(s)://host:port[/path]`.");
+                var newException = new MalformedURLException("Invalid remote server URL `" + getTargetHubUrl() + "`. Use one of the supported patterns: `local`, `dockerized`, `browserstack`, `host:port`, `http(s)://host:port[/path]`.");
                 newException.addSuppressed(throwable1);
                 throwable1 = newException;
             }
@@ -902,7 +902,7 @@ public class DriverFactoryHelper {
         if (driverName.contains("MobileApp")) {
             driverName = driverName.replace("Mobile", Properties.platform.targetPlatform());
         }
-        String successMessageRemote = "Successfully Opened \"" + JavaHelper.convertToSentenceCase(driverName) + "\".";
+        String successMessageRemote = "Started remote WebDriver session for \"" + JavaHelper.convertToSentenceCase(driverName) + "\".";
         List<Object> launchScreenshotRemote = captureLaunchScreenshot();
         if (launchScreenshotRemote != null) {
             ReportManagerHelper.log(successMessageRemote, List.of(launchScreenshotRemote));
@@ -915,7 +915,7 @@ public class DriverFactoryHelper {
      * Captures a viewport screenshot after the driver session is established.
      * Returns the screenshot in the standard attachment-list format used by
      * {@link ReportManagerHelper#log(String, List)} so that it can be nested
-     * directly inside the "Successfully Opened" Allure step rather than
+     * directly inside the driver-startup Allure step rather than
      * appearing as a separate top-level step.
      * Returns {@code null} when no screenshot could be taken (e.g. remote server error).
      * Failures are logged discretely so they never mask the primary driver-creation outcome.
@@ -938,7 +938,7 @@ public class DriverFactoryHelper {
     }
 
     /**
-     * Determines whether a launch screenshot should be attached to the "Successfully Opened" step.
+     * Determines whether a launch screenshot should be attached to the driver-startup step.
      * This attachment is only relevant for native mobile app launches.
      *
      * @return {@code true} when running native mobile automation; otherwise {@code false}
@@ -1070,11 +1070,11 @@ public class DriverFactoryHelper {
             // start session recording
             RecordManager.startVideoRecording(driver);
         } catch (NullPointerException e) {
-            FailureReporter.fail(DriverFactoryHelper.class, "Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
+            FailureReporter.fail(DriverFactoryHelper.class, "Unhandled exception with driver type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
         }
 
         if (HealingStrategy.current().usesHealenium()) {
-            ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
+            ReportManager.logDiscrete("Wrapping the session with Healenium self-healing driver.");
 //            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
             setDriver(SelfHealingDriver.create(driver));
         }
@@ -1087,7 +1087,7 @@ public class DriverFactoryHelper {
      */
     public void initializeDriver(@NonNull WebDriver driver) {
         initializeSystemProperties();
-        ReportManager.log("Attaching to existing driver session '" + driver + "'.");
+        ReportManager.log("Attached to existing WebDriver session '" + driver + "'.");
         setDriver(driver);
     }
 }

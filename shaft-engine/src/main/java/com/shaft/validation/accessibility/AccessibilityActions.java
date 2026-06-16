@@ -571,8 +571,8 @@ public class AccessibilityActions {
                     + roundedScore + "%");
         }
 
-        logger.info("Accessibility score for page '" + pageName + "' is " + roundedScore
-                + "%, meets the minimum requirement of " + minimumPercentage + "%");
+        logger.info("Accessibility score for page '{}' is {}% (minimum required: {}%).",
+                pageName, roundedScore, minimumPercentage);
 
         return this;
     }

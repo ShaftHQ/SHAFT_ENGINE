@@ -29,7 +29,7 @@ public class UpdateChecker {
     }
 
     static void check(Supplier<String> latestVersionSupplier) {
-        ReportManager.logDiscrete("Checking for engine updates...");
+        ReportManager.logDiscrete("Checking for SHAFT engine updates.");
 
         try {
             String todayDate = DATE_FORMATTER.format(LocalDate.now());
@@ -50,7 +50,7 @@ public class UpdateChecker {
                 ReportManagerHelper.logDiscrete(logMessage, Level.INFO);
             }
         } catch (Exception exception) {
-            ReportManagerHelper.logDiscrete("Skipping the engine update check because GitHub is unavailable.", Level.DEBUG);
+            ReportManagerHelper.logDiscrete("Engine update check was not completed because GitHub is unavailable.", Level.DEBUG);
             ReportManagerHelper.logDiscrete(exception, Level.DEBUG);
         }
     }

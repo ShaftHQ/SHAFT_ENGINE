@@ -246,17 +246,17 @@ public class AccessibilityHelper {
 
             if (driver instanceof RemoteWebDriver remoteDriver) {
                 Capabilities caps = remoteDriver.getCapabilities();
-                logger.info("Running accessibility scan on browser: {} {}, URL: {}",
+                logger.debug("Running accessibility scan on browser: {} {}, URL: {}.",
                         caps.getBrowserName(), caps.getBrowserVersion(), driver.getCurrentUrl());
             } else {
-                logger.info("Driver type: {}", driver.getClass().getSimpleName());
+                logger.debug("Running accessibility scan with driver type: {}.", driver.getClass().getSimpleName());
             }
 
             new WebDriverWait(driver, Duration.ofSeconds(PAGE_LOAD_TIMEOUT_SECONDS))
                     .until(webDriver -> ((JavascriptExecutor) webDriver)
                             .executeScript("return document.readyState").equals("complete"));
 
-            logger.info("Page fully loaded, starting accessibility scan for: {}", pageName);
+            logger.debug("Page is loaded. Starting accessibility scan for page '{}'.", pageName);
 
             waitForDomStability(driver, DOM_STABLE_MILLIS, DOM_TIMEOUT_SECONDS);
 
@@ -277,8 +277,8 @@ public class AccessibilityHelper {
             writeJsonResults(jsonReportPath, responseJSON);
             generateEnhancedHTMLReport(responseJSON, pageName, htmlReportPath, config,driver);
 
-            logger.info("Accessibility report generated at: {}", htmlReportPath);
-            logger.info("JSON report generated at: {}", jsonReportPath);
+            logger.debug("Generated accessibility HTML report: {}.", htmlReportPath);
+            logger.debug("Generated accessibility JSON report: {}.", jsonReportPath);
             printDetailedSummary(responseJSON, pageName);
 
             try {
@@ -290,17 +290,17 @@ public class AccessibilityHelper {
                         Path target = allureDir.resolve(reportPath.getFileName());
                         Files.copy(reportPath, target, StandardCopyOption.REPLACE_EXISTING);
                     } catch (IOException ioEx) {
-                        logger.warn("Could not copy report to Allure results: {}", ioEx.getMessage());
+                        logger.warn("Could not copy accessibility report to Allure results: {}", ioEx.getMessage());
                     }
                     try (FileInputStream fis = new FileInputStream(reportPath.toFile())) {
                         Allure.addAttachment("Accessibility Report - " + pageName, "text/html", fis, ".html");
                     }
-                    logger.info("Accessibility report copied to Allure results and attached for page: {}", pageName);
+                    logger.debug("Attached accessibility report for page '{}'.", pageName);
                 } else {
                     logger.warn("Accessibility HTML report not found for Allure attachment: {}", htmlReportPath);
                 }
             } catch (Exception e) {
-                logger.error("Failed to copy/attach Accessibility report to Allure: {}", e.getMessage(), e);
+                logger.error("Could not copy or attach the accessibility report to Allure: {}", e.getMessage(), e);
             }
         } catch (Exception e) {
             logger.error("Accessibility scan failed for page: {}", pageName, e);
@@ -315,7 +315,7 @@ public class AccessibilityHelper {
                             "text/plain", fis, ".txt");
                 }
             } catch (Exception inner) {
-                logger.error("Also failed to save fallback report: {}", inner.getMessage());
+                logger.error("Could not save fallback accessibility report: {}", inner.getMessage());
             }
         }
 
@@ -359,8 +359,8 @@ public class AccessibilityHelper {
             Results results = new AxeBuilder().analyze(driver);
             return !results.getViolations().isEmpty();
         } catch (Exception e) {
-            logger.error("Failed to check critical violations for page: {}", pageName, e);
-            throw new RuntimeException("Failed to check critical violations", e);
+            logger.error("Could not check critical accessibility violations for page '{}'.", pageName, e);
+            throw new RuntimeException("Could not check critical accessibility violations", e);
         }
     }
 
@@ -390,8 +390,8 @@ public class AccessibilityHelper {
                             Collectors.summingInt(rule -> rule.getNodes().size())
                     ));
         } catch (Exception e) {
-            logger.error("Failed to get violations by type", e);
-            throw new RuntimeException("Failed to get violations by type", e);
+            logger.error("Could not group accessibility violations by type.", e);
+            throw new RuntimeException("Could not group accessibility violations by type", e);
         }
     }
 
@@ -413,7 +413,7 @@ public class AccessibilityHelper {
             Results results = new AxeBuilder().analyze(driver);
             return results.getViolations().isEmpty();
         } catch (Exception e) {
-            logger.error("Failed to perform quick accessibility check", e);
+            logger.error("Could not perform quick accessibility check.", e);
             return false;
         }
     }
@@ -472,7 +472,7 @@ public class AccessibilityHelper {
         if (config == null) config = new AccessibilityConfig();
 
         try {
-            logger.info("Running accessibility analysis (returning result) for: {}", pageName);
+            logger.debug("Running accessibility analysis for page '{}'.", pageName);
 
             AxeBuilder axeBuilder = new AxeBuilder()
                     .withTags(config.getTags())
@@ -503,7 +503,7 @@ public class AccessibilityHelper {
 
             JSONObject responseJSON = convertResultsToJSON(results);
 
-            // --- ✅ Calculate accessibility score ---
+            // Calculate accessibility score.
             int violationsCount = results.getViolations().size();
             int passesCount = results.getPasses().size();
             int totalChecks = violationsCount + passesCount;
@@ -527,18 +527,16 @@ public class AccessibilityHelper {
                 String jsonPath = reportsDir + "AccessibilityJSON_" + pageName + "_" + timestamp + ".json";
                 String htmlPath = reportsDir + "AccessibilityReport_" + pageName + "_" + timestamp + ".html";
 
-                // Save JSON and HTML
                 writeJsonResults(jsonPath, responseJSON);
                 generateEnhancedHTMLReport(responseJSON, pageName, htmlPath, config,driver);
 
-                // Attach HTML to Allure
                 try (FileInputStream fis = new FileInputStream(htmlPath)) {
                     Allure.addAttachment("Accessibility Report - " + pageName, "text/html", fis, ".html");
                 }
-                logger.info("HTML + JSON Accessibility reports saved and attached for: {}", pageName);
+                logger.debug("Generated and attached accessibility reports for page '{}'.", pageName);
             }
 
-            logger.info("✅ Accessibility score for page '{}' = {}%", pageName, accessibilityScore);
+            logger.info("Accessibility score for page '{}' is {}%.", pageName, accessibilityScore);
             return result;
 
         } catch (Exception e) {
@@ -561,19 +559,17 @@ public class AccessibilityHelper {
 
                     Files.writeString(Paths.get(fallbackPath), message, StandardCharsets.UTF_8);
 
-                    // Attach to Allure
                     try (FileInputStream fis = new FileInputStream(fallbackPath)) {
                         Allure.addAttachment("Accessibility Failure Report - " + pageName,
                                 "text/plain", fis, ".txt");
                     }
 
-                    logger.info("⚠️ Fallback accessibility report generated: {}", fallbackPath);
+                    logger.warn("Generated fallback accessibility report: {}.", fallbackPath);
                 } catch (Exception inner) {
-                    logger.error("Also failed to generate fallback report for {}: {}", pageName, inner.getMessage());
+                    logger.error("Could not generate fallback accessibility report for page '{}': {}", pageName, inner.getMessage());
                 }
             }
 
-            // ✅ Fail the test clearly
             throw new RuntimeException("Accessibility analysis failed for page '" + pageName + "'. Check the Accessibility report for more details.", e);
         }
     }
@@ -867,16 +863,12 @@ public class AccessibilityHelper {
     }
 
     private static void printDetailedSummary(JSONObject json, String pageName) throws JSONException {
-        logger.info("\n📊 Accessibility Summary for {}", pageName);
-        logger.info("==========================================");
-        logger.info(" Violations: {}", json.getInt("totalViolations"));
-        logger.info(" Incomplete: {}", json.getInt("totalIncomplete"));
-        logger.info(" Passed: {}", json.getInt("totalPassed"));
-        logger.info(" Inapplicable: {}", json.getInt("totalInapplicable"));
-        logger.info("==========================================");
-        if (json.getInt("totalViolations") == 0) {
-            logger.info("🎉 Great! No accessibility violations found.");
-        }
+        logger.debug("Accessibility summary for page '{}': violations={}, incomplete={}, passed={}, inapplicable={}.",
+                pageName,
+                json.getInt("totalViolations"),
+                json.getInt("totalIncomplete"),
+                json.getInt("totalPassed"),
+                json.getInt("totalInapplicable"));
     }
 
     /**
@@ -907,7 +899,7 @@ public class AccessibilityHelper {
                 }
             }
         } catch (Exception e) {
-            logger.warn("Failed to attach accessibility report to Allure: " + e.getMessage());
+            logger.warn("Could not attach accessibility report to Allure: {}", e.getMessage());
         }
     }
 
@@ -943,7 +935,7 @@ public class AccessibilityHelper {
                 }
             }
         } catch (Exception e) {
-            logger.warn("Failed to attach filtered accessibility report to Allure: " + e.getMessage());
+            logger.warn("Could not attach filtered accessibility report to Allure: {}", e.getMessage());
         }
     }
 

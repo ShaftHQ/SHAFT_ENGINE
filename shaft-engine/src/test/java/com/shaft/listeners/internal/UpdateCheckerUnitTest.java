@@ -19,10 +19,10 @@ public class UpdateCheckerUnitTest {
                 throw lookupFailure;
             });
 
-            report.verify(() -> ReportManager.logDiscrete("Checking for engine updates..."));
+            report.verify(() -> ReportManager.logDiscrete("Checking for SHAFT engine updates."));
             report.verifyNoMoreInteractions();
             reportManager.verify(() -> ReportManagerHelper.logDiscrete(
-                    "Skipping the engine update check because GitHub is unavailable.", Level.DEBUG));
+                    "Engine update check was not completed because GitHub is unavailable.", Level.DEBUG));
             reportManager.verify(() -> ReportManagerHelper.logDiscrete(lookupFailure, Level.DEBUG));
             reportManager.verifyNoMoreInteractions();
         }

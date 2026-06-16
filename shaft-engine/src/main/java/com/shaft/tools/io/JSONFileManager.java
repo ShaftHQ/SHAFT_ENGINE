@@ -62,7 +62,7 @@ public class JSONFileManager {
         byte[] raw = readJsonBytes();
         List<Object> testDataFileAttachment = Arrays.asList("Test Data", "JSON", new ByteArrayInputStream(raw));
         attachments.add(testDataFileAttachment);
-        ReportManagerHelper.log("Loaded Test Data: \"" + jsonFilePath + "\".", attachments);
+        ReportManagerHelper.log("Loaded JSON test data: \"" + jsonFilePath + "\".", attachments);
     }
 
     /**

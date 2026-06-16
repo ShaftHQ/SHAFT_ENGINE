@@ -125,7 +125,7 @@ public class ScreenshotHelper {
         } catch (RuntimeException exception) {
             if (retryAttempts <= 0) {
                 ReportManagerHelper.logDiscrete(exception, Level.WARN);
-                ReportManagerHelper.logDiscrete("Failed to take a screenshot after 5 attempts.", Level.WARN);
+                ReportManagerHelper.logDiscrete("Could not take a screenshot after 5 attempts.", Level.WARN);
                 return null;
             } else
                 // java.lang.RuntimeException: Unexpected result for screenshot command: com.google.common.collect.Maps$TransformedEntriesMap instance

@@ -1,5 +1,6 @@
 package com.shaft.properties.internal;
 
+import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config;
 import org.aeonbits.owner.Config.HotReload;
 import org.aeonbits.owner.Config.HotReloadType;
@@ -29,6 +30,32 @@ import org.aeonbits.owner.Config.LoadPolicy;
 @LoadPolicy(Config.LoadType.MERGE)
 public interface EngineProperties<T> extends Config {
     /**
+     * Logs a runtime property override with consistent wording and masks sensitive values.
+     *
+     * @param key   property key
+     * @param value property value
+     */
+    static void logPropertyUpdate(String key, Object value) {
+        ReportManager.logDiscrete("Updated property \"" + key + "\" to \""
+                + maskSensitiveValue(key, value) + "\".");
+    }
+
+    private static String maskSensitiveValue(String key, Object value) {
+        String propertyKey = key == null ? "" : key.toLowerCase();
+        if (propertyKey.contains("password")
+                || propertyKey.contains("secret")
+                || propertyKey.contains("token")
+                || propertyKey.contains("accesskey")
+                || propertyKey.contains("access_key")
+                || propertyKey.contains("apikey")
+                || propertyKey.contains("api_key")
+                || propertyKey.contains("uuid")) {
+            return "********";
+        }
+        return String.valueOf(value);
+    }
+
+    /**
      * Returns a fluent {@link SetProperty} builder that allows programmatic override
      * of individual configuration properties at runtime.
      *
@@ -42,5 +69,8 @@ public interface EngineProperties<T> extends Config {
      * property source and return {@code this} to support method chaining.
      */
     interface SetProperty {
+        default void logPropertyUpdate(String key, Object value) {
+            EngineProperties.logPropertyUpdate(key, value);
+        }
     }
 }

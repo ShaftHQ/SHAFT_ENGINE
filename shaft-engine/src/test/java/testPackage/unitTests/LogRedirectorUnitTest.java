@@ -4,13 +4,16 @@ import com.shaft.tools.io.internal.LogRedirector;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Unit tests for {@link LogRedirector}.
@@ -119,5 +122,56 @@ public class LogRedirectorUnitTest {
         redirector.write("art\n".getBytes(StandardCharsets.UTF_8));
         byte[] more = "second line\nthird line\n".getBytes(StandardCharsets.UTF_8);
         redirector.write(more, 0, more.length);
+    }
+
+    @Test(description = "write: partial lines should remain isolated between concurrent threads")
+    public void partialLinesShouldStayIsolatedPerThread() throws Exception {
+        Logger logger = Mockito.mock(Logger.class);
+        LogRedirector sharedRedirector = new LogRedirector(logger, Level.INFO);
+        CountDownLatch alphaBuffered = new CountDownLatch(1);
+        CountDownLatch betaFlushed = new CountDownLatch(1);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+
+        Thread alpha = new Thread(() -> {
+            try {
+                sharedRedirector.write("alpha-مرحبا".getBytes(StandardCharsets.UTF_8));
+                alphaBuffered.countDown();
+                if (!betaFlushed.await(5, TimeUnit.SECONDS)) {
+                    throw new AssertionError("Timed out waiting for beta line to flush");
+                }
+                sharedRedirector.write('\n');
+            } catch (Throwable throwable) {
+                failure.compareAndSet(null, throwable);
+            }
+        }, "redirect-alpha");
+
+        Thread beta = new Thread(() -> {
+            try {
+                if (!alphaBuffered.await(5, TimeUnit.SECONDS)) {
+                    throw new AssertionError("Timed out waiting for alpha line to buffer");
+                }
+                sharedRedirector.write("beta-世界\n".getBytes(StandardCharsets.UTF_8));
+                betaFlushed.countDown();
+            } catch (Throwable throwable) {
+                failure.compareAndSet(null, throwable);
+                betaFlushed.countDown();
+            }
+        }, "redirect-beta");
+
+        alpha.start();
+        beta.start();
+        alpha.join(5_000);
+        beta.join(5_000);
+
+        Assert.assertFalse(alpha.isAlive(), "Alpha redirect thread should finish");
+        Assert.assertFalse(beta.isAlive(), "Beta redirect thread should finish");
+        if (failure.get() != null) {
+            throw new AssertionError("Concurrent redirector write failed", failure.get());
+        }
+
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(logger, Mockito.times(2)).log(Mockito.eq(Level.INFO), messageCaptor.capture());
+        Assert.assertTrue(messageCaptor.getAllValues().contains("alpha-مرحبا"));
+        Assert.assertTrue(messageCaptor.getAllValues().contains("beta-世界"));
     }
 }

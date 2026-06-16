@@ -1,6 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -21,7 +20,7 @@ public interface Allure extends EngineProperties<Allure> {
         ThreadLocalPropertiesManager.setProperty(key, value);
         Properties.allureOverride.set(ConfigFactory.create(Allure.class, ThreadLocalPropertiesManager.getOverrides()));
         if (!key.equals("disableLogging"))
-            ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+            EngineProperties.logPropertyUpdate(key, value);
     }
 
     /**

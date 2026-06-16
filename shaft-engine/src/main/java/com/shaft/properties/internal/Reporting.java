@@ -1,6 +1,5 @@
 package com.shaft.properties.internal;
 
-import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -20,7 +19,7 @@ public interface Reporting extends EngineProperties<Reporting> {
         ThreadLocalPropertiesManager.setProperty(key, value);
         Properties.reportingOverride.set(ConfigFactory.create(Reporting.class, ThreadLocalPropertiesManager.getOverrides()));
         if (!key.equals("disableLogging"))
-            ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+            EngineProperties.logPropertyUpdate(key, value);
     }
 
     @Key("captureElementName")

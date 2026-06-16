@@ -197,9 +197,9 @@ public class TerminalActions {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Terminal Action \"" + actionName + "\" successfully performed.";
+            message = "Terminal action \"" + actionName + "\" completed.";
         } else {
-            message = "Terminal Action \"" + actionName + "\" failed.";
+            message = "Terminal action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -208,7 +208,7 @@ public class TerminalActions {
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data \"" + testData + "\".";
+            message = message + " Input: \"" + testData + "\".";
         }
 
         if (log != null && !log.trim().isEmpty()) {
@@ -478,7 +478,7 @@ public class TerminalActions {
             session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
             session.setConfig(config);
             session.connect();
-            ReportManager.logDiscrete("Successfully created SSH Session.");
+            ReportManager.logDiscrete("Created SSH session for " + sshUsername + "@" + sshHostName + ":" + sshPortNumber + ".");
         } catch (JSchException rootCauseException) {
             failAction(testData, rootCauseException);
         }
@@ -631,14 +631,14 @@ public class TerminalActions {
             try {
                 session.delPortForwardingL(localPort);
             } catch (Exception exception) {
-                ReportManager.logDiscrete("Failed to remove local port forward on port " + localPort + ": " + exception.getMessage());
+                ReportManager.logDiscrete("Could not remove local port forward on port " + localPort + ": " + exception.getMessage());
             }
         }
         for (Integer remotePort : new ArrayList<>(activeRemotePortForwards)) {
             try {
                 session.delPortForwardingR(remotePort);
             } catch (Exception exception) {
-                ReportManager.logDiscrete("Failed to remove remote port forward on port " + remotePort + ": " + exception.getMessage());
+                ReportManager.logDiscrete("Could not remove remote port forward on port " + remotePort + ": " + exception.getMessage());
             }
         }
     }
@@ -690,7 +690,7 @@ public class TerminalActions {
         String finalDirectory = directory;
         internalCommands.forEach(command -> {
             command = command.contains(".bat") && !command.contains(".\\") && !command.matches("(^.:\\\\.*$)") ? ".\\" + command : command;
-            ReportManager.logDiscrete("Executing: \"" + command + "\" locally.");
+            ReportManager.logDiscrete("Executing local command: \"" + command + "\".");
             try {
                 if (Thread.currentThread().isInterrupted()) {
                     throw new InterruptedException("Current thread was interrupted before local command execution.");
@@ -776,8 +776,7 @@ public class TerminalActions {
         StringBuilder exitStatuses = new StringBuilder();
         int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
         // remote execution
-        ReportManager.logDiscrete(
-                "Attempting to perform the following command remotely. Command: \"" + longCommand + "\"");
+        ReportManager.logDiscrete("Executing remote command: \"" + longCommand + "\".");
         Session remoteSession = getRemoteSession();
         ChannelExec remoteChannelExecutor = null;
         if (remoteSession != null) {

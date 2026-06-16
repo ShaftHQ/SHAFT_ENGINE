@@ -12,6 +12,7 @@ import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.logging.log4j.Level;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -64,7 +65,7 @@ public class ExcelFileManager {
             fis = new FileInputStream(excelFilePath);
             workbook = new XSSFWorkbook(fis);
             fis.close();
-            ReportManager.logDiscrete("Reading test data from the following file [" + excelFilePath + "].");
+            ReportManager.logDiscrete("Reading Excel test data from [" + excelFilePath + "].", Level.DEBUG);
         } catch (IOException | OutOfMemoryError e) {
             FailureReporter.fail(this.getClass(), "Couldn't find the desired file. [" + excelFilePath + "].", e);
         } catch (EmptyFileException e) {
@@ -80,7 +81,7 @@ public class ExcelFileManager {
             ReportManagerHelper.logDiscrete(e);
         }
         attachments.add(testDataFileAttachment);
-        ReportManagerHelper.log("Loaded Test Data: \"" + excelFilePath + "\".", attachments);
+        ReportManagerHelper.log("Loaded Excel test data: \"" + excelFilePath + "\".", attachments);
     }
 
     /**

@@ -69,7 +69,7 @@ public class YAMLFileManager {
         }
 
         ReportManagerHelper.log(
-                "Loaded Test Data: \"" + this.filePath + "\".",
+                "Loaded YAML test data: \"" + this.filePath + "\".",
                 List.of(testDataFileAttachment)
         );
     }

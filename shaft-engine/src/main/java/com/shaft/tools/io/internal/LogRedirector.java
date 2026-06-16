@@ -3,18 +3,20 @@ package com.shaft.tools.io.internal;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 public class LogRedirector extends OutputStream {
     private final Logger logger;
     private final Level level;
-    private StringBuilder stringBuilder;
+    private final ThreadLocal<ByteArrayOutputStream> lineBuffers =
+            ThreadLocal.withInitial(ByteArrayOutputStream::new);
 
     public LogRedirector(Logger logger, Level level) {
         this.logger = logger;
         this.level = level;
-        stringBuilder = new StringBuilder();
     }
 
     @Override
@@ -35,11 +37,24 @@ public class LogRedirector extends OutputStream {
     public void write(int b) {
         char c = (char) b;
         if (c == '\r' || c == '\n') {
-            if (!stringBuilder.isEmpty()) {
-                logger.log(level, stringBuilder.toString());
-                stringBuilder = new StringBuilder();
-            }
-        } else
-            stringBuilder.append(c);
+            flush();
+        } else {
+            lineBuffers.get().write(b);
+        }
+    }
+
+    @Override
+    public void flush() {
+        ByteArrayOutputStream currentThreadBuffer = lineBuffers.get();
+        if (currentThreadBuffer.size() > 0) {
+            logger.log(level, currentThreadBuffer.toString(StandardCharsets.UTF_8));
+            currentThreadBuffer.reset();
+        }
+    }
+
+    @Override
+    public void close() {
+        flush();
+        lineBuffers.remove();
     }
 }

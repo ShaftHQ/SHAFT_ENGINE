@@ -51,7 +51,7 @@ public class ReportHelper {
      * Attaches loaded property files as nested report steps.
      */
     public static void attachPropertyFiles() {
-        ReportManager.logDiscrete("Initializing Properties...");
+        ReportManager.logDiscrete("Attaching SHAFT property files.");
         disableLogging();
         if (FileActions.getInstance(true).doesFileExist(SHAFT.Properties.paths.properties())) {
             List<List<Object>> attachments = new ArrayList<>();

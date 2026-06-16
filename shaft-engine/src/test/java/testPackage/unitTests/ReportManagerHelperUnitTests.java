@@ -14,6 +14,7 @@ import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -280,14 +282,33 @@ public class ReportManagerHelperUnitTests {
         ThreadLocalPropertiesManager.setProperty("appender.file.fileName", nestedLogFile.toString());
 
         ReportManagerHelper.enableDebugFileLogging();
-        invokePrivateStaticMethod("writeToDebugLogFileIfEnabled", "nested debug entry", Level.DEBUG);
+        ReportManagerHelper.createLogEntry("nested debug entry", Level.DEBUG);
 
         SHAFT.Validations.assertThat().object(Files.isRegularFile(nestedLogFile)).isTrue().perform();
-        SHAFT.Validations.assertThat().object(Files.readString(nestedLogFile)).contains("nested debug entry").perform();
+        waitForFileToContain(nestedLogFile, "nested debug entry");
 
         ReportManagerHelper.attachEngineLog("nested-log");
+        SHAFT.Validations.assertThat().object(Files.exists(nestedLogFile)).isTrue().perform();
+        Files.deleteIfExists(nestedLogFile);
         Files.deleteIfExists(nestedLogFile.getParent());
         Files.deleteIfExists(debugDirectory);
+    }
+
+    @Test
+    public void bundledLog4jConfigurationShouldUseAsyncFileAppender() throws Exception {
+        String bundledLog4jConfiguration;
+        try (InputStream log4jConfiguration = Objects.requireNonNull(
+                ReportManagerHelperUnitTests.class.getClassLoader()
+                        .getResourceAsStream("properties/default/log4j2.properties"))) {
+            bundledLog4jConfiguration = new String(log4jConfiguration.readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        SHAFT.Validations.assertThat().object(bundledLog4jConfiguration)
+                .contains("appender.asyncFile.type=Async").perform();
+        SHAFT.Validations.assertThat().object(bundledLog4jConfiguration)
+                .contains("appender.asyncFile.appenderRef.file.ref=LOGFILE").perform();
+        SHAFT.Validations.assertThat().object(bundledLog4jConfiguration)
+                .contains("rootLogger=info, ASYNC_STDOUT, ASYNC_LOGFILE, ASYNC_REPORT_PORTAL").perform();
     }
 
     @Test
@@ -428,12 +449,14 @@ public class ReportManagerHelperUnitTests {
 
         ReportManagerHelper.enableDebugFileLogging();
         ReportManagerHelper.writeStepToReport("debug log entry");
+        waitForFileToContain(Path.of(logFilePath), "debug log entry");
         SHAFT.Validations.assertThat().object(new File(logFilePath).isFile()).isTrue().perform();
         ReportManagerHelper.attachEngineLog("execution-end");
 
         boolean debugFileLoggingEnabled = isRetryDiagnosticLoggingEnabledForCurrentThread();
         SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
-        SHAFT.Validations.assertThat().object(new File(logFilePath).exists()).isFalse().perform();
+        SHAFT.Validations.assertThat().object(new File(logFilePath).exists()).isTrue().perform();
+        Files.deleteIfExists(Path.of(logFilePath));
     }
 
     @Test
@@ -553,6 +576,19 @@ public class ReportManagerHelperUnitTests {
         }
         method.setAccessible(true);
         return method.invoke(null, args);
+    }
+
+    private static void waitForFileToContain(Path path, String expectedText) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            if (Files.exists(path) && Files.readString(path, StandardCharsets.UTF_8).contains(expectedText)) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        SHAFT.Validations.assertThat().object(Files.exists(path)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.readString(path, StandardCharsets.UTF_8))
+                .contains(expectedText).perform();
     }
 
     private static <T> T getPrivateStaticField(String fieldName, Class<T> type) throws Exception {

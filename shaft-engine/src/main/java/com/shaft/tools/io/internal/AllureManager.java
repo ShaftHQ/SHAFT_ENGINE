@@ -120,7 +120,7 @@ public class AllureManager {
      * }</pre>
      */
     public static void initializeAllureReportingEnvironment() {
-        ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
+        ReportManager.logDiscrete("Preparing Allure reporting.");
         /*
          * Force screenshot link to be shown in the results as a link not text
          */
@@ -175,7 +175,7 @@ public class AllureManager {
         String sourceFile = reportDirectoryPath().resolve("index.html").toString();
         if (!internalFileSession.doesFileExist(sourceFile)) {
             // Allure report was not generated (CLI bootstrap failed or allure-results was empty)
-            ReportManager.logDiscrete("Allure report 'index.html' not found — 'allure generate' may have failed."
+            ReportManager.logDiscrete("Allure report index.html was not found. Report generation may have failed."
                     + " Check that allure-results is not empty and that SHAFT could reach nodejs.org to download Node.js.");
             return null;
         }
@@ -212,7 +212,7 @@ public class AllureManager {
      */
     public static void generateAllureReportArchive() {
         if (SHAFT.Properties.allure.generateArchive()) {
-            ReportManager.logDiscrete("Generating Allure Report Archive...");
+            ReportManager.logDiscrete("Generating Allure report archive.");
             ReportHelper.disableLogging();
             stopRealtimeMonitoring();
             writeAllureReport();
@@ -345,7 +345,7 @@ public class AllureManager {
                 ensureAllureResultsDirectoryExists(allureResultsPath);
                 cleanAllureResultsDirectoryContents(allureResultsPath);
             } catch (Exception t) {
-                ReportManager.log("Failed to delete '" + allureResultsPath + "' as it is currently open. Kindly restart your device to unlock the directory.");
+                ReportManager.log("Could not clean '" + allureResultsPath + "' because it is currently open. Restart the machine to unlock the directory.");
             }
             ensureAllureResultsDirectoryExists(allureResultsPath);
         }
@@ -367,7 +367,7 @@ public class AllureManager {
                         try {
                             Files.deleteIfExists(path);
                         } catch (IOException e) {
-                            ReportManager.log("Failed to delete '" + path + "' from Allure results: " + e.getMessage());
+                            ReportManager.log("Could not delete '" + path + "' from Allure results: " + e.getMessage());
                         }
                     });
         }
@@ -382,10 +382,10 @@ public class AllureManager {
             Files.createDirectories(resultsDirectory);
         } catch (FileAlreadyExistsException e) {
             if (!Files.isDirectory(resultsDirectory)) {
-                ReportManager.log("Failed to create '" + allureResultsPath + "' for Allure results: " + e.getMessage());
+                ReportManager.log("Could not create '" + allureResultsPath + "' for Allure results: " + e.getMessage());
             }
         } catch (IOException e) {
-            ReportManager.log("Failed to create '" + allureResultsPath + "' for Allure results: " + e.getMessage());
+            ReportManager.log("Could not create '" + allureResultsPath + "' for Allure results: " + e.getMessage());
         }
     }
 
@@ -395,7 +395,7 @@ public class AllureManager {
             try {
                 internalFileSession.deleteFolder(reportDirectoryPath().toString());
             } catch (Exception t) {
-                ReportManager.log("Failed to delete '" + reportDirectoryPath() + "' as it is currently open. Kindly restart your device to unlock the directory.");
+                ReportManager.log("Could not clean '" + reportDirectoryPath() + "' because it is currently open. Restart the machine to unlock the directory.");
             }
         }
     }
@@ -422,7 +422,7 @@ public class AllureManager {
         if (cmd != null && !cmd.isBlank()) {
             executeAllureGenerateCommand(cmd);
         } else {
-            ReportManager.logDiscrete("Allure report generation skipped: could not resolve the Allure CLI."
+            ReportManager.logDiscrete("Allure report generation skipped because the Allure CLI could not be resolved."
                     + (cachedIsAllure2
                     ? " Ensure 'allure' (version 2) is on PATH."
                     : " Install Node.js (https://nodejs.org) and re-run to generate the report."));
@@ -485,7 +485,7 @@ public class AllureManager {
     }
 
     private static void executeAllureGenerateCommand(String command) {
-        ReportManager.logDiscrete("Executing Allure report generation command: \"" + command + "\".");
+        ReportManager.logDiscrete("Running Allure report generation command: \"" + command + "\".");
         ProcessBuilder processBuilder = SystemUtils.IS_OS_WINDOWS
                 ? new ProcessBuilder("cmd.exe", "/c", command)
                 : new ProcessBuilder("sh", "-c", command);
@@ -508,15 +508,15 @@ public class AllureManager {
 
             int exitCode = process.exitValue();
             logAllureCommandOutput(stdout, stderr);
-            ReportManager.logDiscrete("Allure report generation command exited with code " + exitCode + ".");
+            ReportManager.logDiscrete("Allure report generation exited with code " + exitCode + ".");
             if (exitCode != 0) {
-                ReportManager.logDiscrete("Allure report generation failed. Command: " + command);
+                ReportManager.logDiscrete("Allure report generation did not complete successfully. Command: " + command);
             }
         } catch (IOException e) {
-            ReportManager.logDiscrete("Failed to execute Allure report generation command: " + e.getMessage());
+            ReportManager.logDiscrete("Could not execute Allure report generation command: " + e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            ReportManager.logDiscrete("Allure report generation command was interrupted: " + e.getMessage());
+            ReportManager.logDiscrete("Allure report generation was interrupted: " + e.getMessage());
         } finally {
             streamReaders.shutdownNow();
         }
@@ -541,7 +541,7 @@ public class AllureManager {
             Thread.currentThread().interrupt();
             ReportManager.logDiscrete("Interrupted while reading Allure generate " + streamName + ": " + e.getMessage());
         } catch (ExecutionException e) {
-            ReportManager.logDiscrete("Failed to read Allure generate " + streamName + ": " + e.getMessage());
+            ReportManager.logDiscrete("Could not read Allure generate " + streamName + ": " + e.getMessage());
         }
         return "";
     }
@@ -566,7 +566,7 @@ public class AllureManager {
 
         String prefix = resolveAllureCommandPrefix();
         if (prefix == null || prefix.isBlank()) {
-            ReportManager.logDiscrete("Allure real-time monitoring skipped: Allure CLI could not be resolved.");
+            ReportManager.logDiscrete("Allure real-time monitoring skipped because the Allure CLI could not be resolved.");
             return;
         }
 
@@ -605,7 +605,7 @@ public class AllureManager {
             processBuilder.redirectOutput(ProcessBuilder.Redirect.appendTo(realtimeLogPath.toFile()));
             return processBuilder.start();
         } catch (IOException e) {
-            ReportManager.logDiscrete("Failed to start Allure real-time monitoring: " + e.getMessage());
+            ReportManager.logDiscrete("Could not start Allure real-time monitoring: " + e.getMessage());
             return null;
         }
     }
@@ -1048,14 +1048,14 @@ public class AllureManager {
         }
         URL downloaded = internalFileSession.downloadFile(downloadUrl, archivePath);
         if (downloaded == null) {
-            ReportManager.logDiscrete("Failed to download portable Node.js from " + downloadUrl);
+            ReportManager.logDiscrete("Could not download portable Node.js from " + downloadUrl);
             return null;
         }
 
         // Verify the archive checksum before extracting to guard against download corruption
         // or supply-chain tampering.
         if (!verifyNodeJsChecksum(archivePath, downloadUrl, archiveName)) {
-            ReportManager.logDiscrete("Node.js archive integrity check failed; deleting corrupt download: " + archivePath);
+            ReportManager.logDiscrete("Node.js archive integrity check failed. Deleting corrupt download: " + archivePath);
             new File(archivePath).delete();
             return null;
         }
@@ -1134,13 +1134,13 @@ public class AllureManager {
             for (byte b : digest) sb.append(String.format("%02x", b));
             String actualHash = sb.toString();
             if (!expectedHash.equalsIgnoreCase(actualHash)) {
-                ReportManager.logDiscrete("Node.js integrity check FAILED for '" + archiveName
+                ReportManager.logDiscrete("Node.js integrity check failed for '" + archiveName
                         + "'. Expected SHA-256: " + expectedHash + ", computed: " + actualHash);
                 return false;
             }
             return true;
         } catch (Exception e) {
-            ReportManager.logDiscrete("Error during Node.js integrity verification: " + e.getMessage()
+            ReportManager.logDiscrete("Could not verify Node.js archive integrity: " + e.getMessage()
                     + ". Skipping check.");
             return true; // soft fail — don't block on unexpected errors
         }
