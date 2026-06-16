@@ -85,6 +85,9 @@ import static io.restassured.RestAssured.given;
  */
 @SuppressWarnings("unused")
 public class RestActions {
+    private static final ObjectMapper JACKSON_MAPPER = new ObjectMapper();
+    private static final Gson GSON = new Gson();
+    private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String ARGUMENT_SEPARATOR = "?";
     private static final String ERROR_NOT_FOUND = "Either actual value is \"null\" or couldn't find anything that matches with the desired ";
     private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";
@@ -420,7 +423,7 @@ public class RestActions {
             List<Object> jsonList = null;
             try {
                 JSONArray jsonArray = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
-                jsonList = new ObjectMapper().readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {
+                jsonList = JACKSON_MAPPER.readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {
                 });
             } catch (JSONException | JsonProcessingException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
@@ -634,7 +637,6 @@ public class RestActions {
                     + "\", jsonPath to target array \"" + jsonPathToTargetArray + "\".");
         }
         boolean comparisonResult;
-        ObjectMapper jacksonMapper = new ObjectMapper();
         List<Object> expectedJSONAttachment = null;
 
         try {
@@ -642,7 +644,7 @@ public class RestActions {
             ObjectNode actualJsonObject = null;
             ArrayNode actualJsonArray = null;
 
-            var actualRoot = jacksonMapper.readTree(response.asString());
+            var actualRoot = JACKSON_MAPPER.readTree(response.asString());
             if (actualRoot instanceof ObjectNode) {
                 actualJsonObject = (ObjectNode) actualRoot;
             } else {
@@ -656,18 +658,17 @@ public class RestActions {
 
             JsonNode expectedRoot;
             try (FileReader expectedReader = new FileReader(referenceJsonFilePath)) {
-                expectedRoot = jacksonMapper.readTree(expectedReader);
+                expectedRoot = JACKSON_MAPPER.readTree(expectedReader);
             }
             if (expectedRoot instanceof ObjectNode) {
                 expectedJsonObject = (ObjectNode) expectedRoot;
                 expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
-                        new GsonBuilder().setPrettyPrinting().create()
-                                .toJson(JsonParser.parseString(expectedJsonObject.toString())));
+                        PRETTY_GSON.toJson(JsonParser.parseString(expectedJsonObject.toString())));
             } else {
                 // expectedRoot is an array
                 expectedJsonArray = (ArrayNode) expectedRoot;
-                expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON", new GsonBuilder()
-                        .setPrettyPrinting().create().toJson(JsonParser.parseString(expectedJsonArray.toString())));
+                expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
+                        PRETTY_GSON.toJson(JsonParser.parseString(expectedJsonArray.toString())));
             }
 
             // handle different combinations of expected and actual (object vs array)
@@ -752,13 +753,12 @@ public class RestActions {
     }
 
     private static InputStream parseJsonBody(Object body) throws IOException {
-        ObjectMapper jacksonMapper = new ObjectMapper();
         ObjectNode actualJsonObject = null;
         ArrayNode actualJsonArray = null;
         if (body.getClass().getName().toLowerCase().contains("restassured")) {
             String bodyString = ((ResponseBody<?>) body).asString();
             if (!bodyString.isEmpty()) {
-                var root = jacksonMapper.readTree(bodyString);
+                var root = JACKSON_MAPPER.readTree(bodyString);
                 if (root instanceof ObjectNode) {
                     actualJsonObject = (ObjectNode) root;
                 } else {
@@ -766,7 +766,7 @@ public class RestActions {
                 }
             }
         } else if (body instanceof InputStream bodyStream) {
-            var root = jacksonMapper.readTree(bodyStream);
+            var root = JACKSON_MAPPER.readTree(bodyStream);
             if (root instanceof ObjectNode) {
                 actualJsonObject = (ObjectNode) root;
             } else {
@@ -777,18 +777,18 @@ public class RestActions {
         } else if (body instanceof ArrayNode) {
             actualJsonArray = (ArrayNode) body;
         } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
-            var root = jacksonMapper.readTree(body.toString());
+            var root = JACKSON_MAPPER.readTree(body.toString());
             if (root instanceof ObjectNode) {
                 actualJsonObject = (ObjectNode) root;
             } else if (root instanceof ArrayNode) {
                 actualJsonArray = (ArrayNode) root;
             } else {
-                actualJsonObject = jacksonMapper.createObjectNode().set("value", root);
+                actualJsonObject = JACKSON_MAPPER.createObjectNode().set("value", root);
             }
         } else if (body instanceof Map<?, ?> bodyMap) {
-            actualJsonObject = jacksonMapper.valueToTree(bodyMap);
+            actualJsonObject = JACKSON_MAPPER.valueToTree(bodyMap);
         } else {
-            var root = jacksonMapper.readTree(body.toString());
+            var root = JACKSON_MAPPER.readTree(body.toString());
             if (root instanceof ObjectNode) {
                 actualJsonObject = (ObjectNode) root;
             } else {
@@ -796,10 +796,10 @@ public class RestActions {
             }
         }
         if (actualJsonObject != null) {
-            return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+            return new ByteArrayInputStream((PRETTY_GSON
                     .toJson(JsonParser.parseString(actualJsonObject.toString()))).getBytes());
         } else if (actualJsonArray != null) {
-            return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+            return new ByteArrayInputStream((PRETTY_GSON
                     .toJson(JsonParser.parseString(actualJsonArray.toString()))).getBytes());
         } else {
             // in case of an empty body
@@ -846,13 +846,11 @@ public class RestActions {
                                                ArrayNode expectedJsonArray, ObjectNode actualJsonObject, ArrayNode actualJsonArray,
                                                String jsonPathToTargetArray)
             throws JSONException, IOException {
-        ObjectMapper jacksonMapper = new ObjectMapper();
-        Gson gson = new Gson();
         if (!jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user provided the path to extract it from the
             // response
-            ArrayNode actualJsonArrayFromJsonPath = (ArrayNode) jacksonMapper
-                    .readTree(gson.toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
+            ArrayNode actualJsonArrayFromJsonPath = (ArrayNode) JACKSON_MAPPER
+                    .readTree(GSON.toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
                             .getAsJsonArray().toString());
             // check that all expected elements are present in the actual array.
             // O(n*m) scan matches the previous json-simple containsAll() semantics because
@@ -871,8 +869,8 @@ public class RestActions {
         } else if (jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user did not provide the path to extract it
             // from the response
-            String actual = actualJsonArray == null ? gson.toJson(actualJsonObject) : actualJsonArray.toString();
-            String expected = gson.toJson(jacksonMapper.readTree(expectedJsonArray.toString()));
+            String actual = actualJsonArray == null ? GSON.toJson(actualJsonObject) : actualJsonArray.toString();
+            String expected = GSON.toJson(JACKSON_MAPPER.readTree(expectedJsonArray.toString()));
             return actual.contains(expected.substring(1));
         } else if (expectedJsonObject != null) {
             // if expected is an object and actual is also an object

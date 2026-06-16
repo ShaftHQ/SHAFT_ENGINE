@@ -9,6 +9,7 @@ import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.element.internal.ElementInformation;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
@@ -308,19 +309,24 @@ public class ElementActions extends FluentWebDriverAction {
         } else {
 
             try {
-                String elementName = elementActionsHelper.getElementName(driverFactoryHelper.getDriver(), elementLocator);
+                String elementName = elementInformation.getElementName();
+                if (elementName == null || elementName.isBlank()) {
+                    elementName = JavaHelper.formatLocatorToString(elementLocator);
+                }
                 if (!elementActionsHelper.waitForElementTextToBeNot(driverFactoryHelper.getDriver(), elementLocator, "")) {
                     elementActionsHelper.failAction(driverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator);
                 }
 
+                elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator));
+                Select selectElement = new Select(elementInformation.getFirstElement());
                 boolean isOptionFound = false;
-                List<WebElement> availableOptionsList = (new Select((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1))).getOptions();
+                List<WebElement> availableOptionsList = selectElement.getOptions();
 
                 for (int i = 0; i < availableOptionsList.size(); ++i) {
                     String visibleText = availableOptionsList.get(i).getText();
                     String value = availableOptionsList.get(i).getDomProperty("value");
                     if (visibleText.trim().equals(valueOrVisibleText) || Objects.requireNonNull(value).trim().equals(valueOrVisibleText)) {
-                        (new Select((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1))).selectByIndex(i);
+                        selectElement.selectByIndex(i);
                         elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, null, elementName);
                         isOptionFound = true;
                         break;
