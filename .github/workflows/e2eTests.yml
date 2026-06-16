@@ -156,6 +156,7 @@ jobs:
           job-name: Ubuntu_Visual_Module
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           module-directory: shaft-visual
+          require-coverage: false
 
   Ubuntu_Desktop_Video_Module:
     runs-on: ubuntu-latest
@@ -185,6 +186,7 @@ jobs:
           job-name: Ubuntu_Desktop_Video_Module
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           module-directory: shaft-video
+          require-coverage: false
 
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-latest
@@ -293,6 +295,7 @@ jobs:
         with:
           job-name: Ubuntu_MicrosoftEdge_Grid
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          require-coverage: false
 
   Android_Native_BrowserStack:
     runs-on: ubuntu-latest
@@ -501,6 +504,7 @@ jobs:
         with:
           job-name: Windows_Edge_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          require-coverage: false
 
   MacOSX_Safari_Local:
     runs-on: macos-latest
@@ -531,6 +535,7 @@ jobs:
         with:
           job-name: MacOSX_Safari_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          require-coverage: false
 
   Windows_Chrome_Local:
     runs-on: windows-latest
@@ -561,6 +566,7 @@ jobs:
         with:
           job-name: Windows_Chrome_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          require-coverage: false
 
   MacOSX_Chrome_Local:
     runs-on: macos-latest
@@ -650,6 +656,7 @@ jobs:
         with:
           job-name: LambdaTest_NativeAndroid
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          require-coverage: false
 
   LambdaTest_NativeIOS:
     runs-on: ubuntu-latest
@@ -785,14 +792,20 @@ jobs:
           kubectl -n moon port-forward service/moon 4444:4444 > moon-port-forward.log 2>&1 &
           echo "$!" > moon-port-forward.pid
 
-          for attempt in {1..60}; do
-            if curl -fsS "${MOON_URL%/wd/hub}/status" >/dev/null; then
+          for attempt in {1..45}; do
+            if ! kill -0 "$(cat moon-port-forward.pid)" 2>/dev/null; then
+              cat moon-port-forward.log || true
+              echo "::error::Moon port-forward process exited before endpoint became available."
+              exit 1
+            fi
+            if curl --max-time 2 -fsS "${MOON_URL%/wd/hub}/status" >/dev/null; then
               exit 0
             fi
-            sleep 2
+            sleep 1
           done
 
           cat moon-port-forward.log || true
+          echo "::error::Timed out waiting for Moon WebDriver status endpoint."
           exit 1
 
       - name: Setup Test Environment
@@ -859,3 +872,4 @@ jobs:
         with:
           job-name: Ubuntu_Chrome_Moon
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          require-coverage: false

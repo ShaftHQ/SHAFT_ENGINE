@@ -43,6 +43,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -305,6 +306,70 @@ public class DriverFactoryHelperCoverageUnitTest {
         } catch (InvocationTargetException invocationTargetException) {
             SHAFT.Validations.assertThat().object(invocationTargetException.getCause() != null).isEqualTo(true).perform();
         }
+    }
+
+    @Test
+    public void createSessionInitializationFailureShouldPreserveRootCauseAndSuppressedFailures() throws Exception {
+        Method createSessionInitializationFailure = DriverFactoryHelper.class.getDeclaredMethod(
+                "createSessionInitializationFailure",
+                String.class,
+                long.class,
+                Throwable.class,
+                List.class,
+                String.class);
+        createSessionInitializationFailure.setAccessible(true);
+
+        var primaryCause = new IllegalStateException("primary remote failure");
+        var secondarySuppressed = new RuntimeException("secondary suppressed failure");
+        Object failure = createSessionInitializationFailure.invoke(
+                null,
+                "remote session",
+                System.currentTimeMillis(),
+                primaryCause,
+                List.of(primaryCause, secondarySuppressed),
+                "http://user:pass@localhost:4444/wd/hub");
+
+        SHAFT.Validations.assertThat().object(failure instanceof RuntimeException).isEqualTo(true).perform();
+        var initializationFailure = (RuntimeException) failure;
+        SHAFT.Validations.assertThat().object(initializationFailure.getCause()).isEqualTo(primaryCause).perform();
+        SHAFT.Validations.assertThat().object(initializationFailure.getMessage()).contains("Failed to initialize remote session").perform();
+        SHAFT.Validations.assertThat().object(initializationFailure.getMessage()).contains("Target: `http://***:***@localhost:4444/wd/hub`").perform();
+        SHAFT.Validations.assertThat().object(initializationFailure.getSuppressed().length).isEqualTo(1).perform();
+        SHAFT.Validations.assertThat().object(initializationFailure.getSuppressed()[0]).isEqualTo(secondarySuppressed).perform();
+        SHAFT.Validations.assertThat().object(initializationFailure.getSuppressed()[0] != primaryCause).isEqualTo(true).perform();
+    }
+
+    @Test
+    public void createSessionInitializationTimeoutFailureShouldPreserveRootCauseAndSuppressedFailures() throws Exception {
+        Method createSessionInitializationTimeoutFailure = DriverFactoryHelper.class.getDeclaredMethod(
+                "createSessionInitializationTimeoutFailure",
+                String.class,
+                long.class,
+                long.class,
+                Throwable.class,
+                List.class,
+                String.class);
+        createSessionInitializationTimeoutFailure.setAccessible(true);
+
+        var primaryCause = new RuntimeException("remote endpoint never accepted the session");
+        var secondarySuppressed = new org.openqa.selenium.remote.http.ConnectionFailedException("secondary timeout failure");
+        Object failure = createSessionInitializationTimeoutFailure.invoke(
+                null,
+                "remote session",
+                1,
+                System.currentTimeMillis() - 3_000,
+                primaryCause,
+                List.of(primaryCause, secondarySuppressed),
+                "http://bad%20host");
+
+        SHAFT.Validations.assertThat().object(failure instanceof RuntimeException).isEqualTo(true).perform();
+        var initializationFailure = (RuntimeException) failure;
+        SHAFT.Validations.assertThat().object(initializationFailure.getCause() instanceof TimeoutException).isEqualTo(true).perform();
+        var timeoutFailure = (TimeoutException) initializationFailure.getCause();
+        SHAFT.Validations.assertThat().object(timeoutFailure.getCause()).isEqualTo(primaryCause).perform();
+        SHAFT.Validations.assertThat().object(initializationFailure.getMessage()).contains("Timed out while remote session").perform();
+        SHAFT.Validations.assertThat().object(timeoutFailure.getMessage()).contains("Timed out while remote session").perform();
+        SHAFT.Validations.assertThat().object(timeoutFailure.getSuppressed()[0]).isEqualTo(secondarySuppressed).perform();
     }
 
     @Test

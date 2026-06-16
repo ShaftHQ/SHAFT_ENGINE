@@ -45,6 +45,7 @@ import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,6 +68,8 @@ public class DriverFactoryHelper {
     private static final int appiumServerInitializationPollingInterval = 1; // seconds
     private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout()); // seconds
     private static final int appiumServerPreparationPollingInterval = 1; // seconds
+    private static final long localDriverInitializationRetryDelayMs = TimeUnit.SECONDS.toMillis(1);
+    private static final long localDriverBiDiTimeoutGraceMs = TimeUnit.SECONDS.toMillis(5);
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
     private static final ThreadLocal<String> TARGET_HUB_URL = new ThreadLocal<>();
     @Getter(AccessLevel.PUBLIC)
@@ -138,6 +141,71 @@ public class DriverFactoryHelper {
         }
     }
 
+    private static RuntimeException createSessionInitializationTimeoutFailure(String sessionDescription, long timeoutInSeconds, long startTimeInMillis, Throwable primaryCause, List<Throwable> priorFailures, String targetEndpoint) {
+        var message = "Timed out while " + sessionDescription + ".";
+        if (timeoutInSeconds > 0) {
+            message = message + " Configured timeout: " + timeoutInSeconds + "s.";
+        }
+        message = message + " Elapsed time: " + (System.currentTimeMillis() - startTimeInMillis) + "ms.";
+        var redactedTarget = redactUriCredentials(targetEndpoint);
+        if (!redactedTarget.isBlank()) {
+            message = message + " Target: `" + redactedTarget + "`.";
+        }
+        var timeoutException = new java.util.concurrent.TimeoutException(message);
+        if (primaryCause != null) {
+            timeoutException.initCause(primaryCause);
+        }
+        addSuppressedFailures(timeoutException, priorFailures, primaryCause);
+        var initializationFailure = new RuntimeException("Failed to initialize session before timeout. " + message, timeoutException);
+        addSuppressedFailures(initializationFailure, priorFailures, primaryCause);
+        return initializationFailure;
+    }
+
+    private static RuntimeException createSessionInitializationFailure(String sessionDescription, long startTimeInMillis, Throwable primaryCause, List<Throwable> priorFailures, String targetEndpoint) {
+        var message = "Failed to initialize " + sessionDescription + " session. Elapsed time: " + (System.currentTimeMillis() - startTimeInMillis) + "ms.";
+        var redactedTarget = redactUriCredentials(targetEndpoint);
+        if (!redactedTarget.isBlank()) {
+            message = message + " Target: `" + redactedTarget + "`.";
+        }
+        var initializationFailure = (primaryCause == null)
+                ? new RuntimeException(message)
+                : new RuntimeException(message, primaryCause);
+        addSuppressedFailures(initializationFailure, priorFailures, primaryCause);
+        return initializationFailure;
+    }
+
+    private static void addSuppressedFailures(Throwable failureTarget, List<Throwable> candidateFailures, Throwable rootCause) {
+        if (failureTarget == null || candidateFailures == null) {
+            return;
+        }
+        for (var candidateFailure : candidateFailures) {
+            if (candidateFailure == null || candidateFailure == failureTarget || candidateFailure == rootCause) {
+                continue;
+            }
+            var alreadySuppressed = false;
+            for (var suppressedFailure : failureTarget.getSuppressed()) {
+                if (suppressedFailure == candidateFailure) {
+                    alreadySuppressed = true;
+                    break;
+                }
+            }
+            if (!alreadySuppressed) {
+                failureTarget.addSuppressed(candidateFailure);
+            }
+        }
+    }
+
+    private static boolean isCausedBy(Throwable throwable, Class<? extends Throwable> expectedCauseType) {
+        var currentThrowable = throwable;
+        while (currentThrowable != null) {
+            if (expectedCauseType.isInstance(currentThrowable)) {
+                return true;
+            }
+            currentThrowable = currentThrowable.getCause();
+        }
+        return false;
+    }
+
     private static DriverType getDriverTypeFromName(String driverName) {
         int values = DriverType.values().length;
         for (var i = 0; i < values; i++) {
@@ -157,6 +225,7 @@ public class DriverFactoryHelper {
         boolean serverReady = false;
         var session = new SHAFT.API(normalizeRemoteServerPingBaseUrl(getTargetHubUrl()));
         var statusCode = 500;
+        var pingFailures = new ArrayList<Throwable>();
         var startTime = System.currentTimeMillis();
         do {
             try {
@@ -165,6 +234,7 @@ public class DriverFactoryHelper {
                     serverReady = true;
                 }
             } catch (Throwable throwable1) {
+                pingFailures.add(throwable1);
                 // do nothing
                 ReportManagerHelper.logDiscrete(throwable1, Level.DEBUG);
             }
@@ -174,7 +244,14 @@ public class DriverFactoryHelper {
             }
         } while (!serverReady && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(appiumServerInitializationTimeout)));
         if (!serverReady) {
-            failAction("Failed to connect to remote server. It was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + " minutes.");
+            var primaryFailure = pingFailures.isEmpty() ? null : pingFailures.get(pingFailures.size() - 1);
+            throw createSessionInitializationTimeoutFailure(
+                    "checking the remote server status endpoint",
+                    appiumServerInitializationTimeout,
+                    startTime,
+                    primaryFailure,
+                    pingFailures,
+                    getTargetHubUrl());
         }
         return statusCode;
     }
@@ -249,19 +326,22 @@ public class DriverFactoryHelper {
         WebDriver driver = null;
         boolean isRemoteConnectionEstablished = false;
         var startTime = System.currentTimeMillis();
-        Exception exception = null;
+        Throwable primaryFailure = null;
+        var connectionFailures = new ArrayList<Throwable>();
         do {
             try {
                 driver = connectToRemoteServer(capabilities);
                 isRemoteConnectionEstablished = true;
             } catch (URISyntaxException uriSyntaxException) {
                 // URL is malformed — retrying will not help; break immediately
-                exception = uriSyntaxException;
+                primaryFailure = uriSyntaxException;
+                connectionFailures.add(uriSyntaxException);
                 ReportManagerHelper.logDiscrete(uriSyntaxException, Level.DEBUG);
                 break;
             } catch (SessionNotCreatedException |
                      ConnectionFailedException sessionNotCreatedException) {
-                exception = sessionNotCreatedException;
+                primaryFailure = sessionNotCreatedException;
+                connectionFailures.add(sessionNotCreatedException);
                 String message = sessionNotCreatedException.getMessage();
                 if (message != null &&
                         (message.contains("missing in the capabilities")
@@ -271,6 +351,17 @@ public class DriverFactoryHelper {
                 } else {
                     ReportManagerHelper.logDiscrete(sessionNotCreatedException, Level.DEBUG);
                 }
+            } catch (TimeoutException timeoutException) {
+                primaryFailure = timeoutException;
+                connectionFailures.add(timeoutException);
+                ReportManagerHelper.logDiscrete(timeoutException, Level.DEBUG);
+            } catch (WebDriverException webDriverException) {
+                if (!isCausedBy(webDriverException, java.util.concurrent.TimeoutException.class)) {
+                    throw webDriverException;
+                }
+                primaryFailure = webDriverException;
+                connectionFailures.add(webDriverException);
+                ReportManagerHelper.logDiscrete(webDriverException, Level.DEBUG);
             }
             if (!isRemoteConnectionEstablished) {
                 //noinspection BusyWait
@@ -278,7 +369,22 @@ public class DriverFactoryHelper {
             }
         } while (!isRemoteConnectionEstablished && (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(remoteServerInstanceCreationTimeout)));
         if (!isRemoteConnectionEstablished) {
-            failAction("Failed to connect to remote server. Session was still not created after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes.", exception);
+            long timeoutLimitInMillis = TimeUnit.SECONDS.toMillis(remoteServerInstanceCreationTimeout);
+            if (System.currentTimeMillis() - startTime >= timeoutLimitInMillis) {
+                throw createSessionInitializationTimeoutFailure(
+                        "creating a remote WebDriver session",
+                        remoteServerInstanceCreationTimeout,
+                        startTime,
+                        primaryFailure,
+                        connectionFailures,
+                        getTargetHubUrl());
+            }
+            throw createSessionInitializationFailure(
+                    "creating a remote WebDriver session",
+                    startTime,
+                    primaryFailure,
+                    connectionFailures,
+                    getTargetHubUrl());
         }
         return driver;
     }
@@ -464,120 +570,137 @@ public class DriverFactoryHelper {
         }
         initialLog = initialLog.replace(targetPlatform, JavaHelper.convertToSentenceCase(targetPlatform));
         ReportManager.logDiscrete(initialLog + ".");
-        try {
-            ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
-            runWithLocalDriverInitializationLock(() -> {
-                switch (driverType) {
-                    case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
-                    case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
-                    case CHROME -> {
-                        setDriver(new ChromeDriver(optionsManager.getChOptions()));
-                        disableCacheEdgeAndChrome();
+        var localDriverFailures = new ArrayList<Throwable>();
+        var initializationStartTime = System.currentTimeMillis();
+        for (int attempt = 0; attempt <= retryAttempts; attempt++) {
+            try {
+                ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
+                runWithLocalDriverInitializationLock(() -> {
+                    switch (driverType) {
+                        case FIREFOX -> setDriver(new FirefoxDriver(optionsManager.getFfOptions()));
+                        case IE -> setDriver(new InternetExplorerDriver(optionsManager.getIeOptions()));
+                        case CHROME -> {
+                            setDriver(new ChromeDriver(optionsManager.getChOptions()));
+                            disableCacheEdgeAndChrome();
+                        }
+                        case EDGE -> {
+                            // Fix for Microsoft Edge CDN migration from msedgedriver.azureedge.net to msedgedriver.microsoft.com
+                            // This ensures Selenium Manager uses the correct download URL for EdgeDriver.
+                            ThreadLocalPropertiesManager.setGlobalProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
+                            setDriver(new EdgeDriver(optionsManager.getEdOptions()));
+                            disableCacheEdgeAndChrome();
+                        }
+                        case SAFARI -> setDriver(new SafariDriver(optionsManager.getSfOptions()));
+                        default ->
+                                failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
                     }
-                    case EDGE -> {
-                        // Fix for Microsoft Edge CDN migration from msedgedriver.azureedge.net to msedgedriver.microsoft.com
-                        // This ensures Selenium Manager uses the correct download URL for EdgeDriver.
-                        ThreadLocalPropertiesManager.setGlobalProperty("SE_DRIVER_MIRROR_URL", "https://msedgedriver.microsoft.com");
-                        setDriver(new EdgeDriver(optionsManager.getEdOptions()));
-                        disableCacheEdgeAndChrome();
-                    }
-                    case SAFARI -> setDriver(new SafariDriver(optionsManager.getSfOptions()));
-                    default ->
-                            failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
+                });
+                String successMessage = initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".";
+                successMessage = successMessage + " (attempt " + (attempt + 1) + "/" + (retryAttempts + 1) + ", elapsed " + (System.currentTimeMillis() - initializationStartTime) + "ms).";
+                List<Object> launchScreenshot = captureLaunchScreenshot();
+                if (launchScreenshot != null) {
+                    ReportManagerHelper.log(successMessage, List.of(launchScreenshot));
+                } else {
+                    ReportManager.log(successMessage);
                 }
-            });
-            String successMessage = initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".";
-            List<Object> launchScreenshot = captureLaunchScreenshot();
-            if (launchScreenshot != null) {
-                ReportManagerHelper.log(successMessage, List.of(launchScreenshot));
-            } else {
-                ReportManager.log(successMessage);
-            }
-        } catch (Exception exception) {
-            String message = exception.getMessage();
-            if (message.contains("cannot create default profile directory")) {
-                // this exception happens when the profile directory is not correct, very specific case
-                // should fail immediately
-                failAction("Failed to create new Browser Session", exception);
-            } else if (message.contains("DevToolsActivePort file doesn't exist")) {
-                // this exception was observed with `Windows_Edge_Local` pipeline to happen randomly
-                // suggested fix as per titus fortner: https://bugs.chromium.org/p/chromedriver/issues/detail?id=4403#c35
-                switch (driverType) {
-                    case DriverType.CHROME -> {
-                        var chOptions = optionsManager.getChOptions();
-                        chOptions.addArguments("--remote-debugging-pipe");
-                        optionsManager.setChOptions(chOptions);
+                return;
+            } catch (Exception exception) {
+                localDriverFailures.add(exception);
+                String message = exception.getMessage();
+                boolean shouldRetry = attempt < retryAttempts;
+                if (message != null && message.contains("cannot create default profile directory")) {
+                    // this exception happens when the profile directory is not correct, very specific case
+                    // should fail immediately
+                    shouldRetry = false;
+                } else if (message != null && message.contains("DevToolsActivePort file doesn't exist")) {
+                    // this exception was observed with `Windows_Edge_Local` pipeline to happen randomly
+                    // suggested fix as per titus fortner: https://bugs.chromium.org/p/chromedriver/issues/detail?id=4403#c35
+                    switch (driverType) {
+                        case DriverType.CHROME -> {
+                            var chOptions = optionsManager.getChOptions();
+                            chOptions.addArguments("--remote-debugging-pipe");
+                            optionsManager.setChOptions(chOptions);
+                        }
+                        case DriverType.EDGE -> {
+                            var edOptions = optionsManager.getEdOptions();
+                            edOptions.addArguments("--remote-debugging-pipe");
+                            optionsManager.setEdOptions(edOptions);
+                        }
                     }
-                    case DriverType.EDGE -> {
-                        var edOptions = optionsManager.getEdOptions();
-                        edOptions.addArguments("--remote-debugging-pipe");
-                        optionsManager.setEdOptions(edOptions);
+                } else if (message != null && message.contains("Failed to initialize BiDi Mapper")) {
+                    // this exception happens in some corner cases where the capabilities are not compatible with BiDi mode
+                    // should force disable BiDi and try again
+                    SHAFT.Properties.platform.set().enableBiDi(false);
+                    switch (driverType) {
+                        case DriverType.FIREFOX -> {
+                            var ffOptions = optionsManager.getFfOptions();
+                            ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                            optionsManager.setFfOptions(ffOptions);
+                        }
+                        case DriverType.CHROME -> {
+                            var chOptions = optionsManager.getChOptions();
+                            chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                            optionsManager.setChOptions(chOptions);
+                        }
+                        case DriverType.EDGE -> {
+                            var edOptions = optionsManager.getEdOptions();
+                            edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                            optionsManager.setEdOptions(edOptions);
+                        }
+                    }
+                } else if (message != null && message.contains("The Safari instance is already paired with another WebDriver session.")) {
+                    //this issue happens when running locally via safari/mac platform
+                    // attempting blind fix by trying to quit existing safari instances if any
+                    try {
+                        SHAFT.CLI.terminal().performTerminalCommands(Arrays.asList(
+                                "osascript -e 'quit app \"Safari\"'", "osascript -e 'quit app \"SafariDriver\"'",
+                                "pkill -x Safari", "pkill -x SafariDriver",
+                                "killall Safari", "killall SafariDriver"));
+                        //minimizing retry attempts to save execution time
+                        shouldRetry = false;
+                    } catch (Throwable throwable) {
+                        ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
+                    }
+                } else if (isCausedBy(exception, java.util.concurrent.TimeoutException.class)
+                        || (message != null && message.contains("java.util.concurrent.TimeoutException"))) {
+                    // this happens in case an auto closable BiDi session was left hanging
+                    // the default timeout is around 30 seconds, so this grace period gives the socket cleanup a chance
+                    // before the next retry.
+                    if (shouldRetry) {
+                        try {
+                            Thread.sleep(localDriverBiDiTimeoutGraceMs);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            ReportManagerHelper.logDiscrete(e, Level.DEBUG);
+                        }
                     }
                 }
-            } else if (message.contains("Failed to initialize BiDi Mapper")) {
-                // this exception happens in some corner cases where the capabilities are not compatible with BiDi mode
-                // should force disable BiDi and try again
-                SHAFT.Properties.platform.set().enableBiDi(false);
-                switch (driverType) {
-                    case DriverType.FIREFOX -> {
-                        var ffOptions = optionsManager.getFfOptions();
-                        ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                        optionsManager.setFfOptions(ffOptions);
-                    }
-                    case DriverType.CHROME -> {
-                        var chOptions = optionsManager.getChOptions();
-                        chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                        optionsManager.setChOptions(chOptions);
-                    }
-                    case DriverType.EDGE -> {
-                        var edOptions = optionsManager.getEdOptions();
-                        edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                        optionsManager.setEdOptions(edOptions);
-                    }
-                }
-            } else if (message.contains("The Safari instance is already paired with another WebDriver session.")) {
-                //this issue happens when running locally via safari/mac platform
-                // attempting blind fix by trying to quit existing safari instances if any
+                // attempting blind fix by trying to quit existing driver if any
                 try {
-                    SHAFT.CLI.terminal().performTerminalCommands(Arrays.asList(
-                            "osascript -e 'quit app \"Safari\"'", "osascript -e 'quit app \"SafariDriver\"'",
-                            "pkill -x Safari", "pkill -x SafariDriver",
-                            "killall Safari", "killall SafariDriver"));
-                    //minimizing retry attempts to save execution time
-                    retryAttempts = 0;
+                    if (driver != null) {
+                        driver.quit();
+                    }
                 } catch (Throwable throwable) {
                     ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
+                } finally {
+                    setDriver(null);
                 }
-            } else if (exception.getMessage().contains("java.util.concurrent.TimeoutException")) {
-                // this happens in case an auto closable BiDi session was left hanging
-                // the default timeout is 30 seconds, so this wait will waste 26 and the following will waste 5 more
-                // the desired effect will be to wait for the bidi session to timeout
+                if (!shouldRetry) {
+                    var failure = createSessionInitializationFailure(
+                            "local",
+                            initializationStartTime,
+                            exception,
+                            localDriverFailures,
+                            null);
+                    failAction("Failed to create new Browser Session", failure);
+                }
                 try {
-                    Thread.sleep(26000);
+                    Thread.sleep(localDriverInitializationRetryDelayMs);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     ReportManagerHelper.logDiscrete(e, Level.DEBUG);
                 }
             }
-            // attempting blind fix by trying to quit existing driver if any
-            try {
-                driver.quit();
-            } catch (Throwable throwable) {
-                ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
-            } finally {
-                setDriver(null);
-            }
-            // evaluating retry attempts
-            if (retryAttempts > 0) {
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    ReportManagerHelper.logDiscrete(e, Level.DEBUG);
-                }
-                createNewLocalDriverInstance(driverType, retryAttempts - 1);
-            }
-            failAction("Failed to create new Browser Session", exception);
         }
     }
 
@@ -639,21 +762,42 @@ public class DriverFactoryHelper {
             optionsManager.initializeMobileDesiredCapabilities();
         }
 
+        var remoteSessionStartTime = System.currentTimeMillis();
         try {
             configureRemoteDriverInstance(driverType, optionsManager.getAppiumCapabilities());
         } catch (UnreachableBrowserException e) {
             killSwitch = true;
-            failAction("Unreachable Browser, terminated test suite execution.", e);
+            failAction("Unreachable Browser, terminated test suite execution.", createSessionInitializationFailure(
+                    "remote session orchestration",
+                    remoteSessionStartTime,
+                    e,
+                    List.of(e),
+                    getTargetHubUrl()));
         } catch (WebDriverException e) {
             if (e.getMessage() !=null && e.getMessage().contains("Error forwarding the new session cannot find")) {
                 ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(getTargetHubUrl()) + "\".");
-                failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
+                failAction("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", createSessionInitializationFailure(
+                        "remote session orchestration",
+                        remoteSessionStartTime,
+                        e,
+                        List.of(e),
+                        getTargetHubUrl()));
             } else {
                 ReportManager.logDiscrete("Failed to run remotely on: \"" + Properties.platform.targetPlatform() + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \"" + redactUriCredentials(getTargetHubUrl()) + "\".");
-                failAction("Unhandled Error.", e);
+                failAction("Unhandled Error.", createSessionInitializationFailure(
+                        "remote session orchestration",
+                        remoteSessionStartTime,
+                        e,
+                        List.of(e),
+                        getTargetHubUrl()));
             }
         } catch (NoClassDefFoundError e) {
-            failAction("Failed to create Remote WebDriver instance", e);
+            failAction("Failed to create Remote WebDriver instance", createSessionInitializationFailure(
+                    "remote session orchestration",
+                    remoteSessionStartTime,
+                    e,
+                    List.of(e),
+                    getTargetHubUrl()));
         }
     }
 
@@ -662,6 +806,7 @@ public class DriverFactoryHelper {
         // stage 1: ensure that the server is up and running
         if (SHAFT.Properties.timeouts.waitForRemoteServerToBeUp()) {
             ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
+            var remoteReadinessStart = System.currentTimeMillis();
             try {
                 var targetHubUrl = getTargetHubUrl();
                 setTargetHubUrl(targetHubUrl != null && targetHubUrl.contains("0.0.0.0")
@@ -671,14 +816,23 @@ public class DriverFactoryHelper {
                     var statusCode = attemptRemoteServerPing();
                     ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
                 }
+                ReportManager.logDiscrete("Remote server readiness stage completed in " + (System.currentTimeMillis() - remoteReadinessStart) + "ms.");
             } catch (Throwable throwable) {
                 ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
-                failAction("Failed to connect to remote server.", throwable);
+                failAction(
+                        "Failed to connect to remote server.",
+                        createSessionInitializationFailure(
+                                "remote readiness",
+                                remoteReadinessStart,
+                                throwable,
+                                null,
+                                getTargetHubUrl()));
             }
         }
 
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
+        var remoteCreationStart = System.currentTimeMillis();
         try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             setDriver(attemptRemoteServerConnection(capabilities));
             if (driver instanceof RemoteWebDriver remoteWebDriver)
@@ -702,6 +856,7 @@ public class DriverFactoryHelper {
 //        https://github.com/appium/appium-uiautomator2-driver
             }
             ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
+            ReportManager.logDiscrete("Remote session instantiation completed in " + (System.currentTimeMillis() - remoteCreationStart) + "ms.");
         } catch (Throwable throwable) {
             //Root cause: "java.lang.NumberFormatException: Error at index 4 in: "4723wd""
             //this happens when the URL has an unsupported format
@@ -711,7 +866,12 @@ public class DriverFactoryHelper {
                 newException.addSuppressed(throwable1);
                 throwable1 = newException;
             }
-            failAction("Failed to create Remote WebDriver instance.", throwable1);
+            failAction("Failed to create Remote WebDriver instance.", createSessionInitializationFailure(
+                    "remote",
+                    remoteCreationStart,
+                    throwable1,
+                    null,
+                    getTargetHubUrl()));
         }
     }
 
