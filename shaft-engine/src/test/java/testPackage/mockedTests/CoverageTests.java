@@ -2,10 +2,14 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.remote.Browser;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import testPackage.TestPageServer;
 import org.testng.annotations.*;
+
+import java.time.Duration;
 
 public class CoverageTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
@@ -67,11 +71,16 @@ public class CoverageTests {
     public void nativeWebDriverListenerTests() {
         String testElement = "data:text/html,<form><input type=\"text\"><br><br></form>";
         By locator = SHAFT.GUI.Locator.hasTagName("input").build();
-        driver.get().getDriver().navigate().to("https://www.selenium.dev/selenium/web/xhtmlTest.html");
+        driver.get().getDriver().navigate().to(TestPageServer.url("coverageTestPage.html"));
+        waitForDocumentReady();
         driver.get().getDriver().get(testElement);
+        waitForDocumentReady();
         driver.get().getDriver().navigate().back();
+        waitForDocumentReady();
         driver.get().getDriver().navigate().forward();
+        waitForDocumentReady();
         driver.get().getDriver().navigate().refresh();
+        waitForDocumentReady();
         driver.get().getDriver().manage().window().minimize();
         driver.get().getDriver().manage().window().maximize();
         driver.get().getDriver().getCurrentUrl();
@@ -90,6 +99,12 @@ public class CoverageTests {
         } catch (NoSuchSessionException noSuchSessionException) {
             // do nothing
         }
+    }
+
+    private void waitForDocumentReady() {
+        new WebDriverWait(driver.get().getDriver(), Duration.ofSeconds(5))
+                .until(webDriver -> "complete".equals(((JavascriptExecutor) webDriver)
+                        .executeScript("return document.readyState")));
     }
 
     @Test
