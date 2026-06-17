@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:9f7e59966cb3bff50161557a244078866e1faeecde59be0deb91cbaa496b9f4e",
+  "created_at": "2026-06-17T11:28:59+03:00",
+  "evidence": [
+    {
+      "id": "workflow.create-and-report-pr-after-tasks",
+      "kind": "memory"
+    }
+  ],
+  "from": "workflow.create-and-report-pr-after-tasks",
+  "id": "rel.workflow-create-and-report-pr-after-tasks-documents-project-shaft-engine",
+  "predicate": "documents",
+  "status": "active",
+  "to": "project.shaft-engine",
+  "updated_at": "2026-06-17T11:28:59+03:00"
+}

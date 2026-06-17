@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/issue-linked-pr-closure-and-focused-tests.md",
-  "content_hash": "sha256:2c403388b9c0641508726703334ce155f8967fb95dcca30692920c46127383b4",
+  "content_hash": "sha256:1f59aa2750396eb38a8605234f02afbf13151b31f88ec1f306b66aab642b4630",
   "created_at": "2026-06-15T18:10:46+03:00",
   "evidence": [
     {
@@ -34,5 +34,5 @@
   ],
   "title": "Close linked issues explicitly and run focused tests",
   "type": "workflow",
-  "updated_at": "2026-06-15T18:10:46+03:00"
+  "updated_at": "2026-06-17T11:20:53+03:00"
 }

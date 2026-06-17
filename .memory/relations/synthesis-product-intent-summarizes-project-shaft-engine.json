@@ -1,0 +1,21 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:7375e1ed81d34a030d0a4276002502fb941a9194578c537c683925e98a7fd759",
+  "created_at": "2026-06-17T11:14:58+03:00",
+  "evidence": [
+    {
+      "id": "synthesis.product-intent",
+      "kind": "memory"
+    },
+    {
+      "id": "project.shaft-engine",
+      "kind": "memory"
+    }
+  ],
+  "from": "synthesis.product-intent",
+  "id": "rel.synthesis-product-intent-summarizes-project-shaft-engine",
+  "predicate": "summarizes",
+  "status": "active",
+  "to": "project.shaft-engine",
+  "updated_at": "2026-06-17T11:14:58+03:00"
+}

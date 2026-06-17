@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:9ed6399467628de8f26d39382deb69f842257c5de09f170bd6d8e72d45bedc74",
+  "created_at": "2026-06-17T11:14:58+03:00",
+  "evidence": [
+    {
+      "id": "source.agents",
+      "kind": "source"
+    }
+  ],
+  "from": "synthesis.agent-guidance",
+  "id": "rel.synthesis-agent-guidance-derived-from-source-agents",
+  "predicate": "derived_from",
+  "status": "active",
+  "to": "source.agents",
+  "updated_at": "2026-06-17T11:14:58+03:00"
+}

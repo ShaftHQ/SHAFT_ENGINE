@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:bff14a6b56701178aa063505098ab924cb088ed42b651fa64c59e5070e5264ac",
+  "created_at": "2026-06-17T11:14:58+03:00",
+  "evidence": [
+    {
+      "id": "source.agents",
+      "kind": "source"
+    }
+  ],
+  "from": "constraint.code-conventions",
+  "id": "rel.constraint-code-conventions-derived-from-source-agents",
+  "predicate": "derived_from",
+  "status": "active",
+  "to": "source.agents",
+  "updated_at": "2026-06-17T11:14:58+03:00"
+}

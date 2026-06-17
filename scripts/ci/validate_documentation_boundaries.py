@@ -20,6 +20,7 @@ ALLOWED_EXACT = {
     ".github/pull_request_template.md",
     ".github/RELEASE_BODY_TEMPLATE.md",
     ".github/skills/README.md",
+    "graphify-out/GRAPH_REPORT.md",
     "shaft-mcp/.github/copilot-instructions.md",
 }
 ALLOWED_GLOBS = (

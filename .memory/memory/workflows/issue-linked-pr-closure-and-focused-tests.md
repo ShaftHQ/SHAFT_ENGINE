@@ -1,3 +1,1 @@
-For every pull request linked to one or more GitHub issues, include a `Closes #ISSUE` line for each issue the PR is
-intended to close. During implementation and PR validation, run only tests directly impacted by the changed areas rather
-than the full repository test suite.
+For every pull request linked to one or more GitHub issues, include a `Closes #ISSUE` line for each issue the PR is intended to close. During implementation and PR validation, run only tests directly impacted by the changed areas rather than the full repository test suite.
