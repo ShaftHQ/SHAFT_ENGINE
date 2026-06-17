@@ -21,6 +21,7 @@ public class CheckpointCounter {
         super();
     }
     private static final ConcurrentHashMap<Integer, ArrayList<?>> checkpoints = new ConcurrentHashMap<>();
+    private static final AtomicInteger checkpointSequence = new AtomicInteger(0);
     private static final AtomicInteger passedCheckpoints = new AtomicInteger(0);
     private static final AtomicInteger failedCheckpoints = new AtomicInteger(0);
 
@@ -36,7 +37,7 @@ public class CheckpointCounter {
         entry.add(type.toString());
         entry.add(message);
         entry.add(status.toString());
-        checkpoints.put(checkpoints.size() + 1, entry);
+        checkpoints.put(checkpointSequence.incrementAndGet(), entry);
 
         if (status == CheckpointStatus.PASS) {
             passedCheckpoints.incrementAndGet();

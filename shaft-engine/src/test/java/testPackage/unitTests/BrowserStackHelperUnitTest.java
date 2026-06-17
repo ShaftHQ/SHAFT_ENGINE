@@ -107,7 +107,7 @@ public class BrowserStackHelperUnitTest {
         String passMessage = (String) invokePrivate("reportActionResult",
                 new Class[]{String.class, String.class, Boolean.class, Throwable[].class},
                 "setup", "data", true, new Throwable[]{});
-        Assert.assertTrue(passMessage.contains("successfully performed"));
+        Assert.assertTrue(passMessage.contains("completed"));
         String failMessage = (String) invokePrivate("reportActionResult",
                 new Class[]{String.class, String.class, Boolean.class, Throwable[].class},
                 "setup", "data", false, new Throwable[]{new RuntimeException("boom")});

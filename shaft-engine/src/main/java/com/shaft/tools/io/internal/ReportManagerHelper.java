@@ -28,6 +28,7 @@ import org.testng.Reporter;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -254,6 +255,7 @@ public class ReportManagerHelper {
             debugFileLoggingEnabled = true;
             Configurator.setRootLevel(Level.DEBUG);
         }
+        writeToDebugLogFile("Enabled debug-level file logging for retry diagnostics.", Level.DEBUG);
         logger.debug("Enabled debug-level file logging for retry diagnostics.");
     }
 
@@ -345,14 +347,25 @@ public class ReportManagerHelper {
     }
 
     private static void writeToDebugLogFile(String logText, Level logLevel) {
-        if (!debugFileLoggingEnabled || logger == null || !ensureLogFileExists()) {
+        if (!debugFileLoggingEnabled || !isRetryDiagnosticLoggingEnabledForCurrentThread() || !ensureLogFileExists()) {
             return;
         }
-        logger.log(logLevel, logText.trim());
+        String line = "[" + logLevel.name() + "] "
+                + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"))
+                + " [" + Thread.currentThread().getName() + "] "
+                + ReportManager.class.getName()
+                + " - " + normalizeLogText(logText)
+                + System.lineSeparator();
+        try {
+            Files.writeString(Path.of(getLogFilePath()), line, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
+            logDebugFileSetupFailure("Could not write retry diagnostics debug log entry: " + getLogFilePath(), e);
+        }
     }
 
     private static void writeToDebugLogFileIfEnabled(String logText, Level logLevel) {
-        // Retry diagnostics are written by the Log4j file appender after the root level is raised to DEBUG.
+        writeToDebugLogFile(logText, logLevel);
     }
 
     public static void logImportantEntry(String logText, Level logLevel) {

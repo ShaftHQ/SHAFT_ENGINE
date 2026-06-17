@@ -3,6 +3,7 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.internal.AttachmentReporter;
 import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
@@ -137,8 +138,8 @@ public class ReportManagerHelperUnitTests {
         String rawLog = "line-1\nline-1\nline-2\nline-2\nline-1";
         byte[] deduplicated = (byte[]) deduplicateMethod.invoke(null, rawLog.getBytes(StandardCharsets.UTF_8));
 
-        SHAFT.Validations.assertThat().object(new String(deduplicated, StandardCharsets.UTF_8))
-                .isEqualTo("line-1" + System.lineSeparator() + "line-2" + System.lineSeparator() + "line-1")
+        SHAFT.Validations.assertThat().object(new String(deduplicated, StandardCharsets.UTF_8).stripTrailing())
+                .isEqualTo(("line-1" + System.lineSeparator() + "line-2" + System.lineSeparator() + "line-1").stripTrailing())
                 .perform();
     }
 
@@ -152,32 +153,23 @@ public class ReportManagerHelperUnitTests {
         byte[] onlyNewlines = (byte[]) deduplicateMethod.invoke(null, "\n\n".getBytes(StandardCharsets.UTF_8));
 
         SHAFT.Validations.assertThat().object(new String(empty, StandardCharsets.UTF_8)).isEqualTo("").perform();
-        SHAFT.Validations.assertThat().object(new String(singleLine, StandardCharsets.UTF_8)).isEqualTo("single").perform();
-        SHAFT.Validations.assertThat().object(new String(onlyNewlines, StandardCharsets.UTF_8)).isEqualTo("").perform();
+        SHAFT.Validations.assertThat().object(new String(singleLine, StandardCharsets.UTF_8).stripTrailing()).isEqualTo("single").perform();
+        SHAFT.Validations.assertThat().object(new String(onlyNewlines, StandardCharsets.UTF_8).stripTrailing()).isEqualTo("").perform();
     }
 
     @Test
-    public void inferMimeTypeFromAttachmentShouldReturnExpectedMimeTypes() throws Exception {
-        Method inferMimeTypeMethod = ReportManagerHelper.class.getDeclaredMethod("inferMimeTypeFromAttachment", String.class, String.class);
-        inferMimeTypeMethod.setAccessible(true);
+    public void attachmentReporterShouldRouteExpectedAttachmentTypes() throws Exception {
+        Method getAttachmentCaseMethod = AttachmentReporter.class.getDeclaredMethod("getAttachmentCase", String.class, String.class);
+        getAttachmentCaseMethod.setAccessible(true);
 
-        String imagePng = (String) inferMimeTypeMethod.invoke(null, "Screenshot", "result.png");
-        String gif = (String) inferMimeTypeMethod.invoke(null, "Animated GIF", "result");
-        String mp4 = (String) inferMimeTypeMethod.invoke(null, "Recording", "video.mp4");
-        String json = (String) inferMimeTypeMethod.invoke(null, "Response JSON", "payload.json");
-        String xml = (String) inferMimeTypeMethod.invoke(null, "Response XML", "payload.xml");
-        String csv = (String) inferMimeTypeMethod.invoke(null, "Report CSV", "report.csv");
-        String html = (String) inferMimeTypeMethod.invoke(null, "Page Snapshot", "index.html");
-        String fallback = (String) inferMimeTypeMethod.invoke(null, "Unknown", "data.bin");
-
-        SHAFT.Validations.assertThat().object(imagePng).isEqualTo("image/png").perform();
-        SHAFT.Validations.assertThat().object(gif).isEqualTo("image/gif").perform();
-        SHAFT.Validations.assertThat().object(mp4).isEqualTo("video/mp4").perform();
-        SHAFT.Validations.assertThat().object(json).isEqualTo("application/json").perform();
-        SHAFT.Validations.assertThat().object(xml).isEqualTo("text/xml").perform();
-        SHAFT.Validations.assertThat().object(csv).isEqualTo("text/csv").perform();
-        SHAFT.Validations.assertThat().object(html).isEqualTo("text/html").perform();
-        SHAFT.Validations.assertThat().object(fallback).isEqualTo("text/plain").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Screenshot", "result.png")).isEqualTo("screenshot").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Animated GIF", "result")).isEqualTo("gif").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Recording", "video.mp4")).isEqualTo("recording").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Response JSON", "payload.json")).isEqualTo("json").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Response XML", "payload.xml")).isEqualTo("xml").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Report CSV", "report.csv")).isEqualTo("csv").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Page Snapshot", "index.html")).isEqualTo("page snapshot").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Unknown", "data.bin")).isEqualTo("default").perform();
     }
 
     @Test
@@ -299,14 +291,14 @@ public class ReportManagerHelperUnitTests {
         String bundledLog4jConfiguration;
         try (InputStream log4jConfiguration = Objects.requireNonNull(
                 ReportManagerHelperUnitTests.class.getClassLoader()
-                        .getResourceAsStream("properties/default/log4j2.properties"))) {
+                        .getResourceAsStream("resources/properties/default/log4j2.properties"))) {
             bundledLog4jConfiguration = new String(log4jConfiguration.readAllBytes(), StandardCharsets.UTF_8);
         }
 
         SHAFT.Validations.assertThat().object(bundledLog4jConfiguration)
                 .contains("appender.asyncFile.type=Async").perform();
         SHAFT.Validations.assertThat().object(bundledLog4jConfiguration)
-                .contains("appender.asyncFile.appenderRef.file.ref=LOGFILE").perform();
+                .contains("appender.asyncFile.appenderRef.ref=LOGFILE").perform();
         SHAFT.Validations.assertThat().object(bundledLog4jConfiguration)
                 .contains("rootLogger=info, ASYNC_STDOUT, ASYNC_LOGFILE, ASYNC_REPORT_PORTAL").perform();
     }

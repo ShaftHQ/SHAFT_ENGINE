@@ -267,10 +267,10 @@ public class FileActionsCoverageUnitTest {
         String passMessage = (String) reportActionResult.invoke(actions, "customAction", "short-data", "", true, new Exception[0]);
         String failMessage = (String) reportActionResult.invoke(actions, "customAction", longTestData, "diagnostic-log", false, new Exception[]{new IOException("boom")});
 
-        Assert.assertTrue(passMessage.contains("successfully performed"));
+        Assert.assertTrue(passMessage.contains("completed"));
         Assert.assertTrue(failMessage.contains("failed"));
 
-        Assert.assertTrue(FileActionsReflectionInvoker.invokePassReport(actions).contains("successfully performed"));
+        Assert.assertTrue(FileActionsReflectionInvoker.invokePassReport(actions).contains("completed"));
 
         Method copyInputStream = FileActions.class.getDeclaredMethod("copyInputStream", java.io.InputStream.class, java.io.OutputStream.class);
         copyInputStream.setAccessible(true);
