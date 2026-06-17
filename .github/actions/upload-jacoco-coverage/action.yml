@@ -6,20 +6,9 @@ inputs:
     required: false
     default: ''
   files:
-    description: 'Candidate JaCoCo XML files to upload'
+    description: 'Candidate JaCoCo XML files to upload. When omitted, required-files are used.'
     required: false
-    default: |-
-      ./target/jacoco/jacoco.xml,
-      ./shaft-engine/target/jacoco/jacoco.xml,
-      ./shaft-pilot-core/target/jacoco/jacoco.xml,
-      ./shaft-capture/target/jacoco/jacoco.xml,
-      ./shaft-doctor/target/jacoco/jacoco.xml,
-      ./shaft-ai/target/jacoco/jacoco.xml,
-      ./shaft-heal/target/jacoco/jacoco.xml,
-      ./shaft-browserstack/target/jacoco/jacoco.xml,
-      ./shaft-video/target/jacoco/jacoco.xml,
-      ./shaft-visual/target/jacoco/jacoco.xml,
-      ./shaft-mcp/target/jacoco/jacoco.xml
+    default: ''
   required-files:
     description: 'JaCoCo XML files that must exist and be non-empty'
     required: false
@@ -135,6 +124,11 @@ runs:
           fi
         fi
 
+        candidate_files="${{ inputs.files }}"
+        if [ -z "$(normalize_paths "$candidate_files" | tr -d '[:space:]')" ]; then
+          candidate_files="${{ inputs.required-files }}"
+        fi
+
         existing_files=()
         while IFS= read -r candidate_file; do
           [ -z "$candidate_file" ] && continue
@@ -143,7 +137,7 @@ runs:
           else
             echo "::notice::Skipping missing JaCoCo XML report: $candidate_file"
           fi
-        done < <(normalize_paths "${{ inputs.files }}")
+        done < <(normalize_paths "$candidate_files")
 
         if [ "${#existing_files[@]}" -eq 0 ]; then
           if [ "$allow_missing_coverage" = "true" ]; then

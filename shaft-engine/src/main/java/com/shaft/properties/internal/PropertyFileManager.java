@@ -27,6 +27,8 @@ public final class PropertyFileManager {
     @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
     private static final String LOG4J_PROPERTIES_FILE = "log4j2.properties";
+    private static final String LOG4J_FILE_APPENDER_SYSTEM_PROPERTY = "shaft.log.file";
+    private static final String DEFAULT_LOG_FILE_PATH = "target/logs/log4j.log";
 
     private PropertyFileManager() {
         throw new IllegalStateException("Utility class");
@@ -143,8 +145,12 @@ public final class PropertyFileManager {
      * @return the effective log file path for retry diagnostics and full-log attachments
      */
     public static String getLogFilePath() {
-        return ConfigFactory.create(Log4j.class, ThreadLocalPropertiesManager.getEffectiveProperties())
+        String logFilePath = ConfigFactory.create(Log4j.class, ThreadLocalPropertiesManager.getEffectiveProperties())
                 .appenderFile_FileName();
+        if (logFilePath == null || logFilePath.isBlank() || logFilePath.contains("${")) {
+            return System.getProperty(LOG4J_FILE_APPENDER_SYSTEM_PROPERTY, DEFAULT_LOG_FILE_PATH);
+        }
+        return logFilePath;
     }
 
     /**

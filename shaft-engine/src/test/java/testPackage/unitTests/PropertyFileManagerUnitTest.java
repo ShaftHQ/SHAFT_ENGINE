@@ -143,6 +143,28 @@ public class PropertyFileManagerUnitTest {
         }
     }
 
+    @Test(description = "getLogFilePath should not resolve Log4j placeholder indirection to an empty path")
+    public void getLogFilePathFallsBackWhenLog4jPlaceholderResolvesBlank() {
+        String originalAppenderFileName = System.getProperty("appender.file.fileName");
+        String originalLogFilePath = System.getProperty("logFilePath");
+        String originalShaftLogFile = System.getProperty("shaft.log.file");
+
+        try {
+            System.setProperty("appender.file.fileName", "${logFilePath}");
+            System.setProperty("logFilePath", "${sys:shaft.log.file:-target/logs/log4j.log}");
+            System.clearProperty("shaft.log.file");
+
+            Assert.assertEquals(PropertyFileManager.getLogFilePath(), "target/logs/log4j.log");
+
+            System.setProperty("shaft.log.file", "target/logs/custom-shaft.log");
+            Assert.assertEquals(PropertyFileManager.getLogFilePath(), "target/logs/custom-shaft.log");
+        } finally {
+            restoreSystemProperty("appender.file.fileName", originalAppenderFileName);
+            restoreSystemProperty("logFilePath", originalLogFilePath);
+            restoreSystemProperty("shaft.log.file", originalShaftLogFile);
+        }
+    }
+
     @Test(description = "private constructor should throw IllegalStateException")
     public void constructor_throwsIllegalStateException() throws Exception {
         Constructor<PropertyFileManager> constructor = PropertyFileManager.class.getDeclaredConstructor();
@@ -234,6 +256,14 @@ public class PropertyFileManagerUnitTest {
                             // best-effort temp cleanup
                         }
                     });
+        }
+    }
+
+    private static void restoreSystemProperty(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, value);
         }
     }
 }

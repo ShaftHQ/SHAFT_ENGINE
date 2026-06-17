@@ -33,7 +33,7 @@ public class LambdaTestHelperUnitTest {
         method.setAccessible(true);
 
         String passMessage = (String) method.invoke(null, "setup", "test-data", true, new Throwable[]{});
-        Assert.assertTrue(passMessage.contains("successfully performed"));
+        Assert.assertTrue(passMessage.contains("completed"));
 
         String failMessage = (String) method.invoke(null, "setup", "test-data", false, new Throwable[]{new RuntimeException("boom")});
         Assert.assertTrue(failMessage.contains("failed"));

@@ -75,7 +75,8 @@ jobs:
         run: test -n "$(find shaft-mcp/allure-results -name '*-result.json' -type f -print -quit)"
       - name: Package and smoke transports
         run: |
-          mvn --batch-mode -pl shaft-mcp -am package -DskipTests -Dgpg.skip
+          mvn --batch-mode -pl shaft-mcp -am install -DskipTests -Dgpg.skip
+          mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
           python3 scripts/ci/validate_shaft_mcp_transports.py
       - name: Build container
         run: docker build -f shaft-mcp/Dockerfile -t shaft-mcp:test .

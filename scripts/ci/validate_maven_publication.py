@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import re
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
@@ -27,6 +29,20 @@ PUBLIC_ARTIFACTS = {
     "SHAFT_ENGINE": (Path("legacy-shaft-engine/pom.xml"), "pom"),
 }
 JAR_CLASSIFIERS = ("sources", "javadoc")
+ABSOLUTE_ENTRY = re.compile(r"^(?:[A-Za-z]:/|/)")
+FORBIDDEN_ENTRY_PARTS = (
+    ".agents/",
+    ".github/",
+    "BOOT-INF/lib/",
+    "CucumberFeatures/",
+    "CustomCucumberFeatures/",
+    "graphify-out/",
+    "scripts/",
+    "src/test/",
+    "target/",
+    "testDataFiles/",
+)
+FORBIDDEN_ENTRY_SUFFIXES = (".apk", ".ipa", ".jar", ".zip")
 
 
 def _parse(path: Path) -> ET.Element:
@@ -40,6 +56,53 @@ def _text(element: ET.Element, path: str) -> str | None:
 
 def _version(root: Path) -> str:
     return _text(_parse(root / "pom.xml"), "m:version") or ""
+
+
+def validate_jar_contents(artifact: str, classifier: str | None, jar: Path) -> list[str]:
+    errors: list[str] = []
+    try:
+        with zipfile.ZipFile(jar) as archive:
+            names = archive.namelist()
+    except zipfile.BadZipFile:
+        return [f"publication output is not a valid jar: {jar}"]
+
+    for raw_name in names:
+        name = raw_name.replace("\\", "/")
+        if name.endswith("/"):
+            continue
+        if ABSOLUTE_ENTRY.match(name):
+            errors.append(f"{jar.name} contains absolute path entry: {name}")
+        for forbidden in FORBIDDEN_ENTRY_PARTS:
+            if forbidden in name or name.startswith(forbidden):
+                errors.append(f"{jar.name} contains forbidden entry: {name}")
+                break
+        if name.endswith(FORBIDDEN_ENTRY_SUFFIXES) and not name.startswith("META-INF/maven/"):
+            errors.append(f"{jar.name} contains nested/binary archive entry: {name}")
+        if classifier == "sources" and not (name.startswith("META-INF/") or name.endswith(".java")):
+            errors.append(f"{jar.name} source jar contains non-Java entry: {name}")
+
+    if artifact == "shaft-mcp" and classifier is None:
+        if "META-INF/shaft-mcp/runtime-dependencies.txt" not in names:
+            errors.append("shaft-mcp runtime jar must contain META-INF/shaft-mcp/runtime-dependencies.txt")
+        if any(name.startswith("BOOT-INF/") for name in names):
+            errors.append("shaft-mcp runtime jar must be thin and must not contain BOOT-INF entries")
+    return errors
+
+
+def validate_sbom(root: Path) -> list[str]:
+    sbom = root / "target" / "bom.json"
+    if not sbom.is_file():
+        return ["missing aggregate SBOM: target/bom.json"]
+    try:
+        data = json.loads(sbom.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"aggregate SBOM is malformed JSON: {exc}"]
+    components = data.get("components", [])
+    if isinstance(components, list):
+        for component in components:
+            if isinstance(component, dict) and component.get("name") == "report-aggregate":
+                return ["aggregate SBOM must not include non-deployed report-aggregate"]
+    return []
 
 
 def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
@@ -161,10 +224,15 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
                     if not output.is_file():
                         errors.append(f"missing publication output: {output.relative_to(root)}")
                         continue
+                    classifier = None
+                    if name.endswith("-sources.jar"):
+                        classifier = "sources"
+                    elif name.endswith("-javadoc.jar"):
+                        classifier = "javadoc"
+                    errors.extend(validate_jar_contents(artifact, classifier, output))
                     if require_signatures and not output.with_name(output.name + ".asc").is_file():
                         errors.append(f"missing signature: {output.relative_to(root)}.asc")
-        if not (root / "target" / "bom.json").is_file():
-            errors.append("missing aggregate SBOM: target/bom.json")
+        errors.extend(validate_sbom(root))
         if require_signatures and not (root / "target" / "bom.json.asc").is_file():
             errors.append("missing signature: target/bom.json.asc")
     return errors

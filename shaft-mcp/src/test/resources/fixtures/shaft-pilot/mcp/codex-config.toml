@@ -1,4 +1,4 @@
 [mcp_servers.shaft-mcp]
 command = "java"
-args = ["-jar", "/absolute/path/shaft-mcp-<version>.jar"]
+args = ["@/absolute/path/shaft-mcp.args"]
 default_tools_approval_mode = "prompt"

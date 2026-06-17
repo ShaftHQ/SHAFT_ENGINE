@@ -56,6 +56,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("shaft-mcp must not define an independent SHAFT engine version")
     if "<Implementation-Version>${project.version}</Implementation-Version>" not in mcp_pom_text:
         errors.append("shaft-mcp executable manifest must expose the reactor Implementation-Version")
+    if "spring-boot-maven-plugin" in mcp_pom_text or "<goal>repackage</goal>" in mcp_pom_text:
+        errors.append("shaft-mcp must publish a thin JAR without Spring Boot repackaging")
+    if "META-INF/shaft-mcp/runtime-dependencies.txt" not in mcp_pom_text:
+        errors.append("shaft-mcp must package its resolved runtime dependency manifest")
 
     application_source = (
         root / "shaft-mcp/src/main/java/com/shaft/mcp/ShaftMcpApplication.java"
@@ -169,19 +173,33 @@ def validate(root: Path = ROOT) -> list[str]:
     if mcp_workflow.count("#") > 10:
         errors.append("shaft-mcp workflow MCP test selector must stay bounded to at most 10 selected test methods")
     central_workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(encoding="utf-8")
+    pilot_release_workflow = (root / ".github/workflows/shaft-pilot-release.yml").read_text(encoding="utf-8")
     if "verify_shaft_mcp_installer_release.py" not in central_workflow:
         errors.append("Maven Central delivery must verify the public shaft-mcp LATEST installer")
     if "needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]" not in central_workflow:
         errors.append("release announcements must wait for the public shaft-mcp installer matrix")
+    dependency_output = "-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency"
+    for workflow_name, workflow_text in (
+            ("shaft-mcp.yml", mcp_workflow),
+            ("mavenCentral_cd.yml", central_workflow),
+            ("shaft-pilot-release.yml", pilot_release_workflow),
+    ):
+        if "dependency:copy-dependencies" not in workflow_text or dependency_output not in workflow_text:
+            errors.append(f"{workflow_name} must copy shaft-mcp runtime dependencies to the root target/dependency path")
+    if "-pl shaft-mcp -am install" not in mcp_workflow:
+        errors.append("shaft-mcp workflow must install reactor artifacts before copying thin runtime dependencies")
     installer_implementation = root / "scripts/mcp/install_shaft_mcp.py"
     if not installer_implementation.is_file():
         errors.append("missing shared Python MCP installer implementation: scripts/mcp/install_shaft_mcp.py")
         installer_implementation_text = ""
     else:
         installer_implementation_text = installer_implementation.read_text(encoding="utf-8")
-        for required in ("maven-metadata.xml", ".sha256", "copilot-intellij", "claude-desktop", "probe_stdio"):
+        for required in ("maven-metadata.xml", ".sha256", "runtime-dependencies.txt", "shaft-mcp.args",
+                         "copilot-intellij", "claude-desktop", "probe_stdio"):
             if required not in installer_implementation_text:
                 errors.append(f"shared Python MCP installer must contain standalone support for {required}")
+        if '"-jar", str(jar)' in installer_implementation_text or '"-jar", str(args_file)' in installer_implementation_text:
+            errors.append("shared Python MCP installer must configure the thin classpath argfile, not java -jar")
         for legacy_client in ("codex-app", "copilot-vscode"):
             if legacy_client in installer_implementation_text:
                 errors.append(f"shared Python MCP installer must not contain removed client target: {legacy_client}")
@@ -225,10 +243,18 @@ def validate(root: Path = ROOT) -> list[str]:
             errors.append(f"{dockerfile.name} must build from the reactor without a hardcoded release")
         if "-pl shaft-mcp -am" not in content:
             errors.append(f"{dockerfile.name} must build shaft-mcp from the root reactor")
+        if "-pl shaft-mcp -am install" not in content:
+            errors.append(f"{dockerfile.name} must install reactor artifacts before copying thin runtime dependencies")
+        if "dependency:copy-dependencies" not in content or "-DoutputDirectory=/build/shaft-mcp-lib" not in content:
+            errors.append(f"{dockerfile.name} must copy shaft-mcp runtime dependencies into /build/shaft-mcp-lib")
         if "google-chrome-stable" not in content:
             errors.append(f"{dockerfile.name} must install Chrome and its runtime dependencies")
         if '"-DheadlessExecution=true"' not in content:
             errors.append(f"{dockerfile.name} must launch Chrome headlessly in its container")
+        if '"-jar"' in content or "BOOT-INF/lib" in content:
+            errors.append(f"{dockerfile.name} must launch the thin shaft-mcp classpath, not java -jar")
+        if '"/app/shaft-mcp.jar:/app/lib/*"' not in content:
+            errors.append(f"{dockerfile.name} must include copied runtime dependencies on the classpath")
     return errors
 
 

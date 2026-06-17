@@ -107,7 +107,7 @@ public class LocatorBuilderTest {
 
     @Test
     public void byRelation() {
-        By locator = Locator.hasTagName("a").byRelation().below(Locator.hasTagName("h1").containsText("SHAFT").build());
+        By locator = Locator.hasTagName("a").containsText("Get Started Free").byRelation().below(Locator.hasTagName("h1").containsText("SHAFT").build());
         driver.get().assertThat().element(locator).text().contains("Get Started Free").perform();
     }
 

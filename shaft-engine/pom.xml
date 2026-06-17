@@ -615,24 +615,12 @@
     <build>
         <resources>
             <resource>
-                <directory>${project.basedir}/src/main/resources/allure</directory>
-                <targetPath>${project.basedir}/target/classes/resources/allure</targetPath>
-            </resource>
-            <resource>
                 <directory>${project.basedir}/src/main/resources/properties/default</directory>
                 <targetPath>${project.basedir}/target/classes/resources/properties/default</targetPath>
             </resource>
             <resource>
                 <directory>${project.basedir}/src/main/resources/META-INF</directory>
                 <targetPath>${project.build.outputDirectory}/META-INF</targetPath>
-            </resource>
-            <resource>
-                <directory>${project.basedir}/src/main/javadoc</directory>
-                <targetPath>${project.reporting.outputDirectory}</targetPath>
-            </resource>
-            <resource>
-                <directory>${project.basedir}/target/reports/apidocs</directory>
-                <targetPath>${project.reporting.outputDirectory}/apidocs</targetPath>
             </resource>
         </resources>
         <testResources>

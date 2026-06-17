@@ -19,13 +19,7 @@ final class LambdaTestCredentials {
                 System.getenv("LT_ACCESS_KEY"));
 
         if (username == null || accessKey == null) {
-            if (isCi()) {
-                throw new SkipException("LambdaTest credentials are not configured for this CI run.");
-            }
-
-            SHAFT.TestData.JSON testData = new SHAFT.TestData.JSON("credentials.json");
-            username = testData.getTestData("LambdaTestUserName");
-            accessKey = testData.getTestData("LambdaTestAccessKey");
+            throw new SkipException("LambdaTest credentials are not configured for this run.");
         }
 
         SHAFT.Properties.lambdaTest.set().username(username);
@@ -41,7 +35,4 @@ final class LambdaTestCredentials {
         return null;
     }
 
-    private static boolean isCi() {
-        return "true".equalsIgnoreCase(System.getenv("CI"));
-    }
 }

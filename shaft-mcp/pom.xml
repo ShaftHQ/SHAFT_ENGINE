@@ -106,23 +106,31 @@
         </resources>
         <plugins>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <configuration>
                     <propertiesEncoding>${project.build.sourceEncoding}</propertiesEncoding>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.10.0</version>
+                <executions>
+                    <execution>
+                        <id>write-runtime-dependencies</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>list</goal>
+                        </goals>
+                        <configuration>
+                            <includeScope>runtime</includeScope>
+                            <excludeTransitive>false</excludeTransitive>
+                            <appendOutput>false</appendOutput>
+                            <outputFile>${project.build.outputDirectory}/META-INF/shaft-mcp/runtime-dependencies.txt</outputFile>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -135,6 +143,7 @@
                     </archive>
                     <includes>
                         <include>com/**</include>
+                        <include>META-INF/shaft-mcp/*</include>
                         <include>application*.properties</include>
                         <include>logback-spring.xml</include>
                     </includes>
@@ -145,7 +154,7 @@
                 <artifactId>maven-source-plugin</artifactId>
                 <configuration>
                     <includes>
-                        <include>com/**</include>
+                        <include>com/**/*.java</include>
                     </includes>
                 </configuration>
             </plugin>

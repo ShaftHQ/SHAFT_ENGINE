@@ -97,6 +97,18 @@ class MavenPublicationValidationTest(unittest.TestCase):
             self.assertIn(sbom, names)
             self.assertIn(f"{sbom}.asc", names)
 
+    def test_rejects_forbidden_source_jar_content(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_contract(root)
+            self._create_outputs(root)
+            version = MODULE._version(root)
+            source_jar = root / "shaft-engine" / "target" / f"shaft-engine-{version}-sources.jar"
+            with zipfile.ZipFile(source_jar, "a") as archive:
+                archive.writestr("C:/workspace/target/reports/apidocs/index.html", "<html></html>")
+            self.assertTrue(any("absolute path" in error or "forbidden entry" in error
+                                for error in MODULE.validate_publication(root, True)))
+
     @staticmethod
     def _create_outputs(root, include_signatures=False):
         version = MODULE._version(root)
@@ -108,7 +120,20 @@ class MavenPublicationValidationTest(unittest.TestCase):
             if packaging == "jar":
                 for suffix in ("", "-sources", "-javadoc"):
                     output = target / f"{artifact}-{version}{suffix}.jar"
-                    output.write_bytes(b"jar")
+                    with zipfile.ZipFile(output, "w") as archive:
+                        archive.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n")
+                        if suffix == "-sources":
+                            archive.writestr("com/example/Sample.java", "package com.example; class Sample {}\n")
+                        elif suffix == "-javadoc":
+                            archive.writestr("index.html", "<html></html>\n")
+                        else:
+                            archive.writestr("com/example/Sample.class", b"")
+                            if artifact == "shaft-mcp":
+                                archive.writestr(
+                                    "META-INF/shaft-mcp/runtime-dependencies.txt",
+                                    "The following files have been resolved:\n"
+                                    "   org.example:runtime:jar:1.0.0:runtime\n",
+                                )
                     if include_signatures:
                         output.with_name(output.name + ".asc").write_bytes(b"signature")
         (root / "target").mkdir(exist_ok=True)

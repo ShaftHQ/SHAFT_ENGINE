@@ -19,6 +19,7 @@ import java.util.List;
  * Uses the pre-existing sample PDF at
  * {@code src/test/resources/testDataFiles/sample.pdf}.
  */
+@Test(singleThreaded = true)
 public class PdfFileManagerUnitTest {
 
     private static final String SAMPLE_PDF = "src/test/resources/testDataFiles/sample.pdf";
