@@ -1,6 +1,5 @@
 package com.shaft.validation.internal;
 
-import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -45,7 +44,7 @@ public class ValidationsBuilder {
     }
 
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        reportMessageBuilder.append("the element located by \"").append(JavaHelper.formatLocatorToString(locator)).append("\" ");
+        reportMessageBuilder.append("the element ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 

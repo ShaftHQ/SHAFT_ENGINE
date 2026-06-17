@@ -54,6 +54,10 @@ public class ElementActionsHelper {
         this.isSilent = isSilent;
     }
 
+    boolean isSilent() {
+        return isSilent;
+    }
+
     /**
      * Safely calls {@code driver.findElements(locator)}, handling the infinite recursion
      * between Selenium 4.41.0's {@code ElementLocation} and Appium java-client 10.0.0's

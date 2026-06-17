@@ -189,7 +189,7 @@ public class ValidationsHelper2 {
 
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
-                actual.set(new Actions(driver, true).get().domProperty(locator, domProperty));
+                actual.set(new SilentElementReader(driver).readDomProperty(locator, domProperty));
                 validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
             });
@@ -213,11 +213,12 @@ public class ValidationsHelper2 {
 
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                SilentElementReader elementReader = new SilentElementReader(driver);
                 actual.set(switch (attribute.toLowerCase()) {
-                    case "text" -> new Actions(driver, true).get().text(locator);
-                    case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
-                    case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
-                    default -> new Actions(driver, true).get().attribute(locator, attribute);
+                    case "text" -> elementReader.readText(locator);
+                    case "texttrimmed", "trimmedtext" -> elementReader.readText(locator).trim();
+                    case "selectedtext" -> elementReader.readSelectedText(locator);
+                    default -> elementReader.readAttribute(locator, attribute);
                 });
                 validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
@@ -244,15 +245,16 @@ public class ValidationsHelper2 {
 
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
+                SilentElementReader elementReader = new SilentElementReader(driver);
                 actual.set(switch (attribute.toLowerCase()) {
-                    case "text" -> new Actions(driver, true).get().text(locator);
-                    case "texttrimmed", "trimmedtext" -> new Actions(driver, true).get().text(locator).trim();
-                    case "selectedtext" -> new Actions(driver, true).get().selectedText(locator);
+                    case "text" -> elementReader.readText(locator);
+                    case "texttrimmed", "trimmedtext" -> elementReader.readText(locator).trim();
+                    case "selectedtext" -> elementReader.readSelectedText(locator);
                     case "textdirection" -> getElementTextDirection(driver, locator);
                     case "textalignment" -> getElementTextAlignmentDirection(driver, locator);
                     case "textorientation" -> getElementTextOrientationDirection(driver, locator);
                     case "textdisplaystyle" -> getElementTextDisplayStyleDirection(driver, locator);
-                    default -> new Actions(driver, true).get().domAttribute(locator, attribute);
+                    default -> elementReader.readDomAttribute(locator, attribute);
                 });
                 validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
@@ -279,7 +281,7 @@ public class ValidationsHelper2 {
 
         try {
             new SynchronizationManager(driver).fluentWait(false).until(f -> {
-                actual.set(new Actions(driver, true).get().cssValue(locator, property));
+                actual.set(new SilentElementReader(driver).readCssValue(locator, property));
                 validationState.set(performValidation(expected, actual.get(), comparisonType, validationType));
                 return validationState.get();
             });
@@ -521,6 +523,36 @@ public class ValidationsHelper2 {
         commonParams.put("Comparison type", JavaHelper.convertToSentenceCase(comparisonType));
         commonParams.put("Actual value", String.valueOf(actual));
         return commonParams;
+    }
+
+    private static class SilentElementReader extends Actions {
+        SilentElementReader(WebDriver driver) {
+            super(driver, true);
+        }
+
+        String readAttribute(By locator, String attributeName) {
+            return performAction(ActionType.GET_ATTRIBUTE, locator, attributeName);
+        }
+
+        String readDomAttribute(By locator, String attributeName) {
+            return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
+        }
+
+        String readDomProperty(By locator, String propertyName) {
+            return performAction(ActionType.GET_DOM_PROPERTY, locator, propertyName);
+        }
+
+        String readText(By locator) {
+            return performAction(ActionType.GET_TEXT, locator, null);
+        }
+
+        String readSelectedText(By locator) {
+            return performAction(ActionType.GET_SELECTED_TEXT, locator, null);
+        }
+
+        String readCssValue(By locator, String propertyName) {
+            return performAction(ActionType.GET_CSS_VALUE, locator, propertyName);
+        }
     }
 
     // this method will accept a hashmap of String parameter names and values to be added to the current step in allure

@@ -1,11 +1,12 @@
 package com.shaft.validation.internal;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
-import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.properties.internal.Properties;
 import com.shaft.validation.ValidationEnums;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -31,6 +32,7 @@ public class ValidationsHelper2CoverageUnitTest {
     @AfterMethod(alwaysRun = true)
     public void resetState() {
         ValidationsHelper.resetVerificationStateAfterFailing();
+        Properties.clearForCurrentThread();
     }
 
     @Test(description = "Covers hard-assert equality and number validation pass paths")
@@ -51,12 +53,29 @@ public class ValidationsHelper2CoverageUnitTest {
 
         WebDriver driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
         WebElement element = mock(WebElement.class);
+        WebElement option = mock(WebElement.class);
+        SHAFT.Properties.reporting.set().captureElementName(false);
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.flags.set().scrollingMode("legacy");
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
         when(driver.findElement(any(By.class))).thenReturn(element);
+        when(driver.findElements(any(By.class))).thenReturn(List.of(element));
         when(element.getScreenshotAs(any())).thenReturn(new byte[]{2});
+        when(element.getText()).thenReturn("  element text  ");
+        when(element.getAttribute("aria-label")).thenReturn("attrValue");
+        when(element.getDomAttribute("data-id")).thenReturn("domAttrValue");
+        when(element.getDomProperty("value")).thenReturn("domPropValue");
+        when(element.getCssValue("color")).thenReturn("cssValue");
+        when(element.getTagName()).thenReturn("select");
+        when(element.findElements(any(By.class))).thenReturn(List.of(option));
+        when(option.isSelected()).thenReturn(true);
+        when(option.getText()).thenReturn("selected");
         when(((JavascriptExecutor) driver).executeScript(anyString(), any())).thenReturn("rtl");
         when(((JavascriptExecutor) driver).executeScript(anyString())).thenReturn("rtl");
 
-        try (MockedStatic<ImageProcessingActions> imageProcessingMocked = Mockito.mockStatic(ImageProcessingActions.class);
+        try (MockedStatic<JavaScriptWaitManager> javaScriptWaitManagerMocked = Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<ImageProcessingActions> imageProcessingMocked = Mockito.mockStatic(ImageProcessingActions.class);
              MockedConstruction<ScreenshotManager> screenshotManagerMocked = Mockito.mockConstruction(ScreenshotManager.class,
                 (mock, context) -> when(mock.takeScreenshot(any(), any(), anyString(), any(Boolean.class)))
                         .thenReturn(List.of("Validation", "Screenshot", "bytes")));
@@ -68,22 +87,9 @@ public class ValidationsHelper2CoverageUnitTest {
                          when(mock.getPageSource()).thenReturn("<html/>");
                          when(mock.getCurrentWindowTitle()).thenReturn("Title");
                          when(mock.getWindowHandle()).thenReturn("WINDOW_HANDLE");
-                         when(mock.getWindowPosition()).thenReturn("0,0");
-                         when(mock.getWindowSize()).thenReturn("1200x800");
-                     });
-             MockedConstruction<Actions> actionsMocked = Mockito.mockConstruction(Actions.class,
-                     (mock, context) -> {
-                         Actions.GetElementInformation getInfo = mock(Actions.GetElementInformation.class);
-                         when(getInfo.text(any(By.class))).thenReturn("  element text  ");
-                         when(getInfo.selectedText(any(By.class))).thenReturn("selected");
-                         when(getInfo.attribute(any(By.class), anyString())).thenReturn("attrValue");
-                         when(getInfo.domAttribute(any(By.class), anyString())).thenReturn("domAttrValue");
-                         when(getInfo.domProperty(any(By.class), anyString())).thenReturn("domPropValue");
-                         when(getInfo.cssValue(any(By.class), anyString())).thenReturn("cssValue");
-                         when(mock.get()).thenReturn(getInfo);
-                     });
-             MockedConstruction<ElementActions> elementActionsMocked = Mockito.mockConstruction(ElementActions.class,
-                     (mock, context) -> when(mock.getElementsCount(any(By.class))).thenReturn(1))) {
+                          when(mock.getWindowPosition()).thenReturn("0,0");
+                          when(mock.getWindowSize()).thenReturn("1200x800");
+                      })) {
             imageProcessingMocked.when(() -> ImageProcessingActions.getReferenceImage(any(By.class)))
                     .thenReturn(new byte[]{1});
             imageProcessingMocked.when(() -> ImageProcessingActions.compareAgainstBaseline(any(), any(By.class), any(byte[].class), any()))
@@ -144,6 +150,16 @@ public class ValidationsHelper2CoverageUnitTest {
             helper.validateElementMatches(driver, locator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV,
                     ValidationEnums.ValidationType.POSITIVE);
         }
+    }
+
+    @Test(description = "Generated element assertion messages should not repeat locator text")
+    public void generatedElementAssertionMessageShouldLeaveLocatorForParametersOnly() {
+        ValidationsBuilder builder = new ValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT);
+        WebDriverElementValidationsBuilder elementBuilder = builder.element(mock(WebDriver.class), By.id("message"));
+
+        Assert.assertEquals(elementBuilder.reportMessageBuilder.toString(), "the element ");
+        Assert.assertEquals(elementBuilder.locator, By.id("message"));
+        Assert.assertFalse(elementBuilder.reportMessageBuilder.toString().contains("By.id: message"));
     }
 
     @Test(description = "Covers private utility methods used by validation reporting")
