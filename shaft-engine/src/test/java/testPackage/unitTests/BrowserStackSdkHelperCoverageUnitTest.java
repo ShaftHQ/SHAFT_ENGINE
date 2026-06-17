@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+@Test(singleThreaded = true)
 public class BrowserStackSdkHelperCoverageUnitTest {
     private static final Path PROJECT_ROOT = Path.of(System.getProperty("user.dir"));
     private static final Path GENERATED_YML = PROJECT_ROOT.resolve("browserstack.yml");

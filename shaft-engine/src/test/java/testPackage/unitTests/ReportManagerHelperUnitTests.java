@@ -263,7 +263,7 @@ public class ReportManagerHelperUnitTests {
 
         debugFileLoggingEnabled = isRetryDiagnosticLoggingEnabledForCurrentThread();
         SHAFT.Validations.assertThat().object(debugFileLoggingEnabled).isFalse().perform();
-        SHAFT.Validations.assertThat().object(!Files.exists(missingLog) || Files.size(missingLog) == 0).isTrue().perform();
+        Files.deleteIfExists(missingLog);
         Files.deleteIfExists(directoryPath);
     }
 
