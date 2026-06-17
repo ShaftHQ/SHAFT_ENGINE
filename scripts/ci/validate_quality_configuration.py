@@ -197,16 +197,23 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         if f"<exclude>{artifact}</exclude>" not in engine_pom:
             errors.append(f"shaft-engine dependency boundary does not ban {artifact}")
 
-    e2e_workflow = (root / ".github" / "workflows" / "e2eTests.yml").read_text(encoding="utf-8")
-    grid_install_count = e2e_workflow.count('mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"')
-    local_install_count = (
-        e2e_workflow.count('mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"')
-        - grid_install_count
+    workflows = root / ".github" / "workflows"
+    e2e_workflow = (workflows / "e2eTests.yml").read_text(encoding="utf-8")
+    local_e2e_workflow_path = workflows / "e2eLocalTests.yml"
+    local_e2e_workflow = (
+        local_e2e_workflow_path.read_text(encoding="utf-8")
+        if local_e2e_workflow_path.exists()
+        else ""
     )
-    activation_count = e2e_workflow.count('"-DincludeVisualTestRuntime"')
+    grid_install_count = e2e_workflow.count('mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"')
+    local_install_count = local_e2e_workflow.count('mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"')
+    activation_count = (
+        e2e_workflow.count('"-DincludeVisualTestRuntime"')
+        + local_e2e_workflow.count('"-DincludeVisualTestRuntime"')
+    )
     if grid_install_count != 4 or local_install_count != 4 or activation_count != 8:
         errors.append(
-            "e2eTests.yml must prepare and activate the visual test runtime "
+            "e2eTests.yml and e2eLocalTests.yml must prepare and activate the visual test runtime "
             "for 4 grid/cloud and 4 local broad browser jobs"
         )
     for cucumber_argument in (
