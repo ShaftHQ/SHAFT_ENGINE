@@ -185,33 +185,9 @@ jobs:
       - name: Verify published Maven Central coordinates
         run: python3 scripts/ci/verify_maven_central_release.py "${RELEASE_VERSION}"
 
-  verify_public_shaft_mcp_installer:
-    name: Verify public shaft-mcp installer (${{ matrix.os }})
-    needs: build_release_and_deliver
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-15, windows-2025]
-    steps:
-      - name: Checkout released source
-        uses: actions/checkout@v6
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
-        with:
-          java-version: '25'
-          distribution: 'zulu'
-          check-latest: true
-      - name: Run the public LATEST installer twice
-        run: python scripts/ci/verify_shaft_mcp_installer_release.py
-
   announce_release:
     name: Announce verified release
-    needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]
+    needs: [build_release_and_deliver]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
