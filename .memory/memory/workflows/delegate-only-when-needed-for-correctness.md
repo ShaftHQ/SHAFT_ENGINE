@@ -1,0 +1,1 @@
+User guidance: "you are always allowed to delegate but only when you need to and cannot perform the correct action yourself." Prefer doing work locally when feasible; delegate for necessary parallelism, semantic graphify fallback, or work that cannot be completed correctly by the main agent alone.

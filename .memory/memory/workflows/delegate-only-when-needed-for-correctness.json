@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/workflows/delegate-only-when-needed-for-correctness.md",
+  "content_hash": "sha256:7abef5e6ef3e51f949784b8061fe34616b19e5a7f7710e8b6c6b7051e26b75ae",
+  "created_at": "2026-06-18T02:06:18+03:00",
+  "evidence": [
+    {
+      "id": "user-message-2026-06-18-delegation-guidance",
+      "kind": "source"
+    }
+  ],
+  "facets": {
+    "category": "agent-guidance"
+  },
+  "id": "workflow.delegate-only-when-needed-for-correctness",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Remember user guidance on delegation scope"
+  },
+  "status": "active",
+  "tags": [
+    "delegation",
+    "agent-guidance"
+  ],
+  "title": "Delegate only when needed for correctness",
+  "type": "workflow",
+  "updated_at": "2026-06-18T02:06:18+03:00"
+}
