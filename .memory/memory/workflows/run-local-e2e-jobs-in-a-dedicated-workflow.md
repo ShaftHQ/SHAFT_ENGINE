@@ -1,0 +1,1 @@
+Local browser and local Cucumber GitHub Actions jobs live in `.github/workflows/e2eLocalTests.yml` with the same daily 01:00 UTC schedule and manual dispatch as the main E2E workflow. Keep provider/grid jobs in `e2eTests.yml` or their provider-specific workflow so local-runner issues can be reviewed independently.
