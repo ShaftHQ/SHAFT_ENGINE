@@ -122,7 +122,7 @@ public interface Allure extends EngineProperties<Allure> {
     /**
      * Enables SHAFT-managed real-time Allure 3 report monitoring via {@code allure watch}.
      *
-     * <p>Property key: {@code allure.realtimeMonitoring} — default: {@code true}
+     * <p>Property key: {@code allure.realtimeMonitoring} — default: {@code false}
      *
      * <p>When enabled, SHAFT starts monitoring when Allure 3 CLI resolution succeeds. This feature
      * is unavailable in Allure 2 compatibility mode.

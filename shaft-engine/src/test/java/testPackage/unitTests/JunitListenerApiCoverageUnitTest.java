@@ -15,7 +15,6 @@ import com.shaft.tools.io.internal.AllureManager;
 import com.shaft.tools.io.internal.ApiPerformanceExecutionReport;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.ProjectStructureManager;
-import com.shaft.tools.io.internal.RealtimeReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 
 import org.junit.platform.engine.TestDescriptor;
@@ -113,7 +112,6 @@ public class JunitListenerApiCoverageUnitTest {
 
         try (MockedStatic<TestNGListener> testNgListenerMock = Mockito.mockStatic(TestNGListener.class);
              MockedStatic<JunitListenerHelper> junitListenerHelperMock = Mockito.mockStatic(JunitListenerHelper.class);
-             MockedStatic<RealtimeReporter> realtimeReporterMock = Mockito.mockStatic(RealtimeReporter.class);
              MockedStatic<ReportManagerHelper> reportManagerHelperMock = Mockito.mockStatic(ReportManagerHelper.class);
              MockedStatic<JiraHelper> jiraHelperMock = Mockito.mockStatic(JiraHelper.class);
              MockedStatic<GoogleTink> googleTinkMock = Mockito.mockStatic(GoogleTink.class);
@@ -145,8 +143,6 @@ public class JunitListenerApiCoverageUnitTest {
             Assert.assertEquals(((List<?>) getStaticField("skippedTests")).size(), 1);
 
             testNgListenerMock.verify(() -> TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT));
-            realtimeReporterMock.verify(() -> RealtimeReporter.initialize("JUnit Test Run"));
-            realtimeReporterMock.verify(() -> RealtimeReporter.onExecutionFinished());
             junitListenerHelperMock.verify(() -> JunitListenerHelper.setTestName(methodTest));
             junitListenerHelperMock.verify(() -> JunitListenerHelper.logTestInformation(methodTest));
             reportManagerHelperMock.verify(() -> ReportManagerHelper.logEngineClosure());
@@ -166,7 +162,6 @@ public class JunitListenerApiCoverageUnitTest {
             SHAFT.Properties.visuals.set().videoParamsScope("TestMethod");
             try (MockedStatic<TestNGListener> testngListenerMock = Mockito.mockStatic(TestNGListener.class);
                  MockedStatic<JunitListenerHelper> junitListenerHelperMock = Mockito.mockStatic(JunitListenerHelper.class);
-                 MockedStatic<RealtimeReporter> realtimeReporterMock = Mockito.mockStatic(RealtimeReporter.class);
                  MockedStatic<ReportManagerHelper> reportManagerHelperMock = Mockito.mockStatic(ReportManagerHelper.class);
                  MockedStatic<RecordManager> recordManagerMock = Mockito.mockStatic(RecordManager.class);
                  MockedStatic<AnimatedGifManager> animatedGifManagerMock = Mockito.mockStatic(AnimatedGifManager.class);
@@ -177,9 +172,6 @@ public class JunitListenerApiCoverageUnitTest {
                  MockedStatic<RequestBuilder> requestBuilderMock = Mockito.mockStatic(RequestBuilder.class)) {
 
                 requestBuilderMock.when(RequestBuilder::getPerformanceData).thenReturn(Collections.emptyMap());
-                realtimeReporterMock.when(() -> RealtimeReporter.buildTestId(anyString(), anyString()))
-                        .thenAnswer(invocation -> invocation.getArgument(0, String.class) + "#" + invocation.getArgument(1, String.class));
-                realtimeReporterMock.when(() -> RealtimeReporter.classNameToFilePath(anyString())).thenReturn("");
 
                 LauncherSession session = Mockito.mock(LauncherSession.class);
                 Launcher launcher = Mockito.mock(Launcher.class);
@@ -226,25 +218,10 @@ public class JunitListenerApiCoverageUnitTest {
                 TestExecutionListener testExecutionListener = capturedExecutionListener.get();
                 testExecutionListener.testPlanExecutionStarted(testPlan);
 
-                realtimeReporterMock.verify(() -> RealtimeReporter.initialize("JUnit Test Run"));
-                realtimeReporterMock.verify(() -> RealtimeReporter.onTestsPlanned(Mockito.argThat(planned -> {
-                    if (planned.size() != 2) {
-                        return false;
-                    }
-                    boolean foundMethodSourceCard = planned.stream().anyMatch(card -> "testPackage.SampleTests".equals(card.className)
-                            && "sampleMethod".equals(card.methodName));
-                    boolean foundDisplayNameCard = planned.stream().anyMatch(card -> "".equals(card.className)
-                            && "displayNameOnly".equals(card.methodName));
-                    return foundMethodSourceCard && foundDisplayNameCard;
-                })));
                 testngListenerMock.verify(() -> TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT));
 
                 testExecutionListener.executionStarted(rootNode);
-                realtimeReporterMock.verify(() -> RealtimeReporter.onTestStarted(Mockito.anyString()), Mockito.never());
-
                 testExecutionListener.executionStarted(methodBackedTest);
-                realtimeReporterMock.verify(() -> RealtimeReporter.setCurrentTestId("testPackage.SampleTests#sampleMethod"));
-                realtimeReporterMock.verify(() -> RealtimeReporter.onTestStarted("testPackage.SampleTests#sampleMethod"));
 
                 testExecutionListener.executionFinished(methodBackedTest, TestExecutionResult.successful());
                 testExecutionListener.executionFinished(methodBackedTest, TestExecutionResult.failed(new RuntimeException("boom")));
@@ -257,15 +234,6 @@ public class JunitListenerApiCoverageUnitTest {
                 reportManagerHelperMock.verify(() -> ReportManagerHelper.setDiscreteLogging(Mockito.anyBoolean()), Mockito.atLeastOnce());
                 recordManagerMock.verify(RecordManager::attachVideoRecording, Mockito.atLeastOnce());
                 animatedGifManagerMock.verify(AnimatedGifManager::attachAnimatedGif, Mockito.atLeastOnce());
-                realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
-                        Mockito.eq("testPackage.SampleTests#sampleMethod"), Mockito.eq(RealtimeReporter.TestStatus.PASSED), Mockito.isNull()));
-                realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
-                        Mockito.eq("testPackage.SampleTests#sampleMethod"), Mockito.eq(RealtimeReporter.TestStatus.FAILED), Mockito.any(Throwable.class)));
-                realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
-                        Mockito.eq("#displayNameOnly"), Mockito.eq(RealtimeReporter.TestStatus.FAILED), Mockito.any(Throwable.class)));
-                realtimeReporterMock.verify(() -> RealtimeReporter.onTestFinished(
-                        Mockito.eq("#displayNameOnly"), Mockito.eq(RealtimeReporter.TestStatus.SKIPPED), Mockito.isNull()));
-                realtimeReporterMock.verify(RealtimeReporter::clearCurrentTestId, Mockito.atLeastOnce());
 
                 jiraHelperMock.verify(JiraHelper::reportExecutionStatusToJira);
                 googleTinkMock.verify(GoogleTink::encrypt);
@@ -302,22 +270,11 @@ public class JunitListenerApiCoverageUnitTest {
     public void privateHelpersShouldHandleMethodSourceAndNonTestBranches() throws Exception {
         JunitListener listener = new JunitListener();
 
-        Method junitTestId = JunitListener.class.getDeclaredMethod("junitTestId", TestIdentifier.class);
-        junitTestId.setAccessible(true);
-
         TestIdentifier methodSourceIdentifier = mockMethodIdentifier(
                 "[engine:junit-jupiter]/[class:com.example.SampleTest]/[method:sampleMethod()]",
                 "sampleMethod()",
                 "com.example.SampleTest",
                 "sampleMethod");
-        String idFromMethodSource = (String) junitTestId.invoke(null, methodSourceIdentifier);
-        Assert.assertEquals(idFromMethodSource, "com.example.SampleTest#sampleMethod");
-
-        TestIdentifier displayNameOnlyIdentifier = mockContainerIdentifier(
-                "[engine:junit-jupiter]/[class:com.example.SampleTest]",
-                "displayNameOnly");
-        String idFromDisplayName = (String) junitTestId.invoke(null, displayNameOnlyIdentifier);
-        Assert.assertEquals(idFromDisplayName, "#displayNameOnly");
 
         Method appendToExecutionSummaryReport = JunitListener.class.getDeclaredMethod(
                 "appendToExecutionSummaryReport",
@@ -403,7 +360,6 @@ public class JunitListenerApiCoverageUnitTest {
              MockedStatic<JiraHelper> jiraHelperMock = Mockito.mockStatic(JiraHelper.class);
              MockedStatic<GoogleTink> googleTinkMock = Mockito.mockStatic(GoogleTink.class);
              MockedStatic<AllureManager> allureManagerMock = Mockito.mockStatic(AllureManager.class);
-             MockedStatic<RealtimeReporter> realtimeReporterMock = Mockito.mockStatic(RealtimeReporter.class);
              MockedStatic<ExecutionSummaryReport> executionSummaryReportMock = Mockito.mockStatic(ExecutionSummaryReport.class);
              MockedStatic<RequestBuilder> requestBuilderMock = Mockito.mockStatic(RequestBuilder.class)) {
 
@@ -421,7 +377,6 @@ public class JunitListenerApiCoverageUnitTest {
             googleTinkMock.verify(GoogleTink::encrypt);
             allureManagerMock.verify(AllureManager::generateAllureReportArchive);
             allureManagerMock.verify(AllureManager::openAllureReportAfterExecution);
-            realtimeReporterMock.verify(RealtimeReporter::onExecutionFinished);
         }
     }
 

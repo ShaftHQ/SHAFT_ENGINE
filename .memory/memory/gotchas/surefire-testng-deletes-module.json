@@ -1,10 +1,14 @@
 {
   "body_path": "memory/gotchas/surefire-testng-deletes-module.md",
-  "content_hash": "sha256:49a2d14ae6762a63932ba63537ae84e2251660533a6f002d3a0f9f1891c0ccbf",
+  "content_hash": "sha256:88324b517d33bee59018ad8f86475fae7f973a1a93efe2647c7d9fcc1e98dcfe",
   "created_at": "2026-06-16T21:59:50+03:00",
   "evidence": [
     {
       "id": "shaft-engine/target/surefire-reports/2026-06-16T21-46-45_816-jvmRun1.dump",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/target/surefire-reports/2026-06-17T11-34-06_987-jvmRun1.dump",
       "kind": "file"
     },
     {
@@ -47,5 +51,5 @@
   ],
   "title": "Avoid Surefire/TestNG runs that delete the SHAFT module worktree",
   "type": "gotcha",
-  "updated_at": "2026-06-17T11:20:53+03:00"
+  "updated_at": "2026-06-17T11:39:53+03:00"
 }

@@ -450,6 +450,8 @@ public class AllureManagerUnitTest {
             startRealtimeMonitoringIfEligible.invoke(null);
             Process process = (Process) getStaticField(AllureManager.class, "realtimeMonitoringProcess");
             SHAFT.Validations.assertThat().object(process != null).isEqualTo(true).perform();
+            String config = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
+            SHAFT.Validations.assertThat().object(config.contains("target/allure-watch-report")).isEqualTo(true).perform();
             if (process != null && process.isAlive()) {
                 process.destroyForcibly();
             }
