@@ -1,1 +1,1 @@
-When a SHAFT_ENGINE task changes repository files, finish by creating a pull request and reporting the PR link back to the user, unless the user explicitly asks not to publish. Keep the PR draft by default unless the user asks for ready-for-review.
+When a SHAFT_ENGINE task changes repository files, finish by creating a pull request and reporting the PR link back to the user, unless the user explicitly asks not to publish. If the requested validation has passed, open a ready-for-review PR; use draft only when validation is incomplete or the user asks for draft.

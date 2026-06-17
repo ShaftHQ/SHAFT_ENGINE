@@ -151,22 +151,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         TestNGListenerHelper.setTotalNumberOfTests(suite);
         executionStartTime = System.currentTimeMillis();
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.startTestSuite(suite);
-        // Populate real-time dashboard with planned tests
-        RealtimeReporter.initialize(suite.getName());
-        List<RealtimeReporter.TestCard> planned = suite.getAllMethods().stream()
-                .filter(ITestNGMethod::isTest)
-                .map(m -> {
-                    String className = m.getRealClass().getName();
-                    String methodName = m.getMethodName();
-                    String id = RealtimeReporter.buildTestId(className, methodName);
-                    RealtimeReporter.TestCard card = new RealtimeReporter.TestCard(
-                            id, className, methodName,
-                            RealtimeReporter.classNameToFilePath(className));
-                    card.description = m.getDescription() != null ? m.getDescription() : "";
-                    return card;
-                })
-                .collect(Collectors.toList());
-        RealtimeReporter.onTestsPlanned(planned);
     }
 
     @Override
@@ -340,7 +324,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             // Generate the performance report using the fetched data
             ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, System.currentTimeMillis());
         });
-        RealtimeReporter.onExecutionFinished();
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishLaunch();
@@ -377,11 +360,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestStart(ITestResult testResult) {
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.startTestMethod(testResult);
-        String id = RealtimeReporter.buildTestId(
-                testResult.getTestClass().getName(),
-                testResult.getMethod().getMethodName());
-        RealtimeReporter.setCurrentTestId(id);
-        RealtimeReporter.onTestStarted(id);
     }
 
     @Override
@@ -391,11 +369,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), "",
                 ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
-        String id = RealtimeReporter.buildTestId(
-                testResult.getTestClass().getName(),
-                testResult.getMethod().getMethodName());
-        RealtimeReporter.onTestFinished(id, RealtimeReporter.TestStatus.PASSED, null);
-        RealtimeReporter.clearCurrentTestId();
     }
 
     @Override
@@ -406,11 +379,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.sendReportPortalMsg(testResult);
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.FAILED, testResult);
-        String id = RealtimeReporter.buildTestId(
-                testResult.getTestClass().getName(),
-                testResult.getMethod().getMethodName());
-        RealtimeReporter.onTestFinished(id, RealtimeReporter.TestStatus.FAILED, testResult.getThrowable());
-        RealtimeReporter.clearCurrentTestId();
     }
 
     @Override
@@ -421,10 +389,5 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), throwableMessage,
                 ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.SKIPPED, testResult);
-        String id = RealtimeReporter.buildTestId(
-                testResult.getTestClass().getName(),
-                testResult.getMethod().getMethodName());
-        RealtimeReporter.onTestFinished(id, RealtimeReporter.TestStatus.SKIPPED, null);
-        RealtimeReporter.clearCurrentTestId();
     }
 }

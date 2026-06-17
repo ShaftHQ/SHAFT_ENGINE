@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/create-and-report-pr-after-tasks.md",
-  "content_hash": "sha256:ab2cf73c13a715b29a151238485a94fb88ba3997a4d006679dd62d3874e1bef4",
+  "content_hash": "sha256:ddc5a7542805c61b4dc219caab40e8b3e95c54fff8bf90bd148f4b6b578c5cf7",
   "created_at": "2026-06-17T11:28:59+03:00",
   "evidence": [
     {
@@ -43,5 +43,5 @@
   ],
   "title": "Create and report PR after tasks",
   "type": "workflow",
-  "updated_at": "2026-06-17T11:28:59+03:00"
+  "updated_at": "2026-06-17T12:07:00+03:00"
 }

@@ -264,6 +264,10 @@ public class AllureManager {
         return resolveExecutionPath("target", allureReportPath);
     }
 
+    private static Path reportWatchOutputDirectoryPath() {
+        return resolveExecutionPath("target", "allure-watch-report");
+    }
+
     private static Path allureConfigPath() {
         return resolveExecutionPath(allureConfigFileName);
     }
@@ -574,10 +578,16 @@ public class AllureManager {
             return;
         }
 
-        // Explicitly pass --open so watch launches the browser instead of only starting the server.
+        String reportName = SHAFT.Properties.allure.customTitle();
+        Path watchOutputDirectory = reportWatchOutputDirectoryPath();
+        writeAllureConfig(reportName, watchOutputDirectory.toString());
+
         String command = prefix + " watch "
+                + "--config " + q(allureConfigPath().toString()) + " "
+                + "--output " + q(watchOutputDirectory.toString()) + " "
+                + "--report-name " + q(reportName) + " "
                 + (SHAFT.Properties.allure.automaticallyOpen() ? "--open " : "")
-                + "\"" + getResultsPath() + "\"";
+                + q(getResultsPath());
         realtimeMonitoringProcess = startLongRunningCommand(command);
         if (realtimeMonitoringProcess != null && realtimeMonitoringProcess.isAlive()) {
             ReportManager.logDiscrete("Allure real-time monitoring started.");

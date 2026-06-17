@@ -42,32 +42,32 @@ Bridge skills point to canonical `.github/` rules; do not preload them.
 
 ## Memory
 
-Memory lives in `.memory/`; current code, tests, config, and the request win.
+Memory lives in `.memory/`; current files win.
 
-- Use memory proactively when material; do not wait for a user request.
-- Do not load memory for routine, self-contained work.
-- Use at most one `load_memory` call when history, pitfalls, durable
-  instructions, or continuity matter and files do not answer it.
-  Add file/subsystem hints; budget <= 600.
-- Save only novel durable decisions, constraints, gotchas, workflows, or user
-  corrections with evidence. Do not save diaries, transient status, or facts
-  clear from code or active guidance.
-- Do not save at session end; use `remember_memory` when the preceding rule
-  applies.
+- Load memory proactively only when history, pitfalls, durable instructions, or
+  continuity matter; use one hinted call, budget <= 600.
+- Save only durable decisions, constraints, gotchas, workflows, or user
+  corrections with evidence. No diaries or end-session saves.
 
 ## Validation
 
-Use the smallest check that proves the change:
+Before forked Maven/Surefire/TestNG validation, load memory gotchas. If
+`gotcha.surefire-testng-deletes-module` is active, avoid `mvn test` in a SHAFT
+worktree; use compile/test-compile, static checks, or a disposable copy.
+
+Use the smallest non-redundant check that proves the change; do not rerun
+passing checks unless later edits, rebases, or dependency changes invalidate
+them.
 
 - Guidance or memory: `python3 scripts/ci/validate_agent_setup.py`
-- Localized code: affected tests, then one compile/package pass.
+- Localized code: affected tests only, then one compile/package pass.
 - Shared API, concurrency, build, or release: targeted checks, then full
   compile/package.
 - Visual behavior: relevant test plus image/browser evidence.
 - External/cloud E2E: only when infrastructure is available and required.
 
-On PowerShell, single-quote Maven `-D` arguments. Confirm Allure result files
-are populated before trusting SHAFT test verdicts.
+PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, and args with `{}`, `@`,
+`;`, `&`, or `|`. Confirm Allure results before trusting SHAFT test verdicts.
 
 ## Completion
 

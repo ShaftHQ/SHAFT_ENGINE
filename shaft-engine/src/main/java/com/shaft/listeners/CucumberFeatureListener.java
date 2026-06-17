@@ -22,7 +22,6 @@ import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.CucumberHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.tools.io.internal.RealtimeReporter;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.resource.Resource;
 import io.cucumber.messages.types.Examples;
@@ -224,8 +223,6 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
             }
         });
         ReportManagerHelper.logScenarioInformation(scenarioDefinition.getKeyword(), lastStartedScenarioName, cleanScenarioSteps.toString());
-        String testId = RealtimeReporter.buildTestId(featureName, lastStartedScenarioName);
-        RealtimeReporter.setCurrentTestId(testId);
     }
 
     private void handleTestCaseFinished(final TestCaseFinished event) {
@@ -265,7 +262,6 @@ public class CucumberFeatureListener extends AllureCucumber7Jvm {
         lifecycle.stopTestContainer(getTestContainerUuid());
         lifecycle.writeTestCase(uuid);
         lifecycle.writeTestContainer(getTestContainerUuid());
-        RealtimeReporter.clearCurrentTestId();
         // Clean up thread-local state to prevent memory leaks
         currentFeature.remove();
         currentFeatureFile.remove();
