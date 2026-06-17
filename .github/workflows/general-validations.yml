@@ -207,8 +207,27 @@ jobs:
       - name: Fail changed-file link audit
         if: steps.lychee.outputs.exit_code != '0' && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
         run: |
-          echo "::error::Broken links were detected in changed documentation surfaces."
-          exit 1
+          python3 <<'PY'
+          from pathlib import Path
+
+          report = Path("lychee/out.md").read_text(encoding="utf-8", errors="replace")
+          errors = report.split("## Errors per input", 1)[-1].split("## Redirects per input", 1)[0]
+          error_lines = [line for line in errors.splitlines() if line.startswith("* ")]
+          transient_markers = ("Network error:", "Connection reset by peer", "operation timed out")
+          non_transient = [
+              line for line in error_lines
+              if not any(marker in line for marker in transient_markers)
+          ]
+
+          if error_lines and not non_transient:
+              print("::warning::Only transient network link errors were detected.")
+              raise SystemExit(0)
+
+          print("::error::Broken links were detected in changed documentation surfaces.")
+          for line in non_transient or error_lines:
+              print(f"::error::{line}")
+          raise SystemExit(1)
+          PY
 
   quality-scan:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

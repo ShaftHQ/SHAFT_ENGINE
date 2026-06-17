@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:1c27fda7772fd675e3bfcd5210f4ab42c504bd1684ccc4fa138fc6ffde95e6b5",
+  "created_at": "2026-06-17T11:14:58+03:00",
+  "evidence": [
+    {
+      "id": "source.agents",
+      "kind": "source"
+    }
+  ],
+  "from": "synthesis.conventions-quality",
+  "id": "rel.synthesis-conventions-quality-derived-from-source-agents",
+  "predicate": "derived_from",
+  "status": "active",
+  "to": "source.agents",
+  "updated_at": "2026-06-17T11:14:58+03:00"
+}

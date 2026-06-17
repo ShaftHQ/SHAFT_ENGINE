@@ -1,0 +1,1 @@
+General Validations runs `python3 -m unittest discover -s tests/scripts -p 'test_*.py'` on `ubuntu-22.04`, where `python3` is Python 3.10. CI-facing scripts under `scripts/ci/` and their tests must not require Python 3.11 stdlib modules such as `tomllib` unless they provide a dependency-free fallback or the workflow runtime is upgraded.

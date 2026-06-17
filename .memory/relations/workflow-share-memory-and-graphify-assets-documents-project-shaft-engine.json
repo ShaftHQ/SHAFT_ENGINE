@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:a7c53bc1a0846d58bd5e4aac86bb925b432b83297f8129583b67ba1ae1336576",
+  "created_at": "2026-06-17T11:26:27+03:00",
+  "evidence": [
+    {
+      "id": "workflow.share-memory-and-graphify-assets",
+      "kind": "memory"
+    }
+  ],
+  "from": "workflow.share-memory-and-graphify-assets",
+  "id": "rel.workflow-share-memory-and-graphify-assets-documents-project-shaft-engine",
+  "predicate": "documents",
+  "status": "active",
+  "to": "project.shaft-engine",
+  "updated_at": "2026-06-17T11:26:27+03:00"
+}

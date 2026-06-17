@@ -1,0 +1,47 @@
+{
+  "body_path": "memory/workflows/create-and-report-pr-after-tasks.md",
+  "content_hash": "sha256:ab2cf73c13a715b29a151238485a94fb88ba3997a4d006679dd62d3874e1bef4",
+  "created_at": "2026-06-17T11:28:59+03:00",
+  "evidence": [
+    {
+      "id": "User asked to always create and report back a PR when finishing a task.",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "git",
+      "github",
+      "pull-request"
+    ],
+    "category": "workflow",
+    "load_modes": [
+      "coding",
+      "review"
+    ]
+  },
+  "id": "workflow.create-and-report-pr-after-tasks",
+  "origin": {
+    "kind": "user",
+    "locator": "conversation:2026-06-17"
+  },
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Remember maintainer PR reporting rule"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "pull-request",
+    "workflow"
+  ],
+  "title": "Create and report PR after tasks",
+  "type": "workflow",
+  "updated_at": "2026-06-17T11:28:59+03:00"
+}
