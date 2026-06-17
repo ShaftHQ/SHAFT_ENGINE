@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.github.shafthq</groupId>
         <artifactId>shaft-parent</artifactId>
-        <version>10.2.20260616</version>
+        <version>10.2.20260617</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>shaft-engine</artifactId>
