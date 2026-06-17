@@ -31,8 +31,10 @@ Bridge skills point to canonical `.github/` rules; do not preload them.
 - Reproduce defects and add focused regression coverage.
 - Preserve public API compatibility; deprecate before removal/rename.
 - Public docs: `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; use targeted
-  `rg`/excerpts, no broad loads or local public guides.
-- Functionality changes require user-guide updates and a separate docs PR.
+  `rg`/excerpts only.
+- Functionality changes require user-guide updates plus docs PR.
+- Before PRs, refresh graphify for core/docs after file/relationship changes;
+  report blockers.
 - Never expose secrets or run deployment, publication, history rewrites,
   cleanup, or credentialed cloud suites unless explicitly required.
 - Do not commit generated reports, binaries, or `target/`.
@@ -42,7 +44,7 @@ Bridge skills point to canonical `.github/` rules; do not preload them.
 
 ## Memory
 
-Memory lives in `.memory/`; current files win.
+Memory: `.memory/`; current files win.
 
 - Load memory proactively only when history, pitfalls, durable instructions, or
   continuity matter; use one hinted call, budget <= 600.

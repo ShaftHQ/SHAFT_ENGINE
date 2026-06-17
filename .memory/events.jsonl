@@ -54,3 +54,4 @@
 {"actor":"agent","event":"memory.created","id":"workflow.run-local-e2e-jobs-in-a-dedicated-workflow","timestamp":"2026-06-17T21:29:23+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.run-local-e2e-jobs-in-a-dedicated-workflow","timestamp":"2026-06-17T21:30:16+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.run-local-e2e-jobs-in-a-dedicated-workflow","timestamp":"2026-06-17T23:37:27+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.delegate-only-when-needed-for-correctness","timestamp":"2026-06-18T02:06:18+03:00"}
