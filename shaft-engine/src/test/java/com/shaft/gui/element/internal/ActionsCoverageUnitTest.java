@@ -9,8 +9,12 @@ import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
+import io.qameta.allure.Allure;
+import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 import org.openqa.selenium.InvalidElementStateException;
 import org.openqa.selenium.JavascriptExecutor;
@@ -26,6 +30,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebElement;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -109,6 +114,23 @@ public class ActionsCoverageUnitTest {
             Assert.assertSame(actions.dragAndDropByOffset(LOCATOR, 5, 7), actions);
             assertRecorded(actions, Actions.ActionType.DRAG_AND_DROP_BY_OFFSET, LOCATOR, new ArrayList<>(List.of(5, 7)));
             Assert.assertSame(actions.and(), actions);
+        }
+    }
+
+    @Test
+    public void silentPassedActionShouldOnlyWriteDebugDiscreteLog() throws Exception {
+        WebDriver driver = mock(WebDriver.class);
+
+        try (MockedStatic<JavaScriptWaitManager> javaScriptWaitManager = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<ReportManager> reportManager = org.mockito.Mockito.mockStatic(ReportManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            Actions actions = new Actions(driver, true);
+
+            invoke(actions, "report", new Class[]{String.class, String.class, Status.class, byte[].class, RuntimeException.class},
+                    "GET_TEXT", "By.id: target", Status.PASSED, null, null);
+
+            reportManager.verify(() -> ReportManager.logDiscrete("Get text \"By.id: target\"", Level.DEBUG));
+            allure.verifyNoInteractions();
         }
     }
 

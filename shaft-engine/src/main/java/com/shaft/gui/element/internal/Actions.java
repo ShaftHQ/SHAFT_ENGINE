@@ -989,6 +989,14 @@ public class Actions extends ElementActions {
         if (!status.equals(Status.PASSED))
             stepName.append(" is ").append(status.name().toLowerCase());
 
+        if (elementActionsHelper.isSilent()) {
+            ReportManager.logDiscrete(stepName.toString(), Status.PASSED.equals(status) ? Level.DEBUG : Level.ERROR);
+            if (exception != null) {
+                throw new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
+            }
+            return;
+        }
+
         Allure.getLifecycle().updateStep(update -> update.setName(stepName.toString()));
 
         // handle secure typing
