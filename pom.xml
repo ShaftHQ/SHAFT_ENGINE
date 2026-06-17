@@ -506,11 +506,6 @@
                 <version>3.5.0</version>
                 <configuration>
                     <classesDirectory>target/classes</classesDirectory>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                        </manifest>
-                    </archive>
                     <includes>
                         <include>com/**/*</include>
                         <include>resources/**/*</include>
@@ -527,11 +522,16 @@
                         ${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations
                     </sourcepath>
                     <doclint>all,-missing</doclint>
-                    <docfilessubdirs>true</docfilessubdirs>
+                    <docfilessubdirs>false</docfilessubdirs>
                     <encoding>UTF-8</encoding>
                     <failOnError>false</failOnError>
                     <show>public</show>
                     <nohelp>true</nohelp>
+                    <noindex>true</noindex>
+                    <notimestamp>true</notimestamp>
+                    <notree>true</notree>
+                    <nodeprecatedlist>true</nodeprecatedlist>
+                    <use>false</use>
                     <header>SHAFT_Engine, ${project.version}</header>
                     <doctitle>SHAFT_Engine, ${project.version}</doctitle>
                 </configuration>
@@ -573,13 +573,9 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                        </manifest>
-                    </archive>
+                    <excludeResources>true</excludeResources>
                     <includes>
-                        <include>com/**</include>
+                        <include>com/**/*.java</include>
                     </includes>
                 </configuration>
             </plugin>
@@ -589,7 +585,6 @@
                 <version>3.5.0</version>
                 <configuration>
                     <encoding>UTF-8</encoding>
-                    <outputDirectory>target/classes</outputDirectory>
                 </configuration>
             </plugin>
             <plugin>
@@ -775,6 +770,7 @@
                             <outputFormat>json</outputFormat>
                             <includeBomSerialNumber>false</includeBomSerialNumber>
                             <skipNotDeployed>false</skipNotDeployed>
+                            <excludeArtifactId>report-aggregate</excludeArtifactId>
                         </configuration>
                     </execution>
                 </executions>

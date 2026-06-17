@@ -2,7 +2,8 @@ FROM maven:3.9.11-eclipse-temurin-25 AS builder
 
 WORKDIR /build
 COPY . .
-RUN mvn --batch-mode --no-transfer-progress -pl shaft-mcp -am package -DskipTests -Dgpg.skip \
+RUN mvn --batch-mode --no-transfer-progress -pl shaft-mcp -am install -DskipTests -Dgpg.skip -Dcyclonedx.skip \
+    && mvn --batch-mode --no-transfer-progress -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/build/shaft-mcp-lib -DskipTests -Dgpg.skip \
     && find shaft-mcp/target -maxdepth 1 -name 'shaft-mcp-*.jar' \
         ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
         -exec cp {} /build/shaft-mcp.jar \; -quit
@@ -26,7 +27,8 @@ LABEL io.modelcontextprotocol.server.name="io.github.ShaftHQ/shaft-mcp" \
 
 WORKDIR /app
 COPY --from=builder /build/shaft-mcp.jar /app/shaft-mcp.jar
+COPY --from=builder /build/shaft-mcp-lib /app/lib
 
 ENV REMOTE_DRIVER_ADDRESS=""
 
-CMD ["java", "-DheadlessExecution=true", "-jar", "shaft-mcp.jar"]
+CMD ["java", "-DheadlessExecution=true", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]

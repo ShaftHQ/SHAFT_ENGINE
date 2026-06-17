@@ -20,13 +20,15 @@ import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
-from hashlib import sha256
+from hashlib import sha1, sha256
 from pathlib import Path
 from typing import Any
 
 SERVER_NAME = "shaft-mcp"
 ARTIFACT_PATH = "io/github/shafthq/shaft-mcp"
 DEFAULT_REPOSITORY = "https://repo.maven.apache.org/maven2"
+MAIN_CLASS = "com.shaft.mcp.ShaftMcpApplication"
+RUNTIME_DEPENDENCIES_ENTRY = "META-INF/shaft-mcp/runtime-dependencies.txt"
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
@@ -201,12 +203,28 @@ def url_text(url: str) -> str:
     return download_bytes(url).decode("utf-8")
 
 
-def file_sha256(path: Path) -> str:
-    digest = sha256()
+def url_text_or_none(url: str) -> str | None:
+    headers = {"User-Agent": "shaft-mcp-installer"}
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return None
+        raise
+
+
+def file_digest(path: Path, algorithm: str) -> str:
+    digest = sha256() if algorithm == "sha256" else sha1()
     with path.open("rb") as source:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def file_sha256(path: Path) -> str:
+    return file_digest(path, "sha256")
 
 
 def java_feature(java: Path) -> int | None:
@@ -347,6 +365,18 @@ def expected_sha256(url: str) -> str:
     return value
 
 
+def expected_checksum(url: str) -> tuple[str, str]:
+    for algorithm, pattern in (("sha256", r"[0-9a-f]{64}"), ("sha1", r"[0-9a-f]{40}")):
+        value = url_text_or_none(f"{url}.{algorithm}")
+        if value is None:
+            continue
+        digest = value.strip().split()[0].lower()
+        if not re.fullmatch(pattern, digest):
+            fail(f"Invalid {algorithm.upper()} checksum for {url}.", 4)
+        return algorithm, digest
+    fail(f"No SHA-256 or SHA-1 checksum was found for {url}.", 4)
+
+
 def install_shaft_mcp_jar(version: str, repository: str, root: Path) -> Path:
     version_path = f"{ARTIFACT_PATH}/{version}"
     filename = f"shaft-mcp-{version}.jar"
@@ -373,6 +403,92 @@ def install_shaft_mcp_jar(version: str, repository: str, root: Path) -> Path:
     if file_sha256(target) != expected:
         fail("Installed shaft-mcp JAR failed SHA-256 verification.", 4)
     return target.resolve()
+
+
+def parse_runtime_dependency_manifest(text: str) -> list[tuple[str, str, str, str | None]]:
+    dependencies: list[tuple[str, str, str, str | None]] = []
+    seen: set[tuple[str, str, str, str | None]] = set()
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("The following"):
+            continue
+        token = line.split()[0]
+        parts = token.split(":")
+        if len(parts) == 5:
+            group_id, artifact_id, packaging, version, scope = parts
+            classifier = None
+        elif len(parts) == 6:
+            group_id, artifact_id, packaging, classifier, version, scope = parts
+        else:
+            fail(f"Malformed runtime dependency coordinate: {line}", 4)
+        if packaging != "jar" or scope == "test":
+            continue
+        dependency = (group_id, artifact_id, version, classifier)
+        if dependency not in seen:
+            seen.add(dependency)
+            dependencies.append(dependency)
+    if not dependencies:
+        fail("shaft-mcp runtime dependency manifest did not contain any JAR dependencies.", 4)
+    return dependencies
+
+
+def read_runtime_dependencies(jar: Path) -> list[tuple[str, str, str, str | None]]:
+    try:
+        with zipfile.ZipFile(jar) as archive:
+            manifest = archive.read(RUNTIME_DEPENDENCIES_ENTRY).decode("utf-8")
+    except KeyError:
+        fail(f"Installed shaft-mcp JAR is missing {RUNTIME_DEPENDENCIES_ENTRY}.", 4)
+    except zipfile.BadZipFile as exc:
+        fail(f"Installed shaft-mcp JAR is not readable: {exc}", 4)
+    return parse_runtime_dependency_manifest(manifest)
+
+
+def dependency_url(repository: str, dependency: tuple[str, str, str, str | None]) -> tuple[str, str]:
+    group_id, artifact_id, version, classifier = dependency
+    filename = f"{artifact_id}-{version}{'-' + classifier if classifier else ''}.jar"
+    group_path = group_id.replace(".", "/")
+    return f"{repository}/{group_path}/{artifact_id}/{version}/{filename}", filename
+
+
+def install_repository_file(url: str, target: Path, label: str) -> Path:
+    algorithm, expected = expected_checksum(url)
+    if target.is_file() and file_digest(target, algorithm) == expected:
+        return target.resolve()
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    log(f"Downloading {label}...")
+    download_file(url, temporary)
+    if file_digest(temporary, algorithm) != expected:
+        temporary.unlink(missing_ok=True)
+        fail(f"Checksum verification failed for {label}.", 4)
+    os.replace(temporary, target)
+    return target.resolve()
+
+
+def install_runtime_dependencies(jar: Path, repository: str) -> list[Path]:
+    installed: list[Path] = []
+    lib_dir = jar.parent / "lib"
+    for dependency in read_runtime_dependencies(jar):
+        url, filename = dependency_url(repository, dependency)
+        group_id, artifact_id, version, _ = dependency
+        target = lib_dir / group_id.replace(".", "/") / artifact_id / version / filename
+        installed.append(install_repository_file(url, target, f"{group_id}:{artifact_id}:{version}"))
+    return installed
+
+
+def java_argfile_quote(value: str) -> str:
+    return '"' + value.replace("\\", "/").replace('"', '\\"') + '"'
+
+
+def write_launcher_args(jar: Path, dependencies: list[Path]) -> Path:
+    args_file = jar.parent / "shaft-mcp.args"
+    classpath = os.pathsep.join(str(path.resolve()) for path in [jar, *dependencies])
+    content = "\n".join(("-cp", java_argfile_quote(classpath), MAIN_CLASS)) + "\n"
+    temporary = args_file.with_name(f".{args_file.name}.{os.getpid()}.tmp")
+    temporary.write_text(content, encoding="utf-8", newline="\n")
+    os.replace(temporary, args_file)
+    return args_file.resolve()
 
 
 def read_lines(stream: Any, target: queue.Queue[str], sink: list[str] | None = None) -> None:
@@ -412,12 +528,12 @@ def await_probe_response(lines: queue.Queue[str], process: subprocess.Popen[str]
             if "error" in response:
                 fail(f"shaft-mcp installer probe failed: {json.dumps(response['error'], separators=(',', ':'))}", 4)
             return response
-    fail("Timed out while probing the installed shaft-mcp JAR.", 4)
+    fail("Timed out while probing the installed shaft-mcp launcher.", 4)
 
 
-def probe_stdio(java: Path, jar: Path) -> None:
+def probe_stdio(java: Path, args_file: Path) -> None:
     process = subprocess.Popen(
-        [str(java), "-jar", str(jar)],
+        [str(java), f"@{args_file}"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -549,15 +665,15 @@ def write_json_atomically(path: Path, value: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def stdio_entry(java: Path, jar: Path, copilot: bool = False) -> dict[str, Any]:
-    entry: dict[str, Any] = {"command": str(java), "args": ["-jar", str(jar)]}
+def stdio_entry(java: Path, args_file: Path, copilot: bool = False) -> dict[str, Any]:
+    entry: dict[str, Any] = {"command": str(java), "args": [f"@{args_file}"]}
     if copilot:
         entry["type"] = "local"
         entry["tools"] = ["*"]
     return entry
 
 
-def verify_json_entry(path: Path, root_property: str, java: Path, jar: Path) -> None:
+def verify_json_entry(path: Path, root_property: str, java: Path, args_file: Path) -> None:
     root = read_json_object(path)
     servers = root.get(root_property)
     if not isinstance(servers, dict) or SERVER_NAME not in servers:
@@ -567,8 +683,8 @@ def verify_json_entry(path: Path, root_property: str, java: Path, jar: Path) -> 
         fail("The resulting shaft-mcp entry is not an object.", 5)
     if entry.get("command") != str(java):
         fail("The resulting shaft-mcp Java command is incorrect.", 5)
-    if entry.get("args") != ["-jar", str(jar)]:
-        fail("The resulting shaft-mcp JAR arguments are incorrect.", 5)
+    if entry.get("args") != [f"@{args_file}"]:
+        fail("The resulting shaft-mcp launcher arguments are incorrect.", 5)
 
 
 def update_json_configuration(path: Path, mutation: Any, verification: Any) -> None:
@@ -638,20 +754,20 @@ def detect_project_override(client: str) -> None:
         directory = directory.parent
 
 
-def configure_codex(java: Path, jar: Path) -> None:
+def configure_codex(java: Path, args_file: Path) -> None:
     codex = require_command("codex", "Codex")
     run_checked([str(codex), "mcp", "remove", SERVER_NAME], "Codex could not remove the previous shaft-mcp entry.", True)
-    run_checked([str(codex), "mcp", "add", SERVER_NAME, "--", str(java), "-jar", str(jar)], "Codex MCP configuration command failed.")
+    run_checked([str(codex), "mcp", "add", SERVER_NAME, "--", str(java), f"@{args_file}"], "Codex MCP configuration command failed.")
     result = run_checked([str(codex), "mcp", "get", SERVER_NAME, "--json"], "Codex could not verify the shaft-mcp entry.")
     try:
         entry = json.loads(result.stdout).get("transport", {})
     except json.JSONDecodeError as exc:
         fail(f"Codex verification returned malformed JSON: {exc}", 5)
-    if entry.get("command") != str(java) or entry.get("args") != ["-jar", str(jar)]:
+    if entry.get("command") != str(java) or entry.get("args") != [f"@{args_file}"]:
         fail("Codex verification returned an unexpected shaft-mcp command.", 5)
 
 
-def configure_claude_code(java: Path, jar: Path) -> None:
+def configure_claude_code(java: Path, args_file: Path) -> None:
     claude = require_command("claude", "Claude Code")
     configuration = configuration_path("claude")
     try:
@@ -661,11 +777,11 @@ def configure_claude_code(java: Path, jar: Path) -> None:
     existing = isinstance(root.get("mcpServers"), dict) and SERVER_NAME in root["mcpServers"]
     if existing:
         run_checked([str(claude), "mcp", "remove", SERVER_NAME, "-s", "user"], "Claude Code could not remove the previous shaft-mcp entry.")
-    run_checked([str(claude), "mcp", "add", "-s", "user", SERVER_NAME, "--", str(java), "-jar", str(jar)], "Claude Code MCP configuration command failed.")
-    verify_json_entry(configuration, "mcpServers", java, jar)
+    run_checked([str(claude), "mcp", "add", "-s", "user", SERVER_NAME, "--", str(java), f"@{args_file}"], "Claude Code MCP configuration command failed.")
+    verify_json_entry(configuration, "mcpServers", java, args_file)
 
 
-def configure_claude_desktop(java: Path, jar: Path) -> None:
+def configure_claude_desktop(java: Path, args_file: Path) -> None:
     configuration = configuration_path("claude-desktop")
 
     def mutate() -> None:
@@ -673,14 +789,14 @@ def configure_claude_desktop(java: Path, jar: Path) -> None:
         servers = root.setdefault("mcpServers", {})
         if not isinstance(servers, dict):
             fail("Configuration property must be an object: mcpServers", 5)
-        servers[SERVER_NAME] = stdio_entry(java, jar)
+        servers[SERVER_NAME] = stdio_entry(java, args_file)
         write_json_atomically(configuration, root)
 
-    update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "mcpServers", java, jar))
+    update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "mcpServers", java, args_file))
     print("Restart Claude Desktop to load shaft-mcp.")
 
 
-def configure_copilot(java: Path, jar: Path) -> None:
+def configure_copilot(java: Path, args_file: Path) -> None:
     copilot = require_command("copilot", "GitHub Copilot CLI")
     run_checked([str(copilot), "--version"], "GitHub Copilot CLI is not available.")
     configuration = configuration_path("copilot")
@@ -690,13 +806,13 @@ def configure_copilot(java: Path, jar: Path) -> None:
         servers = root.setdefault("mcpServers", {})
         if not isinstance(servers, dict):
             fail("Configuration property must be an object: mcpServers", 5)
-        servers[SERVER_NAME] = stdio_entry(java, jar, copilot=True)
+        servers[SERVER_NAME] = stdio_entry(java, args_file, copilot=True)
         write_json_atomically(configuration, root)
 
-    update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "mcpServers", java, jar))
+    update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "mcpServers", java, args_file))
 
 
-def configure_copilot_intellij(java: Path, jar: Path) -> None:
+def configure_copilot_intellij(java: Path, args_file: Path) -> None:
     configuration = configuration_path("copilot-intellij")
 
     def mutate() -> None:
@@ -704,24 +820,24 @@ def configure_copilot_intellij(java: Path, jar: Path) -> None:
         servers = root.setdefault("servers", {})
         if not isinstance(servers, dict):
             fail("Configuration property must be an object: servers", 5)
-        servers[SERVER_NAME] = {"type": "stdio", "command": str(java), "args": ["-jar", str(jar)]}
+        servers[SERVER_NAME] = {"type": "stdio", "command": str(java), "args": [f"@{args_file}"]}
         write_json_atomically(configuration, root)
 
-    update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "servers", java, jar))
+    update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "servers", java, args_file))
     print("Restart IntelliJ IDEA after GitHub Copilot reloads its MCP configuration.")
 
 
-def configure_client(client: str, java: Path, jar: Path) -> None:
+def configure_client(client: str, java: Path, args_file: Path) -> None:
     if client == "codex":
-        configure_codex(java, jar)
+        configure_codex(java, args_file)
     elif client == "claude":
-        configure_claude_code(java, jar)
+        configure_claude_code(java, args_file)
     elif client == "claude-desktop":
-        configure_claude_desktop(java, jar)
+        configure_claude_desktop(java, args_file)
     elif client == "copilot":
-        configure_copilot(java, jar)
+        configure_copilot(java, args_file)
     elif client == "copilot-intellij":
-        configure_copilot_intellij(java, jar)
+        configure_copilot_intellij(java, args_file)
     else:
         fail(f"Unsupported client: {client}", 2)
 
@@ -739,12 +855,14 @@ def install(args: argparse.Namespace) -> None:
     detect_project_override(args.client)
     version = resolve_shaft_mcp_version(args.version, repository, root)
     jar = install_shaft_mcp_jar(version, repository, root)
+    dependencies = install_runtime_dependencies(jar, repository)
+    args_file = write_launcher_args(jar, dependencies)
 
     log(f"Verifying shaft-mcp {version} over stdio...")
-    probe_stdio(java, jar)
+    probe_stdio(java, args_file)
 
     log(f"Configuring shaft-mcp for {args.client}...")
-    configure_client(args.client, java, jar)
+    configure_client(args.client, java, args_file)
     print(f"shaft-mcp {version} is installed and configured for {args.client}.")
 
 

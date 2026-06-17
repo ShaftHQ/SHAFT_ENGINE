@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import queue
 import socket
 import subprocess
@@ -19,6 +20,7 @@ from typing import Any, TextIO
 ROOT = Path(__file__).resolve().parents[2]
 NAMESPACE = {"m": "http://maven.apache.org/POM/4.0.0"}
 PROTOCOL_VERSION = "2025-03-26"
+MAIN_CLASS = "com.shaft.mcp.ShaftMcpApplication"
 EXPECTED_TOOLS = {
     "driver_initialize",
     "browser_navigate",
@@ -111,9 +113,36 @@ def assert_expected_tool_error(response: dict[str, Any]) -> None:
         raise AssertionError(f"Tool call did not reach the expected service error: {response}")
 
 
+def classpath_for(jar: Path) -> str:
+    dependency_dir = jar.parent / "dependency"
+    dependencies = sorted(dependency_dir.glob("*.jar"))
+    if not dependencies:
+        raise FileNotFoundError(f"Runtime dependencies are missing: {dependency_dir}")
+    return os.pathsep.join(str(path) for path in [jar, *dependencies])
+
+
+def java_argfile_quote(value: str) -> str:
+    escaped = value.replace("\\", "/").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def java_command(jar: Path, name: str, *application_args: str) -> list[str]:
+    argfile = jar.parent / f"shaft-mcp-{name}.args"
+    argfile.write_text(
+        "\n".join([
+            "-cp",
+            java_argfile_quote(classpath_for(jar)),
+            MAIN_CLASS,
+            *application_args,
+        ]) + "\n",
+        encoding="utf-8",
+    )
+    return ["java", f"@{argfile}"]
+
+
 def validate_stdio(jar: Path, version: str) -> None:
     process = subprocess.Popen(
-        ["java", "-jar", str(jar)],
+        java_command(jar, "stdio"),
         cwd=ROOT / "shaft-mcp",
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -187,13 +216,7 @@ def parse_http_response(body: str) -> dict[str, Any] | None:
 def validate_http(jar: Path, version: str) -> None:
     port = free_port()
     process = subprocess.Popen(
-        [
-            "java",
-            "-jar",
-            str(jar),
-            "--spring.profiles.active=http",
-            f"--server.port={port}",
-        ],
+        java_command(jar, "http", "--spring.profiles.active=http", f"--server.port={port}"),
         cwd=ROOT / "shaft-mcp",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -290,7 +313,8 @@ def main() -> int:
     if not jar.is_file():
         raise FileNotFoundError(f"Packaged MCP server is missing: {jar}")
     validate_stdio(jar, version)
-    print(f"shaft-mcp {version} passed packaged local stdio smoke tests.")
+    validate_http(jar, version)
+    print(f"shaft-mcp {version} passed packaged local stdio and HTTP smoke tests.")
     return 0
 
 

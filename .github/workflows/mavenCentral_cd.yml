@@ -136,6 +136,7 @@ jobs:
         run: |
           python3 scripts/ci/validate_maven_publication.py
           mvn --batch-mode clean install -DskipTests -Dgpg.skip
+          mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
           python3 scripts/ci/validate_maven_publication.py --check-build-outputs
           python3 scripts/ci/validate_shaft_pilot_release.py --check-build-outputs
           python3 scripts/ci/validate_shaft_mcp_transports.py

@@ -82,6 +82,20 @@ def installed_jar(root: Path, home: Path, environment: dict[str, str]) -> Path:
     return jars[0].resolve()
 
 
+def installed_args(jar: Path) -> Path:
+    args = jar.with_name("shaft-mcp.args")
+    if not args.is_file():
+        raise RuntimeError(f"Expected installed shaft-mcp argfile: {args}")
+    return args.resolve()
+
+
+def installed_dependencies(jar: Path) -> list[Path]:
+    dependencies = sorted((jar.parent / "lib").rglob("*.jar"))
+    if not dependencies:
+        raise RuntimeError(f"Expected installed shaft-mcp runtime dependencies under: {jar.parent / 'lib'}")
+    return dependencies
+
+
 def expected_java(environment: dict[str, str]) -> Path:
     executable = "java.exe" if platform.system() == "Windows" else "java"
     java_home = environment.get("JAVA_HOME", "")
@@ -110,12 +124,12 @@ def configuration_path(client: str, root: Path, home: Path, environment: dict[st
     raise RuntimeError(f"Unsupported installer verification client: {client}")
 
 
-def verify_configuration(configuration: Path, java: Path, jar: Path, root_property: str) -> None:
+def verify_configuration(configuration: Path, java: Path, args: Path, root_property: str) -> None:
     root = json.loads(configuration.read_text(encoding="utf-8"))
     entry = root[root_property]["shaft-mcp"]
     if Path(entry["command"]).resolve() != java.resolve():
         raise RuntimeError(f"Unexpected Java command in {configuration}: {entry['command']}")
-    if entry["args"] != ["-jar", str(jar)]:
+    if entry["args"] != [f"@{args}"]:
         raise RuntimeError(f"Unexpected shaft-mcp arguments in {configuration}: {entry['args']}")
 
 
@@ -153,17 +167,19 @@ def main() -> int:
             subprocess.run(installer_command(client), cwd=root, env=environment, check=True)
 
         jar = installed_jar(root, home, environment)
+        args = installed_args(jar)
+        installed_dependencies(jar)
         first_hash = sha256(jar)
         first_timestamp = jar.stat().st_mtime_ns
 
         for client in clients:
             root_property = "mcpServers" if client in {"copilot", "claude-desktop"} else "servers"
-            verify_configuration(configuration_path(client, root, home, environment), java, jar, root_property)
+            verify_configuration(configuration_path(client, root, home, environment), java, args, root_property)
 
         subprocess.run(installer_command(clients[0]), cwd=root, env=environment, check=True)
         if sha256(jar) != first_hash or jar.stat().st_mtime_ns != first_timestamp:
             raise RuntimeError("Repeated public installation did not reuse the verified JAR.")
-        verify_configuration(configuration_path(clients[0], root, home, environment), java, jar, "mcpServers")
+        verify_configuration(configuration_path(clients[0], root, home, environment), java, args, "mcpServers")
         print(f"Verified public shaft-mcp LATEST installer on {platform.system()}: {jar.parent.name}")
     return 0
 
