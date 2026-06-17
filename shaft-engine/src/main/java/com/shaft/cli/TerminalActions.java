@@ -35,6 +35,12 @@ import java.util.regex.Pattern;
  */
 @SuppressWarnings("unused")
 public class TerminalActions {
+    /**
+     * JSch expects milliseconds; OpenSSH {@code ServerAliveInterval} is usually expressed in seconds.
+     * Keeps reused SSH sessions alive during long-running remote commands.
+     */
+    private static final int SSH_SERVER_ALIVE_INTERVAL_MILLISECONDS = 60_000;
+
     @Getter
     private String sshHostName = "";
     @Getter
@@ -528,12 +534,17 @@ public class TerminalActions {
             }
             session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
             session.setConfig(config);
+            applySshKeepAliveSettings(session);
             session.connect();
             ReportManager.logDiscrete("Created SSH session for " + sshUsername + "@" + sshHostName + ":" + sshPortNumber + ".");
         } catch (JSchException rootCauseException) {
             failAction(testData, rootCauseException);
         }
         return session;
+    }
+
+    private void applySshKeepAliveSettings(Session session) throws JSchException {
+        session.setServerAliveInterval(SSH_SERVER_ALIVE_INTERVAL_MILLISECONDS);
     }
 
     private synchronized Session getRemoteSession() {

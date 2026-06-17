@@ -1,5 +1,7 @@
 package testPackage.unitTests;
 
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import org.testng.Assert;
@@ -561,6 +563,19 @@ public class TerminalActionsUnitTest {
         String log = terminal.performTerminalCommand("echo token=visible");
         Assert.assertTrue(log.contains("token=visible"),
                 "Returned command output should remain available for assertions");
+    }
+
+    @Test(description = "applySshKeepAliveSettings should configure JSch server alive interval")
+    public void applySshKeepAliveSettingsShouldConfigureServerAliveInterval() throws Exception {
+        TerminalActions terminal = new TerminalActions("host.example.com", 22, "user", "/keys/", "id_rsa");
+        Session session = new JSch().getSession("user", "host.example.com", 22);
+        Method applySshKeepAliveSettings = TerminalActions.class.getDeclaredMethod("applySshKeepAliveSettings", Session.class);
+        applySshKeepAliveSettings.setAccessible(true);
+
+        applySshKeepAliveSettings.invoke(terminal, session);
+
+        Assert.assertEquals(session.getServerAliveInterval(), 60_000,
+                "Remote SSH sessions should send keep-alive packets every 60 seconds");
     }
 
     @Test(description = "createSSHsession should surface connection failures for invalid settings")
