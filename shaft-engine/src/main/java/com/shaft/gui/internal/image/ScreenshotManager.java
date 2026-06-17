@@ -229,9 +229,9 @@ public class ScreenshotManager {
             return new byte[0];
         }
         //highlightElement (best-effort): a highlighting failure must never discard a captured
-        //screenshot. On some targets (e.g. native mobile apps) the highlight step can throw a
-        //non-WebDriverException (image decode/draw/encode); in that case keep the un-highlighted
-        //screenshot instead of dropping it.
+        //screenshot. The highlight step can throw a non-WebDriverException, or return an
+        //empty/null array (e.g. an image it cannot re-encode), so only adopt its result when it
+        //actually produced bytes; otherwise keep the un-highlighted screenshot.
         if (elementLocation != null) {
             try {
                 Color color;
@@ -240,7 +240,10 @@ public class ScreenshotManager {
                 } else {
                     color = new Color(255, 255, 153); // yellow
                 }
-                src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                if (highlighted != null && highlighted.length > 0) {
+                    src = highlighted;
+                }
             } catch (Exception highlightFailure) {
                 ReportManagerHelper.logDiscrete(highlightFailure);
             }

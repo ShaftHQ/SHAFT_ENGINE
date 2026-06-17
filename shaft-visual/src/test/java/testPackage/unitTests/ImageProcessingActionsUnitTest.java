@@ -216,6 +216,22 @@ public class ImageProcessingActionsUnitTest {
     }
 
     @Test
+    public void highlightElementInScreenshotShouldHandleAlphaBearingScreenshot() {
+        // Native mobile-app screenshots decode to an alpha-bearing image, and JPEG cannot encode
+        // alpha (ImageIO.write returns false → empty byte[]), which previously dropped the
+        // highlighted screenshot from the report. The highlight step must flatten alpha first so
+        // it still returns usable, non-empty bytes. Regression for missing mobile screenshots.
+        byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(
+                createArgbPng(50, 50, Color.WHITE),
+                new org.openqa.selenium.Rectangle(10, 10, 20, 20),
+                Color.RED
+        );
+
+        Assert.assertTrue(highlighted.length > 0,
+                "highlighting an alpha-bearing (mobile) screenshot must still produce image bytes");
+    }
+
+    @Test
     public void highlightElementInScreenshotShouldHandleWindowsScaling() {
         String originalTargetPlatform = SHAFT.Properties.platform.targetPlatform();
         double originalScalingFactor = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
@@ -393,6 +409,22 @@ public class ImageProcessingActionsUnitTest {
 
     private static byte[] createPng(int width, int height, Color color) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(color);
+        graphics.fillRect(0, 0, width, height);
+        graphics.dispose();
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            ImageIO.write(image, "png", output);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return output.toByteArray();
+    }
+
+    private static byte[] createArgbPng(int width, int height, Color color) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setColor(color);
         graphics.fillRect(0, 0, width, height);
