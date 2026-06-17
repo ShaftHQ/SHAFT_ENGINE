@@ -5,6 +5,7 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -35,9 +36,28 @@ public class Test_LTMobAPKAPPURL {
         SHAFT.Properties.platform.set().executionAddress("lambdatest");
         SHAFT.Properties.lambdaTest.set().platformVersion("11");
         SHAFT.Properties.lambdaTest.set().deviceName("Poco X3 Pro");
-        SHAFT.Properties.lambdaTest.set().appUrl("lt://APP1016019381719168133998118");
+        SHAFT.Properties.lambdaTest.set().appUrl(getUploadedAndroidAppUrl());
         SHAFT.Properties.mobile.set().browserName("");
         driver.set(new SHAFT.GUI.WebDriver());
+    }
+
+    private static String getUploadedAndroidAppUrl() {
+        String appUrl = firstNonBlank(
+                System.getProperty("LambdaTest.androidAppUrl"),
+                System.getenv("LAMBDATEST_ANDROID_APP_URL"));
+        if (appUrl == null) {
+            throw new SkipException("LambdaTest Android app URL is not configured for this run.");
+        }
+        return appUrl;
+    }
+
+    private static String firstNonBlank(String... candidates) {
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     @AfterMethod(alwaysRun = true)

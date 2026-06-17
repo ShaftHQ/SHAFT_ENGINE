@@ -628,6 +628,8 @@ jobs:
     env:
       LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
+      LT_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -643,6 +645,46 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: 'lts/*'
+      - name: Verify LambdaTest credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${LAMBDATEST_USERNAME:-}" ] || [ -z "${LAMBDATEST_ACCESS_KEY:-}" ]; then
+            echo "::error::LambdaTest credentials are not configured in repository secrets."
+            exit 1
+          fi
+          echo "::add-mask::${LAMBDATEST_USERNAME}"
+          echo "::add-mask::${LAMBDATEST_ACCESS_KEY}"
+          {
+            echo "LT_USERNAME=${LAMBDATEST_USERNAME}"
+            echo "LT_ACCESS_KEY=${LAMBDATEST_ACCESS_KEY}"
+          } >> "$GITHUB_ENV"
+          echo "LambdaTest credentials are configured for this job."
+      - name: Upload LambdaTest Android app
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="${RUNNER_TEMP}/lambdatest-android-app.json"
+          curl --fail --silent --show-error \
+            --user "${LAMBDATEST_USERNAME}:${LAMBDATEST_ACCESS_KEY}" \
+            --request POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+            --form "appFile=@shaft-engine/src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" \
+            --form "name=shaft-engine_ApiDemos-debug.apk" \
+            --output "${response_file}"
+          app_url=$(python3 - "${response_file}" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as response:
+              payload = json.load(response)
+          print(payload.get("app_url", ""))
+          PY
+          )
+          if [ -z "${app_url}" ]; then
+            echo "::error::LambdaTest Android app upload did not return an app_url."
+            exit 1
+          fi
+          echo "LAMBDATEST_ANDROID_APP_URL=${app_url}" >> "$GITHUB_ENV"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTMobAPK*.*]"
@@ -659,6 +701,8 @@ jobs:
     env:
       LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
+      LT_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
     needs: [ LambdaTest_NativeAndroid ]
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
@@ -675,6 +719,46 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: 'lts/*'
+      - name: Verify LambdaTest credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${LAMBDATEST_USERNAME:-}" ] || [ -z "${LAMBDATEST_ACCESS_KEY:-}" ]; then
+            echo "::error::LambdaTest credentials are not configured in repository secrets."
+            exit 1
+          fi
+          echo "::add-mask::${LAMBDATEST_USERNAME}"
+          echo "::add-mask::${LAMBDATEST_ACCESS_KEY}"
+          {
+            echo "LT_USERNAME=${LAMBDATEST_USERNAME}"
+            echo "LT_ACCESS_KEY=${LAMBDATEST_ACCESS_KEY}"
+          } >> "$GITHUB_ENV"
+          echo "LambdaTest credentials are configured for this job."
+      - name: Upload LambdaTest iOS app
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="${RUNNER_TEMP}/lambdatest-ios-app.json"
+          curl --fail --silent --show-error \
+            --user "${LAMBDATEST_USERNAME}:${LAMBDATEST_ACCESS_KEY}" \
+            --request POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+            --form "appFile=@shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa" \
+            --form "name=shaft-engine_BStackSampleApp.ipa" \
+            --output "${response_file}"
+          app_url=$(python3 - "${response_file}" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as response:
+              payload = json.load(response)
+          print(payload.get("app_url", ""))
+          PY
+          )
+          if [ -z "${app_url}" ]; then
+            echo "::error::LambdaTest iOS app upload did not return an app_url."
+            exit 1
+          fi
+          echo "LAMBDATEST_IOS_APP_URL=${app_url}" >> "$GITHUB_ENV"
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTMobIPA*.*]"
@@ -691,6 +775,8 @@ jobs:
     env:
       LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
+      LT_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
@@ -707,6 +793,21 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: 'lts/*'
+      - name: Verify LambdaTest credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${LAMBDATEST_USERNAME:-}" ] || [ -z "${LAMBDATEST_ACCESS_KEY:-}" ]; then
+            echo "::error::LambdaTest credentials are not configured in repository secrets."
+            exit 1
+          fi
+          echo "::add-mask::${LAMBDATEST_USERNAME}"
+          echo "::add-mask::${LAMBDATEST_ACCESS_KEY}"
+          {
+            echo "LT_USERNAME=${LAMBDATEST_USERNAME}"
+            echo "LT_ACCESS_KEY=${LAMBDATEST_ACCESS_KEY}"
+          } >> "$GITHUB_ENV"
+          echo "LambdaTest credentials are configured for this job."
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTWebApp*.*]"
@@ -723,6 +824,8 @@ jobs:
     env:
       LAMBDATEST_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
+      LT_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
+      LT_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
@@ -739,6 +842,21 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: 'lts/*'
+      - name: Verify LambdaTest credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${LAMBDATEST_USERNAME:-}" ] || [ -z "${LAMBDATEST_ACCESS_KEY:-}" ]; then
+            echo "::error::LambdaTest credentials are not configured in repository secrets."
+            exit 1
+          fi
+          echo "::add-mask::${LAMBDATEST_USERNAME}"
+          echo "::add-mask::${LAMBDATEST_ACCESS_KEY}"
+          {
+            echo "LT_USERNAME=${LAMBDATEST_USERNAME}"
+            echo "LT_ACCESS_KEY=${LAMBDATEST_ACCESS_KEY}"
+          } >> "$GITHUB_ENV"
+          echo "LambdaTest credentials are configured for this job."
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=lambdatest" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*Test_LTDesktopWeb.*], %regex[.*LambdaTestHelperUnitTest.*], %regex[.*LambdaTestSetPropertyCoverageUnitTest.*]"
