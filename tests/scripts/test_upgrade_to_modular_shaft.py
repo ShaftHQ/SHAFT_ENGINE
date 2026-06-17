@@ -382,10 +382,11 @@ class UpgradeToModularShaftTests(unittest.TestCase):
             self.assertFalse(created.exists())
 
     def test_windows_custom_command_strips_surrounding_executable_quotes(self):
+        project_root = Path.cwd()
         with mock.patch.object(upgrade.os, "name", "nt"):
             command = upgrade.parse_compile_command(
                 '"C:\\Program Files\\Maven\\mvn.cmd" test-compile',
-                Path.cwd(),
+                project_root,
             )
         self.assertEqual(command[0], "C:\\Program Files\\Maven\\mvn.cmd")
         self.assertEqual(command[1], "test-compile")

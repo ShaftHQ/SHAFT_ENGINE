@@ -4,13 +4,18 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import json
 import re
 import sys
-import tomllib
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 in GitHub Actions.
+    tomllib = None
 
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
@@ -68,6 +73,21 @@ def scan_bytes(label: str, content: bytes) -> list[str]:
         if pattern.search(content):
             errors.append(f"{label}: contains a credential-shaped value")
     return errors
+
+
+def validate_toml_bytes(content: bytes) -> None:
+    """Validate TOML with stdlib-only fallback for Python 3.10 CI."""
+    text_content = content.decode("utf-8")
+    if tomllib is not None:
+        tomllib.loads(text_content)
+        return
+
+    # ponytail: fixtures use simple TOML; use stdlib parsing until CI runs 3.11+.
+    parser = configparser.ConfigParser()
+    try:
+        parser.read_string(text_content if text_content.lstrip().startswith("[") else f"[root]\n{text_content}")
+    except configparser.Error as error:
+        raise ValueError(str(error)) from error
 
 
 def validate_static(root: Path = ROOT) -> list[str]:
@@ -134,8 +154,8 @@ def validate_static(root: Path = ROOT) -> list[str]:
                 errors.append(f"{path.relative_to(root)}: invalid JSON: {error}")
         if path.suffix == ".toml":
             try:
-                tomllib.loads(content.decode("utf-8"))
-            except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+                validate_toml_bytes(content)
+            except (UnicodeDecodeError, ValueError) as error:
                 errors.append(f"{path.relative_to(root)}: invalid TOML: {error}")
 
     workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(
