@@ -823,12 +823,12 @@ public class Actions extends ElementActions {
             } else {
                 screenshot = takeAIHighlightedScreenshot(element, isPass);
                 // append screenshot to animated gif
-                AnimatedGifManager.startOrAppendToAnimatedGif(screenshot);
+                AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
             }
         } else {
             screenshot = takeScreenshot(element);
             // append screenshot to animated gif
-            AnimatedGifManager.startOrAppendToAnimatedGif(screenshot);
+            AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
         }
 
         return screenshot;
@@ -934,7 +934,7 @@ public class Actions extends ElementActions {
         byte[] src = takeScreenshot(element);
 
         //append highlighted element screenshot to GIF
-        AnimatedGifManager.startOrAppendToAnimatedGif(src);
+        AnimatedGifManager.startOrAppendToAnimatedGif(src, SHAFT.Properties.visuals.screenshotParamsWatermark());
         //resetElementStyle
         if (SHAFT.Properties.visuals.screenshotParamsHighlightMethod().equals("JavaScript") && js != null) {
             js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);

@@ -3,6 +3,8 @@ package com.shaft.gui.internal.image;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -24,16 +26,13 @@ import java.nio.file.Path;
 public class AnimatedGifManagerCoverageUnitTest {
     private static final FileActions FILE_ACTIONS = FileActions.getInstance(true);
     private static final Path TEMP_BASE = Path.of("target", "temp", "animatedGifManagerCoverageUnitTest");
-    private static final String GIF_WRITER_FIELD = "gifWriter";
-    private static final String IMAGE_WRITE_PARAM_FIELD = "imageWriteParam";
-    private static final String IMAGE_METADATA_FIELD = "imageMetaData";
-    private static final String GIF_MANAGER_FIELD = "gifManager";
+    private static final String GIF_SESSION_FIELD = "gifSession";
     private static final String GIF_PATH_FIELD = "gifRelativePathWithFileName";
-    private static final String GIF_OUTPUT_STREAM_FIELD = "gifOutputStream";
 
     private boolean originalCreateAnimatedGif;
     private String originalAllureResults;
     private boolean originalWatermark;
+    private int originalAnimatedGifFrameDelay;
     private Path tempRoot;
     private Path allureResults;
 
@@ -42,6 +41,7 @@ public class AnimatedGifManagerCoverageUnitTest {
         originalCreateAnimatedGif = SHAFT.Properties.visuals.createAnimatedGif();
         originalAllureResults = SHAFT.Properties.paths.allureResults();
         originalWatermark = SHAFT.Properties.visuals.screenshotParamsWatermark();
+        originalAnimatedGifFrameDelay = SHAFT.Properties.visuals.animatedGifFrameDelay();
 
         tempRoot = TEMP_BASE.resolve(method.getName() + "-" + Thread.currentThread().threadId());
         allureResults = tempRoot.resolve("allure-results");
@@ -54,11 +54,12 @@ public class AnimatedGifManagerCoverageUnitTest {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
+        clearAnimatedGifState();
         SHAFT.Properties.visuals.set()
                 .createAnimatedGif(originalCreateAnimatedGif)
-                .screenshotParamsWatermark(originalWatermark);
+                .screenshotParamsWatermark(originalWatermark)
+                .animatedGifFrameDelay(originalAnimatedGifFrameDelay);
         SHAFT.Properties.paths.set().allureResults(originalAllureResults);
-        clearAnimatedGifState();
         if (tempRoot != null) {
             FILE_ACTIONS.deleteFolder(tempRoot.toString());
         }
@@ -98,6 +99,33 @@ public class AnimatedGifManagerCoverageUnitTest {
 
         String gifPath = AnimatedGifManager.attachAnimatedGif();
         Assert.assertFalse(gifPath.isEmpty(), "Expected GIF to remain attachable after invalid append.");
+    }
+
+    @Test
+    public void invalidFirstFrameShouldNotPreventLaterValidFrame() {
+        AnimatedGifManager.startOrAppendToAnimatedGif("invalid-image".getBytes(StandardCharsets.UTF_8));
+        AnimatedGifManager.startOrAppendToAnimatedGif(createPng(30, 30, Color.GREEN));
+
+        String gifPath = AnimatedGifManager.attachAnimatedGif();
+        Assert.assertFalse(gifPath.isEmpty(), "Expected later valid frame to create an attachable GIF.");
+        Assert.assertTrue(new File(gifPath).exists(), "Expected generated GIF file to exist.");
+    }
+
+    @Test
+    public void prepareFrameShouldApplyWatermarkOnlyWhenNeeded() throws IOException {
+        byte[] screenshot = createPng(30, 30, Color.GREEN);
+
+        try (MockedStatic<ScreenshotHelper> screenshotHelper = Mockito.mockStatic(ScreenshotHelper.class)) {
+            BufferedImage alreadyWatermarked = AnimatedGifManager.prepareFrame(screenshot, false);
+            Assert.assertNotNull(alreadyWatermarked);
+            screenshotHelper.verify(() -> ScreenshotHelper.overlayShaftEngineLogo(Mockito.any(BufferedImage.class)), Mockito.never());
+
+            screenshotHelper.when(() -> ScreenshotHelper.overlayShaftEngineLogo(Mockito.any(BufferedImage.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+            BufferedImage needsWatermark = AnimatedGifManager.prepareFrame(screenshot, true);
+            Assert.assertNotNull(needsWatermark);
+            screenshotHelper.verify(() -> ScreenshotHelper.overlayShaftEngineLogo(Mockito.any(BufferedImage.class)), Mockito.times(1));
+        }
     }
 
     @Test
@@ -145,27 +173,9 @@ public class AnimatedGifManagerCoverageUnitTest {
 
     private static void clearAnimatedGifState() {
         try {
-            clearThreadLocal(GIF_WRITER_FIELD);
-            clearThreadLocal(IMAGE_WRITE_PARAM_FIELD);
-            clearThreadLocal(IMAGE_METADATA_FIELD);
-            clearThreadLocal(GIF_MANAGER_FIELD);
+            AnimatedGifManager.attachAnimatedGif();
+            clearThreadLocal(GIF_SESSION_FIELD);
             clearThreadLocal(GIF_PATH_FIELD);
-
-            Field outputStreamField = AnimatedGifManager.class.getDeclaredField(GIF_OUTPUT_STREAM_FIELD);
-            outputStreamField.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            ThreadLocal<ImageOutputStream> outputStreamThreadLocal = (ThreadLocal<ImageOutputStream>) outputStreamField.get(null);
-            ImageOutputStream outputStream = outputStreamThreadLocal.get();
-            if (outputStream != null) {
-                try {
-                    outputStream.close();
-                } catch (IOException e) {
-                    if (!"closed".equalsIgnoreCase(e.getMessage())) {
-                        throw e;
-                    }
-                }
-            }
-            outputStreamThreadLocal.remove();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
