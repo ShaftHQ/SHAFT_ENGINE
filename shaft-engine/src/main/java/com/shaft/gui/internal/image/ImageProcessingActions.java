@@ -130,6 +130,21 @@ public class ImageProcessingActions {
             throw new IllegalArgumentException("Failed to decode screenshot bytes.");
         }
 
+        // JPEG cannot encode an alpha channel: ImageIO.write(.., "jpg", ..) silently returns false
+        // and produces an empty byte[] for an alpha-bearing image. Native mobile-app screenshots
+        // (PNG) decode with alpha, so the highlighted screenshot would come back empty and be
+        // dropped from the report. Flatten onto an opaque RGB raster before drawing/encoding.
+        if (image.getColorModel().hasAlpha()) {
+            BufferedImage opaqueImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+            Graphics2D flatten = opaqueImage.createGraphics();
+            try {
+                flatten.drawImage(image, 0, 0, null);
+            } finally {
+                flatten.dispose();
+            }
+            image = opaqueImage;
+        }
+
         int outlineThickness = 5;
         double elementHeight = elementLocation.getHeight();
         double elementWidth = elementLocation.getWidth();

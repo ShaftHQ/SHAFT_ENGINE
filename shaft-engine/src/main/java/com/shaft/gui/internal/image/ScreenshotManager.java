@@ -219,28 +219,38 @@ public class ScreenshotManager {
                 elementLocation = elementInformation.getElementRect();
             }
         }
+        byte[] src;
         try {
             //takeScreenshot
-            byte[] src = takeScreenshot(driver, elementLocator);
-            //highlightElement using OpenCV
-            if (elementLocation != null) {
+            src = takeScreenshot(driver, elementLocator);
+        } catch (WebDriverException e) {
+            // we genuinely failed to capture a screenshot — nothing to report
+            ReportManagerHelper.logDiscrete(e);
+            return new byte[0];
+        }
+        //highlightElement (best-effort): a highlighting failure must never discard a captured
+        //screenshot. The highlight step can throw a non-WebDriverException, or return an
+        //empty/null array (e.g. an image it cannot re-encode), so only adopt its result when it
+        //actually produced bytes; otherwise keep the un-highlighted screenshot.
+        if (elementLocation != null) {
+            try {
                 Color color;
                 if (isPass) {
                     color = new Color(67, 176, 42); // selenium-green
                 } else {
                     color = new Color(255, 255, 153); // yellow
                 }
-                src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                if (highlighted != null && highlighted.length > 0) {
+                    src = highlighted;
+                }
+            } catch (Exception highlightFailure) {
+                ReportManagerHelper.logDiscrete(highlightFailure);
             }
-            //append highlighted element to GIF
-            AnimatedGifManager.startOrAppendToAnimatedGif(src);
-            return src;
-        } catch (WebDriverException e) {
-            // in case we failed to take a screenshot
-            ReportManagerHelper.logDiscrete(e);
         }
-        //return an empty byteArray if no screenshot was needed or if we failed to take it
-        return new byte[0];
+        //append (highlighted or plain) screenshot to GIF
+        AnimatedGifManager.startOrAppendToAnimatedGif(src);
+        return src;
     }
 
     private byte[] takeJavaScriptHighlightedScreenshot(WebDriver driver, By elementLocator, boolean isPass) {

@@ -248,6 +248,45 @@ public class ScreenshotManagerCoverageUnitTest {
         }
     }
 
+    @Test
+    public void aiHighlightFailureShouldFallBackToUnhighlightedScreenshot() {
+        // Regression for the native-mobile highlight bug: when
+        // ImageProcessingActions.highlightElementInScreenshot throws a
+        // non-WebDriverException (e.g. an image decode/draw/encode failure on a
+        // native app screenshot), the captured screenshot must still be reported
+        // un-highlighted instead of being silently dropped as an empty byte[].
+        SHAFT.Properties.reporting.set().disableLogging(true);
+        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
+        SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
+        SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
+        SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = mock(WebElement.class);
+        when(element.getScreenshotAs(OutputType.BYTES)).thenReturn(createPng(12, 12, Color.BLACK));
+
+        try (MockedConstruction<ElementActionsHelper> ignored = Mockito.mockConstruction(ElementActionsHelper.class,
+                (mock, context) -> when(mock.identifyUniqueElementIgnoringVisibility(any(WebDriver.class), any(By.class)))
+                        .thenReturn(List.of(1, element, By.id("x"), "", "", "", "", new Rectangle(2, 2, 5, 5))));
+             MockedStatic<ScreenshotHelper> screenshotHelperMocked = Mockito.mockStatic(ScreenshotHelper.class);
+             MockedStatic<AnimatedGifManager> animatedGifMocked = Mockito.mockStatic(AnimatedGifManager.class);
+             MockedStatic<ImageProcessingActions> imageProcessingMocked = Mockito.mockStatic(ImageProcessingActions.class)) {
+            byte[] viewport = createPng(30, 30, Color.GREEN);
+            screenshotHelperMocked.when(() -> ScreenshotHelper.takeViewportScreenshot(any(WebDriver.class), anyInt()))
+                    .thenReturn(viewport);
+            animatedGifMocked.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(i -> null);
+            imageProcessingMocked.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), any(Color.class)))
+                    .thenThrow(new IllegalArgumentException("Failed to decode screenshot bytes."));
+
+            ScreenshotManager manager = new ScreenshotManager();
+            byte[] result = manager.internalCaptureScreenshot(driver, By.id("x"), true);
+
+            Assert.assertTrue(result.length > 0, "a highlight failure must not drop the captured screenshot");
+            Assert.assertTrue(Arrays.equals(result, viewport), "should fall back to the un-highlighted viewport screenshot");
+        }
+    }
+
     private byte[] createPng(int width, int height, Color color) {
         try {
             BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
