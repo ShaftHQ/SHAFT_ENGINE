@@ -37,20 +37,9 @@ inputs:
     required: false
     default: ''
   coverage-files:
-    description: 'Candidate JaCoCo XML files to upload'
+    description: 'Candidate JaCoCo XML files to upload. Defaults to the module required report.'
     required: false
-    default: |-
-      ./target/jacoco/jacoco.xml,
-      ./shaft-engine/target/jacoco/jacoco.xml,
-      ./shaft-pilot-core/target/jacoco/jacoco.xml,
-      ./shaft-capture/target/jacoco/jacoco.xml,
-      ./shaft-doctor/target/jacoco/jacoco.xml,
-      ./shaft-ai/target/jacoco/jacoco.xml,
-      ./shaft-heal/target/jacoco/jacoco.xml,
-      ./shaft-browserstack/target/jacoco/jacoco.xml,
-      ./shaft-video/target/jacoco/jacoco.xml,
-      ./shaft-visual/target/jacoco/jacoco.xml,
-      ./shaft-mcp/target/jacoco/jacoco.xml
+    default: ''
   require-coverage:
     description: 'Whether JaCoCo coverage is expected and should be required for this module'
     required: false

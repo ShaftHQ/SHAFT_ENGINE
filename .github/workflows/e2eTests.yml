@@ -755,7 +755,11 @@ jobs:
     permissions:
       contents: read
     env:
+      MOON_NAMESPACE: moon
+      MOON_RELEASE: moon
+      MOON_PORT: '4444'
       MOON_URL: http://localhost:4444/wd/hub
+      MOON_CHART_VERSION: ''
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -774,6 +778,14 @@ jobs:
           cluster_name: moon
           wait: 120s
 
+      - name: Verify Kubernetes Cluster
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl cluster-info
+          kubectl wait --for=condition=Ready nodes --all --timeout=120s
+          kubectl get nodes -o wide
+
       - name: Setup Helm
         uses: azure/setup-helm@v5.0.0
         with:
@@ -782,30 +794,40 @@ jobs:
       - name: Install Moon
         shell: bash
         run: |
+          set -euo pipefail
           helm repo add aerokube https://charts.aerokube.com/
           helm repo update
-          helm upgrade --install moon aerokube/moon2 \
-            --create-namespace \
-            --namespace moon \
-            --version "${MOON_CHART_VERSION}" \
-            --set deployment.replicas=1 \
-            --set deployment.moonCallbackURL=http://localhost:4444
-          kubectl -n moon rollout status deployment/moon --timeout=5m
-          kubectl -n moon get pods -o wide
+
+          chart_args=(
+            --create-namespace
+            --namespace "${MOON_NAMESPACE}"
+            --set deployment.replicas=1
+            --set "deployment.moonCallbackURL=http://localhost:${MOON_PORT}"
+          )
+          if [ -n "${MOON_CHART_VERSION}" ]; then
+            chart_args+=(--version "${MOON_CHART_VERSION}")
+          fi
+
+          helm upgrade --install "${MOON_RELEASE}" aerokube/moon2 "${chart_args[@]}"
+          kubectl -n "${MOON_NAMESPACE}" rollout status "deployment/${MOON_RELEASE}" --timeout=5m
+          kubectl -n "${MOON_NAMESPACE}" wait --for=condition=Available "deployment/${MOON_RELEASE}" --timeout=120s
+          kubectl -n "${MOON_NAMESPACE}" get all -o wide
 
       - name: Forward Moon WebDriver Port
         shell: bash
         run: |
-          kubectl -n moon port-forward service/moon 4444:4444 > moon-port-forward.log 2>&1 &
+          set -euo pipefail
+          kubectl -n "${MOON_NAMESPACE}" port-forward "service/${MOON_RELEASE}" "${MOON_PORT}:${MOON_PORT}" > moon-port-forward.log 2>&1 &
           echo "$!" > moon-port-forward.pid
 
-          for attempt in {1..45}; do
+          for attempt in {1..60}; do
             if ! kill -0 "$(cat moon-port-forward.pid)" 2>/dev/null; then
               cat moon-port-forward.log || true
               echo "::error::Moon port-forward process exited before endpoint became available."
               exit 1
             fi
             if curl --max-time 2 -fsS "${MOON_URL%/wd/hub}/status" >/dev/null; then
+              curl --max-time 2 -fsS "${MOON_URL%/wd/hub}/status"
               exit 0
             fi
             sleep 1
@@ -858,10 +880,11 @@ jobs:
         if: always()
         shell: bash
         run: |
-          kubectl -n moon get all || true
-          kubectl -n moon logs deployment/moon -c moon --tail=200 || true
-          kubectl -n moon logs deployment/moon -c moon-conf --tail=200 || true
-          kubectl -n moon logs deployment/moon -c moon-ui --tail=200 || true
+          kubectl -n "${MOON_NAMESPACE}" get all || true
+          kubectl -n "${MOON_NAMESPACE}" describe "deployment/${MOON_RELEASE}" || true
+          kubectl -n "${MOON_NAMESPACE}" logs "deployment/${MOON_RELEASE}" -c moon --tail=200 || true
+          kubectl -n "${MOON_NAMESPACE}" logs "deployment/${MOON_RELEASE}" -c moon-conf --tail=200 || true
+          kubectl -n "${MOON_NAMESPACE}" logs "deployment/${MOON_RELEASE}" -c moon-ui --tail=200 || true
           cat moon-port-forward.log || true
 
       - name: Stop Moon Port Forward
