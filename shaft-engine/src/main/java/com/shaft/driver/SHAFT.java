@@ -545,8 +545,25 @@ public class SHAFT {
          */
         public static TerminalActions remoteTerminal(String sshHostName, int sshPortNumber, String sshUsername,
                                                      String sshKeyFileFolderName, String sshKeyFileName) {
+            return remoteTerminal(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName, false);
+        }
+
+        /**
+         * Creates a reusable remote terminal that optionally streams command output lines
+         * to discrete logs while the remote command is still running.
+         *
+         * @param sshHostName          the IP address or host name for the remote machine
+         * @param sshPortNumber        the SSH service port on the target machine
+         * @param sshUsername          the username used to access the target machine
+         * @param sshKeyFileFolderName the directory that holds the SSH key file
+         * @param sshKeyFileName       the SSH key file name
+         * @param verbose              when {@code true}, each output line is logged as it is read
+         * @return a reusable remote {@link TerminalActions} instance
+         */
+        public static TerminalActions remoteTerminal(String sshHostName, int sshPortNumber, String sshUsername,
+                                                     String sshKeyFileFolderName, String sshKeyFileName, boolean verbose) {
             return TerminalActions.getRemoteInstance(sshHostName, sshPortNumber, sshUsername,
-                    sshKeyFileFolderName, sshKeyFileName);
+                    sshKeyFileFolderName, sshKeyFileName, verbose);
         }
 
         /**

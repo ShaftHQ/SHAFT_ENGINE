@@ -152,6 +152,23 @@ public class TerminalActionsUnitTest {
                 "Facade-created remote terminal should enable reusable SSH session lifecycle");
     }
 
+    @Test(description = "verbose remote terminal overloads should create reusable remote instances")
+    public void verboseRemoteTerminalOverloadsShouldCreateRemoteInstances() {
+        TerminalActions defaultRemoteTerminal = SHAFT.CLI.remoteTerminal(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa");
+        TerminalActions verboseFacadeTerminal = SHAFT.CLI.remoteTerminal(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa", true);
+        TerminalActions verboseFactoryTerminal = TerminalActions.getRemoteInstance(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa", true);
+
+        Assert.assertTrue(defaultRemoteTerminal.isRemoteTerminal(),
+                "Default remoteTerminal() should create a remote instance");
+        Assert.assertTrue(verboseFacadeTerminal.isRemoteTerminal(),
+                "Verbose remoteTerminal() should create a remote instance");
+        Assert.assertTrue(verboseFactoryTerminal.isRemoteTerminal(),
+                "Verbose getRemoteInstance() should create a remote instance");
+    }
+
     @Test(description = "quit should be safe before any reusable SSH connection is opened")
     public void quitShouldBeSafeBeforeReusableRemoteConnection() {
         TerminalActions terminal = SHAFT.CLI.remoteTerminal(
@@ -452,6 +469,13 @@ public class TerminalActionsUnitTest {
 
         String nullReaderLogs = (String) readConsoleLogs.invoke(terminal, new Object[]{null});
         Assert.assertEquals(nullReaderLogs, "");
+
+        TerminalActions verboseTerminal = TerminalActions.getRemoteInstance(
+                "host.example.com", 22, "user", "/keys/", "id_rsa", true);
+        String verboseLogs = (String) readConsoleLogs.invoke(verboseTerminal,
+                new BufferedReader(new StringReader("stream-line-1" + System.lineSeparator() + "stream-line-2")));
+        Assert.assertTrue(verboseLogs.contains("stream-line-1"));
+        Assert.assertTrue(verboseLogs.contains("stream-line-2"));
     }
 
     @Test(description = "reportActionResult should format pass and fail messages for different attachment shapes")
