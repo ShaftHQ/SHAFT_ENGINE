@@ -144,7 +144,7 @@ public class PropertyFileManagerUnitTest {
     }
 
     @Test(description = "getLogFilePath should not resolve Log4j placeholder indirection to an empty path")
-    public void getLogFilePath_fallsBackWhenLog4jPlaceholderResolvesBlank() {
+    public void getLogFilePathFallsBackWhenLog4jPlaceholderResolvesBlank() {
         String originalAppenderFileName = System.getProperty("appender.file.fileName");
         String originalLogFilePath = System.getProperty("logFilePath");
         String originalShaftLogFile = System.getProperty("shaft.log.file");

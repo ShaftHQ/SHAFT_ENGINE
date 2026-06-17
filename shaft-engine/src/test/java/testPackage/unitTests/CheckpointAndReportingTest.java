@@ -17,6 +17,7 @@ import static org.testng.Assert.*;
  * Verifies that validations correctly increment the checkpoint counter
  * and that the checkpoints report is generated with the right data.
  */
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration")
 public class CheckpointAndReportingTest {
 
     private static final Field CHECKPOINTS_FIELD;

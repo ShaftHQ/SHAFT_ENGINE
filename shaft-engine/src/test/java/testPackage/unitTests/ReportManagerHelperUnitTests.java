@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Test(singleThreaded = true)
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration")
 public class ReportManagerHelperUnitTests {
 
     @BeforeMethod(alwaysRun = true)

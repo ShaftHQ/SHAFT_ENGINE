@@ -11,7 +11,8 @@ from pathlib import Path
 MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "mcp" / "install_shaft_mcp.py"
 SPEC = importlib.util.spec_from_file_location("install_shaft_mcp", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader
+if SPEC.loader is None:
+    raise ImportError(f"Unable to load {MODULE_PATH}")
 SPEC.loader.exec_module(MODULE)
 
 
