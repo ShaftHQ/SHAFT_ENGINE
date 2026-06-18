@@ -13,6 +13,7 @@ import org.openqa.selenium.MutableCapabilities;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.net.URI;
 import java.net.URL;
 import java.util.*;
@@ -29,6 +30,8 @@ public final class PropertyFileManager {
     private static final String LOG4J_PROPERTIES_FILE = "log4j2.properties";
     private static final String LOG4J_FILE_APPENDER_SYSTEM_PROPERTY = "shaft.log.file";
     private static final String DEFAULT_LOG_FILE_PATH = "target/logs/log4j.log";
+    private static final String DEFAULT_PROPERTIES_CLASSPATH_RESOURCE = "/resources/properties/default/";
+    private static final String CUSTOM_PROPERTIES_FILE = "custom.properties";
 
     private PropertyFileManager() {
         throw new IllegalStateException("Utility class");
@@ -136,7 +139,61 @@ public final class PropertyFileManager {
         if (!new File(log4jConfigPath).isFile()) {
             log4jConfigPath = appendFileName(paths.defaultProperties(), LOG4J_PROPERTIES_FILE);
         }
-        return log4jConfigPath;
+        if (!new File(log4jConfigPath).isFile()) {
+            log4jConfigPath = appendFileName(resolveBundledDefaultPropertiesFolderPath(), LOG4J_PROPERTIES_FILE);
+        }
+        return Path.of(log4jConfigPath).toAbsolutePath().normalize().toString();
+    }
+
+    /**
+     * Resolves the bundled default properties folder from the runtime classpath.
+     *
+     * @return an absolute filesystem path when running from compiled classes, a jar URL for
+     *         external runs, or the module-relative default folder when the resource is absent
+     */
+    public static String resolveBundledDefaultPropertiesFolderPath() {
+        URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_CLASSPATH_RESOURCE);
+        if (propertiesFolder != null) {
+            return resolveClasspathResourceLocation(propertiesFolder);
+        }
+        return appendFileName(CUSTOM_PROPERTIES_FOLDER_PATH, "default");
+    }
+
+    /**
+     * Resolves the bundled {@code custom.properties} template used during engine bootstrap.
+     *
+     * @return the preferred on-disk template path when present, otherwise the classpath location
+     */
+    public static String resolveCustomPropertiesTemplatePath() {
+        String bundledTemplatePath = appendFileName(
+                appendFileName(CUSTOM_PROPERTIES_FOLDER_PATH, "default"),
+                CUSTOM_PROPERTIES_FILE);
+        if (new File(bundledTemplatePath).isFile()) {
+            return bundledTemplatePath;
+        }
+        return appendFileName(resolveBundledDefaultPropertiesFolderPath(), CUSTOM_PROPERTIES_FILE);
+    }
+
+    /**
+     * Converts a classpath resource URL into a filesystem or jar location string.
+     *
+     * @param resourceUrl classpath resource URL
+     * @return resolved location suitable for {@link FileActions} copy helpers
+     */
+    public static String resolveClasspathResourceLocation(URL resourceUrl) {
+        if (resourceUrl == null) {
+            return appendFileName(CUSTOM_PROPERTIES_FOLDER_PATH, "default");
+        }
+        if ("jar".equalsIgnoreCase(resourceUrl.getProtocol())) {
+            return resourceUrl.toString();
+        }
+        try {
+            return Path.of(resourceUrl.toURI()).toString();
+        } catch (java.net.URISyntaxException uriSyntaxException) {
+            ReportManager.logDiscrete("Could not resolve classpath resource path: "
+                    + resourceUrl + ". Falling back to legacy path resolution.", Level.DEBUG);
+            return resourceUrl.getFile();
+        }
     }
 
     /**

@@ -228,10 +228,12 @@ public class ReportManagerHelper {
             FileActions.getInstance(true).deleteFile(logFilePath);
         }
         System.setProperty(LOG4J_LOG_FILE_SYSTEM_PROPERTY, logFilePath);
-        if (legacyLog4jConfigured.compareAndSet(false, true)) {
+        String log4jConfigPath = PropertyFileManager.getLog4jConfigPath();
+        if (new File(log4jConfigPath).isFile()) {
+            Configurator.initialize(null, log4jConfigPath);
+        } else if (legacyLog4jConfigured.compareAndSet(false, true)) {
             BasicConfigurator.configure();
         }
-        Configurator.initialize(null, PropertyFileManager.getLog4jConfigPath());
         configuredLogFilePath.set(logFilePath);
         logger = LogManager.getLogger(ReportManager.class.getName());
     }
@@ -742,10 +744,12 @@ public class ReportManagerHelper {
             String normalizedLogText = normalizeLogText(logText);
             String log = REPORT_MANAGER_PREFIX + normalizedLogText + " @" + timestamp;
             Reporter.log(log, false);
-            if (logger == null) {
+            if (logger == null && com.shaft.properties.internal.Properties.isInitialized()) {
                 initializeLogger();
             }
-            logger.log(loglevel, normalizedLogText);
+            if (logger != null) {
+                logger.log(loglevel, normalizedLogText);
+            }
             createDebugCompanionLogEntry(normalizedLogText, loglevel);
             writeToDebugLogFileIfEnabled(normalizedLogText, loglevel);
         }
@@ -758,10 +762,12 @@ public class ReportManagerHelper {
             String log = REPORT_MANAGER_PREFIX + normalizedLogText + " @" + timestamp;
             Reporter.log(log, false);
             if (addToConsoleLog) {
-                if (logger == null) {
+                if (logger == null && com.shaft.properties.internal.Properties.isInitialized()) {
                     initializeLogger();
                 }
-                logger.log(Level.INFO, normalizedLogText);
+                if (logger != null) {
+                    logger.log(Level.INFO, normalizedLogText);
+                }
                 createDebugCompanionLogEntry(normalizedLogText, Level.INFO);
                 writeToDebugLogFileIfEnabled(normalizedLogText, Level.INFO);
             }
@@ -997,9 +1003,23 @@ public class ReportManagerHelper {
     public static void cleanExecutionSummaryReportDirectory() {
         if (SHAFT.Properties.reporting.cleanSummaryReportsDirectoryBeforeExecution()) {
             ReportManager.logDiscrete("Preparing the execution summary report directory.");
-            String executionSummaryReportFolderPath = SHAFT.Properties.paths.executionSummaryReport();
-            FileActions.getInstance(true).deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
+            String normalizedFolderPath = normalizeConfiguredFolderPath(SHAFT.Properties.paths.executionSummaryReport());
+            if (normalizedFolderPath.isBlank()) {
+                return;
+            }
+            FileActions.getInstance(true).deleteFolder(normalizedFolderPath);
         }
+    }
+
+    private static String normalizeConfiguredFolderPath(String folderPath) {
+        if (folderPath == null || folderPath.isBlank()) {
+            return "";
+        }
+        char lastCharacter = folderPath.charAt(folderPath.length() - 1);
+        if (lastCharacter == '/' || lastCharacter == '\\') {
+            return folderPath.substring(0, folderPath.length() - 1);
+        }
+        return folderPath;
     }
 
     public static void openExecutionSummaryReportAfterExecution() {

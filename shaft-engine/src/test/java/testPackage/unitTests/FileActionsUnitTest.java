@@ -92,4 +92,14 @@ public class FileActionsUnitTest {
         testFileActions.deleteFile(TEMP_DIR.resolve("f.txt").toString());
         Assert.assertFalse(testFileActions.doesFileExist(TEMP_DIR.resolve("f.txt").toString()));
     }
+
+    @Test
+    public void deleteFileShouldRejectWorkingDirectoryAndAncestorPaths() {
+        String userDirectory = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize().toString();
+        testFileActions.deleteFile(".");
+        testFileActions.deleteFile("..");
+        testFileActions.deleteFile(userDirectory);
+        Assert.assertTrue(Path.of(userDirectory).toFile().isDirectory(),
+                "Working directory should remain after protected delete attempts.");
+    }
 }
