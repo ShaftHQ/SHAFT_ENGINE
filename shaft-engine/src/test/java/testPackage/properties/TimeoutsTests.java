@@ -14,6 +14,7 @@ public class TimeoutsTests {
     int apiConnectionTimeout;
     int apiConnectionManagerTimeout;
     long shellSessionTimeout;
+    int sshServerAliveInterval;
     int dockerCommandTimeout;
     int databaseLoginTimeout;
     int databaseNetworkTimeout;
@@ -34,6 +35,7 @@ public class TimeoutsTests {
         apiConnectionTimeout = SHAFT.Properties.timeouts.apiConnectionTimeout();
         apiConnectionManagerTimeout = SHAFT.Properties.timeouts.apiConnectionManagerTimeout();
         shellSessionTimeout = SHAFT.Properties.timeouts.shellSessionTimeout();
+        sshServerAliveInterval = SHAFT.Properties.timeouts.sshServerAliveInterval();
         dockerCommandTimeout = SHAFT.Properties.timeouts.dockerCommandTimeout();
         databaseNetworkTimeout = SHAFT.Properties.timeouts.databaseLoginTimeout();
         databaseLoginTimeout = SHAFT.Properties.timeouts.databaseLoginTimeout();
@@ -54,6 +56,7 @@ public class TimeoutsTests {
         SHAFT.Properties.timeouts.set().apiConnectionTimeout(apiConnectionTimeout);
         SHAFT.Properties.timeouts.set().apiConnectionManagerTimeout(apiConnectionManagerTimeout);
         SHAFT.Properties.timeouts.set().shellSessionTimeout(shellSessionTimeout);
+        SHAFT.Properties.timeouts.set().sshServerAliveInterval(sshServerAliveInterval);
         SHAFT.Properties.timeouts.set().dockerCommandTimeout(dockerCommandTimeout);
         SHAFT.Properties.timeouts.set().databaseNetworkTimeout(databaseNetworkTimeout);
         SHAFT.Properties.timeouts.set().databaseLoginTimeout(databaseLoginTimeout);

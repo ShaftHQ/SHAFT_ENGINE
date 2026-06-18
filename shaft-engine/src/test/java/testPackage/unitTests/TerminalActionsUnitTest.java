@@ -566,13 +566,24 @@ public class TerminalActionsUnitTest {
                 "Returned command output should remain available for assertions");
     }
 
-    @Test(description = "Remote SSH keep-alive should use sixty-second JSch server alive interval")
-    public void remoteSshKeepAliveShouldUseSixtySecondServerAliveInterval() throws JSchException {
-        // Mirrors TerminalActions.createSSHsession(), which sets this interval before connect().
-        Session session = new JSch().getSession("user", "host.example.com", 22);
-        session.setServerAliveInterval(60_000);
-        Assert.assertEquals(session.getServerAliveInterval(), 60_000,
-                "Remote SSH sessions should send keep-alive packets every 60 seconds");
+    @Test(description = "Remote SSH keep-alive should use configured sshServerAliveInterval timeout")
+    public void remoteSshKeepAliveShouldUseConfiguredSshServerAliveInterval() throws JSchException {
+        int originalInterval = SHAFT.Properties.timeouts.sshServerAliveInterval();
+        try {
+            Assert.assertEquals(SHAFT.Properties.timeouts.sshServerAliveInterval(), 60,
+                    "Default sshServerAliveInterval should be 60 seconds");
+
+            SHAFT.Properties.timeouts.set().sshServerAliveInterval(120);
+            int intervalSeconds = SHAFT.Properties.timeouts.sshServerAliveInterval();
+            Session session = new JSch().getSession("user", "host.example.com", 22);
+            if (intervalSeconds > 0) {
+                session.setServerAliveInterval(intervalSeconds * 1000);
+            }
+            Assert.assertEquals(session.getServerAliveInterval(), 120_000,
+                    "Remote SSH sessions should convert sshServerAliveInterval seconds to JSch milliseconds");
+        } finally {
+            SHAFT.Properties.timeouts.set().sshServerAliveInterval(originalInterval);
+        }
     }
 
     @Test(description = "createSSHsession should surface connection failures for invalid settings")
