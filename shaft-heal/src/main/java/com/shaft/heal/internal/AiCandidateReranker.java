@@ -39,7 +39,7 @@ final class AiCandidateReranker {
 
     RerankResult apply(List<RankedCandidate> candidates) {
         if (!configuration.aiEnabled() || candidates.isEmpty()) {
-            return new RerankResult(candidates, HealingReport.ProviderMetadata.disabled(), false);
+            return new RerankResult(candidates, HealingReport.ProviderMetadata.disabled(), false, false);
         }
         PilotConfiguration pilotConfiguration;
         try {
@@ -81,7 +81,7 @@ final class AiCandidateReranker {
                 location.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-'),
                 "Pilot redaction policy applied before provider execution.");
         if (!response.successful()) {
-            return new RerankResult(candidates, metadata, evidenceLeavesProcess(location));
+            return new RerankResult(candidates, metadata, evidenceLeavesProcess(location), true);
         }
         Map<String, Double> providerScores;
         try {
@@ -96,7 +96,7 @@ final class AiCandidateReranker {
                     location.name(),
                     location.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-'),
                     "Pilot redaction policy applied before provider execution.");
-            return new RerankResult(candidates, rejected, evidenceLeavesProcess(location));
+            return new RerankResult(candidates, rejected, evidenceLeavesProcess(location), true);
         }
 
         List<RankedCandidate> updated = candidates.stream().map(candidate -> {
@@ -125,7 +125,7 @@ final class AiCandidateReranker {
                     oldReport.contextMatched());
             return new RankedCandidate(candidate.element(), candidate.locator(), updatedReport);
         }).toList();
-        return new RerankResult(updated, metadata, evidenceLeavesProcess(location));
+        return new RerankResult(updated, metadata, evidenceLeavesProcess(location), true);
     }
 
     private static Map<String, Double> parse(JsonNode payload, List<RankedCandidate> candidates) {
@@ -192,7 +192,8 @@ final class AiCandidateReranker {
         return new RerankResult(
                 candidates,
                 new HealingReport.ProviderMetadata(true, "none", "", "FALLBACK", reason),
-                false);
+                false,
+                true);
     }
 
     private static ProcessingLocation processingLocation(
@@ -213,6 +214,7 @@ final class AiCandidateReranker {
     record RerankResult(
             List<RankedCandidate> candidates,
             HealingReport.ProviderMetadata metadata,
-            boolean remoteEvidenceSent) {
+            boolean remoteEvidenceSent,
+            boolean applied) {
     }
 }

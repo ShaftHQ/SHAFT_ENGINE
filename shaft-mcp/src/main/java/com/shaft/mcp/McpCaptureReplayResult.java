@@ -11,6 +11,7 @@ import java.util.List;
  * @param sourcePath generated source path
  * @param testDataPath generated test-data path
  * @param reportPath generation report path
+ * @param reviewPath deterministic review path
  * @param successful whether generation and requested validations passed
  * @param codeBlocks copy-paste blocks extracted from generated output
  * @param report deterministic generation report
@@ -20,6 +21,7 @@ public record McpCaptureReplayResult(
         Path sourcePath,
         Path testDataPath,
         Path reportPath,
+        Path reviewPath,
         boolean successful,
         List<McpCodeBlock> codeBlocks,
         CaptureGenerationReport report,

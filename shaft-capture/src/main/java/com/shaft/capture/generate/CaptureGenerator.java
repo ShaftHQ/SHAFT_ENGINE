@@ -204,8 +204,8 @@ public final class CaptureGenerator {
                         CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
                         enrichment);
                 writeReportIfPossible(reportPath, report, request.overwrite());
-                return new CaptureGenerationResult(paths.source(), paths.data(), reportPath,
-                        request.enrichmentPreviewPath(), report);
+                return result(paths.source(), paths.data(), reportPath,
+                        request.enrichmentPreviewPath(), report, request.overwrite());
             }
 
             atomicWrite(paths.source(), source);
@@ -250,12 +250,12 @@ public final class CaptureGenerator {
                         replay,
                         enrichment);
                 atomicWrite(reportPath, writeJson(privacyFailure));
-                return new CaptureGenerationResult(paths.source(), paths.data(), reportPath,
-                        request.enrichmentPreviewPath(), privacyFailure);
+                return result(paths.source(), paths.data(), reportPath,
+                        request.enrichmentPreviewPath(), privacyFailure, request.overwrite());
             }
             atomicWrite(reportPath, reportJson);
-            return new CaptureGenerationResult(paths.source(), paths.data(), reportPath,
-                    request.enrichmentPreviewPath(), report);
+            return result(paths.source(), paths.data(), reportPath,
+                    request.enrichmentPreviewPath(), report, request.overwrite());
         } catch (RuntimeException exception) {
             String sessionId = session == null ? "" : session.sessionId();
             ArtifactPaths safePaths = paths == null
@@ -271,8 +271,8 @@ public final class CaptureGenerator {
                     CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
                     CaptureGenerationReport.Enrichment.notRequested());
             writeReportIfPossible(reportPath, report, request.overwrite());
-            return new CaptureGenerationResult(safePaths.source(), safePaths.data(), reportPath,
-                    request.enrichmentPreviewPath(), report);
+            return result(safePaths.source(), safePaths.data(), reportPath,
+                    request.enrichmentPreviewPath(), report, request.overwrite());
         }
     }
 
@@ -1060,6 +1060,79 @@ public final class CaptureGenerator {
             }
         } catch (RuntimeException ignored) {
             // The returned in-memory report remains available when the filesystem is not writable.
+        }
+    }
+
+    private static CaptureGenerationResult result(
+            Path sourcePath,
+            Path testDataPath,
+            Path reportPath,
+            Path enrichmentPreviewPath,
+            CaptureGenerationReport report,
+            boolean overwrite) {
+        CaptureGenerationResult result = new CaptureGenerationResult(
+                sourcePath, testDataPath, reportPath, enrichmentPreviewPath, report);
+        writeReviewIfPossible(result.reviewPath(), review(report), overwrite);
+        return result;
+    }
+
+    private static void writeReviewIfPossible(Path reviewPath, CaptureReview review, boolean overwrite) {
+        try {
+            if (!Files.exists(reviewPath) || overwrite) {
+                atomicWrite(reviewPath, writeJson(review));
+            }
+        } catch (RuntimeException ignored) {
+            // Review output is additive; generation result remains authoritative.
+        }
+    }
+
+    private static CaptureReview review(CaptureGenerationReport report) {
+        List<String> blockers = new ArrayList<>();
+        blockers.addAll(report.unsupportedEvents());
+        blockers.addAll(report.requiredUserInputs());
+        addValidationBlocker(blockers, "compilation", report.compilation());
+        addValidationBlocker(blockers, "replay", report.replay());
+
+        List<String> risks = new ArrayList<>();
+        risks.addAll(report.flakySteps());
+        risks.addAll(report.fallbackLocators());
+        risks.addAll(report.warnings());
+
+        List<String> suggestions = new ArrayList<>();
+        if (!report.unsupportedEvents().isEmpty()) {
+            suggestions.add("Re-record unsupported events before committing generated source.");
+        }
+        if (!report.requiredUserInputs().isEmpty()) {
+            suggestions.add("Provide the listed external inputs before replay.");
+        }
+        if (!report.flakySteps().isEmpty() || !report.fallbackLocators().isEmpty()) {
+            suggestions.add("Review weak locator and replay-risk diagnostics.");
+        }
+        if (suggestions.isEmpty()) {
+            suggestions.add("Generated test is ready for review.");
+        }
+
+        int score = 100
+                - blockers.size() * 25
+                - report.flakySteps().size() * 10
+                - report.fallbackLocators().size() * 5
+                - report.warnings().size() * 5;
+        return new CaptureReview(
+                CaptureReview.CURRENT_SCHEMA_VERSION,
+                report.sessionId(),
+                score,
+                blockers.stream().distinct().sorted().toList(),
+                risks.stream().distinct().sorted().toList(),
+                suggestions,
+                report.enrichment().provider());
+    }
+
+    private static void addValidationBlocker(
+            List<String> blockers,
+            String label,
+            CaptureGenerationReport.Validation validation) {
+        if (validation.status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED) {
+            blockers.add(label + ": " + String.join("; ", validation.diagnostics()));
         }
     }
 

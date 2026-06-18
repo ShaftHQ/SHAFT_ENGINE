@@ -82,9 +82,14 @@ public class ShaftHealingProvider implements HealingProvider {
                         request.shadowHostLocator());
         candidates = new VisualEvidenceService(configuration)
                 .apply(candidates, retained.get().visualReference());
-        AiCandidateReranker.RerankResult reranked = new AiCandidateReranker(configuration).apply(candidates);
         HealingDecisionEngine.DecisionResult result = HealingDecisionEngine.decide(
-                reranked.candidates(), configuration, request.visibilityRequired());
+                candidates, configuration, request.visibilityRequired());
+        AiCandidateReranker.RerankResult reranked = rerankIfTriggered(
+                candidates, configuration, result.decision());
+        if (reranked.applied()) {
+            result = HealingDecisionEngine.decide(
+                    reranked.candidates(), configuration, request.visibilityRequired());
+        }
         HealingReport report = report(
                 attemptId,
                 request,
@@ -255,6 +260,45 @@ public class ShaftHealingProvider implements HealingProvider {
                 })
                 .map(RankedCandidate::report)
                 .toList();
+    }
+
+    private static AiCandidateReranker.RerankResult rerankIfTriggered(
+            List<RankedCandidate> candidates,
+            HealingConfiguration configuration,
+            HealingDecision decision) {
+        if (!configuration.aiEnabled()) {
+            return new AiCandidateReranker.RerankResult(
+                    candidates, HealingReport.ProviderMetadata.disabled(), false, false);
+        }
+        if (!aiTriggered(configuration.aiTrigger(), decision.status(), candidates)) {
+            return new AiCandidateReranker.RerankResult(
+                    candidates,
+                    new HealingReport.ProviderMetadata(
+                            true,
+                            "none",
+                            "",
+                            "SKIPPED",
+                            "AI reranking not triggered for " + decision.status() + "."),
+                    false,
+                    false);
+        }
+        return new AiCandidateReranker(configuration).apply(candidates);
+    }
+
+    private static boolean aiTriggered(
+            HealingConfiguration.AiTrigger trigger,
+            HealingDecision.Status status,
+            List<RankedCandidate> candidates) {
+        if (candidates.isEmpty()) {
+            return false;
+        }
+        return switch (trigger) {
+            case ALWAYS -> true;
+            case BELOW_THRESHOLD -> status == HealingDecision.Status.BELOW_THRESHOLD;
+            case AMBIGUOUS -> status == HealingDecision.Status.AMBIGUOUS
+                    || status == HealingDecision.Status.BELOW_THRESHOLD;
+            case NEVER -> false;
+        };
     }
 
     private record PendingRecovery(

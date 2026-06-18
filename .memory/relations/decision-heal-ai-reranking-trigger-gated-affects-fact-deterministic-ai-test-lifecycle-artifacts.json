@@ -1,0 +1,11 @@
+{
+  "confidence": "medium",
+  "content_hash": "sha256:baacfd909f3a3cf707f7c29fa9da8e33933ce43541784e1fbe9f594010e7ae26",
+  "created_at": "2026-06-18T13:59:56+03:00",
+  "from": "decision.heal-ai-reranking-trigger-gated",
+  "id": "rel.decision-heal-ai-reranking-trigger-gated-affects-fact-deterministic-ai-test-lifecycle-artifacts",
+  "predicate": "affects",
+  "status": "active",
+  "to": "fact.deterministic-ai-test-lifecycle-artifacts",
+  "updated_at": "2026-06-18T13:59:56+03:00"
+}

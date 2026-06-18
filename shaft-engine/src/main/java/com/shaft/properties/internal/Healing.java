@@ -81,6 +81,11 @@ public interface Healing extends EngineProperties<Healing> {
     @DefaultValue("false")
     boolean aiEnabled();
 
+    /** @return when optional provider reranking may run: never, ambiguous, below-threshold, or always */
+    @Key("healing.ai.trigger")
+    @DefaultValue("ambiguous")
+    String aiTrigger();
+
     /** @return whether reviewed source-patch proposals may be emitted */
     @Key("healing.sourcePatch.enabled")
     @DefaultValue("false")
@@ -168,6 +173,12 @@ public interface Healing extends EngineProperties<Healing> {
         /** @param value AI reranking enabled state @return this builder */
         public SetProperty aiEnabled(boolean value) {
             setProperty("healing.ai.enabled", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value AI trigger policy @return this builder */
+        public SetProperty aiTrigger(String value) {
+            setProperty("healing.ai.trigger", value);
             return this;
         }
 

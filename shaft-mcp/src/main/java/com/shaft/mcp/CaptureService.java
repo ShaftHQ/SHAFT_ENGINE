@@ -297,6 +297,7 @@ public class CaptureService {
                 result.sourcePath(),
                 result.testDataPath(),
                 result.reportPath(),
+                result.reviewPath(),
                 result.successful(),
                 blocks,
                 result.report(),

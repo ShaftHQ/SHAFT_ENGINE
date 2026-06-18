@@ -170,6 +170,31 @@ public class ShaftHealingProviderTest {
     }
 
     @Test
+    public void enabledAiShouldNotRunForDeterministicRecoveryByDefault() {
+        SHAFT.Properties.healing.set()
+                .aiEnabled(true)
+                .aiTrigger("ambiguous");
+        WebDriver driver = driver();
+        WebElement original = element("old-id", "Username");
+        WebElement candidate = element("new-id", "Username");
+        configureSearch(driver, List.of(candidate));
+        ShaftHealingProvider provider = new ShaftHealingProvider();
+        By originalLocator = By.id("old-id");
+        provider.observe(new HealingObservation(driver, originalLocator, original, "CLICK", null, null, null));
+
+        HealingResolution resolution = provider.resolve(new HealingRequest(
+                        driver, originalLocator, "CLICK", true, null, null, null))
+                .orElseThrow();
+
+        Assert.assertEquals(ShaftHeal.lastReport().orElseThrow().decision().status(),
+                HealingDecision.Status.RECOVERED);
+        Assert.assertEquals(ShaftHeal.lastReport().orElseThrow().provider().status(), "SKIPPED");
+        Assert.assertTrue(ShaftHeal.lastReport().orElseThrow().provider().fallbackReason()
+                .contains("not triggered"));
+        provider.clear(driver);
+    }
+
+    @Test
     public void closingDifferentDriverShouldNotDiscardPendingRecovery() {
         WebDriver driver = driver();
         WebDriver otherDriver = driver();
