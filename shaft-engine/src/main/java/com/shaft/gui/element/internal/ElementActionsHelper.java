@@ -18,7 +18,6 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
-import com.shaft.validation.internal.ValidationsHelper;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import lombok.Getter;
@@ -546,7 +545,7 @@ public class ElementActionsHelper {
                 return new ScreenshotManager().takeScreenshot(driver, null, actionName, true);
             }
         } else {
-            return new ScreenshotManager().takeScreenshot(driver, null, actionName, false);
+            return new ScreenshotManager().takeScreenshot(driver, elementLocator, actionName, false);
         }
         return new ArrayList<>();
     }
@@ -805,17 +804,6 @@ public class ElementActionsHelper {
         //TODO: merge all fail actions, make all methods call this one, get elementName where applicable instead of reporting null
         //this condition works if this is the first level of failure, but the first level is usually caught by the calling method
 
-//        boolean skipPageScreenshot = rootCauseException.length >= 1 && (
-//                TimeoutException.class.getName().equals(rootCauseException[0].getClass().getName()) //works to capture fluent wait failure
-//                        || (
-//                        rootCauseException[0].getMessage().contains("Identify unique element")
-//                                && isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
-//                )//works to capture calling elementAction failure in case this is an assertion
-//        );
-
-        //don't take a second screenshot in case of validation failure  because the original element action will have always failed first
-        boolean skipPageScreenshot = rootCauseException.length >= 1 && (isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0]) && isFoundInStacktrace(ElementActionsHelper.class, rootCauseException[0]));
-
         String elementName = elementLocator != null ? JavaHelper.formatLocatorToString(elementLocator) : "";
         if (elementLocator != null && (rootCauseException.length >= 1 && Throwables.getRootCause(rootCauseException[0]).getClass() != MultipleElementsFoundException.class && Throwables.getRootCause(rootCauseException[0]).getClass() != NoSuchElementException.class && Throwables.getRootCause(rootCauseException[0]).getClass() != InvalidSelectorException.class)) {
             try {
@@ -835,16 +823,10 @@ public class ElementActionsHelper {
         }
 
         String message;
-        if (skipPageScreenshot) {
-            //don't try to take a screenshot again and set element locator to null in case element was not found by timeout or by nested element actions call
-            message = createReportMessage(actionName, testData, elementName, false);
-            ReportManager.logDiscrete(message);
+        if (rootCauseException.length >= 1) {
+            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
         } else {
-            if (rootCauseException.length >= 1) {
-                message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
-            } else {
-                message = reportActionResult(driver, actionName, testData, null, screenshots, elementName, false);
-            }
+            message = reportActionResult(driver, actionName, testData, null, screenshots, elementName, false);
         }
         if (rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);

@@ -112,6 +112,16 @@ public class ActionsCoverageUnitTest {
             assertRecorded(actions, Actions.ActionType.CLEAR, LOCATOR, null);
             Assert.assertSame(actions.dropFileToUpload(LOCATOR, "pom.xml"), actions);
             assertRecorded(actions, Actions.ActionType.DROP_FILE_TO_UPLOAD, LOCATOR, "pom.xml");
+            Assert.assertSame(actions.scrollToElement(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.SCROLL_TO_ELEMENT, LOCATOR, null);
+            Assert.assertSame(actions.select(LOCATOR, "option"), actions);
+            assertRecorded(actions, Actions.ActionType.SELECT, LOCATOR, "option");
+            Assert.assertSame(actions.submitFormUsingJavaScript(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.SUBMIT_FORM_USING_JAVASCRIPT, LOCATOR, null);
+            Assert.assertSame(actions.switchToIframe(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.SWITCH_TO_IFRAME, LOCATOR, null);
+            Assert.assertSame(actions.typeFileLocationForUpload(LOCATOR, "pom.xml"), actions);
+            assertRecorded(actions, Actions.ActionType.TYPE_FILE_LOCATION_FOR_UPLOAD, LOCATOR, "pom.xml");
             Assert.assertSame(actions.dragAndDrop(LOCATOR, By.id("drop")), actions);
             assertRecorded(actions, Actions.ActionType.DRAG_AND_DROP, LOCATOR, By.id("drop"));
             Assert.assertSame(actions.dragAndDropByOffset(LOCATOR, 5, 7), actions);
@@ -456,7 +466,7 @@ public class ActionsCoverageUnitTest {
             when(innerHtmlElement.getDomProperty("innerHTML")).thenReturn("inner-text");
             Assert.assertEquals(invoke(actions, "parseElementText", new Class[]{WebElement.class}, innerHtmlElement), "inner-text");
             Assert.assertTrue(((String) invoke(actions, "setHighlightedElementStyle", new Class[]{boolean.class}, true)).contains("#46aad2"));
-            Assert.assertTrue(((String) invoke(actions, "setHighlightedElementStyle", new Class[]{boolean.class}, false)).contains("#FFFF99"));
+            Assert.assertTrue(((String) invoke(actions, "setHighlightedElementStyle", new Class[]{boolean.class}, false)).contains("#FF0000"));
             byte[] rawScreenshot = new byte[]{1, 2, 3};
             Assert.assertEquals((byte[]) invoke(actions, "appendShaftWatermark", new Class[]{byte[].class}, rawScreenshot), rawScreenshot);
         }
@@ -679,9 +689,11 @@ public class ActionsCoverageUnitTest {
             animatedGif.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class), eq(false))).thenAnswer(inv -> null);
 
             Object actionScreenshot = invoke(new Actions(helper), "takeActionScreenshot", new Class[]{WebElement.class}, element);
+            Object failureScreenshot = invoke(new Actions(helper), "takeFailureScreenshot", new Class[]{WebElement.class}, (Object) null);
 
             Assert.assertNull(actionScreenshot, "GIF capture should not attach per-action screenshots by itself");
-            animatedGif.verify(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class), eq(false)));
+            Assert.assertNotNull(failureScreenshot, "failed actions should attach screenshots regardless of policy");
+            animatedGif.verify(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class), eq(false)), org.mockito.Mockito.atLeastOnce());
         }
     }
 

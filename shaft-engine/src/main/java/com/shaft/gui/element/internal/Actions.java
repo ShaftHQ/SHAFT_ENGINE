@@ -1,12 +1,14 @@
 package com.shaft.gui.element.internal;
 
 import com.google.common.annotations.Beta;
+import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingResolution;
@@ -262,6 +264,55 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    @Step("Scroll to element")
+    @Override
+    public Actions scrollToElement(By elementLocator) {
+        performAction(ActionType.SCROLL_TO_ELEMENT, elementLocator, null);
+        return this;
+    }
+
+    @Step("Select")
+    @Override
+    public Actions select(By elementLocator, String valueOrVisibleText) {
+        performAction(ActionType.SELECT, elementLocator, valueOrVisibleText);
+        return this;
+    }
+
+    @Step("Submit form using JavaScript")
+    @Override
+    public Actions submitFormUsingJavaScript(By elementLocator) {
+        performAction(ActionType.SUBMIT_FORM_USING_JAVASCRIPT, elementLocator, null);
+        return this;
+    }
+
+    @Step("Switch to iframe")
+    @Override
+    public Actions switchToIframe(By elementLocator) {
+        performAction(ActionType.SWITCH_TO_IFRAME, elementLocator, null);
+        return this;
+    }
+
+    @Step("Type file location for upload")
+    @Override
+    public Actions typeFileLocationForUpload(By elementLocator, String filePath) {
+        String absoluteFilePath = filePath.startsWith("src") ? FileActions.getInstance(true).getAbsolutePath(filePath) : filePath;
+        performAction(ActionType.TYPE_FILE_LOCATION_FOR_UPLOAD, elementLocator, absoluteFilePath.replace("/", File.separator));
+        return this;
+    }
+
+    @Step("Capture screenshot")
+    @Override
+    public Actions captureScreenshot(By elementLocator) {
+        String elementName = JavaHelper.formatLocatorToString(elementLocator);
+        try {
+            byte[] screenshot = new com.shaft.gui.internal.image.ScreenshotManager().takeElementScreenshot(driverFactoryHelper.getDriver(), elementLocator);
+            reportPass(ActionType.CAPTURE_SCREENSHOT.name(), elementName, screenshot);
+        } catch (RuntimeException exception) {
+            reportBroken(ActionType.CAPTURE_SCREENSHOT.name(), elementName, takeFailureScreenshot(null), exception);
+        }
+        return this;
+    }
+
     @Step("Drag and drop")
     @Override
     public Actions dragAndDrop(@NonNull By sourceElementLocator, @NonNull By destinationElementLocator) {
@@ -348,7 +399,7 @@ public class Actions extends ElementActions {
             output = String.valueOf(waitResult);
             if (waitResult == null || Boolean.FALSE.equals(waitResult))
                 throw new TimeoutException("Condition was not met within the timeout period.");
-        } catch (WebDriverException exception) {
+        } catch (RuntimeException exception) {
             if (output.isEmpty())
                 output = "custom lambda expression";
             reportBroken("waitUntil", output, takeFailureScreenshot(null), exception);
@@ -358,6 +409,32 @@ public class Actions extends ElementActions {
         output = description.contains(" ") ? description : "custom lambda expression";
 
         reportPass("waitUntil", output, null);
+        return this;
+    }
+
+    @Step("Execute native mobile command")
+    @Override
+    public Actions executeNativeMobileCommand(String command, Map<String, String> parameters) {
+        String commandDetails = "Command: " + command + ", Parameters: " + parameters;
+        try {
+            elementActionsHelper.executeNativeMobileCommandUsingJavascript(driverFactoryHelper.getDriver(), command, parameters);
+            reportPass(ActionType.EXECUTE_NATIVE_MOBILE_COMMAND.name(), commandDetails, (byte[]) null);
+        } catch (RuntimeException exception) {
+            reportBroken(ActionType.EXECUTE_NATIVE_MOBILE_COMMAND.name(), commandDetails, takeFailureScreenshot(null), exception);
+        }
+        return this;
+    }
+
+    @Step("Switch to default content")
+    @Override
+    public Actions switchToDefaultContent() {
+        try {
+            driverFactoryHelper.getDriver().switchTo().defaultContent();
+            LocatorBuilder.getIFrameLocator().remove();
+            reportPass(ActionType.SWITCH_TO_DEFAULT_CONTENT.name(), "default content", (byte[]) null);
+        } catch (RuntimeException exception) {
+            reportBroken(ActionType.SWITCH_TO_DEFAULT_CONTENT.name(), "default content", takeFailureScreenshot(null), exception);
+        }
         return this;
     }
 
@@ -489,7 +566,7 @@ public class Actions extends ElementActions {
                                 // InvalidElementStateException is normally retryable for visibility-aware waits;
                                 // when JavaScript fallback is disabled, report the native click failure immediately
                                 // so the original Selenium exception is not replaced by a FluentWait timeout.
-                                reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception);
+                                throw exception;
                             }
                         }
                     }
@@ -548,6 +625,24 @@ public class Actions extends ElementActions {
                         if (!"".equals(foundElements.get().getFirst().getDomProperty("value")))
                             executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
                     }
+                    case SCROLL_TO_ELEMENT -> {
+                        if (isMobileNativeExecution) {
+                            performTouchAction().swipeElementIntoView(locator, TouchActions.SwipeDirection.DOWN);
+                        }
+                    }
+                    case SELECT -> selectValue(foundElements.get().getFirst(), locator, String.valueOf(data));
+                    case SUBMIT_FORM_USING_JAVASCRIPT -> {
+                        try {
+                            ((JavascriptExecutor) d).executeScript("arguments[0].submit();", foundElements.get().getFirst());
+                        } catch (JavascriptException javascriptException) {
+                            foundElements.get().getFirst().submit();
+                        }
+                    }
+                    case SWITCH_TO_IFRAME -> {
+                        LocatorBuilder.getIFrameLocator().set(locator);
+                        d.switchTo().frame(foundElements.get().getFirst());
+                    }
+                    case TYPE_FILE_LOCATION_FOR_UPLOAD -> typeFileLocationForUpload(foundElements.get().getFirst(), locator, String.valueOf(data));
                     case DRAG_AND_DROP -> {
                         String currentDragAndDropSubstep = "resolve source element";
                         var sourceElement = chooseDragAndDropElement(foundElements.get(), locator, "source");
@@ -681,7 +776,7 @@ public class Actions extends ElementActions {
                         "");
                 return true;
             });
-        } catch (WebDriverException exception) {
+        } catch (RuntimeException exception) {
             HealingManager.recordOutcome(
                     driverFactoryHelper.getDriver(),
                     healingResolution.get(),
@@ -697,13 +792,11 @@ public class Actions extends ElementActions {
                     false,
                     exception.getClass().getSimpleName());
             try {
-                // take failure screenshot if needed
-                if (screenshot.get(0) == null) {
-                    if (foundElements.get() == null || foundElements.get().size() != 1) {
-                        screenshot.set(0, takeFailureScreenshot(null));
-                    } else {
-                        screenshot.set(0, takeFailureScreenshot(foundElements.get().getFirst()));
-                    }
+                // take failure screenshot
+                if (foundElements.get() == null || foundElements.get().size() != 1) {
+                    screenshot.set(0, takeFailureScreenshot(null));
+                } else {
+                    screenshot.set(0, takeFailureScreenshot(foundElements.get().getFirst()));
                 }
                 // report broken
                 reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception);
@@ -722,6 +815,58 @@ public class Actions extends ElementActions {
         //report pass
         reportPass(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0));
         return output.get();
+    }
+
+    private void selectValue(WebElement targetElement, By locator, String valueOrVisibleText) {
+        if (!"select".equals(targetElement.getTagName())) {
+            if (!SHAFT.Properties.flags.handleNonSelectDropDown()) {
+                throw new InvalidElementStateException("Tag should be <select>, yet it was found to be <" + targetElement.getTagName() + ">.");
+            }
+            targetElement.click();
+            By optionLocator = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).byRelation().below(locator);
+            chooseBestEffortDisplayedElement(findAllElements(optionLocator, ActionType.SELECT.name() + "_OPTION").elements()).click();
+            return;
+        }
+
+        Select selectElement = new Select(targetElement);
+        List<WebElement> availableOptions = selectElement.getOptions();
+        for (int index = 0; index < availableOptions.size(); index++) {
+            String visibleText = availableOptions.get(index).getText();
+            String value = availableOptions.get(index).getDomProperty("value");
+            if (visibleText.trim().equals(valueOrVisibleText) || (value != null && value.trim().equals(valueOrVisibleText))) {
+                selectElement.selectByIndex(index);
+                return;
+            }
+        }
+        throw new NoSuchElementException("Cannot locate option with Value or Visible text =" + valueOrVisibleText);
+    }
+
+    private void typeFileLocationForUpload(WebElement targetElement, By locator, String absoluteFilePath) {
+        try {
+            targetElement.sendKeys(absoluteFilePath);
+        } catch (InvalidArgumentException exception) {
+            throw exception;
+        } catch (ElementNotInteractableException | NoSuchElementException firstFailure) {
+            List<WebElement> uploadElements = findAllElements(locator, ActionType.TYPE_FILE_LOCATION_FOR_UPLOAD.name()).elements();
+            if (uploadElements.isEmpty()) {
+                throw new NoSuchElementException("Cannot locate an element using " + JavaHelper.formatLocatorToString(locator));
+            }
+            WebElement visibleElement = uploadElements.getFirst();
+            String originalStyle = visibleElement.getDomProperty("style");
+            try {
+                ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", visibleElement);
+                visibleElement.sendKeys(absoluteFilePath);
+            } catch (WebDriverException secondFailure) {
+                secondFailure.addSuppressed(firstFailure);
+                throw secondFailure;
+            } finally {
+                try {
+                    ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript("arguments[0].setAttribute('style', arguments[1]);", visibleElement, originalStyle == null ? "" : originalStyle);
+                } catch (WebDriverException restoreFailure) {
+                    ReportManagerHelper.logDiscrete(restoreFailure);
+                }
+            }
+        }
     }
 
     private void executeClearBasedOnClearMode(WebElement elem, String clearMode) {
@@ -817,23 +962,13 @@ public class Actions extends ElementActions {
     }
 
     private byte[] takeFailureScreenshot(WebElement element) {
-        if (shouldAttachFailureScreenshot())
-            return captureScreenshot(element, false);
-        if (SHAFT.Properties.visuals.createAnimatedGif())
-            captureScreenshot(element, false);
-        return null;
-    }
-
-    private boolean shouldAttachFailureScreenshot() {
-        var whenToTakeAScreenshot = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
-        return "Always".equalsIgnoreCase(whenToTakeAScreenshot)
-                || "FailuresOnly".equalsIgnoreCase(whenToTakeAScreenshot);
+        return captureScreenshot(element, false);
     }
 
     private byte[] captureScreenshot(WebElement element, boolean isPass) {
         // capture screenshot
         byte[] screenshot;
-        if (element != null && SHAFT.Properties.visuals.screenshotParamsHighlightElements()) {
+        if (element != null && (SHAFT.Properties.visuals.screenshotParamsHighlightElements() || !isPass)) {
             if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
                 // take screenshot, apply watermark and append it to gif before removing javascript highlighting
                 screenshot = takeJavaScriptHighlightedScreenshot(element, isPass);
@@ -935,9 +1070,16 @@ public class Actions extends ElementActions {
         if (isPass) {
             color = new Color(67, 176, 42); // selenium-green
         } else {
-            color = new Color(255, 255, 153); // yellow
+            color = new Color(255, 0, 0); // red
         }
-        src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+        try {
+            byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+            if (highlighted != null && highlighted.length > 0) {
+                src = highlighted;
+            }
+        } catch (Exception highlightFailure) {
+            ReportManagerHelper.logDiscrete(highlightFailure);
+        }
         return src;
     }
 
@@ -981,8 +1123,8 @@ public class Actions extends ElementActions {
             background = "#46aad2";
             backgroundColor = "#A5D2A5";
         } else {
-            background = "#FFFF99";
-            backgroundColor = "#FFFF99";
+            background = "#FF0000";
+            backgroundColor = "#FF0000";
         }
         return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + background
                 + " !important; background-color:" + backgroundColor
@@ -1073,11 +1215,12 @@ public class Actions extends ElementActions {
     }
 
     private static String createStepName(String action, String elementName, ActionReportContext context) {
+        String actionName = JavaHelper.convertToSentenceCase(action).replaceAll("\\s+", " ");
         String value = context.stepValue();
         if (context.shouldReportTypedValue() && !value.isBlank()) {
-            return JavaHelper.convertToSentenceCase(action).replaceAll("\\s+", " ") + " \"" + value + "\"";
+            return actionName + " \"" + value + "\"";
         }
-        return JavaHelper.convertToSentenceCase(action) + " \"" + elementName + "\"";
+        return actionName + " \"" + elementName + "\"";
     }
 
     private static void updateTypingStepMetadata(ActionReportContext context) {
@@ -1285,7 +1428,7 @@ public class Actions extends ElementActions {
         return (rootCause + System.lineSeparator() + causedBySection).trim();
     }
 
-    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT, CLIPBOARD_PASTE, DROP_FILE_TO_UPLOAD}
+    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, SCROLL_TO_ELEMENT, SELECT, SUBMIT_FORM_USING_JAVASCRIPT, SWITCH_TO_IFRAME, SWITCH_TO_DEFAULT_CONTENT, TYPE_FILE_LOCATION_FOR_UPLOAD, CAPTURE_SCREENSHOT, EXECUTE_NATIVE_MOBILE_COMMAND, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT, CLIPBOARD_PASTE, DROP_FILE_TO_UPLOAD}
 
     /**
      * Provides read-only accessors for querying properties, attributes, and state of a

@@ -2,6 +2,7 @@ package testPackage.unitTests;
 
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
@@ -390,6 +391,13 @@ public class JavaHelperUnitTest {
         String result = JavaHelper.formatLocatorToString(relativeBy);
         Assert.assertTrue(result.startsWith("Relative Locator:"),
                 "Relative locators should use dedicated formatting");
+    }
+
+    @Test(description = "formatLocatorToString: smart locators should report user text only")
+    public void formatLocatorToStringSmartLocatorShouldUseUserTextOnly() {
+        String result = JavaHelper.formatLocatorToString(SmartLocators.clickableField("Login"));
+        Assert.assertEquals(result, "Smart Locator: \"Login\"");
+        Assert.assertFalse(result.contains("//"), "Smart locator report text should not include generated xpath details");
     }
 
     @Test(description = "appendTestDataToRelativePath: single-slash relative path should be prefixed with test data folder")
