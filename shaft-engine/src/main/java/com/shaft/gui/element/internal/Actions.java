@@ -1087,13 +1087,11 @@ public class Actions extends ElementActions {
                     || "txt".equals(parameter.getName())
                     || "element name".equals(parameter.getName()));
             parameters.add(new Parameter().setName("locator").setValue(context.locator()));
-            parameters.add(new Parameter().setName("txt").setValue(context.detailsValue()));
             if (context.hasElementName()) {
                 parameters.add(new Parameter().setName("element name").setValue(context.elementName()));
             }
             update.setParameters(parameters);
             update.setDescription("locator: " + context.locator()
-                    + System.lineSeparator() + "txt: " + context.detailsValue()
                     + (context.hasElementName() ? System.lineSeparator() + "element name: " + context.elementName() : ""));
         });
     }
