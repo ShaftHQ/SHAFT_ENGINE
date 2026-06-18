@@ -3,9 +3,16 @@ package testPackage.unitTests;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.testng.ITestNGService;
 import com.shaft.listeners.TestNGListener;
+import com.shaft.listeners.internal.JiraHelper;
+import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.internal.IssueReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.testng.IInvokedMethod;
+import org.testng.ITestContext;
 import org.testng.ITestClass;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
@@ -167,6 +174,31 @@ public class TestNGListenerCoverageUnitTest {
         assertEquals(invokeCount(counts, "finalPassed"), 2);
     }
 
+    @Test
+    public void invocationHooksShouldActivateAndRestoreRetryEvidenceForTestMethods() throws Exception {
+        TestNGListener listener = new TestNGListener();
+        IInvokedMethod invokedMethod = Mockito.mock(IInvokedMethod.class);
+        ITestNGMethod testMethod = createTestMethod("retryEvidenceTest");
+        ITestResult testResult = createTestResult("retryEvidenceTest", null);
+        ITestContext testContext = Mockito.mock(ITestContext.class);
+        Mockito.when(invokedMethod.isTestMethod()).thenReturn(true);
+        Mockito.when(invokedMethod.isConfigurationMethod()).thenReturn(false);
+        Mockito.when(invokedMethod.getTestMethod()).thenReturn(testMethod);
+        setExecutionStartTime(System.currentTimeMillis());
+
+        try (MockedStatic<RetryAnalyzer> retryAnalyzer = Mockito.mockStatic(RetryAnalyzer.class);
+             MockedStatic<JiraHelper> ignoredJiraHelper = Mockito.mockStatic(JiraHelper.class);
+             MockedStatic<TestNGListenerHelper> ignoredListenerHelper = Mockito.mockStatic(TestNGListenerHelper.class);
+             MockedStatic<IssueReporter> ignoredIssueReporter = Mockito.mockStatic(IssueReporter.class);
+             MockedStatic<ReportManagerHelper> ignoredReportManagerHelper = Mockito.mockStatic(ReportManagerHelper.class)) {
+            listener.beforeInvocation(invokedMethod, testResult, testContext);
+            listener.afterInvocation(invokedMethod, testResult, testContext);
+
+            retryAnalyzer.verify(RetryAnalyzer::activateSupportingEvidenceCaptureForRetryAttempt);
+            retryAnalyzer.verify(RetryAnalyzer::restoreSupportingEvidenceCaptureForRetryAttempt);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private static void removeTrackedMethod(String fieldName, ITestNGMethod testMethod) throws Exception {
         getTrackedMethods(fieldName).remove(testMethod);
@@ -210,6 +242,12 @@ public class TestNGListenerCoverageUnitTest {
         Field reportPortalEnabledField = TestNGListener.class.getDeclaredField("isReportPortalEnabled");
         reportPortalEnabledField.setAccessible(true);
         reportPortalEnabledField.set(null, value);
+    }
+
+    private static void setExecutionStartTime(long value) throws Exception {
+        Field executionStartTimeField = TestNGListener.class.getDeclaredField("executionStartTime");
+        executionStartTimeField.setAccessible(true);
+        executionStartTimeField.set(null, value);
     }
 
     private static void setReportPortalEnabled(TestNGListener listener, boolean value) throws Exception {

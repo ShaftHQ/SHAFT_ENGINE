@@ -804,13 +804,25 @@ public class Actions extends ElementActions {
     }
 
     private byte[] takeActionScreenshot(WebElement element) {
-        if (SHAFT.Properties.visuals.createAnimatedGif() || "Always".equals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot()))
+        if ("Always".equalsIgnoreCase(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot()))
             return captureScreenshot(element, true);
+        if (SHAFT.Properties.visuals.createAnimatedGif())
+            captureScreenshot(element, true);
         return null;
     }
 
     private byte[] takeFailureScreenshot(WebElement element) {
-        return captureScreenshot(element, false);
+        if (shouldAttachFailureScreenshot())
+            return captureScreenshot(element, false);
+        if (SHAFT.Properties.visuals.createAnimatedGif())
+            captureScreenshot(element, false);
+        return null;
+    }
+
+    private boolean shouldAttachFailureScreenshot() {
+        var whenToTakeAScreenshot = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
+        return "Always".equalsIgnoreCase(whenToTakeAScreenshot)
+                || "FailuresOnly".equalsIgnoreCase(whenToTakeAScreenshot);
     }
 
     private byte[] captureScreenshot(WebElement element, boolean isPass) {

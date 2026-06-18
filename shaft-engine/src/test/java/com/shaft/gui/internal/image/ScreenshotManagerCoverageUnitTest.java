@@ -287,6 +287,65 @@ public class ScreenshotManagerCoverageUnitTest {
         }
     }
 
+    @Test
+    public void screenshotPolicyShouldDefaultToValidationPointsOnly() {
+        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
+        SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
+        SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+
+        WebDriver driver = mock(WebDriver.class);
+
+        try (MockedConstruction<ElementActionsHelper> ignored = Mockito.mockConstruction(ElementActionsHelper.class);
+             MockedStatic<ScreenshotHelper> screenshotHelperMocked = Mockito.mockStatic(ScreenshotHelper.class);
+             MockedStatic<AnimatedGifManager> animatedGifMocked = Mockito.mockStatic(AnimatedGifManager.class)) {
+            screenshotHelperMocked.when(() -> ScreenshotHelper.takeViewportScreenshot(any(WebDriver.class), anyInt()))
+                    .thenReturn(createPng(10, 10, Color.BLUE));
+            animatedGifMocked.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(i -> null);
+
+            ScreenshotManager manager = new ScreenshotManager();
+
+            SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
+            Assert.assertTrue(manager.takeScreenshot(driver, null, "click", true).isEmpty());
+            Assert.assertTrue(manager.takeScreenshot(driver, null, "click", false).isEmpty());
+            Assert.assertFalse(manager.takeScreenshot(driver, null, "assertEquals", true).isEmpty());
+
+            SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("FailuresOnly");
+            Assert.assertTrue(manager.takeScreenshot(driver, null, "assertEquals", true).isEmpty());
+            Assert.assertFalse(manager.takeScreenshot(driver, null, "click", false).isEmpty());
+
+            SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Always");
+            Assert.assertFalse(manager.takeScreenshot(driver, null, "click", true).isEmpty());
+
+            SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
+            Assert.assertTrue(manager.takeScreenshot(driver, null, "assertEquals", false).isEmpty());
+        }
+    }
+
+    @Test
+    public void animatedGifCaptureShouldNotForceScreenshotAttachment() {
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
+        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
+        SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
+        SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
+        SHAFT.Properties.visuals.set().createAnimatedGif(true);
+
+        WebDriver driver = mock(WebDriver.class);
+
+        try (MockedConstruction<ElementActionsHelper> ignored = Mockito.mockConstruction(ElementActionsHelper.class);
+             MockedStatic<ScreenshotHelper> screenshotHelperMocked = Mockito.mockStatic(ScreenshotHelper.class);
+             MockedStatic<AnimatedGifManager> animatedGifMocked = Mockito.mockStatic(AnimatedGifManager.class)) {
+            screenshotHelperMocked.when(() -> ScreenshotHelper.takeViewportScreenshot(any(WebDriver.class), anyInt()))
+                    .thenReturn(createPng(10, 10, Color.BLUE));
+            animatedGifMocked.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(i -> null);
+
+            List<Object> report = new ScreenshotManager().takeScreenshot(driver, null, "click", true);
+
+            Assert.assertTrue(report.isEmpty(), "GIF capture should not attach per-action screenshots by itself");
+            animatedGifMocked.verify(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class)));
+        }
+    }
+
     private byte[] createPng(int width, int height, Color color) {
         try {
             BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);

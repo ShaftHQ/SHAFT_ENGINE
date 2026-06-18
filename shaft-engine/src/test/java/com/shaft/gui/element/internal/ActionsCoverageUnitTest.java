@@ -587,6 +587,28 @@ public class ActionsCoverageUnitTest {
         }
     }
 
+    @Test
+    public void animatedGifActionScreenshotShouldNotAttachWhenPolicyIsValidationOnly() throws Exception {
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
+        SHAFT.Properties.visuals.set().createAnimatedGif(true);
+        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
+        SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
+
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        WebElement element = standardElement();
+        DriverFactoryHelper helper = helperFor(driver);
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+
+        try (var animatedGif = org.mockito.Mockito.mockStatic(AnimatedGifManager.class)) {
+            animatedGif.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class), eq(false))).thenAnswer(inv -> null);
+
+            Object actionScreenshot = invoke(new Actions(helper), "takeActionScreenshot", new Class[]{WebElement.class}, element);
+
+            Assert.assertNull(actionScreenshot, "GIF capture should not attach per-action screenshots by itself");
+            animatedGif.verify(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class), eq(false)));
+        }
+    }
+
     private DriverFactoryHelper helperFor(WebDriver driver) {
         DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
         when(helper.getDriver()).thenReturn(driver);
