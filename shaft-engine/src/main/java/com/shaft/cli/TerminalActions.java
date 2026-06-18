@@ -779,18 +779,9 @@ public class TerminalActions {
                     exitStatuses.append(localProcess.exitValue());
                 } else {
                     exitStatuses.append("asynchronous");
-                    ScheduledExecutorService asynchronousProcessExecution = Executors.newScheduledThreadPool(1);
-                    asynchronousProcessExecution.schedule(() -> {
-                        try {
-                            pb.start();
-                            asynchronousProcessExecution.shutdown();
-                        } catch (Throwable throwable) {
-                            asynchronousProcessExecution.shutdownNow();
-                        }
-                    }, 0, TimeUnit.SECONDS);
-                    if (!asynchronousProcessExecution.awaitTermination(SHAFT.Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES)) {
-                        asynchronousProcessExecution.shutdownNow();
-                    }
+                    pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+                    pb.redirectError(ProcessBuilder.Redirect.DISCARD);
+                    pb.start();
                 }
             } catch (IOException exception) {
                 failAction(longCommand, exception);

@@ -40,23 +40,28 @@ public class PropertiesHelperMaximumPerformanceModeUnitTest {
     }
 
     @Test
-    public void maximumPerformanceModeShouldDisableScreenshotHighlightingAndTelemetry() throws Exception {
+    public void maximumPerformanceModeShouldDisableScreenshotEnhancementsAndTelemetry() throws Exception {
         int originalMode = SHAFT.Properties.flags.maximumPerformanceMode();
         boolean originalScreenshotHighlightElements = SHAFT.Properties.visuals.screenshotParamsHighlightElements();
+        boolean originalScreenshotWatermark = SHAFT.Properties.visuals.screenshotParamsWatermark();
         boolean originalTelemetryEnabled = SHAFT.Properties.flags.telemetryEnabled();
 
         try {
             SHAFT.Properties.flags.set().maximumPerformanceMode(1);
             SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
+            SHAFT.Properties.visuals.set().screenshotParamsWatermark(true);
             SHAFT.Properties.flags.set().telemetryEnabled(true);
             invokeMaximumPerformanceModeOverride();
             Assert.assertFalse(SHAFT.Properties.visuals.screenshotParamsHighlightElements(),
                     "maximumPerformanceMode should disable screenshot highlighting to reduce overhead.");
+            Assert.assertFalse(SHAFT.Properties.visuals.screenshotParamsWatermark(),
+                    "maximumPerformanceMode should disable screenshot watermarking to avoid image re-encoding overhead.");
             Assert.assertFalse(SHAFT.Properties.flags.telemetryEnabled(),
                     "maximumPerformanceMode should disable telemetry to avoid complementary overhead.");
         } finally {
             SHAFT.Properties.flags.set().maximumPerformanceMode(originalMode);
             SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(originalScreenshotHighlightElements);
+            SHAFT.Properties.visuals.set().screenshotParamsWatermark(originalScreenshotWatermark);
             SHAFT.Properties.flags.set().telemetryEnabled(originalTelemetryEnabled);
         }
     }

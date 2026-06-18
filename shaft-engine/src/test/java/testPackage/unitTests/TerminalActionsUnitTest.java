@@ -344,7 +344,9 @@ public class TerminalActionsUnitTest {
     public void performTerminalCommandsShouldRunFromChangedDirectory() throws Exception {
         Files.createDirectories(TEMP_DIR);
         TerminalActions terminal = TerminalActions.getInstance(false, false, true);
-        String log = terminal.performTerminalCommands(List.of("cd " + TEMP_DIR.toAbsolutePath(), "pwd"));
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        String printWorkingDirectoryCommand = isWindows ? "(Get-Location).Path" : "pwd";
+        String log = terminal.performTerminalCommands(List.of("cd " + TEMP_DIR.toAbsolutePath(), printWorkingDirectoryCommand));
         Assert.assertTrue(log.contains(TEMP_DIR.toAbsolutePath().toString()),
                 "Expected command log to include changed working directory.");
     }
@@ -401,8 +403,8 @@ public class TerminalActionsUnitTest {
         }
     }
 
-    @Test(description = "asynchronous execution should force shutdownNow when timeout is zero")
-    public void performTerminalCommandShouldCoverAsyncTimeoutShutdownPath() {
+    @Test(description = "asynchronous execution should return without waiting when timeout is zero")
+    public void performTerminalCommandShouldReturnWithoutWaitingWhenAsyncTimeoutIsZero() {
         long originalTimeout = SHAFT.Properties.timeouts.shellSessionTimeout();
         try {
             SHAFT.Properties.timeouts.set().shellSessionTimeout(0);
@@ -419,6 +421,26 @@ public class TerminalActionsUnitTest {
         TerminalActions terminal = TerminalActions.getInstance(true, false, true);
         String log = terminal.performTerminalCommand("echo async");
         Assert.assertEquals(log, "", "Asynchronous execution should not capture command output.");
+    }
+
+    @Test(description = "asynchronous execution should still start the process")
+    public void performTerminalCommandShouldStartAsynchronousProcess() throws Exception {
+        Files.createDirectories(TEMP_DIR);
+        Path marker = TEMP_DIR.resolve("async-marker.txt").toAbsolutePath();
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        String command = isWindows
+                ? "Set-Content -LiteralPath '" + marker + "' -Value async"
+                : "printf async > '" + marker + "'";
+
+        TerminalActions terminal = TerminalActions.getInstance(true, false, true);
+        String log = terminal.performTerminalCommand(command);
+
+        Assert.assertEquals(log, "", "Asynchronous execution should not capture command output.");
+        for (int attempt = 0; attempt < 20 && Files.notExists(marker); attempt++) {
+            Thread.sleep(100);
+        }
+        Assert.assertTrue(Files.exists(marker), "Expected asynchronous command to create marker file.");
+        Assert.assertTrue(Files.readString(marker).contains("async"));
     }
 
     @Test(description = "buildLongCommand should prepend docker exec wrapper for dockerized terminals")

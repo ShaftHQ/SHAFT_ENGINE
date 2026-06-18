@@ -326,7 +326,7 @@ public class FileActions {
         try {
             Path targetFilePath = Paths.get(absoluteFilePath);
             FileUtils.writeByteArrayToFile(targetFilePath.toFile(), content);
-            passAction("Target File Path: \"" + targetFilePath + "\"", Arrays.toString(content));
+            passAction("Target File Path: \"" + targetFilePath + "\"", content.length + " bytes");
         } catch (InvalidPathException | IOException rootCauseException) {
             failAction("Folder Name: \"" + filePath + "\".", rootCauseException);
         }

@@ -940,12 +940,13 @@ public class ReportManagerHelper {
             Reporter.log(error, false);
             return;
         }
+        byte[] attachmentBytes = byteArrayOutputStream.toByteArray();
         String attachmentDescription = attachmentType + " - " + attachmentName;
-        AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, byteArrayOutputStream, attachmentDescription);
-        logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
+        AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, attachmentBytes, attachmentDescription);
+        logAttachmentAction(attachmentType, attachmentName, attachmentBytes);
     }
 
-    private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
+    private static void logAttachmentAction(String attachmentType, String attachmentName, byte[] attachmentContent) {
         if (attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)) {
             return;
         }
@@ -959,7 +960,7 @@ public class ReportManagerHelper {
 
             String theString = "";
             try (var br = new BufferedReader(
-                    new InputStreamReader(new ByteArrayInputStream(attachmentContent.toByteArray()), StandardCharsets.UTF_8))) {
+                    new InputStreamReader(new ByteArrayInputStream(attachmentContent), StandardCharsets.UTF_8))) {
                 theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
             } catch (IOException e) {
                 logDiscrete(e);

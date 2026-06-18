@@ -379,7 +379,7 @@ public class PropertiesHelper {
                 SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
                 SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
                 SHAFT.Properties.visuals.set().screenshotParamsScreenshotType(String.valueOf(Screenshots.VIEWPORT));
-                SHAFT.Properties.visuals.set().screenshotParamsWatermark(true);
+                SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
                 SHAFT.Properties.visuals.set().createAnimatedGif(false);
                 SHAFT.Properties.visuals.set().videoParamsRecordVideo(false);
                 SHAFT.Properties.reporting.set().debugMode(false);

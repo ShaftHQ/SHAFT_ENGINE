@@ -495,7 +495,7 @@ public class AllureManager {
                 : new ProcessBuilder("sh", "-c", command);
         processBuilder.directory(getExecutionRootPath().toFile());
 
-        ExecutorService streamReaders = Executors.newFixedThreadPool(2);
+        ExecutorService streamReaders = Executors.newVirtualThreadPerTaskExecutor();
         try {
             Process process = processBuilder.start();
             Future<String> stdout = streamReaders.submit(() -> readProcessStream(process.getInputStream()));

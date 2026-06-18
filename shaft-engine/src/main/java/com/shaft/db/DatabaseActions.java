@@ -11,7 +11,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
 
 /**
  * Manages database connections and query execution for supported relational
@@ -35,6 +35,7 @@ import java.util.concurrent.Executors;
  */
 @SuppressWarnings("unused")
 public class DatabaseActions {
+    private static final Executor DATABASE_NETWORK_TIMEOUT_EXECUTOR = command -> Thread.ofVirtual().start(command);
     private final ThreadLocal<ResultSet> resultSetThreadLocal = new ThreadLocal<>();
     private final ThreadLocal<Integer> rowCountThreadLocal = new ThreadLocal<>();
     private DatabaseType dbType;
@@ -534,7 +535,7 @@ public class DatabaseActions {
                 DriverManager.setLoginTimeout(SHAFT.Properties.timeouts.databaseLoginTimeout());
                 connection = DriverManager.getConnection(connectionString, username, password);
                 if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRES_SQL")) {
-                    connection.setNetworkTimeout(Executors.newFixedThreadPool(1), SHAFT.Properties.timeouts.databaseNetworkTimeout() * 60000);
+                    connection.setNetworkTimeout(DATABASE_NETWORK_TIMEOUT_EXECUTOR, SHAFT.Properties.timeouts.databaseNetworkTimeout() * 60000);
                 }
 
             } catch (SQLException rootCauseException) {
