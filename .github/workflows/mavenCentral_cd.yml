@@ -55,7 +55,7 @@ jobs:
       release_version: ${{ steps.release_version.outputs.version }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
@@ -196,7 +196,7 @@ jobs:
         os: [ubuntu-22.04, macos-15, windows-2025]
     steps:
       - name: Checkout released source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
@@ -218,7 +218,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout released source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Prepare Release Body
         env:
           RELEASE_VERSION: ${{ needs.build_release_and_deliver.outputs.release_version }}
