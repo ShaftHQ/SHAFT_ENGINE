@@ -142,7 +142,7 @@ public final class PropertyFileManager {
         if (!new File(log4jConfigPath).isFile()) {
             log4jConfigPath = appendFileName(resolveBundledDefaultPropertiesFolderPath(), LOG4J_PROPERTIES_FILE);
         }
-        return Path.of(log4jConfigPath).toAbsolutePath().normalize().toString();
+        return normalizeLog4jConfigPath(log4jConfigPath);
     }
 
     /**
@@ -194,6 +194,17 @@ public final class PropertyFileManager {
                     + resourceUrl + ". Falling back to legacy path resolution.", Level.DEBUG);
             return resourceUrl.getFile();
         }
+    }
+
+    static String normalizeLog4jConfigPath(String log4jConfigPath) {
+        if (isJarResourceLocation(log4jConfigPath)) {
+            return log4jConfigPath;
+        }
+        return Path.of(log4jConfigPath).toAbsolutePath().normalize().toString();
+    }
+
+    private static boolean isJarResourceLocation(String path) {
+        return path.startsWith("jar:") || path.contains(".jar!");
     }
 
     /**
