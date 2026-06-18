@@ -46,7 +46,14 @@ class CaptureGeneratorTest {
         assertEquals("1.0", review.path("schemaVersion").asText());
         assertEquals(first.report().sessionId(), review.path("sessionId").asText());
         assertTrue(review.path("readinessScore").asInt() >= 0);
-        assertTrue(review.path("blockers").isEmpty());
+        List<String> blockers = new java.util.ArrayList<>();
+        review.path("blockers").forEach(blocker -> blockers.add(blocker.asText()));
+        assertTrue(blockers.stream()
+                .anyMatch(blocker -> blocker.contains("data.password")
+                        && blocker.contains("environment variable")));
+        assertTrue(blockers.stream()
+                .anyMatch(blocker -> blocker.contains("upload.avatar")
+                        && blocker.contains("fixture")));
         assertEquals(Files.readString(first.sourcePath()), Files.readString(second.sourcePath()));
         assertEquals(Files.readString(first.testDataPath()), Files.readString(second.testDataPath()));
         assertEquals(first.report(), second.report());

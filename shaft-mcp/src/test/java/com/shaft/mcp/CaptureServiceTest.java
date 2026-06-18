@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.capture.runtime.CaptureManager;
+import com.shaft.capture.runtime.CaptureStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -60,6 +61,17 @@ class CaptureServiceTest {
     }
 
     @Test
+    void statusAndStopReturnIdleCaptureStateWhenNoSessionIsActive() {
+        CaptureService service = service();
+        try {
+            assertEquals(CaptureStatus.State.NOT_RUNNING, service.status().state());
+            assertEquals(CaptureStatus.State.NOT_RUNNING, service.stop(false).state());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
     void codeBlocksRejectSessionOutsideWorkspace() throws Exception {
         Path outside = Files.createTempFile("outside-capture", ".json");
         Files.writeString(outside, "{}");
@@ -80,6 +92,65 @@ class CaptureServiceTest {
         }
 
         assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void startRejectsOutputPathOutsideWorkspaceBeforeLaunchingBrowser() throws Exception {
+        Path outside = Files.createTempFile("outside-capture-output", ".json");
+
+        CaptureService service = service();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.start("https://example.test", "chrome", outside.toString(), true));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void replayGenerationRejectsSessionOutsideWorkspaceBeforeRunningGenerator() throws Exception {
+        Path outside = Files.createTempFile("outside-capture-session", ".json");
+        Files.writeString(outside, "{}");
+
+        CaptureService service = service();
+        IllegalArgumentException replayFailure;
+        IllegalArgumentException generateFailure;
+        try {
+            replayFailure = assertThrows(IllegalArgumentException.class,
+                    () -> service.generateReplay(
+                            outside.toString(),
+                            temp.resolve("generated-replay").toString(),
+                            "generated.capture",
+                            "ReplayTest",
+                            false,
+                            false,
+                            false,
+                            false,
+                            false,
+                            "driver"));
+            generateFailure = assertThrows(IllegalArgumentException.class,
+                    () -> service.generate(
+                            outside.toString(),
+                            temp.resolve("generated").toString(),
+                            "generated.capture",
+                            "GeneratedTest",
+                            false,
+                            false,
+                            false,
+                            "",
+                            false,
+                            false,
+                            false,
+                            false));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(replayFailure.getMessage().contains("workspace"));
+        assertTrue(generateFailure.getMessage().contains("workspace"));
     }
 
     private CaptureService service() {
