@@ -50,6 +50,14 @@ def assemble_javadocs(root: Path = ROOT, destination: Path | None = None) -> Pat
         shutil.copytree(sources[module], destination / module)
         links.append(f'<li><a href="{module}/index.html">{html.escape(label)}</a></li>')
 
+    generator_resources = root / "shaft-engine" / "src" / "main" / "javadoc" / "resources"
+    if generator_resources.is_dir():
+        shutil.copytree(
+            generator_resources,
+            destination / "shaft-engine" / "resources",
+            dirs_exist_ok=True,
+        )
+
     version = html.escape(project_version(root))
     (destination / "index.html").write_text(
         "<!doctype html>\n"
