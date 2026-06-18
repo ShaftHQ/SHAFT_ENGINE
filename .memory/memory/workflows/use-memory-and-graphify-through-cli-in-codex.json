@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/workflows/use-memory-and-graphify-through-cli-in-codex.md",
+  "content_hash": "sha256:56068ddd6af6530a51859ad844083037fd8768a73318f1b4486f98111d7194c3",
+  "created_at": "2026-06-18T15:03:29+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      ".memory/",
+      "graphify-out/",
+      "AGENTS.md"
+    ],
+    "category": "workflow"
+  },
+  "id": "workflow.use-memory-and-graphify-through-cli-in-codex",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Remember the reliable SHAFT_ENGINE Memory and graphify CLI workflow after user correction"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Use Memory and graphify through CLI in Codex",
+  "type": "workflow",
+  "updated_at": "2026-06-18T15:03:29+03:00"
+}
