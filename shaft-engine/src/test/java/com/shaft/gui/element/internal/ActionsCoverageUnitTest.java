@@ -12,6 +12,8 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
+import io.qameta.allure.AllureLifecycle;
+import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import org.apache.logging.log4j.Level;
@@ -43,6 +45,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -131,6 +134,79 @@ public class ActionsCoverageUnitTest {
 
             reportManager.verify(() -> ReportManager.logDiscrete("Get text \"By.id: target\"", Level.DEBUG));
             allure.verifyNoInteractions();
+        }
+    }
+
+    @Test
+    public void typingActionsShouldShowTypedTextAndKeepTargetMetadataInAllureStep() {
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            String typedText = "first line\n" + "x".repeat(150);
+            String expectedPreview = ("first line " + "x".repeat(150)).substring(0, 117) + "...";
+
+            new Actions(helperFor(driver)).type(LOCATOR, typedText);
+
+            Assert.assertEquals(step.getName(), "Type \"" + expectedPreview + "\"");
+            Assert.assertEquals(parameterValue(step, "locator"), "By.id: target");
+            Assert.assertEquals(parameterValue(step, "txt"), "first line\\n" + "x".repeat(150));
+            Assert.assertEquals(parameterValue(step, "element name"), "accessible target");
+            Assert.assertTrue(step.getDescription().contains("locator: By.id: target"));
+            Assert.assertTrue(step.getDescription().contains("txt: first line\\n"));
+        }
+    }
+
+    @Test
+    public void secureTypingShouldKeepTypedSecretMaskedInAllureStep() {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+
+            new Actions(helperFor(driver)).typeSecure(LOCATOR, "secret-value");
+
+            Assert.assertEquals(step.getName(), "Type securely \"********\"");
+            Assert.assertEquals(parameterValue(step, "txt"), "********");
+            Assert.assertFalse(step.getName().contains("secret-value"));
+            Assert.assertFalse(step.getDescription().contains("secret-value"));
+        }
+    }
+
+    @Test
+    public void appendAndJavascriptSetValueShouldUseValueInAllureStepName() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+
+            new Actions(helperFor(driver)).typeAppend(LOCATOR, "suffix");
+            Assert.assertEquals(step.getName(), "Type append \"suffix\"");
+            Assert.assertEquals(parameterValue(step, "txt"), "suffix");
+
+            step = captureStepUpdates(lifecycle);
+            new Actions(helperFor(driver)).setValueUsingJavaScript(LOCATOR, "js value");
+            Assert.assertTrue(step.getName().contains("\"js value\""));
+            Assert.assertFalse(step.getName().contains("By.id: target"));
+            Assert.assertEquals(parameterValue(step, "txt"), "js value");
         }
     }
 
@@ -613,6 +689,25 @@ public class ActionsCoverageUnitTest {
         DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
         when(helper.getDriver()).thenReturn(driver);
         return helper;
+    }
+
+    @SuppressWarnings("unchecked")
+    private StepResult captureStepUpdates(AllureLifecycle lifecycle) {
+        StepResult step = new StepResult();
+        org.mockito.Mockito.doAnswer(invocation -> {
+            Consumer<StepResult> consumer = invocation.getArgument(0);
+            consumer.accept(step);
+            return null;
+        }).when(lifecycle).updateStep(org.mockito.ArgumentMatchers.<Consumer<StepResult>>any());
+        return step;
+    }
+
+    private String parameterValue(StepResult step, String name) {
+        return step.getParameters().stream()
+                .filter(parameter -> name.equals(parameter.getName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing parameter: " + name))
+                .getValue();
     }
 
     private boolean hasCause(Throwable throwable, Class<? extends Throwable> expectedCause) {
