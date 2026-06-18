@@ -105,7 +105,7 @@
         <jsoup.version>1.22.2</jsoup.version>
         <json.version>20260522</json.version>
         <rhino.version>1.9.1</rhino.version>
-        <tink.version>1.21.0</tink.version>
+        <tink.version>1.22.0</tink.version>
         <brotli.dec.version>0.1.2</brotli.dec.version>
         <commons.logging.version>1.4.0</commons.logging.version>
         <jsr305.version>3.0.2</jsr305.version>
