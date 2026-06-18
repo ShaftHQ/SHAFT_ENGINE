@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/surefire-testng-deletes-module.md",
-  "content_hash": "sha256:88324b517d33bee59018ad8f86475fae7f973a1a93efe2647c7d9fcc1e98dcfe",
+  "content_hash": "sha256:543a81a439b845f662649053ee2dd4b39c5254484680dcb1102abd294c7f272f",
   "created_at": "2026-06-16T21:59:50+03:00",
   "evidence": [
     {
@@ -41,7 +41,8 @@
     "kind": "agent",
     "task": "Logging refresh implementation encountered destructive Surefire/TestNG bootstrap behavior"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "workflow.surefire-testng-bootstrap-validation-after-pr2947",
   "tags": [
     "maven",
     "surefire",
@@ -51,5 +52,5 @@
   ],
   "title": "Avoid Surefire/TestNG runs that delete the SHAFT module worktree",
   "type": "gotcha",
-  "updated_at": "2026-06-17T11:39:53+03:00"
+  "updated_at": "2026-06-18T17:07:40+03:00"
 }

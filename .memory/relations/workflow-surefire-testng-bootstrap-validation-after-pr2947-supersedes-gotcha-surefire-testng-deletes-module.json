@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:75b8c68fdfde1a4319b7f338ac4fc4aa1e32b5bc95eef6285af88193ec61979a",
+  "created_at": "2026-06-18T17:07:40+03:00",
+  "from": "workflow.surefire-testng-bootstrap-validation-after-pr2947",
+  "id": "rel.workflow-surefire-testng-bootstrap-validation-after-pr2947-supersedes-gotcha-surefire-testng-deletes-module",
+  "predicate": "supersedes",
+  "status": "active",
+  "to": "gotcha.surefire-testng-deletes-module",
+  "updated_at": "2026-06-18T17:07:40+03:00"
+}
