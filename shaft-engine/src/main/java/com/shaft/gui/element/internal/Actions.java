@@ -24,6 +24,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
+import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import lombok.NonNull;
@@ -78,6 +79,8 @@ import java.util.function.Function;
 public class Actions extends ElementActions {
     private static final Duration defaultPauseDuration = Duration.ofMillis(500);
     private static final DateTimeFormatter SCREENSHOT_ATTACHMENT_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final int TYPED_VALUE_STEP_TEXT_LIMIT = 120;
+    private static final String MASKED_TYPED_VALUE = "********";
 
     /**
      * Creates a new {@code Actions} instance using the driver managed by the current thread's
@@ -361,6 +364,7 @@ public class Actions extends ElementActions {
     protected String performAction(ActionType action, By locator, Object data) {
         AtomicReference<String> output = new AtomicReference<>("");
         AtomicReference<String> accessibleName = new AtomicReference<>(JavaHelper.formatLocatorToString(locator));
+        AtomicReference<ActionReportContext> reportContext = new AtomicReference<>(ActionReportContext.from(action, locator, data, accessibleName.get()));
         AtomicReferenceArray<byte[]> screenshot = new AtomicReferenceArray<>(1);
         AtomicReference<List<WebElement>> foundElements = new AtomicReference<>();
         AtomicReference<HealingResolution> healingResolution = new AtomicReference<>();
@@ -416,6 +420,7 @@ public class Actions extends ElementActions {
                     if (fetchedName != null && !fetchedName.isEmpty())
                         accessibleName.set(fetchedName.trim());
                 }
+                reportContext.set(ActionReportContext.from(action, locator, data, accessibleName.get()));
 
                 if (!isMobileNativeExecution) {
                 // scroll to element (avoid relocating the element if already found)
@@ -484,7 +489,7 @@ public class Actions extends ElementActions {
                                 // InvalidElementStateException is normally retryable for visibility-aware waits;
                                 // when JavaScript fallback is disabled, report the native click failure immediately
                                 // so the original Selenium exception is not replaced by a FluentWait timeout.
-                                reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
+                                reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception);
                             }
                         }
                     }
@@ -701,13 +706,13 @@ public class Actions extends ElementActions {
                     }
                 }
                 // report broken
-                reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
+                reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception);
             } catch (RuntimeException exception2) {
                 if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
                     // in case a new exception was thrown while attempting to take a screenshot
                     exception2.addSuppressed(exception);
                     // report broken
-                    reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception2);
+                    reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception2);
                 } else {
                     // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
                     throw exception2;
@@ -715,7 +720,7 @@ public class Actions extends ElementActions {
             }
         }
         //report pass
-        reportPass(action.name(), accessibleName.get(), screenshot.get(0));
+        reportPass(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0));
         return output.get();
     }
 
@@ -989,14 +994,25 @@ public class Actions extends ElementActions {
         report(action, elementName, Status.PASSED, screenshot, null);
     }
 
+    private void reportPass(String action, String elementName, ActionReportContext context, byte[] screenshot) {
+        report(action, elementName, context, Status.PASSED, screenshot, null);
+    }
+
     private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception) {
         report(action, elementName, Status.BROKEN, screenshot, exception);
     }
 
+    private void reportBroken(String action, String elementName, ActionReportContext context, byte[] screenshot, RuntimeException exception) {
+        report(action, elementName, context, Status.BROKEN, screenshot, exception);
+    }
+
     private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception) {
+        report(action, elementName, ActionReportContext.empty(), status, screenshot, exception);
+    }
+
+    private void report(String action, String elementName, ActionReportContext context, Status status, byte[] screenshot, RuntimeException exception) {
         // update allure step name
-        StringBuilder stepName = new StringBuilder();
-        stepName.append(JavaHelper.convertToSentenceCase(action)).append(" \"").append(elementName).append("\"");
+        StringBuilder stepName = new StringBuilder(createStepName(action, elementName, context));
 
         if (!status.equals(Status.PASSED))
             stepName.append(" is ").append(status.name().toLowerCase());
@@ -1010,6 +1026,9 @@ public class Actions extends ElementActions {
         }
 
         Allure.getLifecycle().updateStep(update -> update.setName(stepName.toString()));
+        if (context.shouldReportTypedValue()) {
+            updateTypingStepMetadata(context);
+        }
 
         // handle secure typing
         if (ActionType.TYPE_SECURELY.name().equals(action))
@@ -1050,6 +1069,84 @@ public class Actions extends ElementActions {
                 });
                 throw new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
             }
+        }
+    }
+
+    private static String createStepName(String action, String elementName, ActionReportContext context) {
+        String value = context.stepValue();
+        if (context.shouldReportTypedValue() && !value.isBlank()) {
+            return JavaHelper.convertToSentenceCase(action).replaceAll("\\s+", " ") + " \"" + value + "\"";
+        }
+        return JavaHelper.convertToSentenceCase(action) + " \"" + elementName + "\"";
+    }
+
+    private static void updateTypingStepMetadata(ActionReportContext context) {
+        Allure.getLifecycle().updateStep(update -> {
+            List<Parameter> parameters = update.getParameters() == null ? new ArrayList<>() : new ArrayList<>(update.getParameters());
+            parameters.removeIf(parameter -> "locator".equals(parameter.getName())
+                    || "txt".equals(parameter.getName())
+                    || "element name".equals(parameter.getName()));
+            parameters.add(new Parameter().setName("locator").setValue(context.locator()));
+            parameters.add(new Parameter().setName("txt").setValue(context.detailsValue()));
+            if (context.hasElementName()) {
+                parameters.add(new Parameter().setName("element name").setValue(context.elementName()));
+            }
+            update.setParameters(parameters);
+            update.setDescription("locator: " + context.locator()
+                    + System.lineSeparator() + "txt: " + context.detailsValue()
+                    + (context.hasElementName() ? System.lineSeparator() + "element name: " + context.elementName() : ""));
+        });
+    }
+
+    private record ActionReportContext(String locator, String detailsValue, String stepValue, String elementName) {
+        static ActionReportContext empty() {
+            return new ActionReportContext("", "", "", "");
+        }
+
+        static ActionReportContext from(ActionType action, By locator, Object data, String elementName) {
+            if (!shouldReportTypedValue(action)) {
+                return empty();
+            }
+            String text = ActionType.TYPE_SECURELY.equals(action) ? MASKED_TYPED_VALUE : stringifyTypedValue(data);
+            String singleLineText = text.replaceAll("\\R+", " ").trim();
+            return new ActionReportContext(
+                    JavaHelper.formatLocatorToString(locator),
+                    text.replace("\r", "\\r").replace("\n", "\\n"),
+                    abbreviate(singleLineText, TYPED_VALUE_STEP_TEXT_LIMIT),
+                    elementName == null ? "" : elementName.trim());
+        }
+
+        boolean shouldReportTypedValue() {
+            return !locator.isEmpty();
+        }
+
+        boolean hasElementName() {
+            return !elementName.isBlank() && !elementName.equals(locator);
+        }
+
+        private static boolean shouldReportTypedValue(ActionType action) {
+            return ActionType.TYPE.equals(action)
+                    || ActionType.TYPE_APPEND.equals(action)
+                    || ActionType.TYPE_SECURELY.equals(action)
+                    || ActionType.JAVASCRIPT_SET_VALUE.equals(action);
+        }
+
+        private static String stringifyTypedValue(Object value) {
+            if (value instanceof CharSequence[] sequences) {
+                StringBuilder text = new StringBuilder();
+                for (CharSequence sequence : sequences) {
+                    text.append(sequence);
+                }
+                return text.toString();
+            }
+            return value == null ? "" : String.valueOf(value);
+        }
+
+        private static String abbreviate(String value, int limit) {
+            if (value.length() <= limit) {
+                return value;
+            }
+            return value.substring(0, limit - 3) + "...";
         }
     }
 
