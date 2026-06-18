@@ -18,6 +18,9 @@ class AssembleJavadocsTest(unittest.TestCase):
                 source = root / module / "target" / "reports" / "apidocs"
                 source.mkdir(parents=True)
                 (source / "index.html").write_text(module, encoding="utf-8")
+            generator = root / "shaft-engine" / "src" / "main" / "javadoc" / "resources"
+            generator.mkdir(parents=True)
+            (generator / "index.html").write_text("generator", encoding="utf-8")
 
             destination = assemble_javadocs(root)
 
@@ -26,6 +29,10 @@ class AssembleJavadocsTest(unittest.TestCase):
             for module in MODULES:
                 self.assertIn(f'{module}/index.html', index)
                 self.assertEqual((destination / module / "index.html").read_text(encoding="utf-8"), module)
+            self.assertEqual(
+                (destination / "shaft-engine" / "resources" / "index.html").read_text(encoding="utf-8"),
+                "generator",
+            )
 
     def test_rejects_missing_module_javadocs(self):
         with tempfile.TemporaryDirectory() as temp_dir:

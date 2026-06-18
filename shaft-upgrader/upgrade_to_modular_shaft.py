@@ -85,6 +85,10 @@ TEXT_SCAN_SUFFIXES = {
 }
 
 SUPPORTED_STACK_MARKERS = {
+    "cucumber": (
+        "io.cucumber:",
+        "io.cucumber.",
+    ),
     "selenium": (
         "org.seleniumhq.selenium:",
         "org.openqa.selenium.",
@@ -100,6 +104,10 @@ SUPPORTED_STACK_MARKERS = {
 }
 
 SUPPORTED_RUNNER_MARKERS = {
+    "cucumber": (
+        "io.cucumber:",
+        "io.cucumber.",
+    ),
     "testng": (
         "org.testng:testng",
         "org.testng.",
@@ -501,18 +509,20 @@ def dependency_coordinates(pom: Path) -> set[str]:
 
 
 def coordinates_have_supported_stack(coordinates: set[str]) -> bool:
-    """Return whether dependency coordinates contain a supported native stack."""
+    """Return whether dependency coordinates contain a supported automation stack."""
     return (
-        any(coordinate.startswith("org.seleniumhq.selenium:") for coordinate in coordinates)
+        any(coordinate.startswith("io.cucumber:") for coordinate in coordinates)
+        or any(coordinate.startswith("org.seleniumhq.selenium:") for coordinate in coordinates)
         or "io.appium:java-client" in coordinates
         or "io.rest-assured:rest-assured" in coordinates
     )
 
 
 def coordinates_have_supported_runner(coordinates: set[str]) -> bool:
-    """Return whether dependency coordinates contain TestNG or JUnit."""
+    """Return whether dependency coordinates contain a supported test runner."""
     return any(
-        coordinate == "org.testng:testng"
+        coordinate.startswith("io.cucumber:")
+        or coordinate == "org.testng:testng"
         or coordinate.startswith("org.junit:")
         or coordinate.startswith("org.junit.jupiter:")
         or coordinate == "junit:junit"
@@ -605,7 +615,8 @@ def analyze_project(project_root: Path) -> ProjectAnalysis:
     if not candidate_poms:
         raise UpgradeError(
             "This project is not a supported legacy/modular SHAFT project and no "
-            "Selenium, Appium, or REST Assured project using TestNG/JUnit was detected."
+            "Cucumber, Selenium, Appium, or REST Assured project using "
+            "TestNG/JUnit/Cucumber was detected."
         )
 
     optional_evidence = (
@@ -823,6 +834,9 @@ def create_dependency(
 def set_shaft_version_property(root: ET.Element, namespace: str, version: str) -> None:
     """Create or update the canonical SHAFT version property."""
     properties = ensure_project_child(root, namespace, "properties")
+    legacy_property = direct_child(properties, "shaft_engine.version")
+    if legacy_property is not None:
+        properties.remove(legacy_property)
     property_element = direct_child(properties, "shaft.version")
     if property_element is None:
         property_element = ET.SubElement(properties, qualified(namespace, "shaft.version"))
@@ -977,14 +991,12 @@ def resolve_latest_shaft_version(
 
 def default_compile_command(project_root: Path) -> list[str]:
     """Choose a Maven wrapper when present, then fall back to Maven on PATH."""
-    candidates = (
-        project_root / "mvnw.cmd",
-        project_root / "mvnw",
-    )
+    candidates = (project_root / "mvnw.cmd",) if os.name == "nt" else (project_root / "mvnw",)
     for candidate in candidates:
         if candidate.is_file():
             return [
                 str(candidate.resolve()),
+                "dependency:go-offline",
                 "test-compile",
                 "-DskipTests",
                 "-Dgpg.skip",
@@ -992,7 +1004,7 @@ def default_compile_command(project_root: Path) -> list[str]:
     executable = shutil.which("mvn.cmd" if os.name == "nt" else "mvn") or shutil.which("mvn")
     if not executable:
         raise UpgradeError("Maven or a Maven wrapper was not found.")
-    return [executable, "test-compile", "-DskipTests", "-Dgpg.skip"]
+    return [executable, "dependency:go-offline", "test-compile", "-DskipTests", "-Dgpg.skip"]
 
 
 def parse_compile_command(value: str | None, project_root: Path) -> list[str]:
@@ -1488,6 +1500,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         log("Upgrade interrupted.")
         return 130
     except UpgradeError as exc:
+        log(f"Error: {exc}")
+        return 1
+    except Exception as exc:
         log(f"Error: {exc}")
         return 1
 

@@ -86,6 +86,32 @@ class UpgradeToModularShaftTests(unittest.TestCase):
         self.assertEqual(upgrade.child_text(bom, "scope"), "import")
         self.assertNotIn("SHAFT_ENGINE", transformed.decode())
 
+    def test_transform_removes_legacy_shaft_version_property(self):
+        pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>example</groupId>
+            <artifactId>demo</artifactId>
+            <version>1.0.0</version>
+            <properties>
+                <shaft_engine.version>9.3.20250928</shaft_engine.version>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.shafthq</groupId>
+                    <artifactId>SHAFT_ENGINE</artifactId>
+                    <version>${shaft_engine.version}</version>
+                </dependency>
+            </dependencies>
+        </project>
+        """
+
+        transformed = upgrade.transform_pom_bytes(pom.encode(), "10.2.20260609", ())
+        root = upgrade.parse_xml(transformed)
+        properties = upgrade.direct_child(root, "properties")
+
+        self.assertEqual(upgrade.child_text(properties, "shaft.version"), "10.2.20260609")
+        self.assertIsNone(upgrade.direct_child(properties, "shaft_engine.version"))
+
     def test_transform_removes_android_json_and_excludes_jsonassert(self):
         pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">
             <modelVersion>4.0.0</modelVersion>
@@ -264,6 +290,45 @@ class UpgradeToModularShaftTests(unittest.TestCase):
 
         self.assertEqual(analysis.stacks, ("selenium",))
         self.assertEqual(analysis.runners, ("junit",))
+
+    def test_cucumber_project_is_supported(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>bdd</artifactId><version>1</version>
+                <dependencies>
+                  <dependency><groupId>io.cucumber</groupId>
+                    <artifactId>cucumber-java</artifactId><version>7.0.0</version></dependency>
+                  <dependency><groupId>io.cucumber</groupId>
+                    <artifactId>cucumber-testng</artifactId><version>7.0.0</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(analysis.stacks, ("cucumber",))
+        self.assertEqual(analysis.runners, ("cucumber",))
+        self.assertEqual(len(analysis.candidate_poms), 1)
+
+    def test_runner_only_project_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>unit-only</artifactId><version>1</version>
+                <dependencies>
+                  <dependency><groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId><version>7.0.0</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(upgrade.UpgradeError, "not a supported"):
+                upgrade.analyze_project(root)
 
     def test_native_third_party_integrations_do_not_add_shaft_optional_modules(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -486,6 +551,30 @@ class UpgradeToModularShaftTests(unittest.TestCase):
             )
         self.assertEqual(command[0], "C:\\Program Files\\Maven\\mvn.cmd")
         self.assertEqual(command[1], "test-compile")
+
+    def test_default_compile_command_resolves_dependencies_before_compile(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            wrapper = root / "mvnw"
+            wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+
+            with mock.patch.object(upgrade.os, "name", "posix"):
+                command = upgrade.default_compile_command(root)
+
+        self.assertEqual(command[0], str(wrapper.resolve()))
+        self.assertEqual(command[1:3], ["dependency:go-offline", "test-compile"])
+
+    def test_windows_default_compile_command_prefers_cmd_wrapper(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            wrapper = root / "mvnw.cmd"
+            wrapper.write_text("@echo off\n", encoding="utf-8")
+
+            with mock.patch.object(upgrade.os, "name", "nt"):
+                command = upgrade.default_compile_command(root)
+
+        self.assertEqual(command[0], str(wrapper.resolve()))
+        self.assertEqual(command[1:3], ["dependency:go-offline", "test-compile"])
 
 
 if __name__ == "__main__":
