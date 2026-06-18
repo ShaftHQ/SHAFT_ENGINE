@@ -46,6 +46,10 @@ ENGINE_ARTIFACT = "shaft-engine"
 BOM_ARTIFACT = "shaft-bom"
 OPTIONAL_MODULES = ("shaft-browserstack", "shaft-video", "shaft-visual")
 SHAFT_ARTIFACTS = {LEGACY_ARTIFACT, ENGINE_ARTIFACT, BOM_ARTIFACT, *OPTIONAL_MODULES}
+JSONASSERT_GROUP = "org.skyscreamer"
+JSONASSERT_ARTIFACT = "jsonassert"
+ANDROID_JSON_GROUP = "com.vaadin.external.google"
+ANDROID_JSON_ARTIFACT = "android-json"
 MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2"
 DEFAULT_OPENAI_MODEL = "gpt-5.5"
 DEFAULT_OPENAI_KEY_ENV = "OPENAI_API_KEY"
@@ -747,6 +751,38 @@ def remove_shaft_dependencies(container: ET.Element | None) -> None:
             container.remove(dependency)
 
 
+def ensure_android_json_exclusion(dependency: ET.Element, namespace: str) -> None:
+    """Exclude the legacy Android JSON artifact from a dependency."""
+    exclusions = direct_child(dependency, "exclusions")
+    if exclusions is not None:
+        for exclusion in exclusions:
+            if local_name(exclusion.tag) != "exclusion":
+                continue
+            group, artifact = dependency_coordinate(exclusion)
+            if group == ANDROID_JSON_GROUP and artifact == ANDROID_JSON_ARTIFACT:
+                return
+    else:
+        exclusions = ET.SubElement(dependency, qualified(namespace, "exclusions"))
+
+    exclusion = ET.SubElement(exclusions, qualified(namespace, "exclusion"))
+    add_text_child(exclusion, namespace, "groupId", ANDROID_JSON_GROUP)
+    add_text_child(exclusion, namespace, "artifactId", ANDROID_JSON_ARTIFACT)
+
+
+def remove_json_runtime_conflicts(container: ET.Element | None, namespace: str) -> None:
+    """Remove org.json shadowing dependencies from a dependency container."""
+    if container is None:
+        return
+    for dependency in list(container):
+        if local_name(dependency.tag) != "dependency":
+            continue
+        group, artifact = dependency_coordinate(dependency)
+        if group == ANDROID_JSON_GROUP and artifact == ANDROID_JSON_ARTIFACT:
+            container.remove(dependency)
+        elif group == JSONASSERT_GROUP and artifact == JSONASSERT_ARTIFACT:
+            ensure_android_json_exclusion(dependency, namespace)
+
+
 def copy_dependency_metadata(
     destination: ET.Element,
     template: ET.Element | None,
@@ -819,6 +855,7 @@ def transform_pom_bytes(
             qualified(namespace, "dependencies"),
         )
     remove_shaft_dependencies(managed_dependencies)
+    remove_json_runtime_conflicts(managed_dependencies, namespace)
     managed_dependencies.append(
         create_dependency(
             namespace,
@@ -831,6 +868,7 @@ def transform_pom_bytes(
 
     dependencies = ensure_project_child(root, namespace, "dependencies")
     remove_shaft_dependencies(dependencies)
+    remove_json_runtime_conflicts(dependencies, namespace)
     dependencies.append(create_dependency(namespace, ENGINE_ARTIFACT, template=template))
     for module in OPTIONAL_MODULES:
         if module in optional_modules:
