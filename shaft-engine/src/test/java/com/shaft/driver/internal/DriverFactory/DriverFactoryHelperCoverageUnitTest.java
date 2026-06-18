@@ -28,6 +28,7 @@ import org.openqa.selenium.logging.Logs;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.http.ClientConfig;
 import org.openqa.selenium.safari.SafariOptions;
 import org.openqa.selenium.safari.SafariDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -38,6 +39,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -509,6 +511,31 @@ public class DriverFactoryHelperCoverageUnitTest {
             helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.CHROME, null);
             SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
         }
+    }
+
+    @Test
+    public void initializeDriverShouldApplyConfiguredTimeoutToRemoteDesktopHttpClient() {
+        SHAFT.Properties.platform.set().targetPlatform("windows");
+        SHAFT.Properties.platform.set().executionAddress("http://localhost:4444");
+        SHAFT.Properties.web.set().targetBrowserName("chrome").headlessExecution(true);
+        SHAFT.Properties.flags.set().autoMaximizeBrowserWindow(false);
+        SHAFT.Properties.healenium.set().healEnabled(false);
+        SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(false);
+
+        var constructionArguments = new java.util.ArrayList<List<?>>();
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try (MockedConstruction<RemoteWebDriver> ignored = org.mockito.Mockito.mockConstruction(RemoteWebDriver.class,
+                (mock, context) -> {
+                    constructionArguments.add(context.arguments());
+                    org.mockito.Mockito.when(mock.getCapabilities()).thenReturn(new ImmutableCapabilities());
+                })) {
+            helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.CHROME, null);
+        }
+
+        var clientConfig = (ClientConfig) constructionArguments.get(0).get(2);
+        var expectedTimeout = Duration.ofSeconds(TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout()));
+        SHAFT.Validations.assertThat().object(clientConfig.connectionTimeout()).isEqualTo(expectedTimeout).perform();
+        SHAFT.Validations.assertThat().object(clientConfig.readTimeout()).isEqualTo(expectedTimeout).perform();
     }
 
     @Test
