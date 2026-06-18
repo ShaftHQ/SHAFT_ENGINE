@@ -98,6 +98,12 @@ class DoctorAnalyzerTest {
         assertEquals(CauseCategory.LOCATOR, firstResult.diagnosis().primaryCause());
         assertTrue(firstResult.diagnosis().findings().stream()
                 .anyMatch(finding -> finding.ruleId().equals("retry-correlation")));
+        var firstTriage = MAPPER.readTree(Path.of(firstResult.jsonReportPath()).getParent()
+                .resolve("doctor-triage.json").toFile());
+        assertEquals(1, firstTriage.path("hiddenRetryFailures").asInt());
+        assertEquals(1, firstTriage.path("failingAttempts").asInt());
+        assertTrue(Files.isRegularFile(Path.of(firstResult.jsonReportPath()).getParent()
+                .resolve("execution-intelligence.md")));
 
         Path second = Files.createDirectories(temp.resolve("second"));
         writeResult(second.resolve("repeat-result.json"), "failed",
@@ -107,6 +113,10 @@ class DoctorAnalyzerTest {
 
         assertTrue(repeated.diagnosis().findings().stream()
                 .anyMatch(finding -> finding.ruleId().equals("historical-signature-correlation")));
+        var repeatedIntelligence = MAPPER.readTree(Path.of(repeated.jsonReportPath()).getParent()
+                .resolve("execution-intelligence.json").toFile());
+        assertEquals(1, repeatedIntelligence.path("recurringFailures").asInt());
+        assertTrue(repeatedIntelligence.path("summary").asText().contains("recurring"));
     }
 
     @Test

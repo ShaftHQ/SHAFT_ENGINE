@@ -1,0 +1,1 @@
+Capture generation writes capture-review.json with deterministic readiness, blockers, risks, and suggestions; Doctor writes doctor-triage.* and execution-intelligence.* summaries; MCP capture generation exposes reviewPath.

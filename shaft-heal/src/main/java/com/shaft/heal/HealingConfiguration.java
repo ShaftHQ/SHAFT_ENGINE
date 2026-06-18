@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
  * @param historyRetention history retention
  * @param visualEnabled whether optional visual evidence is enabled
  * @param aiEnabled whether optional provider reranking is enabled
+ * @param aiTrigger when optional provider reranking may run
  * @param sourcePatchEnabled whether reviewed source-patch proposals are permitted
  */
 public record HealingConfiguration(
@@ -36,7 +37,38 @@ public record HealingConfiguration(
         Duration historyRetention,
         boolean visualEnabled,
         boolean aiEnabled,
+        AiTrigger aiTrigger,
         boolean sourcePatchEnabled) {
+    /**
+     * Optional provider reranking trigger.
+     */
+    public enum AiTrigger {
+        NEVER,
+        AMBIGUOUS,
+        BELOW_THRESHOLD,
+        ALWAYS
+    }
+
+    /**
+     * Backward-compatible constructor with the default AI trigger.
+     */
+    public HealingConfiguration(
+            double minimumConfidence,
+            double ambiguityMargin,
+            Set<String> evidenceCategories,
+            List<String> testIdAttributes,
+            boolean historyEnabled,
+            Path historyPath,
+            int historyMaxEntries,
+            Duration historyRetention,
+            boolean visualEnabled,
+            boolean aiEnabled,
+            boolean sourcePatchEnabled) {
+        this(minimumConfidence, ambiguityMargin, evidenceCategories, testIdAttributes,
+                historyEnabled, historyPath, historyMaxEntries, historyRetention,
+                visualEnabled, aiEnabled, AiTrigger.AMBIGUOUS, sourcePatchEnabled);
+    }
+
     /**
      * Reads the effective current-thread configuration.
      *
@@ -60,7 +92,19 @@ public record HealingConfiguration(
                 Duration.ofDays(Math.max(1, properties.historyRetentionDays())),
                 properties.visualEnabled(),
                 properties.aiEnabled(),
+                aiTrigger(properties.aiTrigger()),
                 properties.sourcePatchEnabled());
+    }
+
+    /**
+     * Creates a normalized configuration.
+     */
+    public HealingConfiguration {
+        evidenceCategories = evidenceCategories == null ? Set.of() : Set.copyOf(evidenceCategories);
+        testIdAttributes = testIdAttributes == null ? List.of() : List.copyOf(testIdAttributes);
+        historyPath = historyPath == null ? Path.of("target/shaft-heal/history.json") : historyPath;
+        historyRetention = historyRetention == null ? Duration.ofDays(30) : historyRetention;
+        aiTrigger = aiTrigger == null ? AiTrigger.AMBIGUOUS : aiTrigger;
     }
 
     private static List<String> split(String value) {
@@ -75,5 +119,14 @@ public record HealingConfiguration(
 
     private static double bounded(double value, double fallback) {
         return value >= 0 && value <= 1 ? value : fallback;
+    }
+
+    private static AiTrigger aiTrigger(String value) {
+        String normalized = value == null ? "" : value.trim().replace('-', '_').toUpperCase(Locale.ROOT);
+        try {
+            return normalized.isBlank() ? AiTrigger.AMBIGUOUS : AiTrigger.valueOf(normalized);
+        } catch (IllegalArgumentException ignored) {
+            return AiTrigger.AMBIGUOUS;
+        }
     }
 }

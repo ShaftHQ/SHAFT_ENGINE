@@ -41,6 +41,12 @@ class CaptureGeneratorTest {
         assertTrue(first.successful(), first.report().unsupportedEvents().toString());
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 first.report().compilation().status());
+        assertTrue(Files.isRegularFile(first.reviewPath()));
+        var review = JSON.readTree(first.reviewPath().toFile());
+        assertEquals("1.0", review.path("schemaVersion").asText());
+        assertEquals(first.report().sessionId(), review.path("sessionId").asText());
+        assertTrue(review.path("readinessScore").asInt() >= 0);
+        assertTrue(review.path("blockers").isEmpty());
         assertEquals(Files.readString(first.sourcePath()), Files.readString(second.sourcePath()));
         assertEquals(Files.readString(first.testDataPath()), Files.readString(second.testDataPath()));
         assertEquals(first.report(), second.report());

@@ -1465,13 +1465,13 @@
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/generate/CaptureGenerationResult.java": {
-    "mtime": 1781239583.9607615,
-    "ast_hash": "c1db6c2ab28bc73cbc924e6cc4932ea7",
+    "mtime": 1781779720.385172,
+    "ast_hash": "9d5fbf61284b1dc832e6bd3aa24422ec",
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/generate/CaptureGenerator.java": {
-    "mtime": 1781239583.9618275,
-    "ast_hash": "ff6f1e064a5ea940a66cd7b26a56cc02",
+    "mtime": 1781779763.8733683,
+    "ast_hash": "a802c685cb7d96b68268dcb0667c82cb",
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/generate/GeneratedTestValidator.java": {
@@ -1630,8 +1630,8 @@
     "semantic_hash": ""
   },
   "shaft-capture/src/test/java/com/shaft/capture/generate/CaptureGeneratorTest.java": {
-    "mtime": 1781261094.4290085,
-    "ast_hash": "c8e9da40fc8c13aad61e7f689a9cefbc",
+    "mtime": 1781779993.848051,
+    "ast_hash": "ec7c3740176ebf423122c0e469a3024c",
     "semantic_hash": ""
   },
   "shaft-capture/src/test/java/com/shaft/capture/generate/LocatorRankerTest.java": {
@@ -2140,8 +2140,8 @@
     "semantic_hash": ""
   },
   "shaft-doctor/src/main/java/com/shaft/doctor/DoctorAnalyzer.java": {
-    "mtime": 1781248762.5671165,
-    "ast_hash": "fd86210399d3956a7a343693416c1453",
+    "mtime": 1781779941.0645535,
+    "ast_hash": "bda5e4dba70a79b88fe50bd650e95df6",
     "semantic_hash": ""
   },
   "shaft-doctor/src/main/java/com/shaft/doctor/ai/DoctorAiAnalysisService.java": {
@@ -2365,8 +2365,8 @@
     "semantic_hash": ""
   },
   "shaft-doctor/src/test/java/com/shaft/doctor/DoctorAnalyzerTest.java": {
-    "mtime": 1781248762.5773132,
-    "ast_hash": "97bda547e7be8d60c7186f5819b612dc",
+    "mtime": 1781780022.9496322,
+    "ast_hash": "1bb7b5a0dc18fc5e543650ae52a4b999",
     "semantic_hash": ""
   },
   "shaft-doctor/src/test/java/com/shaft/doctor/ai/DoctorAiAnalysisServiceTest.java": {
@@ -2575,13 +2575,13 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/element/internal/Actions.java": {
-    "mtime": 1781735146.2056143,
-    "ast_hash": "731df72482b634b806c3776920c0b3ea",
+    "mtime": 1781771875.3273664,
+    "ast_hash": "95ed51b85934932c7c9c9d0449b98fdd",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/element/internal/ElementActionsHelper.java": {
-    "mtime": 1781642509.7868412,
-    "ast_hash": "9140eb65009a9477d80ad0e9f0e92dd1",
+    "mtime": 1781771875.3283653,
+    "ast_hash": "79f74172e4812db312b9248415ddd94c",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/element/internal/ElementInformation.java": {
@@ -2870,13 +2870,13 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Healing.java": {
-    "mtime": 1781642509.7963178,
-    "ast_hash": "385585cc4fe7cc236525dcf28d9cf241",
+    "mtime": 1781779793.7561965,
+    "ast_hash": "2c3da691e3cd819551b8d2a04e44b6cd",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java": {
-    "mtime": 1781682813.3079863,
-    "ast_hash": "1f9b4559e87b52433275fb6a0e0e63c1",
+    "mtime": 1781771875.329366,
+    "ast_hash": "548b54bea14f8d32fb82491abe313964",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Jira.java": {
@@ -3180,8 +3180,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/ValidationsBuilder.java": {
-    "mtime": 1781170594.9417422,
-    "ast_hash": "6122a4c3e506d036dbfa1a8973278f90",
+    "mtime": 1781771875.329366,
+    "ast_hash": "c113fe199e929201df6ef9ad1811a224",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/ValidationsExecutor.java": {
@@ -3195,8 +3195,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/ValidationsHelper2.java": {
-    "mtime": 1781170594.9447453,
-    "ast_hash": "12a52744e1822f9b24b6c8587b82dcaa",
+    "mtime": 1781771875.3303654,
+    "ast_hash": "d80bd3af513306a307ac48426ec3dcc9",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/WebDriverBrowserValidationsBuilder.java": {
@@ -3385,8 +3385,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsCoverageUnitTest.java": {
-    "mtime": 1781642509.8208976,
-    "ast_hash": "9379582def3f5b180522127685ef0e4c",
+    "mtime": 1781771875.3363707,
+    "ast_hash": "9f4d311834c058cb0af3888c87dca6bb",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsExceptionDetailsUnitTest.java": {
@@ -3510,8 +3510,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/validation/internal/ValidationsHelper2CoverageUnitTest.java": {
-    "mtime": 1781170595.2474208,
-    "ast_hash": "2891fbc844cccc4eee8b7565e3446cc3",
+    "mtime": 1781771875.3373704,
+    "ast_hash": "64e74e9b6d94e76fafff3f72abe18918",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/validation/internal/ValidationsHelperCoverageUnitTest.java": {
@@ -4765,8 +4765,8 @@
     "semantic_hash": ""
   },
   "shaft-heal/src/main/java/com/shaft/heal/HealingConfiguration.java": {
-    "mtime": 1781592922.4798534,
-    "ast_hash": "7d540f1d283537631b724e7e903ce765",
+    "mtime": 1781779817.0177398,
+    "ast_hash": "55456f6f26b4f4785903ead93dca9764",
     "semantic_hash": ""
   },
   "shaft-heal/src/main/java/com/shaft/heal/ShaftHeal.java": {
@@ -4775,8 +4775,8 @@
     "semantic_hash": ""
   },
   "shaft-heal/src/main/java/com/shaft/heal/internal/AiCandidateReranker.java": {
-    "mtime": 1781592922.4808538,
-    "ast_hash": "be1ab920d6859520e9b7cfde75897288",
+    "mtime": 1781779842.4433167,
+    "ast_hash": "15cb81409dca9a183cf06fa26d1b1e14",
     "semantic_hash": ""
   },
   "shaft-heal/src/main/java/com/shaft/heal/internal/CandidateExtractor.java": {
@@ -4835,8 +4835,8 @@
     "semantic_hash": ""
   },
   "shaft-heal/src/main/java/com/shaft/heal/internal/ShaftHealingProvider.java": {
-    "mtime": 1781592922.485854,
-    "ast_hash": "331a83061fc768e329ef278d3476ca4f",
+    "mtime": 1781779832.5610223,
+    "ast_hash": "2611967470bd1530c65eff8b9b43b455",
     "semantic_hash": ""
   },
   "shaft-heal/src/main/java/com/shaft/heal/internal/VisualEvidenceService.java": {
@@ -4915,8 +4915,8 @@
     "semantic_hash": ""
   },
   "shaft-heal/src/test/java/com/shaft/heal/internal/ShaftHealingProviderTest.java": {
-    "mtime": 1781592922.4918518,
-    "ast_hash": "81672bcff803ab1ad507c4c818379381",
+    "mtime": 1781780010.0439289,
+    "ast_hash": "58913f4d4e0a5a3ebdf8e3f207c9b7a8",
     "semantic_hash": ""
   },
   "shaft-heal/src/test/java/com/shaft/heal/internal/WebDomHealingAcceptanceTest.java": {
@@ -5025,8 +5025,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/CaptureService.java": {
-    "mtime": 1781543699.49248,
-    "ast_hash": "6a882ef67dfb376e34a9821475148646",
+    "mtime": 1781779979.2834768,
+    "ast_hash": "7c4df779fdfa101ce2f160e4fff67646",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/DoctorService.java": {
@@ -5060,8 +5060,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/McpCaptureReplayResult.java": {
-    "mtime": 1781543437.2314246,
-    "ast_hash": "d304161b9515688362dfc5555bf7657d",
+    "mtime": 1781779975.4593544,
+    "ast_hash": "e34f3a024d1b050f45b8f2160d74912c",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/McpCodeBlock.java": {
@@ -7062,6 +7062,61 @@
   ".memory/memory/workflows/delegate-only-when-needed-for-correctness.md": {
     "mtime": 1781737578.9808524,
     "ast_hash": "b07cf652dddba20866b2ecbbe4e06136",
+    "semantic_hash": ""
+  },
+  ".memory/memory/decisions/heal-ai-reranking-trigger-gated.json": {
+    "mtime": 1781780396.8516145,
+    "ast_hash": "719229f6c7b2bada51ace6eb701b972e",
+    "semantic_hash": ""
+  },
+  ".memory/memory/facts/deterministic-ai-test-lifecycle-artifacts.json": {
+    "mtime": 1781780396.841604,
+    "ast_hash": "32ca0ce2e4a281714c8abe722a0cd9e6",
+    "semantic_hash": ""
+  },
+  ".memory/relations/decision-heal-ai-reranking-trigger-gated-affects-fact-deterministic-ai-test-lifecycle-artifacts.json": {
+    "mtime": 1781780396.8566122,
+    "ast_hash": "708f894906d6cac3e3ec05afd27ae093",
+    "semantic_hash": ""
+  },
+  "shaft-capture/src/main/java/com/shaft/capture/generate/CaptureReview.java": {
+    "mtime": 1781779714.1101656,
+    "ast_hash": "cae01a20e3a33668c654ac3e2ed6f2d7",
+    "semantic_hash": ""
+  },
+  "shaft-capture/src/main/resources/schema/shaft-capture-review-1.0.schema.json": {
+    "mtime": 1781779772.041079,
+    "ast_hash": "33afab4d67cdaa51061920f467af8e8b",
+    "semantic_hash": ""
+  },
+  "shaft-doctor/src/main/java/com/shaft/doctor/model/DoctorTriage.java": {
+    "mtime": 1781779878.6010232,
+    "ast_hash": "0509e7ef19ce71cca5d873721b8918c3",
+    "semantic_hash": ""
+  },
+  "shaft-doctor/src/main/java/com/shaft/doctor/model/ExecutionIntelligence.java": {
+    "mtime": 1781779888.5044975,
+    "ast_hash": "f953d727e98aae2e8324314ad4542ce6",
+    "semantic_hash": ""
+  },
+  "shaft-doctor/src/main/resources/schema/shaft-doctor-triage-1.0.schema.json": {
+    "mtime": 1781779950.7319286,
+    "ast_hash": "8b74d9974899f70eb27656684c67922a",
+    "semantic_hash": ""
+  },
+  "shaft-doctor/src/main/resources/schema/shaft-execution-intelligence-1.0.schema.json": {
+    "mtime": 1781779958.600409,
+    "ast_hash": "6e478de172572cd6de9e4f570a61754d",
+    "semantic_hash": ""
+  },
+  ".memory/memory/decisions/heal-ai-reranking-trigger-gated.md": {
+    "mtime": 1781780396.8466053,
+    "ast_hash": "9e61fd0bec7fb5de29c2d5a2c6500e7c",
+    "semantic_hash": ""
+  },
+  ".memory/memory/facts/deterministic-ai-test-lifecycle-artifacts.md": {
+    "mtime": 1781780396.8356023,
+    "ast_hash": "db58ab1ad8c9a772b56404a0460feb8c",
     "semantic_hash": ""
   }
 }
