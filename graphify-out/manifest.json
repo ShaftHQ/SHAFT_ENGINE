@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "scripts/ci/assemble_javadocs.py": {
-    "mtime": 1781282308.4886944,
-    "ast_hash": "12c110d7d37ed1347d258c9fcceb9008",
+    "mtime": 1781782834.3427699,
+    "ast_hash": "be17a17e7bba70f712f9d97fc7a50e52",
     "semantic_hash": ""
   },
   "scripts/ci/check_maven_release_version.py": {
@@ -180,8 +180,8 @@
     "semantic_hash": ""
   },
   "scripts/ci/validate_modular_documentation.py": {
-    "mtime": 1781710434.3967495,
-    "ast_hash": "055795880ad2f4dd05b6a5e10f5d5c46",
+    "mtime": 1781784688.1342847,
+    "ast_hash": "6817e608a986ab2c692f1e51e91fd634",
     "semantic_hash": ""
   },
   "scripts/ci/validate_quality_configuration.py": {
@@ -2430,8 +2430,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/api/RestActions.java": {
-    "mtime": 1781642509.7758484,
-    "ast_hash": "f4ef1f3c58839876c517d8eb061689c6",
+    "mtime": 1781782706.3416963,
+    "ast_hash": "7841adcd1ca034ce8ddc03c27f05d439",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/api/ShaftRestAssuredFilter.java": {
@@ -2495,8 +2495,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/DriverFactoryHelper.java": {
-    "mtime": 1781642509.781836,
-    "ast_hash": "45499e8468c66155ef7f864ba18e8b23",
+    "mtime": 1781782706.342697,
+    "ast_hash": "a705653ed1254a9d8be29a11fcc3150b",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/LambdaTestHelper.java": {
@@ -3370,8 +3370,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/driver/internal/DriverFactory/DriverFactoryHelperCoverageUnitTest.java": {
-    "mtime": 1781642509.8200521,
-    "ast_hash": "6e2afc4eecfe7c90046b6735e48e6f28",
+    "mtime": 1781782706.3436964,
+    "ast_hash": "31352488cb420f00ac3423cd6489d742",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/driver/internal/DriverFactory/OptionsManagerCoverageUnitTest.java": {
@@ -3385,8 +3385,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsCoverageUnitTest.java": {
-    "mtime": 1781771875.3363707,
-    "ast_hash": "9f4d311834c058cb0af3888c87dca6bb",
+    "mtime": 1781781957.328777,
+    "ast_hash": "f98622938af5f12b1e8d2e7ff6cdb2bb",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsExceptionDetailsUnitTest.java": {
@@ -4040,8 +4040,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/mockedTests/MultipleElementsFailureTest.java": {
-    "mtime": 1781170595.3249383,
-    "ast_hash": "241d67949c16293b2350791d139a82fe",
+    "mtime": 1781781957.3297794,
+    "ast_hash": "be1a0f348613c791d91c58d0b24f78e6",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/mockedTests/MultipleTypeCyclesTest.java": {
@@ -4510,8 +4510,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/ReportManagerHelperUnitTests.java": {
-    "mtime": 1781724042.9031703,
-    "ast_hash": "a45cba4c248794ec3e529c0ce71af948",
+    "mtime": 1781781957.327783,
+    "ast_hash": "8ac175bf3056b3af1fa31c462f63c577",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/RestActionsFailureLoggingUnitTest.java": {
@@ -5625,8 +5625,8 @@
     "semantic_hash": ""
   },
   "shaft-upgrader/upgrade_to_modular_shaft.py": {
-    "mtime": 1781170595.9957213,
-    "ast_hash": "80ded4b12afff44b6dc194cacea1591a",
+    "mtime": 1781783255.1980243,
+    "ast_hash": "5cbd6a89b80faf1ffdeb5d7a0796977d",
     "semantic_hash": ""
   },
   "shaft-video/allure-results/3a534026-89a3-40f7-bfea-4d15196f084b-result.json": {
@@ -5765,8 +5765,8 @@
     "semantic_hash": ""
   },
   "tests/scripts/test_assemble_javadocs.py": {
-    "mtime": 1781170596.0137146,
-    "ast_hash": "f498990719cf3398e8d85d414f7e27b1",
+    "mtime": 1781782840.4198916,
+    "ast_hash": "ac10b1806813dc754bd09e786d138379",
     "semantic_hash": ""
   },
   "tests/scripts/test_browserstack_module_boundary.py": {
@@ -5790,8 +5790,8 @@
     "semantic_hash": ""
   },
   "tests/scripts/test_upgrade_to_modular_shaft.py": {
-    "mtime": 1781685472.0781667,
-    "ast_hash": "cf47339360edb795c8471b57cd180f83",
+    "mtime": 1781782822.770521,
+    "ast_hash": "941c6a5cb5e2aa5acf447e3934b0354e",
     "semantic_hash": ""
   },
   "tests/scripts/test_validate_agent_guidance.py": {
@@ -6254,11 +6254,6 @@
     "ast_hash": "5b4bbf6645ed75cd52c2cab5fea2ed32",
     "semantic_hash": ""
   },
-  "shaft-engine/src/main/javadoc/resources/index.html": {
-    "mtime": 1781340296.1164157,
-    "ast_hash": "4c066f72a7440ca24f77c5f4d7371ff2",
-    "semantic_hash": ""
-  },
   "shaft-engine/src/main/resources/docker-compose/healenium-backend.yml": {
     "mtime": 1781170594.9647408,
     "ast_hash": "a5fd654aa0fbea19d0a20fa14e06e86c",
@@ -6506,7 +6501,7 @@
   },
   "shaft-mcp/allure-report/2026-06-15_10-26-39-636_AllureReport.html": {
     "mtime": 1781508399.555573,
-    "ast_hash": "a7ad50495c3957c3f73aa9c21e44ad7c",
+    "ast_hash": "10420e65c04e6568f51ad046d74c80ff",
     "semantic_hash": ""
   },
   "shaft-mcp/allure-report/2026-06-15_10-43-53-684_AllureReport.html": {
