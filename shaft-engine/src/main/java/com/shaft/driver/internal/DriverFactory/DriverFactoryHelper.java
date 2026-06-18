@@ -37,6 +37,7 @@ import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.remote.*;
+import org.openqa.selenium.remote.http.ClientConfig;
 import org.openqa.selenium.remote.http.ConnectionFailedException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
@@ -45,6 +46,8 @@ import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -321,6 +324,14 @@ public class DriverFactoryHelper {
         return url;
     }
 
+    private static ClientConfig createRemoteWebDriverClientConfig(URL targetExecutionUrl) {
+        var timeout = Duration.ofSeconds(remoteServerInstanceCreationTimeout);
+        return ClientConfig.defaultConfig()
+                .baseUrl(targetExecutionUrl)
+                .connectionTimeout(timeout)
+                .readTimeout(timeout);
+    }
+
     @SneakyThrows({InterruptedException.class, MalformedURLException.class})
     private static WebDriver attemptRemoteServerConnection(Capabilities capabilities) {
         WebDriver driver = null;
@@ -416,15 +427,16 @@ public class DriverFactoryHelper {
         ReportManagerHelper.logDiscrete("Target Execution URI used for remote connection: `" + redactUriCredentials(targetExecutionUrl) + "`.", Level.DEBUG);
         ReportManagerHelper.logDiscrete("Capabilities after processing: `" + capabilities.toString() + "`.", Level.DEBUG);
         try {
+            var targetExecutionUrlObject = URI.create(targetExecutionUrl).toURL();
             //builder code block, has issues in many cases, test it locally via grid before using it
 //            if (isAndroidExecution) return AndroidDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
 //            else if (isIosExecution) return IOSDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
 //            else return RemoteWebDriver.builder().address(targetExecutionUrl).oneOf(capabilities).build();
             // legacy constructor-based code block
-            if (isAndroidExecution) return new AndroidDriver(new URI(targetExecutionUrl).toURL(), capabilities);
-            else if (isIosExecution) return new IOSDriver(new URI(targetExecutionUrl).toURL(), capabilities);
+            if (isAndroidExecution) return new AndroidDriver(targetExecutionUrlObject, capabilities);
+            else if (isIosExecution) return new IOSDriver(targetExecutionUrlObject, capabilities);
             else {
-                var driver = new RemoteWebDriver(URI.create(targetExecutionUrl).toURL(), capabilities);
+                var driver = new RemoteWebDriver(targetExecutionUrlObject, capabilities, createRemoteWebDriverClientConfig(targetExecutionUrlObject));
                 driver.setFileDetector(new LocalFileDetector());
                 var augmenter = new Augmenter();
                 var targetBrowser = SHAFT.Properties.web.targetBrowserName().toLowerCase();
