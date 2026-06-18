@@ -1020,8 +1020,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/element/internal/Actions.java": {
-    "mtime": 1781769439.7734878,
-    "ast_hash": "95ed51b85934932c7c9c9d0449b98fdd",
+    "mtime": 1781780004.9564764,
+    "ast_hash": "8ac06b1b00ecbb3c0def2e30fdb2861e",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/element/internal/ElementActionsHelper.java": {
@@ -1830,8 +1830,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsCoverageUnitTest.java": {
-    "mtime": 1781769440.0315223,
-    "ast_hash": "9f4d311834c058cb0af3888c87dca6bb",
+    "mtime": 1781780360.7515037,
+    "ast_hash": "9ca7c0c0031ba4caed9d0dea75078780",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsExceptionDetailsUnitTest.java": {

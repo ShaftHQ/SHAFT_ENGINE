@@ -24,6 +24,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
+import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import lombok.NonNull;
@@ -78,6 +79,7 @@ import java.util.function.Function;
 public class Actions extends ElementActions {
     private static final Duration defaultPauseDuration = Duration.ofMillis(500);
     private static final DateTimeFormatter SCREENSHOT_ATTACHMENT_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final int TYPED_TEXT_STEP_PREVIEW_LIMIT = 80;
 
     /**
      * Creates a new {@code Actions} instance using the driver managed by the current thread's
@@ -701,13 +703,13 @@ public class Actions extends ElementActions {
                     }
                 }
                 // report broken
-                reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception);
+                reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception, locator, data);
             } catch (RuntimeException exception2) {
                 if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
                     // in case a new exception was thrown while attempting to take a screenshot
                     exception2.addSuppressed(exception);
                     // report broken
-                    reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception2);
+                    reportBroken(action.name(), accessibleName.get(), screenshot.get(0), exception2, locator, data);
                 } else {
                     // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
                     throw exception2;
@@ -715,7 +717,7 @@ public class Actions extends ElementActions {
             }
         }
         //report pass
-        reportPass(action.name(), accessibleName.get(), screenshot.get(0));
+        reportPass(action.name(), accessibleName.get(), screenshot.get(0), locator, data);
         return output.get();
     }
 
@@ -977,14 +979,30 @@ public class Actions extends ElementActions {
         report(action, elementName, Status.PASSED, screenshot, null);
     }
 
+    private void reportPass(String action, String elementName, byte[] screenshot, By locator, Object data) {
+        report(action, elementName, Status.PASSED, screenshot, null, locator, data);
+    }
+
     private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception) {
         report(action, elementName, Status.BROKEN, screenshot, exception);
     }
 
+    private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception, By locator, Object data) {
+        report(action, elementName, Status.BROKEN, screenshot, exception, locator, data);
+    }
+
     private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception) {
+        report(action, elementName, status, screenshot, exception, null, null);
+    }
+
+    private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception, By locator, Object data) {
+        boolean isTypeAction = ActionType.TYPE.name().equals(action);
+        String typedText = isTypeAction ? getTypedText(data) : "";
+        String reportedSubject = isTypeAction ? getTypedTextPreview(typedText) : elementName;
+
         // update allure step name
         StringBuilder stepName = new StringBuilder();
-        stepName.append(JavaHelper.convertToSentenceCase(action)).append(" \"").append(elementName).append("\"");
+        stepName.append(JavaHelper.convertToSentenceCase(action)).append(" \"").append(reportedSubject).append("\"");
 
         if (!status.equals(Status.PASSED))
             stepName.append(" is ").append(status.name().toLowerCase());
@@ -998,6 +1016,9 @@ public class Actions extends ElementActions {
         }
 
         Allure.getLifecycle().updateStep(update -> update.setName(stepName.toString()));
+        if (isTypeAction) {
+            updateTypeActionStepParameters(elementName, locator, typedText);
+        }
 
         // handle secure typing
         if (ActionType.TYPE_SECURELY.name().equals(action))
@@ -1039,6 +1060,49 @@ public class Actions extends ElementActions {
                 throw new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
             }
         }
+    }
+
+    private static String getTypedText(Object data) {
+        if (data instanceof CharSequence[] text) {
+            StringBuilder typedText = new StringBuilder();
+            for (CharSequence charSequence : text) {
+                if (charSequence != null) {
+                    typedText.append(charSequence);
+                }
+            }
+            return typedText.toString();
+        }
+        return data == null ? "" : String.valueOf(data);
+    }
+
+    private static String getTypedTextPreview(String typedText) {
+        String singleLineText = typedText.replaceAll("\\s+", " ").trim();
+        if (singleLineText.length() <= TYPED_TEXT_STEP_PREVIEW_LIMIT) {
+            return singleLineText;
+        }
+        return singleLineText.substring(0, TYPED_TEXT_STEP_PREVIEW_LIMIT - 3).stripTrailing() + "...";
+    }
+
+    private static void updateTypeActionStepParameters(String elementName, By locator, String typedText) {
+        String elementLocator = JavaHelper.formatLocatorToString(locator);
+        Allure.getLifecycle().updateStep(update -> {
+            var params = update.getParameters();
+            params.removeIf(parameter -> isTypeActionStepParameter(parameter.getName()));
+            if (elementName != null && !elementName.isBlank() && !elementName.equals(elementLocator)) {
+                params.add(new Parameter().setName("Element Name").setValue(elementName));
+            }
+            params.add(new Parameter().setName("Element Locator").setValue(elementLocator));
+            params.add(new Parameter().setName("Full Text").setValue(typedText));
+            update.setParameters(params);
+        });
+    }
+
+    private static boolean isTypeActionStepParameter(String parameterName) {
+        return "locator".equals(parameterName)
+                || "text".equals(parameterName)
+                || "Element Name".equals(parameterName)
+                || "Element Locator".equals(parameterName)
+                || "Full Text".equals(parameterName);
     }
 
     static NoSuchElementException createDragAndDropDestinationNotFoundException(By destinationLocator, NoSuchElementException rootCauseException) {

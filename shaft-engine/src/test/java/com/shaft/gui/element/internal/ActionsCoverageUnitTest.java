@@ -12,6 +12,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
+import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import org.apache.logging.log4j.Level;
@@ -41,8 +42,11 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -584,6 +588,39 @@ public class ActionsCoverageUnitTest {
             SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
             Assert.assertNotNull(invoke(actions, "captureScreenshot", new Class[]{WebElement.class, boolean.class}, element, false));
             verify((JavascriptExecutor) driver, atLeastOnce()).executeScript(anyString(), any(Object[].class));
+        }
+    }
+
+    @Test
+    public void typeReportShouldUseTypedTextPreviewAndStepParameters() throws Exception {
+        Actions actions = new Actions(helperFor(mock(WebDriver.class)));
+        String typedText = "  first line\nsecond line " + "x".repeat(100);
+        String expectedPreview = ("first line second line " + "x".repeat(100))
+                .substring(0, 77)
+                .stripTrailing() + "...";
+        String stepUuid = UUID.randomUUID().toString();
+
+        Allure.getLifecycle().startStep(stepUuid, new StepResult().setName("Type"));
+        try {
+            invoke(actions, "report",
+                    new Class[]{String.class, String.class, Status.class, byte[].class, RuntimeException.class, By.class, Object.class},
+                    Actions.ActionType.TYPE.name(), "Search box", Status.PASSED, null, null, By.id("search"),
+                    new CharSequence[]{typedText});
+
+            AtomicReference<StepResult> capturedStep = new AtomicReference<>();
+            Allure.getLifecycle().updateStep(capturedStep::set);
+            StepResult step = capturedStep.get();
+            Assert.assertEquals(step.getName(), "Type \"" + expectedPreview + "\"");
+
+            Map<String, String> parameters = new HashMap<>();
+            step.getParameters().forEach(parameter -> parameters.put(parameter.getName(), parameter.getValue()));
+            Assert.assertEquals(parameters.get("Element Name"), "Search box");
+            Assert.assertTrue(parameters.get("Element Locator").contains("search"));
+            Assert.assertEquals(parameters.get("Full Text"), typedText);
+            Assert.assertFalse(parameters.containsKey("locator"));
+            Assert.assertFalse(parameters.containsKey("text"));
+        } finally {
+            Allure.getLifecycle().stopStep(stepUuid);
         }
     }
 
