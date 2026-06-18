@@ -1262,7 +1262,9 @@ public class Actions extends ElementActions {
         }
 
         boolean hasElementName() {
-            return !elementName.isBlank() && !elementName.equals(locator);
+            return !elementName.isBlank()
+                    && !elementName.equals(locator)
+                    && !locator.equals("Smart Locator: \"" + elementName + "\"");
         }
 
         private static boolean shouldReportTypedValue(ActionType action) {
