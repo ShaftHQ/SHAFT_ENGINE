@@ -28,7 +28,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Consolidate Test Results
         uses: ./.github/actions/consolidate-test-results
         with:
@@ -46,7 +46,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -79,7 +79,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -109,7 +109,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -139,7 +139,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -169,7 +169,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
