@@ -36,6 +36,9 @@ public interface EngineProperties<T> extends Config {
      * @param value property value
      */
     static void logPropertyUpdate(String key, Object value) {
+        if (!Properties.isInitialized()) {
+            return;
+        }
         ReportManager.logDiscrete("Updated property \"" + key + "\" to \""
                 + maskSensitiveValue(key, value) + "\".");
     }

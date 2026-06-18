@@ -2,11 +2,13 @@ package testPackage.unitTests;
 
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertiesHelper;
+import com.shaft.properties.internal.PropertyFileManager;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.List;
@@ -59,6 +61,17 @@ public class PropertiesHelperInitializationUnitTest {
                 "screenshotParamsWhenToTakeAScreenshot=ValidationPointsOnly"
         ).forEach(expectedDefault -> Assert.assertTrue(customTemplateContent.contains(expectedDefault),
                 "custom.properties template should include default: " + expectedDefault));
+    }
+
+    @Test
+    public void resolveClasspathResourceLocationShouldResolveClasspathDirectoryUsingUri() {
+        URL resourceUrl = PropertyFileManager.class.getResource("/resources/properties/default/");
+        Assert.assertNotNull(resourceUrl, "Default properties resource should be on the classpath.");
+        String resolvedFolder = PropertyFileManager.resolveClasspathResourceLocation(resourceUrl);
+        Assert.assertFalse(resolvedFolder.contains("%"),
+                "Classpath folder path should not contain URL-encoded segments on Windows.");
+        Assert.assertTrue(Path.of(resolvedFolder, "custom.properties").toFile().isFile(),
+                "Resolved classpath folder should contain custom.properties.");
     }
 
     private void deleteGeneratedPropertyFile(String fileName) {

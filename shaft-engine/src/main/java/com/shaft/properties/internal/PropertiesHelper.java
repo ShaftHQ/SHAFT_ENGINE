@@ -283,13 +283,9 @@ public class PropertiesHelper {
             downloadDefaultProperties();
         } else {
             URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
-            var propertiesFolderPath = "";
-            if (propertiesFolder != null) {
-                propertiesFolderPath = propertiesFolder.getFile();
-            } else {
-                propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
-            }
-            Properties.paths.set().properties(propertiesFolderPath);
+            var propertiesFolderPath = propertiesFolder != null
+                    ? PropertyFileManager.resolveClasspathResourceLocation(propertiesFolder)
+                    : DEFAULT_PROPERTIES_FOLDER_PATH;
 
             boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
 
@@ -315,7 +311,7 @@ public class PropertiesHelper {
 
     private static void overrideTargetProperties(boolean aiAgentMode) {
         var fileActions = FileActions.getInstance(true);
-        var propertiesFolderPath = Properties.paths.properties();
+        var propertiesFolderPath = PropertyFileManager.resolveBundledDefaultPropertiesFolderPath();
         boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
         var targetPropertiesFolderPath = aiAgentMode
                 ? resolveAiAgentPath(TARGET_PROPERTIES_FOLDER_PATH)
@@ -336,7 +332,8 @@ public class PropertiesHelper {
                                 fileActions.copyFile(tempPath + file, targetPropertiesFolderPath + file);
                             }
                         } else {
-                            fileActions.copyFile(propertiesFolderPath + file, targetPropertiesFolderPath + file);
+                            fileActions.copyFile(PropertyFileManager.resolveCustomPropertiesTemplatePath(),
+                                    targetPropertiesFolderPath + file);
                         }
                     }
                 });

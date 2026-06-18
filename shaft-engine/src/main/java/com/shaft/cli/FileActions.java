@@ -303,6 +303,12 @@ public class FileActions {
      *                       be deleted
      */
     public void deleteFile(String targetFilePath) {
+        if (isProtectedDeletionTarget(targetFilePath)) {
+            if (!internalInstance) {
+                passAction("Target File Path: \"" + targetFilePath + "\", file was not deleted.");
+            }
+            return;
+        }
         File targetFile;
         targetFile = new File(targetFilePath);
         boolean wasFileDeleted = FileUtils.deleteQuietly(targetFile);
@@ -595,6 +601,23 @@ public class FileActions {
 
     public void deleteFolder(String folderPath) {
         deleteFile(folderPath);
+    }
+
+    private static boolean isProtectedDeletionTarget(String targetFilePath) {
+        if (targetFilePath == null || targetFilePath.isBlank()) {
+            return true;
+        }
+        String trimmedPath = targetFilePath.trim();
+        if (".".equals(trimmedPath) || "..".equals(trimmedPath)) {
+            return true;
+        }
+        try {
+            Path normalizedTarget = Path.of(trimmedPath).toAbsolutePath().normalize();
+            Path userDirectory = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+            return normalizedTarget.equals(userDirectory) || userDirectory.startsWith(normalizedTarget);
+        } catch (Exception ignored) {
+            return true;
+        }
     }
 
     public void createFolder(String folderPath) {
