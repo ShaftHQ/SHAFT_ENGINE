@@ -528,12 +528,20 @@ public class TerminalActions {
             }
             session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
             session.setConfig(config);
+            configureRemoteSshKeepAlive(session);
             session.connect();
             ReportManager.logDiscrete("Created SSH session for " + sshUsername + "@" + sshHostName + ":" + sshPortNumber + ".");
         } catch (JSchException rootCauseException) {
             failAction(testData, rootCauseException);
         }
         return session;
+    }
+
+    private void configureRemoteSshKeepAlive(Session session) throws JSchException {
+        int intervalSeconds = SHAFT.Properties.timeouts.sshServerAliveInterval();
+        if (intervalSeconds > 0) {
+            session.setServerAliveInterval(intervalSeconds * 1000);
+        }
     }
 
     private synchronized Session getRemoteSession() {

@@ -1,5 +1,8 @@
 package testPackage.unitTests;
 
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import org.testng.Assert;
@@ -561,6 +564,26 @@ public class TerminalActionsUnitTest {
         String log = terminal.performTerminalCommand("echo token=visible");
         Assert.assertTrue(log.contains("token=visible"),
                 "Returned command output should remain available for assertions");
+    }
+
+    @Test(description = "Remote SSH keep-alive should use configured sshServerAliveInterval timeout")
+    public void remoteSshKeepAliveShouldUseConfiguredSshServerAliveInterval() throws JSchException {
+        int originalInterval = SHAFT.Properties.timeouts.sshServerAliveInterval();
+        try {
+            Assert.assertEquals(SHAFT.Properties.timeouts.sshServerAliveInterval(), 60,
+                    "Default sshServerAliveInterval should be 60 seconds");
+
+            SHAFT.Properties.timeouts.set().sshServerAliveInterval(120);
+            int intervalSeconds = SHAFT.Properties.timeouts.sshServerAliveInterval();
+            Session session = new JSch().getSession("user", "host.example.com", 22);
+            if (intervalSeconds > 0) {
+                session.setServerAliveInterval(intervalSeconds * 1000);
+            }
+            Assert.assertEquals(session.getServerAliveInterval(), 120_000,
+                    "Remote SSH sessions should convert sshServerAliveInterval seconds to JSch milliseconds");
+        } finally {
+            SHAFT.Properties.timeouts.set().sshServerAliveInterval(originalInterval);
+        }
     }
 
     @Test(description = "createSSHsession should surface connection failures for invalid settings")

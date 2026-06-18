@@ -59,6 +59,14 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     long shellSessionTimeout();
 
     /**
+     * JSch {@code ServerAliveInterval} in seconds for remote SSH sessions.
+     * Values {@code <= 0} disable keep-alive packets.
+     */
+    @Key("sshServerAliveInterval")
+    @DefaultValue("60")
+    int sshServerAliveInterval();
+
+    /**
      * @deprecated Docker-wrapped terminal execution is deprecated for removal.
      */
     @Deprecated(since = "10.2.20260614", forRemoval = true)
@@ -146,6 +154,11 @@ public interface Timeouts extends EngineProperties<Timeouts> {
 
         public SetProperty shellSessionTimeout(long value) {
             setProperty("shellSessionTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty sshServerAliveInterval(int value) {
+            setProperty("sshServerAliveInterval", String.valueOf(value));
             return this;
         }
 
