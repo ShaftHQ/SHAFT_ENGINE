@@ -10,7 +10,7 @@
     <description>Validates the published BOM and all optional modules as one consumer graph.</description>
 
     <properties>
-        <shaft.version>10.2.20260617</shaft.version>
+        <shaft.version>10.2.20260618</shaft.version>
     </properties>
 
     <dependencyManagement>
