@@ -224,7 +224,10 @@ public class JavaHelper {
         Matcher matcher = WORD_FINDER_PATTERN.matcher(text);
         List<String> words = new ArrayList<>();
         while (matcher.find()) {
-            words.add(matcher.group(0));
+            String word = matcher.group(0);
+            if (!word.isBlank()) {
+                words.add(word);
+            }
         }
         List<String> capitalized = new ArrayList<>();
         for (int i = 0; i < words.size(); i++) {

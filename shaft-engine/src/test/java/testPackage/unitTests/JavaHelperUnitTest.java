@@ -360,6 +360,12 @@ public class JavaHelperUnitTest {
         Assert.assertEquals(result, "Word", "Single lowercase word should be capitalized");
     }
 
+    @Test(description = "convertToSentenceCase: uppercase underscore input produces a compact sentence")
+    public void convertToSentenceCaseUppercaseUnderscoreShouldProduceCompactSentence() {
+        String result = JavaHelper.convertToSentenceCase("GET_TEXT");
+        Assert.assertEquals(result, "Get text", "Underscore-separated action names should not contain extra spaces");
+    }
+
     // ─── formatLocatorToString ─────────────────────────────────────────────────
 
     @Test(description = "formatLocatorToString: By.id should produce non-null description")

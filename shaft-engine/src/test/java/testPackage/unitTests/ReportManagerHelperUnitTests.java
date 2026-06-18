@@ -229,7 +229,7 @@ public class ReportManagerHelperUnitTests {
     @Test
     public void attachmentMethodsShouldIgnoreNullEmptyAndEngineLogEntries() throws Exception {
         Method logAttachmentActionMethod = ReportManagerHelper.class.getDeclaredMethod(
-                "logAttachmentAction", String.class, String.class, java.io.ByteArrayOutputStream.class);
+                "logAttachmentAction", String.class, String.class, byte[].class);
         logAttachmentActionMethod.setAccessible(true);
 
         ReportManagerHelper.attach("Attachment", "Blank String", "   ");
@@ -238,7 +238,7 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.attach(Collections.emptyList());
         ReportManagerHelper.attach(Collections.singletonList(null));
         ReportManagerHelper.attach(Collections.singletonList(Collections.emptyList()));
-        logAttachmentActionMethod.invoke(null, "SHAFT Engine Logs", "engine", new java.io.ByteArrayOutputStream());
+        logAttachmentActionMethod.invoke(null, "SHAFT Engine Logs", "engine", new byte[0]);
 
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getIssueCounter()).isEqualTo(0).perform();
     }

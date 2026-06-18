@@ -1,7 +1,7 @@
 package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
+import com.shaft.properties.internal.Properties;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -33,6 +33,7 @@ public class MultipleElementsFailureTest {
     @BeforeMethod
 
     void beforeMethod() {
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(true);
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
@@ -40,5 +41,6 @@ public class MultipleElementsFailureTest {
     @AfterMethod(alwaysRun = true)
     void afterMethod() {
         if (driver.get() != null) driver.get().quit();
+        Properties.clearForCurrentThread();
     }
 }

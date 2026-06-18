@@ -1445,8 +1445,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/internal/support/JavaHelper.java": {
-    "mtime": 1781769439.8134294,
-    "ast_hash": "ed73c5c20483f9571b67d9b340812be8",
+    "mtime": 1781782271.7859585,
+    "ast_hash": "fb0e071f32882ff39a72f1069cabcef2",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/internal/support/JavaScriptHelper.java": {
@@ -1830,8 +1830,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsCoverageUnitTest.java": {
-    "mtime": 1781780360.7515037,
-    "ast_hash": "9ca7c0c0031ba4caed9d0dea75078780",
+    "mtime": 1781782271.7869594,
+    "ast_hash": "8288f5e7a65416b25ef579fbda93b2a5",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsExceptionDetailsUnitTest.java": {
@@ -2485,8 +2485,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/mockedTests/MultipleElementsFailureTest.java": {
-    "mtime": 1781769440.0986853,
-    "ast_hash": "241d67949c16293b2350791d139a82fe",
+    "mtime": 1781782563.4762137,
+    "ast_hash": "909b2eba6f1cf274f2b04b7c07ef7a69",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/mockedTests/MultipleTypeCyclesTest.java": {
@@ -2850,8 +2850,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/JavaHelperUnitTest.java": {
-    "mtime": 1781769440.1301465,
-    "ast_hash": "c09490944c2173777d187a7ae1ae7898",
+    "mtime": 1781782271.7879632,
+    "ast_hash": "79e34e3aa072c060c6d5d6863091b665",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/JunitListenerApiCoverageUnitTest.java": {
@@ -2955,8 +2955,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/ReportManagerHelperUnitTests.java": {
-    "mtime": 1781769440.1392891,
-    "ast_hash": "398246ec1c6f2392c6f5d655c7e887e9",
+    "mtime": 1781781948.1145775,
+    "ast_hash": "aa879c4f77dc5625400f89625e5edbbe",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/RestActionsFailureLoggingUnitTest.java": {
