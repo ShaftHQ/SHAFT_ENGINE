@@ -1,1 +1,0 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html","k":"18"},{"l":"com.shaft.heal"},{"l":"com.shaft.heal.internal"},{"l":"com.shaft.heal.model"}];updateSearchResults();

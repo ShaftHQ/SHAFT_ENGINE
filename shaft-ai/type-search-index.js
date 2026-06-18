@@ -1,1 +1,0 @@
-typeSearchIndex = [{"p":"com.shaft.ai.provider","l":"AbstractHttpAiProvider"},{"l":"All Classes and Interfaces","u":"allclasses-index.html","k":"18"},{"p":"com.shaft.ai.provider","l":"AnthropicProvider"},{"p":"com.shaft.ai.provider","l":"GeminiProvider"},{"p":"com.shaft.ai.provider","l":"OllamaProvider"},{"p":"com.shaft.ai.provider","l":"OpenAiProvider"}];updateSearchResults();
