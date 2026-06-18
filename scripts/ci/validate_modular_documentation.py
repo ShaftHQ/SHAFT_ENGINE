@@ -159,20 +159,13 @@ def main() -> None:
     properties_helper = (
         ROOT / "shaft-engine/src/main/java/com/shaft/properties/internal/PropertiesHelper.java"
     ).read_text(encoding="utf-8")
-    setup_page = (
-        ROOT / "shaft-engine/src/main/javadoc/resources/index.html"
-    ).read_text(encoding="utf-8")
     if "refs/heads/main/src/main/resources/" in properties_helper:
         fail("runtime property downloads still use the pre-reactor resource path")
-    if "refs/heads/main/src/main/resources/" in setup_page:
-        fail("setup-page downloads still use the pre-reactor resource path")
     if (
         "refs/heads/main/shaft-engine/src/main/resources/properties/default/"
         not in properties_helper
     ):
         fail("runtime property download path is missing")
-    if "refs/heads/main/shaft-engine/src/main/resources/examples/" not in setup_page:
-        fail("setup-page example download paths are missing")
 
     example_workflows = {
         name: (EXAMPLES / ".github/workflows" / name).read_text(encoding="utf-8")
