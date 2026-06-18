@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.io.File;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -22,7 +24,7 @@ class ShaftMcpApplicationTests {
     private ApplicationContext context;
 
 	@Test
-	void contextRegistersExpectedLeanMcpToolApi() throws Exception {
+    void contextRegistersExpectedLeanMcpToolApi() throws Exception {
         Object bean = context.getBean("shaftTools");
         assertTrue(bean instanceof List<?>);
         List<?> callbacks = (List<?>) bean;
@@ -54,6 +56,31 @@ class ShaftMcpApplicationTests {
         assertTrue(!toolNames.contains("browser_get_page_source"));
         assertTrue(!toolNames.contains("browser_get_cookie"));
         assertTrue(!toolNames.contains("element_click_ai"));
+    }
+
+    @Test
+    void captureLaunchPrefixBuildsRunnableCaptureCommand() throws Exception {
+        Method method = ShaftMcpApplication.class.getDeclaredMethod("captureLaunchPrefix");
+        method.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        List<String> prefix = (List<String>) method.invoke(null);
+
+        assertTrue(prefix.size() >= 3);
+        assertTrue(prefix.contains("capture")
+                || prefix.contains(com.shaft.capture.cli.CaptureCli.class.getName()));
+    }
+
+    @Test
+    void absoluteClassPathNormalizesRelativeEntries() throws Exception {
+        Method method = ShaftMcpApplication.class.getDeclaredMethod("absoluteClassPath", String.class);
+        method.setAccessible(true);
+
+        String normalized = (String) method.invoke(null, "target/classes" + File.pathSeparator + ".");
+
+        for (String entry : normalized.split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+            assertTrue(Path.of(entry).isAbsolute(), entry);
+        }
     }
 
     private static Set<String> expectedTools() throws Exception {

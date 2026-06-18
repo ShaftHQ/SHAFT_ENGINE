@@ -156,6 +156,24 @@ class DoctorServiceTest {
     }
 
     @Test
+    void suggestFixRejectsMalformedWorkspaceReport(@TempDir Path temp) throws Exception {
+        Path report = temp.resolve("doctor-report.json");
+        Files.writeString(report, "not-json", StandardCharsets.UTF_8);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service(temp).suggestFix(
+                        report.toString(),
+                        "",
+                        List.of(),
+                        false,
+                        false,
+                        false,
+                        "driver"));
+
+        assertTrue(failure.getMessage().contains("Doctor report could not be read"));
+    }
+
+    @Test
     void draftPublicationRequiresExplicitApprovalBeforeReadingManifest() {
         IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
                 () -> new DoctorService().publishDraftPr(
