@@ -157,10 +157,10 @@ public class ActionsCoverageUnitTest {
 
             Assert.assertEquals(step.getName(), "Type \"" + expectedPreview + "\"");
             Assert.assertEquals(parameterValue(step, "locator"), "By.id: target");
-            Assert.assertEquals(parameterValue(step, "txt"), "first line\\n" + "x".repeat(150));
+            Assert.assertFalse(hasParameter(step, "txt"));
             Assert.assertEquals(parameterValue(step, "element name"), "accessible target");
             Assert.assertTrue(step.getDescription().contains("locator: By.id: target"));
-            Assert.assertTrue(step.getDescription().contains("txt: first line\\n"));
+            Assert.assertFalse(step.getDescription().contains("txt:"));
         }
     }
 
@@ -179,7 +179,7 @@ public class ActionsCoverageUnitTest {
             new Actions(helperFor(driver)).typeSecure(LOCATOR, "secret-value");
 
             Assert.assertEquals(step.getName(), "Type securely \"********\"");
-            Assert.assertEquals(parameterValue(step, "txt"), "********");
+            Assert.assertFalse(hasParameter(step, "txt"));
             Assert.assertFalse(step.getName().contains("secret-value"));
             Assert.assertFalse(step.getDescription().contains("secret-value"));
         }
@@ -200,13 +200,13 @@ public class ActionsCoverageUnitTest {
 
             new Actions(helperFor(driver)).typeAppend(LOCATOR, "suffix");
             Assert.assertEquals(step.getName(), "Type append \"suffix\"");
-            Assert.assertEquals(parameterValue(step, "txt"), "suffix");
+            Assert.assertFalse(hasParameter(step, "txt"));
 
             step = captureStepUpdates(lifecycle);
             new Actions(helperFor(driver)).setValueUsingJavaScript(LOCATOR, "js value");
             Assert.assertTrue(step.getName().contains("\"js value\""));
             Assert.assertFalse(step.getName().contains("By.id: target"));
-            Assert.assertEquals(parameterValue(step, "txt"), "js value");
+            Assert.assertFalse(hasParameter(step, "txt"));
         }
     }
 
@@ -708,6 +708,11 @@ public class ActionsCoverageUnitTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Missing parameter: " + name))
                 .getValue();
+    }
+
+    private boolean hasParameter(StepResult step, String name) {
+        return step.getParameters().stream()
+                .anyMatch(parameter -> name.equals(parameter.getName()));
     }
 
     private boolean hasCause(Throwable throwable, Class<? extends Throwable> expectedCause) {
