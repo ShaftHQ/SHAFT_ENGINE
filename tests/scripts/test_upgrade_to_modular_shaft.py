@@ -86,6 +86,102 @@ class UpgradeToModularShaftTests(unittest.TestCase):
         self.assertEqual(upgrade.child_text(bom, "scope"), "import")
         self.assertNotIn("SHAFT_ENGINE", transformed.decode())
 
+    def test_transform_removes_android_json_and_excludes_jsonassert(self):
+        pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>example</groupId>
+            <artifactId>demo</artifactId>
+            <version>1.0.0</version>
+            <dependencyManagement>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.vaadin.external.google</groupId>
+                        <artifactId>android-json</artifactId>
+                        <version>0.0.20131108.vaadin1</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.skyscreamer</groupId>
+                        <artifactId>jsonassert</artifactId>
+                        <version>1.5.3</version>
+                    </dependency>
+                </dependencies>
+            </dependencyManagement>
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.shafthq</groupId>
+                    <artifactId>SHAFT_ENGINE</artifactId>
+                    <version>9.3.20250928</version>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.vaadin.external.google</groupId>
+                    <artifactId>android-json</artifactId>
+                    <version>0.0.20131108.vaadin1</version>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.skyscreamer</groupId>
+                    <artifactId>jsonassert</artifactId>
+                    <version>1.5.3</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </project>
+        """
+
+        transformed = upgrade.transform_pom_bytes(
+            pom.encode(),
+            "10.2.20260609",
+            (),
+        )
+        root = upgrade.parse_xml(transformed)
+        dependency_management = upgrade.direct_child(root, "dependencyManagement")
+        managed = upgrade.direct_child(dependency_management, "dependencies")
+        dependencies = upgrade.direct_child(root, "dependencies")
+        all_dependencies = [
+            dependency
+            for container in (managed, dependencies)
+            for dependency in container
+            if upgrade.local_name(dependency.tag) == "dependency"
+        ]
+        coordinates = {
+            (
+                upgrade.child_text(dependency, "groupId"),
+                upgrade.child_text(dependency, "artifactId"),
+            )
+            for dependency in all_dependencies
+        }
+        self.assertNotIn(
+            (upgrade.ANDROID_JSON_GROUP, upgrade.ANDROID_JSON_ARTIFACT),
+            coordinates,
+        )
+
+        jsonassert_dependencies = [
+            dependency
+            for dependency in all_dependencies
+            if (
+                upgrade.child_text(dependency, "groupId"),
+                upgrade.child_text(dependency, "artifactId"),
+            )
+            == (upgrade.JSONASSERT_GROUP, upgrade.JSONASSERT_ARTIFACT)
+        ]
+        self.assertEqual(len(jsonassert_dependencies), 2)
+        for dependency in jsonassert_dependencies:
+            exclusions = upgrade.direct_child(dependency, "exclusions")
+            self.assertIsNotNone(exclusions)
+            exclusion_coordinates = {
+                (
+                    upgrade.child_text(exclusion, "groupId"),
+                    upgrade.child_text(exclusion, "artifactId"),
+                )
+                for exclusion in exclusions
+                if upgrade.local_name(exclusion.tag) == "exclusion"
+            }
+            self.assertIn(
+                (upgrade.ANDROID_JSON_GROUP, upgrade.ANDROID_JSON_ARTIFACT),
+                exclusion_coordinates,
+            )
+
     def test_scan_optional_modules_records_code_and_property_evidence(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
