@@ -10,7 +10,7 @@ import java.util.Arrays;
 public class SmartLocators {
 
     public static By inputField(@NonNull String elementName) {
-        return new ByAll(
+        return new SmartLocator(elementName,
                 // input
                 xpathBuilder(PathStrategy.INPUT_CONTAINS_PLACEHOLDER, elementName),
                 xpathBuilder(PathStrategy.INPUT_CONTAINS_ARIA_LABEL, elementName),
@@ -30,7 +30,7 @@ public class SmartLocators {
     }
 
     public static By clickableField(@NonNull String elementName) {
-        return new ByAll(
+        return new SmartLocator(elementName,
                 xpathBuilder(PathStrategy.BUTTON_CONTAINS_TEXT, elementName),
                 xpathBuilder(PathStrategy.BUTTON_CONTAINS_ID, elementName),
                 xpathBuilder(PathStrategy.BUTTON_CONTAINS_TITLE, elementName),
@@ -60,6 +60,10 @@ public class SmartLocators {
                 xpathBuilder(PathStrategy.ANY_CONTAINS_TEXT_FOLLOWING_BUTTON, elementName),
                 xpathBuilder(PathStrategy.ANY_CONTAINS_TEXT_FOLLOWING_LINK, elementName)
         );
+    }
+
+    public static String format(By locator) {
+        return locator instanceof SmartLocator smartLocator ? "Smart Locator: \"" + smartLocator.elementName + "\"" : null;
     }
 
     private static By xpathBuilder(@NonNull PathStrategy strategy, @NonNull String elementName) {
@@ -312,5 +316,14 @@ public class SmartLocators {
         ROLE_BUTTON_CONTAINS_TEXT, ROLE_LINK_CONTAINS_TEXT, ROLE_TAB_CONTAINS_TEXT, ROLE_MENUITEM_CONTAINS_TEXT,
         // CLICKABLE FIELD, ADDED AFTER REALISTIC TESTING
         ANY_CONTAINS_TEXT_FOLLOWING_BUTTON, ANY_CONTAINS_TEXT_FOLLOWING_LINK
+    }
+
+    private static class SmartLocator extends ByAll {
+        private final String elementName;
+
+        private SmartLocator(String elementName, By... bys) {
+            super(bys);
+            this.elementName = elementName;
+        }
     }
 }

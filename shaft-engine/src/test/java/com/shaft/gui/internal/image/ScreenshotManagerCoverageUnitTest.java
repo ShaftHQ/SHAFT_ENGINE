@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -228,9 +229,11 @@ public class ScreenshotManagerCoverageUnitTest {
 
             SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
             byte[] aiPass = manager.internalCaptureScreenshot(driver, By.id("x"), true);
+            SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
             byte[] aiFail = manager.internalCaptureScreenshot(driver, RelativeLocator.with(By.tagName("div")).above(By.id("x")), false);
             Assert.assertTrue(aiPass.length > 0);
             Assert.assertTrue(aiFail.length > 0);
+            imageProcessingMocked.verify(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), eq(new Color(255, 0, 0))));
 
             SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
             byte[] jsShot = manager.internalCaptureScreenshot(driver, By.id("x"), true);
@@ -307,7 +310,7 @@ public class ScreenshotManagerCoverageUnitTest {
 
             SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
             Assert.assertTrue(manager.takeScreenshot(driver, null, "click", true).isEmpty());
-            Assert.assertTrue(manager.takeScreenshot(driver, null, "click", false).isEmpty());
+            Assert.assertFalse(manager.takeScreenshot(driver, null, "click", false).isEmpty());
             Assert.assertFalse(manager.takeScreenshot(driver, null, "assertEquals", true).isEmpty());
 
             SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("FailuresOnly");
@@ -318,7 +321,7 @@ public class ScreenshotManagerCoverageUnitTest {
             Assert.assertFalse(manager.takeScreenshot(driver, null, "click", true).isEmpty());
 
             SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
-            Assert.assertTrue(manager.takeScreenshot(driver, null, "assertEquals", false).isEmpty());
+            Assert.assertFalse(manager.takeScreenshot(driver, null, "assertEquals", false).isEmpty());
         }
     }
 

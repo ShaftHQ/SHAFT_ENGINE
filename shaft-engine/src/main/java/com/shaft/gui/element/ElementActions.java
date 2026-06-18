@@ -1,26 +1,15 @@
 package com.shaft.gui.element;
 
-import com.shaft.cli.FileActions;
-import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.Actions;
-import com.shaft.gui.element.internal.ElementInformation;
-import com.shaft.gui.internal.image.ScreenshotManager;
-import com.shaft.gui.internal.locator.LocatorBuilder;
-import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.*;
-import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.nio.file.FileSystems;
 import java.time.Duration;
 import java.util.*;
 
@@ -133,14 +122,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public Actions executeNativeMobileCommand(String command, Map<String, String> parameters) {
-        try {
-            elementActionsHelper.executeNativeMobileCommandUsingJavascript(driverFactoryHelper.getDriver(), command, parameters);
-            var testData = "Command: " + command + ", Parameters: " + parameters;
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
-        } catch (Exception rootCauseException) {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
-        }
-        return new Actions(driverFactoryHelper);
+        return new Actions(driverFactoryHelper).executeNativeMobileCommand(command, parameters);
     }
 
     /**
@@ -173,17 +155,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public Actions scrollToElement(By elementLocator) {
-        // if mobile, call swipeElementIntoView(null, targetElementLocator, swipeDirection); for convenience
-        if (DriverFactoryHelper.isMobileNativeExecution()) {
-            performTouchAction().swipeElementIntoView(elementLocator, TouchActions.SwipeDirection.DOWN);
-        }
-        try {
-            elementActionsHelper.scrollToFindElement(driverFactoryHelper.getDriver(), elementLocator);
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementActionsHelper.getElementName(driverFactoryHelper.getDriver(), elementLocator));
-        } catch (Exception throwable) {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, throwable);
-        }
-        return new Actions(driverFactoryHelper);
+        return new Actions(driverFactoryHelper).scrollToElement(elementLocator);
     }
 
     /**
@@ -280,68 +252,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public Actions select(By elementLocator, String valueOrVisibleText) {
-        ElementInformation elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator));
-
-        //Capture the Element Tag
-        String elementTag = elementInformation.getElementTag();
-
-        //The Logic to Handle non-Select dropDowns
-        if (!elementTag.equals("select")) {
-            if (SHAFT.Properties.flags.handleNonSelectDropDown()) {
-                click(elementInformation.getLocator());
-                elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator));
-                try {
-                    RelativeLocator.RelativeBy relativeBy = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).byRelation().below(elementInformation.getLocator());
-                    elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), relativeBy));
-                } catch (Throwable var9) {
-                    ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
-                    elementActionsHelper.failAction(driverFactoryHelper.getDriver(), By.xpath("//*[text()='" + valueOrVisibleText + "']").toString(), elementLocator, var9);
-                }
-                click(elementInformation.getLocator());
-            } else {
-                ReportManager.logDiscrete("Cannot Find Element with the following Locator in the DropDown Options: " + By.xpath("//*[text()='" + valueOrVisibleText + "']"));
-                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Select: ", valueOrVisibleText + "\" from Element : " + " Tag should be <Select, yet it was found to be " + "<" + elementTag, elementLocator, null);
-            }
-
-            //End of non-select DropDowns Logic
-            //================================================================//
-
-        } else {
-
-            try {
-                String elementName = elementInformation.getElementName();
-                if (elementName == null || elementName.isBlank()) {
-                    elementName = JavaHelper.formatLocatorToString(elementLocator);
-                }
-                if (!elementActionsHelper.waitForElementTextToBeNot(driverFactoryHelper.getDriver(), elementLocator, "")) {
-                    elementActionsHelper.failAction(driverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator);
-                }
-
-                elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator));
-                Select selectElement = new Select(elementInformation.getFirstElement());
-                boolean isOptionFound = false;
-                List<WebElement> availableOptionsList = selectElement.getOptions();
-
-                for (int i = 0; i < availableOptionsList.size(); ++i) {
-                    String visibleText = availableOptionsList.get(i).getText();
-                    String value = availableOptionsList.get(i).getDomProperty("value");
-                    if (visibleText.trim().equals(valueOrVisibleText) || Objects.requireNonNull(value).trim().equals(valueOrVisibleText)) {
-                        selectElement.selectByIndex(i);
-                        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), valueOrVisibleText, null, elementName);
-                        isOptionFound = true;
-                        break;
-                    }
-                }
-
-                if (!isOptionFound) {
-                    throw new NoSuchElementException("Cannot locate option with Value or Visible text =" + valueOrVisibleText);
-                }
-            } catch (Throwable var9) {
-                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), valueOrVisibleText, elementLocator, var9);
-            }
-
-        }
-        return new Actions(driverFactoryHelper);
+        return new Actions(driverFactoryHelper).select(elementLocator, valueOrVisibleText);
     }
 
     /**
@@ -365,25 +276,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public Actions submitFormUsingJavaScript(By elementLocator) {
-        try {
-            var elementName = elementActionsHelper.getElementName(driverFactoryHelper.getDriver(), elementLocator);
-            List<Object> screenshot = null;
-            try {
-                screenshot = elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), elementLocator, "submitFormUsingJavaScript", null, true);
-                elementActionsHelper.submitFormUsingJavascript(driverFactoryHelper.getDriver(), elementLocator);
-                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, Collections.singletonList(screenshot), elementName);
-            } catch (JavascriptException javascriptException) {
-                if (screenshot == null)
-                    screenshot = elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), elementLocator, "submitFormUsingJavaScript", null, true);
-                driverFactoryHelper.getDriver().findElement(elementLocator).submit();
-                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, Collections.singletonList(screenshot), elementName);
-            } catch (Exception rootCauseException) {
-                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, rootCauseException);
-            }
-        } catch (Exception throwable) {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, throwable);
-        }
-        return new Actions(driverFactoryHelper);
+        return new Actions(driverFactoryHelper).submitFormUsingJavaScript(elementLocator);
     }
 
     /**
@@ -396,20 +289,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public Actions switchToIframe(By elementLocator) {
-        try {
-            var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator));
-            LocatorBuilder.getIFrameLocator().set(elementInformation.getLocator());
-            // note to self: remove elementLocator in case of bug in screenshot manager
-            driverFactoryHelper.getDriver().switchTo().frame(elementInformation.getFirstElement());
-            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
-            ReportManagerHelper.setDiscreteLogging(true);
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, elementInformation.getElementName());
-            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, throwable);
-        }
-        return new Actions(driverFactoryHelper);
+        return new Actions(driverFactoryHelper).switchToIframe(elementLocator);
     }
 
     /**
@@ -421,20 +301,7 @@ public class ElementActions extends FluentWebDriverAction {
      */
     @SuppressWarnings("UnusedReturnValue")
     public Actions switchToDefaultContent() {
-        try {
-            driverFactoryHelper.getDriver().switchTo().defaultContent();
-            LocatorBuilder.getIFrameLocator().remove();
-            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
-            ReportManagerHelper.setDiscreteLogging(true);
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
-            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        } catch (Exception rootCauseException) {
-//            failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
-        }
-        // if there is no last used driver or no drivers in the drivers list, do
-        // nothing...
-//        return new ElementActions(Objects.requireNonNull(driver).get());
-        return new Actions(driverFactoryHelper);
+        return new Actions(driverFactoryHelper).switchToDefaultContent();
     }
 
     /**
@@ -497,45 +364,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions.
      */
     public Actions typeFileLocationForUpload(By elementLocator, String filePath) {
-        var absoluteFilePath = filePath;
-        if (filePath.startsWith("src")) {
-            absoluteFilePath = FileActions.getInstance(true).getAbsolutePath(filePath);
-        }
-
-        String internalAbsoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
-        try {
-            var elementName = elementActionsHelper.getElementName(driverFactoryHelper.getDriver(), elementLocator);
-            List<Object> screenshot = elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), elementLocator, "typeFileLocationForUpload", null, true);
-            // takes screenshot before clicking the element out of view
-            try {
-                ((WebElement) elementActionsHelper.identifyUniqueElementIgnoringVisibility(driverFactoryHelper.getDriver(), elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
-            } catch (InvalidArgumentException e) {
-                //this happens when the file path doesn't exist
-                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), internalAbsoluteFilePath, elementLocator, e);
-            } catch (ElementNotInteractableException | NoSuchElementException exception1) {
-                elementActionsHelper.changeWebElementVisibilityUsingJavascript(driverFactoryHelper.getDriver(), elementLocator, true);
-                try {
-                    ((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
-                } catch (WebDriverException rootCauseException) {
-                    rootCauseException.addSuppressed(exception1);
-                    // happened for the first time on MacOSX due to incorrect file path separator
-                    elementActionsHelper.failAction(driverFactoryHelper.getDriver(), internalAbsoluteFilePath, elementLocator, rootCauseException);
-                }
-                try {
-                    elementActionsHelper.changeWebElementVisibilityUsingJavascript(driverFactoryHelper.getDriver(), elementLocator, false);
-                } catch (NoSuchElementException | StaleElementReferenceException e) {
-                    // this exception is sometimes thrown on firefox after the upload has been
-                    // successful, since we don't have to return the style to what it was, then it's
-                    // okay to do nothing here.
-                    ReportManagerHelper.logDiscrete(e);
-                }
-            }
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator, internalAbsoluteFilePath, screenshot, elementName);
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), elementLocator, throwable);
-        }
-        return new Actions(driverFactoryHelper);
+        return new Actions(driverFactoryHelper).typeFileLocationForUpload(elementLocator, filePath);
     }
 
     /**
@@ -607,9 +436,7 @@ public class ElementActions extends FluentWebDriverAction {
      * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Element Actions</a>
      */
     public Actions captureScreenshot(By elementLocator) {
-        var screenshotManager = new ScreenshotManager();
-        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeElementScreenshot(driverFactoryHelper.getDriver(), elementLocator), "captureScreenshot")));
-        return new Actions(driverFactoryHelper);
+        return new Actions(driverFactoryHelper).captureScreenshot(elementLocator);
     }
 
 }

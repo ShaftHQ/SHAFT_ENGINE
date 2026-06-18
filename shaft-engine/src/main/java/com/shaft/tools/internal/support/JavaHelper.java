@@ -2,6 +2,7 @@ package com.shaft.tools.internal.support;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
@@ -213,6 +214,10 @@ public class JavaHelper {
     }
 
     public static String formatLocatorToString(By locator) {
+        String smartLocator = SmartLocators.format(locator);
+        if (smartLocator != null) {
+            return smartLocator;
+        }
         if (locator instanceof RelativeLocator.RelativeBy relativeLocator) {
             return "Relative Locator: " + relativeLocator.getRemoteParameters().value().toString();
         } else {

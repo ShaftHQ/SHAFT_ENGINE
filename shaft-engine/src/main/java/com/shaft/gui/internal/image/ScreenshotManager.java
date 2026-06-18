@@ -113,6 +113,9 @@ public class ScreenshotManager {
     }
 
     private boolean shouldAttachScreenshot(String actionName, boolean passFailStatus) {
+        if (!passFailStatus) {
+            return true;
+        }
         var whenToTakeAScreenshot = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
         if ("Always".equalsIgnoreCase(whenToTakeAScreenshot)) {
             return true;
@@ -218,7 +221,7 @@ public class ScreenshotManager {
     private byte[] takeAIHighlightedScreenshot(WebDriver driver, By elementLocator, boolean isPass) {
         Rectangle elementLocation = null;
         // getElementLocation
-        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements()) && elementLocator != null) {
+        if ((Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements()) || !isPass) && elementLocator != null) {
             var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
             int elementCount = elementInformation.getNumberOfFoundElements();
             boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
@@ -245,7 +248,7 @@ public class ScreenshotManager {
                 if (isPass) {
                     color = new Color(67, 176, 42); // selenium-green
                 } else {
-                    color = new Color(255, 255, 153); // yellow
+                    color = new Color(255, 0, 0); // red
                 }
                 byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
                 if (highlighted != null && highlighted.length > 0) {
@@ -265,7 +268,7 @@ public class ScreenshotManager {
         JavascriptExecutor js = null;
         WebElement element = null;
         // get & highlight Element
-        if (Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements()) && elementLocator != null) {
+        if ((Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsHighlightElements()) || !isPass) && elementLocator != null) {
             var elementInformation = ElementInformation.fromList(elementActionsHelper.identifyUniqueElementIgnoringVisibility(driver, elementLocator));
             int elementCount = elementInformation.getNumberOfFoundElements();
             boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
@@ -321,8 +324,8 @@ public class ScreenshotManager {
             background = "#46aad2";
             backgroundColor = "#A5D2A5";
         } else {
-            background = "#FFFF99";
-            backgroundColor = "#FFFF99";
+            background = "#FF0000";
+            backgroundColor = "#FF0000";
         }
         return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + background
                 + " !important; background-color:" + backgroundColor
