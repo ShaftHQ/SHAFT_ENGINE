@@ -175,6 +175,30 @@ public class ActionsCoverageUnitTest {
     }
 
     @Test
+    public void smartLocatorTypingShouldNotDuplicateElementNameInAllureStep() {
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getAccessibleName()).thenReturn("Email");
+        when(driver.findElements(any(By.class))).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+
+            new Actions(helperFor(driver)).type("Email", "user@example.com");
+
+            Assert.assertEquals(step.getName(), "Type \"user@example.com\"");
+            Assert.assertEquals(parameterValue(step, "locator"), "Smart Locator: \"Email\"");
+            Assert.assertFalse(hasParameter(step, "element name"));
+            Assert.assertFalse(step.getDescription().contains("element name:"));
+        }
+    }
+
+    @Test
     public void secureTypingShouldKeepTypedSecretMaskedInAllureStep() {
         WebDriver driver = mock(WebDriver.class);
         WebElement element = standardElement();
