@@ -331,6 +331,52 @@ public class ThreadLocalPropertiesTest {
         }
     }
 
+    @Test(description = "Retry evidence enables GIF capture without changing screenshot policy and restores values afterward")
+    public void testRetrySupportingEvidenceCaptureRestoresVisualOverrides() {
+        int originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+        boolean originalForceEvidence = SHAFT.Properties.flags.forceCaptureSupportingEvidenceOnRetry();
+
+        ITestNGMethod testMethod = mock(ITestNGMethod.class);
+        when(testMethod.getMethodName()).thenReturn("retryEvidenceTest");
+        ITestResult testResult = mock(ITestResult.class);
+        when(testResult.getMethod()).thenReturn(testMethod);
+
+        try {
+            SHAFT.Properties.flags.set()
+                    .retryMaximumNumberOfAttempts(1)
+                    .forceCaptureSupportingEvidenceOnRetry(true);
+            SHAFT.Properties.visuals.set()
+                    .videoParamsRecordVideo(false)
+                    .createAnimatedGif(false)
+                    .screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly")
+                    .whenToTakePageSourceSnapshot("Never");
+            SHAFT.Properties.reporting.set().captureWebDriverLogs(false);
+
+            Assert.assertTrue(new RetryAnalyzer().retry(testResult), "Retry should be scheduled for the first failure");
+            Assert.assertTrue(SHAFT.Properties.visuals.videoParamsRecordVideo());
+            Assert.assertTrue(SHAFT.Properties.visuals.createAnimatedGif());
+            Assert.assertEquals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot(), "ValidationPointsOnly");
+            Assert.assertEquals(SHAFT.Properties.visuals.whenToTakePageSourceSnapshot(), "FailuresOnly");
+            Assert.assertTrue(SHAFT.Properties.reporting.captureWebDriverLogs());
+
+            RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();
+            RetryAnalyzer.restoreSupportingEvidenceCaptureForRetryAttempt();
+
+            Assert.assertFalse(SHAFT.Properties.visuals.videoParamsRecordVideo());
+            Assert.assertFalse(SHAFT.Properties.visuals.createAnimatedGif());
+            Assert.assertEquals(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot(), "ValidationPointsOnly");
+            Assert.assertEquals(SHAFT.Properties.visuals.whenToTakePageSourceSnapshot(), "Never");
+            Assert.assertFalse(SHAFT.Properties.reporting.captureWebDriverLogs());
+        } finally {
+            RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();
+            RetryAnalyzer.restoreSupportingEvidenceCaptureForRetryAttempt();
+            SHAFT.Properties.flags.set()
+                    .retryMaximumNumberOfAttempts(originalRetryCount)
+                    .forceCaptureSupportingEvidenceOnRetry(originalForceEvidence);
+            Properties.clearForCurrentThread();
+        }
+    }
+
     @Test(description = "Retry diagnostics should reject a directory path as the debug log target")
     public void testRetryDiagnosticsRejectsDirectoryLogPath() throws Exception {
         String originalLogFilePath = SHAFT.Properties.log4j.appenderFile_FileName();

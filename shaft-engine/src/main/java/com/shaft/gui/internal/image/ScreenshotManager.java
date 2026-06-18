@@ -37,7 +37,7 @@ public class ScreenshotManager {
 
     public List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName,
                                        boolean passFailStatus) {
-        return internalCaptureScreenShot(driver, elementLocator, actionName, shouldTakeScreenshot(actionName, passFailStatus), passFailStatus);
+        return internalCaptureScreenShot(driver, elementLocator, actionName, shouldAttachScreenshot(actionName, passFailStatus), shouldCaptureAnimatedGifFrame(actionName), passFailStatus);
     }
 
     protected byte[] takeScreenshot(WebDriver driver, By targetElementLocator, Screenshots type) {
@@ -112,19 +112,25 @@ public class ScreenshotManager {
         }
     }
 
-    private boolean shouldTakeScreenshot(String actionName, boolean passFailStatus) {
+    private boolean shouldAttachScreenshot(String actionName, boolean passFailStatus) {
         var whenToTakeAScreenshot = SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot();
-        String lowerActionName = actionName.toLowerCase();
-        return (
-                !passFailStatus
-                        || (VALIDATION_ACTION_PATTERN.matcher(lowerActionName).matches() && !whenToTakeAScreenshot.equals("Never"))
-                        || (SHAFT.Properties.visuals.createAnimatedGif() && (AnimatedGifManager.DETAILED_GIF || AnimatedGifManager.LIGHTWEIGHT_GIF_PATTERN.matcher(lowerActionName).matches()))
-                        || whenToTakeAScreenshot.equals("Always")
-        );
-        // if action failed => most common case
-        // validation action & not set to never => second most common case
-        // OR animated GIF && (detailed gif OR actionName matches lightweight gif regex)
-        // OR set to always
+        if ("Always".equalsIgnoreCase(whenToTakeAScreenshot)) {
+            return true;
+        } else if ("FailuresOnly".equalsIgnoreCase(whenToTakeAScreenshot)) {
+            return !passFailStatus;
+        } else if ("Never".equalsIgnoreCase(whenToTakeAScreenshot)) {
+            return false;
+        }
+        return isValidationAction(actionName);
+    }
+
+    private boolean shouldCaptureAnimatedGifFrame(String actionName) {
+        return SHAFT.Properties.visuals.createAnimatedGif()
+                && (AnimatedGifManager.DETAILED_GIF || AnimatedGifManager.LIGHTWEIGHT_GIF_PATTERN.matcher(actionName.toLowerCase()).matches());
+    }
+
+    private boolean isValidationAction(String actionName) {
+        return VALIDATION_ACTION_PATTERN.matcher(actionName.toLowerCase()).matches();
     }
 
     private byte[] takeViewportScreenshot(WebDriver driver) {
@@ -191,12 +197,13 @@ public class ScreenshotManager {
         return null;
     }
 
-    private List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName, boolean shouldCaptureScreenshot, boolean isPass) {
-        if (shouldCaptureScreenshot) {
+    private List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName, boolean shouldAttachScreenshot, boolean shouldCaptureAnimatedGifFrame, boolean isPass) {
+        if (shouldAttachScreenshot || shouldCaptureAnimatedGifFrame) {
             byte[] src = internalCaptureScreenshot(driver, elementLocator, isPass);
-            return prepareImageForReport(src, actionName);
+            if (shouldAttachScreenshot) {
+                return prepareImageForReport(src, actionName);
+            }
         }
-        //return screenshot to be attached only if needed, else do nothing as it was already added to the GIF
         return new ArrayList<>();
     }
 

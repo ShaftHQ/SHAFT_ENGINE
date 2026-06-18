@@ -61,3 +61,6 @@
 {"actor":"agent","event":"memory.created","id":"workflow.use-memory-and-graphify-through-cli-in-codex","timestamp":"2026-06-18T15:03:29+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.surefire-testng-bootstrap-validation-after-pr2947","timestamp":"2026-06-18T17:07:40+03:00"}
 {"actor":"agent","event":"memory.superseded","id":"gotcha.surefire-testng-deletes-module","reason":"PR #2945 and PR #2947 fixed the Windows bootstrap/deletion path, and focused Surefire/TestNG validation on main@1143717914 passed with populated Allure results and the shaft-engine module tree intact.","timestamp":"2026-06-18T17:07:40+03:00"}
+{"actor":"agent","event":"relation.deleted","relation_id":"rel.workflow-surefire-testng-bootstrap-validation-after-pr2947-supersedes-gotcha-surefire-testng-deletes-module","timestamp":"2026-06-18T19:50:26+03:00"}
+{"actor":"agent","event":"memory.deleted","id":"gotcha.surefire-testng-deletes-module","timestamp":"2026-06-18T19:50:26+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.delegate-when-unable","timestamp":"2026-06-18T20:03:27+03:00"}

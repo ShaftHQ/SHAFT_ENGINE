@@ -1,0 +1,1 @@
+User instruction: always feel free to delegate when unable to do the task yourself. Treat this as permission to use bounded delegation when the main agent is blocked or lacks capacity to complete a task directly, while still respecting the current user request, codebase context, and tool policies.

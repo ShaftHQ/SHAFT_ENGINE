@@ -258,6 +258,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         if (elapsedTime >= SHAFT.Properties.testNG.testSuiteTimeout() * 60000) {
             throw new SkipException("Skipping method as the test suite has exceeded the defined timeout of " + SHAFT.Properties.testNG.testSuiteTimeout() + " minutes.");
         }
+        if (method.isTestMethod()) {
+            RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();
+        }
         // Clear per-thread property overrides only when a new test class begins its lifecycle
         // on a pooled thread.  Checking for class identity change prevents incorrectly clearing
         // overrides set by an earlier @BeforeClass method on the same class.
@@ -297,6 +300,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 //            TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
         TestNGListenerHelper.logFinishedTestInformation(iTestResult);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
+        if (iInvokedMethod.isTestMethod()) {
+            RetryAnalyzer.restoreSupportingEvidenceCaptureForRetryAttempt();
+        }
         // Clean up thread-local state when the last after-class config method finishes
         if (iInvokedMethod.isConfigurationMethod() && iInvokedMethod.getTestMethod().isAfterClassConfiguration()) {
             activeTestClass.remove();
