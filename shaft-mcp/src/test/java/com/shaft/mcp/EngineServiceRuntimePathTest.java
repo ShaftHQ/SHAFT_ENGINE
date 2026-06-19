@@ -32,10 +32,12 @@ class EngineServiceRuntimePathTest {
     Path temp;
 
     private Map<String, String> originalProperties;
+    private String originalUserDir;
 
     @BeforeEach
     void captureOriginalProperties() {
         originalProperties = new HashMap<>();
+        originalUserDir = System.getProperty("user.dir");
         RUNTIME_PATH_PROPERTIES.forEach(property -> originalProperties.put(property, System.getProperty(property)));
         RUNTIME_PATH_PROPERTIES.forEach(System::clearProperty);
     }
@@ -48,6 +50,11 @@ class EngineServiceRuntimePathTest {
                 System.setProperty(property, value);
             }
         });
+        if (originalUserDir == null) {
+            System.clearProperty("user.dir");
+        } else {
+            System.setProperty("user.dir", originalUserDir);
+        }
     }
 
     @Test
@@ -60,6 +67,7 @@ class EngineServiceRuntimePathTest {
 
         assertEquals(runtimeRoot.toAbsolutePath().normalize(), resolvedRoot);
         assertEquals(resolvedRoot.toString(), System.getProperty("aiAgentWorkspaceRoot"));
+        assertEquals(resolvedRoot.toString(), System.getProperty("user.dir"));
         assertEquals(resolvedRoot.resolve("custom-results").toString(),
                 System.getProperty("allureResultsFolderPath"));
         assertEquals(resolvedRoot.resolve("downloads").toString(),

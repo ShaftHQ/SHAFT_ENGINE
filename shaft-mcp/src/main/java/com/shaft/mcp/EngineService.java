@@ -139,6 +139,8 @@ public class EngineService {
 
     static Path configureRuntimePaths(Path runtimeRoot) {
         Path root = runtimeRoot.toAbsolutePath().normalize();
+        createDirectory(root.toString(), "MCP runtime root");
+        System.setProperty("user.dir", root.toString());
         setPathProperty("aiAgentWorkspaceRoot", root, root.toString());
         for (String[] pathProperty : MCP_PATH_PROPERTIES) {
             setPathProperty(pathProperty[0], root, pathProperty[1]);

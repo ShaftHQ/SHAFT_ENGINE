@@ -11,6 +11,7 @@ import java.util.Map;
  */
 final class McpRuntimePaths {
     static final String WORKSPACE_ENVIRONMENT_VARIABLE = "SHAFT_MCP_WORKSPACE_ROOT";
+    static final String WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.workspaceRoot";
 
     private McpRuntimePaths() {
         throw new IllegalStateException("Utility class");
@@ -23,6 +24,7 @@ final class McpRuntimePaths {
      */
     static Path currentRoot() {
         return resolveRoot(
+                System.getProperty(WORKSPACE_SYSTEM_PROPERTY),
                 System.getenv(),
                 Path.of("").toAbsolutePath().normalize(),
                 System.getProperty("os.name", ""),
@@ -34,7 +36,16 @@ final class McpRuntimePaths {
             Path currentDirectory,
             String operatingSystemName,
             Path userHome) {
-        String configuredWorkspace = environment.get(WORKSPACE_ENVIRONMENT_VARIABLE);
+        return resolveRoot(null, environment, currentDirectory, operatingSystemName, userHome);
+    }
+
+    static Path resolveRoot(
+            String configuredWorkspace,
+            Map<String, String> environment,
+            Path currentDirectory,
+            String operatingSystemName,
+            Path userHome) {
+        configuredWorkspace = firstNonBlank(configuredWorkspace, environment.get(WORKSPACE_ENVIRONMENT_VARIABLE));
         if (configuredWorkspace != null && !configuredWorkspace.isBlank()) {
             return ensureWritableDirectory(Path.of(configuredWorkspace));
         }

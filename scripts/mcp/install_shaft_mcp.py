@@ -20,6 +20,7 @@ import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from hashlib import sha1, sha256
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,8 @@ ARTIFACT_PATH = "io/github/shafthq/shaft-mcp"
 DEFAULT_REPOSITORY = "https://repo.maven.apache.org/maven2"
 MAIN_CLASS = "com.shaft.mcp.ShaftMcpApplication"
 RUNTIME_DEPENDENCIES_ENTRY = "META-INF/shaft-mcp/runtime-dependencies.txt"
+WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.workspaceRoot"
+USER_GUIDE_URL = "https://shaftengine.netlify.app/docs/agentic/mcp"
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
@@ -56,6 +59,55 @@ def debug(message: str) -> None:
 
 def fail(message: str, code: int = 1) -> None:
     raise InstallError(message, code)
+
+
+def banner() -> None:
+    log(
+        r"""
+  ____  _   _    _    _____ _____
+ / ___|| | | |  / \  |  ___|_   _|
+ \___ \| |_| | / _ \ | |_    | |
+  ___) |  _  |/ ___ \|  _|   | |
+ |____/|_| |_/_/   \_\_|     |_|
+              MCP installer
+""".strip("\n"))
+
+
+def human_bytes(value: int) -> str:
+    amount = float(value)
+    for unit in ("B", "KB", "MB", "GB"):
+        if amount < 1024 or unit == "GB":
+            return f"{amount:.1f} {unit}" if unit != "B" else f"{int(amount)} B"
+        amount /= 1024
+    return f"{value} B"
+
+
+def progress(label: str, downloaded: int, total: int | None, final: bool = False) -> None:
+    if not sys.stderr.isatty():
+        return
+    if total and total > 0:
+        percent = min(1.0, downloaded / total)
+        width = 28
+        filled = int(percent * width)
+        bar = "#" * filled + "-" * (width - filled)
+        text = f"\r{label}: [{bar}] {percent:>6.1%} {human_bytes(downloaded)}/{human_bytes(total)}"
+    else:
+        text = f"\r{label}: {human_bytes(downloaded)} downloaded"
+    print(text, end="", file=sys.stderr, flush=True)
+    if final:
+        print(file=sys.stderr)
+
+
+def progress_count(label: str, completed: int, total: int, final: bool = False) -> None:
+    if not sys.stderr.isatty() or total <= 0:
+        return
+    percent = min(1.0, completed / total)
+    width = 28
+    filled = int(percent * width)
+    bar = "#" * filled + "-" * (width - filled)
+    print(f"\r{label}: [{bar}] {percent:>6.1%} {completed}/{total}", end="", file=sys.stderr, flush=True)
+    if final:
+        print(file=sys.stderr)
 
 
 def normalize_client(value: str | None) -> str | None:
@@ -179,16 +231,39 @@ def download_bytes(url: str, attempts: int = 5) -> bytes:
     raise last_error
 
 
-def download_file(url: str, output: Path) -> None:
+def download_file(
+        url: str,
+        output: Path,
+        label: str | None = None,
+        show_progress: bool = True,
+        announce: bool = True) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f".{output.name}.{os.getpid()}.tmp")
     headers = {"User-Agent": "shaft-mcp-installer"}
     last_error: BaseException | None = None
+    display = label or output.name
     for attempt in range(1, 6):
         try:
             request = urllib.request.Request(url, headers=headers)
+            if announce:
+                log(f"Downloading {display}...")
             with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as target:
-                shutil.copyfileobj(response, target, length=1024 * 1024)
+                length = response.headers.get("Content-Length")
+                total = int(length) if length and length.isdigit() else None
+                downloaded = 0
+                last_update = 0.0
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    target.write(chunk)
+                    downloaded += len(chunk)
+                    now = time.monotonic()
+                    if show_progress and (now - last_update >= 0.1):
+                        progress(display, downloaded, total)
+                        last_update = now
+                if show_progress:
+                    progress(display, downloaded, total, final=True)
             os.replace(temporary, output)
             return
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
@@ -293,11 +368,10 @@ def download_java25(root: Path) -> Path:
 
     archive = root / "downloads" / f"temurin-jdk-25-{os_name}-{arch}.{extension}"
     url = f"https://api.adoptium.net/v3/binary/latest/25/ga/{os_name}/{arch}/jdk/hotspot/normal/eclipse"
-    log(f"Downloading Java 25 for {os_name} {arch}...")
     if java_root.exists():
         shutil.rmtree(java_root)
     java_root.mkdir(parents=True, exist_ok=True)
-    download_file(url, archive)
+    download_file(url, archive, f"Java 25 for {os_name} {arch}")
     extract_archive(archive, java_root)
     java = find_cached_java(java_root)
     if not java:
@@ -336,7 +410,7 @@ def resolve_shaft_mcp_version(requested_version: str | None, repository: str, ro
     log("Resolving io.github.shafthq:shaft-mcp:LATEST...")
     metadata_url = f"{repository}/{ARTIFACT_PATH}/maven-metadata.xml"
     metadata_path = root / "downloads" / "shaft-mcp-maven-metadata.xml"
-    download_file(metadata_url, metadata_path)
+    download_file(metadata_url, metadata_path, "shaft-mcp Maven metadata", show_progress=False)
     try:
         xml_root = ET.fromstring(metadata_path.read_text(encoding="utf-8"))
     except ET.ParseError as exc:
@@ -388,8 +462,7 @@ def install_shaft_mcp_jar(version: str, repository: str, root: Path) -> Path:
         return target.resolve()
 
     downloaded = root / "downloads" / filename
-    log(f"Downloading io.github.shafthq:shaft-mcp:{version}...")
-    download_file(url, downloaded)
+    download_file(url, downloaded, f"io.github.shafthq:shaft-mcp:{version}")
     if file_sha256(downloaded) != expected:
         fail(f"Checksum verification failed for {downloaded}.", 4)
 
@@ -450,15 +523,14 @@ def dependency_url(repository: str, dependency: tuple[str, str, str, str | None]
     return f"{repository}/{group_path}/{artifact_id}/{version}/{filename}", filename
 
 
-def install_repository_file(url: str, target: Path, label: str) -> Path:
+def install_repository_file(url: str, target: Path, label: str, announce: bool = True) -> Path:
     algorithm, expected = expected_checksum(url)
     if target.is_file() and file_digest(target, algorithm) == expected:
         return target.resolve()
 
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
-    log(f"Downloading {label}...")
-    download_file(url, temporary)
+    download_file(url, temporary, label, show_progress=False, announce=announce)
     if file_digest(temporary, algorithm) != expected:
         temporary.unlink(missing_ok=True)
         fail(f"Checksum verification failed for {label}.", 4)
@@ -467,14 +539,32 @@ def install_repository_file(url: str, target: Path, label: str) -> Path:
 
 
 def install_runtime_dependencies(jar: Path, repository: str) -> list[Path]:
-    installed: list[Path] = []
     lib_dir = jar.parent / "lib"
-    for dependency in read_runtime_dependencies(jar):
+    dependencies = read_runtime_dependencies(jar)
+    installed: list[Path | None] = [None] * len(dependencies)
+    log(f"Resolving {len(dependencies)} shaft-mcp runtime dependencies...")
+
+    def install_dependency(dependency: tuple[str, str, str, str | None]) -> Path:
         url, filename = dependency_url(repository, dependency)
         group_id, artifact_id, version, _ = dependency
         target = lib_dir / group_id.replace(".", "/") / artifact_id / version / filename
-        installed.append(install_repository_file(url, target, f"{group_id}:{artifact_id}:{version}"))
-    return installed
+        return install_repository_file(url, target, f"{group_id}:{artifact_id}:{version}", announce=False)
+
+    workers = min(8, max(1, len(dependencies)))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {
+            executor.submit(install_dependency, dependency): index
+            for index, dependency in enumerate(dependencies)
+        }
+        completed_count = 0
+        for completed in as_completed(futures):
+            installed[futures[completed]] = completed.result()
+            completed_count += 1
+            progress_count("Runtime dependencies", completed_count, len(dependencies),
+                    completed_count == len(dependencies))
+    resolved = [path for path in installed if path is not None]
+    log(f"Installed {len(resolved)} shaft-mcp runtime dependencies.")
+    return resolved
 
 
 def java_argfile_quote(value: str) -> str:
@@ -483,8 +573,16 @@ def java_argfile_quote(value: str) -> str:
 
 def write_launcher_args(jar: Path, dependencies: list[Path]) -> Path:
     args_file = jar.parent / "shaft-mcp.args"
+    runtime_root = application_data_root() / "work"
+    runtime_root.mkdir(parents=True, exist_ok=True)
     classpath = os.pathsep.join(str(path.resolve()) for path in [jar, *dependencies])
-    content = "\n".join(("-cp", java_argfile_quote(classpath), MAIN_CLASS)) + "\n"
+    content = "\n".join((
+        java_argfile_quote(f"-Duser.dir={runtime_root}"),
+        java_argfile_quote(f"-D{WORKSPACE_SYSTEM_PROPERTY}={runtime_root}"),
+        "-cp",
+        java_argfile_quote(classpath),
+        MAIN_CLASS,
+    )) + "\n"
     temporary = args_file.with_name(f".{args_file.name}.{os.getpid()}.tmp")
     temporary.write_text(content, encoding="utf-8", newline="\n")
     os.replace(temporary, args_file)
@@ -793,7 +891,6 @@ def configure_claude_desktop(java: Path, args_file: Path) -> None:
         write_json_atomically(configuration, root)
 
     update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "mcpServers", java, args_file))
-    print("Restart Claude Desktop to load shaft-mcp.")
 
 
 def configure_copilot(java: Path, args_file: Path) -> None:
@@ -824,7 +921,6 @@ def configure_copilot_intellij(java: Path, args_file: Path) -> None:
         write_json_atomically(configuration, root)
 
     update_json_configuration(configuration, mutate, lambda: verify_json_entry(configuration, "servers", java, args_file))
-    print("Restart IntelliJ IDEA after GitHub Copilot reloads its MCP configuration.")
 
 
 def configure_client(client: str, java: Path, args_file: Path) -> None:
@@ -842,10 +938,20 @@ def configure_client(client: str, java: Path, args_file: Path) -> None:
         fail(f"Unsupported client: {client}", 2)
 
 
+def activation_hint(client: str) -> str:
+    if client == "claude-desktop":
+        return "Restart Claude Desktop, then open a new chat and use the shaft-mcp tools."
+    if client == "copilot-intellij":
+        return "Restart IntelliJ IDEA or reload Copilot Chat, then use the shaft-mcp tools."
+    return "Start a fresh client session, then use the shaft-mcp tools."
+
+
 def install(args: argparse.Namespace) -> None:
+    banner()
     root = bootstrap_root()
     root.mkdir(parents=True, exist_ok=True)
     repository = os.environ.get("SHAFT_MCP_REPOSITORY_URL", DEFAULT_REPOSITORY).rstrip("/")
+    log(f"Client target: {args.client}")
 
     java = get_java25(root)
     java_home = java_home_for(java)
@@ -854,6 +960,7 @@ def install(args: argparse.Namespace) -> None:
 
     detect_project_override(args.client)
     version = resolve_shaft_mcp_version(args.version, repository, root)
+    log(f"Installing io.github.shafthq:shaft-mcp:{version}")
     jar = install_shaft_mcp_jar(version, repository, root)
     dependencies = install_runtime_dependencies(jar, repository)
     args_file = write_launcher_args(jar, dependencies)
@@ -864,6 +971,8 @@ def install(args: argparse.Namespace) -> None:
     log(f"Configuring shaft-mcp for {args.client}...")
     configure_client(args.client, java, args_file)
     print(f"shaft-mcp {version} is installed and configured for {args.client}.")
+    print(activation_hint(args.client))
+    print(f"User guide: {USER_GUIDE_URL}")
 
 
 def main(argv: list[str]) -> int:

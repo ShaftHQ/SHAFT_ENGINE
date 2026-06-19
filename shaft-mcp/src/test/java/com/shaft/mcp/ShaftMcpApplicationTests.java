@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = "spring.ai.mcp.server.enabled=false")
@@ -35,6 +36,13 @@ class ShaftMcpApplicationTests {
                 .collect(Collectors.toSet());
         Set<String> expected = expectedTools();
         assertEquals(expected, toolNames);
+        callbacks.stream()
+                .map(ToolCallback.class::cast)
+                .forEach(callback -> {
+                    String schema = callback.getToolDefinition().inputSchema();
+                    assertFalse(schema.contains("\"arg0\"") || schema.contains("\"arg1\""),
+                            callback.getToolDefinition().name() + " exposes generic parameter names: " + schema);
+                });
         assertTrue(toolNames.contains("doctor_analyze_failed_allure"));
         assertTrue(toolNames.contains("capture_generate_replay"));
         assertTrue(toolNames.contains("capture_checkpoint"));
@@ -50,12 +58,13 @@ class ShaftMcpApplicationTests {
         assertTrue(toolNames.contains("mobile_record_start"));
         assertTrue(toolNames.contains("mobile_recording_code_blocks"));
         assertTrue(toolNames.contains("mobile_replay_recording"));
-        assertTrue(toolNames.contains("element_click_semantic"));
         assertTrue(toolNames.contains("natural_act"));
-        assertTrue(!toolNames.contains("doctor_publish_draft_pr"));
-        assertTrue(!toolNames.contains("browser_get_page_source"));
-        assertTrue(!toolNames.contains("browser_get_cookie"));
-        assertTrue(!toolNames.contains("element_click_ai"));
+        assertFalse(toolNames.contains("doctor_publish_draft_pr"));
+        assertFalse(toolNames.contains("browser_get_page_source"));
+        assertFalse(toolNames.contains("browser_get_cookie"));
+        assertFalse(toolNames.contains("element_click_semantic"));
+        assertFalse(toolNames.contains("element_type_semantic"));
+        assertFalse(toolNames.contains("element_click_ai"));
     }
 
     @Test

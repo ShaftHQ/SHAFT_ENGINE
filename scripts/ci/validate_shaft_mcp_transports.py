@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import queue
+import re
 import socket
 import subprocess
 import threading
@@ -38,12 +39,12 @@ EXPECTED_TOOLS = {
     "mobile_recording_code_blocks",
     "mobile_replay_recording",
     "element_click",
-    "element_click_semantic",
     "capture_checkpoint",
     "capture_generate_replay",
     "doctor_analyze_failed_allure",
     "doctor_suggest_fix",
 }
+REMOVED_TOOLS = {"element_click_semantic", "element_type_semantic", "element_click_ai", "element_type_ai"}
 
 
 def reactor_version() -> str:
@@ -104,6 +105,16 @@ def assert_tools(response: dict[str, Any]) -> None:
     missing = EXPECTED_TOOLS - names
     if missing:
         raise AssertionError(f"MCP tools are missing: {sorted(missing)}")
+    present_removed = REMOVED_TOOLS & names
+    if present_removed:
+        raise AssertionError(f"MCP tools still expose removed actions: {sorted(present_removed)}")
+    generic_schema_tools = [
+        tool["name"]
+        for tool in tools
+        if re.search(r'"arg\d+"', json.dumps(tool.get("inputSchema", {}), separators=(",", ":")))
+    ]
+    if generic_schema_tools:
+        raise AssertionError(f"MCP tool schemas expose generic parameter names: {sorted(generic_schema_tools)}")
 
 
 def assert_expected_tool_error(response: dict[str, Any]) -> None:

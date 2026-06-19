@@ -292,16 +292,17 @@ public class BrowserService {
     public McpPageDomSnapshot getPageDom(int maxCharacters) {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
+            WebDriver seleniumDriver = driver.getDriver();
             int limit = maxCharacters <= 0 ? DEFAULT_DOM_CHARACTER_LIMIT : maxCharacters;
-            String dom = driver.browser().getPageSource();
+            String dom = seleniumDriver.getPageSource();
             String safeDom = dom == null ? "" : dom;
             boolean truncated = safeDom.length() > limit;
             String returnedDom = truncated ? safeDom.substring(0, limit) : safeDom;
             logger.info("Page DOM retrieved (characters: {}, returned: {}, truncated: {})",
                     safeDom.length(), returnedDom.length(), truncated);
             return new McpPageDomSnapshot(
-                    driver.browser().getCurrentURL(),
-                    driver.browser().getCurrentWindowTitle(),
+                    seleniumDriver.getCurrentUrl(),
+                    seleniumDriver.getTitle(),
                     returnedDom,
                     safeDom.length(),
                     truncated,

@@ -96,6 +96,20 @@ def installed_dependencies(jar: Path) -> list[Path]:
     return dependencies
 
 
+def verify_argfile(args: Path, jar: Path) -> None:
+    text = args.read_text(encoding="utf-8")
+    runtime_root = jar.parent.parent.parent / "work"
+    required = {
+        f'"-Duser.dir={runtime_root.as_posix()}"',
+        f'"-Dshaft.mcp.workspaceRoot={runtime_root.as_posix()}"',
+        "-cp",
+        "com.shaft.mcp.ShaftMcpApplication",
+    }
+    missing = [token for token in sorted(required) if token not in text]
+    if missing:
+        raise RuntimeError(f"Installed shaft-mcp argfile is missing required entries: {missing}")
+
+
 def expected_java(environment: dict[str, str]) -> Path:
     executable = "java.exe" if platform.system() == "Windows" else "java"
     java_home = environment.get("JAVA_HOME", "")
@@ -168,6 +182,7 @@ def main() -> int:
 
         jar = installed_jar(root, home, environment)
         args = installed_args(jar)
+        verify_argfile(args, jar)
         installed_dependencies(jar)
         first_hash = sha256(jar)
         first_timestamp = jar.stat().st_mtime_ns

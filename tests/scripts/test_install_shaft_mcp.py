@@ -16,6 +16,20 @@ if SPEC.loader is None:
 SPEC.loader.exec_module(MODULE)
 
 
+@contextlib.contextmanager
+def temporary_environment(**values):
+    original = {name: os.environ.get(name) for name in values}
+    os.environ.update(values)
+    try:
+        yield
+    finally:
+        for name, value in original.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
 class InstallShaftMcpTest(unittest.TestCase):
     def test_parse_runtime_dependency_manifest(self):
         manifest = (
@@ -44,9 +58,21 @@ class InstallShaftMcpTest(unittest.TestCase):
             jar.write_bytes(b"")
             dep.write_bytes(b"")
 
-            args = MODULE.write_launcher_args(jar, [dep])
+            with temporary_environment(
+                    HOME=str(root / "home"),
+                    USERPROFILE=str(root / "home"),
+                    LOCALAPPDATA=str(root / "local-app-data"),
+                    XDG_DATA_HOME=str(root / "xdg-data")):
+                args = MODULE.write_launcher_args(jar, [dep])
+                runtime_root = MODULE.application_data_root() / "work"
 
             content = args.read_text(encoding="utf-8")
+            self.assertIn(MODULE.java_argfile_quote(f"-Duser.dir={runtime_root}"), content)
+            self.assertIn(
+                MODULE.java_argfile_quote(f"-D{MODULE.WORKSPACE_SYSTEM_PROPERTY}={runtime_root}"),
+                content,
+            )
+            self.assertTrue(runtime_root.is_dir())
             self.assertIn("-cp\n", content)
             self.assertIn("shaft-mcp.jar" + os.pathsep, content)
             self.assertIn("dependency.jar", content)

@@ -44,8 +44,6 @@ public class ElementService {
      *
      * @param elementName semantic element name
      */
-    @Tool(name = "element_click_semantic",
-            description = "clicks an element using SHAFT semantic locator behavior; no AI provider is called")
     public void clickSemantic(String elementName) {
         try {
             getDriver().element().click(elementName);
@@ -140,8 +138,6 @@ public class ElementService {
      * @param elementName semantic element name
      * @param textValue text values
      */
-    @Tool(name = "element_type_semantic",
-            description = "types value using SHAFT semantic locator behavior; no AI provider is called")
     public void typeSemantic(String elementName, CharSequence... textValue) {
         try {
             getDriver().element().type(elementName, textValue);

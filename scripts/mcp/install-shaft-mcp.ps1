@@ -35,6 +35,17 @@ function Install-ShaftMcp {
         exit $Code
     }
 
+    function Show-Banner {
+        Write-Host @"
+  ____  _   _    _    _____ _____
+ / ___|| | | |  / \  |  ___|_   _|
+ \___ \| |_| | / _ \ | |_    | |
+  ___) |  _  |/ ___ \|  _|   | |
+ |____/|_| |_/_/   \_\_|     |_|
+              MCP installer
+"@
+    }
+
     function Bootstrap-Root {
         if (-not [string]::IsNullOrWhiteSpace($env:SHAFT_MCP_BOOTSTRAP_HOME)) {
             return [System.IO.Path]::GetFullPath($env:SHAFT_MCP_BOOTSTRAP_HOME)
@@ -66,6 +77,14 @@ function Install-ShaftMcp {
         $lastError = $null
         for ($attempt = 1; $attempt -le 3; $attempt++) {
             try {
+                $curl = Get-Command "curl.exe" -ErrorAction SilentlyContinue
+                if ($null -ne $curl) {
+                    & $curl.Source -fL --retry 3 --progress-bar -o $OutFile $Url
+                    if ($LASTEXITCODE -eq 0) {
+                        return
+                    }
+                    throw "curl.exe exited with code $LASTEXITCODE"
+                }
                 Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $OutFile
                 return
             } catch {
@@ -175,6 +194,7 @@ function Install-ShaftMcp {
         return $target
     }
 
+    Show-Banner
     $root = Bootstrap-Root
     New-Item -ItemType Directory -Force -Path $root | Out-Null
     $python = Find-Python
