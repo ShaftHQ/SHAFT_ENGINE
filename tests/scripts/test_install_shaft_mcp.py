@@ -31,6 +31,14 @@ def temporary_environment(**values):
 
 
 class InstallShaftMcpTest(unittest.TestCase):
+    def test_banner_is_not_repeated_after_bootstrap_banner(self):
+        with temporary_environment(SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN="1"):
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                MODULE.banner()
+
+        self.assertEqual("", stderr.getvalue())
+
     def test_parse_runtime_dependency_manifest(self):
         manifest = (
             "The following files have been resolved:\n"
