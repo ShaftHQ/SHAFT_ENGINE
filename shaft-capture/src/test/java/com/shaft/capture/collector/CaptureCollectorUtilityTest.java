@@ -2,9 +2,11 @@ package com.shaft.capture.collector;
 
 import com.shaft.capture.format.CaptureFormatException;
 import org.junit.jupiter.api.Test;
+import org.openqa.selenium.WebDriver;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,6 +98,39 @@ class CaptureCollectorUtilityTest {
         assertThrows(IllegalStateException.class, () -> failingComposite.start(signal -> { }, warning -> { }));
         assertEquals(List.of("start:started", "start:failing", "close:started"), failureCalls);
         assertThrows(IllegalArgumentException.class, () -> new CompositeBrowserEventCollector(List.of()));
+    }
+
+    @Test
+    void protocolCollectorsValidateDriversAndAcceptCustomTestIdAttributes() {
+        WebDriver driver = noOpDriver();
+
+        assertThrows(IllegalArgumentException.class, () -> new BidiBrowserEventCollector(null));
+        assertThrows(IllegalArgumentException.class,
+                () -> new PollingBrowserEventCollector(null, true, List.of("data-pw")));
+        assertInstanceOf(BidiBrowserEventCollector.class,
+                new BidiBrowserEventCollector(driver, List.of("data-pw")));
+        assertInstanceOf(PollingBrowserEventCollector.class,
+                new PollingBrowserEventCollector(driver, false, List.of("data-pw")));
+    }
+
+    private static WebDriver noOpDriver() {
+        return (WebDriver) Proxy.newProxyInstance(
+                WebDriver.class.getClassLoader(),
+                new Class<?>[] {WebDriver.class},
+                (proxy, method, args) -> defaultValue(method.getReturnType()));
+    }
+
+    private static Object defaultValue(Class<?> type) {
+        if (type == boolean.class) {
+            return false;
+        }
+        if (type == int.class || type == long.class || type == short.class || type == byte.class) {
+            return 0;
+        }
+        if (type == float.class || type == double.class) {
+            return 0.0;
+        }
+        return null;
     }
 
     private record RecordingCollector(String name, List<String> calls, boolean failOnStart)
