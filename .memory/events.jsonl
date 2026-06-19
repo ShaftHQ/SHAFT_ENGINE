@@ -64,3 +64,4 @@
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.workflow-surefire-testng-bootstrap-validation-after-pr2947-supersedes-gotcha-surefire-testng-deletes-module","timestamp":"2026-06-18T19:50:26+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"gotcha.surefire-testng-deletes-module","timestamp":"2026-06-18T19:50:26+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.delegate-when-unable","timestamp":"2026-06-18T20:03:27+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.element-actions-normalize-allure-locator-metadata","timestamp":"2026-06-19T08:51:22+03:00"}
