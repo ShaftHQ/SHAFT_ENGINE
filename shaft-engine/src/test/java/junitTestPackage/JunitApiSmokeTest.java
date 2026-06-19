@@ -6,6 +6,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import testPackage.unitTests.LocalApiServer;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 class JunitApiSmokeTest {
     private static LocalApiServer localApiServer;
     private static String localApiBaseUrl;
@@ -25,11 +27,13 @@ class JunitApiSmokeTest {
 
     @Test
     void shaftApiShouldReadJsonFromLocalFixtureServer() {
-        SHAFT.API api = new SHAFT.API(localApiBaseUrl);
+        assertDoesNotThrow(() -> {
+            SHAFT.API api = new SHAFT.API(localApiBaseUrl);
 
-        api.get("/posts/1").setTargetStatusCode(200).perform();
+            api.get("/posts/1").setTargetStatusCode(200).perform();
 
-        api.assertThatResponse().extractedJsonValue("id").isEqualTo("1").perform();
-        api.assertThatResponse().body().contains("sunt aut facere").perform();
+            api.assertThatResponse().extractedJsonValue("id").isEqualTo("1").perform();
+            api.assertThatResponse().body().contains("sunt aut facere").perform();
+        });
     }
 }

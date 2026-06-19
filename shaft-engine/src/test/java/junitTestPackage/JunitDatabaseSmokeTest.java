@@ -6,6 +6,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 class JunitDatabaseSmokeTest {
     private static SHAFT.DB database;
 
@@ -25,18 +27,20 @@ class JunitDatabaseSmokeTest {
 
     @Test
     void shaftDbShouldExecutePostgresCrudSmoke() {
-        database.executeInsertQuery("INSERT INTO shaft_junit_smoke(label) VALUES('junit-smoke')");
-        database.executeSelectQuery("SELECT label FROM shaft_junit_smoke");
+        assertDoesNotThrow(() -> {
+            database.executeInsertQuery("INSERT INTO shaft_junit_smoke(label) VALUES('junit-smoke')");
+            database.executeSelectQuery("SELECT label FROM shaft_junit_smoke");
 
-        SHAFT.Validations.assertThat().number(database.getRowCount()).isEqualTo(1).perform();
-        SHAFT.Validations.assertThat().object(database.getColumn("label")).isEqualTo("junit-smoke").perform();
+            SHAFT.Validations.assertThat().number(database.getRowCount()).isEqualTo(1).perform();
+            SHAFT.Validations.assertThat().object(database.getColumn("label")).isEqualTo("junit-smoke").perform();
 
-        database.executeUpdateQuery("UPDATE shaft_junit_smoke SET label = 'junit-smoke-updated'");
-        database.executeSelectQuery("SELECT label FROM shaft_junit_smoke");
-        SHAFT.Validations.assertThat().object(database.getResult()).contains("junit-smoke-updated").perform();
+            database.executeUpdateQuery("UPDATE shaft_junit_smoke SET label = 'junit-smoke-updated'");
+            database.executeSelectQuery("SELECT label FROM shaft_junit_smoke");
+            SHAFT.Validations.assertThat().object(database.getResult()).contains("junit-smoke-updated").perform();
 
-        database.executeDeleteQuery("DELETE FROM shaft_junit_smoke");
-        database.executeSelectQuery("SELECT label FROM shaft_junit_smoke");
-        SHAFT.Validations.assertThat().number(database.getRowCount()).isEqualTo(0).perform();
+            database.executeDeleteQuery("DELETE FROM shaft_junit_smoke");
+            database.executeSelectQuery("SELECT label FROM shaft_junit_smoke");
+            SHAFT.Validations.assertThat().number(database.getRowCount()).isEqualTo(0).perform();
+        });
     }
 }

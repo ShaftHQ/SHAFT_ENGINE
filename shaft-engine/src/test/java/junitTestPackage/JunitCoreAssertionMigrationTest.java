@@ -4,23 +4,23 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JunitCoreAssertionMigrationTest {
     @Test
-    void compareTwoObjectsLiteralFailureShouldKeepExpectedActualOrder() throws Exception {
-        Method method = JavaHelper.class.getDeclaredMethod("compareTwoObjectsPositively", Object.class, Object.class, int.class);
-        method.setAccessible(true);
+    void compareTwoObjectsLiteralFailureShouldKeepExpectedActualOrder() throws Throwable {
+        MethodHandle compareTwoObjectsPositively = MethodHandles.privateLookupIn(JavaHelper.class, MethodHandles.lookup())
+                .findStatic(JavaHelper.class, "compareTwoObjectsPositively",
+                        MethodType.methodType(int.class, Object.class, Object.class, int.class));
 
-        InvocationTargetException thrown = assertThrows(InvocationTargetException.class,
-                () -> method.invoke(null, "expected-value", "actual-value", 1));
-        AssertionError error = assertInstanceOf(AssertionError.class, thrown.getCause());
+        AssertionError error = assertThrows(AssertionError.class,
+                () -> compareTwoObjectsPositively.invoke("expected-value", "actual-value", 1));
 
         assertTrue(error.getMessage().contains("expected-value"),
                 "Failure message should include the expected value.");

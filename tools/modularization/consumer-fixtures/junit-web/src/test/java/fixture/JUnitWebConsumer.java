@@ -17,7 +17,8 @@ import java.util.ServiceLoader;
 class JUnitWebConsumer {
     @Test
     void shaftAssertionPassesInJunitConsumerProject() {
-        SHAFT.Validations.assertThat().object("SHAFT").isEqualTo("SHAFT").perform();
+        Assertions.assertDoesNotThrow(
+                () -> SHAFT.Validations.assertThat().object("SHAFT").isEqualTo("SHAFT").perform());
     }
 
     @Test

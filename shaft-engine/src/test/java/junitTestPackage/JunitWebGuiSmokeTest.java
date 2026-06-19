@@ -7,6 +7,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 class JunitWebGuiSmokeTest {
     private SHAFT.GUI.WebDriver driver;
 
@@ -28,8 +30,10 @@ class JunitWebGuiSmokeTest {
 
     @Test
     void shaftGuiShouldOpenDataPageAndValidateElementText() {
-        driver.browser().navigateToURL("data:text/html;charset=utf-8,%3Cmain%3E%3Ch1%20id%3D%22ready%22%3EJUnit%20GUI%20Smoke%3C%2Fh1%3E%3C%2Fmain%3E");
+        assertDoesNotThrow(() -> {
+            driver.browser().navigateToURL("data:text/html;charset=utf-8,%3Cmain%3E%3Ch1%20id%3D%22ready%22%3EJUnit%20GUI%20Smoke%3C%2Fh1%3E%3C%2Fmain%3E");
 
-        driver.element().assertThat(By.id("ready")).text().isEqualTo("JUnit GUI Smoke").perform();
+            driver.element().assertThat(By.id("ready")).text().isEqualTo("JUnit GUI Smoke").perform();
+        });
     }
 }
