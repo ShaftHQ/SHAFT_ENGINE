@@ -83,7 +83,7 @@ jobs:
           -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
           -Dgpg.skip
       - name: Upload coverage to Codecov
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: ./.github/actions/upload-jacoco-coverage
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
