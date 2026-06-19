@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   ".memory/memory/workflows/start-new-tasks-from-origin-main.json": {
-    "mtime": 1781592922.4384708,
-    "ast_hash": "2787b374085373936debe0a9cc90196f",
+    "mtime": 1781855624.085081,
+    "ast_hash": "20f6aadf28b59bac7d81d77b252caa72",
     "semantic_hash": ""
   },
   ".memory/memory/workflows/update-official-user-guide-for-functionality-changes.json": {
@@ -190,13 +190,13 @@
     "semantic_hash": ""
   },
   "scripts/ci/validate_shaft_mcp_configuration.py": {
-    "mtime": 1781849193.2904937,
-    "ast_hash": "aad6d49a05dfa0d07cf2225d8e093bb5",
+    "mtime": 1781853107.449437,
+    "ast_hash": "fd4fe026a72f905ef0092b258a4c51eb",
     "semantic_hash": ""
   },
   "scripts/ci/validate_shaft_mcp_transports.py": {
-    "mtime": 1781849188.181312,
-    "ast_hash": "eb0a9f728d17fae16c1d5b22d9b12de6",
+    "mtime": 1781853107.450437,
+    "ast_hash": "dbcf12f198f466faea2a080e0e36fe4c",
     "semantic_hash": ""
   },
   "scripts/ci/validate_shaft_pilot_release.py": {
@@ -210,8 +210,8 @@
     "semantic_hash": ""
   },
   "scripts/ci/verify_shaft_mcp_installer_release.py": {
-    "mtime": 1781849075.4315763,
-    "ast_hash": "5ac002c7f461873598864a7ace25ad4a",
+    "mtime": 1781853107.451437,
+    "ast_hash": "61eb62b67b294cb5da719bb315bf6cde",
     "semantic_hash": ""
   },
   "scripts/maintenance/flatten-history.sh": {
@@ -220,18 +220,18 @@
     "semantic_hash": ""
   },
   "scripts/mcp/install-shaft-mcp.ps1": {
-    "mtime": 1781852501.7405734,
-    "ast_hash": "7f896d826fd039eaf5db3fea5058d913",
+    "mtime": 1781853107.451437,
+    "ast_hash": "68f7dfc58bde866c56e5b69b36c1a8f8",
     "semantic_hash": ""
   },
   "scripts/mcp/install-shaft-mcp.sh": {
-    "mtime": 1781852507.9314525,
+    "mtime": 1781853107.4524367,
     "ast_hash": "9d9c90cba847ab57ab90a08ea0c19560",
     "semantic_hash": ""
   },
   "scripts/mcp/install_shaft_mcp.py": {
-    "mtime": 1781852494.7255535,
-    "ast_hash": "357e701d43535b9a0e43a65e7e9e2418",
+    "mtime": 1781853107.453942,
+    "ast_hash": "9d20e08f343fd5aa2f374370aab09315",
     "semantic_hash": ""
   },
   "shaft-ai/src/main/java/com/shaft/ai/provider/AbstractHttpAiProvider.java": {
@@ -1015,7 +1015,7 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/element/internal/Actions.java": {
-    "mtime": 1781852006.6870036,
+    "mtime": 1781853107.4547353,
     "ast_hash": "1134d22826cce5a55a70b6326067549a",
     "semantic_hash": ""
   },
@@ -1825,7 +1825,7 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsCoverageUnitTest.java": {
-    "mtime": 1781852006.6874115,
+    "mtime": 1781853107.4557428,
     "ast_hash": "a79caca608b5c07813ad7fce491059f7",
     "semantic_hash": ""
   },
@@ -3000,8 +3000,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/TerminalActionsUnitTest.java": {
-    "mtime": 1781844357.964141,
-    "ast_hash": "5011f8dd6da9564f002006847808bc98",
+    "mtime": 1781858843.5829759,
+    "ast_hash": "af6a1ea86c3daab6d5cc9bdd1b3ad15a",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/TestClass.java": {
@@ -3375,8 +3375,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/BrowserService.java": {
-    "mtime": 1781848694.3486402,
-    "ast_hash": "dc94004bb171feb61ba2a9a55e2d667e",
+    "mtime": 1781853107.4587417,
+    "ast_hash": "825d8b126501b736bb968ed530b127ab",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/BrowserType.java": {
@@ -3395,13 +3395,13 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/ElementService.java": {
-    "mtime": 1781848694.3496454,
-    "ast_hash": "2d7b9e89a594a26a3343d5885fb4fe5d",
+    "mtime": 1781853107.4587417,
+    "ast_hash": "0aed469cbb962dd3e90536f2f81f5fab",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/EngineService.java": {
-    "mtime": 1781848694.347641,
-    "ast_hash": "1053ea328311fb2db3c89f7758823930",
+    "mtime": 1781853107.4597414,
+    "ast_hash": "18cfd9b0041761446970d6991b6d25fb",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/McpActionRecord.java": {
@@ -3495,8 +3495,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/McpRuntimePaths.java": {
-    "mtime": 1781848694.346643,
-    "ast_hash": "ea9a5304eb99aa0c88a94a91bd45e918",
+    "mtime": 1781853107.4607408,
+    "ast_hash": "a8e8a55f38ce76480344e14b2cbcb892",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/McpScreenshotResult.java": {
@@ -3540,8 +3540,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/EngineServiceRuntimePathTest.java": {
-    "mtime": 1781849054.016955,
-    "ast_hash": "947f94c7a527a08380e4ab702a913382",
+    "mtime": 1781853107.4617417,
+    "ast_hash": "45a98645e7e2f4203be7278baadb2f66",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/EngineServiceTest.java": {
@@ -3550,8 +3550,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/McpRuntimePathsTest.java": {
-    "mtime": 1781848694.3516476,
-    "ast_hash": "a811c480e6f02d04886bfa723ac7d6e8",
+    "mtime": 1781853107.4617417,
+    "ast_hash": "3df7775db4987c2453ab16758e62a7ce",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/MobileRecordingServiceTest.java": {
@@ -3560,13 +3560,13 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java": {
-    "mtime": 1781849062.933261,
-    "ast_hash": "44b6e38b94f2eeb9a3713a5cf8cb3563",
+    "mtime": 1781853107.4685104,
+    "ast_hash": "ad8bc364952a75a927d4c674bc81d8ac",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json": {
-    "mtime": 1781848694.3546576,
-    "ast_hash": "91b9b791d46c09cb1cf172e4e101ec8a",
+    "mtime": 1781853107.4696,
+    "ast_hash": "5783ca456d9e641319b33be4b94acfb7",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/resources/fixtures/shaft-pilot/doctor/repair-input.json": {
@@ -4295,8 +4295,8 @@
     "semantic_hash": ""
   },
   ".memory/memory/workflows/start-new-tasks-from-origin-main.md": {
-    "mtime": 1781592922.4384708,
-    "ast_hash": "b46e6163b3e010f599cb5d49ecdd8785",
+    "mtime": 1781855624.0860908,
+    "ast_hash": "c20c771d71712f59dba2081edda454d0",
     "semantic_hash": ""
   },
   ".memory/memory/workflows/update-official-user-guide-for-functionality-changes.md": {
@@ -4305,13 +4305,13 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1781788245.3980517,
-    "ast_hash": "dfade0f378d9071a1b778e06969a33dd",
+    "mtime": 1781855624.08709,
+    "ast_hash": "8af04e4ea958fdd1b5f603ea1b0b9198",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1781684270.5428898,
-    "ast_hash": "78b6121596436242f453c70d9361a3d4",
+    "mtime": 1781855624.08709,
+    "ast_hash": "109fba9e5bd24a6c1ae37e799818c59b",
     "semantic_hash": ""
   },
   "CODE_OF_CONDUCT.md": {
@@ -4595,8 +4595,8 @@
     "semantic_hash": ""
   },
   ".memory/memory/sources/agents.json": {
-    "mtime": 1781684098.2622643,
-    "ast_hash": "0811c4320e35ee265e2de39a49201227",
+    "mtime": 1781855624.0805764,
+    "ast_hash": "8b0ad0f82cc956b5c4a05f5413c6bd8e",
     "semantic_hash": ""
   },
   ".memory/memory/sources/project-readme.json": {
@@ -4605,8 +4605,8 @@
     "semantic_hash": ""
   },
   ".memory/memory/syntheses/agent-guidance.json": {
-    "mtime": 1781684098.3003013,
-    "ast_hash": "7b2f076247149052750e80184c1b30d1",
+    "mtime": 1781855624.0825772,
+    "ast_hash": "d47a35a97e29fa13de28e5ddd1170621",
     "semantic_hash": ""
   },
   ".memory/memory/syntheses/conventions-quality.json": {
@@ -4620,8 +4620,8 @@
     "semantic_hash": ""
   },
   ".memory/memory/workflows/create-and-report-pr-after-tasks.json": {
-    "mtime": 1781844313.6868553,
-    "ast_hash": "f0e78a988b71d9deb56e9af992e4e35a",
+    "mtime": 1781855624.0835762,
+    "ast_hash": "b1ce8ac2e98f89838415a25fa522171b",
     "semantic_hash": ""
   },
   ".memory/memory/workflows/minimal-nonredundant-validation.json": {
@@ -4690,8 +4690,8 @@
     "semantic_hash": ""
   },
   "tests/scripts/test_install_shaft_mcp.py": {
-    "mtime": 1781852517.1961083,
-    "ast_hash": "edd484a770f990c12fc231a06848d75b",
+    "mtime": 1781853107.4705882,
+    "ast_hash": "60ad6539ba363c9a02ad6f85bf1660e3",
     "semantic_hash": ""
   },
   ".github/workflows/e2eLocalTests.yml": {
@@ -4720,8 +4720,8 @@
     "semantic_hash": ""
   },
   ".memory/memory/sources/agents.md": {
-    "mtime": 1781684098.2582703,
-    "ast_hash": "b2b41f4ae1c12cc97597ca7a5c42611f",
+    "mtime": 1781855624.0815804,
+    "ast_hash": "19d8593d2fbf9941204ff6257b7bbcce",
     "semantic_hash": ""
   },
   ".memory/memory/sources/project-readme.md": {
@@ -4730,8 +4730,8 @@
     "semantic_hash": ""
   },
   ".memory/memory/syntheses/agent-guidance.md": {
-    "mtime": 1781684098.2952988,
-    "ast_hash": "1d79ee60786852a137271b72f188a97b",
+    "mtime": 1781855624.0835762,
+    "ast_hash": "d4ab69ed6a4ee277d2f623592f5aa503",
     "semantic_hash": ""
   },
   ".memory/memory/syntheses/conventions-quality.md": {
@@ -4745,8 +4745,8 @@
     "semantic_hash": ""
   },
   ".memory/memory/workflows/create-and-report-pr-after-tasks.md": {
-    "mtime": 1781844313.6878562,
-    "ast_hash": "b549db3f8a5127451e93d3aa34146f8f",
+    "mtime": 1781855624.085081,
+    "ast_hash": "1bcb51f3f1e5269b61bba6ea8533ea49",
     "semantic_hash": ""
   },
   ".memory/memory/workflows/minimal-nonredundant-validation.md": {
@@ -4930,7 +4930,7 @@
     "semantic_hash": ""
   },
   ".memory/memory/decisions/element-actions-normalize-allure-locator-metadata.json": {
-    "mtime": 1781852006.6067162,
+    "mtime": 1781853107.3644135,
     "ast_hash": "c4534782cf2b7fccd3489053bb267f1d",
     "semantic_hash": ""
   },
@@ -6985,7 +6985,7 @@
     "semantic_hash": ""
   },
   ".memory/memory/decisions/element-actions-normalize-allure-locator-metadata.md": {
-    "mtime": 1781852006.6071124,
+    "mtime": 1781853107.3650036,
     "ast_hash": "ad0b39840f727ef91570221e283b668c",
     "semantic_hash": ""
   },
@@ -7377,16 +7377,6 @@
   "shaft-mcp/performanceReport/PerformanceReport_19-06-2026_09-10-08-7172-AM.html": {
     "mtime": 1781849408.7249644,
     "ast_hash": "5e662e902560f76331063179585560bf",
-    "semantic_hash": ""
-  },
-  ".codex-remote-attachments/019ed7ba-0189-77f0-863d-15b41df5a4a4/96916f1c-72b7-41ad-81d2-99b584645fd7/1-Photo-1.jpg": {
-    "mtime": 1781735758.4530776,
-    "ast_hash": "440c10e6a33edcf245248d32c37816f4",
-    "semantic_hash": ""
-  },
-  ".codex-remote-attachments/019edc37-d44b-79c0-9932-22f15a744750/6653fdc0-a456-4259-a343-ee9630840311/1-Photo-1.jpg": {
-    "mtime": 1781811113.4138787,
-    "ast_hash": "2f35aa6f44f0cb7fd032bcd3b66572a6",
     "semantic_hash": ""
   }
 }
