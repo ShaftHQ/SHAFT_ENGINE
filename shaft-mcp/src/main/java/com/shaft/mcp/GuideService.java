@@ -101,10 +101,12 @@ public class GuideService {
                         + GUIDE_ROOT + "/docs/start/overview and do not invent missing SHAFT APIs.");
             }
             return result(effectiveQuery, matches, warnings);
-        } catch (IOException | InterruptedException exception) {
-            if (exception instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            warnings.add("Could not read the live SHAFT guide search index. Use "
+                    + GUIDE_ROOT + "/docs/start/overview and do not invent missing SHAFT APIs.");
+            return result(effectiveQuery, List.of(), warnings);
+        } catch (IOException exception) {
             warnings.add("Could not read the live SHAFT guide search index. Use "
                     + GUIDE_ROOT + "/docs/start/overview and do not invent missing SHAFT APIs.");
             return result(effectiveQuery, List.of(), warnings);
@@ -125,10 +127,11 @@ public class GuideService {
                     scored.score(),
                     truncate(section.excerpt(), EXCERPT_LIMIT),
                     codeBlocks(source.toString(), section.codeBlocks())));
-        } catch (IOException | InterruptedException | IllegalArgumentException exception) {
-            if (exception instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            warnings.add("Skipped an unreadable official guide page: " + scored.document.sectionRoute());
+            return java.util.Optional.empty();
+        } catch (IOException | IllegalArgumentException exception) {
             warnings.add("Skipped an unreadable official guide page: " + scored.document.sectionRoute());
             return java.util.Optional.empty();
         }
@@ -207,21 +210,36 @@ public class GuideService {
     }
 
     private static SectionContent sectionContent(Document document, String fragment) {
+        Element scope = documentScope(document);
+        Element heading = sectionHeading(scope, fragment);
+        if (heading == null) {
+            return new SectionContent(scope.text(), scope.select("pre").eachText());
+        }
+        return headingSectionContent(heading);
+    }
+
+    private static Element documentScope(Document document) {
         Element main = document.selectFirst("main");
-        Element scope = main == null ? document.body() : main;
+        return main == null ? document.body() : main;
+    }
+
+    private static Element sectionHeading(Element scope, String fragment) {
         if (fragment == null || fragment.isBlank()) {
-            return new SectionContent(scope.text(), scope.select("pre").eachText());
+            return null;
         }
-        Element heading = document.getElementById(fragment);
-        if (heading == null || (main != null && !main.equals(heading) && !main.getAllElements().contains(heading))) {
-            return new SectionContent(scope.text(), scope.select("pre").eachText());
+        Element heading = scope.ownerDocument().getElementById(fragment);
+        if (heading == null || (!scope.equals(heading) && !scope.getAllElements().contains(heading))) {
+            return null;
         }
+        return heading;
+    }
+
+    private static SectionContent headingSectionContent(Element heading) {
         int headingLevel = headingLevel(heading);
         StringBuilder text = new StringBuilder(heading.text());
         List<String> codeBlocks = new ArrayList<>();
         for (Element sibling = heading.nextElementSibling(); sibling != null; sibling = sibling.nextElementSibling()) {
-            int siblingHeadingLevel = headingLevel(sibling);
-            if (siblingHeadingLevel > 0 && siblingHeadingLevel <= headingLevel) {
+            if (startsNextSection(sibling, headingLevel)) {
                 break;
             }
             String siblingText = sibling.text();
@@ -231,6 +249,11 @@ public class GuideService {
             codeBlocks.addAll(sibling.select("pre").eachText());
         }
         return new SectionContent(text.toString(), codeBlocks);
+    }
+
+    private static boolean startsNextSection(Element element, int currentHeadingLevel) {
+        int siblingHeadingLevel = headingLevel(element);
+        return siblingHeadingLevel > 0 && siblingHeadingLevel <= currentHeadingLevel;
     }
 
     private static List<McpCodeBlock> codeBlocks(String sourceUrl, List<String> examples) {
