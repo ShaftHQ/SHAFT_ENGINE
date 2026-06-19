@@ -32,6 +32,23 @@ class McpRuntimePathsTest {
     }
 
     @Test
+    void configuredWorkspaceSystemPropertyShouldWinOverEnvironment() {
+        Path configuredWorkspace = temp.resolve("configured-property-workspace");
+        Map<String, String> environment = Map.of(
+                McpRuntimePaths.WORKSPACE_ENVIRONMENT_VARIABLE, temp.resolve("environment-workspace").toString());
+
+        Path resolvedRoot = McpRuntimePaths.resolveRoot(
+                configuredWorkspace.toString(),
+                environment,
+                temp.resolve("current-directory"),
+                "Windows 11",
+                temp.resolve("home"));
+
+        assertEquals(configuredWorkspace.toAbsolutePath().normalize(), resolvedRoot);
+        assertTrue(Files.isDirectory(resolvedRoot));
+    }
+
+    @Test
     void writableNonProtectedCurrentDirectoryShouldBeUsed() throws Exception {
         Path currentDirectory = Files.createDirectories(temp.resolve("current-directory"));
 

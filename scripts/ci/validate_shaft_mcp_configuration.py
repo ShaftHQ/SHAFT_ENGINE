@@ -60,6 +60,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("shaft-mcp must publish a thin JAR without Spring Boot repackaging")
     if "META-INF/shaft-mcp/runtime-dependencies.txt" not in mcp_pom_text:
         errors.append("shaft-mcp must package its resolved runtime dependency manifest")
+    if "<parameters>true</parameters>" not in mcp_pom_text:
+        errors.append("shaft-mcp compiler must retain Java parameter names for MCP tool schemas")
 
     application_source = (
         root / "shaft-mcp/src/main/java/com/shaft/mcp/ShaftMcpApplication.java"
@@ -135,8 +137,8 @@ def validate(root: Path = ROOT) -> list[str]:
         "mobile_record_start",
         "mobile_recording_code_blocks",
         "mobile_replay_recording",
-        "element_click_semantic",
-        "element_type_semantic",
+        "element_click",
+        "element_type",
     }
     missing_tools = required_tools - tools
     if missing_tools:
@@ -146,6 +148,8 @@ def validate(root: Path = ROOT) -> list[str]:
         "browser_get_page_source",
         "browser_get_cookie",
         "browser_get_all_cookies",
+        "element_click_semantic",
+        "element_type_semantic",
         "element_click_ai",
         "element_type_ai",
     }
@@ -195,6 +199,7 @@ def validate(root: Path = ROOT) -> list[str]:
     else:
         installer_implementation_text = installer_implementation.read_text(encoding="utf-8")
         for required in ("maven-metadata.xml", ".sha256", "runtime-dependencies.txt", "shaft-mcp.args",
+                         "shaft.mcp.workspaceRoot", "ThreadPoolExecutor", "USER_GUIDE_URL",
                          "copilot-intellij", "claude-desktop", "probe_stdio"):
             if required not in installer_implementation_text:
                 errors.append(f"shared Python MCP installer must contain standalone support for {required}")
@@ -228,6 +233,8 @@ def validate(root: Path = ROOT) -> list[str]:
             for required in ("install_shaft_mcp.py", "python-build-standalone"):
                 if required not in installer_text:
                     errors.append(f"{installer} must be a thin Python bootstrapper containing {required}")
+            if "progress" not in installer_text:
+                errors.append(f"{installer} must show download progress during bootstrap downloads")
     public_installer = (root / "scripts/ci/verify_shaft_mcp_installer_release.py").read_text(encoding="utf-8")
     if "exec-maven-plugin" in public_installer:
         errors.append("public shaft-mcp installer verification must not depend on the Maven exec plugin")
@@ -236,6 +243,9 @@ def validate(root: Path = ROOT) -> list[str]:
     for required_client in ("claude-desktop", "copilot-intellij"):
         if required_client not in public_installer:
             errors.append(f"public shaft-mcp installer verification must cover {required_client}")
+    for required_token in ("-Duser.dir", "shaft.mcp.workspaceRoot"):
+        if required_token not in public_installer:
+            errors.append(f"public shaft-mcp installer verification must assert argfile entry: {required_token}")
 
     for dockerfile in (root / "shaft-mcp").glob("Dockerfile*"):
         content = dockerfile.read_text(encoding="utf-8")

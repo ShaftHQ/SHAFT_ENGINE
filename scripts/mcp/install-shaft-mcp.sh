@@ -9,14 +9,29 @@ fail() {
   exit "${2:-1}"
 }
 
+banner() {
+  cat >&2 <<'EOF'
+  ____  _   _    _    _____ _____
+ / ___|| | | |  / \  |  ___|_   _|
+ \___ \| |_| | / _ \ | |_    | |
+  ___) |  _  |/ ___ \|  _|   | |
+ |____/|_| |_/_/   \_\_|     |_|
+              MCP installer
+EOF
+}
+
 download() {
   url="$1"
   output="$2"
   mkdir -p "$(dirname "$output")"
   if command -v curl >/dev/null 2>&1; then
-    curl -fL --retry 3 -o "$output" "$url"
+    curl -fL --retry 3 --progress-bar -o "$output" "$url"
   elif command -v wget >/dev/null 2>&1; then
-    wget -O "$output" "$url"
+    if wget --help 2>&1 | grep -q -- '--show-progress'; then
+      wget --show-progress -O "$output" "$url"
+    else
+      wget -O "$output" "$url"
+    fi
   else
     fail "curl or wget is required to download installer dependencies." 3
   fi
@@ -178,6 +193,7 @@ resolve_python_script() {
   printf '%s\n' "$target"
 }
 
+banner
 ROOT="$(bootstrap_root)"
 mkdir -p "$ROOT"
 
