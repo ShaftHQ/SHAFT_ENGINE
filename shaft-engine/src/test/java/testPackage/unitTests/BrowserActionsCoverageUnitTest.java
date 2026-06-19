@@ -6,16 +6,27 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.properties.internal.Properties;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.openqa.selenium.*;
+import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.devtools.NetworkInterceptor;
+import org.openqa.selenium.remote.http.Contents;
+import org.openqa.selenium.remote.http.Filter;
+import org.openqa.selenium.remote.http.HttpHandler;
+import org.openqa.selenium.remote.http.HttpMethod;
+import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -205,6 +216,8 @@ public class BrowserActionsCoverageUnitTest {
                 () -> browserActions.mock(request -> true, mockedResponse));
         Assert.assertThrows(RuntimeException.class,
                 () -> browserActions.intercept(request -> true, mockedResponse));
+        Assert.assertThrows(RuntimeException.class,
+                () -> browserActions.interceptRequest().get().urlContains("/api").respond().statusCode(200).perform());
 
         AndroidDriver androidDriver = mock(AndroidDriver.class, Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
         when(((TakesScreenshot) androidDriver).getScreenshotAs(OutputType.BYTES)).thenReturn("img".getBytes());
@@ -215,6 +228,102 @@ public class BrowserActionsCoverageUnitTest {
         Assert.assertEquals(mobileBrowserActions.getContext(), "NATIVE_APP");
         mobileBrowserActions.setContext("WEBVIEW_1");
         Assert.assertEquals(mobileBrowserActions.getContextHandles().size(), 2);
+    }
+
+    @Test
+    public void shouldMockMatchingRequestsWithInterceptionBuilder() {
+        AtomicReference<Filter> filterReference = new AtomicReference<>();
+
+        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+                (mock, context) -> filterReference.set((Filter) context.arguments().get(1)))) {
+            BrowserActions interceptingBrowserActions = new BrowserActions(createInterceptableDriver(), true);
+            interceptingBrowserActions.interceptRequest()
+                    .get()
+                    .urlContains("/api/users")
+                    .queryParam("role", "admin")
+                    .header("X-Test", "yes")
+                    .bodyContains("needle")
+                    .respond()
+                    .statusCode(201)
+                    .jsonBody("{\"ok\":true}")
+                    .perform();
+
+            HttpRequest matchingRequest = new HttpRequest(HttpMethod.GET, "https://example.com/api/users?role=admin");
+            matchingRequest.addHeader("X-Test", "yes");
+            matchingRequest.setContent(Contents.utf8String("needle body"));
+
+            HttpHandler fallback = request -> new HttpResponse().setStatus(599);
+            HttpResponse mockedResponse = filterReference.get().apply(fallback).execute(matchingRequest);
+
+            Assert.assertEquals(mockedResponse.getStatus(), 201);
+            Assert.assertEquals(mockedResponse.getHeader("Content-Type"), "application/json");
+            Assert.assertTrue(mockedResponse.contentAsString().contains("\"ok\":true"));
+
+            HttpResponse realResponse = filterReference.get().apply(fallback)
+                    .execute(new HttpRequest(HttpMethod.GET, "https://example.com/api/users?role=user"));
+            Assert.assertEquals(realResponse.getStatus(), 599);
+        }
+    }
+
+    @Test
+    public void shouldValidateMatchingRealResponsesWithShaftValidations() {
+        AtomicReference<Filter> filterReference = new AtomicReference<>();
+        AtomicBoolean validationCalled = new AtomicBoolean(false);
+
+        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+                (mock, context) -> filterReference.set((Filter) context.arguments().get(1)))) {
+            BrowserActions interceptingBrowserActions = new BrowserActions(createInterceptableDriver(), true);
+            interceptingBrowserActions.interceptRequest()
+                    .get()
+                    .pathEquals("/api/status")
+                    .assertResponse(response -> {
+                        validationCalled.set(true);
+                        response.extractedJsonValue("ok").isEqualTo("true").perform();
+                    });
+
+            HttpResponse realResponse = new HttpResponse()
+                    .setStatus(200)
+                    .addHeader("Content-Type", "application/json");
+            realResponse.setContent(Contents.utf8String("{\"ok\":true}"));
+
+            HttpResponse returnedResponse = filterReference.get()
+                    .apply(request -> realResponse)
+                    .execute(new HttpRequest(HttpMethod.GET, "https://example.com/api/status"));
+
+            Assert.assertSame(returnedResponse, realResponse);
+            Assert.assertEquals(returnedResponse.contentAsString(), "{\"ok\":true}");
+            Assert.assertTrue(validationCalled.get());
+        }
+    }
+
+    @Test
+    public void shouldPreferLatestMatchingRuleAndClearInterceptors() throws Exception {
+        List<Filter> filters = new ArrayList<>();
+
+        try (MockedConstruction<NetworkInterceptor> construction = Mockito.mockConstruction(NetworkInterceptor.class,
+                (mock, context) -> filters.add((Filter) context.arguments().get(1)))) {
+            BrowserActions interceptingBrowserActions = new BrowserActions(createInterceptableDriver(), true);
+            HttpResponse legacyResponse = new HttpResponse().setStatus(200);
+
+            interceptingBrowserActions.mock(request -> request.getUri().contains("/api/users"), legacyResponse);
+            interceptingBrowserActions.interceptRequest()
+                    .urlContains("/api/users")
+                    .respond()
+                    .statusCode(418)
+                    .body("latest")
+                    .perform();
+
+            HttpResponse response = filters.get(filters.size() - 1)
+                    .apply(request -> new HttpResponse().setStatus(599))
+                    .execute(new HttpRequest(HttpMethod.GET, "https://example.com/api/users"));
+
+            Assert.assertEquals(response.getStatus(), 418);
+            Assert.assertEquals(response.contentAsString(), "latest");
+            Mockito.verify(construction.constructed().get(0)).close();
+
+            interceptingBrowserActions.clearNetworkInterceptors();
+            Mockito.verify(construction.constructed().get(1)).close();
+        }
     }
 
     @Test
@@ -261,5 +370,12 @@ public class BrowserActionsCoverageUnitTest {
         Assert.assertThrows(AssertionError.class, browserActions::getContext);
         Assert.assertThrows(AssertionError.class, () -> browserActions.setContext("WEBVIEW_1"));
         Assert.assertThrows(AssertionError.class, browserActions::getContextHandles);
+    }
+
+    private WebDriver createInterceptableDriver() {
+        WebDriver interceptableDriver = mock(WebDriver.class, Mockito.withSettings()
+                .extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class, HasAuthentication.class, HasDevTools.class));
+        when(((TakesScreenshot) interceptableDriver).getScreenshotAs(OutputType.BYTES)).thenReturn("img".getBytes());
+        return interceptableDriver;
     }
 }

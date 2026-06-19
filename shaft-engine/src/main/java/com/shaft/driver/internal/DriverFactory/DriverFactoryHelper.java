@@ -4,6 +4,8 @@ import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingStrategy;
 import com.shaft.gui.internal.video.RecordManager;
@@ -82,6 +84,7 @@ public class DriverFactoryHelper {
     @Setter
     @Getter
     private WebDriver driver;
+    private BrowserNetworkInterceptor browserNetworkInterceptor;
 
     /**
      * Creates a helper instance without an attached WebDriver.
@@ -96,6 +99,34 @@ public class DriverFactoryHelper {
      */
     public DriverFactoryHelper(WebDriver driver) {
         setDriver(driver);
+    }
+
+    /**
+     * Registers a browser network interception rule for the active WebDriver session.
+     *
+     * @param rule the rule to activate
+     */
+    public void registerBrowserNetworkInterceptionRule(BrowserNetworkInterceptionRule rule) {
+        getBrowserNetworkInterceptor().addRule(rule);
+    }
+
+    /**
+     * Clears browser network interception rules for the active WebDriver session.
+     */
+    public void clearBrowserNetworkInterceptors() {
+        if (browserNetworkInterceptor != null) {
+            browserNetworkInterceptor.clear();
+        }
+    }
+
+    private BrowserNetworkInterceptor getBrowserNetworkInterceptor() {
+        if (driver == null) {
+            throw new IllegalStateException("Cannot configure browser network interception before creating a WebDriver session.");
+        }
+        if (browserNetworkInterceptor == null) {
+            browserNetworkInterceptor = new BrowserNetworkInterceptor(driver);
+        }
+        return browserNetworkInterceptor;
     }
 
     /**
@@ -519,6 +550,7 @@ public class DriverFactoryHelper {
             }
             try {
                 attachWebDriverLogs(driver);
+                clearBrowserNetworkInterceptors();
                 //if dockerized wdm.quit the relevant one
                 if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
                     var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver);
@@ -539,6 +571,7 @@ public class DriverFactoryHelper {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
                 HealingManager.clear(driver);
+                browserNetworkInterceptor = null;
                 seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
                 webDriverManager.remove();
                 ReportManager.log("Closed the WebDriver session.");
