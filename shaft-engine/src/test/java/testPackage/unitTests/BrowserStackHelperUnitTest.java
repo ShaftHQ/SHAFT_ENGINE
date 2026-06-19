@@ -9,6 +9,7 @@ import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.properties.internal.Properties;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import io.restassured.response.Response;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
@@ -94,6 +95,8 @@ public class BrowserStackHelperUnitTest {
     @Test
     public void nativeSetupAndReportActionResultShouldCoverExistingAppAndFailMessage() throws Exception {
         SHAFT.Properties.browserStack.set().appiumVersion("2.0.0").acceptInsecureCerts(true).debug(true).networkLogs(true);
+        ThreadLocalPropertiesManager.setProperty("browserStack.sessionName", "native-session");
+        ThreadLocalPropertiesManager.setProperty("browserStack.enableBiometric", "true");
         MutableCapabilities capabilities = (MutableCapabilities) invokePrivate("setupNativeAppExecution",
                 new Class[]{String.class, String.class, String.class, String.class, String.class},
                 "user", "key", "device", "13.0", "bs://app");
@@ -103,6 +106,8 @@ public class BrowserStackHelperUnitTest {
         Map<String, Object> options = (Map<String, Object>) capabilities.getCapability("bstack:options");
         Assert.assertEquals(options.get("interactiveDebugging"), true);
         Assert.assertEquals(options.get("networkLogs"), true);
+        Assert.assertEquals(options.get("sessionName"), "native-session");
+        Assert.assertEquals(options.get("enableBiometric"), "true");
 
         String passMessage = (String) invokePrivate("reportActionResult",
                 new Class[]{String.class, String.class, Boolean.class, Throwable[].class},

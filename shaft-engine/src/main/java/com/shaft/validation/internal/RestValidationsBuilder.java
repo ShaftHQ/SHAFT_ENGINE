@@ -164,7 +164,7 @@ public class RestValidationsBuilder {
         return new NativeValidationsBuilder(this);
     }
 
-    public NativeValidationsBuilder body() {
+    public JSONValidationsBuilder body() {
         this.validationMethod = "responseBody";
         reportMessageBuilder.append("Body ");
         return new JSONValidationsBuilder(this);

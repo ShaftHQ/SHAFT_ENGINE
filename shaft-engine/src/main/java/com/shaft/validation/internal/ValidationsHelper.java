@@ -29,6 +29,8 @@ import org.json.JSONObject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.remote.Browser;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 
 import java.io.File;
 import java.util.*;
@@ -238,6 +240,18 @@ public class ValidationsHelper {
         updateAllureParameters(parameters);
         //end of reporting block
         boolean validationState = performValidation(expected, actual, comparisonType, validationType);
+        reportValidationState(validationState, expected, actual, null, null, null);
+    }
+
+    protected void validateJsonEqualsIgnoringOrder(Object expected, Object actual,
+                                                   ValidationEnums.ValidationType validationType) {
+        boolean positiveMatch = isJsonEqualIgnoringOrder(String.valueOf(expected), String.valueOf(actual));
+        boolean validationState = validationType == ValidationEnums.ValidationType.POSITIVE ? positiveMatch : !positiveMatch;
+        String comparisonTypeStr = validationType == ValidationEnums.ValidationType.NEGATIVE
+                ? "not EQUALS_IGNORING_ORDER"
+                : "EQUALS_IGNORING_ORDER";
+        var parameters = new LinkedHashMap<>(setCommonParameters(expected, actual, comparisonTypeStr));
+        updateAllureParameters(parameters);
         reportValidationState(validationState, expected, actual, null, null, null);
     }
 
@@ -699,6 +713,15 @@ public class ValidationsHelper {
             validationState = ValidationEnums.ValidationState.FAILED.getValue();
         }
         return validationState;
+    }
+
+    private boolean isJsonEqualIgnoringOrder(String expected, String actual) {
+        try {
+            JSONAssert.assertEquals(expected, actual, JSONCompareMode.NON_EXTENSIBLE);
+            return true;
+        } catch (JSONException | AssertionError e) {
+            return false;
+        }
     }
 
     static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {

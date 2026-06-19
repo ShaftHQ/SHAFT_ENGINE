@@ -73,7 +73,6 @@ public class DriverFactoryHelper {
     private static final int appiumServerPreparationPollingInterval = 1; // seconds
     private static final long localDriverInitializationRetryDelayMs = TimeUnit.SECONDS.toMillis(1);
     private static final long localDriverBiDiTimeoutGraceMs = TimeUnit.SECONDS.toMillis(5);
-    // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
     private static final ThreadLocal<String> TARGET_HUB_URL = new ThreadLocal<>();
     @Getter(AccessLevel.PUBLIC)
     private static volatile String targetBrowserName = "";

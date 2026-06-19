@@ -22,10 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,14 +38,11 @@ public class ImageProcessingActions {
     }
 
     public static void compareImageFolders(String referenceFolderPath, String testFolderPath, double threshold) {
-        // TODO: refactor to minimize File IO actions
         try {
-            long fileCounter = 1;
-
             File referenceFolder = new File(referenceFolderPath);
             File testFolder = new File(testFolderPath);
 
-            // cleaning processing folders
+            // cleaning legacy processing folders and previous failures
             FileActions.getInstance(true).deleteFolder(referenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
             FileActions.getInstance(true).deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
             FileActions.getInstance(true).deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_FAILED);
@@ -59,7 +53,7 @@ public class ImageProcessingActions {
 
             ReportManager.log("Comparing [" + Objects.requireNonNull(testFiles).length + "] image files from the testFolder ["
                     + testFolder.getPath() + "] against [" + Objects.requireNonNull(referenceFiles).length
-                    + "] image files from the referenceFolder [" + testFolder.getPath() + "]");
+                    + "] image files from the referenceFolder [" + referenceFolder.getPath() + "]");
 
             // sorting objects for files by fileName
             Arrays.sort(referenceFiles);
@@ -67,42 +61,8 @@ public class ImageProcessingActions {
 
             // confirming that the number of screenshots match
             if (referenceFiles.length == testFiles.length) {
-                // copy and rename reference screenshots to a processing directory
-                for (File referenceScreenshot : referenceFiles) {
-                    FileActions.getInstance(true).copyFile(referenceScreenshot.getAbsolutePath(),
-                            referenceScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
-                    fileCounter++;
-                }
-
-                // copy and rename test screenshots to match reference screenshots in a
-                // processing directory
-
-                fileCounter = 1;
-                for (File testScreenshot : testFiles) {
-                    FileActions.getInstance(true).copyFile(testScreenshot.getAbsolutePath(),
-                            testScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
-                    fileCounter++;
-                }
-
-                // point to the two new processing directories
-                File referenceProcessingFolder = new File(referenceFolderPath + DIRECTORY_PROCESSING);
-                File testProcessingFolder = new File(testFolderPath + DIRECTORY_PROCESSING);
-
-                // preparing objects for files
-                File[] testProcessingFiles = testProcessingFolder.listFiles();
-
-                // sorting objects for files by fileName
-                if (testProcessingFiles != null) {
-                    Arrays.sort(testProcessingFiles);
-                }
-
                 // compare images from the test directory against the reference directory
-                compareImageFolders(referenceFiles, testFiles, Objects.requireNonNull(testProcessingFiles), referenceProcessingFolder,
-                        testProcessingFolder, threshold);
-
-                // cleaning processing folders
-                FileActions.getInstance(true).deleteFolder(referenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
-                FileActions.getInstance(true).deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+                compareImageFolders(referenceFiles, testFiles, testFolder, threshold);
 
             } else {
                 // fail because the number of screenshots don't match
@@ -248,23 +208,22 @@ public class ImageProcessingActions {
                 visualBaselinePath + ".png", visualBaselinePath + "_shutterbug");
     }
 
-    private static void compareImageFolders(File[] referenceFiles, File[] testFiles, File[] testProcessingFiles,
-                                            File referenceProcessingFolder, File testProcessingFolder, double threshold) throws IOException {
-        // TODO: refactor to minimize File IO actions
+    private static void compareImageFolders(File[] referenceFiles, File[] testFiles, File testFolder, double threshold) throws IOException {
         int passedImagesCount = 0;
         int failedImagesCount = 0;
 
         // compare images from the test directory against the reference directory
-        for (File screenshot : testProcessingFiles) {
+        for (int index = 0; index < testFiles.length; index++) {
+            File testFile = testFiles[index];
+            File referenceFile = referenceFiles[index];
             float percentage = 0;
             // take buffer data from both image files //
 
-            BufferedImage biA = ImageIO.read(screenshot);
+            BufferedImage biA = ImageIO.read(testFile);
             DataBuffer dbA = biA.getData().getDataBuffer();
             float sizeA = dbA.getSize();
 
-            BufferedImage biB = ImageIO.read(new File(
-                    referenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
+            BufferedImage biB = ImageIO.read(referenceFile);
             DataBuffer dbB = biB.getData().getDataBuffer();
             float sizeB = dbB.getSize();
             float count = 0;
@@ -284,15 +243,11 @@ public class ImageProcessingActions {
                 ReportManager.log("Both the images are not of same size");
             }
 
-            // fetch the related reference screenshot file name using the current file
-            // name/number as index
-            String relatedReferenceFileName = referenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-            String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
+            String relatedReferenceFileName = referenceFile.getName();
+            String relatedTestFileName = testFile.getName();
 
-            Path referenceImagePath = Paths.get(
-                    referenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName());
-            try (InputStream refIn = Files.newInputStream(referenceImagePath);
-                 InputStream testIn = Files.newInputStream(screenshot.toPath())) {
+            try (InputStream refIn = Files.newInputStream(referenceFile.toPath());
+                 InputStream testIn = Files.newInputStream(testFile.toPath())) {
                 List<Object> referenceScreenshotAttachment = Arrays.asList(
                         "Reference Screenshot", relatedReferenceFileName, refIn);
                 List<Object> testScreenshotAttachment = Arrays.asList(
@@ -310,11 +265,10 @@ public class ImageProcessingActions {
                 passedImagesCount++;
             } else {
                 // copying image to failed images directory
-                FileActions.getInstance(true).copyFile(screenshot.getAbsolutePath(),
-                        testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
-                FileActions.getInstance(true).copyFile(
-                        referenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
-                        testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_referenceImage");
+                FileActions.getInstance(true).copyFile(testFile.getAbsolutePath(),
+                        testFolder.getAbsolutePath() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
+                FileActions.getInstance(true).copyFile(referenceFile.getAbsolutePath(),
+                        testFolder.getAbsolutePath() + DIRECTORY_FAILED + relatedTestFileName + "_referenceImage");
                 failedImagesCount++;
             }
         }

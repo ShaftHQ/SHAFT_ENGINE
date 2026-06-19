@@ -13,7 +13,6 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
 import java.io.*;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.ZonedDateTime;
@@ -194,8 +193,9 @@ public class AnimatedGifManager {
 
     private static void startAnimatedGif(byte[] screenshot, boolean alreadyWatermarked) {
         if (SHAFT.Properties.visuals.createAnimatedGif() && screenshot != null) {
-            String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + ".gif";
-            String gifPath = SHAFT.Properties.paths.allureResults() + "/screenshots/" + GIF_FILENAME_FORMATTER.format(ZonedDateTime.now()) + gifFileName;
+            String gifPath = Paths.get(SHAFT.Properties.paths.video(),
+                    GIF_FILENAME_FORMATTER.format(ZonedDateTime.now()),
+                    System.currentTimeMillis() + ".gif").toString();
             GifSession session = new GifSession(gifPath, SHAFT.Properties.visuals.animatedGifFrameDelay());
             gifSession.set(session);
             gifRelativePathWithFileName.set(gifPath);

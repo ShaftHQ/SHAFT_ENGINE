@@ -31,24 +31,29 @@ public class AnimatedGifManagerCoverageUnitTest {
 
     private boolean originalCreateAnimatedGif;
     private String originalAllureResults;
+    private String originalVideo;
     private boolean originalWatermark;
     private int originalAnimatedGifFrameDelay;
     private Path tempRoot;
     private Path allureResults;
+    private Path videoFolder;
 
     @BeforeMethod(alwaysRun = true)
     public void setup(Method method) {
         originalCreateAnimatedGif = SHAFT.Properties.visuals.createAnimatedGif();
         originalAllureResults = SHAFT.Properties.paths.allureResults();
+        originalVideo = SHAFT.Properties.paths.video();
         originalWatermark = SHAFT.Properties.visuals.screenshotParamsWatermark();
         originalAnimatedGifFrameDelay = SHAFT.Properties.visuals.animatedGifFrameDelay();
 
         tempRoot = TEMP_BASE.resolve(method.getName() + "-" + Thread.currentThread().threadId());
         allureResults = tempRoot.resolve("allure-results");
+        videoFolder = tempRoot.resolve("videos");
         FILE_ACTIONS.deleteFolder(tempRoot.toString());
         FILE_ACTIONS.createFolder(tempRoot.toString());
         SHAFT.Properties.visuals.set().createAnimatedGif(true).screenshotParamsWatermark(false).animatedGifFrameDelay(100);
         SHAFT.Properties.paths.set().allureResults(allureResults.toAbsolutePath().toString());
+        SHAFT.Properties.paths.set().video(videoFolder.toAbsolutePath().toString());
         clearAnimatedGifState();
     }
 
@@ -60,6 +65,7 @@ public class AnimatedGifManagerCoverageUnitTest {
                 .screenshotParamsWatermark(originalWatermark)
                 .animatedGifFrameDelay(originalAnimatedGifFrameDelay);
         SHAFT.Properties.paths.set().allureResults(originalAllureResults);
+        SHAFT.Properties.paths.set().video(originalVideo);
         if (tempRoot != null) {
             FILE_ACTIONS.deleteFolder(tempRoot.toString());
         }
@@ -83,6 +89,8 @@ public class AnimatedGifManagerCoverageUnitTest {
 
         Assert.assertFalse(gifPath.isEmpty(), "Expected attached GIF path.");
         Assert.assertTrue(new File(gifPath).exists(), "Expected generated GIF file to exist.");
+        Assert.assertTrue(Path.of(gifPath).startsWith(videoFolder.toAbsolutePath()),
+                "Expected generated GIF file under video.folder.");
         Assert.assertEquals(getGifRelativePath(), "", "Expected thread-local GIF path state to be reset after attach.");
     }
 

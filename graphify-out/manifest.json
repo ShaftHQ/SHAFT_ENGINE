@@ -870,8 +870,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/api/RestActions.java": {
-    "mtime": 1781788245.5131588,
-    "ast_hash": "7841adcd1ca034ce8ddc03c27f05d439",
+    "mtime": 1781901708.932714,
+    "ast_hash": "422ec005bd6cbe05fd3bf61b1247f33c",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/api/ShaftRestAssuredFilter.java": {
@@ -925,8 +925,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/BrowserStackHelper.java": {
-    "mtime": 1781642509.7808385,
-    "ast_hash": "c84a7c36529d6316eaa5e9d71c767def",
+    "mtime": 1781901795.9577706,
+    "ast_hash": "8c14c4c09fa9f5a794e3ff852e7ed676",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/BrowserStackSdkHelper.java": {
@@ -935,8 +935,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/DriverFactoryHelper.java": {
-    "mtime": 1781873177.6687973,
-    "ast_hash": "588ffc42074e2064813fba87b0bca8c0",
+    "mtime": 1781901808.1924767,
+    "ast_hash": "4275a1943e8430eba7f16ed1a7fec908",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/LambdaTestHelper.java": {
@@ -980,8 +980,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/browser/BrowserActions.java": {
-    "mtime": 1781642509.7838364,
-    "ast_hash": "13efb2f925230e3a8929d4771d1dc132",
+    "mtime": 1781901715.162738,
+    "ast_hash": "c7a9bf920c9587e8bed66f0b20de6788",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/browser/internal/BrowserActionsHelper.java": {
@@ -1085,13 +1085,13 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/internal/image/AnimatedGifManager.java": {
-    "mtime": 1781788245.5182543,
-    "ast_hash": "e1789eed28ef0ce552ab79f00c6e7730",
+    "mtime": 1781901768.5733404,
+    "ast_hash": "92bfab8f2912d25b33f494f3e83b2c36",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/internal/image/ImageProcessingActions.java": {
-    "mtime": 1781788245.5192497,
-    "ast_hash": "e490e4175f89de91b0ef1a044e87c1e8",
+    "mtime": 1781901855.9753065,
+    "ast_hash": "7993fc9d7ac4b067a536cb13d7cfa99c",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/internal/image/ScreenshotHelper.java": {
@@ -1200,8 +1200,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/internal/video/RecordManager.java": {
-    "mtime": 1781642509.7891362,
-    "ast_hash": "dfb5cd84c87c3415a09edab2814dd043",
+    "mtime": 1781901768.5743403,
+    "ast_hash": "36cde00bb8d0bd03ef7100f79cc06bea",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/AllureListener.java": {
@@ -1590,13 +1590,13 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/JSONValidationsBuilder.java": {
-    "mtime": 1781170594.937745,
-    "ast_hash": "a9b55ada19e44acdaa2347d81649fb75",
+    "mtime": 1781901708.929715,
+    "ast_hash": "f40cc0c546b57e193b993087fbee67bd",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/NativeValidationsBuilder.java": {
-    "mtime": 1781170594.9387453,
-    "ast_hash": "5a33c1e4af8ab5765db43c7f150c4e40",
+    "mtime": 1781901708.9287133,
+    "ast_hash": "b06f0a328380dc8600ea180a13394453",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/NumberValidationsBuilder.java": {
@@ -1605,8 +1605,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/RestValidationsBuilder.java": {
-    "mtime": 1781170594.9397469,
-    "ast_hash": "f12120a356a6a4bbb8b2982d8d81fe1a",
+    "mtime": 1781901956.7387812,
+    "ast_hash": "51980322b2995675177739860d9159b2",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/TextDirectionValidationsBuilder.java": {
@@ -1625,13 +1625,13 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/ValidationsExecutor.java": {
-    "mtime": 1781892159.9932814,
-    "ast_hash": "9f047e0f2331b0ceb8211af0de15b29c",
+    "mtime": 1781901708.929715,
+    "ast_hash": "7f58db23dea10228b1d0e85cf3bd0e99",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/ValidationsHelper.java": {
-    "mtime": 1781892159.9922812,
-    "ast_hash": "a4f10eb44d609eacb398fa25af81a847",
+    "mtime": 1781901708.9317143,
+    "ast_hash": "1eb96a71e977801532e4cc2f6233d3d5",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/validation/internal/WebDriverBrowserValidationsBuilder.java": {
@@ -1775,8 +1775,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/api/RestActionsCoverageUnitTest.java": {
-    "mtime": 1781170595.210419,
-    "ast_hash": "f3e1ec4057bd58ef177c0e274d2000b1",
+    "mtime": 1781901708.932714,
+    "ast_hash": "60ab231c4495eedb3703390a115f6c28",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/api/SwaggerContractTest.java": {
@@ -1850,8 +1850,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/internal/image/AnimatedGifManagerCoverageUnitTest.java": {
-    "mtime": 1781788245.540253,
-    "ast_hash": "882ec4b67282b7c73ecc5e94cd455fec",
+    "mtime": 1781901782.4365797,
+    "ast_hash": "4ae516ed3283dbb65023b1da0e84cf4d",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/internal/image/ScreenshotHelperCoverageUnitTest.java": {
@@ -1945,8 +1945,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/validation/internal/ValidationsHelperCoverageUnitTest.java": {
-    "mtime": 1781892242.9980528,
-    "ast_hash": "70e9fa93525ebb1be7c58f7bfb5ee3f5",
+    "mtime": 1781896652.9742627,
+    "ast_hash": "d22b363eae55211786a325255bfd197e",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/validation/internal/WebDriverElementValidationsBuilderCoverageUnitTest.java": {
@@ -2365,8 +2365,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/legacy/YAMLFileManagerTests.java": {
-    "mtime": 1781170595.3119402,
-    "ast_hash": "49a9017718260432d1ecf756ed11d4b7",
+    "mtime": 1781902206.6144683,
+    "ast_hash": "1da847bcb1764474e0009bd9011fc668",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/locator/LocatorBuilderTest.java": {
@@ -2425,8 +2425,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/mockedTests/E2ECoverageTests.java": {
-    "mtime": 1781892213.7133465,
-    "ast_hash": "b23f732b00db7aa344d5e0e62be3b599",
+    "mtime": 1781896652.9752624,
+    "ast_hash": "ca5993c2c426f5edafe4ce6625f48c17",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/mockedTests/ElementActionsMockedTests.java": {
@@ -2685,8 +2685,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/AndroidTouchActionsCoverageUnitTest.java": {
-    "mtime": 1781170595.347938,
-    "ast_hash": "b3f3a0fe35cbb10bb29f822208e50edf",
+    "mtime": 1781901582.2043066,
+    "ast_hash": "6a1cdd3e299676acbae69956d171f9ca",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/AssertionStepsCucumberTestsCoverageUnitTest.java": {
@@ -2700,8 +2700,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/BrowserActionsCoverageUnitTest.java": {
-    "mtime": 1781170595.3489387,
-    "ast_hash": "cf7b15f970b691655bbb6622b38c1082",
+    "mtime": 1781902187.9451265,
+    "ast_hash": "d1f741eddb3b6c6bdc38d1e05b9d8cd1",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/BrowserActionsHelperCoverageUnitTest.java": {
@@ -2715,8 +2715,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/BrowserStackHelperUnitTest.java": {
-    "mtime": 1781788245.5482507,
-    "ast_hash": "002d6838869b0b5afde3a0277f9c4308",
+    "mtime": 1781901795.9587693,
+    "ast_hash": "86e157757ecdb8d7dc7d758c5d7034ad",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/BrowserStackPropertiesUnitTest.java": {
@@ -2735,8 +2735,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/CheckpointAndReportingTest.java": {
-    "mtime": 1781892213.7133465,
-    "ast_hash": "f0364de529cb3aed12226b2f6f9ade56",
+    "mtime": 1781896652.9752624,
+    "ast_hash": "35dd2ea229bf8692dfa60aa240d47c78",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/ClipboardActionUnitTest.java": {
@@ -3025,8 +3025,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/ValidationAndProgressBarTests.java": {
-    "mtime": 1781892213.7123456,
-    "ast_hash": "b95fda86bde6a7cd2a0f805531e88a4a",
+    "mtime": 1781896652.9762633,
+    "ast_hash": "2cd823215ca19d7111f2d7092e71bda1",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/ValidationEnumsUnitTest.java": {
@@ -3765,8 +3765,8 @@
     "semantic_hash": ""
   },
   "shaft-visual/src/test/java/testPackage/unitTests/ImageProcessingActionsUnitTest.java": {
-    "mtime": 1781788245.578252,
-    "ast_hash": "0d61e5d9142b782249cba668a937430f",
+    "mtime": 1781901871.5702686,
+    "ast_hash": "22e3a7f089365462afa5b8379d2fa8a8",
     "semantic_hash": ""
   },
   "tests/fixtures/modularization/dependency-baseline/forbidden-coordinates.json": {
@@ -7415,8 +7415,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/validation/internal/ValidationsHelperNewPatternCoverageUnitTest.java": {
-    "mtime": 1781892213.7093453,
-    "ast_hash": "630562e33ccce25603371b0c61c71d92",
+    "mtime": 1781896652.9742627,
+    "ast_hash": "c8e6f3300e0e04126abcd31241609c0e",
     "semantic_hash": ""
   },
   "shaft-mcp/allure-results/015e8e8d-543f-472f-967f-ae31327329e7-container.json": {

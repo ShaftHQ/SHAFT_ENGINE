@@ -38,7 +38,6 @@ public class RecordManager {
         throw new IllegalStateException("Utility class");
     }
 
-    //TODO: the animated GIF should follow the same path as the video
     /**
      * Starts Appium-native recording for mobile execution or falls back to desktop recording for local desktop drivers.
      *
