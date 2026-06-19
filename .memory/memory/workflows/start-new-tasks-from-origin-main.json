@@ -1,10 +1,20 @@
 {
   "body_path": "memory/workflows/start-new-tasks-from-origin-main.md",
-  "content_hash": "sha256:b178eaef98499e2c540136b75d3ba6414f2006b20403b0512dbd43ff2e95d609",
+  "content_hash": "sha256:69ec7fc9a28ee28ce0840be14cb893bc2272a1265214e32efc52673785538f91",
   "created_at": "2026-06-16T08:33:26+03:00",
   "evidence": [],
   "facets": {
-    "category": "workflow"
+    "applies_to": [
+      "git",
+      "worktrees",
+      "branches",
+      "new-task-flow"
+    ],
+    "category": "workflow",
+    "load_modes": [
+      "coding",
+      "review"
+    ]
   },
   "id": "workflow.start-new-tasks-from-origin-main",
   "scope": {
@@ -18,8 +28,12 @@
     "task": "Remember durable workflow correction from user: new SHAFT_ENGINE implementation tasks should start from a fresh branch based on the remote main branch, without waiting for the user to repeat this instruction."
   },
   "status": "active",
-  "tags": [],
-  "title": "Start new tasks from remote main",
+  "tags": [
+    "git",
+    "workflow",
+    "branches"
+  ],
+  "title": "Start new tasks from clean remote main",
   "type": "workflow",
-  "updated_at": "2026-06-16T08:33:26+03:00"
+  "updated_at": "2026-06-19T10:13:46+03:00"
 }

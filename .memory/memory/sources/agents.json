@@ -1,6 +1,6 @@
 {
   "body_path": "memory/sources/agents.md",
-  "content_hash": "sha256:ddf146e6b2f2ee4729cc43be48add449e0014a5abf584c77ab1a20582794de39",
+  "content_hash": "sha256:7916fb9aeb36f38c8d5c871fd3d813bcbf00781f74d02207942d52736413fb08",
   "created_at": "2026-06-17T11:14:58+03:00",
   "evidence": [
     {
@@ -20,7 +20,7 @@
   },
   "id": "source.agents",
   "origin": {
-    "digest": "sha256:75db8a72ae5d71c290ce4976652f862c0257428c1a310dd3bc3134fccf8feee7",
+    "digest": "sha256:870aaec70812071b5daf2eb8222dfda7e695da33d917917afcd3549d1914fe8d",
     "kind": "file",
     "locator": "AGENTS.md",
     "media_type": "text/markdown"
@@ -41,5 +41,5 @@
   ],
   "title": "Source: AGENTS.md",
   "type": "source",
-  "updated_at": "2026-06-17T11:14:58+03:00"
+  "updated_at": "2026-06-19T10:17:06+03:00"
 }
