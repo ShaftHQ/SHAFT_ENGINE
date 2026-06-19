@@ -40,7 +40,8 @@ Nothing fancy... Just keep it clear and simple.
 ## Validation By Risk
 
 - **Documentation or agent guidance:** run the relevant deterministic validator
-  plus `python3 scripts/ci/validate_documentation_boundaries.py` and
+  plus `python3 scripts/ci/validate_documentation_boundaries.py`
+  (`py -3 ...` on Windows) and
   `git diff --check`; no Maven build is needed.
 - **Localized code:** run the affected tests, then compile/package once before
   finalizing the change.
