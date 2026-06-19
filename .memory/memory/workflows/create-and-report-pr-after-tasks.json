@@ -1,10 +1,10 @@
 {
   "body_path": "memory/workflows/create-and-report-pr-after-tasks.md",
-  "content_hash": "sha256:ddc5a7542805c61b4dc219caab40e8b3e95c54fff8bf90bd148f4b6b578c5cf7",
+  "content_hash": "sha256:830fd0e7a99caa2f37cc3f114f11ecbf06195a9c9a5ffa3c7d0944579d39b211",
   "created_at": "2026-06-17T11:28:59+03:00",
   "evidence": [
     {
-      "id": "User asked to always create and report back a PR when finishing a task.",
+      "id": "User asked on 2026-06-19 to always create a ready PR and share the link for new tasks.",
       "kind": "task"
     }
   ],
@@ -12,7 +12,8 @@
     "applies_to": [
       "git",
       "github",
-      "pull-request"
+      "pull-request",
+      "new-task-flow"
     ],
     "category": "workflow",
     "load_modes": [
@@ -43,5 +44,5 @@
   ],
   "title": "Create and report PR after tasks",
   "type": "workflow",
-  "updated_at": "2026-06-17T12:07:00+03:00"
+  "updated_at": "2026-06-19T10:13:46+03:00"
 }
