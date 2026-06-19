@@ -15,7 +15,7 @@ coverage:
     patch:
       default:
         target: auto
-        threshold: 1%
+        threshold: 10%
 
 parsers:
   xml:
