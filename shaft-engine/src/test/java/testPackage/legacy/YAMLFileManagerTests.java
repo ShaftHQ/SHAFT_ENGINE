@@ -5,6 +5,11 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -154,21 +159,19 @@ public class YAMLFileManagerTests {
                 .perform();
     }
 
-    // TODO: has issue related to time zone always use the local time zone
-//    @Test
+    @Test
     public void getDate() {
         assertThat()
-                .object(yaml.getDate("date"))
-                .isEqualTo("2010-02-11T00:00:00")
+                .object(formatDate(yaml.getDate("date"), "yyyy-MM-dd"))
+                .isEqualTo(formatDate(utcDate("2010-02-11"), "yyyy-MM-dd"))
                 .perform();
     }
 
-    // TODO: has issue related to time zone always use the local time zone
-//    @Test
+    @Test
     public void getDateTime() {
         assertThat()
-                .object(yaml.getDate("date-time"))
-                .isEqualTo("2010-02-11T11:02:57")
+                .object(formatDate(yaml.getDate("date-time"), "yyyy-MM-dd'T'HH:mm:ss"))
+                .isEqualTo(formatDate(utcDateTime("2010-02-11T11:02:57"), "yyyy-MM-dd'T'HH:mm:ss"))
                 .perform();
     }
 
@@ -258,5 +261,17 @@ public class YAMLFileManagerTests {
                 RuntimeException.class,
                 () -> yaml.getLong("invalid-long")
         );
+    }
+
+    private static String formatDate(Date date, String pattern) {
+        return new SimpleDateFormat(pattern).format(date);
+    }
+
+    private static Date utcDate(String value) {
+        return Date.from(LocalDate.parse(value).atStartOfDay().toInstant(ZoneOffset.UTC));
+    }
+
+    private static Date utcDateTime(String value) {
+        return Date.from(LocalDateTime.parse(value).toInstant(ZoneOffset.UTC));
     }
 }

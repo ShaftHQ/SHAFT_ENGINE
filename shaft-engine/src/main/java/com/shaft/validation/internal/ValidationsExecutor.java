@@ -40,6 +40,7 @@ public class ValidationsExecutor {
     private String jsonPath;
     private String folderRelativePath;
     private String fileName;
+    private boolean jsonIgnoringOrderComparison;
 
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -69,6 +70,7 @@ public class ValidationsExecutor {
 
         this.folderRelativePath = nativeValidationsBuilder.folderRelativePath;
         this.fileName = nativeValidationsBuilder.fileName;
+        this.jsonIgnoringOrderComparison = nativeValidationsBuilder.jsonIgnoringOrderComparison;
 
         this.reportMessageBuilder = nativeValidationsBuilder.reportMessageBuilder;
     }
@@ -199,8 +201,14 @@ public class ValidationsExecutor {
                     validationsHelper.validateEquals(expectedValue, value.toString(), validationComparisonType, validationType);
                 }
             }
-            case "responseBody" ->
-                    validationsHelper.validateEquals(expectedValue, RestActions.getResponseBody((Response) response.get()), validationComparisonType, validationType);
+            case "responseBody" -> {
+                String actualResponseBody = RestActions.getResponseBody((Response) response.get());
+                if (jsonIgnoringOrderComparison) {
+                    validationsHelper.validateJsonEqualsIgnoringOrder(expectedValue, actualResponseBody, validationType);
+                } else {
+                    validationsHelper.validateEquals(expectedValue, actualResponseBody, validationComparisonType, validationType);
+                }
+            }
             case "responseTime" ->
                     validationsHelper.validateNumber((Number) expectedValue, RestActions.getResponseTime((Response) response.get()), numbersComparativeRelation, validationType);
             case "checkResponseSchema" ->

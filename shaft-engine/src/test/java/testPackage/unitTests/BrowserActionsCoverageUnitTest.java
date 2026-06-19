@@ -134,6 +134,16 @@ public class BrowserActionsCoverageUnitTest {
     }
 
     @Test
+    public void navigateShouldFailOnBrowserErrorPageWhenForcedNavigationCheckIsEnabled() {
+        SHAFT.Properties.flags.set().forceCheckNavigationWasSuccessful(true);
+        when(driver.getCurrentUrl()).thenReturn("https://example.com/start", "https://example.com/down");
+        when(driver.getPageSource()).thenReturn("This site can’t be reached");
+
+        Assert.assertThrows(RuntimeException.class,
+                () -> browserActions.navigateToURL("https://example.com/down", "https://example.com/down"));
+    }
+
+    @Test
     public void shouldCoverCookieAndCaptureMethods() {
         browserActions.addCookie("key", "value");
         Assert.assertNotNull(browserActions.getCookie("key"));

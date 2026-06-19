@@ -250,8 +250,6 @@ public class BrowserStackHelper {
         browserstackOptions.put("acceptInsecureCerts", SHAFT.Properties.browserStack.acceptInsecureCerts());
         browserstackOptions.put("debug", SHAFT.Properties.browserStack.debug());
         browserstackOptions.put("interactiveDebugging", SHAFT.Properties.browserStack.debug());
-        //TODO: load browserstack properties dynamically similar to how we handle mobile properties
-//        browserstackOptions.put("enableBiometric", SHAFT.Properties.browserStack.enableBiometric());
         browserstackOptions.put("networkLogs", SHAFT.Properties.browserStack.networkLogs());
 
         var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));

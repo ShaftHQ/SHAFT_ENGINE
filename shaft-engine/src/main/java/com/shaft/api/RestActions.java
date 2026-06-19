@@ -689,8 +689,13 @@ public class RestActions {
                         PRETTY_GSON.toJson(JsonParser.parseString(expectedJsonArray.toString())));
             }
 
+            if (!jsonPathToTargetArray.isEmpty() && expectedJsonArray != null
+                    && comparisonType != ComparisonType.CONTAINS) {
+                actualJsonObject = null;
+                actualJsonArray = getActualJsonArrayFromJsonPath(response, jsonPathToTargetArray);
+            }
+
             // handle different combinations of expected and actual (object vs array)
-            // TODO: handle jsonPathToTargetArray and attempt to parse the actual result
             comparisonResult = switch (comparisonType) {
                 case EQUALS -> compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject,
                         actualJsonArray);
@@ -867,9 +872,7 @@ public class RestActions {
         if (!jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
             // if expected is an array and the user provided the path to extract it from the
             // response
-            ArrayNode actualJsonArrayFromJsonPath = (ArrayNode) JACKSON_MAPPER
-                    .readTree(GSON.toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
-                            .getAsJsonArray().toString());
+            ArrayNode actualJsonArrayFromJsonPath = getActualJsonArrayFromJsonPath(response, jsonPathToTargetArray);
             // check that all expected elements are present in the actual array.
             // O(n*m) scan matches the previous json-simple containsAll() semantics because
             // Jackson JsonNode equality requires structural comparison rather than hash-based lookup.
@@ -904,6 +907,13 @@ public class RestActions {
         } else {
             return false;
         }
+    }
+
+    private static ArrayNode getActualJsonArrayFromJsonPath(Response response, String jsonPathToTargetArray)
+            throws IOException {
+        return (ArrayNode) JACKSON_MAPPER
+                .readTree(GSON.toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
+                        .getAsJsonArray().toString());
     }
 
     private static String prettyFormatXML(String input) {

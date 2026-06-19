@@ -145,6 +145,8 @@ public class ImageProcessingActionsUnitTest {
 
         ImageProcessingActions.compareImageFolders(reference.toString(), test.toString(), 100);
         Assert.assertFalse(testFileActions.doesFileExist(test.resolve("failedImagesDirectory").toString()));
+        Assert.assertFalse(testFileActions.doesFileExist(reference.resolve("processingDirectory").toString()));
+        Assert.assertFalse(testFileActions.doesFileExist(test.resolve("processingDirectory").toString()));
     }
 
     @Test

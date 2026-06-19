@@ -356,6 +356,14 @@ public class RestActionsCoverageUnitTest {
         Mockito.when(nestedArrayResponse.asString()).thenReturn("{\"data\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"},{\"id\":3,\"name\":\"gamma\"}]}");
         Mockito.when(nestedArrayResponse.asPrettyString()).thenReturn("{\"data\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"},{\"id\":3,\"name\":\"gamma\"}]}");
 
+        Response nestedExactArrayResponse = Mockito.mock(Response.class);
+        Mockito.when(nestedExactArrayResponse.asString()).thenReturn("{\"data\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"}]}");
+        Mockito.when(nestedExactArrayResponse.asPrettyString()).thenReturn("{\"data\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"}]}");
+
+        Response nestedReorderedArrayResponse = Mockito.mock(Response.class);
+        Mockito.when(nestedReorderedArrayResponse.asString()).thenReturn("{\"data\":[{\"id\":2,\"name\":\"beta\"},{\"id\":1,\"name\":\"alpha\"}]}");
+        Mockito.when(nestedReorderedArrayResponse.asPrettyString()).thenReturn("{\"data\":[{\"id\":2,\"name\":\"beta\"},{\"id\":1,\"name\":\"alpha\"}]}");
+
         Validations.assertThat().object(RestActions.compareJSON(
                 objectResponse, COVERAGE_TEST_DATA + "expectedObject.json", RestActions.ComparisonType.EQUALS)).isTrue().perform();
         Validations.assertThat().object(RestActions.compareJSON(
@@ -365,6 +373,25 @@ public class RestActionsCoverageUnitTest {
         Validations.assertThat().object(RestActions.compareJSON(
                 nestedArrayResponse, COVERAGE_TEST_DATA + "orderedArray.json", RestActions.ComparisonType.CONTAINS, "$.data")).isTrue().perform();
         Validations.assertThat().object(RestActions.compareJSON(
+                nestedExactArrayResponse, COVERAGE_TEST_DATA + "orderedArray.json", RestActions.ComparisonType.EQUALS, "$.data")).isTrue().perform();
+        Validations.assertThat().object(RestActions.compareJSON(
+                nestedReorderedArrayResponse, COVERAGE_TEST_DATA + "orderedArray.json", RestActions.ComparisonType.EQUALS_IGNORING_ORDER, "$.data")).isTrue().perform();
+        Validations.assertThat().object(RestActions.compareJSON(
                 objectResponse, COVERAGE_TEST_DATA + "mismatchObject.json", RestActions.ComparisonType.EQUALS)).isFalse().perform();
+    }
+
+    @Test
+    public void responseBodyEqualsIgnoringOrderShouldCompareJsonStructurally() {
+        Response response = Mockito.mock(Response.class);
+        ResponseBody<?> responseBody = Mockito.mock(ResponseBody.class);
+        Mockito.when(response.getBody()).thenReturn(responseBody);
+        Mockito.when(responseBody.asString()).thenReturn("{\"roles\":[\"tester\",\"admin\"],\"name\":\"shaft\"}");
+
+        Validations.assertThat().response(response)
+                .body().equalsIgnoringOrder("{\"name\":\"shaft\",\"roles\":[\"admin\",\"tester\"]}").perform();
+        Validations.assertThat().response(response)
+                .body().doesNotEqualIgnoringOrder("{\"name\":\"other\",\"roles\":[\"admin\",\"tester\"]}").perform();
+        Assert.assertThrows(AssertionError.class, () -> Validations.assertThat().response(response)
+                .body().equalsIgnoringOrder("{\"name\":\"other\",\"roles\":[\"admin\",\"tester\"]}").perform());
     }
 }

@@ -21,6 +21,7 @@ public class NativeValidationsBuilder {
     protected String jsonPath;
     protected String folderRelativePath;
     protected String fileName;
+    protected boolean jsonIgnoringOrderComparison;
 
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -75,6 +76,7 @@ public class NativeValidationsBuilder {
         this.validationMethod = validationMethod;
         this.elementAttribute = elementAttribute;
         this.browserAttribute = browserAttribute;
+        this.jsonIgnoringOrderComparison = sourceBuilder.jsonIgnoringOrderComparison;
         this.reportMessageBuilder = sourceBuilder.reportMessageBuilder;
     }
 
