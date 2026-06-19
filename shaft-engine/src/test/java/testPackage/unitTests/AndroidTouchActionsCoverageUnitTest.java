@@ -24,6 +24,7 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +95,7 @@ public class AndroidTouchActionsCoverageUnitTest {
         SHAFT.Validations.assertThat().object(Files.exists(pulledFilePath)).isTrue().perform();
         SHAFT.Validations.assertThat().object(Files.exists(ROOT_PULL_PATH)).isTrue().perform();
         SHAFT.Validations.assertThat().object(Files.exists(TEMP_DIR.resolve("existing-result.txt"))).isTrue().perform();
-        SHAFT.Validations.assertThat().object(Files.readAllBytes(pulledFilePath)).isEqualTo(pulledContent).perform();
+        SHAFT.Validations.assertThat().object(Arrays.equals(Files.readAllBytes(pulledFilePath), pulledContent)).isTrue().perform();
     }
 
     @Test
