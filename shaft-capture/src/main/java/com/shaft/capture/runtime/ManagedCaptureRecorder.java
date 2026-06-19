@@ -205,6 +205,12 @@ class ManagedCaptureRecorder {
         return driver;
     }
 
+    void activeSessionForTesting(CaptureSessionStore store, CaptureEventPipeline pipeline) {
+        this.store = store;
+        this.pipeline = pipeline;
+        this.state = CaptureStatus.State.ACTIVE;
+    }
+
     private void configureShaft() {
         SHAFT.Properties.clearForCurrentThread();
         SHAFT.Properties.platform.set()
@@ -230,7 +236,7 @@ class ManagedCaptureRecorder {
         }
     }
 
-    private MutableCapabilities browserOptions() {
+    MutableCapabilities browserOptions() {
         String profileArgument = "--user-data-dir=" + profileDirectory;
         List<String> arguments = new ArrayList<>();
         arguments.add(profileArgument);
@@ -295,7 +301,7 @@ class ManagedCaptureRecorder {
         }
     }
 
-    private void acceptSignal(BrowserSignal signal) {
+    void acceptSignal(BrowserSignal signal) {
         if (signal == null) {
             return;
         }

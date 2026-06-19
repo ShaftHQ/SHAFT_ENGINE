@@ -10,8 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.openqa.selenium.MutableCapabilities;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,17 +39,15 @@ class ManagedCaptureRecorderControlTest {
                 CapturePrivacyPolicy.defaults(),
                 ignored -> { },
                 ignored -> { });
-        set(recorder, "store", store);
-        set(recorder, "pipeline", pipeline);
-        set(recorder, "state", CaptureStatus.State.ACTIVE);
+        recorder.activeSessionForTesting(store, pipeline);
 
-        accept(recorder, BrowserSignal.generated(
+        recorder.acceptSignal(BrowserSignal.generated(
                 "checkpoint",
                 "window-1",
                 Map.of("url", "https://example.test", "title", "Example"),
                 Map.of("description", "Edited captured action 1: Click submit", "kind", "USER_MARKER")));
-        accept(recorder, BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "PAUSE")));
-        accept(recorder, BrowserSignal.generated(
+        recorder.acceptSignal(BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "PAUSE")));
+        recorder.acceptSignal(BrowserSignal.generated(
                 "navigation",
                 "window-1",
                 Map.of("url", "https://example.test/paused", "title", "Paused"),
@@ -62,13 +58,13 @@ class ManagedCaptureRecorderControlTest {
         assertEquals("Edited captured action 1: Click submit",
                 store.read().checkpoints().getFirst().description());
 
-        accept(recorder, BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "RESUME")));
-        accept(recorder, BrowserSignal.generated(
+        recorder.acceptSignal(BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "RESUME")));
+        recorder.acceptSignal(BrowserSignal.generated(
                 "navigation",
                 "window-1",
                 Map.of("url", "https://example.test/resumed", "title", "Resumed"),
                 Map.of("action", "OPEN")));
-        accept(recorder, BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "STOP")));
+        recorder.acceptSignal(BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "STOP")));
 
         CaptureStatus status = recorder.status();
         assertEquals(CaptureStatus.State.COMPLETED, status.state());
@@ -101,8 +97,8 @@ class ManagedCaptureRecorderControlTest {
                 "agent-user-agent",
                 temp.resolve("profile"));
 
-        MutableCapabilities chrome = capabilities(new ManagedCaptureRecorder(request(CaptureBrowser.CHROME, options)));
-        MutableCapabilities edge = capabilities(new ManagedCaptureRecorder(request(CaptureBrowser.EDGE, options)));
+        MutableCapabilities chrome = new ManagedCaptureRecorder(request(CaptureBrowser.CHROME, options)).browserOptions();
+        MutableCapabilities edge = new ManagedCaptureRecorder(request(CaptureBrowser.EDGE, options)).browserOptions();
 
         assertEquals(true, chrome.getCapability("acceptInsecureCerts"));
         assertEquals(true, edge.getCapability("acceptInsecureCerts"));
@@ -120,24 +116,6 @@ class ManagedCaptureRecorderControlTest {
                 temp.resolve(browser.name().toLowerCase()).resolve("runtime"),
                 true,
                 options);
-    }
-
-    private static void accept(ManagedCaptureRecorder recorder, BrowserSignal signal) throws Exception {
-        Method method = ManagedCaptureRecorder.class.getDeclaredMethod("acceptSignal", BrowserSignal.class);
-        method.setAccessible(true);
-        method.invoke(recorder, signal);
-    }
-
-    private static MutableCapabilities capabilities(ManagedCaptureRecorder recorder) throws Exception {
-        Method method = ManagedCaptureRecorder.class.getDeclaredMethod("browserOptions");
-        method.setAccessible(true);
-        return (MutableCapabilities) method.invoke(recorder);
-    }
-
-    private static void set(Object target, String name, Object value) throws Exception {
-        Field field = ManagedCaptureRecorder.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(target, value);
     }
 
     @SuppressWarnings("unchecked")
