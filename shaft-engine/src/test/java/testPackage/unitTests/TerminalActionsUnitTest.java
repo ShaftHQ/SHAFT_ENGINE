@@ -28,7 +28,8 @@ import java.util.concurrent.TimeUnit;
  * without requiring external services (SSH, Docker).
  */
 public class TerminalActionsUnitTest {
-    private static final Path TEMP_DIR = Path.of("target", "temp", "terminal-actions-unit");
+    private static final Path TEMP_ROOT = Path.of("target", "temp", "terminal-actions-unit");
+    private final ThreadLocal<Path> createdTempDir = new ThreadLocal<>();
 
     // --- Constructor and Factory Method Tests ---
 
@@ -235,12 +236,12 @@ public class TerminalActionsUnitTest {
     @Test(description = "uploadFile should fail for dockerized remote terminals")
     @SuppressWarnings("deprecation")
     public void uploadFileShouldFailForDockerizedRemoteTerminal() throws Exception {
-        Files.createDirectories(TEMP_DIR);
-        Path localFile = TEMP_DIR.resolve("upload-source.txt");
+        Path tempDir = createTempDir("upload");
+        Path localFile = tempDir.resolve("upload-source.txt");
         Files.writeString(localFile, "payload");
 
         TerminalActions terminal = new TerminalActions(
-                "host.example.com", 22, "user", TEMP_DIR.toAbsolutePath() + "/", "id_rsa",
+                "host.example.com", 22, "user", tempDir.toAbsolutePath() + "/", "id_rsa",
                 "appContainer", "appUser");
 
         RuntimeException failure = Assert.expectThrows(RuntimeException.class,
@@ -330,9 +331,18 @@ public class TerminalActionsUnitTest {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
-        if (Files.exists(TEMP_DIR)) {
-            com.shaft.cli.FileActions.getInstance(true).deleteFolder(TEMP_DIR.toString());
+        Path directory = createdTempDir.get();
+        createdTempDir.remove();
+        if (directory != null && Files.exists(directory)) {
+            com.shaft.cli.FileActions.getInstance(true).deleteFolder(directory.toString());
         }
+    }
+
+    private Path createTempDir(String prefix) throws Exception {
+        Files.createDirectories(TEMP_ROOT);
+        Path directory = Files.createTempDirectory(TEMP_ROOT, prefix + "-");
+        createdTempDir.set(directory);
+        return directory;
     }
 
     @Test(description = "performTerminalCommands should execute split commands and capture logs")
@@ -345,10 +355,10 @@ public class TerminalActionsUnitTest {
 
     @Test(description = "performTerminalCommands should execute from cd-prefixed directory")
     public void performTerminalCommandsShouldRunFromChangedDirectory() throws Exception {
-        Files.createDirectories(TEMP_DIR);
+        Path tempDir = createTempDir("cwd");
         TerminalActions terminal = TerminalActions.getInstance(false, false, true);
-        String log = terminal.performTerminalCommands(List.of("cd " + TEMP_DIR.toAbsolutePath(), "pwd"));
-        Assert.assertTrue(log.contains(TEMP_DIR.toAbsolutePath().toString()),
+        String log = terminal.performTerminalCommands(List.of("cd " + tempDir.toAbsolutePath(), "pwd"));
+        Assert.assertTrue(log.contains(tempDir.toAbsolutePath().toString()),
                 "Expected command log to include changed working directory.");
     }
 
@@ -600,7 +610,7 @@ public class TerminalActionsUnitTest {
     @Test(description = "createSSHsession should handle invalid key path when identity loading fails")
     public void createSSHsessionShouldHandleInvalidIdentityPath() throws Exception {
         TerminalActions terminal = new TerminalActions("127.0.0.1", 22, "user",
-                TEMP_DIR.toAbsolutePath().toString() + "/", "missing_key");
+                TEMP_ROOT.resolve("missing-identity").toAbsolutePath().toString() + "/", "missing_key");
         Method createSshSession = TerminalActions.class.getDeclaredMethod("createSSHsession");
         createSshSession.setAccessible(true);
 
