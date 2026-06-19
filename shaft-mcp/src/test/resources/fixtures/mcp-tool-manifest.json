@@ -67,6 +67,7 @@
     {"name": "capture_code_blocks", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "doctor_analyze_failed_allure", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "doctor_suggest_fix", "mutation": false, "sensitive": false, "deprecated": false},
-    {"name": "doctor_propose_healed_locator", "mutation": false, "sensitive": false, "deprecated": false}
+    {"name": "doctor_propose_healed_locator", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "healer_run_failed_test", "mutation": true, "sensitive": true, "deprecated": false}
   ]
 }

@@ -44,6 +44,7 @@ class ShaftMcpApplicationTests {
                             callback.getToolDefinition().name() + " exposes generic parameter names: " + schema);
                 });
         assertTrue(toolNames.contains("doctor_analyze_failed_allure"));
+        assertTrue(toolNames.contains("healer_run_failed_test"));
         assertTrue(toolNames.contains("capture_generate_replay"));
         assertTrue(toolNames.contains("capture_checkpoint"));
         assertTrue(toolNames.contains("browser_get_page_dom"));
