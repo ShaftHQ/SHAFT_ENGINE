@@ -84,6 +84,26 @@ class McpResultRecordsTest {
     }
 
     @Test
+    void healerResultRecordsNormalizeAndCopyLists() {
+        List<String> values = new ArrayList<>(List.of("one"));
+        McpHealerAttemptResult attempt = new McpHealerAttemptResult(
+                -1, values, 1, false, false, -2, -3, " diagnostics ", values);
+        McpHealerRunResult result = new McpHealerRunResult(
+                "", null, List.of(attempt), null, null, null, values);
+
+        values.add("two");
+
+        assertEquals(1, attempt.attemptNumber());
+        assertEquals(0, attempt.allureResultCount());
+        assertEquals(0, attempt.failedAllureResultCount());
+        assertEquals("diagnostics", attempt.diagnostics());
+        assertEquals(McpHealerRunResult.CURRENT_SCHEMA_VERSION, result.schemaVersion());
+        assertEquals(McpHealerRunResult.Status.GUARDRAIL_STOPPED, result.status());
+        assertEquals(List.of("one"), result.warnings());
+        assertThrows(UnsupportedOperationException.class, () -> result.warnings().add("x"));
+    }
+
+    @Test
     void workspacePolicyResolvesOutputsListsAndSourceAllowlist() throws Exception {
         Path root = Files.createDirectories(temp.resolve("workspace"));
         Path repository = Files.createDirectories(root.resolve("repo"));
