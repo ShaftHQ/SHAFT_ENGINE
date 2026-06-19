@@ -13,6 +13,7 @@ import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
+import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
@@ -188,13 +189,88 @@ public class ActionsCoverageUnitTest {
             AllureLifecycle lifecycle = mock(AllureLifecycle.class);
             allure.when(Allure::getLifecycle).thenReturn(lifecycle);
             StepResult step = captureStepUpdates(lifecycle);
+            seedParameters(step,
+                    new Parameter().setName("elementName").setValue("Email"),
+                    new Parameter().setName("text").setValue("[user@example.com]"));
 
             new Actions(helperFor(driver)).type("Email", "user@example.com");
 
             Assert.assertEquals(step.getName(), "Type \"user@example.com\"");
             Assert.assertEquals(parameterValue(step, "locator"), "Smart Locator: \"Email\"");
+            Assert.assertFalse(hasParameter(step, "elementName"));
             Assert.assertFalse(hasParameter(step, "element name"));
+            Assert.assertEquals(parameterValue(step, "text"), "[user@example.com]");
             Assert.assertFalse(step.getDescription().contains("element name:"));
+        }
+    }
+
+    @Test
+    public void selectActionShouldShowSelectedValueAndKeepLocatorMetadataInAllureStep() {
+        SHAFT.Properties.flags.set().handleNonSelectDropDown(true);
+        WebDriver driver = mock(WebDriver.class);
+        WebElement dropdown = standardElement();
+        WebElement option = standardElement();
+        when(dropdown.getTagName()).thenReturn("div");
+        when(driver.findElements(any(By.class))).thenReturn(List.of(dropdown), List.of(option));
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            seedParameters(step,
+                    new Parameter().setName("elementLocator").setValue("By.id: countries_dropdown_menu"),
+                    new Parameter().setName("valueOrVisibleText").setValue("Egypt"));
+
+            new Actions(helperFor(driver)).select(By.id("countries_dropdown_menu"), "Egypt");
+
+            Assert.assertEquals(step.getName(), "Select \"Egypt\"");
+            Assert.assertEquals(parameterValue(step, "locator"), "By.id: countries_dropdown_menu");
+            Assert.assertEquals(parameterValue(step, "valueOrVisibleText"), "Egypt");
+            Assert.assertFalse(hasParameter(step, "elementLocator"));
+        }
+    }
+
+    @Test
+    public void smartLocatorClickShouldKeepAccessibleTitleAndAddLocatorMetadataInAllureStep() {
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = standardElement();
+        when(element.getAccessibleName()).thenReturn("Submit Order");
+        when(driver.findElements(any(By.class))).thenReturn(List.of(element));
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            seedParameters(step, new Parameter().setName("elementName").setValue("Submit Order"));
+
+            new Actions(helperFor(driver)).click("Submit Order");
+
+            Assert.assertEquals(step.getName(), "Click \"Submit Order\"");
+            Assert.assertEquals(parameterValue(step, "locator"), "Smart Locator: \"Submit Order\"");
+            Assert.assertFalse(hasParameter(step, "elementName"));
+            Assert.assertFalse(hasParameter(step, "element name"));
+        }
+    }
+
+    @Test
+    public void locatorClickShouldAddNormalizedLocatorMetadataInAllureStep() {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            seedParameters(step, new Parameter().setName("locator").setValue(LOCATOR.toString()));
+
+            new Actions(helperFor(driver)).click(LOCATOR);
+
+            Assert.assertEquals(parameterValue(step, "locator"), "By.id: target");
         }
     }
 
@@ -744,6 +820,10 @@ public class ActionsCoverageUnitTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Missing parameter: " + name))
                 .getValue();
+    }
+
+    private void seedParameters(StepResult step, Parameter... parameters) {
+        step.setParameters(new ArrayList<>(List.of(parameters)));
     }
 
     private boolean hasParameter(StepResult step, String name) {
