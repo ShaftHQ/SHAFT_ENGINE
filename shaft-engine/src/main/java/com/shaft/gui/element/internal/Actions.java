@@ -1168,8 +1168,8 @@ public class Actions extends ElementActions {
         }
 
         Allure.getLifecycle().updateStep(update -> update.setName(stepName.toString()));
-        if (context.shouldReportTypedValue()) {
-            updateTypingStepMetadata(context);
+        if (context.hasLocator()) {
+            updateActionStepMetadata(context);
         }
 
         // handle secure typing
@@ -1217,16 +1217,18 @@ public class Actions extends ElementActions {
     private static String createStepName(String action, String elementName, ActionReportContext context) {
         String actionName = JavaHelper.convertToSentenceCase(action).replaceAll("\\s+", " ");
         String value = context.stepValue();
-        if (context.shouldReportTypedValue() && !value.isBlank()) {
+        if (context.hasStepValue() && !value.isBlank()) {
             return actionName + " \"" + value + "\"";
         }
         return actionName + " \"" + elementName + "\"";
     }
 
-    private static void updateTypingStepMetadata(ActionReportContext context) {
+    private static void updateActionStepMetadata(ActionReportContext context) {
         Allure.getLifecycle().updateStep(update -> {
             List<Parameter> parameters = update.getParameters() == null ? new ArrayList<>() : new ArrayList<>(update.getParameters());
             parameters.removeIf(parameter -> "locator".equals(parameter.getName())
+                    || "elementLocator".equals(parameter.getName())
+                    || "elementName".equals(parameter.getName())
                     || "txt".equals(parameter.getName())
                     || "element name".equals(parameter.getName()));
             parameters.add(new Parameter().setName("locator").setValue(context.locator()));
@@ -1239,26 +1241,29 @@ public class Actions extends ElementActions {
         });
     }
 
-    private record ActionReportContext(String locator, String detailsValue, String stepValue, String elementName) {
+    private record ActionReportContext(String locator, String stepValue, String elementName, boolean reportsStepValue) {
         static ActionReportContext empty() {
-            return new ActionReportContext("", "", "", "");
+            return new ActionReportContext("", "", "", false);
         }
 
         static ActionReportContext from(ActionType action, By locator, Object data, String elementName) {
-            if (!shouldReportTypedValue(action)) {
-                return empty();
-            }
-            String text = ActionType.TYPE_SECURELY.equals(action) ? MASKED_TYPED_VALUE : stringifyTypedValue(data);
-            String singleLineText = text.replaceAll("\\R+", " ").trim();
+            String value = shouldUseDataInStepName(action)
+                    ? (ActionType.TYPE_SECURELY.equals(action) ? MASKED_TYPED_VALUE : stringifyActionValue(data))
+                    : "";
+            String singleLineValue = value.replaceAll("\\R+", " ").trim();
             return new ActionReportContext(
                     JavaHelper.formatLocatorToString(locator),
-                    text.replace("\r", "\\r").replace("\n", "\\n"),
-                    abbreviate(singleLineText, TYPED_VALUE_STEP_TEXT_LIMIT),
-                    elementName == null ? "" : elementName.trim());
+                    abbreviate(singleLineValue, TYPED_VALUE_STEP_TEXT_LIMIT),
+                    elementName == null ? "" : elementName.trim(),
+                    !value.isBlank());
         }
 
-        boolean shouldReportTypedValue() {
+        boolean hasLocator() {
             return !locator.isEmpty();
+        }
+
+        boolean hasStepValue() {
+            return reportsStepValue;
         }
 
         boolean hasElementName() {
@@ -1267,14 +1272,15 @@ public class Actions extends ElementActions {
                     && !locator.equals("Smart Locator: \"" + elementName + "\"");
         }
 
-        private static boolean shouldReportTypedValue(ActionType action) {
+        private static boolean shouldUseDataInStepName(ActionType action) {
             return ActionType.TYPE.equals(action)
                     || ActionType.TYPE_APPEND.equals(action)
                     || ActionType.TYPE_SECURELY.equals(action)
-                    || ActionType.JAVASCRIPT_SET_VALUE.equals(action);
+                    || ActionType.JAVASCRIPT_SET_VALUE.equals(action)
+                    || ActionType.SELECT.equals(action);
         }
 
-        private static String stringifyTypedValue(Object value) {
+        private static String stringifyActionValue(Object value) {
             if (value instanceof CharSequence[] sequences) {
                 StringBuilder text = new StringBuilder();
                 for (CharSequence sequence : sequences) {

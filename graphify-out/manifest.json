@@ -1015,8 +1015,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/element/internal/Actions.java": {
-    "mtime": 1781844357.9491413,
-    "ast_hash": "8092cd788f6d68409d868511ef8bfc3b",
+    "mtime": 1781852006.6870036,
+    "ast_hash": "1134d22826cce5a55a70b6326067549a",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/element/internal/ElementActionsHelper.java": {
@@ -1825,8 +1825,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsCoverageUnitTest.java": {
-    "mtime": 1781844357.958143,
-    "ast_hash": "18ce9f31a80a6995ca5cc3b4002647f0",
+    "mtime": 1781852006.6874115,
+    "ast_hash": "a79caca608b5c07813ad7fce491059f7",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/element/internal/ActionsExceptionDetailsUnitTest.java": {
@@ -4864,6 +4864,76 @@
     "ast_hash": "c593eb7cd55c53cb9369998a0173f6d5",
     "semantic_hash": ""
   },
+  "shaft-browserstack/src/test/java/com/shaft/integration/browserstack/BrowserStackModuleTest.java": {
+    "mtime": 1781844357.941142,
+    "ast_hash": "1b4f4b227bd1f4fa0f362a15c970a8d5",
+    "semantic_hash": ""
+  },
+  "shaft-capture/src/test/java/com/shaft/capture/cli/CaptureCliTest.java": {
+    "mtime": 1781844357.9421413,
+    "ast_hash": "ec73aefc1d9f05ca53b912cdb2b5c2cb",
+    "semantic_hash": ""
+  },
+  "shaft-capture/src/test/java/com/shaft/capture/collector/CaptureCollectorUtilityTest.java": {
+    "mtime": 1781844357.9431415,
+    "ast_hash": "1e825c578b76d82c4e40d2c1c41156e6",
+    "semantic_hash": ""
+  },
+  "shaft-capture/src/test/java/com/shaft/capture/control/CaptureControlFilesTest.java": {
+    "mtime": 1781844357.9431415,
+    "ast_hash": "7531aa93c2d32105644864a1e152c070",
+    "semantic_hash": ""
+  },
+  "shaft-capture/src/test/java/com/shaft/capture/control/CaptureControlServerClientTest.java": {
+    "mtime": 1781844357.9441404,
+    "ast_hash": "c64a81e01083fbb8214913c60a910a80",
+    "semantic_hash": ""
+  },
+  "shaft-capture/src/test/java/com/shaft/capture/runtime/CaptureManagerLifecycleTest.java": {
+    "mtime": 1781844357.9461398,
+    "ast_hash": "e1849d7db12124ec96f3098368437e36",
+    "semantic_hash": ""
+  },
+  "shaft-mcp/src/test/java/com/shaft/mcp/McpNoDriverServiceTest.java": {
+    "mtime": 1781844357.9686,
+    "ast_hash": "a7dc69c25952bd7cbe545d6558b1be5f",
+    "semantic_hash": ""
+  },
+  "shaft-mcp/src/test/java/com/shaft/mcp/McpResultRecordsTest.java": {
+    "mtime": 1781844357.9695997,
+    "ast_hash": "dc775623b63d5155edaf8d1425fa44f8",
+    "semantic_hash": ""
+  },
+  "shaft-mcp/src/test/java/com/shaft/mcp/McpServiceHelperTest.java": {
+    "mtime": 1781844357.9695997,
+    "ast_hash": "067f1647636d500429d01c8469ada10e",
+    "semantic_hash": ""
+  },
+  "shaft-mcp/src/test/java/com/shaft/mcp/MobileServiceConfigurationTest.java": {
+    "mtime": 1781844357.9706,
+    "ast_hash": "a43da559c47669d1dccf212f39c1bc1f",
+    "semantic_hash": ""
+  },
+  "shaft-pilot-core/src/test/java/com/shaft/pilot/ai/AiValueObjectsTest.java": {
+    "mtime": 1781844357.9716003,
+    "ast_hash": "a16fbefe28c40b65f9c55f41c0ba9e98",
+    "semantic_hash": ""
+  },
+  "shaft-pilot-core/src/test/java/com/shaft/pilot/config/ProviderConfigurationTest.java": {
+    "mtime": 1781844357.9726043,
+    "ast_hash": "70d00166ef741dd25140bb1036308a87",
+    "semantic_hash": ""
+  },
+  "shaft-pilot-core/src/test/java/com/shaft/pilot/json/JsonSchemaValidatorTest.java": {
+    "mtime": 1781844357.9736068,
+    "ast_hash": "2fd93ff273c685e80b68615e7dd0a1ba",
+    "semantic_hash": ""
+  },
+  ".memory/memory/decisions/element-actions-normalize-allure-locator-metadata.json": {
+    "mtime": 1781852006.6067162,
+    "ast_hash": "c4534782cf2b7fccd3489053bb267f1d",
+    "semantic_hash": ""
+  },
   "shaft-ai/allure-results/003e1f82-c602-45de-a593-6e487c50045e-result.json": {
     "mtime": 1781544169.3793347,
     "ast_hash": "530f709fdbdf90ee77e0315243abd2dd",
@@ -5839,11 +5909,6 @@
     "ast_hash": "d4f4ce61d10d5c2f20eb0892d27f1fb7",
     "semantic_hash": ""
   },
-  "shaft-browserstack/src/test/java/com/shaft/integration/browserstack/BrowserStackModuleTest.java": {
-    "mtime": 1781844357.941142,
-    "ast_hash": "1b4f4b227bd1f4fa0f362a15c970a8d5",
-    "semantic_hash": ""
-  },
   "shaft-capture/allure-results/02080256-27a6-4123-90e1-ac5b822600ba-result.json": {
     "mtime": 1781285617.926222,
     "ast_hash": "d69c21b0b84aa61a7506b4fc1578239a",
@@ -5972,31 +6037,6 @@
   "shaft-capture/allure-results/f14abdcd-829f-4ab6-9b0f-0a49730d0e77-result.json": {
     "mtime": 1781285616.2357051,
     "ast_hash": "6e79ddd679bdf41039f2a6c567a63eb5",
-    "semantic_hash": ""
-  },
-  "shaft-capture/src/test/java/com/shaft/capture/cli/CaptureCliTest.java": {
-    "mtime": 1781844357.9421413,
-    "ast_hash": "ec73aefc1d9f05ca53b912cdb2b5c2cb",
-    "semantic_hash": ""
-  },
-  "shaft-capture/src/test/java/com/shaft/capture/collector/CaptureCollectorUtilityTest.java": {
-    "mtime": 1781844357.9431415,
-    "ast_hash": "1e825c578b76d82c4e40d2c1c41156e6",
-    "semantic_hash": ""
-  },
-  "shaft-capture/src/test/java/com/shaft/capture/control/CaptureControlFilesTest.java": {
-    "mtime": 1781844357.9431415,
-    "ast_hash": "7531aa93c2d32105644864a1e152c070",
-    "semantic_hash": ""
-  },
-  "shaft-capture/src/test/java/com/shaft/capture/control/CaptureControlServerClientTest.java": {
-    "mtime": 1781844357.9441404,
-    "ast_hash": "c64a81e01083fbb8214913c60a910a80",
-    "semantic_hash": ""
-  },
-  "shaft-capture/src/test/java/com/shaft/capture/runtime/CaptureManagerLifecycleTest.java": {
-    "mtime": 1781844357.9461398,
-    "ast_hash": "e1849d7db12124ec96f3098368437e36",
     "semantic_hash": ""
   },
   "shaft-doctor/allure-results/0260a13a-e5ce-42ae-ad37-27f47895cd8f-result.json": {
@@ -6689,26 +6729,6 @@
     "ast_hash": "f8ad1b3b867ab03b8e3a7bf41d3ac9c3",
     "semantic_hash": ""
   },
-  "shaft-mcp/src/test/java/com/shaft/mcp/McpNoDriverServiceTest.java": {
-    "mtime": 1781844357.9686,
-    "ast_hash": "a7dc69c25952bd7cbe545d6558b1be5f",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/src/test/java/com/shaft/mcp/McpResultRecordsTest.java": {
-    "mtime": 1781844357.9695997,
-    "ast_hash": "dc775623b63d5155edaf8d1425fa44f8",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/src/test/java/com/shaft/mcp/McpServiceHelperTest.java": {
-    "mtime": 1781844357.9695997,
-    "ast_hash": "067f1647636d500429d01c8469ada10e",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/src/test/java/com/shaft/mcp/MobileServiceConfigurationTest.java": {
-    "mtime": 1781844357.9706,
-    "ast_hash": "a43da559c47669d1dccf212f39c1bc1f",
-    "semantic_hash": ""
-  },
   "shaft-pilot-core/allure-results/0097e684-eef3-40a2-b86a-27e412958f13-container.json": {
     "mtime": 1781261217.2330937,
     "ast_hash": "4e6bdf5c3814d7d145014bdc9c675254",
@@ -6949,21 +6969,6 @@
     "ast_hash": "914f41cf610e562778dc73e3ccec74dc",
     "semantic_hash": ""
   },
-  "shaft-pilot-core/src/test/java/com/shaft/pilot/ai/AiValueObjectsTest.java": {
-    "mtime": 1781844357.9716003,
-    "ast_hash": "a16fbefe28c40b65f9c55f41c0ba9e98",
-    "semantic_hash": ""
-  },
-  "shaft-pilot-core/src/test/java/com/shaft/pilot/config/ProviderConfigurationTest.java": {
-    "mtime": 1781844357.9726043,
-    "ast_hash": "70d00166ef741dd25140bb1036308a87",
-    "semantic_hash": ""
-  },
-  "shaft-pilot-core/src/test/java/com/shaft/pilot/json/JsonSchemaValidatorTest.java": {
-    "mtime": 1781844357.9736068,
-    "ast_hash": "2fd93ff273c685e80b68615e7dd0a1ba",
-    "semantic_hash": ""
-  },
   "shaft-video/allure-results/3a534026-89a3-40f7-bfea-4d15196f084b-result.json": {
     "mtime": 1781000862.4685662,
     "ast_hash": "e95cfd018328a3ffd9f8f0de525dbd17",
@@ -6977,6 +6982,11 @@
   "shaft-video/allure-results/fcce4a3f-1d37-4f43-8d0f-f32e34e17c69-container.json": {
     "mtime": 1781000862.4775186,
     "ast_hash": "00ebafe3cc6e1ecba0b1ef3292165344",
+    "semantic_hash": ""
+  },
+  ".memory/memory/decisions/element-actions-normalize-allure-locator-metadata.md": {
+    "mtime": 1781852006.6071124,
+    "ast_hash": "ad0b39840f727ef91570221e283b668c",
     "semantic_hash": ""
   },
   "shaft-mcp/allure-report/2026-06-11_13-32-59-904_AllureReport.html": {
