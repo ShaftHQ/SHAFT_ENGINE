@@ -5,7 +5,6 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.internal.image.ImageProcessingActions;
-import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.listeners.internal.UpdateChecker;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.ReportManager;
@@ -17,7 +16,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.remote.Browser;
-import org.testng.Reporter;
 
 import java.awt.*;
 import java.io.File;
@@ -128,7 +126,6 @@ public class PropertiesHelper {
     public static void bootstrapEngine(ProjectStructureManager.RunType runType) {
         setKeySystemProperties();
         io.qameta.allure.Allure.getLifecycle();
-        Reporter.setEscapeHtml(false);
         ReportManagerHelper.setDiscreteLogging(true);
         if (runType == ProjectStructureManager.RunType.AI_AGENT) {
             initializeAiAgent();
@@ -151,7 +148,7 @@ public class PropertiesHelper {
             }
             default -> throw new IllegalStateException("Unsupported run type: " + runType);
         }
-        TestNGListenerHelper.configureJVMProxy();
+        configureJVMProxy();
         Thread.ofVirtual().start(() -> {
             GoogleTink.initialize();
             GoogleTink.decrypt();
@@ -164,6 +161,25 @@ public class PropertiesHelper {
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ReportManagerHelper.setDebugMode(SHAFT.Properties.reporting.debugMode());
+    }
+
+    private static void configureJVMProxy() {
+        String proxyServerSettings = SHAFT.Properties.platform.proxy();
+        if (SHAFT.Properties.platform.jvmProxySettings() && !proxyServerSettings.isEmpty()) {
+            String[] proxyHostPort = proxyServerSettings.split(":");
+            ThreadLocalPropertiesManager.setGlobalProperty("http.proxyHost", proxyHostPort[0]);
+            System.setProperty("http.proxyHost", proxyHostPort[0]);
+            ThreadLocalPropertiesManager.setGlobalProperty("http.proxyPort", proxyHostPort[1]);
+            System.setProperty("http.proxyPort", proxyHostPort[1]);
+            ThreadLocalPropertiesManager.setGlobalProperty("https.proxyHost", proxyHostPort[0]);
+            System.setProperty("https.proxyHost", proxyHostPort[0]);
+            ThreadLocalPropertiesManager.setGlobalProperty("https.proxyPort", proxyHostPort[1]);
+            System.setProperty("https.proxyPort", proxyHostPort[1]);
+            ThreadLocalPropertiesManager.setGlobalProperty("ftp.proxyHost", proxyHostPort[0]);
+            System.setProperty("ftp.proxyHost", proxyHostPort[0]);
+            ThreadLocalPropertiesManager.setGlobalProperty("ftp.proxyPort", proxyHostPort[1]);
+            System.setProperty("ftp.proxyPort", proxyHostPort[1]);
+        }
     }
 
     /**

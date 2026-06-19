@@ -1,30 +1,40 @@
 package com.shaft.listeners;
 
-import com.shaft.api.RequestBuilder;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.AnimatedGifManager;
-import com.shaft.gui.internal.video.RecordManager;
-import com.shaft.listeners.internal.JiraHelper;
+import com.shaft.listeners.internal.ExecutionCountsTracker;
+import com.shaft.listeners.internal.ExecutionLifecycleHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
-import com.shaft.tools.internal.FirestoreRestClient;
-import com.shaft.tools.internal.security.GoogleTink;
-import com.shaft.tools.io.internal.*;
+import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.tools.io.internal.ExecutionSummaryReport;
+import com.shaft.tools.io.internal.IssueReporter;
+import com.shaft.tools.io.internal.ProjectStructureManager;
+import com.shaft.tools.io.internal.ReportContext;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.internal.ValidationsHelper;
+import io.qameta.allure.model.Status;
 import lombok.Getter;
 import org.junit.platform.engine.TestExecutionResult;
-import org.junit.platform.launcher.*;
+import org.junit.platform.engine.support.descriptor.MethodSource;
+import org.junit.platform.launcher.LauncherSession;
+import org.junit.platform.launcher.LauncherSessionListener;
+import org.junit.platform.launcher.TestExecutionListener;
+import org.junit.platform.launcher.TestIdentifier;
+import org.junit.platform.launcher.TestPlan;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
+/**
+ * JUnit Platform launcher listener that connects Jupiter execution to SHAFT reporting.
+ */
 public class JunitListener implements LauncherSessionListener {
     private static final List<TestIdentifier> passedTests = Collections.synchronizedList(new ArrayList<>());
     private static final List<TestIdentifier> failedTests = Collections.synchronizedList(new ArrayList<>());
     private static final List<TestIdentifier> skippedTests = Collections.synchronizedList(new ArrayList<>());
+    private static final ExecutionCountsTracker countsTracker = new ExecutionCountsTracker();
     private static long executionStartTime;
     private static boolean isEngineReady = false;
     @Getter
@@ -37,7 +47,11 @@ public class JunitListener implements LauncherSessionListener {
                 @Override
                 public void testPlanExecutionStarted(TestPlan testPlan) {
                     executionStartTime = System.currentTimeMillis();
-                    TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT);
+                    passedTests.clear();
+                    failedTests.clear();
+                    skippedTests.clear();
+                    countsTracker.clear();
+                    ExecutionLifecycleHelper.engineSetup(ProjectStructureManager.RunType.JUNIT);
                     isEngineReady = true;
                 }
 
@@ -48,115 +62,165 @@ public class JunitListener implements LauncherSessionListener {
 
                 @Override
                 public void executionSkipped(TestIdentifier testIdentifier, String reason) {
-                    afterInvocation(testIdentifier, null);
-                    onTestSkipped(testIdentifier, reason);
+                    if (testIdentifier.isTest()) {
+                        TestExecutionInfo info = toTestExecutionInfo(testIdentifier, new org.opentest4j.TestAbortedException(reason));
+                        ReportContext.start(info);
+                        ReportContext.setStatus(Status.SKIPPED);
+                        afterInvocation(info);
+                        onTestSkipped(testIdentifier, reason, info);
+                        ReportContext.clear();
+                    }
                 }
 
                 @Override
                 public void executionStarted(TestIdentifier testIdentifier) {
-                    JunitListenerHelper.setTestName(testIdentifier);
-                    JunitListenerHelper.logTestInformation(testIdentifier);
+                    if (testIdentifier.isTest()) {
+                        TestExecutionInfo info = toTestExecutionInfo(testIdentifier, null);
+                        ReportContext.start(info);
+                        ReportContext.setStatus(Status.PASSED);
+                        JunitListenerHelper.setTestName(testIdentifier);
+                        ExecutionLifecycleHelper.logTestInformation(info);
+                    }
                 }
 
                 @Override
                 public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-                    afterInvocation(testIdentifier, testExecutionResult);
-                    if (testIdentifier.isTest()) {
-                        switch (testExecutionResult.getStatus()) {
-                            case SUCCESSFUL -> onTestSuccess(testIdentifier);
-                            case FAILED, ABORTED -> {
-                                Throwable throwable = testExecutionResult.getThrowable().isPresent() ? testExecutionResult.getThrowable().get() : new AssertionError("Test Failed");
-                                onTestFailure(testIdentifier, throwable);
+                    if (!testIdentifier.isTest()) {
+                        return;
+                    }
+                    Throwable throwable = resolveThrowable(testExecutionResult);
+                    TestExecutionInfo info = toTestExecutionInfo(testIdentifier, throwable);
+                    ReportContext.update(info);
+                    ReportContext.setStatus(toAllureStatus(testExecutionResult));
+                    afterInvocation(info);
+                    switch (testExecutionResult.getStatus()) {
+                        case SUCCESSFUL -> {
+                            AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
+                            if (verificationError != null) {
+                                ValidationsHelper.resetVerificationStateAfterFailing();
+                                TestExecutionInfo failedInfo = toTestExecutionInfo(testIdentifier, verificationError);
+                                ReportContext.update(failedInfo);
+                                ReportContext.setStatus(Status.FAILED);
+                                onTestFailure(testIdentifier, verificationError, failedInfo);
+                            } else {
+                                onTestSuccess(testIdentifier, info);
                             }
                         }
+                        case FAILED, ABORTED -> onTestFailure(testIdentifier, throwable, info);
                     }
+                    ReportContext.clear();
                 }
             });
         }
     }
 
     private void engineTearDown() {
-        ReportManagerHelper.setDiscreteLogging(true);
-        JiraHelper.reportExecutionStatusToJira();
-        GoogleTink.encrypt();
-        AllureManager.generateAllureReportArchive();
-        AllureManager.openAllureReportAfterExecution();
-        long executionEndTime = System.currentTimeMillis();
-        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
-        Thread.ofVirtual().start(() -> {
-            // Fetch performance data from RequestBuilder
-            Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
-
-            // Generate the performance report using the fetched data
-            ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, executionEndTime);
-        });
-        Thread.ofVirtual().start(() -> {
-            // Deduplicate by unique ID. Categories are mutually exclusive: passed | failed | skipped | flaky.
-            Set<String> passedIds = passedTests.stream()
-                    .map(TestIdentifier::getUniqueId)
-                    .collect(Collectors.toCollection(HashSet::new));
-            // Flaky = IDs present in both failed and passed lists (failed then retried to success).
-            Set<String> flakyIds = failedTests.stream()
-                    .map(TestIdentifier::getUniqueId)
-                    .filter(passedIds::contains)
-                    .collect(Collectors.toCollection(HashSet::new));
-            // Failed = IDs that failed and never passed (exclude flaky).
-            Set<String> failedIds = failedTests.stream()
-                    .map(TestIdentifier::getUniqueId)
-                    .filter(id -> !passedIds.contains(id))
-                    .collect(Collectors.toCollection(HashSet::new));
-            // Passed = methods that ultimately passed, excluding those that also failed (flaky).
-            int uniquePassed = passedIds.size() - flakyIds.size();
-            int uniqueFailed = failedIds.size();
-            int uniqueFlaky = flakyIds.size();
-            Set<String> resolvedIds = new HashSet<>();
-            resolvedIds.addAll(passedIds);
-            resolvedIds.addAll(failedIds);
-            int uniqueSkipped = (int) skippedTests.stream()
-                    .map(TestIdentifier::getUniqueId)
-                    .filter(id -> !resolvedIds.contains(id))
-                    .distinct()
-                    .count();
-            FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, uniquePassed, uniqueFailed, uniqueSkipped, uniqueFlaky);
-        });
-        ReportManagerHelper.logEngineClosure();
+        ExecutionCountsTracker.Counts counts = countsTracker.snapshot();
+        if (counts.finalPassed() + counts.failed() + counts.skipped() == 0
+                && (!passedTests.isEmpty() || !failedTests.isEmpty() || !skippedTests.isEmpty())) {
+            counts = legacyCountsSnapshot();
+        }
+        ExecutionLifecycleHelper.engineTearDown(executionStartTime, counts);
     }
 
-    private void afterInvocation(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+    static void recordRetriedFailure(TestExecutionInfo info) {
+        countsTracker.recordFailed(info);
+    }
+
+    private void afterInvocation(TestExecutionInfo info) {
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
-        if (SHAFT.Properties.visuals.videoParamsScope().equals("TestMethod")) {
-            RecordManager.attachVideoRecording();
-        }
-        AnimatedGifManager.attachAnimatedGif();
+        ExecutionLifecycleHelper.attachTestArtifacts(info);
     }
 
-    private void onTestSuccess(TestIdentifier testIdentifier) {
+    private void onTestSuccess(TestIdentifier testIdentifier, TestExecutionInfo info) {
         passedTests.add(testIdentifier);
+        countsTracker.recordPassed(info);
         isLastFinishedTestOK = true;
-        appendToExecutionSummaryReport(testIdentifier, "", ExecutionSummaryReport.StatusIcon.PASSED, ExecutionSummaryReport.Status.PASSED);
+        ExecutionLifecycleHelper.logFinishedTestInformation(info, "Passed");
+        appendToExecutionSummaryReport(info, "", ExecutionSummaryReport.StatusIcon.PASSED, ExecutionSummaryReport.Status.PASSED);
+        IssueReporter.updateIssuesLog(info, true);
     }
 
-    private void onTestFailure(TestIdentifier testIdentifier, Throwable throwable) {
+    private void onTestFailure(TestIdentifier testIdentifier, Throwable throwable, TestExecutionInfo info) {
         failedTests.add(testIdentifier);
+        countsTracker.recordFailed(info);
         isLastFinishedTestOK = false;
-        appendToExecutionSummaryReport(testIdentifier, throwable.getMessage(), ExecutionSummaryReport.StatusIcon.FAILED, ExecutionSummaryReport.Status.FAILED);
+        ExecutionLifecycleHelper.logFinishedTestInformation(info, "Failed");
+        appendToExecutionSummaryReport(info, throwable == null ? "" : throwable.getMessage(), ExecutionSummaryReport.StatusIcon.FAILED, ExecutionSummaryReport.Status.FAILED);
+        IssueReporter.updateIssuesLog(info, false);
     }
 
-    private void onTestSkipped(TestIdentifier testIdentifier, String reason) {
+    private void onTestSkipped(TestIdentifier testIdentifier, String reason, TestExecutionInfo info) {
         skippedTests.add(testIdentifier);
+        countsTracker.recordSkipped(info);
         isLastFinishedTestOK = false;
-        appendToExecutionSummaryReport(testIdentifier, reason, ExecutionSummaryReport.StatusIcon.SKIPPED, ExecutionSummaryReport.Status.SKIPPED);
+        ExecutionLifecycleHelper.logFinishedTestInformation(info, "Skipped");
+        appendToExecutionSummaryReport(info, reason, ExecutionSummaryReport.StatusIcon.SKIPPED, ExecutionSummaryReport.Status.SKIPPED);
     }
 
-    private void appendToExecutionSummaryReport(TestIdentifier testIdentifier, String errorMessage, ExecutionSummaryReport.StatusIcon statusIcon, ExecutionSummaryReport.Status status) {
-        if (testIdentifier.getType().isTest()) {
-            String caseSuite = testIdentifier.getUniqueIdObject().getSegments().get(1).getValue() + "." + testIdentifier.getUniqueIdObject().getLastSegment().getValue();
-            String caseName = testIdentifier.getDisplayName();
-            String caseDescription = testIdentifier.getLegacyReportingName();
-            String statusMessage = statusIcon.getValue() + status.name();
-            // Will add empty strings o the tmsLink and issue params until we figure out how to get the values of the annotations using JUnit
-            ExecutionSummaryReport.casesDetailsIncrement("", caseSuite, caseName, caseDescription, errorMessage, statusMessage, "");
-        }
+    private void appendToExecutionSummaryReport(TestExecutionInfo info, String errorMessage,
+                                                ExecutionSummaryReport.StatusIcon statusIcon,
+                                                ExecutionSummaryReport.Status status) {
+        ExecutionLifecycleHelper.appendExecutionSummaryReport(info, errorMessage, statusIcon, status);
+    }
 
+    private void appendToExecutionSummaryReport(TestIdentifier testIdentifier, String errorMessage,
+                                                ExecutionSummaryReport.StatusIcon statusIcon,
+                                                ExecutionSummaryReport.Status status) {
+        if (testIdentifier.isTest()) {
+            appendToExecutionSummaryReport(toTestExecutionInfo(testIdentifier, null), errorMessage, statusIcon, status);
+        }
+    }
+
+    private static ExecutionCountsTracker.Counts legacyCountsSnapshot() {
+        ExecutionCountsTracker tracker = new ExecutionCountsTracker();
+        passedTests.forEach(testIdentifier -> tracker.recordPassed(toTestExecutionInfo(testIdentifier, null)));
+        failedTests.forEach(testIdentifier -> tracker.recordFailed(toTestExecutionInfo(testIdentifier, new AssertionError())));
+        skippedTests.forEach(testIdentifier -> tracker.recordSkipped(toTestExecutionInfo(testIdentifier, null)));
+        return tracker.snapshot();
+    }
+
+    private static TestExecutionInfo toTestExecutionInfo(TestIdentifier testIdentifier, Throwable throwable) {
+        String className = "";
+        String methodName = testIdentifier.getDisplayName();
+        Method method = null;
+        Optional<MethodSource> methodSource = testIdentifier.getSource()
+                .filter(MethodSource.class::isInstance)
+                .map(MethodSource.class::cast);
+        if (methodSource.isPresent()) {
+            className = methodSource.get().getClassName();
+            methodName = methodSource.get().getMethodName();
+            method = resolveMethod(className, methodName);
+        }
+        String description = testIdentifier.getLegacyReportingName();
+        return new TestExecutionInfo(testIdentifier.getUniqueId(), className, methodName,
+                testIdentifier.getDisplayName(), description, method, throwable, false);
+    }
+
+    private static Method resolveMethod(String className, String methodName) {
+        try {
+            for (Method method : Class.forName(className).getDeclaredMethods()) {
+                if (method.getName().equals(methodName)) {
+                    return method;
+                }
+            }
+        } catch (ReflectiveOperationException ignored) {
+            // Summary metadata is best-effort when JUnit does not expose a resolvable method.
+        }
+        return null;
+    }
+
+    private static Throwable resolveThrowable(TestExecutionResult result) {
+        return result.getThrowable().orElseGet(() -> result.getStatus() == TestExecutionResult.Status.FAILED
+                ? new AssertionError("Test Failed")
+                : null);
+    }
+
+    private static Status toAllureStatus(TestExecutionResult result) {
+        return switch (result.getStatus()) {
+            case FAILED -> Status.FAILED;
+            case ABORTED -> Status.SKIPPED;
+            default -> Status.PASSED;
+        };
     }
 }

@@ -23,6 +23,8 @@ public class JiraHelper {
                     XrayIntegrationHelper.importTestNGResults(reportPath);
                 } else if (reportPath.contains("cucumber.json")) {
                     XrayIntegrationHelper.importCucumberResults(reportPath);
+                } else if (reportPath.endsWith(".xml") || reportPath.contains("junit")) {
+                    XrayIntegrationHelper.importJunitResults(reportPath);
                 }
 
                 XrayIntegrationHelper.renameTestExecutionSuit(SHAFT.Properties.jira.executionName(),
@@ -70,6 +72,25 @@ public class JiraHelper {
             if (bugID != null
                     && iTestNGMethod.isTest() && iTestNGMethod.getConstructorOrMethod().getMethod().isAnnotationPresent(TmsLink.class))
                 link2Tickets(bugID, iTestNGMethod.getConstructorOrMethod().getMethod().getAnnotation(TmsLink.class).value());
+        }
+    }
+
+    /**
+     * Reports a failed runner-neutral test to Jira when bug reporting is enabled.
+     *
+     * @param attachments failed test attachments
+     * @param logText execution log
+     * @param info runner-neutral test metadata
+     */
+    public static void reportBugsToJIRA(List<String> attachments, String logText, TestExecutionInfo info) {
+        if (info != null
+                && info.throwable() != null
+                && SHAFT.Properties.jira.isEnabled()
+                && SHAFT.Properties.jira.reportBugs()) {
+            String bugID = createIssue(attachments, ReportManagerHelper.getTestMethodName(), logText);
+            if (bugID != null && info.method() != null && info.method().isAnnotationPresent(TmsLink.class)) {
+                link2Tickets(bugID, info.method().getAnnotation(TmsLink.class).value());
+            }
         }
     }
 }

@@ -1,0 +1,1 @@
+For future SHAFT_ENGINE validation runs, pass -Dallure.automaticallyOpen=false and -Dallure.open=false so Allure reports do not open automatically. Any browser-related validation must pass -DheadlessExecution=true unless the user explicitly asks for headed execution.

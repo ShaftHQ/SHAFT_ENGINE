@@ -30,7 +30,7 @@ jobs:
       - MacOSX_Safari_BrowserStack
       - Ubuntu_Chrome_Cucumber_Grid
       - MacOSX_Safari_Cucumber_BrowserStack
-      - Ubuntu_Chrome_Moon
+      - Ubuntu_JUnit_E2E
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -460,7 +460,7 @@ jobs:
           job-name: MacOSX_Safari_Cucumber_BrowserStack
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
-  Ubuntu_Chrome_Moon:
+  Ubuntu_JUnit_E2E:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -478,6 +478,18 @@ jobs:
       broken: ${{ steps.post_test_report.outputs.broken }}
       skipped: ${{ steps.post_test_report.outputs.skipped }}
       duration: ${{ steps.post_test_report.outputs.duration }}
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -558,8 +570,12 @@ jobs:
           mkdir -p shaft-engine/src/test/resources/META-INF/services
           rm -f shaft-engine/src/test/resources/META-INF/services/org.testng.ITestNGListener
           printf 'com.shaft.listeners.JunitListener\n' > shaft-engine/src/test/resources/META-INF/services/org.junit.platform.launcher.LauncherSessionListener
+          printf 'com.shaft.listeners.JunitExtension\n' > shaft-engine/src/test/resources/META-INF/services/org.junit.jupiter.api.extension.Extension
+          touch shaft-engine/src/test/resources/junit-platform.properties
+          grep -qxF 'junit.jupiter.extensions.autodetection.enabled=true' shaft-engine/src/test/resources/junit-platform.properties \
+            || printf '\njunit.jupiter.extensions.autodetection.enabled=true\n' >> shaft-engine/src/test/resources/junit-platform.properties
 
-      - name: Run Moon Tests
+      - name: Run JUnit E2E Tests
         continue-on-error: true
         shell: bash
         run: |
@@ -573,16 +589,18 @@ jobs:
             "-DheadlessExecution=true" \
             "-DremoteServerInstanceCreationTimeout=10" \
             "-DgenerateAllureReportArchive=true" \
-            "-Dtest=MoonTests"
+            "-Dallure.automaticallyOpen=false" \
+            "-Dallure.open=false" \
+            "-Dtest=Junit*,MoonTests"
 
-      - name: Verify Moon Test Results Exist
+      - name: Verify JUnit Test Results Exist
         if: always()
         shell: bash
         run: |
           RESULT_COUNT=$(find shaft-engine/allure-results -name '*-result.json' -type f 2>/dev/null | wc -l | tr -d ' ')
           echo "Allure result files: ${RESULT_COUNT}"
-          if [ "${RESULT_COUNT}" -lt 2 ]; then
-            echo "::error::Expected MoonTests to generate at least 2 Allure result files."
+          if [ "${RESULT_COUNT}" -lt 10 ]; then
+            echo "::error::Expected JUnit E2E tests to generate at least 10 Allure result files."
             exit 1
           fi
 
@@ -610,5 +628,5 @@ jobs:
         if: always()
         uses: ./.github/actions/post-test-report
         with:
-          job-name: Ubuntu_Chrome_Moon
+          job-name: Ubuntu_JUnit_E2E
           codecov-token: ${{ secrets.CODECOV_TOKEN }}

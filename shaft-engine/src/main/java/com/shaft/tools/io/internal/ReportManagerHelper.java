@@ -22,8 +22,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.appender.AsyncAppender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.testng.ITestResult;
-import org.testng.Reporter;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -670,13 +668,13 @@ public class ReportManagerHelper {
     }
 
     public static String getTestClassName() {
-        var result = Reporter.getCurrentTestResult();
-        return (result != null && result.getMethod() != null) ? result.getMethod().getTestClass().getName() : "";
+        return ReportContext.getTestClassName();
     }
 
     public static String getTestMethodName() {
-        if (Reporter.getCurrentTestResult() != null && Reporter.getCurrentTestResult().getMethod() != null) {
-            return Reporter.getCurrentTestResult().getMethod().getMethodName();
+        String methodName = ReportContext.getTestMethodName();
+        if (!methodName.isBlank()) {
+            return methodName;
         } else if (CucumberFeatureListener.getLastStartedScenarioName() != null){
             // this happens in case of native cucumber execution without TestNG Test Runner
             return JavaHelper.removeSpecialCharacters(CucumberFeatureListener.getLastStartedScenarioName());
@@ -702,9 +700,9 @@ public class ReportManagerHelper {
     }
 
     public static Boolean isCurrentTestPassed() {
-        if (Reporter.getCurrentTestResult() != null) {
-            // this happens in case of TestNG Test Runner
-            return Reporter.getCurrentTestResult().isSuccess();
+        Status currentStatus = ReportContext.getStatus();
+        if (currentStatus != null) {
+            return Status.PASSED.equals(currentStatus);
         } else if (CucumberFeatureListener.getIsLastFinishedStepOK() != null){
             // this happens in case of native cucumber execution without TestNG Test Runner
             return CucumberFeatureListener.getIsLastFinishedStepOK();
@@ -743,7 +741,7 @@ public class ReportManagerHelper {
             String timestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
             String normalizedLogText = normalizeLogText(logText);
             String log = REPORT_MANAGER_PREFIX + normalizedLogText + " @" + timestamp;
-            Reporter.log(log, false);
+            ReportContext.append(log);
             if (logger == null && com.shaft.properties.internal.Properties.isInitialized()) {
                 initializeLogger();
             }
@@ -760,7 +758,7 @@ public class ReportManagerHelper {
             String timestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
             String normalizedLogText = normalizeLogText(logText);
             String log = REPORT_MANAGER_PREFIX + normalizedLogText + " @" + timestamp;
-            Reporter.log(log, false);
+            ReportContext.append(log);
             if (addToConsoleLog) {
                 if (logger == null && com.shaft.properties.internal.Properties.isInitialized()) {
                     initializeLogger();
@@ -821,7 +819,7 @@ public class ReportManagerHelper {
                 System.lineSeparator() +
                 ANSI_RESET;
 
-        Reporter.log(log, false);
+        ReportContext.append(log);
         if (logger == null) {
             initializeLogger();
         }
@@ -886,16 +884,8 @@ public class ReportManagerHelper {
             return Status.FAILED;
         }
 
-        if (Reporter.getCurrentTestResult() != null) {
-            var testNgStatus = Reporter.getCurrentTestResult().getStatus();
-            return switch (testNgStatus) {
-                case ITestResult.FAILURE -> Status.FAILED;
-                case ITestResult.SKIP -> Status.SKIPPED;
-                default -> Status.PASSED;
-            };
-        } else {
-            return Status.PASSED;
-        }
+        Status currentStatus = ReportContext.getStatus();
+        return currentStatus == null ? Status.PASSED : currentStatus;
     }
 
     @Step("{logText}")
@@ -943,7 +933,7 @@ public class ReportManagerHelper {
                 initializeLogger();
             }
             logger.error(error, e);
-            Reporter.log(error, false);
+            ReportContext.append(error);
             return;
         }
         String attachmentDescription = attachmentType + " - " + attachmentName;

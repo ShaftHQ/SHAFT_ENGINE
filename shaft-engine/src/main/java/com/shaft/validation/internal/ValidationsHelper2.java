@@ -81,7 +81,7 @@ public class ValidationsHelper2 {
                 if (lastDotIndex > 0) {
                     String packageName = className.substring(0, lastDotIndex);
                     // Try formatting with the detected package
-                    String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, packageName);
+                    String formatted = AssertionFailureFormatter.formatFailureWithStackTrace(error, packageName);
                     if (formatted != null) {
                         return formatted;
                     }
@@ -100,7 +100,7 @@ public class ValidationsHelper2 {
                         commonPatterns = new String[]{firstPackageSegment, "tests", "test"};
                     }
                     for (String pattern : commonPatterns) {
-                        formatted = CustomSoftAssert.formatFailureWithStackTrace(error, pattern);
+                        formatted = AssertionFailureFormatter.formatFailureWithStackTrace(error, pattern);
                         if (formatted != null) {
                             return formatted;
                         }
@@ -641,7 +641,8 @@ public class ValidationsHelper2 {
             CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.FAIL);
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                Allure.getLifecycle().updateStep(stepResult -> FailureReporter.fail(finalFailureMessage));
+                Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(finalFailureMessage));
+                FailureReporter.fail(finalFailureMessage);
             } else {
                 // soft assert
                 ValidationsHelper.verificationFailuresList.get().add(failureMessage);

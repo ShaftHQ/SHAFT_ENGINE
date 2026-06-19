@@ -622,6 +622,12 @@
                 <directory>${project.basedir}/src/main/resources/META-INF</directory>
                 <targetPath>${project.build.outputDirectory}/META-INF</targetPath>
             </resource>
+            <resource>
+                <directory>${project.basedir}/src/main/resources</directory>
+                <includes>
+                    <include>junit-platform.properties</include>
+                </includes>
+            </resource>
         </resources>
         <testResources>
             <testResource>

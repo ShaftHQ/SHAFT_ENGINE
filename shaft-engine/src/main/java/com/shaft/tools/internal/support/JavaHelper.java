@@ -5,9 +5,9 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
+import org.junit.jupiter.api.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
-import org.testng.Assert;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -158,23 +158,23 @@ public class JavaHelper {
             case 1 -> {
                 // case sensitive literal equivalence
                 switch (expectedValue) {
-                    case null -> Assert.assertNull(actualValue);
+                    case null -> Assertions.assertNull(actualValue);
                     case String expectedString when actualValue instanceof String actualString ->
-                            Assert.assertEquals(actualString, expectedString);
+                            Assertions.assertEquals(expectedString, actualString);
                     case Number expectedNumber when actualValue instanceof Number actualNumber ->
-                            Assert.assertEquals(actualNumber, expectedNumber);
-                    default -> Assert.assertEquals(actualValue, expectedValue);
+                            Assertions.assertEquals(expectedNumber, actualNumber);
+                    default -> Assertions.assertEquals(expectedValue, actualValue);
                 }
             }
             case 2 ->
                 // regex comparison
-                    Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
+                    Assertions.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
             case 3 ->
                 // contains
-                    Assert.assertTrue((String.valueOf(actualValue)).contains(String.valueOf(expectedValue)));
+                    Assertions.assertTrue((String.valueOf(actualValue)).contains(String.valueOf(expectedValue)));
             case 4 ->
                 // case insensitive equivalence
-                    Assert.assertTrue((String.valueOf(actualValue)).equalsIgnoreCase(String.valueOf(expectedValue)));
+                    Assertions.assertTrue((String.valueOf(actualValue)).equalsIgnoreCase(String.valueOf(expectedValue)));
             default -> {
                 // unhandled case
                 return -1;
@@ -188,23 +188,23 @@ public class JavaHelper {
             case 1 -> {
                 // case sensitive literal equivalence
                 switch (expectedValue) {
-                    case null -> Assert.assertNotNull(actualValue);
+                    case null -> Assertions.assertNotNull(actualValue);
                     case String expectedString when actualValue instanceof String actualString ->
-                            Assert.assertNotEquals(actualString, expectedString);
+                            Assertions.assertNotEquals(expectedString, actualString);
                     case Number expectedNumber when actualValue instanceof Number actualNumber ->
-                            Assert.assertNotEquals(actualNumber, expectedNumber);
-                    default -> Assert.assertNotEquals(actualValue, expectedValue);
+                            Assertions.assertNotEquals(expectedNumber, actualNumber);
+                    default -> Assertions.assertNotEquals(expectedValue, actualValue);
                 }
             }
             case 2 ->
                 // regex comparison
-                    Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
+                    Assertions.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
             case 3 ->
                 // contains
-                    Assert.assertFalse((String.valueOf(actualValue)).contains(String.valueOf(expectedValue)));
+                    Assertions.assertFalse((String.valueOf(actualValue)).contains(String.valueOf(expectedValue)));
             case 4 ->
                 // case insensitive equivalence
-                    Assert.assertFalse((String.valueOf(actualValue)).equalsIgnoreCase(String.valueOf(expectedValue)));
+                    Assertions.assertFalse((String.valueOf(actualValue)).equalsIgnoreCase(String.valueOf(expectedValue)));
             default -> {
                 // unhandled case
                 return -1;

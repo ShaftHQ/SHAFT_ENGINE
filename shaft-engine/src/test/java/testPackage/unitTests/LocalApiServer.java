@@ -9,7 +9,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
-final class LocalApiServer implements AutoCloseable {
+public final class LocalApiServer implements AutoCloseable {
     private static final String FIXTURE_ROOT = "/testDataFiles/api/local-api/";
     private final HttpServer server;
     private final String baseUrl;
@@ -19,7 +19,7 @@ final class LocalApiServer implements AutoCloseable {
         this.baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
     }
 
-    static LocalApiServer start() {
+    public static LocalApiServer start() {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             registerJsonResponse(server, "/posts", "posts.json");
@@ -34,7 +34,7 @@ final class LocalApiServer implements AutoCloseable {
         }
     }
 
-    String baseUrl() {
+    public String baseUrl() {
         return baseUrl;
     }
 

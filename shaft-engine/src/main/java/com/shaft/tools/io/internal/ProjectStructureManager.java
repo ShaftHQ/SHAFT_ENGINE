@@ -7,6 +7,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.testng.TestNG;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.function.Supplier;
@@ -17,6 +21,7 @@ import java.util.stream.Stream;
  */
 public class ProjectStructureManager {
     private static final Logger logger = LogManager.getLogger(ProjectStructureManager.class);
+    private static final String JUNIT_EXTENSION_AUTODETECTION = "junit.jupiter.extensions.autodetection.enabled=true";
 
     /**
      * Detects the active test runner from the current stack trace.
@@ -31,7 +36,10 @@ public class ProjectStructureManager {
         var isUsingTestNG = stacktraceSupplier.get().anyMatch(TestNG.class.getCanonicalName()::equals);
         var isUsingCucumber = stacktraceSupplier.get()
                 .anyMatch(io.cucumber.core.runner.Runner.class.getCanonicalName()::equals);
-        if (isUsingJunitDiscovery || isUsingTestNG) {
+        if (isUsingJunitDiscovery) {
+            logger.debug("Detected JUnit 5 execution.");
+            return RunType.JUNIT;
+        } else if (isUsingTestNG) {
             logger.debug("Detected TestNG execution.");
             return RunType.TESTNG;
         } else if (isUsingCucumber) {
@@ -63,6 +71,8 @@ public class ProjectStructureManager {
                 case JUNIT -> {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
                     FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.junit.platform.launcher.LauncherSessionListener", "com.shaft.listeners.JunitListener");
+                    FileActions.getInstance(true).writeToFile(Properties.paths.services(), "org.junit.jupiter.api.extension.Extension", "com.shaft.listeners.JunitExtension");
+                    createOrUpdateJunitPlatformProperties();
                 }
                 case TESTNG, AI_AGENT, CUCUMBER -> {
                     FileActions.getInstance(true).createFolder(Properties.paths.services());
@@ -82,6 +92,41 @@ public class ProjectStructureManager {
         FileActions.getInstance(true).createFolder(com.shaft.properties.internal.Properties.paths.services());
         Arrays.asList("io.qameta.allure.listener.ContainerLifecycleListener", "io.qameta.allure.listener.FixtureLifecycleListener",
                 "io.qameta.allure.listener.StepLifecycleListener", "io.qameta.allure.listener.TestLifecycleListener").forEach(fileName -> FileActions.getInstance(true).writeToFile(Properties.paths.services(), fileName, "com.shaft.listeners.AllureListener"));
+    }
+
+    private static void createOrUpdateJunitPlatformProperties() {
+        Path propertiesPath = getJunitPlatformPropertiesPath();
+        try {
+            Files.createDirectories(propertiesPath.getParent());
+            if (Files.isRegularFile(propertiesPath)) {
+                String content = Files.readString(propertiesPath, StandardCharsets.UTF_8);
+                if (!content.contains(JUNIT_EXTENSION_AUTODETECTION)) {
+                    Files.writeString(propertiesPath,
+                            System.lineSeparator() + JUNIT_EXTENSION_AUTODETECTION + System.lineSeparator(),
+                            StandardCharsets.UTF_8,
+                            java.nio.file.StandardOpenOption.APPEND);
+                }
+            } else {
+                Files.writeString(propertiesPath,
+                        JUNIT_EXTENSION_AUTODETECTION + System.lineSeparator(),
+                        StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete(e);
+        }
+    }
+
+    private static Path getJunitPlatformPropertiesPath() {
+        Path resourceRoot = Paths.get(Properties.paths.services()).normalize();
+        Path parent = resourceRoot.getParent();
+        if (parent != null && "services".equals(resourceRoot.getFileName().toString())) {
+            resourceRoot = parent;
+        }
+        parent = resourceRoot.getParent();
+        if (parent != null && "META-INF".equals(resourceRoot.getFileName().toString())) {
+            resourceRoot = parent;
+        }
+        return resourceRoot.resolve("junit-platform.properties");
     }
 
     /**
