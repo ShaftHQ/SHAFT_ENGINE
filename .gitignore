@@ -76,6 +76,7 @@ OpenLHReport.js
 /shaft-engine/generate_allure_report.bat
 /shaft-engine/accessibility-reports/
 /shaft-engine/src/test/resources/META-INF/services/
+/shaft-engine/src/test/resources/junit-platform.properties
 /.idea/
 /.run/*
 !/.run/

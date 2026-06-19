@@ -1015,13 +1015,13 @@ public class DriverFactoryHelper {
      */
     public void initializeDriver(MutableCapabilities customDriverOptions) {
         var mobile_browserName = SHAFT.Properties.mobile.browserName();
-        String targetBrowserName;
+        String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
 
-        var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
-        if (overridingBrowserName != null && !overridingBrowserName.isBlank()) {
-            targetBrowserName = overridingBrowserName;
-        } else {
-            targetBrowserName = SHAFT.Properties.web.targetBrowserName();
+        if (Reporter.getCurrentTestResult() != null) {
+            var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
+            if (overridingBrowserName != null && !overridingBrowserName.isBlank()) {
+                targetBrowserName = overridingBrowserName;
+            }
         }
         DriverFactoryHelper.targetBrowserName = (mobile_browserName == null || mobile_browserName.isBlank()) ? targetBrowserName : mobile_browserName;
         initializeDriver((getDriverTypeFromName(DriverFactoryHelper.targetBrowserName)), customDriverOptions);

@@ -10,8 +10,6 @@ import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
-import io.qameta.allure.TmsLink;
-import io.qameta.allure.TmsLinks;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.remote.Browser;
 import org.testng.*;
@@ -56,13 +54,6 @@ public class TestNGListenerHelper {
     private static final List<ITestResult> beforeMethods = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestResult> afterMethods = Collections.synchronizedList(new ArrayList<>());
     private static final ThreadLocal<String> testName = new ThreadLocal<>();
-    /**
-     * Stores the throwable from the most recent configuration method failure on this thread.
-     * Used by {@link com.shaft.listeners.AllureListener} to convert a SKIPPED allure test result
-     * into BROKEN when the skip was caused by a configuration method failure rather than an
-     * intentional skip (e.g. {@link org.testng.SkipException}).
-     */
-    private static final ThreadLocal<Throwable> pendingConfigFailure = new ThreadLocal<>();
 
     /**
      * Stores the total number of tests in the current suite when applicable.
@@ -163,11 +154,7 @@ public class TestNGListenerHelper {
      *                  to clear any previously stored failure
      */
     public static void setPendingConfigFailure(Throwable throwable) {
-        if (throwable != null) {
-            pendingConfigFailure.set(throwable);
-        } else {
-            pendingConfigFailure.remove();
-        }
+        ExecutionFailureContext.setPendingConfigFailure(throwable);
     }
 
     /**
@@ -177,9 +164,7 @@ public class TestNGListenerHelper {
      *         {@code null} if none is pending
      */
     public static Throwable getAndClearPendingConfigFailure() {
-        Throwable t = pendingConfigFailure.get();
-        pendingConfigFailure.remove();
-        return t;
+        return ExecutionFailureContext.getAndClearPendingConfigFailure();
     }
 
     /**
@@ -416,23 +401,7 @@ public class TestNGListenerHelper {
      * @return issue value(s), or empty string if none exist
      */
     public static String getIssueAnnotationValue(ITestResult iTestResult) {
-        Method method = getJavaMethod(iTestResult);
-        if (method == null) {
-            return "";
-        }
-        Issue issue = method.getAnnotation(Issue.class);
-        Issues issues = method.getAnnotation(Issues.class);
-        if (issues != null) {
-            return Arrays.toString(issues.value())
-                    .replace("[@io.qameta.allure.Issue(\"", "")
-                    .replace("@io.qameta.allure.Issue(\"", "")
-                    .replace("\")]", "")
-                    .replace("\"),", ",");
-        } else if (issue != null) {
-            return issue.value();
-        } else {
-            return "";
-        }
+        return ExecutionLifecycleHelper.getIssueAnnotationValue(getJavaMethod(iTestResult));
     }
 
     /**
@@ -442,23 +411,7 @@ public class TestNGListenerHelper {
      * @return TMS link value(s), or empty string if none exist
      */
     public static String getTmsLinkAnnotationValue(ITestResult iTestResult) {
-        Method method = getJavaMethod(iTestResult);
-        if (method == null) {
-            return "";
-        }
-        TmsLink tmsLink = method.getAnnotation(TmsLink.class);
-        TmsLinks tmsLinks = method.getAnnotation(TmsLinks.class);
-        if (tmsLinks != null) {
-            return Arrays.toString(tmsLinks.value())
-                    .replace("[@io.qameta.allure.TmsLink(\"", "")
-                    .replace("@io.qameta.allure.TmsLink(\"", "")
-                    .replace("\")]", "")
-                    .replace("\"),", ",");
-        } else if (tmsLink != null) {
-            return tmsLink.value();
-        } else {
-            return "";
-        }
+        return ExecutionLifecycleHelper.getTmsLinkAnnotationValue(getJavaMethod(iTestResult));
     }
 
     private static Method getJavaMethod(ITestResult iTestResult) {

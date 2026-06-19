@@ -1,6 +1,7 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.validation.internal.ValidationsHelper;
+import com.shaft.listeners.internal.TestExecutionInfo;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
 import org.testng.ITestNGMethod;
@@ -45,11 +46,24 @@ public class IssueReporter {
         }
     }
 
+    public static void updateIssuesLog(TestExecutionInfo info, boolean executionStatus) {
+        if (info != null && !info.retried()) {
+            reportOpenIssueStatus(info.method(), info.className(), info.methodName(), executionStatus);
+        }
+    }
+
     private static void reportOpenIssueStatus(ITestNGMethod testMethod, Boolean executionStatus) {
         Optional<Method> method = Optional.ofNullable(testMethod).map(ITestNGMethod::getConstructorOrMethod)
                 .map(ConstructorOrMethod::getMethod);
-        if (method.isPresent()) {
-            Set<Link> links = method.map(AnnotationUtils::getLinks).orElse(null);
+        String className = testMethod == null || testMethod.getTestClass() == null ? "" : testMethod.getTestClass().getName();
+        String methodName = testMethod == null ? "" : testMethod.getMethodName();
+        method.ifPresent(value -> reportOpenIssueStatus(value, className, methodName, executionStatus));
+    }
+
+    private static void reportOpenIssueStatus(Method method, String className, String methodName, Boolean executionStatus) {
+        Optional<Method> optionalMethod = Optional.ofNullable(method);
+        if (optionalMethod.isPresent()) {
+            Set<Link> links = optionalMethod.map(AnnotationUtils::getLinks).orElse(null);
             int previouslyOpenedIssues = listOfOpenIssues.size();
             if (links != null) {
                 links.forEach(link -> {
@@ -62,14 +76,12 @@ public class IssueReporter {
                 });
             }
             // log issue
-            logIssue(testMethod, previouslyOpenedIssues, executionStatus);
+            logIssue(className, methodName, previouslyOpenedIssues, executionStatus);
         }
     }
 
-    private static void logIssue(ITestNGMethod testMethod, int previouslyOpenedIssues, Boolean executionStatus) {
+    private static void logIssue(String className, String methodName, int previouslyOpenedIssues, Boolean executionStatus) {
         // log issue
-        String className = testMethod.getTestClass().getName();
-        String methodName = testMethod.getMethodName();
         if (previouslyOpenedIssues < listOfOpenIssues.size()) {
             if (Boolean.TRUE.equals(executionStatus)) {
                 // flag already opened issue for closure

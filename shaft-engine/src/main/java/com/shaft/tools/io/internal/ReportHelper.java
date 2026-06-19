@@ -5,6 +5,8 @@ import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -53,13 +55,25 @@ public class ReportHelper {
     public static void attachPropertyFiles() {
         ReportManager.logDiscrete("Attaching SHAFT property files.");
         disableLogging();
-        if (FileActions.getInstance(true).doesFileExist(SHAFT.Properties.paths.properties())) {
-            List<List<Object>> attachments = new ArrayList<>();
-            var propertyFiles = Arrays.asList(FileActions.getInstance(true).listFilesInDirectory(SHAFT.Properties.paths.properties(), null).replaceAll("default" + System.lineSeparator(), "").trim().split(System.lineSeparator()));
-            propertyFiles.forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""), FileActions.getInstance(true).readFile(SHAFT.Properties.paths.properties() + File.separator + file))));
-            ReportManagerHelper.logNestedSteps("Property Files", attachments);
+        try {
+            String propertiesPath = SHAFT.Properties.paths.properties();
+            if (FileActions.getInstance(true).doesFileExist(propertiesPath)) {
+                List<List<Object>> attachments = new ArrayList<>();
+                Arrays.stream(FileActions.getInstance(true).listFilesInDirectory(propertiesPath, null).split(System.lineSeparator()))
+                        .map(String::trim)
+                        .filter(file -> !file.isBlank())
+                        .filter(file -> !"default".equals(file))
+                        .filter(file -> file.endsWith(".properties"))
+                        .filter(file -> Files.isRegularFile(Path.of(propertiesPath, file)))
+                        .forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""),
+                                FileActions.getInstance(true).readFile(propertiesPath + File.separator + file))));
+                if (!attachments.isEmpty()) {
+                    ReportManagerHelper.logNestedSteps("Property Files", attachments);
+                }
+            }
+        } finally {
+            enableLogging();
         }
-        enableLogging();
     }
 
     /**

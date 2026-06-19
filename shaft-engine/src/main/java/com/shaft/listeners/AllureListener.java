@@ -1,6 +1,7 @@
 package com.shaft.listeners;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.listeners.internal.ExecutionFailureContext;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Allure;
@@ -15,6 +16,7 @@ import io.qameta.allure.model.StatusDetails;
 import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
 import io.qameta.allure.model.TestResultContainer;
+import org.opentest4j.TestAbortedException;
 import org.testng.SkipException;
 
 import java.io.ByteArrayInputStream;
@@ -262,9 +264,11 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     @Override
     public void beforeTestStop(TestResult result) {
         if (Status.SKIPPED.equals(result.getStatus())) {
-            Throwable configFailure = TestNGListenerHelper.getAndClearPendingConfigFailure();
+            Throwable configFailure = ExecutionFailureContext.getAndClearPendingConfigFailure();
             boolean isKillSwitch = DriverFactoryHelper.isKillSwitch();
-            boolean isRealConfigFailure = configFailure != null && !(configFailure instanceof SkipException);
+            boolean isRealConfigFailure = configFailure != null
+                    && !(configFailure instanceof SkipException)
+                    && !(configFailure instanceof TestAbortedException);
 
             // Determine whether this skip was caused by a real failure rather than an intentional skip
             boolean isFatalSkip = isKillSwitch || isRealConfigFailure;

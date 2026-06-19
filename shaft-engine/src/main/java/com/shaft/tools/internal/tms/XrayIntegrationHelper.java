@@ -134,6 +134,34 @@ public class XrayIntegrationHelper {
     }
 
     /**
+     * Import JUnit XML results through /import/execution/junit?projectKey=[projectKey] endpoint.
+     *
+     * @param filepath the report relative path
+     */
+    public static void importJunitResults(String filepath) {
+        setup();
+        String reportPath = FileActions.getInstance(true).getAbsolutePath(filepath);
+        ReportManager.logDiscrete("uploading file: " + reportPath);
+        ReportManager.logDiscrete("Length: " + new File(reportPath).length());
+        try {
+            Response response = given()
+                    .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("multipart/form-data", ContentType.TEXT)))
+                    .relaxedHTTPSValidation().contentType("multipart/form-data")
+                    .header("Authorization", authType + _JiraAuthorization)
+                    .multiPart(new File(reportPath))
+                    .when()
+                    .post("/rest/raven/1.0/import/execution/junit?projectKey=" + _ProjectKey)
+                    .then().log().all().extract().response();
+
+            _TestExecutionID = response.jsonPath().get("testExecIssue.key").toString();
+            ReportManager.logDiscrete("ExecutionID: " + _TestExecutionID);
+
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
+        }
+    }
+
+    /**
      * Create JIRA Bug to report execution failure.
      *
      * @param files        -> list of the failed testcase attachments.

@@ -37,7 +37,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
                         + ", on thread: " + Thread.currentThread().getName();
                 ReportManagerHelper.enableDebugFileLogging();
                 ReportManager.logDiscrete(message);
-                enableSupportingEvidenceCapture();
+                enableSupportingEvidenceCaptureForRetryAttempt();
                 return true;
             }
         } catch (Exception e) {
@@ -55,7 +55,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
      * These thread-local property overrides ensure that the retried test run
      * produces richer diagnostic artifacts without affecting other threads.
      */
-    private void enableSupportingEvidenceCapture() {
+    public static void enableSupportingEvidenceCaptureForRetryAttempt() {
         try {
             if (SHAFT.Properties.flags.forceCaptureSupportingEvidenceOnRetry()) {
                 ReportManager.logDiscrete("Enabling enhanced evidence capture for the retry attempt.");

@@ -24,9 +24,11 @@ POM_ARTIFACTS = ("shaft-parent", "shaft-bom", "SHAFT_ENGINE")
 FIXTURE_GOALS = {
     "api": "test-compile",
     "combined-modules": "verify",
+    "junit-web": "test",
     "legacy-coordinate": "test-compile",
     "mcp": "verify",
     "pilot-core": "verify",
+    "testng-web": "test",
 }
 
 

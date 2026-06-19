@@ -5,9 +5,11 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.JunitListener;
-import com.shaft.listeners.TestNGListener;
+import com.shaft.listeners.internal.ExecutionCountsTracker;
+import com.shaft.listeners.internal.ExecutionLifecycleHelper;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.JunitListenerHelper;
+import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
@@ -46,7 +48,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @Test(singleThreaded = true)
@@ -110,7 +114,7 @@ public class JunitListenerApiCoverageUnitTest {
                 "com.example.SampleTest",
                 "skippedMethod");
 
-        try (MockedStatic<TestNGListener> testNgListenerMock = Mockito.mockStatic(TestNGListener.class);
+        try (MockedStatic<ExecutionLifecycleHelper> executionLifecycleHelperMock = Mockito.mockStatic(ExecutionLifecycleHelper.class);
              MockedStatic<JunitListenerHelper> junitListenerHelperMock = Mockito.mockStatic(JunitListenerHelper.class);
              MockedStatic<ReportManagerHelper> reportManagerHelperMock = Mockito.mockStatic(ReportManagerHelper.class);
              MockedStatic<JiraHelper> jiraHelperMock = Mockito.mockStatic(JiraHelper.class);
@@ -142,10 +146,10 @@ public class JunitListenerApiCoverageUnitTest {
             Assert.assertEquals(((List<?>) getStaticField("failedTests")).size(), 2);
             Assert.assertEquals(((List<?>) getStaticField("skippedTests")).size(), 1);
 
-            testNgListenerMock.verify(() -> TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT));
+            executionLifecycleHelperMock.verify(() -> ExecutionLifecycleHelper.engineSetup(ProjectStructureManager.RunType.JUNIT));
             junitListenerHelperMock.verify(() -> JunitListenerHelper.setTestName(methodTest));
-            junitListenerHelperMock.verify(() -> JunitListenerHelper.logTestInformation(methodTest));
-            reportManagerHelperMock.verify(() -> ReportManagerHelper.logEngineClosure());
+            executionLifecycleHelperMock.verify(() -> ExecutionLifecycleHelper.logTestInformation(any(TestExecutionInfo.class)));
+            executionLifecycleHelperMock.verify(() -> ExecutionLifecycleHelper.engineTearDown(anyLong(), any(ExecutionCountsTracker.Counts.class)));
             Assert.assertFalse(JunitListener.getIsLastFinishedTestOK(), "A failure/abort/skipped sequence should leave last finished test status as false.");
         }
 
@@ -160,7 +164,7 @@ public class JunitListenerApiCoverageUnitTest {
 
         try {
             SHAFT.Properties.visuals.set().videoParamsScope("TestMethod");
-            try (MockedStatic<TestNGListener> testngListenerMock = Mockito.mockStatic(TestNGListener.class);
+            try (MockedStatic<ExecutionLifecycleHelper> executionLifecycleHelperMock = Mockito.mockStatic(ExecutionLifecycleHelper.class);
                  MockedStatic<JunitListenerHelper> junitListenerHelperMock = Mockito.mockStatic(JunitListenerHelper.class);
                  MockedStatic<ReportManagerHelper> reportManagerHelperMock = Mockito.mockStatic(ReportManagerHelper.class);
                  MockedStatic<RecordManager> recordManagerMock = Mockito.mockStatic(RecordManager.class);
@@ -218,7 +222,7 @@ public class JunitListenerApiCoverageUnitTest {
                 TestExecutionListener testExecutionListener = capturedExecutionListener.get();
                 testExecutionListener.testPlanExecutionStarted(testPlan);
 
-                testngListenerMock.verify(() -> TestNGListener.engineSetup(ProjectStructureManager.RunType.JUNIT));
+                executionLifecycleHelperMock.verify(() -> ExecutionLifecycleHelper.engineSetup(ProjectStructureManager.RunType.JUNIT));
 
                 testExecutionListener.executionStarted(rootNode);
                 testExecutionListener.executionStarted(methodBackedTest);
@@ -232,15 +236,8 @@ public class JunitListenerApiCoverageUnitTest {
                 waitBrieflyForAsyncTeardown(Duration.ofSeconds(1));
 
                 reportManagerHelperMock.verify(() -> ReportManagerHelper.setDiscreteLogging(Mockito.anyBoolean()), Mockito.atLeastOnce());
-                recordManagerMock.verify(RecordManager::attachVideoRecording, Mockito.atLeastOnce());
-                animatedGifManagerMock.verify(AnimatedGifManager::attachAnimatedGif, Mockito.atLeastOnce());
-
-                jiraHelperMock.verify(JiraHelper::reportExecutionStatusToJira);
-                googleTinkMock.verify(GoogleTink::encrypt);
-                allureManagerMock.verify(AllureManager::generateAllureReportArchive);
-                allureManagerMock.verify(AllureManager::openAllureReportAfterExecution);
-                executionSummaryReportMock.verify(() -> ExecutionSummaryReport.generateExecutionSummaryReport(Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyLong(), Mockito.anyLong()));
-                reportManagerHelperMock.verify(ReportManagerHelper::logEngineClosure);
+                executionLifecycleHelperMock.verify(() -> ExecutionLifecycleHelper.attachTestArtifacts(any(TestExecutionInfo.class)), Mockito.atLeastOnce());
+                executionLifecycleHelperMock.verify(() -> ExecutionLifecycleHelper.engineTearDown(anyLong(), any(ExecutionCountsTracker.Counts.class)));
 
                 Assert.assertFalse(JunitListener.getIsLastFinishedTestOK(), "Last finished test should be marked as not OK after failed/skipped outcomes.");
 
@@ -356,27 +353,18 @@ public class JunitListenerApiCoverageUnitTest {
         getStaticList("skippedTests").addAll(List.of(skippedOnly, failedOnly));
         setStaticField("executionStartTime", System.currentTimeMillis() - 5_000L);
 
-        try (MockedStatic<ReportManagerHelper> reportManagerHelperMock = Mockito.mockStatic(ReportManagerHelper.class);
-             MockedStatic<JiraHelper> jiraHelperMock = Mockito.mockStatic(JiraHelper.class);
-             MockedStatic<GoogleTink> googleTinkMock = Mockito.mockStatic(GoogleTink.class);
-             MockedStatic<AllureManager> allureManagerMock = Mockito.mockStatic(AllureManager.class);
-             MockedStatic<ExecutionSummaryReport> executionSummaryReportMock = Mockito.mockStatic(ExecutionSummaryReport.class);
-             MockedStatic<RequestBuilder> requestBuilderMock = Mockito.mockStatic(RequestBuilder.class)) {
-
-            requestBuilderMock.when(RequestBuilder::getPerformanceData).thenReturn(Collections.emptyMap());
+        try (MockedStatic<ExecutionLifecycleHelper> executionLifecycleHelperMock = Mockito.mockStatic(ExecutionLifecycleHelper.class)) {
 
             JunitListener listener = new JunitListener();
             Method engineTearDown = JunitListener.class.getDeclaredMethod("engineTearDown");
             engineTearDown.setAccessible(true);
             engineTearDown.invoke(listener);
-            waitBrieflyForAsyncTeardown(Duration.ofSeconds(1));
 
-            executionSummaryReportMock.verify(() -> ExecutionSummaryReport.generateExecutionSummaryReport(Mockito.eq(2), Mockito.eq(2), Mockito.eq(2), Mockito.anyLong(), Mockito.anyLong()));
-            reportManagerHelperMock.verify(ReportManagerHelper::logEngineClosure);
-            jiraHelperMock.verify(JiraHelper::reportExecutionStatusToJira);
-            googleTinkMock.verify(GoogleTink::encrypt);
-            allureManagerMock.verify(AllureManager::generateAllureReportArchive);
-            allureManagerMock.verify(AllureManager::openAllureReportAfterExecution);
+            executionLifecycleHelperMock.verify(() -> ExecutionLifecycleHelper.engineTearDown(anyLong(), argThat(counts ->
+                    counts.finalPassed() == 2
+                            && counts.failed() == 1
+                            && counts.skipped() == 1
+                            && counts.flaky() == 1)));
         }
     }
 
@@ -410,6 +398,7 @@ public class JunitListenerApiCoverageUnitTest {
         getStaticList("passedTests").clear();
         getStaticList("failedTests").clear();
         getStaticList("skippedTests").clear();
+        ((ExecutionCountsTracker) getStaticField("countsTracker")).clear();
         setStaticField("isEngineReady", false);
         setStaticField("isLastFinishedTestOK", true);
         setStaticField("executionStartTime", 0L);

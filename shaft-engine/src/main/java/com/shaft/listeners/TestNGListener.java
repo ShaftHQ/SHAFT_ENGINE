@@ -5,18 +5,12 @@ import com.epam.reportportal.service.ReportPortal;
 import com.epam.reportportal.testng.ITestNGService;
 import com.epam.reportportal.testng.TestNGService;
 import com.epam.reportportal.utils.MemoizingSupplier;
-import com.shaft.api.RequestBuilder;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.listeners.internal.*;
-import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
-import com.shaft.tools.internal.FirestoreRestClient;
-import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.*;
-import io.qameta.allure.Allure;
 import lombok.Getter;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -25,7 +19,6 @@ import org.testng.*;
 import org.testng.annotations.ITestAnnotation;
 import org.testng.internal.IResultListener2;
 import org.testng.xml.XmlSuite;
-import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -34,12 +27,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Central TestNG listener that orchestrates SHAFT's engine lifecycle, test
@@ -96,7 +87,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     public static void engineSetup(ProjectStructureManager.RunType runType) {
-        PropertiesHelper.bootstrapEngine(runType);
+        ExecutionLifecycleHelper.engineSetup(runType);
     }
 
     /**
@@ -104,6 +95,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onExecutionStart() {
+        Reporter.setEscapeHtml(false);
         engineSetup(ProjectStructureManager.RunType.TESTNG);
         initializeReportPortalIfEnabled();
     }
@@ -251,6 +243,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext iTestContext) {
+        ReportContext.start(toTestExecutionInfo(iTestResult));
+        ReportContext.setLogSink(log -> Reporter.log(log, false));
+        ReportContext.setStatus(io.qameta.allure.model.Status.PASSED);
         var elapsedTime = System.currentTimeMillis() - executionStartTime;
         if (SHAFT.Properties.reporting.debugMode()) {
             ReportManager.logDiscrete("elapsedTime: " + elapsedTime + "ms");
@@ -294,7 +289,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult, ITestContext iTestContext) {
+        ReportContext.setStatus(toAllureStatus(iTestResult));
         IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
+        ReportContext.setStatus(toAllureStatus(iTestResult));
         IssueReporter.updateIssuesLog(iTestResult);
         TestNGListenerHelper.updateTestMethods(iTestResult);
 //            TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
@@ -308,6 +305,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             activeTestClass.remove();
             TestNGListenerHelper.cleanup();
         }
+        ReportContext.clear();
     }
 
     /**
@@ -315,24 +313,36 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onExecutionFinish() {
-        ReportManagerHelper.setDiscreteLogging(true);
-        long executionEndTime = System.currentTimeMillis();
         TestExecutionCounts counts = getDeduplicatedTestExecutionCounts();
-        Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(counts.finalPassed(), counts.failed(), counts.skipped(), executionStartTime, executionEndTime));
-        Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
-        Thread.ofVirtual().start(GoogleTink::encrypt);
-        Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(executionStartTime, executionEndTime, counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
-        ReportManagerHelper.logEngineClosure();
-        Thread.ofVirtual().start(() -> {
-            // Fetch performance data from RequestBuilder
-            Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
-
-            // Generate the performance report using the fetched data
-            ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, System.currentTimeMillis());
-        });
-        AllureManager.openAllureReportAfterExecution();
-        AllureManager.generateAllureReportArchive();
+        ExecutionLifecycleHelper.engineTearDown(executionStartTime,
+                new ExecutionCountsTracker.Counts(counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishLaunch();
+    }
+
+    private static TestExecutionInfo toTestExecutionInfo(ITestResult testResult) {
+        if (testResult == null || testResult.getMethod() == null) {
+            return new TestExecutionInfo("unknown", "", "", "", "", null, null, false);
+        }
+        ITestNGMethod testMethod = testResult.getMethod();
+        Method javaMethod = testMethod.getConstructorOrMethod() == null
+                ? null
+                : testMethod.getConstructorOrMethod().getMethod();
+        String className = testMethod.getTestClass() == null ? "" : testMethod.getTestClass().getName();
+        String methodName = testMethod.getMethodName();
+        String stableId = className + "." + methodName;
+        return new TestExecutionInfo(stableId, className, methodName, methodName,
+                testMethod.getDescription(), javaMethod, testResult.getThrowable(), testResult.wasRetried());
+    }
+
+    private static io.qameta.allure.model.Status toAllureStatus(ITestResult testResult) {
+        if (testResult == null) {
+            return io.qameta.allure.model.Status.PASSED;
+        }
+        return switch (testResult.getStatus()) {
+            case ITestResult.FAILURE -> io.qameta.allure.model.Status.FAILED;
+            case ITestResult.SKIP -> io.qameta.allure.model.Status.SKIPPED;
+            default -> io.qameta.allure.model.Status.PASSED;
+        };
     }
 
     private static TestExecutionCounts getDeduplicatedTestExecutionCounts() {

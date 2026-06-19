@@ -56,7 +56,11 @@ public class ProjectStructureManagerTest {
         if (tempServicesDirPath == null || !Files.exists(tempServicesDirPath)) {
             return;
         }
-        try (var paths = Files.walk(tempServicesDirPath)) {
+        deleteDirectory(tempServicesDirPath);
+    }
+
+    private void deleteDirectory(Path directory) throws IOException {
+        try (var paths = Files.walk(directory)) {
             paths.sorted(Comparator.reverseOrder()).forEach(path -> {
                 try {
                     Files.deleteIfExists(path);

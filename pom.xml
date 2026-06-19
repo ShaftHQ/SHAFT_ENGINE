@@ -514,6 +514,8 @@
                     <classesDirectory>target/classes</classesDirectory>
                     <includes>
                         <include>com/**/*</include>
+                        <include>META-INF/**/*</include>
+                        <include>junit-platform.properties</include>
                         <include>resources/**/*</include>
                     </includes>
                 </configuration>

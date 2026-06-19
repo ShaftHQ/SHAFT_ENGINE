@@ -29,6 +29,24 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>3.10.0</version>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+                <configuration>
+                    <failIfNoTests>true</failIfNoTests>
+                    <trimStackTrace>false</trimStackTrace>
+                    <includes>
+                        <include>**/*Consumer.java</include>
+                    </includes>
+                    <systemPropertyVariables>
+                        <alwaysLogDiscreetly>true</alwaysLogDiscreetly>
+                        <headlessExecution>true</headlessExecution>
+                        <allure.automaticallyOpen>false</allure.automaticallyOpen>
+                        <allure.open>false</allure.open>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

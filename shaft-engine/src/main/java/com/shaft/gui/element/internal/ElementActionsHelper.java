@@ -22,13 +22,13 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import lombok.Getter;
 import org.apache.logging.log4j.Level;
+import org.junit.jupiter.api.Assertions;
 import org.openqa.selenium.*;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.remote.DriverCommand;
 import org.openqa.selenium.support.locators.RelativeLocator;
-import org.testng.Assert;
 
 import java.awt.*;
 import java.util.*;
@@ -829,9 +829,9 @@ public class ElementActionsHelper {
             message = reportActionResult(driver, actionName, testData, null, screenshots, elementName, false);
         }
         if (rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
+            Assertions.fail(message, rootCauseException[0]);
         } else {
-            Assert.fail(message);
+            Assertions.fail(message);
         }
     }
 
