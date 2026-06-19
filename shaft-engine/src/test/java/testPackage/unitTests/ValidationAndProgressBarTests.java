@@ -5,15 +5,10 @@ import com.shaft.tools.io.internal.ProgressBarLoggerTestAccessor;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.ValidationsExecutor;
 import com.shaft.validation.internal.ValidationsExecutorTestAccessor;
-import com.shaft.validation.internal.ValidationsHelperTestAccessor;
 import com.shaft.validation.internal.ValidationsHelper;
-import org.openqa.selenium.By;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class ValidationAndProgressBarTests {
 
@@ -22,19 +17,6 @@ public class ValidationAndProgressBarTests {
         Properties.clearForCurrentThread();
         System.clearProperty("cucumber.ansi-colors.disabled");
         ValidationsHelper.resetVerificationStateAfterFailing();
-    }
-
-    @Test(description = "resetVerificationStateAfterFailing should clear helper ThreadLocal state")
-    public void resetVerificationStateShouldClearThreadLocalState() throws Exception {
-        ValidationsHelperTestAccessor.setOptionalCustomLogMessage(new ArrayList<>(List.of("custom log")));
-        ValidationsHelperTestAccessor.setLastUsedElementLocator(By.id("sample"));
-
-        ValidationsHelper.resetVerificationStateAfterFailing();
-
-        Assert.assertNull(ValidationsHelperTestAccessor.getOptionalCustomLogMessage(),
-                "Custom log message ThreadLocal should be cleared to avoid retaining data across pooled threads.");
-        Assert.assertNull(ValidationsHelperTestAccessor.getLastUsedElementLocator(),
-                "Last-used locator ThreadLocal should be cleared to avoid retaining element references.");
     }
 
     @Test(description = "ProgressBarLogger should disable ANSI colors when cucumber.ansi-colors.disabled is true")
