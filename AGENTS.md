@@ -60,13 +60,13 @@ Before forked Maven/Surefire/TestNG, load gotchas. If
 compile/test-compile, static checks, or a disposable copy.
 
 Use the smallest non-redundant check. Do not rerun passing checks unless edits,
-rebases, or dependency changes invalidate them.
+rebases, or dependencies invalidate them.
 
-- Guidance/memory: `python3 scripts/ci/validate_agent_setup.py`
+- Guidance/memory: `python3 scripts/ci/validate_agent_setup.py`; Win: `py -3 ...`
 - Localized code: affected tests only, then one compile/package pass.
 - Shared API/concurrency/build/release: targeted, then full compile/package.
 - Visual: relevant test plus image/browser evidence.
-- External/cloud E2E: only when infrastructure is available and required.
+- External/cloud E2E: only when infra is available and required.
 
 PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, and args with `{}`, `@`,
 `;`, `&`, `|`. Confirm Allure before trusting SHAFT test verdicts.
