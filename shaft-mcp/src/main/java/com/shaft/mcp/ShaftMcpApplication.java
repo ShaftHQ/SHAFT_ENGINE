@@ -59,7 +59,8 @@ public class ShaftMcpApplication {
             MobileService mobileService,
             CaptureService captureService,
             DoctorService doctorService,
-            HealerService healerService) {
+            HealerService healerService,
+            GuideService guideService) {
         var engineServiceList = List.of(ToolCallbacks.from(engineService));
         var browserServiceList = List.of(ToolCallbacks.from(browserService));
         var elementServiceList = List.of(ToolCallbacks.from(elementService));
@@ -68,6 +69,7 @@ public class ShaftMcpApplication {
         var captureServiceList = List.of(ToolCallbacks.from(captureService));
         var doctorServiceList = List.of(ToolCallbacks.from(doctorService));
         var healerServiceList = List.of(ToolCallbacks.from(healerService));
+        var guideServiceList = List.of(ToolCallbacks.from(guideService));
 
         var serviceList = new java.util.ArrayList<ToolCallback>();
         serviceList.addAll(engineServiceList);
@@ -78,6 +80,7 @@ public class ShaftMcpApplication {
         serviceList.addAll(captureServiceList);
         serviceList.addAll(doctorServiceList);
         serviceList.addAll(healerServiceList);
+        serviceList.addAll(guideServiceList);
         return serviceList;
 	}
 

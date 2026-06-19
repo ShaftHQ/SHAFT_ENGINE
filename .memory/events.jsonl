@@ -71,3 +71,4 @@
 {"actor":"agent","event":"memory.updated","id":"source.agents","timestamp":"2026-06-19T10:13:46+03:00"}
 {"actor":"agent","event":"memory.updated","id":"source.agents","timestamp":"2026-06-19T10:17:06+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.run-local-validation-without-opening-reports","timestamp":"2026-06-19T13:52:01+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.use-official-docs-search-index-for-shaft-mcp-guide-search","timestamp":"2026-06-19T20:01:52+03:00"}
