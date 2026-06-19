@@ -20,7 +20,7 @@ import org.testng.annotations.Test;
  *   <li>{@link com.shaft.validation.internal.TextLanguageValidationsBuilder}</li>
  *   <li>{@link com.shaft.validation.internal.WebDriverElementValidationsBuilder}</li>
  *   <li>{@link com.shaft.validation.internal.WebDriverBrowserValidationsBuilder}</li>
- *   <li>{@link com.shaft.validation.internal.ValidationsHelper2} (element assertion paths)</li>
+ *   <li>{@link com.shaft.validation.internal.ValidationsHelper} (element assertion paths)</li>
  * </ul>
  *
  * <p>Tests load the bundled {@code coverageTestPage.html} file so no internet
@@ -253,7 +253,7 @@ public class E2ECoverageTests {
         driver.get().browser().assertThat().text().direction().isLeftToRight().perform();
     }
 
-    // ─── ValidationsHelper2 via Validations facade ───────────────────────────
+    // --- ValidationsHelper via Validations facade ----------------------------
 
     @Test(description = "verifyThat element exists via Validations facade")
     public void verifyThatElementExistsShouldPass() {

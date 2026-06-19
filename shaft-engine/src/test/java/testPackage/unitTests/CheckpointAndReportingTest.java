@@ -101,7 +101,7 @@ public class CheckpointAndReportingTest {
         assertNotNull(CHECKPOINTS_FIELD.get(null), "Checkpoint storage should remain available after attach");
     }
 
-    @Test(description = "Validations.assertThat().number() populates checkpoint counter via ValidationsHelper2")
+    @Test(description = "Validations.assertThat().number() populates checkpoint counter via ValidationsHelper")
     public void testValidationsAssertPopulatesCheckpointCounter() throws Exception {
         int baselineSize = getCheckpointsSize();
         int baselinePassed = getPassedCount();
@@ -112,7 +112,7 @@ public class CheckpointAndReportingTest {
                 "Passed checkpoint count should increase after successful assertion");
     }
 
-    @Test(description = "Validations.verifyThat().number() populates checkpoint counter via ValidationsHelper2")
+    @Test(description = "Validations.verifyThat().number() populates checkpoint counter via ValidationsHelper")
     public void testValidationsVerifyPopulatesCheckpointCounter() throws Exception {
         int baselineSize = getCheckpointsSize();
         int baselinePassed = getPassedCount();
@@ -123,7 +123,7 @@ public class CheckpointAndReportingTest {
                 "Passed checkpoint count should increase after successful verification");
     }
 
-    @Test(description = "Validations.assertThat().object() populates checkpoint counter via ValidationsHelper2")
+    @Test(description = "Validations.assertThat().object() populates checkpoint counter via ValidationsHelper")
     public void testValidationsObjectAssertPopulatesCheckpointCounter() throws Exception {
         int baselineSize = getCheckpointsSize();
         int baselinePassed = getPassedCount();

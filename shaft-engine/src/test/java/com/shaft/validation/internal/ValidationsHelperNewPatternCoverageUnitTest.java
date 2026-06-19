@@ -27,7 +27,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class ValidationsHelper2CoverageUnitTest {
+public class ValidationsHelperNewPatternCoverageUnitTest {
 
     @AfterMethod(alwaysRun = true)
     public void resetState() {
@@ -37,7 +37,7 @@ public class ValidationsHelper2CoverageUnitTest {
 
     @Test(description = "Covers hard-assert equality and number validation pass paths")
     public void validateEqualsAndNumberShouldCoverPassPaths() {
-        ValidationsHelper2 hardAssertHelper = new ValidationsHelper2(ValidationEnums.ValidationCategory.HARD_ASSERT);
+        ValidationsHelper hardAssertHelper = new ValidationsHelper(ValidationEnums.ValidationCategory.HARD_ASSERT);
 
         hardAssertHelper.validateEquals("same", "same", ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE);
@@ -48,7 +48,7 @@ public class ValidationsHelper2CoverageUnitTest {
 
     @Test(description = "Covers browser/element validation branches with mocked dependencies")
     public void validateBrowserAndElementMethodsShouldCoverBranchingPaths() {
-        ValidationsHelper2 helper = new ValidationsHelper2(ValidationEnums.ValidationCategory.HARD_ASSERT);
+        ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.HARD_ASSERT);
         By locator = By.id("sample");
 
         WebDriver driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
@@ -87,9 +87,9 @@ public class ValidationsHelper2CoverageUnitTest {
                          when(mock.getPageSource()).thenReturn("<html/>");
                          when(mock.getCurrentWindowTitle()).thenReturn("Title");
                          when(mock.getWindowHandle()).thenReturn("WINDOW_HANDLE");
-                          when(mock.getWindowPosition()).thenReturn("0,0");
-                          when(mock.getWindowSize()).thenReturn("1200x800");
-                      })) {
+                         when(mock.getWindowPosition()).thenReturn("0,0");
+                         when(mock.getWindowSize()).thenReturn("1200x800");
+                     })) {
             imageProcessingMocked.when(() -> ImageProcessingActions.getReferenceImage(any(By.class)))
                     .thenReturn(new byte[]{1});
             imageProcessingMocked.when(() -> ImageProcessingActions.compareAgainstBaseline(any(), any(By.class), any(byte[].class), any()))
@@ -164,18 +164,18 @@ public class ValidationsHelper2CoverageUnitTest {
 
     @Test(description = "Covers private utility methods used by validation reporting")
     public void privateUtilityMethodsShouldReturnExpectedValues() throws Exception {
-        Method normalizeDirection = ValidationsHelper2.class.getDeclaredMethod("normalizeDirection", String.class);
+        Method normalizeDirection = ValidationsHelper.class.getDeclaredMethod("normalizeDirection", String.class);
         normalizeDirection.setAccessible(true);
 
-        Method setCommonParameters = ValidationsHelper2.class.getDeclaredMethod("setCommonParameters", Object.class, Object.class, String.class);
+        Method setCommonParameters = ValidationsHelper.class.getDeclaredMethod("setCommonParameters", Object.class, Object.class, String.class);
         setCommonParameters.setAccessible(true);
 
-        Method formatAssertionError = ValidationsHelper2.class.getDeclaredMethod("formatAssertionErrorWithAutoDetectedPackage", AssertionError.class);
+        Method formatAssertionError = ValidationsHelper.class.getDeclaredMethod("formatAssertionErrorWithAutoDetectedPackage", AssertionError.class);
         formatAssertionError.setAccessible(true);
-        Method performValidation = ValidationsHelper2.class.getDeclaredMethod("performValidation", Object.class, Object.class, Object.class, ValidationEnums.ValidationType.class);
+        Method performValidation = ValidationsHelper.class.getDeclaredMethod("performValidation", Object.class, Object.class, Object.class, ValidationEnums.ValidationType.class);
         performValidation.setAccessible(true);
 
-        ValidationsHelper2 helper = new ValidationsHelper2(ValidationEnums.ValidationCategory.HARD_ASSERT);
+        ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.HARD_ASSERT);
 
         Assert.assertEquals(normalizeDirection.invoke(helper, "rtl"), "rtl");
         Assert.assertEquals(normalizeDirection.invoke(helper, "anythingElse"), "ltr");

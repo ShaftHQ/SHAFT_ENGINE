@@ -165,45 +165,46 @@ public class ValidationsExecutor {
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
     private void performValidation() {
+        var validationsHelper = new ValidationsHelper(validationCategory);
         switch (validationMethod) {
-            case "forceFail" -> new ValidationsHelper().validateFail(validationCategory, customReportMessage);
+            case "forceFail" -> validationsHelper.validateFail(customReportMessage);
             case "objectsAreEqual" ->
-                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, actualValue, validationComparisonType, validationType);
+                    validationsHelper.validateEquals(expectedValue, actualValue, validationComparisonType, validationType);
             case "conditionIsTrue" ->
-                    new ValidationsHelper().validateTrue(validationCategory, condition, validationType, customReportMessage);
+                    validationsHelper.validateTrue(condition, validationType);
             case "elementExists" ->
-                    new ValidationsHelper2(validationCategory).validateElementExists(driver.get(), locator, validationType);
+                    validationsHelper.validateElementExists(driver.get(), locator, validationType);
             case "elementMatches" ->
-                    new ValidationsHelper2(validationCategory).validateElementMatches(driver.get(), locator, visualValidationEngine, validationType);
+                    validationsHelper.validateElementMatches(driver.get(), locator, visualValidationEngine, validationType);
             case "elementAttributeEquals" ->
-                    new ValidationsHelper2(validationCategory).validateElementAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+                    validationsHelper.validateElementAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementDomAttributeEquals" ->
-                    new ValidationsHelper2(validationCategory).validateElementDomAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+                    validationsHelper.validateElementDomAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementDomPropertyEquals" ->
-                    new ValidationsHelper2(validationCategory).validateElementDomProperty(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+                    validationsHelper.validateElementDomProperty(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementCssPropertyEquals" ->
-                    new ValidationsHelper2(validationCategory).validateElementCSSProperty(driver.get(), locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
+                    validationsHelper.validateElementCSSProperty(driver.get(), locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "browserAttributeEquals" ->
-                    new ValidationsHelper2(validationCategory).validateBrowserAttribute(driver.get(), browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+                    validationsHelper.validateBrowserAttribute(driver.get(), browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "comparativeRelationBetweenNumbers" ->
-                    new ValidationsHelper2(validationCategory).validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
+                    validationsHelper.validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
             case "fileExists" ->
-                    new ValidationsHelper().validateFileExists(validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
+                    validationsHelper.validateFileExists(folderRelativePath, fileName, 5, validationType);
             case "responseEqualsFileContent" ->
-                    new ValidationsHelper().validateJSONFileContent(validationCategory, (Response) response.get(), fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
+                    validationsHelper.validateJSONFileContent((Response) response.get(), fileAbsolutePath, restComparisonType, "", validationType);
             case "jsonPathValueEquals" ->
-                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseJSONValue(response.get(), jsonPath), validationComparisonType, validationType);
+                    validationsHelper.validateEquals(expectedValue, RestActions.getResponseJSONValue(response.get(), jsonPath), validationComparisonType, validationType);
             case "jsonPathValueAsListEquals" -> {
                 for (Object value : Objects.requireNonNull(RestActions.getResponseJSONValueAsList((Response) response.get(), jsonPath))) {
-                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, value.toString(), validationComparisonType, validationType);
+                    validationsHelper.validateEquals(expectedValue, value.toString(), validationComparisonType, validationType);
                 }
             }
             case "responseBody" ->
-                    new ValidationsHelper2(validationCategory).validateEquals(expectedValue, RestActions.getResponseBody((Response) response.get()), validationComparisonType, validationType);
+                    validationsHelper.validateEquals(expectedValue, RestActions.getResponseBody((Response) response.get()), validationComparisonType, validationType);
             case "responseTime" ->
-                    new ValidationsHelper2(validationCategory).validateNumber((Number) expectedValue, RestActions.getResponseTime((Response) response.get()), numbersComparativeRelation, validationType);
+                    validationsHelper.validateNumber((Number) expectedValue, RestActions.getResponseTime((Response) response.get()), numbersComparativeRelation, validationType);
             case "checkResponseSchema" ->
-                    new ValidationsHelper().validateResponseFileSchema(validationCategory, (Response) response.get(), fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
+                    validationsHelper.validateResponseFileSchema((Response) response.get(), fileAbsolutePath, restComparisonType, "", validationType);
             case "fileContent" -> {
                 String fileContent;
                 if (fileName.contains(".pdf")) {
@@ -211,11 +212,11 @@ public class ValidationsExecutor {
                 } else {
                     fileContent = FileActions.getInstance(true).readFile(folderRelativePath, fileName);
                 }
-                new ValidationsHelper2(validationCategory).validateEquals(expectedValue, fileContent, validationComparisonType, validationType);
+                validationsHelper.validateEquals(expectedValue, fileContent, validationComparisonType, validationType);
             }
             case "fileChecksum" -> {
                 var fileChecksum = FileActions.getInstance(true).getFileChecksum(new TerminalActions(), folderRelativePath, fileName);
-                new ValidationsHelper2(validationCategory).validateEquals(expectedValue, fileChecksum, validationComparisonType, validationType);
+                validationsHelper.validateEquals(expectedValue, fileChecksum, validationComparisonType, validationType);
             }
             default -> {
             }
