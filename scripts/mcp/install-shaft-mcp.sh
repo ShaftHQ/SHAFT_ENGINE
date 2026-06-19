@@ -194,6 +194,7 @@ resolve_python_script() {
 }
 
 banner
+export SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN=1
 ROOT="$(bootstrap_root)"
 mkdir -p "$ROOT"
 

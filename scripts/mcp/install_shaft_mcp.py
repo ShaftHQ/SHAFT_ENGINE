@@ -32,6 +32,7 @@ MAIN_CLASS = "com.shaft.mcp.ShaftMcpApplication"
 RUNTIME_DEPENDENCIES_ENTRY = "META-INF/shaft-mcp/runtime-dependencies.txt"
 WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.workspaceRoot"
 USER_GUIDE_URL = "https://shaftengine.netlify.app/docs/agentic/mcp"
+BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
@@ -62,6 +63,8 @@ def fail(message: str, code: int = 1) -> None:
 
 
 def banner() -> None:
+    if os.environ.get(BOOTSTRAP_BANNER_SHOWN) == "1":
+        return
     log(
         r"""
   ____  _   _    _    _____ _____

@@ -220,18 +220,18 @@
     "semantic_hash": ""
   },
   "scripts/mcp/install-shaft-mcp.ps1": {
-    "mtime": 1781848826.344687,
-    "ast_hash": "b6328a1ed09aec60fea595d7fb1ad382",
+    "mtime": 1781852501.7405734,
+    "ast_hash": "7f896d826fd039eaf5db3fea5058d913",
     "semantic_hash": ""
   },
   "scripts/mcp/install-shaft-mcp.sh": {
-    "mtime": 1781848836.0601687,
-    "ast_hash": "756e2a177ac74041f22742110f46bebb",
+    "mtime": 1781852507.9314525,
+    "ast_hash": "9d9c90cba847ab57ab90a08ea0c19560",
     "semantic_hash": ""
   },
   "scripts/mcp/install_shaft_mcp.py": {
-    "mtime": 1781849856.329921,
-    "ast_hash": "bba3d88b01ae1774d89b51456a798f17",
+    "mtime": 1781852494.7255535,
+    "ast_hash": "357e701d43535b9a0e43a65e7e9e2418",
     "semantic_hash": ""
   },
   "shaft-ai/src/main/java/com/shaft/ai/provider/AbstractHttpAiProvider.java": {
@@ -4690,8 +4690,8 @@
     "semantic_hash": ""
   },
   "tests/scripts/test_install_shaft_mcp.py": {
-    "mtime": 1781849300.8062694,
-    "ast_hash": "36a1f7ad2e27a74a3b7790befc73d3ab",
+    "mtime": 1781852517.1961083,
+    "ast_hash": "edd484a770f990c12fc231a06848d75b",
     "semantic_hash": ""
   },
   ".github/workflows/e2eLocalTests.yml": {

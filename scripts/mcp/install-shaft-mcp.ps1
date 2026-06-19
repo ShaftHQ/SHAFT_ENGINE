@@ -195,6 +195,7 @@ function Install-ShaftMcp {
     }
 
     Show-Banner
+    $env:SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN = "1"
     $root = Bootstrap-Root
     New-Item -ItemType Directory -Force -Path $root | Out-Null
     $python = Find-Python
