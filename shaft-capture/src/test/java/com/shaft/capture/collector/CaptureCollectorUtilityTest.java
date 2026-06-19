@@ -68,6 +68,7 @@ class CaptureCollectorUtilityTest {
         assertTrue(preload.contains("Edit captured action"));
         assertTrue(preload.contains("Pause recording"));
         assertTrue(preload.contains("Stop recording"));
+        assertTrue(preload.contains("globalThis.top === globalThis"));
 
         Constructor<BrowserEventScript> constructor = BrowserEventScript.class.getDeclaredConstructor();
         constructor.setAccessible(true);

@@ -35,6 +35,13 @@
   uiState.actions = Array.isArray(uiState.actions) ? uiState.actions.slice(-80) : [];
   uiState.nextId = Number(uiState.nextId || uiState.actions.length + 1);
   globalThis.__shaftCaptureUiState = uiState;
+  const topLevel = (() => {
+    try {
+      return globalThis.top === globalThis;
+    } catch (ignored) {
+      return false;
+    }
+  })();
   const persist = () => {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -484,16 +491,18 @@
     emit("keyboard", event, {keys: [...modifiers, key.toUpperCase()]});
   }, true);
 
-  schedulePanel();
-  if (uiState.actions.length === 0) {
-    announce("Open " + visibleLocation());
-  }
-  setInterval(() => {
-    const current = String(location.href || "");
-    if (current !== uiState.lastUrl) {
-      uiState.lastUrl = current;
-      persist();
-      announce("Navigate to " + visibleLocation());
+  if (topLevel) {
+    schedulePanel();
+    if (uiState.actions.length === 0) {
+      announce("Open " + visibleLocation());
     }
-  }, 500);
+    setInterval(() => {
+      const current = String(location.href || "");
+      if (current !== uiState.lastUrl) {
+        uiState.lastUrl = current;
+        persist();
+        announce("Navigate to " + visibleLocation());
+      }
+    }, 500);
+  }
 }
