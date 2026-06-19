@@ -11,13 +11,33 @@ import java.nio.file.Path;
  * @param outputPath capture JSON output
  * @param runtimeDirectory local control and temporary-profile directory
  * @param headless whether to launch without a visible browser window
+ * @param options codegen-compatible capture options
  */
 public record CaptureStartRequest(
         String targetUrl,
         CaptureBrowser browser,
         Path outputPath,
         Path runtimeDirectory,
-        boolean headless) {
+        boolean headless,
+        CaptureStartOptions options) {
+    /**
+     * Creates a request with default codegen options.
+     *
+     * @param targetUrl initial browser URL
+     * @param browser supported browser family
+     * @param outputPath capture JSON output
+     * @param runtimeDirectory local control and temporary-profile directory
+     * @param headless whether to launch without a visible browser window
+     */
+    public CaptureStartRequest(
+            String targetUrl,
+            CaptureBrowser browser,
+            Path outputPath,
+            Path runtimeDirectory,
+            boolean headless) {
+        this(targetUrl, browser, outputPath, runtimeDirectory, headless, CaptureStartOptions.defaults());
+    }
+
     /**
      * Creates a validated request.
      */
@@ -29,6 +49,7 @@ public record CaptureStartRequest(
         }
         outputPath = outputPath.toAbsolutePath().normalize();
         runtimeDirectory = runtimeDirectory.toAbsolutePath().normalize();
+        options = options == null ? CaptureStartOptions.defaults() : options;
         if (outputPath.startsWith(runtimeDirectory.resolve("profiles"))) {
             throw new IllegalArgumentException("Capture output cannot be stored in the temporary profile directory.");
         }

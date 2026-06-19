@@ -15,6 +15,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.HasCapabilities;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.MutableCapabilities;
@@ -29,8 +30,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -47,6 +50,7 @@ class ManagedCaptureRecorder {
     private final Instant startedAt = Instant.now();
     private final List<String> warnings = new CopyOnWriteArrayList<>();
     private final Path profileDirectory;
+    private final boolean temporaryProfileDirectory;
     private CaptureStatus.State state = CaptureStatus.State.STARTING;
     private SHAFT.GUI.WebDriver shaftDriver;
     private WebDriver driver;
@@ -54,6 +58,8 @@ class ManagedCaptureRecorder {
     private CaptureSessionStore store;
     private CaptureEventPipeline pipeline;
     private String currentUrl;
+    private volatile boolean paused;
+    private volatile boolean uiStopRequested;
 
     ManagedCaptureRecorder(CaptureStartRequest request) {
         this(request, CapturePrivacyPolicy.defaults());
@@ -66,10 +72,13 @@ class ManagedCaptureRecorder {
         this.request = request;
         this.privacyPolicy = privacyPolicy == null ? CapturePrivacyPolicy.defaults() : privacyPolicy;
         Path profilesRoot = request.runtimeDirectory().resolve("profiles").toAbsolutePath().normalize();
-        profileDirectory = profilesRoot.resolve(sessionId).normalize();
-        if (!profileDirectory.startsWith(profilesRoot)) {
+        Path requestedProfile = request.options().userDataDirectory();
+        profileDirectory = requestedProfile == null ? profilesRoot.resolve(sessionId).normalize() : requestedProfile;
+        temporaryProfileDirectory = requestedProfile == null;
+        if (temporaryProfileDirectory && !profileDirectory.startsWith(profilesRoot)) {
             throw new IllegalArgumentException("Capture profile directory escaped the runtime root.");
         }
+        warnings.addAll(request.options().warnings());
         currentUrl = new CapturePrivacyClassifier(this.privacyPolicy)
                 .sanitizeUrl(request.targetUrl()).value();
     }
@@ -82,6 +91,7 @@ class ManagedCaptureRecorder {
             configureShaft();
             shaftDriver = new SHAFT.GUI.WebDriver(request.browser().driverType(), browserOptions());
             driver = shaftDriver.getDriver();
+            applyRuntimeOptions();
             store = new CaptureSessionStore(request.outputPath());
             store.start(CaptureSession.start(
                     sessionId,
@@ -97,7 +107,8 @@ class ManagedCaptureRecorder {
             driver.navigate().to(request.targetUrl());
             if (driver instanceof JavascriptExecutor javascript) {
                 javascript.executeScript(
-                        com.shaft.capture.collector.BrowserEventScript.fallbackInstallation());
+                        com.shaft.capture.collector.BrowserEventScript.fallbackInstallation(
+                                request.options().testIdAttributes()));
             }
             pipeline.accept(BrowserSignal.generated(
                     "navigation",
@@ -116,7 +127,7 @@ class ManagedCaptureRecorder {
         }
     }
 
-    CaptureStatus status() {
+    synchronized CaptureStatus status() {
         return new CaptureStatus(
                 state,
                 sessionId,
@@ -130,12 +141,12 @@ class ManagedCaptureRecorder {
                 startedAt);
     }
 
-    void checkpoint(String description, Checkpoint.CheckpointKind kind) {
+    synchronized void checkpoint(String description, Checkpoint.CheckpointKind kind) {
         ensureActive();
         pipeline.checkpoint(description, kind);
     }
 
-    CaptureStatus stop(boolean discard) {
+    synchronized CaptureStatus stop(boolean discard) {
         if (state != CaptureStatus.State.ACTIVE && state != CaptureStatus.State.STOPPING) {
             return status();
         }
@@ -156,7 +167,7 @@ class ManagedCaptureRecorder {
         return status();
     }
 
-    CaptureStatus interrupt() {
+    synchronized CaptureStatus interrupt() {
         closeCollectorAndPipeline();
         closeBrowser();
         if (store != null) {
@@ -177,7 +188,7 @@ class ManagedCaptureRecorder {
         return status();
     }
 
-    boolean isBrowserAlive() {
+    synchronized boolean isBrowserAlive() {
         if (driver == null || state != CaptureStatus.State.ACTIVE) {
             return false;
         }
@@ -192,6 +203,12 @@ class ManagedCaptureRecorder {
 
     WebDriver driverForTesting() {
         return driver;
+    }
+
+    void activeSessionForTesting(CaptureSessionStore store, CaptureEventPipeline pipeline) {
+        this.store = store;
+        this.pipeline = pipeline;
+        this.state = CaptureStatus.State.ACTIVE;
     }
 
     private void configureShaft() {
@@ -219,33 +236,108 @@ class ManagedCaptureRecorder {
         }
     }
 
-    private MutableCapabilities browserOptions() {
+    MutableCapabilities browserOptions() {
         String profileArgument = "--user-data-dir=" + profileDirectory;
+        List<String> arguments = new ArrayList<>();
+        arguments.add(profileArgument);
+        arguments.add("--profile-directory=Default");
+        if (!request.options().userAgent().isBlank()) {
+            arguments.add("--user-agent=" + request.options().userAgent());
+        }
+        if (!request.options().language().isBlank()) {
+            arguments.add("--lang=" + request.options().language());
+        }
+        if (!request.options().proxyServer().isBlank()) {
+            arguments.add("--proxy-server=" + request.options().proxyServer());
+        }
+        if (!request.options().proxyBypass().isBlank()) {
+            arguments.add("--proxy-bypass-list=" + request.options().proxyBypass());
+        }
         if (request.browser() == CaptureBrowser.EDGE) {
             EdgeOptions options = new EdgeOptions();
-            options.addArguments(profileArgument, "--profile-directory=Default");
+            options.addArguments(arguments);
+            options.setAcceptInsecureCerts(request.options().ignoreHttpsErrors());
             options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
             return options;
         }
         ChromeOptions options = new ChromeOptions();
-        options.addArguments(profileArgument, "--profile-directory=Default");
+        options.addArguments(arguments);
+        options.setAcceptInsecureCerts(request.options().ignoreHttpsErrors());
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
         return options;
+    }
+
+    private void applyRuntimeOptions() {
+        CaptureStartOptions.Viewport viewport = request.options().viewport();
+        if (viewport != null) {
+            try {
+                driver.manage().window().setSize(new Dimension(viewport.width(), viewport.height()));
+            } catch (WebDriverException exception) {
+                warn("Requested capture viewport size could not be applied.");
+            }
+        }
+        if (!request.options().timeout().isZero()) {
+            try {
+                driver.manage().timeouts().pageLoadTimeout(request.options().timeout());
+            } catch (WebDriverException exception) {
+                warn("Requested capture timeout could not be applied.");
+            }
+        }
     }
 
     private void startCollector(WebDriver activeDriver) {
         try {
             collector = new CompositeBrowserEventCollector(List.of(
-                    new BidiBrowserEventCollector(activeDriver),
-                    new PollingBrowserEventCollector(activeDriver, false)));
-            collector.start(pipeline::accept, this::warn);
+                    new BidiBrowserEventCollector(activeDriver, request.options().testIdAttributes()),
+                    new PollingBrowserEventCollector(activeDriver, false, request.options().testIdAttributes())));
+            collector.start(this::acceptSignal, this::warn);
         } catch (RuntimeException exception) {
             if (collector != null) {
                 collector.close();
             }
             warn("WebDriver BiDi initialization failed; the compatibility listener will be used.");
-            collector = new PollingBrowserEventCollector(activeDriver);
-            collector.start(pipeline::accept, this::warn);
+            collector = new PollingBrowserEventCollector(activeDriver, true, request.options().testIdAttributes());
+            collector.start(this::acceptSignal, this::warn);
+        }
+    }
+
+    void acceptSignal(BrowserSignal signal) {
+        if (signal == null) {
+            return;
+        }
+        switch (signal.kind()) {
+            case "control" -> handleControl(signal);
+            case "checkpoint" -> handleCheckpoint(signal);
+            default -> {
+                if (!paused && pipeline != null) {
+                    pipeline.accept(signal);
+                }
+            }
+        }
+    }
+
+    private void handleControl(BrowserSignal signal) {
+        String action = signal.dataString("action").trim().toUpperCase(Locale.ROOT);
+        switch (action) {
+            case "PAUSE" -> paused = true;
+            case "RESUME" -> paused = false;
+            case "STOP" -> {
+                if (!uiStopRequested) {
+                    uiStopRequested = true;
+                    stop(false);
+                }
+            }
+            default -> warn("An unknown browser recording control was ignored.");
+        }
+    }
+
+    private void handleCheckpoint(BrowserSignal signal) {
+        String description = signal.dataString("description");
+        Checkpoint.CheckpointKind kind = checkpointKind(signal.dataString("kind"));
+        try {
+            checkpoint(description.isBlank() ? "Captured browser checkpoint" : description, kind);
+        } catch (IllegalStateException exception) {
+            warn("A browser checkpoint was ignored because capture is not active.");
         }
     }
 
@@ -267,6 +359,14 @@ class ManagedCaptureRecorder {
             putCapability(safeCapabilities, "webSocketUrl",
                     capabilities.getCapability("webSocketUrl") == null ? null : "enabled");
         }
+        putCapability(safeCapabilities, "shaft:targetLanguage", request.options().targetLanguage());
+        putCapability(safeCapabilities, "shaft:testIdAttribute", request.options().testIdAttribute());
+        putCapability(safeCapabilities, "shaft:viewportSize", request.options().viewportSize());
+        putCapability(safeCapabilities, "shaft:language", request.options().language());
+        putCapability(safeCapabilities, "shaft:proxyServer", request.options().proxyServer().isBlank()
+                ? null : "configured");
+        putCapability(safeCapabilities, "shaft:userDataDir", request.options().userDataDirectory() == null
+                ? null : "configured");
         return new BrowserMetadata(
                 browserName,
                 browserVersion,
@@ -308,6 +408,9 @@ class ManagedCaptureRecorder {
     }
 
     private void cleanupProfile() {
+        if (!temporaryProfileDirectory) {
+            return;
+        }
         Path profilesRoot = request.runtimeDirectory().resolve("profiles").toAbsolutePath().normalize();
         if (!profileDirectory.startsWith(profilesRoot)) {
             warn("The temporary browser profile path was rejected during cleanup.");
@@ -367,6 +470,15 @@ class ManagedCaptureRecorder {
 
     private static String value(Object value, String fallback) {
         return value == null || String.valueOf(value).isBlank() ? fallback : String.valueOf(value);
+    }
+
+    private static Checkpoint.CheckpointKind checkpointKind(String value) {
+        try {
+            return Checkpoint.CheckpointKind.valueOf(
+                    value == null ? "" : value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return Checkpoint.CheckpointKind.USER_MARKER;
+        }
     }
 
     private static final class ProfileCleanupException extends RuntimeException {

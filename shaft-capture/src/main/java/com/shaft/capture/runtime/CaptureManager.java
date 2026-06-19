@@ -87,12 +87,8 @@ public final class CaptureManager implements AutoCloseable {
      *
      * @return recorder status
      */
-    public CaptureStatus status() {
-        ManagedCaptureRecorder current = recorder;
-        if (current != null && isActive(lastStatus.state())) {
-            lastStatus = current.status();
-        }
-        return lastStatus;
+    public synchronized CaptureStatus status() {
+        return syncRecorderStatus();
     }
 
     /**
@@ -120,11 +116,18 @@ public final class CaptureManager implements AutoCloseable {
         if (recorder == null) {
             return lastStatus;
         }
-        lastStatus = copyWithState(status(), CaptureStatus.State.STOPPING);
+        CaptureStatus currentStatus = status();
+        ManagedCaptureRecorder current = recorder;
+        if (current == null || !isActive(currentStatus.state())) {
+            return currentStatus;
+        }
+        lastStatus = copyWithState(currentStatus, CaptureStatus.State.STOPPING);
         return invoke(() -> {
             cancelHealthCheck();
-            lastStatus = recorder.stop(discard);
-            recorder = null;
+            lastStatus = current.stop(discard);
+            if (recorder == current) {
+                recorder = null;
+            }
             releaseLock();
             return lastStatus;
         });
@@ -132,11 +135,14 @@ public final class CaptureManager implements AutoCloseable {
 
     @Override
     public synchronized void close() {
-        if (recorder != null) {
+        ManagedCaptureRecorder current = recorder;
+        if (current != null) {
             invoke(() -> {
                 cancelHealthCheck();
-                lastStatus = recorder.interrupt();
-                recorder = null;
+                lastStatus = current.interrupt();
+                if (recorder == current) {
+                    recorder = null;
+                }
                 releaseLock();
                 return lastStatus;
             });
@@ -149,6 +155,13 @@ public final class CaptureManager implements AutoCloseable {
         if (current == null || !isActive(lastStatus.state())) {
             return;
         }
+        lastStatus = current.status();
+        if (!isActive(lastStatus.state())) {
+            cancelHealthCheck();
+            recorder = null;
+            releaseLock();
+            return;
+        }
         if (!current.isBrowserAlive()) {
             cancelHealthCheck();
             lastStatus = current.interrupt();
@@ -158,6 +171,7 @@ public final class CaptureManager implements AutoCloseable {
     }
 
     private ManagedCaptureRecorder requireRecorder() {
+        syncRecorderStatus();
         if (recorder == null || !isActive(lastStatus.state())) {
             throw new IllegalStateException("SHAFT Capture is not active.");
         }
@@ -191,6 +205,19 @@ public final class CaptureManager implements AutoCloseable {
             sessionLock.close();
             sessionLock = null;
         }
+    }
+
+    private CaptureStatus syncRecorderStatus() {
+        ManagedCaptureRecorder current = recorder;
+        if (current != null && isActive(lastStatus.state())) {
+            lastStatus = current.status();
+            if (!isActive(lastStatus.state())) {
+                cancelHealthCheck();
+                recorder = null;
+                releaseLock();
+            }
+        }
+        return lastStatus;
     }
 
     private static boolean isActive(CaptureStatus.State state) {

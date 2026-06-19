@@ -86,7 +86,10 @@ public final class AiExecutionService {
 
         String providerId = provider.id();
         String model = safeModel(configuration, providerId);
-        AiResponse preflightFailure = preflight(request, configuration, provider, providerId, model, started);
+        boolean bypassConfigurationApproval = registry.hasExplicitProviderForCurrentThread()
+                && (!configuration.enabled() || "none".equals(configuration.provider()));
+        AiResponse preflightFailure = preflight(request, configuration, provider, providerId, model,
+                bypassConfigurationApproval, started);
         if (preflightFailure != null) {
             return finish(request, providerId, model, "", started, preflightFailure);
         }
@@ -133,9 +136,13 @@ public final class AiExecutionService {
     }
 
     private AiResponse preflight(AiRequest request, PilotConfiguration configuration, AiProvider provider,
-                                 String providerId, String model, Instant started) {
+                                 String providerId, String model, boolean bypassConfigurationApproval,
+                                 Instant started) {
         AiCapabilities capabilities = provider.capabilities();
-        if (!configuration.approvalPolicy().allows(capabilities.processingLocation(), request.evidenceCategories())
+        ApprovalPolicy globalApproval = bypassConfigurationApproval
+                ? request.approvalPolicy()
+                : configuration.approvalPolicy();
+        if (!globalApproval.allows(capabilities.processingLocation(), request.evidenceCategories())
                 || !request.approvalPolicy().allows(capabilities.processingLocation(), request.evidenceCategories())) {
             return failure(request, AiResponseStatus.CONSENT_REQUIRED, providerId, model,
                     "Explicit consent is required for the processing location and evidence categories.", started);

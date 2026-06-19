@@ -1,5 +1,6 @@
 package com.shaft.capture.cli;
 
+import com.shaft.capture.runtime.CaptureStartOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -125,10 +126,43 @@ class CaptureCliTest {
         assertTrue(token.length() >= 32);
         assertFalse(token.contains("="));
         assertTrue(usage.contains("capture start"));
+        assertTrue(usage.contains("features"));
         assertEquals("operation failed.", fallbackMessage);
         assertTrue(running);
         assertEquals(12L, parsed);
         assertInstanceOf(IllegalArgumentException.class, invalidNumber.getCause());
+    }
+
+    @Test
+    void startOptionsAcceptPlaywrightCodegenFlags() throws Exception {
+        Class<?> argumentsClass = Class.forName("com.shaft.capture.cli.CaptureCli$Arguments");
+        Object options = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {
+                        "--target", "java",
+                        "--test-id-attribute", "data-pw",
+                        "--viewport-size", "800,600",
+                        "--ignore-https-errors",
+                        "--user-agent", "agent",
+                        "--timeout", "1500",
+                        "--user-data-dir", temp.resolve("profile").toString()
+                });
+
+        CaptureStartOptions startOptions = (CaptureStartOptions) invokeStatic(
+                "startOptions",
+                new Class<?>[] {argumentsClass},
+                options);
+
+        assertEquals("java", startOptions.targetLanguage());
+        assertEquals("data-pw", startOptions.testIdAttributes().getFirst());
+        assertEquals(800, startOptions.viewport().width());
+        assertEquals(600, startOptions.viewport().height());
+        assertEquals(true, startOptions.ignoreHttpsErrors());
+        assertEquals("agent", startOptions.userAgent());
+        assertEquals(java.time.Duration.ofMillis(1500), startOptions.timeout());
+        assertEquals(temp.resolve("profile").toAbsolutePath().normalize(), startOptions.userDataDirectory());
     }
 
     private static Object invokeStatic(String methodName, Class<?>[] parameterTypes, Object... arguments)

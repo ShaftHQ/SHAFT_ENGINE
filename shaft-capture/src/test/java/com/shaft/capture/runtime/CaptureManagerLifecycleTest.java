@@ -58,6 +58,25 @@ class CaptureManagerLifecycleTest {
     }
 
     @Test
+    void managerAcceptsRecorderCompletedFromBrowserUiAndAllowsNextSession() {
+        AtomicReference<FakeRecorder> recorderRef = new AtomicReference<>();
+        CaptureManager manager = new CaptureManager(request -> {
+            FakeRecorder recorder = new FakeRecorder(request);
+            recorderRef.set(recorder);
+            return recorder;
+        });
+
+        assertEquals(CaptureStatus.State.ACTIVE, manager.start(request("first.json")).state());
+        recorderRef.get().completeFromBrowserUi();
+        assertEquals(CaptureStatus.State.COMPLETED, manager.status().state());
+        assertEquals(CaptureStatus.State.COMPLETED, manager.stop(false).state());
+
+        assertEquals(CaptureStatus.State.ACTIVE, manager.start(request("second.json")).state());
+        assertEquals(CaptureStatus.State.COMPLETED, manager.stop(false).state());
+        manager.close();
+    }
+
+    @Test
     void managerRejectsNullFactoryAndReleasesLockWhenRecorderStartFails() {
         assertThrows(IllegalArgumentException.class, () -> new CaptureManager(null));
 
@@ -128,6 +147,10 @@ class CaptureManagerLifecycleTest {
         @Override
         boolean isBrowserAlive() {
             return state == CaptureStatus.State.ACTIVE;
+        }
+
+        void completeFromBrowserUi() {
+            state = CaptureStatus.State.COMPLETED;
         }
     }
 

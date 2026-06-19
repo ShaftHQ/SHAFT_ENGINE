@@ -3,10 +3,12 @@ package com.shaft.mcp;
 import com.shaft.capture.generate.CaptureGenerationRequest;
 import com.shaft.capture.generate.CaptureGenerationResult;
 import com.shaft.capture.generate.CaptureGenerator;
+import com.shaft.capture.generate.CodegenFeatureCatalog;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.runtime.CaptureBrowser;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStartRequest;
+import com.shaft.capture.runtime.CaptureStartOptions;
 import com.shaft.capture.runtime.CaptureStatus;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
@@ -20,6 +22,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.EnumSet;
+import java.util.List;
 
 /**
  * MCP adapter for deterministic managed-browser SHAFT Capture recording.
@@ -61,24 +64,106 @@ public class CaptureService {
      * @return safe recorder status
      */
     @Tool(name = "capture_start",
-            description = "starts a privacy-safe SHAFT managed-browser recording with no AI provider")
+            description = "starts a privacy-safe SHAFT managed-browser recording with live browser controls")
     public CaptureStatus start(
             String targetUrl,
             String browser,
             String outputPath,
             boolean headless) {
-        Path output = outputPath == null || outputPath.isBlank()
+        CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
+        request.targetUrl = targetUrl;
+        request.browser = browser;
+        request.outputPath = outputPath;
+        request.headless = headless;
+        return startWithOptions(request);
+    }
+
+    /**
+     * Launches a fresh SHAFT-managed browser with Playwright-codegen-shaped options.
+     *
+     * @param request structured codegen recording request
+     * @return safe recorder status
+     */
+    @Tool(name = "capture_start_codegen",
+            description = "starts SHAFT Capture with Playwright-codegen-compatible options and live browser controls")
+    public CaptureStatus startWithOptions(CaptureCodegenStartRequest request) {
+        CaptureCodegenStartRequest options = request == null ? new CaptureCodegenStartRequest() : request;
+        Path output = options.outputPath == null || options.outputPath.isBlank()
                 ? workspacePolicy.output("recordings/capture-" + FILE_TIME.format(Instant.now()) + ".json",
                 "Capture output path")
-                : workspacePolicy.output(outputPath, "Capture output path");
+                : workspacePolicy.output(options.outputPath, "Capture output path");
         return manager.start(new CaptureStartRequest(
-                targetUrl,
-                browser == null || browser.isBlank()
+                options.targetUrl,
+                options.browser == null || options.browser.isBlank()
                         ? CaptureBrowser.CHROME
-                        : CaptureBrowser.parse(browser),
+                        : CaptureBrowser.parse(options.browser),
                 output,
                 RUNTIME_DIRECTORY,
-                headless));
+                options.headless,
+                new CaptureStartOptions(
+                        options.targetLanguage,
+                        options.testIdAttribute,
+                        options.channel,
+                        options.deviceName,
+                        options.viewportSize,
+                        options.colorScheme,
+                        options.geolocation,
+                        options.ignoreHttpsErrors,
+                        options.blockServiceWorkers,
+                        workspacePath(options.loadStoragePath, "Capture load storage path"),
+                        workspacePath(options.saveStoragePath, "Capture save storage path"),
+                        options.language,
+                        options.timezone,
+                        options.proxyServer,
+                        options.proxyBypass,
+                        workspacePath(options.saveHarPath, "Capture HAR output path"),
+                        options.saveHarGlob,
+                        options.timeoutMillis > 0 ? Duration.ofMillis(options.timeoutMillis) : Duration.ZERO,
+                        options.userAgent,
+                        options.userDataDirectory == null || options.userDataDirectory.isBlank()
+                                ? null
+                                : workspacePolicy.output(options.userDataDirectory, "Capture user data directory"))));
+    }
+
+    /**
+     * Structured request fields for the Playwright-codegen-compatible MCP start tool.
+     */
+    public static final class CaptureCodegenStartRequest {
+        public String targetUrl;
+        public String browser;
+        public String outputPath;
+        public boolean headless;
+        public String targetLanguage;
+        public String testIdAttribute;
+        public String channel;
+        public String deviceName;
+        public String viewportSize;
+        public String colorScheme;
+        public String geolocation;
+        public boolean ignoreHttpsErrors;
+        public boolean blockServiceWorkers;
+        public String loadStoragePath;
+        public String saveStoragePath;
+        public String language;
+        public String timezone;
+        public String proxyServer;
+        public String proxyBypass;
+        public String saveHarPath;
+        public String saveHarGlob;
+        public long timeoutMillis;
+        public String userAgent;
+        public String userDataDirectory;
+    }
+
+    /**
+     * Returns the Playwright codegen feature inventory and SHAFT support mapping.
+     *
+     * @return codegen feature mapping
+     */
+    @Tool(name = "capture_codegen_features",
+            description = "returns Playwright codegen features and how SHAFT Capture/MCP maps each feature")
+    public List<CodegenFeatureCatalog.Feature> codegenFeatures() {
+        return CodegenFeatureCatalog.features();
     }
 
     /**
@@ -99,7 +184,7 @@ public class CaptureService {
      * @return final recorder status
      */
     @Tool(name = "capture_stop",
-            description = "stops SHAFT Capture and optionally discards the local recording")
+            description = "stops SHAFT Capture; after COMPLETED, call capture_code_blocks and ask snippet or insertion")
     public CaptureStatus stop(boolean discard) {
         return manager.stop(discard);
     }
@@ -175,7 +260,7 @@ public class CaptureService {
      * @return generated snippets and report
      */
     @Tool(name = "capture_code_blocks",
-            description = "generates reusable copy-paste SHAFT code blocks from a Capture session")
+            description = "generates a Java full-class snippet plus agent guidance for repo-aware insertion")
     public McpCaptureReplayResult codeBlocks(
             String sessionPath,
             String outputDirectory,
@@ -284,9 +369,15 @@ public class CaptureService {
                 preview,
                 approveEnrichment,
                 new ApprovalPolicy(
-                        allowLocalAi,
-                        allowRemoteAi,
+                        allowLocalAi || aiPreview || applyEnrichment,
+                        allowRemoteAi || aiPreview || applyEnrichment,
                         EnumSet.of(EvidenceCategory.TEXT))));
+    }
+
+    private String workspacePath(String value, String label) {
+        return value == null || value.isBlank()
+                ? ""
+                : workspacePolicy.output(value, label).toString();
     }
 
     private McpCaptureReplayResult replayResult(CaptureGenerationResult result, String driverVariableName) {

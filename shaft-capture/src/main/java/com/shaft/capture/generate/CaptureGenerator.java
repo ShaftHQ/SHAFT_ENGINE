@@ -573,8 +573,11 @@ public final class CaptureGenerator {
         for (CaptureEvent event : session.events()) {
             renderEvent(source, event, targets, elementNames, data);
             for (Checkpoint checkpoint : checkpoints.getOrDefault(event.context().sequence(), List.of())) {
+                String description = checkpoint.description().isBlank()
+                        ? ""
+                        : " " + safeComment(checkpoint.description());
                 line(source, "        // Recorded checkpoint " + safeComment(checkpoint.id())
-                        + " (" + checkpoint.kind() + ").");
+                        + " (" + checkpoint.kind() + ")." + description);
             }
             for (CaptureEnrichmentPreview.AssertionSuggestion assertion :
                     assertions.getOrDefault(event.context().sequence(), List.of())) {
@@ -1072,7 +1075,9 @@ public final class CaptureGenerator {
             boolean overwrite) {
         CaptureGenerationResult result = new CaptureGenerationResult(
                 sourcePath, testDataPath, reportPath, enrichmentPreviewPath, report);
-        writeReviewIfPossible(result.reviewPath(), review(report), overwrite);
+        CaptureReview review = review(report);
+        writeReviewIfPossible(result.reviewPath(), review, overwrite);
+        writeWorkbenchIfPossible(result.reviewUiPath(), sourcePath, report, review, overwrite);
         return result;
     }
 
@@ -1083,6 +1088,19 @@ public final class CaptureGenerator {
             }
         } catch (RuntimeException ignored) {
             // Review output is additive; generation result remains authoritative.
+        }
+    }
+
+    private static void writeWorkbenchIfPossible(
+            Path workbenchPath,
+            Path sourcePath,
+            CaptureGenerationReport report,
+            CaptureReview review,
+            boolean overwrite) {
+        try {
+            CaptureWorkbenchHtml.write(workbenchPath, sourcePath, report, review, overwrite);
+        } catch (RuntimeException ignored) {
+            // Workbench output is additive; generation result remains authoritative.
         }
     }
 

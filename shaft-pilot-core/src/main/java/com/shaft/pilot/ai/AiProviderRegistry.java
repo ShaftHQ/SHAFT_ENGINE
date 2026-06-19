@@ -39,18 +39,27 @@ public final class AiProviderRegistry {
     }
 
     /**
+     * Returns whether the current thread has an embedded provider override.
+     *
+     * @return true when a provider override is registered
+     */
+    public boolean hasExplicitProviderForCurrentThread() {
+        return EXPLICIT_PROVIDER.get() != null;
+    }
+
+    /**
      * Resolves the configured provider using explicit, service, then disabled precedence.
      *
      * @param configuration effective configuration
      * @return resolved provider
      */
     public AiProvider resolve(PilotConfiguration configuration) {
-        if (!configuration.enabled() || "none".equals(configuration.provider())) {
-            return DISABLED_PROVIDER;
-        }
         AiProvider explicit = EXPLICIT_PROVIDER.get();
         if (explicit != null) {
             return explicit;
+        }
+        if (!configuration.enabled() || "none".equals(configuration.provider())) {
+            return DISABLED_PROVIDER;
         }
         List<AiProvider> matches = serviceProviders().stream()
                 .filter(provider -> normalize(provider.id()).equals(configuration.provider()))

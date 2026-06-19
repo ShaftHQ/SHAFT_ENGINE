@@ -33,4 +33,15 @@ public record McpCaptureReplayResult(
         codeBlocks = codeBlocks == null ? List.of() : List.copyOf(codeBlocks);
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
     }
+
+    /**
+     * Returns the local Capture workbench HTML path beside the review artifact.
+     *
+     * @return review UI path
+     */
+    public Path reviewUiPath() {
+        return reviewPath == null
+                ? Path.of("capture-workbench.html")
+                : reviewPath.resolveSibling("capture-workbench.html");
+    }
 }

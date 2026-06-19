@@ -38,12 +38,17 @@ class CaptureServiceTest {
 
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         assertTrue(Files.isRegularFile(result.sourcePath()));
+        assertTrue(Files.isRegularFile(result.reviewUiPath()));
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
                         && block.code().contains("class GoldenSessionTest")));
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.kind() == McpCodeBlock.Kind.TEST_METHOD
                         && block.placement().contains("browser")));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("capture-agent-integration")
+                        && block.code().contains("Page Object")));
+        assertTrue(Files.readString(result.reviewUiPath()).contains("Playwright Codegen Feature Map"));
     }
 
     @Test
@@ -108,6 +113,47 @@ class CaptureServiceTest {
         }
 
         assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void startWithOptionsRejectsUserDataDirectoryOutsideWorkspaceBeforeLaunchingBrowser() throws Exception {
+        Path outside = Files.createTempDirectory("outside-capture-profile");
+
+        CaptureService service = service();
+        CaptureService.CaptureCodegenStartRequest request = new CaptureService.CaptureCodegenStartRequest();
+        request.targetUrl = "https://example.test";
+        request.browser = "chromium";
+        request.outputPath = temp.resolve("capture.json").toString();
+        request.headless = true;
+        request.targetLanguage = "java";
+        request.testIdAttribute = "data-pw";
+        request.viewportSize = "800,600";
+        request.ignoreHttpsErrors = true;
+        request.language = "en-US";
+        request.timeoutMillis = 1000;
+        request.userAgent = "agent";
+        request.userDataDirectory = outside.toString();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.startWithOptions(request));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void codegenFeaturesExposePlaywrightInventory() {
+        CaptureService service = service();
+        try {
+            assertTrue(service.codegenFeatures().stream()
+                    .anyMatch(feature -> feature.playwrightControl().equals("--test-id-attribute")
+                            && feature.shaftSupport().equals("SUPPORTED")));
+        } finally {
+            service.close();
+        }
     }
 
     @Test

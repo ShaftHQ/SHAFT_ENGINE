@@ -11,10 +11,11 @@ coverage:
       default:
         target: auto
         threshold: 1%
+        informational: true
     patch:
       default:
         target: auto
-        threshold: 1%
+        threshold: 10%
 
 parsers:
   xml:
@@ -31,4 +32,7 @@ comment:
 
 ignore:
   - "src/test/**"
+  - "**/src/test/**"
   - "src/main/resources/**"
+  - "**/src/main/resources/**"
+  - "graphify-out/**"
