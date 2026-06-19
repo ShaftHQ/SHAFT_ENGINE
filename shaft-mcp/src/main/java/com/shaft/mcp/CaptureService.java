@@ -64,7 +64,7 @@ public class CaptureService {
      * @return safe recorder status
      */
     @Tool(name = "capture_start",
-            description = "starts a privacy-safe SHAFT managed-browser recording with no AI provider")
+            description = "starts a privacy-safe SHAFT managed-browser recording with live browser controls")
     public CaptureStatus start(
             String targetUrl,
             String browser,
@@ -85,7 +85,7 @@ public class CaptureService {
      * @return safe recorder status
      */
     @Tool(name = "capture_start_codegen",
-            description = "starts SHAFT Capture with Playwright-codegen-compatible browser/session options")
+            description = "starts SHAFT Capture with Playwright-codegen-compatible options and live browser controls")
     public CaptureStatus startWithOptions(CaptureCodegenStartRequest request) {
         CaptureCodegenStartRequest options = request == null ? new CaptureCodegenStartRequest() : request;
         Path output = options.outputPath == null || options.outputPath.isBlank()
@@ -184,7 +184,7 @@ public class CaptureService {
      * @return final recorder status
      */
     @Tool(name = "capture_stop",
-            description = "stops SHAFT Capture and optionally discards the local recording")
+            description = "stops SHAFT Capture; after COMPLETED, call capture_code_blocks and ask snippet or insertion")
     public CaptureStatus stop(boolean discard) {
         return manager.stop(discard);
     }
@@ -260,7 +260,7 @@ public class CaptureService {
      * @return generated snippets and report
      */
     @Tool(name = "capture_code_blocks",
-            description = "generates reusable copy-paste SHAFT code blocks from a Capture session")
+            description = "generates a Java full-class snippet plus agent guidance for repo-aware insertion")
     public McpCaptureReplayResult codeBlocks(
             String sessionPath,
             String outputDirectory,

@@ -68,6 +68,9 @@ final class McpCaptureCodeBlockService {
                 List.of(),
                 """
                         The calling AI agent may use its own LLM and repository access to integrate this capture.
+                        After capture_stop, present the generated result and ask the user to choose either a Java
+                        snippet or repository insertion. Snippet mode should show the capture-full-class block as a
+                        fenced java class with imports, locator fields, setup, actions, and teardown.
                         If the project has Page Object classes, move stable locator fields into the matching page class,
                         place the action lines into page methods, and keep the test method as orchestration only.
                         Preserve repository instructions, naming, setup/teardown, and existing test data conventions.

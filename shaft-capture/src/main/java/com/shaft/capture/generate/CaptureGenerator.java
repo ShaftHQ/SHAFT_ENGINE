@@ -573,8 +573,11 @@ public final class CaptureGenerator {
         for (CaptureEvent event : session.events()) {
             renderEvent(source, event, targets, elementNames, data);
             for (Checkpoint checkpoint : checkpoints.getOrDefault(event.context().sequence(), List.of())) {
+                String description = checkpoint.description().isBlank()
+                        ? ""
+                        : " " + safeComment(checkpoint.description());
                 line(source, "        // Recorded checkpoint " + safeComment(checkpoint.id())
-                        + " (" + checkpoint.kind() + ").");
+                        + " (" + checkpoint.kind() + ")." + description);
             }
             for (CaptureEnrichmentPreview.AssertionSuggestion assertion :
                     assertions.getOrDefault(event.context().sequence(), List.of())) {

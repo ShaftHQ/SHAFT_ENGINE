@@ -115,6 +115,40 @@ class DoctorServiceTest {
     }
 
     @Test
+    void agentDoctorAdvisoryIsReturnedWhenMcpUseAiHasNoConfiguredProvider(@TempDir Path temp) throws Exception {
+        Path input = Files.createDirectories(temp.resolve("agent-allure-results"));
+        Files.writeString(input.resolve("agent-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "agent",
+                "historyId", "agent",
+                "name", "agent",
+                "fullName", "example.Agent.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "TimeoutException: condition failed to be met",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+
+        var analysis = service(temp).analyzeFailedAllure(
+                List.of(input.toString()),
+                List.of(),
+                temp.resolve("agent-doctor-output").toString(),
+                false,
+                false,
+                1,
+                "",
+                List.of(),
+                true,
+                false,
+                false,
+                "driver");
+
+        assertTrue(analysis.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("agent-doctor-advisory")
+                        && block.title().contains("Agent LLM repair handoff")), analysis.codeBlocks().toString());
+    }
+
+    @Test
     void documentedExternalClientsInvokeDoctorAnalyzeWithoutCredentials() throws Exception {
         Path root = repositoryRoot();
         String json = Files.readString(root.resolve(

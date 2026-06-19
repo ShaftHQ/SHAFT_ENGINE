@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -57,6 +58,8 @@ class ManagedCaptureRecorder {
     private CaptureSessionStore store;
     private CaptureEventPipeline pipeline;
     private String currentUrl;
+    private volatile boolean paused;
+    private volatile boolean uiStopRequested;
 
     ManagedCaptureRecorder(CaptureStartRequest request) {
         this(request, CapturePrivacyPolicy.defaults());
@@ -124,7 +127,7 @@ class ManagedCaptureRecorder {
         }
     }
 
-    CaptureStatus status() {
+    synchronized CaptureStatus status() {
         return new CaptureStatus(
                 state,
                 sessionId,
@@ -138,12 +141,12 @@ class ManagedCaptureRecorder {
                 startedAt);
     }
 
-    void checkpoint(String description, Checkpoint.CheckpointKind kind) {
+    synchronized void checkpoint(String description, Checkpoint.CheckpointKind kind) {
         ensureActive();
         pipeline.checkpoint(description, kind);
     }
 
-    CaptureStatus stop(boolean discard) {
+    synchronized CaptureStatus stop(boolean discard) {
         if (state != CaptureStatus.State.ACTIVE && state != CaptureStatus.State.STOPPING) {
             return status();
         }
@@ -164,7 +167,7 @@ class ManagedCaptureRecorder {
         return status();
     }
 
-    CaptureStatus interrupt() {
+    synchronized CaptureStatus interrupt() {
         closeCollectorAndPipeline();
         closeBrowser();
         if (store != null) {
@@ -185,7 +188,7 @@ class ManagedCaptureRecorder {
         return status();
     }
 
-    boolean isBrowserAlive() {
+    synchronized boolean isBrowserAlive() {
         if (driver == null || state != CaptureStatus.State.ACTIVE) {
             return false;
         }
@@ -281,14 +284,54 @@ class ManagedCaptureRecorder {
             collector = new CompositeBrowserEventCollector(List.of(
                     new BidiBrowserEventCollector(activeDriver, request.options().testIdAttributes()),
                     new PollingBrowserEventCollector(activeDriver, false, request.options().testIdAttributes())));
-            collector.start(pipeline::accept, this::warn);
+            collector.start(this::acceptSignal, this::warn);
         } catch (RuntimeException exception) {
             if (collector != null) {
                 collector.close();
             }
             warn("WebDriver BiDi initialization failed; the compatibility listener will be used.");
             collector = new PollingBrowserEventCollector(activeDriver, true, request.options().testIdAttributes());
-            collector.start(pipeline::accept, this::warn);
+            collector.start(this::acceptSignal, this::warn);
+        }
+    }
+
+    private void acceptSignal(BrowserSignal signal) {
+        if (signal == null) {
+            return;
+        }
+        switch (signal.kind()) {
+            case "control" -> handleControl(signal);
+            case "checkpoint" -> handleCheckpoint(signal);
+            default -> {
+                if (!paused && pipeline != null) {
+                    pipeline.accept(signal);
+                }
+            }
+        }
+    }
+
+    private void handleControl(BrowserSignal signal) {
+        String action = signal.dataString("action").trim().toUpperCase(Locale.ROOT);
+        switch (action) {
+            case "PAUSE" -> paused = true;
+            case "RESUME" -> paused = false;
+            case "STOP" -> {
+                if (!uiStopRequested) {
+                    uiStopRequested = true;
+                    stop(false);
+                }
+            }
+            default -> warn("An unknown browser recording control was ignored.");
+        }
+    }
+
+    private void handleCheckpoint(BrowserSignal signal) {
+        String description = signal.dataString("description");
+        Checkpoint.CheckpointKind kind = checkpointKind(signal.dataString("kind"));
+        try {
+            checkpoint(description.isBlank() ? "Captured browser checkpoint" : description, kind);
+        } catch (IllegalStateException exception) {
+            warn("A browser checkpoint was ignored because capture is not active.");
         }
     }
 
@@ -421,6 +464,15 @@ class ManagedCaptureRecorder {
 
     private static String value(Object value, String fallback) {
         return value == null || String.valueOf(value).isBlank() ? fallback : String.valueOf(value);
+    }
+
+    private static Checkpoint.CheckpointKind checkpointKind(String value) {
+        try {
+            return Checkpoint.CheckpointKind.valueOf(
+                    value == null ? "" : value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return Checkpoint.CheckpointKind.USER_MARKER;
+        }
     }
 
     private static final class ProfileCleanupException extends RuntimeException {

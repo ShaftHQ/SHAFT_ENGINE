@@ -42,6 +42,7 @@ class CaptureGeneratorTest {
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 first.report().compilation().status());
         assertTrue(Files.isRegularFile(first.reviewPath()));
+        assertTrue(Files.isRegularFile(first.reviewUiPath()));
         var review = JSON.readTree(first.reviewPath().toFile());
         assertEquals("1.0", review.path("schemaVersion").asText());
         assertEquals(first.report().sessionId(), review.path("sessionId").asText());
@@ -70,6 +71,10 @@ class CaptureGeneratorTest {
         assertFalse(source.contains("alice"));
         assertTrue(data.contains("\"username\" : \"alice\""));
         assertFalse(data.toLowerCase().contains("password"));
+        String workbench = Files.readString(first.reviewUiPath());
+        assertTrue(workbench.contains("Build record command"));
+        assertTrue(workbench.contains("Playwright Codegen Feature Map"));
+        assertTrue(workbench.contains("capture checkpoint"));
 
     }
 

@@ -50,7 +50,7 @@ public class Session1Test {
         driver.alert().typeIntoPromptAlert(requiredData("username"));
         driver.element().waitUntil(ExpectedConditions.visibilityOfElementLocated(USERNAME_INPUT_LOCATOR), java.time.Duration.ofSeconds(10));
         driver.assertThat().element(USERNAME_INPUT_LOCATOR).text().isEqualTo(requiredData("username")).perform();
-        // Recorded checkpoint checkpoint-1 (ASSERTION).
+        // Recorded checkpoint checkpoint-1 (ASSERTION). Form completed
     }
 
     private String requiredData(String key) {
