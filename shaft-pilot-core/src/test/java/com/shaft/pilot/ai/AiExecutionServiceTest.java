@@ -19,7 +19,7 @@ class AiExecutionServiceTest {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     @Test
-    void disabledConfigurationPerformsNoProviderCall() {
+    void disabledConfigurationStillRequiresRequestApprovalBeforeExplicitProviderCall() {
         StubProvider provider = new StubProvider(ProcessingLocation.REMOTE);
         AiProviderRegistry registry = new AiProviderRegistry();
         registry.registerForCurrentThread(provider);
@@ -28,8 +28,24 @@ class AiExecutionServiceTest {
 
             AiResponse response = service.execute(request(ApprovalPolicy.denyAll()));
 
-            assertEquals(AiResponseStatus.DISABLED, response.status());
+            assertEquals(AiResponseStatus.CONSENT_REQUIRED, response.status());
             assertEquals(0, provider.calls.get());
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    void explicitProviderCanRunWhenUserConfigurationIsDisabled() {
+        StubProvider provider = new StubProvider(ProcessingLocation.REMOTE);
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(provider);
+        try {
+            AiResponse response = service(registry, PilotTestConfiguration.disabled())
+                    .execute(request(approved(ProcessingLocation.REMOTE)));
+
+            assertEquals(AiResponseStatus.SUCCESS, response.status());
+            assertEquals(1, provider.calls.get());
         } finally {
             registry.clearForCurrentThread();
         }

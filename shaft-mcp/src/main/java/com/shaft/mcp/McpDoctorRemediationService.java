@@ -167,15 +167,15 @@ final class McpDoctorRemediationService {
             ApprovalPolicy approvalPolicy,
             List<McpCodeBlock> deterministicBlocks) {
         List<String> warnings = new ArrayList<>();
-        ObjectNode fallback = JSON.createObjectNode();
-        fallback.put("schemaVersion", "1.0");
-        fallback.set("codeBlocks", JSON.valueToTree(deterministicBlocks));
+        ObjectNode deterministicFallback = JSON.createObjectNode();
+        deterministicFallback.put("schemaVersion", "1.0");
+        deterministicFallback.set("codeBlocks", JSON.valueToTree(deterministicBlocks));
         AiRequest.Builder builder = AiRequest.builder("shaft-mcp-doctor-remediation", providerSchema())
                 .text(providerPrompt(result.diagnosis()))
                 .timeout(Duration.ofSeconds(30))
                 .budget(new AiBudget(12_000, 2_000, BigDecimal.ZERO))
                 .approvalPolicy(approvalPolicy == null ? ApprovalPolicy.denyAll() : approvalPolicy)
-                .deterministicFallback(fallback);
+                .deterministicFallback(deterministicFallback);
         result.bundle().evidence().stream()
                 .filter(item -> item.category() == com.shaft.doctor.model.EvidenceCategory.EXCEPTION_CHAIN
                         || item.category() == com.shaft.doctor.model.EvidenceCategory.ALLURE_RESULT
@@ -197,13 +197,14 @@ final class McpDoctorRemediationService {
                     "AI fallback failed before returning a response.", warnings));
         }
         if (response == null || !response.successful()) {
-            return new ProviderBlocks(List.of(), new McpProviderFallback(
+            McpProviderFallback fallback = new McpProviderFallback(
                     true, false,
                     response == null ? AiResponseStatus.ERROR : response.status(),
                     response == null ? "" : response.provider(),
                     response == null ? "" : response.model(),
                     response == null ? "AI fallback returned no response." : response.fallbackReason(),
-                    warnings));
+                    warnings);
+            return new ProviderBlocks(List.of(agentDelegationBlock(result.diagnosis())), fallback);
         }
         List<McpCodeBlock> accepted = acceptedProviderBlocks(response.structuredPayload(), result.bundle(), warnings);
         return new ProviderBlocks(accepted, new McpProviderFallback(
@@ -214,6 +215,27 @@ final class McpDoctorRemediationService {
                 response.model(),
                 accepted.isEmpty() ? "AI fallback returned no accepted cited code blocks." : "",
                 warnings));
+    }
+
+    private static McpCodeBlock agentDelegationBlock(Diagnosis diagnosis) {
+        return new McpCodeBlock(
+                "agent-doctor-advisory",
+                "Agent LLM repair handoff",
+                McpCodeBlock.Kind.PROVIDER_ADVISORY,
+                "text",
+                List.of(),
+                """
+                        The configured SHAFT AI provider was unavailable, but this MCP call is an implicit agent
+                        approval boundary. Use the calling agent's own LLM with the deterministic diagnosis and cited
+                        evidence already returned by this tool. Propose only repository-local edits supported by cited
+                        evidence, preserve existing test patterns, and keep the patch minimal.
+
+                        Diagnosis: %s
+                        """.formatted(diagnosis.summary()),
+                "AI agent: inspect cited evidence and repository files, then propose the smallest supported fix.",
+                true,
+                evidenceIds(diagnosis),
+                List.of());
     }
 
     private static List<EvidenceReference> sourceEvidence(

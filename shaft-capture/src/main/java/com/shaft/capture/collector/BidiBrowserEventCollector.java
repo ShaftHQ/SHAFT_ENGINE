@@ -18,6 +18,7 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
     private static final String CHANNEL = "shaft-capture";
 
     private final WebDriver driver;
+    private final List<String> testIdAttributes;
     private final Map<String, String> promptTypes = new ConcurrentHashMap<>();
     private Script script;
     private BrowsingContextInspector contexts;
@@ -29,10 +30,21 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
      * @param driver BiDi-capable driver
      */
     public BidiBrowserEventCollector(WebDriver driver) {
+        this(driver, List.of());
+    }
+
+    /**
+     * Creates a BiDi collector.
+     *
+     * @param driver BiDi-capable driver
+     * @param testIdAttributes locator test-id attributes
+     */
+    public BidiBrowserEventCollector(WebDriver driver, List<String> testIdAttributes) {
         if (driver == null) {
             throw new IllegalArgumentException("Capture WebDriver is required.");
         }
         this.driver = driver;
+        this.testIdAttributes = testIdAttributes == null ? List.of() : List.copyOf(testIdAttributes);
     }
 
     @Override
@@ -54,7 +66,7 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
             }
         });
         preloadId = script.addPreloadScript(
-                BrowserEventScript.preloadFunction(),
+                BrowserEventScript.preloadFunction(testIdAttributes),
                 List.of(new ChannelValue(CHANNEL)));
 
         contexts = new BrowsingContextInspector(driver);

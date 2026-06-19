@@ -5,6 +5,7 @@
   globalThis.__shaftCaptureInstalled = true;
   globalThis.__shaftCaptureQueue = globalThis.__shaftCaptureQueue || [];
 
+  const testIdAttributes = ["data-testid", "data-test", "data-qa"];
   const text = value => String(value || "").replace(/\s+/g, " ").trim().slice(0, 500);
   const dynamic = value =>
     /[0-9]{8,}/.test(value || "") ||
@@ -114,7 +115,7 @@
     if (role && name) add("ROLE", `${role}:${name}`, "", true, ["ACCESSIBLE"]);
     const targetLabel = label(element);
     if (targetLabel) add("LABEL", targetLabel, "", true, ["ACCESSIBLE", "LABEL_ASSOCIATED"]);
-    ["data-testid", "data-test", "data-qa"].forEach(attribute => {
+    testIdAttributes.forEach(attribute => {
       const value = element.getAttribute(attribute);
       if (value) {
         const selector = `[${attribute}="${cssEscape(value)}"]`;

@@ -36,4 +36,13 @@ public record CaptureGenerationResult(
                 ? Path.of("capture-review.json")
                 : reportPath.getParent().resolve("capture-review.json");
     }
+
+    /**
+     * Returns the local Capture workbench HTML path beside the review artifact.
+     *
+     * @return review UI artifact path
+     */
+    public Path reviewUiPath() {
+        return reviewPath().resolveSibling("capture-workbench.html");
+    }
 }

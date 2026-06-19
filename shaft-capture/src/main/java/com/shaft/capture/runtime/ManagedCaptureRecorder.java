@@ -15,6 +15,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.HasCapabilities;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.MutableCapabilities;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,7 @@ class ManagedCaptureRecorder {
     private final Instant startedAt = Instant.now();
     private final List<String> warnings = new CopyOnWriteArrayList<>();
     private final Path profileDirectory;
+    private final boolean temporaryProfileDirectory;
     private CaptureStatus.State state = CaptureStatus.State.STARTING;
     private SHAFT.GUI.WebDriver shaftDriver;
     private WebDriver driver;
@@ -66,10 +69,13 @@ class ManagedCaptureRecorder {
         this.request = request;
         this.privacyPolicy = privacyPolicy == null ? CapturePrivacyPolicy.defaults() : privacyPolicy;
         Path profilesRoot = request.runtimeDirectory().resolve("profiles").toAbsolutePath().normalize();
-        profileDirectory = profilesRoot.resolve(sessionId).normalize();
-        if (!profileDirectory.startsWith(profilesRoot)) {
+        Path requestedProfile = request.options().userDataDirectory();
+        profileDirectory = requestedProfile == null ? profilesRoot.resolve(sessionId).normalize() : requestedProfile;
+        temporaryProfileDirectory = requestedProfile == null;
+        if (temporaryProfileDirectory && !profileDirectory.startsWith(profilesRoot)) {
             throw new IllegalArgumentException("Capture profile directory escaped the runtime root.");
         }
+        warnings.addAll(request.options().warnings());
         currentUrl = new CapturePrivacyClassifier(this.privacyPolicy)
                 .sanitizeUrl(request.targetUrl()).value();
     }
@@ -82,6 +88,7 @@ class ManagedCaptureRecorder {
             configureShaft();
             shaftDriver = new SHAFT.GUI.WebDriver(request.browser().driverType(), browserOptions());
             driver = shaftDriver.getDriver();
+            applyRuntimeOptions();
             store = new CaptureSessionStore(request.outputPath());
             store.start(CaptureSession.start(
                     sessionId,
@@ -97,7 +104,8 @@ class ManagedCaptureRecorder {
             driver.navigate().to(request.targetUrl());
             if (driver instanceof JavascriptExecutor javascript) {
                 javascript.executeScript(
-                        com.shaft.capture.collector.BrowserEventScript.fallbackInstallation());
+                        com.shaft.capture.collector.BrowserEventScript.fallbackInstallation(
+                                request.options().testIdAttributes()));
             }
             pipeline.accept(BrowserSignal.generated(
                     "navigation",
@@ -221,30 +229,65 @@ class ManagedCaptureRecorder {
 
     private MutableCapabilities browserOptions() {
         String profileArgument = "--user-data-dir=" + profileDirectory;
+        List<String> arguments = new ArrayList<>();
+        arguments.add(profileArgument);
+        arguments.add("--profile-directory=Default");
+        if (!request.options().userAgent().isBlank()) {
+            arguments.add("--user-agent=" + request.options().userAgent());
+        }
+        if (!request.options().language().isBlank()) {
+            arguments.add("--lang=" + request.options().language());
+        }
+        if (!request.options().proxyServer().isBlank()) {
+            arguments.add("--proxy-server=" + request.options().proxyServer());
+        }
+        if (!request.options().proxyBypass().isBlank()) {
+            arguments.add("--proxy-bypass-list=" + request.options().proxyBypass());
+        }
         if (request.browser() == CaptureBrowser.EDGE) {
             EdgeOptions options = new EdgeOptions();
-            options.addArguments(profileArgument, "--profile-directory=Default");
+            options.addArguments(arguments);
+            options.setAcceptInsecureCerts(request.options().ignoreHttpsErrors());
             options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
             return options;
         }
         ChromeOptions options = new ChromeOptions();
-        options.addArguments(profileArgument, "--profile-directory=Default");
+        options.addArguments(arguments);
+        options.setAcceptInsecureCerts(request.options().ignoreHttpsErrors());
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
         return options;
+    }
+
+    private void applyRuntimeOptions() {
+        CaptureStartOptions.Viewport viewport = request.options().viewport();
+        if (viewport != null) {
+            try {
+                driver.manage().window().setSize(new Dimension(viewport.width(), viewport.height()));
+            } catch (WebDriverException exception) {
+                warn("Requested capture viewport size could not be applied.");
+            }
+        }
+        if (!request.options().timeout().isZero()) {
+            try {
+                driver.manage().timeouts().pageLoadTimeout(request.options().timeout());
+            } catch (WebDriverException exception) {
+                warn("Requested capture timeout could not be applied.");
+            }
+        }
     }
 
     private void startCollector(WebDriver activeDriver) {
         try {
             collector = new CompositeBrowserEventCollector(List.of(
-                    new BidiBrowserEventCollector(activeDriver),
-                    new PollingBrowserEventCollector(activeDriver, false)));
+                    new BidiBrowserEventCollector(activeDriver, request.options().testIdAttributes()),
+                    new PollingBrowserEventCollector(activeDriver, false, request.options().testIdAttributes())));
             collector.start(pipeline::accept, this::warn);
         } catch (RuntimeException exception) {
             if (collector != null) {
                 collector.close();
             }
             warn("WebDriver BiDi initialization failed; the compatibility listener will be used.");
-            collector = new PollingBrowserEventCollector(activeDriver);
+            collector = new PollingBrowserEventCollector(activeDriver, true, request.options().testIdAttributes());
             collector.start(pipeline::accept, this::warn);
         }
     }
@@ -267,6 +310,14 @@ class ManagedCaptureRecorder {
             putCapability(safeCapabilities, "webSocketUrl",
                     capabilities.getCapability("webSocketUrl") == null ? null : "enabled");
         }
+        putCapability(safeCapabilities, "shaft:targetLanguage", request.options().targetLanguage());
+        putCapability(safeCapabilities, "shaft:testIdAttribute", request.options().testIdAttribute());
+        putCapability(safeCapabilities, "shaft:viewportSize", request.options().viewportSize());
+        putCapability(safeCapabilities, "shaft:language", request.options().language());
+        putCapability(safeCapabilities, "shaft:proxyServer", request.options().proxyServer().isBlank()
+                ? null : "configured");
+        putCapability(safeCapabilities, "shaft:userDataDir", request.options().userDataDirectory() == null
+                ? null : "configured");
         return new BrowserMetadata(
                 browserName,
                 browserVersion,
@@ -308,6 +359,9 @@ class ManagedCaptureRecorder {
     }
 
     private void cleanupProfile() {
+        if (!temporaryProfileDirectory) {
+            return;
+        }
         Path profilesRoot = request.runtimeDirectory().resolve("profiles").toAbsolutePath().normalize();
         if (!profileDirectory.startsWith(profilesRoot)) {
             warn("The temporary browser profile path was rejected during cleanup.");

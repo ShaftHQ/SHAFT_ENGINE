@@ -9,11 +9,13 @@ import com.shaft.capture.control.CaptureControlServer;
 import com.shaft.capture.generate.CaptureGenerationRequest;
 import com.shaft.capture.generate.CaptureGenerationResult;
 import com.shaft.capture.generate.CaptureGenerator;
+import com.shaft.capture.generate.CodegenFeatureCatalog;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.privacy.CapturePrivacyClassifier;
 import com.shaft.capture.runtime.CaptureBrowser;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStartRequest;
+import com.shaft.capture.runtime.CaptureStartOptions;
 import com.shaft.capture.runtime.CaptureStatus;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
@@ -99,6 +101,7 @@ public final class CaptureCli {
                 case "stop" -> stop(options);
                 case "checkpoint" -> checkpoint(options);
                 case "generate" -> generate(options);
+                case "features" -> features();
                 case "daemon" -> daemon(options);
                 default -> throw new IllegalArgumentException(usage());
             };
@@ -125,7 +128,8 @@ public final class CaptureCli {
                 browser,
                 output,
                 runtime,
-                options.flag("headless"));
+                options.flag("headless"),
+                startOptions(options));
         var safeUrl = new CapturePrivacyClassifier().sanitizeUrl(url).value();
         files.writeStatus(new CaptureStatus(
                 CaptureStatus.State.STARTING,
@@ -212,6 +216,11 @@ public final class CaptureCli {
                 approval));
         print(result);
         return result.successful() ? 0 : 1;
+    }
+
+    private static int features() {
+        printJson(CodegenFeatureCatalog.features(), "Capture feature inventory could not be serialized.");
+        return 0;
     }
 
     private static int daemon(Arguments options) {
@@ -395,14 +404,45 @@ public final class CaptureCli {
     }
 
     private static String usage() {
-        return "Usage: capture start --url <url> [--browser chrome|edge] [--output <path>] "
-                + "[--runtime-dir <path>] [--headless] | status | stop [--discard] | "
+        return "Usage: capture start --url <url> [--browser chrome|chromium|edge] [--output <path>] "
+                + "[--runtime-dir <path>] [--headless] [--viewport-size <width,height>] "
+                + "[--test-id-attribute <name>] [--user-agent <value>] [--user-data-dir <path>] "
+                + "[--lang <locale>] [--proxy-server <url>] [--proxy-bypass <list>] "
+                + "[--ignore-https-errors] | status | stop [--discard] | "
                 + "checkpoint --description <text> [--kind USER_MARKER|ASSERTION|PAGE_TRANSITION|RECOVERY] | "
                 + "generate --session <capture.json> [--output-dir <path>] [--package <name>] "
                 + "[--class-name <name>] [--overwrite] [--skip-compile] [--replay] "
                 + "[--replay-timeout-seconds <seconds>] [--ai-preview --allow-local-ai|--allow-remote-ai] "
                 + "[--enrichment-preview <path>] "
-                + "[--apply-enrichment <path> --approve-enrichment]";
+                + "[--apply-enrichment <path> --approve-enrichment] | features";
+    }
+
+    private static CaptureStartOptions startOptions(Arguments options) {
+        return new CaptureStartOptions(
+                options.value("target", ""),
+                options.value("test-id-attribute", ""),
+                options.value("channel", ""),
+                options.value("device", ""),
+                options.value("viewport-size", ""),
+                options.value("color-scheme", ""),
+                options.value("geolocation", ""),
+                options.flag("ignore-https-errors"),
+                options.flag("block-service-workers"),
+                options.value("load-storage", ""),
+                options.value("save-storage", ""),
+                options.value("lang", ""),
+                options.value("timezone", ""),
+                options.value("proxy-server", ""),
+                options.value("proxy-bypass", ""),
+                options.value("save-har", ""),
+                options.value("save-har-glob", ""),
+                options.values().containsKey("timeout")
+                        ? Duration.ofMillis(parsePositiveLong(options.value("timeout", "0"), "timeout"))
+                        : Duration.ZERO,
+                options.value("user-agent", ""),
+                options.values().containsKey("user-data-dir")
+                        ? Path.of(options.value("user-data-dir", ""))
+                        : null);
     }
 
     private static long parsePositiveLong(String value, String option) {
@@ -437,7 +477,9 @@ public final class CaptureCli {
                         "ai-preview",
                         "approve-enrichment",
                         "allow-local-ai",
-                        "allow-remote-ai").contains(name)) {
+                        "allow-remote-ai",
+                        "ignore-https-errors",
+                        "block-service-workers").contains(name)) {
                     flags.add(name);
                 } else {
                     if (index + 1 >= args.length || args[index + 1].startsWith("--")) {

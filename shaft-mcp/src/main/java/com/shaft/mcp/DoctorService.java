@@ -109,7 +109,7 @@ public class DoctorService {
                 repository,
                 sourceAllowlist,
                 useAi,
-                approvalPolicy(allowLocalAi, allowRemoteAi, !sourceAllowlist.isEmpty()),
+                approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
                 driverVariableName);
     }
 
@@ -148,7 +148,7 @@ public class DoctorService {
                 repository,
                 sourceAllowlist,
                 useAi,
-                approvalPolicy(allowLocalAi, allowRemoteAi, !sourceAllowlist.isEmpty()),
+                approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
                 driverVariableName);
     }
 

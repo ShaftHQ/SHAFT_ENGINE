@@ -26,6 +26,7 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
 
     private final WebDriver driver;
     private final boolean reportFallbackWarning;
+    private final List<String> testIdAttributes;
     private final ObjectMapper mapper = new ObjectMapper();
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "shaft-capture-polling");
@@ -42,7 +43,7 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
      * @param driver active driver
      */
     public PollingBrowserEventCollector(WebDriver driver) {
-        this(driver, true);
+        this(driver, true, List.of());
     }
 
     /**
@@ -52,11 +53,26 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
      * @param reportFallbackWarning whether status should report reduced BiDi coverage
      */
     public PollingBrowserEventCollector(WebDriver driver, boolean reportFallbackWarning) {
+        this(driver, reportFallbackWarning, List.of());
+    }
+
+    /**
+     * Creates a classic WebDriver collector.
+     *
+     * @param driver active driver
+     * @param reportFallbackWarning whether status should report reduced BiDi coverage
+     * @param testIdAttributes locator test-id attributes
+     */
+    public PollingBrowserEventCollector(
+            WebDriver driver,
+            boolean reportFallbackWarning,
+            List<String> testIdAttributes) {
         if (driver == null) {
             throw new IllegalArgumentException("Capture WebDriver is required.");
         }
         this.driver = driver;
         this.reportFallbackWarning = reportFallbackWarning;
+        this.testIdAttributes = testIdAttributes == null ? List.of() : List.copyOf(testIdAttributes);
     }
 
     @Override
@@ -106,7 +122,7 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
             }
 
             JavascriptExecutor javascript = (JavascriptExecutor) driver;
-            javascript.executeScript(BrowserEventScript.fallbackInstallation());
+            javascript.executeScript(BrowserEventScript.fallbackInstallation(testIdAttributes));
             Object drained = javascript.executeScript(BrowserEventScript.fallbackDrain());
             if (drained instanceof List<?> signals) {
                 for (Object item : signals) {

@@ -52,10 +52,32 @@ final class McpCaptureCodeBlockService {
                         List.of(),
                         List.of("Generated helper fields or test data references may also be needed.")));
             }
+            blocks.add(agentIntegrationBlock());
             return List.copyOf(blocks);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Generated Capture source could not be read.", exception);
         }
+    }
+
+    private static McpCodeBlock agentIntegrationBlock() {
+        return new McpCodeBlock(
+                "capture-agent-integration",
+                "Agent repository integration plan",
+                McpCodeBlock.Kind.PROVIDER_ADVISORY,
+                "text",
+                List.of(),
+                """
+                        The calling AI agent may use its own LLM and repository access to integrate this capture.
+                        If the project has Page Object classes, move stable locator fields into the matching page class,
+                        place the action lines into page methods, and keep the test method as orchestration only.
+                        Preserve repository instructions, naming, setup/teardown, and existing test data conventions.
+                        Apply the smallest source edit that compiles; do not paste a generic generated class when a
+                        local Page Object pattern is already present.
+                        """,
+                "AI agent: inspect the current codebase, then insert the generated code into the most relevant classes.",
+                true,
+                List.of(),
+                List.of());
     }
 
     private static List<String> imports(String source) {
