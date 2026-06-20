@@ -51,9 +51,6 @@ import static java.util.Arrays.asList;
  */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
-    private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
-    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = SHAFT.Properties.reporting.captureElementName();
-
     public TouchActions() {
         initialize();
     }
@@ -428,8 +425,33 @@ public class TouchActions extends FluentWebDriverAction {
         return swipeElementIntoView(null, targetElementLocator, swipeDirection);
     }
 
-    //TODO: swipeToEndOfView(SwipeDirection swipeDirection)
-    //TODO: waitUntilElementIsNotVisible(String elementReferenceScreenshot)
+    /**
+     * Swipes until the current view can no longer scroll in the requested direction.
+     *
+     * @param swipeDirection SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeToEndOfView(SwipeDirection swipeDirection) {
+        return swipeToEndOfView(null, swipeDirection);
+    }
+
+    /**
+     * Swipes inside a scrollable element until it can no longer scroll in the requested direction.
+     *
+     * @param scrollableElementLocator the locator of the scrollable element, or {@code null} for the whole view
+     * @param swipeDirection SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeToEndOfView(By scrollableElementLocator, SwipeDirection swipeDirection) {
+        try {
+            swipeToEndOfViewInternal(scrollableElementLocator, swipeDirection);
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), scrollableElementLocator,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), scrollableElementLocator, throwable);
+        }
+        return this;
+    }
 
     /**
      * Waits until a specific element is now visible on the current screen
@@ -456,6 +478,38 @@ public class TouchActions extends FluentWebDriverAction {
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
         } else {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
+        }
+        return this;
+    }
+
+    /**
+     * Waits until a specific reference image is no longer visible on the current screen.
+     *
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("unchecked")
+    public TouchActions waitUntilElementIsNotVisible(String elementReferenceScreenshot) {
+        var visualIdentificationObjects = elementActionsHelper.waitForElementInvisibility(driverFactoryHelper.getDriver(), elementReferenceScreenshot);
+        byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
+        byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
+        List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+
+        var screenshotManager = new ScreenshotManager();
+        var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "waitUntilElementIsNotVisible - Current Screen Image");
+        var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "waitUntilElementIsNotVisible - Reference Screenshot");
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(referenceScreenshot);
+        attachments.add(screenshot);
+
+        if (Collections.emptyList().equals(coordinates)) {
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+        } else {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(),
+                    "Reference element is still visible on the current screen or the reference image is missing: \""
+                            + elementReferenceScreenshot + "\".",
+                    null, attachments);
         }
         return this;
     }
@@ -643,20 +697,10 @@ public class TouchActions extends FluentWebDriverAction {
             // element is already on screen
             ReportManager.logDiscrete("Element found on screen.");
         } else {
-            attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
+            swipeToEndOfViewInternal(scrollableElementLocator, swipeDirection);
+            visualIdentificationObjects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
         }
         return visualIdentificationObjects;
-    }
-
-    private void attemptUISelectorScroll(SwipeDirection swipeDirection, int scrollableElementInstanceNumber) {
-        ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
-        int scrollingSpeed = 100;
-        String scrollDirection = "Forward";
-        ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
-        By androidUIAutomator = AppiumBy
-                .androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance("
-                        + scrollableElementInstanceNumber + ")).scroll" + scrollDirection + "(" + scrollingSpeed + ")");
-        elementActionsHelper.getElementsCount(driverFactoryHelper.getDriver(), androidUIAutomator);
     }
 
     private HashMap<Object, Object> prepareParameters(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
@@ -720,6 +764,19 @@ public class TouchActions extends FluentWebDriverAction {
             canScrollMore = ret == null || (Boolean) ret;
         }
         return canScrollMore;
+    }
+
+    private void swipeToEndOfViewInternal(By scrollableElementLocator, SwipeDirection swipeDirection) {
+        if (!(driverFactoryHelper.getDriver() instanceof AppiumDriver)) {
+            throw new UnsupportedCommandException("swipeToEndOfView is supported only for Appium drivers.");
+        }
+        var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, null);
+        AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
+            elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeToEndOfView", null, true);
+            canScrollMore.set(performW3cCompliantScroll(scrollParameters));
+            return !canScrollMore.get();
+        });
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {

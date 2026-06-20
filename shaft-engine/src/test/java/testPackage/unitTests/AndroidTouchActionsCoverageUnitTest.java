@@ -210,16 +210,17 @@ public class AndroidTouchActionsCoverageUnitTest {
         byte[] validPng = getValidPngBytes();
 
         AndroidDriver androidDriver = createMockAndroidDriver();
-        when(androidDriver.findElements(isNull())).thenReturn(List.of(mock(WebElement.class)));
+        doReturn(true).doReturn(false).when(androidDriver).executeScript(eq("mobile: scrollGesture"), anyMap());
         TouchActions nativeTouchActions = new TouchActions(androidDriver);
         ElementActionsHelper nativeElementActionsHelper = mock(ElementActionsHelper.class);
         when(nativeElementActionsHelper.waitForElementPresence(androidDriver, "native-missing.png"))
-                .thenReturn(List.of(validPng, validPng, List.of()));
+                .thenReturn(List.of(validPng, validPng, List.of()))
+                .thenReturn(List.of(validPng, validPng, List.of(30, 40)));
         when(nativeElementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
         injectElementActionsHelper(nativeTouchActions, nativeElementActionsHelper);
 
         nativeTouchActions.swipeElementIntoView(null, "native-missing.png", TouchActions.SwipeDirection.DOWN);
-        verify(nativeElementActionsHelper).failAction(eq(androidDriver), anyString(), isNull(By.class), any(List.class));
+        verify(nativeElementActionsHelper, never()).failAction(eq(androidDriver), anyString(), isNull(By.class), any(List.class));
 
         RemoteWebDriver webDriver = createMockRemoteWebDriver();
         TouchActions webTouchActions = new TouchActions(webDriver);
@@ -330,12 +331,18 @@ public class AndroidTouchActionsCoverageUnitTest {
                 .thenReturn(List.of(validPng, validPng, List.of(120, 240)));
         when(elementActionsHelper.waitForElementPresence(driver, "missing.png"))
                 .thenReturn(List.of(validPng, validPng, List.of()));
+        when(elementActionsHelper.waitForElementInvisibility(driver, "not-visible.png"))
+                .thenReturn(List.of(validPng, validPng, List.of()));
+        when(elementActionsHelper.waitForElementInvisibility(driver, "still-visible.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(120, 240)));
         injectElementActionsHelper(touchActions, elementActionsHelper);
 
         touchActions.tap("present.png")
                 .waitUntilElementIsVisible("present.png")
+                .waitUntilElementIsNotVisible("not-visible.png")
                 .tap("missing.png")
-                .waitUntilElementIsVisible("missing.png");
+                .waitUntilElementIsVisible("missing.png")
+                .waitUntilElementIsNotVisible("still-visible.png");
 
         verify(driver).perform(any());
     }
@@ -425,10 +432,6 @@ public class AndroidTouchActionsCoverageUnitTest {
         Map<Object, Object> elementScrollParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.RIGHT, By.id("container"), By.id("target"));
         SHAFT.Validations.assertThat().object(elementScrollParameters.containsKey("width")).isTrue().perform();
 
-        Method attemptUISelectorScroll = TouchActions.class.getDeclaredMethod("attemptUISelectorScroll", TouchActions.SwipeDirection.class, int.class);
-        attemptUISelectorScroll.setAccessible(true);
-        attemptUISelectorScroll.invoke(touchActions, TouchActions.SwipeDirection.DOWN, 0);
-
         Method attemptW3cCompliantActionsScroll = TouchActions.class.getDeclaredMethod("attemptW3cCompliantActionsScroll", TouchActions.SwipeDirection.class, By.class, By.class);
         attemptW3cCompliantActionsScroll.setAccessible(true);
         Object isFound = attemptW3cCompliantActionsScroll.invoke(touchActions, TouchActions.SwipeDirection.DOWN, null, By.id("target"));
@@ -439,6 +442,27 @@ public class AndroidTouchActionsCoverageUnitTest {
         executeWrapperForCoverage(() -> touchActions.longTap(By.id("target")));
         executeWrapperForCoverage(() -> touchActions.swipeToElement(By.id("source"), By.id("target")));
         executeWrapperForCoverage(() -> touchActions.swipeByOffset(By.id("target"), 10, 10));
+    }
+
+    @Test
+    public void swipeToEndOfViewShouldScrollUntilAppiumReportsEnd() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        WebElement scrollableElement = mock(WebElement.class);
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("container"))))
+                .thenReturn(List.of("container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.swipeToEndOfView(TouchActions.SwipeDirection.DOWN)
+                .swipeToEndOfView(By.id("container"), TouchActions.SwipeDirection.UP);
+
+        verify(driver, times(3)).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, never()).findElements(isNull());
     }
 
     private AndroidDriver createMockAndroidDriver() {

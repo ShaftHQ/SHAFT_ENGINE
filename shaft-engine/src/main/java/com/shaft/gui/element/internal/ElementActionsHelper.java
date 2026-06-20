@@ -175,6 +175,47 @@ public class ElementActionsHelper {
         return returnedValue;
     }
 
+    /**
+     * Waits for an on-screen image reference to disappear from the current viewport.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementReferenceScreenshot path to the reference image file
+     * @return list containing current screenshot, reference screenshot bytes, and matched coordinates
+     */
+    public List<Object> waitForElementInvisibility(WebDriver driver, String elementReferenceScreenshot) {
+        long startTime = System.currentTimeMillis();
+        long elapsedTime;
+        List<Integer> coordinates = Collections.emptyList();
+        byte[] currentScreenImage;
+
+        List<Object> returnedValue = new LinkedList<>();
+        if (FileActions.getInstance(true).doesFileExist(elementReferenceScreenshot)) {
+            do {
+                try {
+                    //noinspection BusyWait
+                    Thread.sleep(ELEMENT_IDENTIFICATION_POLLING_DELAY);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    ReportManagerHelper.logDiscrete(e);
+                }
+                currentScreenImage = new ScreenshotManager().takeScreenshot(driver, null);
+                coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
+                elapsedTime = System.currentTimeMillis() - startTime;
+            } while (!Collections.emptyList().equals(coordinates)
+                    && elapsedTime < SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L);
+            returnedValue.add(currentScreenImage);
+            returnedValue.add(FileActions.getInstance(true).readFileAsByteArray(elementReferenceScreenshot));
+            returnedValue.add(coordinates);
+        } else {
+            ReportManager.log("Reference screenshot not found. Kindly confirm the image exists under this path: \"" + elementReferenceScreenshot + "\"");
+            currentScreenImage = new ScreenshotManager().takeScreenshot(driver, null);
+            returnedValue.add(currentScreenImage);
+            returnedValue.add(new byte[0]);
+            returnedValue.add(List.of(-1));
+        }
+        return returnedValue;
+    }
+
     private boolean isValidToCheckForVisibility(By elementLocator, boolean checkForVisibility) {
         var locatorString = JavaHelper.formatLocatorToString(elementLocator).toLowerCase();
         return checkForVisibility && !locatorString.contains("type='file'") && !locatorString.contains("type=\"file\"") && !locatorString.contains("frame") && !elementLocator.equals(By.tagName("html"));
