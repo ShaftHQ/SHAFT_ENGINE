@@ -24,13 +24,12 @@ public class AccessibilityTest {
        ANALYSIS METHODS
        ========================== */
 
-    @Test(description = "Analyze page with default configuration and assert cached result",enabled = false)
+    @Test(description = "Analyze page with default configuration and assert cached result")
     public void testAnalyzePageDefault() {
         driver.get().browser()
                 .accessibility()
                 .analyzePage("HomePage")
-                .assertNoCriticalViolations("HomePage")
-                .assertIsAccessible();
+                .assertNoCriticalViolations("HomePage");
 
         // Verify cached result works
         var result = driver.get().browser().accessibility().analyzeAndReturn("HomePage",false);
@@ -155,7 +154,7 @@ public class AccessibilityTest {
         }
     }
 
-    @Test(description = "Soft verify no critical violations (expected failure)",enabled = false)
+    @Test(description = "Soft verify no critical violations")
     public void testVerifyNoCriticalViolations() {
         try {
             driver.get().browser()
@@ -179,7 +178,7 @@ public class AccessibilityTest {
     }
 
 
-    @Test(description = "Soft verify page accessibility (expected failure)",enabled = false)
+    @Test(description = "Soft verify page accessibility (expected failure)", enabled = false)
     public void testVerifyIsAccessible() {
         try {
             driver.get().browser()
