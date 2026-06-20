@@ -1,0 +1,55 @@
+{
+  "body_path": "memory/facts/mcp-test-automation-scenario-catalog.md",
+  "content_hash": "sha256:23d2c4388b99ba7760d6bb117941aa862d86f4eddea42d8d21dc9a19fcb7dadb",
+  "created_at": "2026-06-20T17:15:19+03:00",
+  "evidence": [
+    {
+      "id": "shaft-mcp/src/main/java/com/shaft/mcp/TestAutomationService.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-mcp/src/test/java/com/shaft/mcp/TestAutomationServiceTest.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json",
+      "kind": "file"
+    },
+    {
+      "id": "C:/Users/Mohab/IdeaProjects/shafthq.github.io/docs/agentic/mcp.mdx",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-mcp/",
+      "docs/agentic/mcp.mdx"
+    ],
+    "category": "product-feature",
+    "load_modes": [
+      "coding",
+      "review",
+      "onboarding"
+    ]
+  },
+  "id": "fact.mcp-test-automation-scenario-catalog",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Implement MCP agent test automation scenario plan"
+  },
+  "status": "active",
+  "tags": [
+    "mcp",
+    "agents",
+    "testing"
+  ],
+  "title": "SHAFT MCP exposes test automation scenario catalog and code guardrails",
+  "type": "fact",
+  "updated_at": "2026-06-20T17:15:19+03:00"
+}

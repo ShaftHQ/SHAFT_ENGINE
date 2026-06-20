@@ -61,6 +61,8 @@ class ShaftMcpApplicationTests {
         assertTrue(toolNames.contains("mobile_replay_recording"));
         assertTrue(toolNames.contains("natural_act"));
         assertTrue(toolNames.contains("shaft_guide_search"));
+        assertTrue(toolNames.contains("test_automation_scenarios"));
+        assertTrue(toolNames.contains("test_code_guardrails_check"));
         assertFalse(toolNames.contains("doctor_publish_draft_pr"));
         assertFalse(toolNames.contains("browser_get_page_source"));
         assertFalse(toolNames.contains("browser_get_cookie"));
