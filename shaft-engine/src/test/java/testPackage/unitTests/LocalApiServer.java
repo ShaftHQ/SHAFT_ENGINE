@@ -27,6 +27,7 @@ public final class LocalApiServer implements AutoCloseable {
             registerJsonResponse(server, "/todos", "todos.json");
             registerJsonResponse(server, "/users", "users.json");
             registerJsonResponse(server, "/us/90210", "zip-90210.json");
+            registerCreateUserResponse(server, "/api/users");
             server.start();
             return new LocalApiServer(server);
         } catch (IOException e) {
@@ -50,6 +51,17 @@ public final class LocalApiServer implements AutoCloseable {
                 return;
             }
             sendResponse(exchange, 200, readFixture(fixtureName));
+        });
+    }
+
+    private static void registerCreateUserResponse(HttpServer server, String path) {
+        server.createContext(path, exchange -> {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"method not allowed\"}");
+                return;
+            }
+            String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            sendResponse(exchange, 201, requestBody);
         });
     }
 

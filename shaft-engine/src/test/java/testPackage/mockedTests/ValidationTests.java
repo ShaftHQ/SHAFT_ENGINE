@@ -112,7 +112,8 @@ public class ValidationTests {
         driver.get().element().assertThat(By.xpath("//div")).exists().perform();
     }
 
-    @Test(enabled = false, groups = {"WebBased"}, expectedExceptions = {AssertionError.class})
+    @Test(groups = {"WebBased"}, expectedExceptions = {RuntimeException.class},
+            expectedExceptionsMessageRegExp = "Failed to identify unique element.*")
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
         driver.get().element().assertThat(By.xpath("//input")).doesNotExist().perform();
     }
