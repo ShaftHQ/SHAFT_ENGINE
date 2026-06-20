@@ -1245,9 +1245,14 @@ public class RestActions {
 
         builder.setUrlEncodingEnabled(urlEncodingEnabled);
 
+        boolean hasParameters = paramsList != null && !paramsList.isEmpty() && !String.valueOf(paramsList.getFirst().getFirst()).isEmpty();
+        if (hasParameters && parametersType == ParametersType.QUERY) {
+            prepareRequestBody(builder, paramsList, parametersType);
+        }
+
         if (body != null && contentType != null && !body.toString().isEmpty()) {
             prepareRequestBody(builder, body, contentType);
-        } else if (paramsList != null && !paramsList.isEmpty() && !String.valueOf(paramsList.getFirst().getFirst()).isEmpty()) {
+        } else if (hasParameters && parametersType != ParametersType.QUERY) {
             boolean containsFile = paramsList.stream().anyMatch(p -> p.get(1) instanceof File);
             boolean useMultipart = (parametersType == ParametersType.MULTIPART) || containsFile;
 
