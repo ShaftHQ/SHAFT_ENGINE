@@ -1,0 +1,1 @@
+Use the installed Graphify CLI syntax before trying slash-command forms: `graphify update .` refreshes the code graph without an LLM. Full semantic docs, paper, or image refreshes require an LLM backend key such as `GEMINI_API_KEY` or `GOOGLE_API_KEY`; report that blocker instead of retrying equivalent commands.
