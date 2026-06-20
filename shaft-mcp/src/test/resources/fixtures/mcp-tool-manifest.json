@@ -22,6 +22,12 @@
     {"name": "mobile_record_start", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "mobile_record_status", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "mobile_record_stop", "mutation": true, "sensitive": false, "deprecated": false},
+    {"name": "mobile_toolchain_status", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "mobile_inspector_record_prepare", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "mobile_inspector_record_start", "mutation": true, "sensitive": false, "deprecated": false},
+    {"name": "mobile_inspector_record_status", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "mobile_inspector_record_control", "mutation": true, "sensitive": false, "deprecated": false},
+    {"name": "mobile_inspector_record_stop", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "mobile_recording_code_blocks", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "mobile_replay_recording", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "mobile_get_contexts", "mutation": false, "sensitive": true, "deprecated": false},
@@ -71,6 +77,8 @@
     {"name": "doctor_suggest_fix", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "doctor_propose_healed_locator", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "healer_run_failed_test", "mutation": true, "sensitive": true, "deprecated": false},
-    {"name": "shaft_guide_search", "mutation": false, "sensitive": false, "deprecated": false}
+    {"name": "shaft_guide_search", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "test_automation_scenarios", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "test_code_guardrails_check", "mutation": false, "sensitive": false, "deprecated": false}
   ]
 }

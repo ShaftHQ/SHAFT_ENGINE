@@ -75,3 +75,4 @@
 {"actor":"agent","event":"memory.created","id":"decision.prefer-shaft-api-builder-facade-for-rest-work","timestamp":"2026-06-20T09:44:36+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-saves-use-intent-first-json-on-stdin","timestamp":"2026-06-20T12:08:49+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.graphify-updates-use-installed-cli-subcommands","timestamp":"2026-06-20T12:08:49+03:00"}
+{"actor":"agent","event":"memory.created","id":"fact.mcp-test-automation-scenario-catalog","timestamp":"2026-06-20T17:15:19+03:00"}

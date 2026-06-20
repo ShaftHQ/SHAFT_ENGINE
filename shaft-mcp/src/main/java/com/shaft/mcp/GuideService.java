@@ -52,6 +52,8 @@ public class GuideService {
             "For GUI tests, prefer SHAFT.GUI.WebDriver with driver.browser(), driver.element(), driver.touch(), and driver.assertThat() patterns from the guide.",
             "Use Page Object Model for reusable UI flows; keep driver lifecycle in tests or a thin base class.",
             "Use Selenium By objects and SHAFT.GUI.Locator for locators; avoid @FindBy and PageFactory.",
+            "Generated code must not contain Thread.sleep or absolute XPath locators.",
+            "For API suites, keep reusable request builders and response validators outside test classes.",
             "For API, CLI, mobile, properties, troubleshooting, and reporting, search the exact topic and follow returned guide examples.",
             "If the official guide results do not cover the request, say that instead of hallucinating SHAFT behavior.");
 

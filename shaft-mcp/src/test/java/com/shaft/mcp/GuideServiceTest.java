@@ -29,6 +29,8 @@ class GuideServiceTest {
                         .anyMatch(block -> block.code().contains("SHAFT.GUI.Locator"))));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("avoid @FindBy")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("do not invent APIs")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("Thread.sleep")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("request builders")));
         assertTrue(http.requested().stream()
                 .allMatch(uri -> "shaftengine.netlify.app".equalsIgnoreCase(uri.getHost())));
     }
