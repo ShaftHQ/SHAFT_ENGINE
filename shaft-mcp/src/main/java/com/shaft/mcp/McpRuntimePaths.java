@@ -31,6 +31,13 @@ final class McpRuntimePaths {
                 Path.of(System.getProperty("user.home")).toAbsolutePath().normalize());
     }
 
+    static Path applicationDataRoot() {
+        return applicationDataRoot(
+                System.getenv(),
+                System.getProperty("os.name", ""),
+                Path.of(System.getProperty("user.home")).toAbsolutePath().normalize());
+    }
+
     static Path resolveRoot(
             Map<String, String> environment,
             Path currentDirectory,
