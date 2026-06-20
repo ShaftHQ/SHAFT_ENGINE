@@ -7,6 +7,7 @@ import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
@@ -24,11 +25,9 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
-import org.openqa.selenium.remote.http.Route;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -657,6 +656,32 @@ public class BrowserActions extends FluentWebDriverAction {
     }
 
     /**
+     * Starts a fluent browser network interception builder.
+     *
+     * <p>The configured rule is scoped to the current WebDriver session and is cleared automatically
+     * when the driver closes. Call {@link #clearNetworkInterceptors()} to remove all active rules
+     * earlier. Only drivers that implement {@link org.openqa.selenium.devtools.HasDevTools} support
+     * network interception.</p>
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser()
+     *       .interceptRequest()
+     *       .get()
+     *       .urlContains("/api/users")
+     *       .respond()
+     *       .statusCode(200)
+     *       .jsonBody("{\"ok\":true}")
+     *       .perform();
+     * }</pre>
+     *
+     * @return a browser network interception request builder
+     */
+    public NetworkInterceptionRequestBuilder interceptRequest() {
+        return new NetworkInterceptionRequestBuilder(this);
+    }
+
+    /**
      * Intercepts outgoing HTTP requests matching the given predicate and substitutes the real
      * network response with the provided {@link HttpResponse}. Functionally equivalent to
      * {@link #mock(Predicate, HttpResponse)} but semantically named for interception use-cases.
@@ -678,19 +703,34 @@ public class BrowserActions extends FluentWebDriverAction {
         return internalIntercept(requestPredicate, mockedResponse);
     }
 
+    /**
+     * Removes all browser network interception rules registered for the current WebDriver session.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Step("Clear Network Interceptors")
+    public BrowserActions clearNetworkInterceptors() {
+        try {
+            driverFactoryHelper.clearBrowserNetworkInterceptors();
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Cleared network interceptors.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(rootCauseException);
+        }
+        return this;
+    }
+
     private BrowserActions internalIntercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
         ReportManager.logDiscrete("Configuring network interceptor for \"" + requestPredicate + "\" with a mocked response.");
         ReportManagerHelper.attach("HTTP Response", "Mocked HTTP Response", String.valueOf(mockedResponse));
+        return registerNetworkInterceptionRule(
+                BrowserNetworkInterceptionRule.mock(requestPredicate, request -> mockedResponse),
+                "Configured network interceptor.");
+    }
+
+    BrowserActions registerNetworkInterceptionRule(BrowserNetworkInterceptionRule rule, String successMessage) {
         try {
-            if (driverFactoryHelper.getDriver() instanceof HasDevTools hasDevTools) {
-                NetworkInterceptor networkInterceptor = new NetworkInterceptor(
-                        driverFactoryHelper.getDriver(),
-                        Route.matching(requestPredicate)
-                                .to(() -> req -> mockedResponse));
-                browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Configured network interceptor.");
-            } else {
-                browserActionsHelper.failAction(driverFactoryHelper.getDriver(), "Network Interceptor is not supported by the current driver type.");
-            }
+            driverFactoryHelper.registerBrowserNetworkInterceptionRule(rule);
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), successMessage);
         } catch (Exception rootCauseException) {
             browserActionsHelper.failAction(rootCauseException);
         }
