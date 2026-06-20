@@ -21,6 +21,7 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -120,43 +121,47 @@ public class FileActions {
     }
 
     public String listFilesInDirectory(String targetDirectory) {
-        StringBuilder files = new StringBuilder();
-        try {
-            Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
-                    TrueFileFilter.TRUE);
-            filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
-        } catch (IllegalArgumentException rootCauseException) {
-            failAction("Could not list files in directory \"" + targetDirectory + "\".", rootCauseException);
-        }
-        passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
-        return files.toString().trim();
+        String files = listFiles(targetDirectory, true).stream()
+                .map(File::getName)
+                .collect(Collectors.joining(System.lineSeparator()));
+        passAction("Target Directory: \"" + targetDirectory + "\"", files.trim());
+        return files.trim();
     }
 
     public String listFilesInDirectory(String targetDirectory, TrueFileFilter recursively) {
-        StringBuilder files = new StringBuilder();
-        try {
-            Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
-                    recursively);
-            filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
-        } catch (IllegalArgumentException rootCauseException) {
-            failAction("Could not list files in directory \"" + targetDirectory + "\".", rootCauseException);
-        }
-        passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
-        return files.toString().trim();
+        String files = listFiles(targetDirectory, TrueFileFilter.TRUE.equals(recursively)).stream()
+                .map(File::getName)
+                .collect(Collectors.joining(System.lineSeparator()));
+        passAction("Target Directory: \"" + targetDirectory + "\"", files.trim());
+        return files.trim();
     }
 
     public Collection<File> getFileList(String targetDirectory) {
-        StringBuilder files = new StringBuilder();
-        Collection<File> filesList = new ArrayList<>();
-        try {
-            filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
-                    TrueFileFilter.TRUE);
-            filesList.forEach(file -> files.append(file.getAbsolutePath()).append(System.lineSeparator()));
-        } catch (IllegalArgumentException rootCauseException) {
-            failAction("Could not list absolute file paths in directory \"" + targetDirectory + "\".", rootCauseException);
-        }
-        passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
+        Collection<File> filesList = listFiles(targetDirectory, true);
+        passAction("Target Directory: \"" + targetDirectory + "\" | Files Found: \"" + filesList.size() + "\"");
         return filesList;
+    }
+
+    private List<File> listFiles(String targetDirectory, boolean recursive) {
+        try {
+            Path targetPath = Path.of(targetDirectory);
+            if (!Files.exists(targetPath)) {
+                return Collections.emptyList();
+            }
+            if (Files.isRegularFile(targetPath)) {
+                return List.of(targetPath.toFile());
+            }
+            int depth = recursive ? Integer.MAX_VALUE : 1;
+            try (var paths = Files.walk(targetPath, depth)) {
+                return paths.filter(Files::isRegularFile)
+                        .sorted()
+                        .map(Path::toFile)
+                        .toList();
+            }
+        } catch (Exception rootCauseException) {
+            failAction("Could not list files in directory \"" + targetDirectory + "\".", rootCauseException);
+            return Collections.emptyList();
+        }
     }
 
     /**
@@ -332,7 +337,7 @@ public class FileActions {
         try {
             Path targetFilePath = Paths.get(absoluteFilePath);
             FileUtils.writeByteArrayToFile(targetFilePath.toFile(), content);
-            passAction("Target File Path: \"" + targetFilePath + "\"", Arrays.toString(content));
+            passAction("Target File Path: \"" + targetFilePath + "\" | Bytes Written: \"" + content.length + "\"");
         } catch (InvalidPathException | IOException rootCauseException) {
             failAction("Folder Name: \"" + filePath + "\".", rootCauseException);
         }
@@ -749,8 +754,16 @@ public class FileActions {
     }
 
     private void failAction(String actionName, String testData, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, null, false, rootCauseException);
-        FailureReporter.fail(FileActions.class, message, rootCauseException[0]);
+        Exception cause = getRootCauseException(testData, rootCauseException);
+        String message = reportActionResult(actionName, testData, null, false, cause);
+        FailureReporter.fail(FileActions.class, message, cause);
+    }
+
+    private Exception getRootCauseException(String testData, Exception... rootCauseException) {
+        if (rootCauseException != null && rootCauseException.length > 0 && rootCauseException[0] != null) {
+            return rootCauseException[0];
+        }
+        return new IllegalStateException(testData == null || testData.isBlank() ? "File action failed." : testData);
     }
 
     private String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
@@ -782,7 +795,7 @@ public class FileActions {
         }
 
         // Minimize File Action log steps and move them to discrete logs if called
-        // within shaft-engine itself
+        // within shaft-engine itself.
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         StackTraceElement parentMethod = stackTrace[4];
         if (parentMethod.getClassName().contains("shaft")) {
