@@ -42,17 +42,6 @@ public class RequestBuilder {
     private boolean urlEncodingEnabled;
 
     /**
-     * Start building a new API request.
-     *
-     * @param serviceURI  the base URI of the webservice that you want to hit
-     * @param serviceName the path/name of the webservice that you want to hit {/servicePATH/serviceNAME}
-     * @param requestType the type of your API request {POST, GET, PATCH, DELETE, PUT}
-     */
-    RequestBuilder(String serviceURI, String serviceName, RestActions.RequestType requestType) {
-        initializeVariables(new RestActions(serviceURI), serviceName, requestType);
-    }
-
-    /**
      * Start building a new API request from an existing RestActions session.
      *
      * @param session     the RestActions session that contains your serviceURI/cookies/headers
@@ -325,20 +314,11 @@ public class RequestBuilder {
     /**
      * After you finish building your request, use this method to trigger the request and get back the response object.
      *
-     * @return Response; returns the full response object for further manipulation
-     */
-    public SHAFT.API perform() {
-        return performRequest();
-    }
-
-    /**
-     * After you finish building your request, use this method to trigger the request and get back the response object.
-     *
-     * @return Response; returns the full response object for further manipulation
+     * @return the current {@link SHAFT.API} session for response inspection and assertions
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
-    public SHAFT.API performRequest() {
-        String request = prepareRequestURLWithParameters();
+    public SHAFT.API perform() {
+        String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
         RequestSpecification specs = prepareRequestSpecifications();
 
         setupAuthentication(specs);
@@ -368,6 +348,17 @@ public class RequestBuilder {
         return driver;
     }
 
+    /**
+     * After you finish building your request, use this method to trigger the request and get back the response object.
+     *
+     * @return the current {@link SHAFT.API} session for response inspection and assertions
+     * @deprecated use {@link #perform()} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public SHAFT.API performRequest() {
+        return perform();
+    }
+
     private String normalizeEndpoint(String endpoint) {
         // Simplified normalization logic to remove digits and trailing slashes
         return endpoint.replaceAll("/\\d+", "").replaceAll("/$", "");
@@ -375,14 +366,6 @@ public class RequestBuilder {
 
     private void logResponseTime(String endpoint, double responseTime) {
         performanceData.computeIfAbsent(endpoint, k -> Collections.synchronizedList(new ArrayList<>())).add(responseTime);
-    }
-
-    private String prepareRequestURLWithParameters() {
-        String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        if (parametersType == RestActions.ParametersType.QUERY && parametersMap != null) {
-            request = addParametersToUrl(request, parametersMap);
-        }
-        return request;
     }
 
     private RequestSpecification prepareRequestSpecifications() {
@@ -434,27 +417,6 @@ public class RequestBuilder {
                 requestType == RestActions.RequestType.PUT ||
                 requestType == RestActions.RequestType.GET ||
                 requestType == RestActions.RequestType.DELETE;
-    }
-
-    private String addParametersToUrl(String url, Map<String, Object> parameters) {
-        StringBuilder urlWithParams = new StringBuilder(url);
-
-        if (!url.contains("?")) {
-            urlWithParams.append("?");
-        } else {
-            urlWithParams.append("&");
-        }
-
-        for (Map.Entry<String, Object> param : parameters.entrySet()) {
-            urlWithParams.append(param.getKey()).append("=").append(param.getValue()).append("&");
-        }
-
-        // Remove the last '&' if parameters exist
-        if (!parameters.isEmpty()) {
-            urlWithParams.setLength(urlWithParams.length() - 1);
-        }
-
-        return urlWithParams.toString();
     }
 
     /**

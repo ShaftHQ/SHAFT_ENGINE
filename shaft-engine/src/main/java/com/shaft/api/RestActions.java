@@ -75,7 +75,7 @@ import static io.restassured.RestAssured.given;
  * <p><b>Usage example (via SHAFT.API):</b>
  * <pre>{@code
  * SHAFT.API api = new SHAFT.API("https://jsonplaceholder.typicode.com");
- * api.get("/posts/1").setTargetStatusCode(200).performRequest();
+ * api.get("/posts/1").setTargetStatusCode(200).perform();
  * String title = api.getResponseJSONValue("$.title");
  * }</pre>
  *
@@ -139,11 +139,22 @@ public class RestActions {
     private static Response graphQlRequestHelper(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod) {
         ReportManager.logDiscrete("Sending GraphQL request. Service URL: "
                 + base_URI_forHelperMethod + "graphql, request body: " + requestBody_forHelperMethod + ".");
-        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
-                .setContentType(ContentType.JSON).performRequest().getResponse();
+        return new SHAFT.API(base_URI_forHelperMethod)
+                .post(GRAPHQL_END_POINT)
+                .setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON)
+                .perform()
+                .getResponse();
     }
     private String headerAuthorization;
 
+    /**
+     * Creates a legacy REST session.
+     *
+     * @param serviceURI the base URI of the target web service
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#API(String)} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public RestActions(String serviceURI) {
         initializeSystemProperties();
         headerAuthorization = "";
@@ -166,8 +177,13 @@ public class RestActions {
         ReportManager.logDiscrete("Sending GraphQL request. Service URL: "
                 + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod
                 + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + maskSensitiveHeaderValue(headerKey_forHelperMethod, headerValue_forHelperMethod) + "\".");
-        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RequestType.POST).setRequestBody(requestBody_forHelperMethod)
-                .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod).performRequest().getResponse();
+        return new SHAFT.API(base_URI_forHelperMethod)
+                .post(GRAPHQL_END_POINT)
+                .setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON)
+                .addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod)
+                .perform()
+                .getResponse();
     }
 
     /**
@@ -179,8 +195,11 @@ public class RestActions {
      * @param serviceName   the endpoint path (e.g. {@code "users/1"})
      * @param requestType   the HTTP method to use (e.g. {@link RequestType#GET})
      * @return a {@link RequestBuilder} ready for further configuration and execution
+     * @deprecated use {@link com.shaft.driver.SHAFT.API} request methods instead.
      * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
      */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    @SuppressWarnings("deprecation")
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
         return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
     }
@@ -281,7 +300,7 @@ public class RestActions {
     /**
      * Extracts a string value from the response body by parsing the target jsonpath
      *
-     * @param response the full response object returned by 'performRequest()'
+     * @param response the full response object returned by {@link RequestBuilder#perform()}
      *                 method
      * @param jsonPath the JSONPath expression that will be evaluated in order to
      *                 extract the desired value [without the trailing $.], please
@@ -958,8 +977,9 @@ public class RestActions {
      * @param base_URI The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param query    graphql query or mutation.
      * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String)} and {@link RequestBuilder#perform()} instead.
      */
-    @SuppressWarnings("unchecked")
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public static Response sendGraphQlRequest(String base_URI, String query) {
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
@@ -974,8 +994,9 @@ public class RestActions {
      * @param query     graphql query or mutation.
      * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
      * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String, Object)} and {@link RequestBuilder#perform()} instead.
      */
-    @SuppressWarnings("unchecked")
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public static Response sendGraphQlRequest(String base_URI, String query, String variables) {
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
@@ -992,8 +1013,9 @@ public class RestActions {
      * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
      * @param fragment  graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#fragments">https://graphql.org/learn/queries/#fragments</a>
      * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String, Object, String)} and {@link RequestBuilder#perform()} instead.
      */
-    @SuppressWarnings("unchecked")
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public static Response sendGraphQlRequest(String base_URI, String query, String variables, String fragment) {
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
@@ -1015,8 +1037,9 @@ public class RestActions {
      * @param header_key   the name of the header that you want to add. example:: "Authorization"
      * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
      * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String)}, {@link RequestBuilder#addHeader(String, String)}, and {@link RequestBuilder#perform()} instead.
      */
-    @SuppressWarnings("unchecked")
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String header_key, String header_value) {
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
@@ -1033,8 +1056,9 @@ public class RestActions {
      * @param header_key   the name of the header that you want to add. example:: "Authorization"
      * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
      * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String, Object)}, {@link RequestBuilder#addHeader(String, String)}, and {@link RequestBuilder#perform()} instead.
      */
-    @SuppressWarnings("unchecked")
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String header_key, String header_value) {
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
@@ -1053,8 +1077,9 @@ public class RestActions {
      * @param header_key   the name of the header that you want to add. example:: "Authorization"
      * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
      * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String, Object, String)}, {@link RequestBuilder#addHeader(String, String)}, and {@link RequestBuilder#perform()} instead.
      */
-    @SuppressWarnings("unchecked")
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String fragment, String header_key, String header_value) {
 
         Map<String, Object> requestBody = new LinkedHashMap<>();
@@ -1071,8 +1096,10 @@ public class RestActions {
      * @param serviceName the endpoint path relative to this instance's base URI
      * @param requestType the HTTP method to use (e.g. {@link RequestType#POST})
      * @return a {@link RequestBuilder} for configuring and executing the request
+     * @deprecated use {@link com.shaft.driver.SHAFT.API} request methods instead.
      * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
      */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
         return new RequestBuilder(this, serviceName, requestType);
     }
@@ -1135,7 +1162,9 @@ public class RestActions {
      * @param key   the name of the header that you want to add
      * @param value the value that will be put inside the key
      * @return self-reference to be used for chaining actions
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#addHeader(String, String)} instead.
      */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public RestActions addHeaderVariable(String key, String value) {
         sessionHeaders.put(key, value);
         return this;
@@ -1147,7 +1176,9 @@ public class RestActions {
      * @param key   the cookie name
      * @param value the cookie value
      * @return self-reference to be used for chaining actions
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#addCookie(String, String)} instead.
      */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
     public RestActions addCookieVariable(String key, String value) {
         sessionCookies.put(key, value);
         return this;

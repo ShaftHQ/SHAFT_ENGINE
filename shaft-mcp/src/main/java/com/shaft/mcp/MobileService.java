@@ -43,6 +43,7 @@ public class MobileService {
 
     private final EngineService engineService;
     private final McpMobileRecordingService recorder;
+    private final McpMobileInspectorRecordingService inspectorRecorder;
     private final McpWorkspacePolicy workspacePolicy;
 
     @Autowired
@@ -59,9 +60,19 @@ public class MobileService {
     }
 
     MobileService(EngineService engineService, McpMobileRecordingService recorder, McpWorkspacePolicy workspacePolicy) {
+        this(engineService, recorder, workspacePolicy,
+                new McpMobileInspectorRecordingService(workspacePolicy, recorder));
+    }
+
+    MobileService(
+            EngineService engineService,
+            McpMobileRecordingService recorder,
+            McpWorkspacePolicy workspacePolicy,
+            McpMobileInspectorRecordingService inspectorRecorder) {
         this.engineService = engineService;
         this.recorder = recorder;
         this.workspacePolicy = workspacePolicy;
+        this.inspectorRecorder = inspectorRecorder;
     }
 
     /**
@@ -218,6 +229,121 @@ public class MobileService {
             description = "stops MCP mobile recording and optionally discards the JSON file")
     public McpMobileRecordingStatus recordStop(boolean discard) {
         return recorder.stop(discard);
+    }
+
+    /**
+     * Returns local Appium/Android/iOS toolchain discovery status.
+     *
+     * @param platformName Android or iOS; blank defaults to Android
+     * @return local mobile toolchain status
+     */
+    @Tool(name = "mobile_toolchain_status",
+            description = "checks local Appium, Inspector, adb, emulator, and SDK tooling status")
+    public McpMobileToolchainStatus toolchainStatus(String platformName) {
+        return inspectorRecorder.toolchainStatus(platformName);
+    }
+
+    /**
+     * Prepares a user-confirmable wrapped Appium Inspector recording session.
+     *
+     * @param platformName Android or iOS
+     * @param outputPath workspace-contained recording JSON output path
+     * @param includeSensitiveValues whether typed values should be stored for exact replay
+     * @param app optional app path or remote app URL
+     * @param appPackage optional Android app package
+     * @param appActivity optional Android app activity
+     * @param bundleId optional iOS bundle identifier
+     * @param udid optional device UDID
+     * @param deviceName optional device or simulator name
+     * @param platformVersion optional mobile OS version
+     * @param selectedAndroidAvdName cached Android AVD name to start when no real device is connected
+     * @param androidApiLevel Android API level for new emulator proposal; non-positive uses SHAFT default
+     * @param androidDeviceProfile Android device profile for new emulator proposal
+     * @param androidImageTag Android image tag for new emulator proposal
+     * @param androidAbi Android emulator image ABI
+     * @param androidRamMb Android emulator RAM in MB
+     * @param androidCores Android emulator CPU cores
+     * @param provisionAndroidEmulator whether to propose creating a fresh Android emulator when needed
+     * @return confirmation-ready recording plan
+     */
+    @Tool(name = "mobile_inspector_record_prepare",
+            description = "prepares a wrapped Appium Inspector mobile recording plan with device and dependency details")
+    public McpMobileInspectorPlan inspectorRecordPrepare(
+            String platformName,
+            String outputPath,
+            boolean includeSensitiveValues,
+            String app,
+            String appPackage,
+            String appActivity,
+            String bundleId,
+            String udid,
+            String deviceName,
+            String platformVersion,
+            String selectedAndroidAvdName,
+            int androidApiLevel,
+            String androidDeviceProfile,
+            String androidImageTag,
+            String androidAbi,
+            int androidRamMb,
+            int androidCores,
+            boolean provisionAndroidEmulator) {
+        return inspectorRecorder.prepare(platformName, outputPath, includeSensitiveValues, app, appPackage,
+                appActivity, bundleId, udid, deviceName, platformVersion, selectedAndroidAvdName, androidApiLevel,
+                androidDeviceProfile, androidImageTag, androidAbi, androidRamMb, androidCores,
+                provisionAndroidEmulator);
+    }
+
+    /**
+     * Starts a previously prepared wrapped Appium Inspector recording session.
+     *
+     * @param confirmationToken token returned by mobile_inspector_record_prepare
+     * @param selectedAndroidAvdName optional cached Android AVD override
+     * @param openInspector whether to open the wrapped Inspector URL in the user's browser
+     * @return active recording status and Inspector URL
+     */
+    @Tool(name = "mobile_inspector_record_start",
+            description = "starts a confirmed wrapped Appium Inspector recording session")
+    public McpMobileInspectorRecordingStatus inspectorRecordStart(
+            String confirmationToken,
+            String selectedAndroidAvdName,
+            boolean openInspector) {
+        return inspectorRecorder.start(confirmationToken, selectedAndroidAvdName, openInspector);
+    }
+
+    /**
+     * Returns wrapped Appium Inspector recording status.
+     *
+     * @return current Inspector recording status
+     */
+    @Tool(name = "mobile_inspector_record_status",
+            description = "returns the wrapped Appium Inspector recording status")
+    public McpMobileInspectorRecordingStatus inspectorRecordStatus() {
+        return inspectorRecorder.status();
+    }
+
+    /**
+     * Controls a wrapped Appium Inspector recording.
+     *
+     * @param action status, pause, resume, checkpoint, stop, or discard
+     * @param checkpointName optional checkpoint name
+     * @return updated recording status
+     */
+    @Tool(name = "mobile_inspector_record_control",
+            description = "pauses, resumes, checkpoints, stops, or discards a wrapped Appium Inspector recording")
+    public McpMobileInspectorRecordingStatus inspectorRecordControl(String action, String checkpointName) {
+        return inspectorRecorder.control(action, checkpointName);
+    }
+
+    /**
+     * Stops a wrapped Appium Inspector recording and returns generated replay snippets.
+     *
+     * @param discard whether to delete the recording output
+     * @return final recording status
+     */
+    @Tool(name = "mobile_inspector_record_stop",
+            description = "stops a wrapped Appium Inspector recording and returns generated replay code")
+    public McpMobileInspectorRecordingStatus inspectorRecordStop(boolean discard) {
+        return inspectorRecorder.stop(discard);
     }
 
     /**

@@ -1,0 +1,1 @@
+For routine project memory updates, use `memory remember --stdin` with intent-first JSON shaped as `{task, memories}`. `memory save --stdin` is for advanced structured patches, and this installed CLI does not support `memory save --dry-run`, `memory save --id`, or free-form text arguments.

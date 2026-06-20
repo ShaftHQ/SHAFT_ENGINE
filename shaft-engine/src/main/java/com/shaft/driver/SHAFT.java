@@ -18,6 +18,7 @@ import com.shaft.tools.io.*;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.AppiumDriver;
+import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -25,7 +26,9 @@ import org.openqa.selenium.support.events.EventFiringDecorator;
 
 import java.io.InputStream;
 import java.sql.ResultSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The main entry point for the SHAFT test automation framework.
@@ -302,13 +305,14 @@ public class SHAFT {
      * <p><b>Usage example:</b>
      * <pre>{@code
      * SHAFT.API api = new SHAFT.API("https://jsonplaceholder.typicode.com");
-     * api.get("/posts/1").setTargetStatusCode(200).performRequest();
+     * api.get("/posts/1").setTargetStatusCode(200).perform();
      * api.assertThatResponse().extractedJsonValue("$.title").isNotNull().perform();
      * }</pre>
      *
      * @see RequestBuilder
      * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
      */
+    @SuppressWarnings("deprecation")
     public static class API {
         private final RestActions session;
         private String serviceURI;
@@ -390,6 +394,51 @@ public class SHAFT {
          */
         public RequestBuilder put(String serviceName) {
             return session.buildNewRequest(serviceName, RestActions.RequestType.PUT);
+        }
+
+        /**
+         * Builds a GraphQL POST request with a JSON body containing only the
+         * supplied query.
+         *
+         * @param serviceName the GraphQL endpoint path appended to the base URI
+         * @param query       the GraphQL query or mutation
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder sendGraphQlRequest(String serviceName, String query) {
+            return sendGraphQlRequest(serviceName, query, null, null);
+        }
+
+        /**
+         * Builds a GraphQL POST request with query and variables.
+         *
+         * @param serviceName the GraphQL endpoint path appended to the base URI
+         * @param query       the GraphQL query or mutation
+         * @param variables   GraphQL variables, commonly a {@link Map} or JSON string
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder sendGraphQlRequest(String serviceName, String query, Object variables) {
+            return sendGraphQlRequest(serviceName, query, variables, null);
+        }
+
+        /**
+         * Builds a GraphQL POST request with query, variables, and fragment.
+         *
+         * @param serviceName the GraphQL endpoint path appended to the base URI
+         * @param query       the GraphQL query or mutation
+         * @param variables   GraphQL variables, commonly a {@link Map} or JSON string
+         * @param fragment    reusable GraphQL fragment content
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder sendGraphQlRequest(String serviceName, String query, Object variables, String fragment) {
+            Map<String, Object> requestBody = new LinkedHashMap<>();
+            requestBody.put("query", query);
+            if (variables != null) {
+                requestBody.put("variables", variables);
+            }
+            if (fragment != null) {
+                requestBody.put("fragment", fragment);
+            }
+            return post(serviceName).setContentType(ContentType.JSON).setRequestBody(requestBody);
         }
 
         /**

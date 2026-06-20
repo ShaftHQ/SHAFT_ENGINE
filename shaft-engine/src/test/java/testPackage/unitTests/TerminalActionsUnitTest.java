@@ -345,8 +345,8 @@ public class TerminalActionsUnitTest {
         return directory;
     }
 
-    @Test(description = "performTerminalCommands should execute split commands and capture logs")
-    public void performTerminalCommandsShouldExecuteSplitCommands() {
+    @Test(description = "performTerminalCommands should execute command chains and capture logs")
+    public void performTerminalCommandsShouldExecuteCommandChains() {
         TerminalActions terminal = TerminalActions.getInstance(false, false, true);
         String log = terminal.performTerminalCommand("echo first && echo second");
         Assert.assertTrue(log.contains("first"), "Expected first command output in logs.");
@@ -362,12 +362,31 @@ public class TerminalActionsUnitTest {
                 "Expected command log to include changed working directory.");
     }
 
-    @Test(description = "performTerminalCommands should split semicolon-separated command chains")
-    public void performTerminalCommandsShouldSplitSemicolonCommands() {
+    @Test(description = "performTerminalCommands should execute semicolon-separated command chains")
+    public void performTerminalCommandsShouldExecuteSemicolonCommands() {
         TerminalActions terminal = TerminalActions.getInstance(false, false, true);
         String log = terminal.performTerminalCommand("echo alpha ; echo beta");
         Assert.assertTrue(log.contains("alpha"));
         Assert.assertTrue(log.contains("beta"));
+    }
+
+    @Test(description = "performTerminalCommand should keep quoted command separators in the same command")
+    public void performTerminalCommandShouldNotSplitQuotedSeparators() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        String log = terminal.performTerminalCommand("echo \"alpha && beta ; gamma\"");
+
+        Assert.assertTrue(log.contains("alpha && beta ; gamma"),
+                "Quoted command separators should remain literal output.");
+    }
+
+    @Test(description = "performTerminalCommand should reject blank commands")
+    public void performTerminalCommandShouldRejectBlankCommands() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.performTerminalCommand(" "));
+
+        Assert.assertTrue(failure.getMessage().contains("must not be blank"));
     }
 
     @Test(description = "performTerminalCommand with env vars should expose them to the local process")
@@ -411,6 +430,24 @@ public class TerminalActionsUnitTest {
                     () -> terminal.performTerminalCommand("echo interrupted"));
         } finally {
             Thread.interrupted();
+        }
+    }
+
+    @Test(description = "synchronous execution should fail and destroy timed-out local commands")
+    public void performTerminalCommandShouldFailWhenLocalCommandTimesOut() {
+        long originalTimeout = SHAFT.Properties.timeouts.shellSessionTimeout();
+        try {
+            SHAFT.Properties.timeouts.set().shellSessionTimeout(0);
+            TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+            String command = isWindows ? "Start-Sleep -Seconds 5" : "sleep 5";
+
+            RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                    () -> terminal.performTerminalCommand(command));
+
+            Assert.assertTrue(failure.getMessage().contains("timed out"));
+        } finally {
+            SHAFT.Properties.timeouts.set().shellSessionTimeout(originalTimeout);
         }
     }
 

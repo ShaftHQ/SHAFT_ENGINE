@@ -47,6 +47,80 @@ public interface Internal extends EngineProperties<Internal> {
     String nodeLtsVersion();
 
     /**
+     * Appium server npm package version used by SHAFT MCP when it needs to bootstrap
+     * a local Appium server without requiring administrator-installed tools.
+     */
+    @Key("appiumServerVersion")
+    @DefaultValue("3.5.2")
+    String appiumServerVersion();
+
+    /**
+     * Appium Inspector plugin npm package version used by SHAFT MCP for wrapped
+     * mobile recording sessions.
+     */
+    @Key("appiumInspectorPluginVersion")
+    @DefaultValue("2026.5.1")
+    String appiumInspectorPluginVersion();
+
+    /**
+     * Appium UiAutomator2 driver npm package version used by SHAFT MCP for Android.
+     */
+    @Key("appiumUiAutomator2DriverVersion")
+    @DefaultValue("7.6.2")
+    String appiumUiAutomator2DriverVersion();
+
+    /**
+     * Appium XCUITest driver npm package version used by SHAFT MCP for iOS attach
+     * and recording flows on macOS.
+     */
+    @Key("appiumXcuitestDriverVersion")
+    @DefaultValue("11.12.2")
+    String appiumXcuitestDriverVersion();
+
+    /**
+     * Android command-line tools build number used by SHAFT MCP when no Android SDK
+     * tools are already available on the machine.
+     */
+    @Key("androidCommandLineToolsVersion")
+    @DefaultValue("14742923")
+    String androidCommandLineToolsVersion();
+
+    /**
+     * Default Android API level proposed for SHAFT-managed emulator creation.
+     */
+    @Key("androidEmulatorApiLevel")
+    @DefaultValue("36")
+    int androidEmulatorApiLevel();
+
+    /**
+     * Default Android virtual device profile proposed for SHAFT-managed emulators.
+     */
+    @Key("androidEmulatorDeviceProfile")
+    @DefaultValue("pixel_8")
+    String androidEmulatorDeviceProfile();
+
+    /**
+     * Default Android system image tag proposed for SHAFT-managed emulators.
+     */
+    @Key("androidEmulatorImageTag")
+    @DefaultValue("google_apis")
+    String androidEmulatorImageTag();
+
+    /**
+     * Default Android emulator memory size in MB.
+     */
+    @Key("androidEmulatorRamMb")
+    @DefaultValue("4096")
+    int androidEmulatorRamMb();
+
+    /**
+     * Default Android emulator CPU core count.
+     */
+    @Key("androidEmulatorCores")
+    @DefaultValue("2")
+    int androidEmulatorCores();
+
+    /**
      * Google Analytics 4 Measurement ID used for anonymous telemetry.
      * Found in the GA4 console under Admin &gt; Data Streams &gt; choose your stream &gt; Measurement ID.
      * Override in {@code internal.properties} to route telemetry to a different GA4 property.
