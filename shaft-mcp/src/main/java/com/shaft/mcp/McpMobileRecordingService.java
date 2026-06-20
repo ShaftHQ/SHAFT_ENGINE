@@ -129,6 +129,23 @@ final class McpMobileRecordingService {
         return recorded;
     }
 
+    synchronized void recordWarning(String warning) {
+        if (recording == null || warning == null || warning.isBlank()) {
+            return;
+        }
+        List<String> warnings = new ArrayList<>(recording.warnings());
+        warnings.add(warning.trim());
+        recording = new McpMobileRecording(
+                recording.schemaVersion(),
+                recording.mode(),
+                recording.startedAt(),
+                recording.stoppedAt(),
+                recording.includeSensitiveValues(),
+                recording.actions(),
+                warnings);
+        persist();
+    }
+
     McpMobileReplayResult codeBlocks(String recordingPath, String driverVariableName) {
         Path path = workspacePolicy.existing(recordingPath, "Mobile recording path");
         McpMobileRecording stored = read(path);
