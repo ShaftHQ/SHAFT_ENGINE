@@ -11,6 +11,7 @@ import org.apache.commons.lang3.SystemUtils;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.file.Files;
@@ -312,21 +313,16 @@ public class TerminalActions {
      * @return the command output log
      */
     public String performTerminalCommands(List<String> commands, Map<String, String> environmentVariables) {
-        var internalCommands = commands;
+        List<String> internalCommands = getValidCommands(commands);
 
         // Build long command and refactor for dockerized execution if needed
         String longCommand = buildLongCommand(internalCommands);
-
-        if (internalCommands.size() == 1) {
-            if (internalCommands.getFirst().contains(" && ")) {
-                internalCommands = List.of(internalCommands.getFirst().split(" && "));
-            } else if (internalCommands.getFirst().contains(" ; ")) {
-                internalCommands = List.of(internalCommands.getFirst().split(" ; "));
-            }
-        }
+        List<String> commandsToExecute = isDockerizedTerminal() && !isRemoteTerminal()
+                ? Collections.singletonList(longCommand)
+                : internalCommands;
 
         // Perform command
-        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(internalCommands, longCommand, environmentVariables) : executeLocalCommand(internalCommands, longCommand, environmentVariables);
+        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(commandsToExecute, longCommand, environmentVariables) : executeLocalCommand(commandsToExecute, longCommand, environmentVariables);
         String log = exitLogs.get(0);
         String exitStatus = exitLogs.get(1);
 
@@ -368,6 +364,20 @@ public class TerminalActions {
      */
     public String performTerminalCommand(String command, Map<String, String> environmentVariables) {
         return performTerminalCommands(Collections.singletonList(command), environmentVariables);
+    }
+
+    private List<String> getValidCommands(List<String> commands) {
+        if (commands == null || commands.isEmpty()) {
+            failAction("Terminal command", new IllegalArgumentException("At least one terminal command must be provided."));
+        }
+        return commands.stream()
+                .map(command -> {
+                    if (command == null || command.isBlank()) {
+                        failAction("Terminal command", new IllegalArgumentException("Terminal command must not be blank."));
+                    }
+                    return command;
+                })
+                .toList();
     }
 
     /**
@@ -506,13 +516,21 @@ public class TerminalActions {
     }
 
     private void failAction(String actionName, String testData, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, null, false, rootCauseException);
-        FailureReporter.fail(TerminalActions.class, message, rootCauseException[0]);
+        Exception cause = getRootCauseException(testData, rootCauseException);
+        String message = reportActionResult(actionName, testData, null, false, cause);
+        FailureReporter.fail(TerminalActions.class, message, cause);
     }
 
     private void failAction(String testData, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, testData, rootCauseException);
+    }
+
+    private Exception getRootCauseException(String testData, Exception... rootCauseException) {
+        if (rootCauseException != null && rootCauseException.length > 0 && rootCauseException[0] != null) {
+            return rootCauseException[0];
+        }
+        return new IllegalStateException(testData == null || testData.isBlank() ? "Terminal action failed." : testData);
     }
 
     private Session createSSHsession() {
@@ -757,48 +775,12 @@ public class TerminalActions {
                 ProcessBuilder pb = getProcessBuilder(command, finalDirectory, isWindows);
                 applyLocalProcessEnvironment(pb, environmentVariables);
                 if (!asynchronous) {
-                    pb.redirectErrorStream(true);
-                    Process localProcess = pb.start();
-                    // output logs
-                    String line;
-                    try (InputStreamReader isr = new InputStreamReader(localProcess.getInputStream());
-                         BufferedReader rdr = new BufferedReader(isr)) {
-                        while ((line = rdr.readLine()) != null) {
-                            if (Boolean.TRUE.equals(verbose)) {
-                                ReportManager.logDiscrete(redactTerminalLogForReporting(line));
-                            }
-                            logs.append(line);
-                            logs.append("\n");
-                        }
-                    }
-                    try (InputStreamReader isr = new InputStreamReader(localProcess.getErrorStream());
-                         BufferedReader rdr = new BufferedReader(isr)) {
-                        while ((line = rdr.readLine()) != null) {
-                            if (Boolean.TRUE.equals(verbose)) {
-                                ReportManager.logDiscrete(redactTerminalLogForReporting(line));
-                            }
-                            logs.append("\n");
-                            logs.append(line);
-                        }
-                    }
-                    // Wait for the process to complete
-                    localProcess.waitFor(SHAFT.Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES);
-                    // Retrieve the exit status of the executed command and destroy open sessions
-                    exitStatuses.append(localProcess.exitValue());
+                    executeSynchronousLocalCommand(command, longCommand, logs, exitStatuses, pb);
                 } else {
+                    pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+                    pb.redirectError(ProcessBuilder.Redirect.DISCARD);
+                    pb.start();
                     exitStatuses.append("asynchronous");
-                    ScheduledExecutorService asynchronousProcessExecution = Executors.newScheduledThreadPool(1);
-                    asynchronousProcessExecution.schedule(() -> {
-                        try {
-                            pb.start();
-                            asynchronousProcessExecution.shutdown();
-                        } catch (Throwable throwable) {
-                            asynchronousProcessExecution.shutdownNow();
-                        }
-                    }, 0, TimeUnit.SECONDS);
-                    if (!asynchronousProcessExecution.awaitTermination(SHAFT.Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES)) {
-                        asynchronousProcessExecution.shutdownNow();
-                    }
                 }
             } catch (IOException exception) {
                 failAction(longCommand, exception);
@@ -808,6 +790,46 @@ public class TerminalActions {
             }
         });
         return Arrays.asList(logs.toString().trim(), exitStatuses.toString());
+    }
+
+    private void executeSynchronousLocalCommand(String command, String longCommand, StringBuilder logs,
+                                                StringBuilder exitStatuses, ProcessBuilder pb)
+            throws IOException, InterruptedException {
+        pb.redirectErrorStream(true);
+        ExecutorService streamReader = Executors.newSingleThreadExecutor();
+        Process localProcess = pb.start();
+        try {
+            Future<String> output = streamReader.submit(() -> readProcessStream(localProcess.getInputStream()));
+            boolean completed = localProcess.waitFor(SHAFT.Properties.timeouts.shellSessionTimeout(), TimeUnit.MINUTES);
+            if (!completed) {
+                localProcess.destroyForcibly();
+                logs.append(getCompletedOutput(output));
+                failAction(longCommand, new TimeoutException("Terminal command timed out after "
+                        + SHAFT.Properties.timeouts.shellSessionTimeout() + " minute(s): " + command));
+            }
+            logs.append(getCompletedOutput(output));
+            exitStatuses.append(localProcess.exitValue());
+        } finally {
+            streamReader.shutdownNow();
+        }
+    }
+
+    private String readProcessStream(InputStream stream) throws IOException {
+        try (InputStreamReader isr = new InputStreamReader(stream);
+             BufferedReader reader = new BufferedReader(isr)) {
+            return readConsoleLogs(reader);
+        }
+    }
+
+    private String getCompletedOutput(Future<String> output) {
+        try {
+            return output.get(1, TimeUnit.SECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return "";
+        } catch (ExecutionException | TimeoutException exception) {
+            return "";
+        }
     }
 
     private ProcessBuilder getProcessBuilder(String command, String finalDirectory, boolean isWindows) {

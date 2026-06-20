@@ -95,8 +95,12 @@ public class FileActionsCoverageUnitTest {
         Assert.assertFalse(actions.doesFileExist(sourceFolderPrefix, "missing.txt", 0));
         Assert.assertEquals(actions.readFile(sourceFolderPrefix, "alpha.txt"), String.join(System.lineSeparator(), "first", "second"));
         Assert.assertEquals(new String(actions.readFileAsByteArray(nestedFolder.resolve("bytes.bin").toString()), StandardCharsets.UTF_8), "bytes");
-        Assert.assertTrue(actions.listFilesInDirectory(sourceFolder.toString()).contains("alpha.txt"));
-        Assert.assertTrue(actions.listFilesInDirectory(sourceFolder.toString(), (TrueFileFilter) null).contains("alpha.txt"));
+        String recursiveList = actions.listFilesInDirectory(sourceFolder.toString());
+        String topLevelList = actions.listFilesInDirectory(sourceFolder.toString(), (TrueFileFilter) null);
+        Assert.assertTrue(recursiveList.contains("alpha.txt"));
+        Assert.assertTrue(recursiveList.contains("bytes.bin"));
+        Assert.assertTrue(topLevelList.contains("alpha.txt"));
+        Assert.assertFalse(topLevelList.contains("bytes.bin"));
         Assert.assertEquals(actions.getFileList(sourceFolder.toString()).size(), 5);
 
         Path destinationFolder = tempDirectory.resolve("destination");
@@ -313,6 +317,10 @@ public class FileActionsCoverageUnitTest {
         InvocationTargetException namedFailure = Assert.expectThrows(InvocationTargetException.class,
                 () -> failWithActionName.invoke(actions, "customFailure", "forced data", new Exception[]{new IOException("forced named")}));
         Assert.assertTrue(namedFailure.getCause() instanceof RuntimeException);
+
+        InvocationTargetException noCauseFailure = Assert.expectThrows(InvocationTargetException.class,
+                () -> failWithData.invoke(actions, "forced data without cause", new Exception[0]));
+        Assert.assertTrue(noCauseFailure.getCause().getMessage().contains("forced data without cause"));
     }
 
     @Test
@@ -344,7 +352,9 @@ public class FileActionsCoverageUnitTest {
         Assert.expectThrows(RuntimeException.class, () -> actions.zipFiles(missing.toString(), tempDirectory.resolve("missing.zip").toString()));
         Assert.expectThrows(RuntimeException.class, () -> actions.unpackArchive(missing.toUri().toURL(), tempDirectory.resolve("unpack-missing").toString()));
         Assert.expectThrows(RuntimeException.class, () -> actions.downloadFile(missing.toUri().toURL().toString(), tempDirectory.resolve("download.txt").toString()));
-        Assert.expectThrows(RuntimeException.class, () -> actions.downloadFile(null, tempDirectory.resolve("download.txt").toString()));
+        RuntimeException nullDownloadFailure = Assert.expectThrows(RuntimeException.class,
+                () -> actions.downloadFile(null, tempDirectory.resolve("download.txt").toString()));
+        Assert.assertTrue(nullDownloadFailure.getMessage().contains("Target File URL"));
         String missingJarResourceUrl = missing.toUri().toURL() + "!/assets/";
         Assert.expectThrows(RuntimeException.class, () -> actions.copyFolderFromJar(missingJarResourceUrl, tempDirectory.resolve("jar").toString()));
         Assert.expectThrows(RuntimeException.class, () -> actions.copyFileFromJar(missingJarResourceUrl, tempDirectory.resolve("jar").toString(), "one.txt"));
