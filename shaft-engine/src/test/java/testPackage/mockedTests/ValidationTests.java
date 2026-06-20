@@ -236,8 +236,9 @@ public class ValidationTests {
         driver.get().element().assertThat(localizedLocator).text().language().is("de").perform();
     }
 
-    @Test(enabled = false, groups = {"WebBased"})
+    @Test(groups = {"WebBased"})
     public void assertBrowserTextLanguageAndDirection_expectedToPass() {
+        driver.get().browser().navigateToURL("data:text/html;charset=utf-8,<html lang='ar' dir='rtl'><body>مرحبا بالعالم</body></html>");
         driver.get().browser().assertThat().text().language().is("ar").perform();
         driver.get().browser().assertThat().text().direction().isRightToLeft().perform();
         driver.get().browser().assertThat().text().isArabic().perform();
