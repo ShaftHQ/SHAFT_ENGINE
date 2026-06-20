@@ -196,6 +196,38 @@ public class RestActionsCoverageUnitTest {
     }
 
     @Test
+    public void requestBuilderShouldSendQueryParametersOnce() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/resource", exchange -> {
+            String query = exchange.getRequestURI().getRawQuery();
+            byte[] body = ("{\"query\":\"" + query + "\"}").getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+
+        try {
+            Map<String, Object> parameters = new LinkedHashMap<>();
+            parameters.put("q", "shaft");
+            parameters.put("page", 2);
+            SHAFT.API api = new SHAFT.API("http://127.0.0.1:" + server.getAddress().getPort() + "/");
+
+            api.get("resource")
+                    .setParameters(parameters, RestActions.ParametersType.QUERY)
+                    .perform();
+
+            String query = api.getResponseJSONValue("query");
+            Validations.assertThat().object(query.split("q=", -1).length - 1).isEqualTo(1).perform();
+            Validations.assertThat().object(query.split("page=", -1).length - 1).isEqualTo(1).perform();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     public void responseMetadataAndXmlHelpersUseLocalServerResponses() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/xml", exchange -> {

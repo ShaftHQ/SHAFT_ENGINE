@@ -110,6 +110,31 @@ public class RequestBuilderTests {
     }
 
     @Test
+    public void shaftApiGraphQlFacadeShouldBuildPostJsonRequest() {
+        RequestBuilder builder = new SHAFT.API("http://localhost/")
+                .sendGraphQlRequest("graphql", "{ ping }", Map.of("id", 1), "fragment Ping on Query { ping }")
+                .addHeader("Authorization", "Bearer token");
+        Map<?, ?> body = (Map<?, ?>) builder.getRequestBody();
+
+        Assert.assertEquals(builder.getServiceName(), "graphql");
+        Assert.assertEquals(builder.getRequestType(), RestActions.RequestType.POST);
+        Assert.assertEquals(builder.getContentType(), ContentType.JSON);
+        Assert.assertEquals(body.get("query"), "{ ping }");
+        Assert.assertEquals(body.get("variables"), Map.of("id", 1));
+        Assert.assertEquals(body.get("fragment"), "fragment Ping on Query { ping }");
+        Assert.assertEquals(builder.getSessionHeaders().get("Authorization"), "Bearer token");
+    }
+
+    @Test
+    public void shaftApiGraphQlFacadeShouldOmitUnsetVariablesAndFragment() {
+        RequestBuilder builder = new SHAFT.API("http://localhost/")
+                .sendGraphQlRequest("graphql", "{ ping }");
+        Map<?, ?> body = (Map<?, ?>) builder.getRequestBody();
+
+        Assert.assertEquals(body, Map.of("query", "{ ping }"));
+    }
+
+    @Test
     public void performRequestShouldCreateDriverAndStorePerformanceDataWhenDriverIsMissing() {
         RestActions mockSession = createSessionMock();
         RequestSpecification specs = Mockito.mock(RequestSpecification.class, Mockito.RETURNS_DEEP_STUBS);
