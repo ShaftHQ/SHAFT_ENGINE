@@ -92,7 +92,10 @@ public class DriverFactory {
      *
      * @param serviceURI the base URI of the target web service
      * @return rest actions instance that can be used to chain and build your api request
+     * @deprecated use {@link SHAFT.API#API(String)} instead.
      */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    @SuppressWarnings("deprecation")
     public static RestActions getAPIDriver(String serviceURI) {
         return new RestActions(serviceURI);
     }

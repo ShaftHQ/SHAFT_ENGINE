@@ -123,12 +123,12 @@ public class BrowserStackHelper {
         var appUrl = "";
 
         try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to BrowserStack...")) {
-            var session = new RestActions(serviceUri);
-            session.buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
+            var api = new SHAFT.API(serviceUri);
+            api.post(appUploadServiceName)
                     .setParameters(parameters, RestActions.ParametersType.FORM)
                     .setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC)
-                    .performRequest();
-            var response = session.getResponse();
+                    .perform();
+            var response = api.getResponse();
             var tempAppUrl = RestActions.getResponseJSONValue(response, "app_url");
             appUrl = Objects.requireNonNull(tempAppUrl);
             ReportManager.logDiscrete("BrowserStack uploaded app URL: " + appUrl);
