@@ -24,6 +24,17 @@ public interface Playwright extends EngineProperties<Playwright> {
     @DefaultValue("")
     String browserName();
 
+    /**
+     * Playwright device descriptor name to apply when creating a browser context.
+     * Matches Playwright registry names when available, plus SHAFT-provided latest
+     * device aliases for pinned Playwright versions.
+     *
+     * @return the configured Playwright device descriptor name
+     */
+    @Key("playwright.deviceName")
+    @DefaultValue("")
+    String deviceName();
+
     @Key("playwright.connectionMode")
     @DefaultValue("local")
     String connectionMode();
@@ -92,6 +103,17 @@ public interface Playwright extends EngineProperties<Playwright> {
     class PlaywrightSetProperty implements EngineProperties.SetProperty {
         public PlaywrightSetProperty browserName(String value) {
             setProperty("playwright.browserName", value);
+            return this;
+        }
+
+        /**
+         * Sets the Playwright device descriptor name for new contexts.
+         *
+         * @param value descriptor name, for example {@code iPhone 17 Pro Max}
+         * @return this property setter
+         */
+        public PlaywrightSetProperty deviceName(String value) {
+            setProperty("playwright.deviceName", value);
             return this;
         }
 

@@ -24,6 +24,12 @@ jobs:
       - Ubuntu_Firefox_Grid
       - Ubuntu_Chrome_Grid
       - Ubuntu_MicrosoftEdge_Grid
+      - Ubuntu_Playwright_Chrome
+      - Ubuntu_Playwright_Edge
+      - Ubuntu_Playwright_WebKit
+      - Ubuntu_Playwright_Firefox
+      - Ubuntu_Playwright_GalaxyS26Ultra
+      - Ubuntu_Playwright_IPhone17ProMax
       - Android_Native_BrowserStack
       - iOS_Web_SAFARI_BrowserStack
       - Android_Web_Chrome_BrowserStack
@@ -283,6 +289,198 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: Ubuntu_MicrosoftEdge_Grid
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Playwright_Chrome:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install Playwright Chrome
+        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chrome"
+      - name: Run Playwright Chrome E2E
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=ChromePlaywrightActionsE2ETest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Playwright_Chrome
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Playwright_Edge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install Playwright Edge
+        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps msedge"
+      - name: Run Playwright Edge E2E
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=EdgePlaywrightActionsE2ETest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Playwright_Edge
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Playwright_WebKit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install Playwright WebKit
+        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps webkit"
+      - name: Run Playwright WebKit E2E
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=WebKitPlaywrightActionsE2ETest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Playwright_WebKit
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Playwright_Firefox:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install Playwright Firefox
+        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps firefox"
+      - name: Run Playwright Firefox E2E
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=FirefoxPlaywrightActionsE2ETest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Playwright_Firefox
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Playwright_GalaxyS26Ultra:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install Playwright Chromium
+        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps chromium"
+      - name: Run Playwright Galaxy S26 Ultra E2E
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=GalaxyS26UltraPlaywrightActionsE2ETest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Playwright_GalaxyS26Ultra
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Playwright_IPhone17ProMax:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Install Playwright WebKit
+        run: mvn -f shaft-engine/pom.xml -e exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install --with-deps webkit"
+      - name: Run Playwright iPhone 17 Pro Max E2E
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=IPhone17ProMaxPlaywrightActionsE2ETest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Playwright_IPhone17ProMax
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   Android_Native_BrowserStack:

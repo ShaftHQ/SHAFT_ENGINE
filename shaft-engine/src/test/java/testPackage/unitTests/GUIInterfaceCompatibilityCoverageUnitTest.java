@@ -115,9 +115,11 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
             SHAFT.Properties.playwright.set()
                     .connectionMode("connect")
                     .endpoint("ws://localhost:3000")
+                    .deviceName("iPhone 17 Pro Max")
                     .tracingEnabled(true);
             Assert.assertEquals(SHAFT.Properties.playwright.connectionMode(), "connect");
             Assert.assertEquals(SHAFT.Properties.playwright.endpoint(), "ws://localhost:3000");
+            Assert.assertEquals(SHAFT.Properties.playwright.deviceName(), "iPhone 17 Pro Max");
             Assert.assertTrue(SHAFT.Properties.playwright.tracingEnabled());
 
             SHAFT.Properties.clearForCurrentThread();
