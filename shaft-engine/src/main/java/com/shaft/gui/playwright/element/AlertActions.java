@@ -2,7 +2,7 @@ package com.shaft.gui.playwright.element;
 
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 
-public class AlertActions implements com.shaft.gui.driver.AlertActions {
+public class AlertActions implements com.shaft.gui.driver.AlertActionsContract {
     private final PlaywrightSession session;
 
     public AlertActions(PlaywrightSession session) {

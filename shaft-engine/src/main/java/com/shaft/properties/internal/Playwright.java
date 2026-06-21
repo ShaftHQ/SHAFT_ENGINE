@@ -84,87 +84,88 @@ public interface Playwright extends EngineProperties<Playwright> {
     @DefaultValue("true")
     boolean tracingSources();
 
-    default SetProperty set() {
-        return new SetProperty();
+    @Override
+    default PlaywrightSetProperty set() {
+        return new PlaywrightSetProperty();
     }
 
-    class SetProperty implements EngineProperties.SetProperty {
-        public SetProperty browserName(String value) {
+    class PlaywrightSetProperty implements EngineProperties.SetProperty {
+        public PlaywrightSetProperty browserName(String value) {
             setProperty("playwright.browserName", value);
             return this;
         }
 
-        public SetProperty connectionMode(String value) {
+        public PlaywrightSetProperty connectionMode(String value) {
             setProperty("playwright.connectionMode", value);
             return this;
         }
 
-        public SetProperty endpoint(String value) {
+        public PlaywrightSetProperty endpoint(String value) {
             setProperty("playwright.endpoint", value);
             return this;
         }
 
-        public SetProperty channel(String value) {
+        public PlaywrightSetProperty channel(String value) {
             setProperty("playwright.channel", value);
             return this;
         }
 
-        public SetProperty slowMo(int value) {
+        public PlaywrightSetProperty slowMo(int value) {
             setProperty("playwright.slowMo", String.valueOf(value));
             return this;
         }
 
-        public SetProperty launchTimeoutMilliseconds(int value) {
+        public PlaywrightSetProperty launchTimeoutMilliseconds(int value) {
             setProperty("playwright.launchTimeoutMilliseconds", String.valueOf(value));
             return this;
         }
 
-        public SetProperty defaultTimeoutMilliseconds(int value) {
+        public PlaywrightSetProperty defaultTimeoutMilliseconds(int value) {
             setProperty("playwright.defaultTimeoutMilliseconds", String.valueOf(value));
             return this;
         }
 
-        public SetProperty navigationTimeoutMilliseconds(int value) {
+        public PlaywrightSetProperty navigationTimeoutMilliseconds(int value) {
             setProperty("playwright.navigationTimeoutMilliseconds", String.valueOf(value));
             return this;
         }
 
-        public SetProperty artifactsDirectory(String value) {
+        public PlaywrightSetProperty artifactsDirectory(String value) {
             setProperty("playwright.artifactsDirectory", value);
             return this;
         }
 
-        public SetProperty downloadsDirectory(String value) {
+        public PlaywrightSetProperty downloadsDirectory(String value) {
             setProperty("playwright.downloadsDirectory", value);
             return this;
         }
 
-        public SetProperty acceptDownloads(boolean value) {
+        public PlaywrightSetProperty acceptDownloads(boolean value) {
             setProperty("playwright.acceptDownloads", String.valueOf(value));
             return this;
         }
 
-        public SetProperty tracingEnabled(boolean value) {
+        public PlaywrightSetProperty tracingEnabled(boolean value) {
             setProperty("playwright.tracing.enabled", String.valueOf(value));
             return this;
         }
 
-        public SetProperty tracingOnRetryOnly(boolean value) {
+        public PlaywrightSetProperty tracingOnRetryOnly(boolean value) {
             setProperty("playwright.tracing.onRetryOnly", String.valueOf(value));
             return this;
         }
 
-        public SetProperty tracingScreenshots(boolean value) {
+        public PlaywrightSetProperty tracingScreenshots(boolean value) {
             setProperty("playwright.tracing.screenshots", String.valueOf(value));
             return this;
         }
 
-        public SetProperty tracingSnapshots(boolean value) {
+        public PlaywrightSetProperty tracingSnapshots(boolean value) {
             setProperty("playwright.tracing.snapshots", String.valueOf(value));
             return this;
         }
 
-        public SetProperty tracingSources(boolean value) {
+        public PlaywrightSetProperty tracingSources(boolean value) {
             setProperty("playwright.tracing.sources", String.valueOf(value));
             return this;
         }

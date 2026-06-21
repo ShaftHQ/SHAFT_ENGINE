@@ -38,14 +38,14 @@ public interface Driver {
      *
      * @return browser actions facade
      */
-    BrowserActions browser();
+    BrowserActionsContract browser();
 
     /**
      * Returns element-level actions and assertions.
      *
      * @return element actions facade
      */
-    ElementActions element();
+    ElementActionsContract element();
 
     /**
      * Returns touch-action helpers for mobile scenarios.
@@ -59,7 +59,7 @@ public interface Driver {
      *
      * @return alert actions facade
      */
-    AlertActions alert();
+    AlertActionsContract alert();
 
     /**
      * Returns hard-assertion builder methods scoped to this session.

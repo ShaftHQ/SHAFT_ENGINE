@@ -25,7 +25,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 
-public class BrowserActions implements com.shaft.gui.driver.BrowserActions {
+public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContract {
     private final PlaywrightSession session;
 
     public BrowserActions(PlaywrightSession session) {
@@ -71,12 +71,12 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActions {
 
     @Override
     public String getWindowHandle() {
-        return page().url();
+        return session.pageHandle(page());
     }
 
     @Override
     public String getWindowPosition() {
-        return "0,0";
+        return String.valueOf(page().evaluate("() => `(${window.screenX}, ${window.screenY})`"));
     }
 
     @Override
@@ -193,14 +193,27 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActions {
 
     @Override
     public BrowserActions switchToWindow(String nameOrHandle) {
+        Page pageByHandle = session.pageByHandle(nameOrHandle);
+        if (pageByHandle != null) {
+            session.setPage(pageByHandle);
+            return this;
+        }
         for (Page candidate : session.browserContext().pages()) {
             if (candidate.url().equals(nameOrHandle) || candidate.title().equals(nameOrHandle)) {
                 session.setPage(candidate);
                 return this;
             }
         }
-        int index = Integer.parseInt(nameOrHandle);
-        session.setPage(session.browserContext().pages().get(index));
+        try {
+            int index = Integer.parseInt(nameOrHandle);
+            List<Page> pages = session.browserContext().pages();
+            if (index < 0 || index >= pages.size()) {
+                throw new IllegalArgumentException("No Playwright page exists at index " + index + ".");
+            }
+            session.setPage(pages.get(index));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("No Playwright page matches handle, URL, title, or index: " + nameOrHandle, e);
+        }
         return this;
     }
 
@@ -302,7 +315,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActions {
 
     @Override
     public List<String> getWindowHandles() {
-        return session.browserContext().pages().stream().map(Page::url).toList();
+        return session.browserContext().pages().stream().map(session::pageHandle).toList();
     }
 
     @Override

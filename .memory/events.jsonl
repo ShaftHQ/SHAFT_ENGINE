@@ -78,3 +78,4 @@
 {"actor":"agent","event":"memory.created","id":"fact.mcp-test-automation-scenario-catalog","timestamp":"2026-06-20T17:15:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"constraint.delegate-broadly-to-spark","timestamp":"2026-06-21T10:28:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.use-override-annotations","timestamp":"2026-06-21T11:06:45+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.playwright-entrypoint-casing","timestamp":"2026-06-21T11:58:05+03:00"}

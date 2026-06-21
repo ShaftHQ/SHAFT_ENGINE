@@ -8,6 +8,8 @@ import com.microsoft.playwright.Playwright;
 import com.shaft.tools.io.ReportManager;
 import org.apache.logging.log4j.Level;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -21,9 +23,11 @@ public final class PlaywrightSession implements AutoCloseable {
     private Page page;
     private final PlaywrightTraceManager traceManager;
     private final AtomicReference<String> lastDialogText = new AtomicReference<>();
-    private final AtomicBoolean dialogSeenSinceLastCheck = new AtomicBoolean();
+    private final AtomicBoolean dialogSeen = new AtomicBoolean();
     private final AtomicReference<DialogAction> nextDialogAction = new AtomicReference<>();
     private final AtomicReference<String> nextPromptText = new AtomicReference<>("");
+    private final Map<Page, String> pageHandles = new IdentityHashMap<>();
+    private int nextPageHandleIndex = 1;
 
     PlaywrightSession(Playwright playwright, Browser browser, BrowserContext browserContext, Page page,
                       PlaywrightTraceManager traceManager) {
@@ -61,7 +65,7 @@ public final class PlaywrightSession implements AutoCloseable {
     }
 
     public boolean isDialogSeen() {
-        return dialogSeenSinceLastCheck.getAndSet(false);
+        return dialogSeen.get();
     }
 
     public String lastDialogText() {
@@ -69,16 +73,32 @@ public final class PlaywrightSession implements AutoCloseable {
     }
 
     public void acceptNextDialog() {
+        dialogSeen.set(false);
         nextDialogAction.set(DialogAction.ACCEPT);
     }
 
     public void dismissNextDialog() {
+        dialogSeen.set(false);
         nextDialogAction.set(DialogAction.DISMISS);
     }
 
     public void typeIntoNextPrompt(String text) {
+        dialogSeen.set(false);
         nextPromptText.set(text);
         nextDialogAction.set(DialogAction.PROMPT);
+    }
+
+    public synchronized String pageHandle(Page targetPage) {
+        return pageHandles.computeIfAbsent(targetPage, ignored -> "page-" + nextPageHandleIndex++);
+    }
+
+    public synchronized Page pageByHandle(String handle) {
+        for (Page candidate : browserContext.pages()) {
+            if (pageHandle(candidate).equals(handle)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -98,7 +118,7 @@ public final class PlaywrightSession implements AutoCloseable {
         }
         targetPage.onDialog(dialog -> {
             lastDialogText.set(dialog.message());
-            dialogSeenSinceLastCheck.set(true);
+            dialogSeen.set(true);
             DialogAction action = nextDialogAction.getAndSet(null);
             try {
                 if (action == DialogAction.ACCEPT) {

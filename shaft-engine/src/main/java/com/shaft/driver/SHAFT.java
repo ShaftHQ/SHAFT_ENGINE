@@ -71,13 +71,6 @@ public class SHAFT {
     public static class GUI {
 
         /**
-         * Shared GUI session contract implemented by Selenium/Appium WebDriver and
-         * Playwright sessions.
-         */
-        public interface Driver extends com.shaft.gui.driver.Driver {
-        }
-
-        /**
          * Manages a Selenium/Appium WebDriver session and exposes fluent actions
          * for browser navigation, element interaction, touch gestures, alert
          * handling, and assertions.
@@ -97,7 +90,7 @@ public class SHAFT {
          *
          * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide</a>
          */
-        public static class WebDriver implements Driver {
+        public static class WebDriver implements com.shaft.gui.driver.Driver {
             DriverFactoryHelper helper;
             DriverFactory factory = new DriverFactory();
 
@@ -308,14 +301,14 @@ public class SHAFT {
          * Manages a Microsoft Playwright browser session and exposes SHAFT GUI
          * browser actions, element actions, alert helpers, and assertions.
          */
-        public static class PlayWright implements Driver {
+        public static class Playwright implements com.shaft.gui.driver.Driver {
             private com.shaft.gui.playwright.internal.PlaywrightSession session;
 
-            public PlayWright() {
+            public Playwright() {
                 session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.create();
             }
 
-            public PlayWright(com.microsoft.playwright.Page page) {
+            public Playwright(com.microsoft.playwright.Page page) {
                 session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.attach(
                         null,
                         page.context().browser(),
@@ -323,10 +316,10 @@ public class SHAFT {
                         page);
             }
 
-            public PlayWright(com.microsoft.playwright.Playwright playwright,
-                              com.microsoft.playwright.Browser browser,
-                              com.microsoft.playwright.BrowserContext browserContext,
-                              com.microsoft.playwright.Page page) {
+            public Playwright(com.microsoft.playwright.Playwright playwright,
+                               com.microsoft.playwright.Browser browser,
+                               com.microsoft.playwright.BrowserContext browserContext,
+                               com.microsoft.playwright.Page page) {
                 session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.attach(
                         playwright,
                         browser,
@@ -362,7 +355,7 @@ public class SHAFT {
             }
 
             @Override
-            public PlayWright act(String intent, Object... args) {
+            public Playwright act(String intent, Object... args) {
                 throw new UnsupportedOperationException("Natural GUI actions currently execute through WebDriver and are not available through the Playwright backend.");
             }
 

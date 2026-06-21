@@ -90,7 +90,7 @@ public final class ShaftLocator {
         return switch (strategy) {
             case CSS -> value;
             case XPATH -> "xpath=" + value;
-            case TEXT -> "text=" + value;
+            case TEXT -> "text=" + playwrightTextLiteral(value);
         };
     }
 
@@ -115,5 +115,9 @@ public final class ShaftLocator {
             return "\"" + value + "\"";
         }
         return "concat('" + value.replace("'", "',\"'\",'") + "')";
+    }
+
+    private static String playwrightTextLiteral(String value) {
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 }

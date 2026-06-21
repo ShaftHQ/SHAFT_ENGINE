@@ -43,7 +43,7 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
             case "pagesource", "windowsource", "source" -> session.page().content();
             case "title", "windowtitle", "pagetitle" -> session.page().title();
             case "text", "pagetext", "windowtext" -> session.page().evaluate("() => document.body ? document.body.innerText : ''");
-            case "windowhandle", "pagehandle", "handle" -> session.page().url();
+            case "windowhandle", "pagehandle", "handle" -> session.pageHandle(session.page());
             case "windowsize", "pagesize", "size" -> session.page().evaluate("() => `${window.innerWidth}x${window.innerHeight}`");
             default -> session.page().evaluate("(attribute) => document.documentElement.getAttribute(attribute)", browserAttribute);
         };

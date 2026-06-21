@@ -5,11 +5,9 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.listeners.internal.RetryAnalyzer;
-import com.shaft.gui.driver.BrowserActions;
 import com.shaft.gui.driver.Driver;
 import com.shaft.gui.driver.DriverAssertions;
 import com.shaft.gui.driver.DriverVerifications;
-import com.shaft.gui.driver.ElementActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.MutableCapabilities;
@@ -26,13 +24,12 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
     @Test
     public void webDriverShouldImplementDriverInterface() throws NoSuchMethodException {
         Assert.assertTrue(Driver.class.isAssignableFrom(SHAFT.GUI.WebDriver.class));
-        Assert.assertTrue(SHAFT.GUI.Driver.class.isAssignableFrom(SHAFT.GUI.WebDriver.class));
         Assert.assertTrue(
-                com.shaft.gui.driver.BrowserActions.class.isAssignableFrom(shaftGuiBrowserActionsType()));
+                com.shaft.gui.driver.BrowserActionsContract.class.isAssignableFrom(shaftGuiBrowserActionsType()));
         Assert.assertTrue(
-                com.shaft.gui.driver.ElementActions.class.isAssignableFrom(shaftGuiElementActionsType()));
+                com.shaft.gui.driver.ElementActionsContract.class.isAssignableFrom(shaftGuiElementActionsType()));
         Assert.assertTrue(
-                com.shaft.gui.driver.AlertActions.class.isAssignableFrom(shaftGuiAlertActionsType()));
+                com.shaft.gui.driver.AlertActionsContract.class.isAssignableFrom(shaftGuiAlertActionsType()));
         Assert.assertTrue(
                 DriverAssertions.class.isAssignableFrom(WizardHelpers.WebDriverAssertions.class));
         Assert.assertTrue(
@@ -48,9 +45,9 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
         Method assertThat = SHAFT.GUI.WebDriver.class.getMethod("assertThat");
         Method verifyThat = SHAFT.GUI.WebDriver.class.getMethod("verifyThat");
 
-        Assert.assertTrue(com.shaft.gui.driver.BrowserActions.class.isAssignableFrom(browser.getReturnType()));
-        Assert.assertTrue(com.shaft.gui.driver.ElementActions.class.isAssignableFrom(element.getReturnType()));
-        Assert.assertTrue(com.shaft.gui.driver.AlertActions.class.isAssignableFrom(alert.getReturnType()));
+        Assert.assertTrue(com.shaft.gui.driver.BrowserActionsContract.class.isAssignableFrom(browser.getReturnType()));
+        Assert.assertTrue(com.shaft.gui.driver.ElementActionsContract.class.isAssignableFrom(element.getReturnType()));
+        Assert.assertTrue(com.shaft.gui.driver.AlertActionsContract.class.isAssignableFrom(alert.getReturnType()));
         Assert.assertTrue(DriverAssertions.class.isAssignableFrom(assertThat.getReturnType()));
         Assert.assertTrue(DriverVerifications.class.isAssignableFrom(verifyThat.getReturnType()));
 
@@ -60,22 +57,21 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
 
     @Test
     public void playwrightShouldImplementDriverInterfaceWithoutInstantiation() throws NoSuchMethodException {
-        Assert.assertTrue(SHAFT.GUI.Driver.class.isAssignableFrom(SHAFT.GUI.PlayWright.class));
-        Assert.assertTrue(Driver.class.isAssignableFrom(SHAFT.GUI.PlayWright.class));
+        Assert.assertTrue(Driver.class.isAssignableFrom(SHAFT.GUI.Playwright.class));
 
-        Assert.assertTrue(com.shaft.gui.driver.BrowserActions.class.isAssignableFrom(
-                SHAFT.GUI.PlayWright.class.getMethod("browser").getReturnType()));
-        Assert.assertTrue(com.shaft.gui.driver.ElementActions.class.isAssignableFrom(
-                SHAFT.GUI.PlayWright.class.getMethod("element").getReturnType()));
-        Assert.assertTrue(com.shaft.gui.driver.AlertActions.class.isAssignableFrom(
-                SHAFT.GUI.PlayWright.class.getMethod("alert").getReturnType()));
+        Assert.assertTrue(com.shaft.gui.driver.BrowserActionsContract.class.isAssignableFrom(
+                SHAFT.GUI.Playwright.class.getMethod("browser").getReturnType()));
+        Assert.assertTrue(com.shaft.gui.driver.ElementActionsContract.class.isAssignableFrom(
+                SHAFT.GUI.Playwright.class.getMethod("element").getReturnType()));
+        Assert.assertTrue(com.shaft.gui.driver.AlertActionsContract.class.isAssignableFrom(
+                SHAFT.GUI.Playwright.class.getMethod("alert").getReturnType()));
         Assert.assertTrue(DriverAssertions.class.isAssignableFrom(
-                SHAFT.GUI.PlayWright.class.getMethod("assertThat").getReturnType()));
+                SHAFT.GUI.Playwright.class.getMethod("assertThat").getReturnType()));
         Assert.assertTrue(DriverVerifications.class.isAssignableFrom(
-                SHAFT.GUI.PlayWright.class.getMethod("verifyThat").getReturnType()));
-        Assert.assertEquals(SHAFT.GUI.PlayWright.class.getMethod("getDriver").getReturnType(),
+                SHAFT.GUI.Playwright.class.getMethod("verifyThat").getReturnType()));
+        Assert.assertEquals(SHAFT.GUI.Playwright.class.getMethod("getDriver").getReturnType(),
                 com.microsoft.playwright.Page.class);
-        Assert.assertEquals(SHAFT.GUI.PlayWright.class.getMethod("getNativeContext").getReturnType(),
+        Assert.assertEquals(SHAFT.GUI.Playwright.class.getMethod("getNativeContext").getReturnType(),
                 com.microsoft.playwright.BrowserContext.class);
     }
 
@@ -90,11 +86,11 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
 
     @Test
     public void actionTypesShouldRemainAssignableToContracts() {
-        Assert.assertTrue(com.shaft.gui.driver.BrowserActions.class.isAssignableFrom(
+        Assert.assertTrue(com.shaft.gui.driver.BrowserActionsContract.class.isAssignableFrom(
                 com.shaft.gui.browser.BrowserActions.class));
-        Assert.assertTrue(com.shaft.gui.driver.ElementActions.class.isAssignableFrom(
+        Assert.assertTrue(com.shaft.gui.driver.ElementActionsContract.class.isAssignableFrom(
                 com.shaft.gui.element.ElementActions.class));
-        Assert.assertTrue(com.shaft.gui.driver.AlertActions.class.isAssignableFrom(
+        Assert.assertTrue(com.shaft.gui.driver.AlertActionsContract.class.isAssignableFrom(
                 com.shaft.gui.element.AlertActions.class));
     }
 
@@ -105,6 +101,7 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
         Assert.assertEquals(locator.toBy().toString(), "By.xpath: //button[@id=\"save\"]");
         Assert.assertEquals(locator.toPlaywrightSelector(), "xpath=//button[@id=\"save\"]");
         Assert.assertEquals(ShaftLocator.from(By.id("username")).toPlaywrightSelector(), "[id=\"username\"]");
+        Assert.assertEquals(ShaftLocator.text("Save \"draft\"").toPlaywrightSelector(), "text=\"Save \\\"draft\\\"\"");
         Assert.assertNotNull(SHAFT.GUI.Locator.hasTagName("input").getClass().getMethod("buildForPlaywright",
                 com.microsoft.playwright.Page.class));
     }

@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
  * }</pre>
  */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
-public class BrowserActions extends FluentWebDriverAction implements com.shaft.gui.driver.BrowserActions {
+public class BrowserActions extends FluentWebDriverAction implements com.shaft.gui.driver.BrowserActionsContract {
     // Matches embedded credentials in URLs (e.g. protocol://user:password@host); compiled once for reuse
     private static final Pattern EMBEDDED_PASSWORD_PATTERN = Pattern.compile(":\\/\\/.*:(.*)@");
 
