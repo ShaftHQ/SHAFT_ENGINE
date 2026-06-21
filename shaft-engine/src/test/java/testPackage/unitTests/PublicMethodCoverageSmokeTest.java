@@ -118,12 +118,18 @@ public class PublicMethodCoverageSmokeTest {
 
             Set<String> missedSignatures = getMissedSignaturesFor(target.fullClassName);
             List<Method> methods = collectPublicMethods(targetClass);
-            if (!missedSignatures.isEmpty()) {
-                methods = filterMissedMethods(methods, missedSignatures);
-            }
             List<Constructor<?>> constructors = collectPublicConstructors(targetClass);
             if (!missedSignatures.isEmpty()) {
-                constructors = filterMissedConstructors(constructors, missedSignatures);
+                List<Method> missedMethods = filterMissedMethods(methods, missedSignatures);
+                List<Constructor<?>> missedConstructors = filterMissedConstructors(constructors, missedSignatures);
+                if (!missedMethods.isEmpty() || !missedConstructors.isEmpty()) {
+                    methods = missedMethods;
+                    constructors = missedConstructors;
+                } else {
+                    // Only non-public methods are currently marked as missed for this class.
+                    // Per public-method-only objective, this class does not require new public coverage work.
+                    continue;
+                }
             }
             if (methods.isEmpty() && constructors.isEmpty()) {
                 continue;
