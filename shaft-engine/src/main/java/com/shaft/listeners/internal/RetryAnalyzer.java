@@ -64,6 +64,9 @@ public class RetryAnalyzer implements IRetryAnalyzer {
                 SHAFT.Properties.visuals.set().createAnimatedGif(true);
                 SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("FailuresOnly");
                 SHAFT.Properties.reporting.set().captureWebDriverLogs(true);
+                if (SHAFT.Properties.playwright.tracingOnRetryOnly()) {
+                    SHAFT.Properties.playwright.set().tracingEnabled(true);
+                }
             }
         } catch (Exception e) {
             // Evidence capture is best-effort; don't let it prevent the retry.
@@ -92,6 +95,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
                 SHAFT.Properties.visuals.set().createAnimatedGif(state.createAnimatedGif);
                 SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot(state.whenToTakePageSourceSnapshot);
                 SHAFT.Properties.reporting.set().captureWebDriverLogs(state.captureWebDriverLogs);
+                SHAFT.Properties.playwright.set().tracingEnabled(state.playwrightTracingEnabled);
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e, Level.DEBUG);
             } finally {
@@ -105,14 +109,17 @@ public class RetryAnalyzer implements IRetryAnalyzer {
         private final boolean createAnimatedGif;
         private final String whenToTakePageSourceSnapshot;
         private final boolean captureWebDriverLogs;
+        private final boolean playwrightTracingEnabled;
         private boolean active;
 
         private SupportingEvidenceState(boolean videoParamsRecordVideo, boolean createAnimatedGif,
-                                        String whenToTakePageSourceSnapshot, boolean captureWebDriverLogs) {
+                                        String whenToTakePageSourceSnapshot, boolean captureWebDriverLogs,
+                                        boolean playwrightTracingEnabled) {
             this.videoParamsRecordVideo = videoParamsRecordVideo;
             this.createAnimatedGif = createAnimatedGif;
             this.whenToTakePageSourceSnapshot = whenToTakePageSourceSnapshot;
             this.captureWebDriverLogs = captureWebDriverLogs;
+            this.playwrightTracingEnabled = playwrightTracingEnabled;
         }
 
         private static SupportingEvidenceState current() {
@@ -120,7 +127,8 @@ public class RetryAnalyzer implements IRetryAnalyzer {
                     SHAFT.Properties.visuals.videoParamsRecordVideo(),
                     SHAFT.Properties.visuals.createAnimatedGif(),
                     SHAFT.Properties.visuals.whenToTakePageSourceSnapshot(),
-                    SHAFT.Properties.reporting.captureWebDriverLogs());
+                    SHAFT.Properties.reporting.captureWebDriverLogs(),
+                    SHAFT.Properties.playwright.tracingEnabled());
         }
     }
 }

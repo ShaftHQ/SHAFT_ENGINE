@@ -5,7 +5,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 @SuppressWarnings("unused")
-public class WebDriverElementValidationsBuilder {
+public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.ElementAssertions {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
     protected final By locator;
@@ -29,6 +29,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
+    @Override
     public ValidationsExecutor exists() {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementExists";
@@ -43,6 +44,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
+    @Override
     public ValidationsExecutor doesNotExist() {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementExists";
@@ -59,6 +61,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
+    @Override
     public ValidationsExecutor matchesReferenceImage() {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
@@ -75,6 +78,7 @@ public class WebDriverElementValidationsBuilder {
      * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
+    @Override
     public ValidationsExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
@@ -92,6 +96,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
+    @Override
     public ValidationsExecutor doesNotMatchReferenceImage() {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementMatches";
@@ -108,6 +113,7 @@ public class WebDriverElementValidationsBuilder {
      * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
+    @Override
     public ValidationsExecutor doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementMatches";
@@ -124,6 +130,7 @@ public class WebDriverElementValidationsBuilder {
      * @param attribute the target element attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder attribute(String attribute) {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = attribute;
@@ -131,6 +138,7 @@ public class WebDriverElementValidationsBuilder {
         return new NativeValidationsBuilder(this);
     }
 
+    @Override
     public NativeValidationsBuilder domAttribute(String domAttribute) {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = domAttribute;
@@ -138,6 +146,7 @@ public class WebDriverElementValidationsBuilder {
         return new NativeValidationsBuilder(this);
     }
 
+    @Override
     public NativeValidationsBuilder domProperty(String domProperty) {
         this.validationMethod = "elementDomPropertyEquals";
         this.elementAttribute = domProperty;
@@ -151,6 +160,7 @@ public class WebDriverElementValidationsBuilder {
      * @param domProperty the target element DOM property that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder property(String domProperty) {
         this.validationMethod = "elementPropertyEquals";
         this.elementAttribute = domProperty;
@@ -163,6 +173,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public ValidationsExecutor isSelected() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "selected";
@@ -175,6 +186,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public ValidationsExecutor isChecked() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "checked";
@@ -187,6 +199,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public ValidationsExecutor isVisible() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "hidden";
@@ -199,6 +212,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public ValidationsExecutor isEnabled() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "disabled";
@@ -211,6 +225,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public ValidationsExecutor isNotSelected() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "selected";
@@ -223,6 +238,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public ValidationsExecutor isNotChecked() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "checked";
@@ -235,6 +251,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public ValidationsExecutor isHidden() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "hidden";
@@ -247,6 +264,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public ValidationsExecutor isDisabled() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "disabled";
@@ -259,6 +277,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder text() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "text";
@@ -271,6 +290,7 @@ public class WebDriverElementValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder textTrimmed() {
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "textTrimmed";
@@ -284,6 +304,7 @@ public class WebDriverElementValidationsBuilder {
      * @param elementCssProperty the target element css property that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder cssProperty(String elementCssProperty) {
         this.validationMethod = "elementCssPropertyEquals";
         this.elementCssProperty = elementCssProperty;

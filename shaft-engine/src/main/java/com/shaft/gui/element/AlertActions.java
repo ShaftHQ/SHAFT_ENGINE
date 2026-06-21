@@ -25,7 +25,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
  * @see FluentWebDriverAction
  */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
-public class AlertActions extends FluentWebDriverAction {
+public class AlertActions extends FluentWebDriverAction implements com.shaft.gui.driver.AlertActionsContract {
     /**
      * Creates a new {@code AlertActions} instance using the currently active SHAFT-managed driver.
      * Waits for an alert to be present before returning.
@@ -101,6 +101,7 @@ public class AlertActions extends FluentWebDriverAction {
      *
      * @return {@code true} if an alert is present and reachable; {@code false} otherwise
      */
+    @Override
     public boolean isAlertPresent() {
         try {
             waitForAlertToBePresent();
@@ -129,6 +130,7 @@ public class AlertActions extends FluentWebDriverAction {
      * @return this {@code AlertActions} instance for fluent method chaining
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public AlertActions acceptAlert() {
         try {
             waitForAlertToBePresent();
@@ -152,6 +154,7 @@ public class AlertActions extends FluentWebDriverAction {
      * @return this {@code AlertActions} instance for fluent method chaining
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public AlertActions dismissAlert() {
         try {
             waitForAlertToBePresent();
@@ -174,6 +177,7 @@ public class AlertActions extends FluentWebDriverAction {
      * @return the alert message text, or {@code null} if the alert is not present or
      *         an error occurs while retrieving the text
      */
+    @Override
     public String getAlertText() {
         try {
             waitForAlertToBePresent();
@@ -200,6 +204,7 @@ public class AlertActions extends FluentWebDriverAction {
      * @return this {@code AlertActions} instance for fluent method chaining
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public AlertActions typeIntoPromptAlert(String text) {
         try {
             waitForAlertToBePresent();

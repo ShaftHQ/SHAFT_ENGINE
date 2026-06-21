@@ -90,7 +90,7 @@ public class SHAFT {
          *
          * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide</a>
          */
-        public static class WebDriver {
+        public static class WebDriver implements com.shaft.gui.driver.Driver {
             DriverFactoryHelper helper;
             DriverFactory factory = new DriverFactory();
 
@@ -139,6 +139,7 @@ public class SHAFT {
              * resources. Should be called in {@code @AfterMethod} (TestNG) or
              * {@code @AfterEach} (JUnit 5).
              */
+            @Override
             public void quit() {
                 if (helper != null)
                     helper.closeDriver();
@@ -154,6 +155,7 @@ public class SHAFT {
              *
              * @return an {@link Actions} instance scoped to this driver session
              */
+            @Override
             public Actions element() {
                 return new Actions(helper);
             }
@@ -164,6 +166,7 @@ public class SHAFT {
              *
              * @return a {@link TouchActions} instance scoped to this driver session
              */
+            @Override
             public TouchActions touch() {
                 return new TouchActions(helper);
             }
@@ -174,6 +177,7 @@ public class SHAFT {
              *
              * @return a {@link BrowserActions} instance scoped to this driver session
              */
+            @Override
             public BrowserActions browser() {
                 return new BrowserActions(helper);
             }
@@ -195,6 +199,7 @@ public class SHAFT {
              * @param args optional action arguments referenced by the intent
              * @return this driver instance for fluent chaining
              */
+            @Override
             public WebDriver act(String intent, Object... args) {
                 NaturalActionExecutor.perform(helper, intent, args);
                 return this;
@@ -206,6 +211,7 @@ public class SHAFT {
              *
              * @return an {@link AlertActions} instance scoped to this driver session
              */
+            @Override
             public AlertActions alert() {
                 return new AlertActions(helper);
             }
@@ -216,6 +222,7 @@ public class SHAFT {
              * @return a {@link WizardHelpers.WebDriverAssertions} builder for browser,
              *         element, and other assertions
              */
+            @Override
             public WizardHelpers.WebDriverAssertions assertThat() {
                 return new WizardHelpers.WebDriverAssertions(helper);
             }
@@ -226,6 +233,7 @@ public class SHAFT {
              *
              * @return a {@link WizardHelpers.WebDriverVerifications} builder
              */
+            @Override
             public WizardHelpers.WebDriverVerifications verifyThat() {
                 return new WizardHelpers.WebDriverVerifications(helper);
             }
@@ -241,6 +249,7 @@ public class SHAFT {
              * @return the underlying {@link org.openqa.selenium.WebDriver} instance for
              *         this session
              */
+            @Override
             public org.openqa.selenium.WebDriver getDriver() {
                 /*
                  * Decorator is not working for appium drivers as per the following issues/articles
@@ -285,6 +294,103 @@ public class SHAFT {
                     return new AsyncElementActions(helper);
                 }
 
+            }
+        }
+
+        /**
+         * Manages a Microsoft Playwright browser session and exposes SHAFT GUI
+         * browser actions, element actions, alert helpers, and assertions.
+         */
+        public static class Playwright implements com.shaft.gui.driver.Driver {
+            private com.shaft.gui.playwright.internal.PlaywrightSession session;
+
+            public Playwright() {
+                session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.create();
+            }
+
+            public Playwright(com.microsoft.playwright.Page page) {
+                session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.attach(
+                        null,
+                        page.context().browser(),
+                        page.context(),
+                        page);
+            }
+
+            public Playwright(com.microsoft.playwright.Playwright playwright,
+                               com.microsoft.playwright.Browser browser,
+                               com.microsoft.playwright.BrowserContext browserContext,
+                               com.microsoft.playwright.Page page) {
+                session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.attach(
+                        playwright,
+                        browser,
+                        browserContext,
+                        page);
+            }
+
+            @Override
+            public void quit() {
+                if (session != null) {
+                    if (com.shaft.gui.playwright.internal.PlaywrightSessionManager.currentSession() == session) {
+                        com.shaft.gui.playwright.internal.PlaywrightSessionManager.clearSession();
+                    } else {
+                        session.close();
+                    }
+                    session = null;
+                }
+            }
+
+            @Override
+            public com.shaft.gui.playwright.element.ElementActions element() {
+                return new com.shaft.gui.playwright.element.ElementActions(session);
+            }
+
+            @Override
+            public TouchActions touch() {
+                throw new UnsupportedOperationException("TouchActions are Appium/WebDriver-specific and are not available through the Playwright backend.");
+            }
+
+            @Override
+            public com.shaft.gui.playwright.browser.BrowserActions browser() {
+                return new com.shaft.gui.playwright.browser.BrowserActions(session);
+            }
+
+            @Override
+            public Playwright act(String intent, Object... args) {
+                throw new UnsupportedOperationException("Natural GUI actions currently execute through WebDriver and are not available through the Playwright backend.");
+            }
+
+            @Override
+            public com.shaft.gui.playwright.element.AlertActions alert() {
+                return new com.shaft.gui.playwright.element.AlertActions(session);
+            }
+
+            @Override
+            public com.shaft.gui.playwright.validation.PlaywrightDriverAssertions assertThat() {
+                return new com.shaft.gui.playwright.validation.PlaywrightDriverAssertions(session);
+            }
+
+            @Override
+            public com.shaft.gui.playwright.validation.PlaywrightDriverVerifications verifyThat() {
+                return new com.shaft.gui.playwright.validation.PlaywrightDriverVerifications(session);
+            }
+
+            @Override
+            public com.microsoft.playwright.Page getDriver() {
+                return session.page();
+            }
+
+            @Override
+            public com.microsoft.playwright.Page getNativeDriver() {
+                return session.page();
+            }
+
+            @Override
+            public com.microsoft.playwright.BrowserContext getNativeContext() {
+                return session.browserContext();
+            }
+
+            public com.microsoft.playwright.Playwright getPlaywright() {
+                return session.playwright();
             }
         }
 

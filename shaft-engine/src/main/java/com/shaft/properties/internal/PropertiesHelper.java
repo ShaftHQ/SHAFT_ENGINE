@@ -97,6 +97,7 @@ public class PropertiesHelper {
         Properties.baseApi = ConfigFactory.create(API.class);
         Properties.basePilot = ConfigFactory.create(Pilot.class);
         Properties.baseNaturalActions = ConfigFactory.create(NaturalActions.class);
+        Properties.basePlaywright = ConfigFactory.create(Playwright.class);
         Properties.initialized = true;
     }
 

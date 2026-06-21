@@ -1,0 +1,1 @@
+For SHAFT work, delegate as much as practical to gpt-5.3-codex-spark agents, or a lower-capability available agent if Spark is unavailable. The main agent remains responsible for orchestration, review, consolidation, and final ownership of delegated work.

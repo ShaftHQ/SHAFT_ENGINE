@@ -1,11 +1,13 @@
 package com.shaft.gui.internal.locator;
 
+import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.Page;
+import com.shaft.gui.driver.ShaftLocator;
 import lombok.Getter;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LocatorBuilder {
     private static final ThreadLocal<Locators> mode = new ThreadLocal<>();
@@ -175,16 +177,23 @@ public class LocatorBuilder {
     }
 
     public By build() {
-        By locator;
-        AtomicBoolean isShadowElement = new AtomicBoolean(false);
-        parameters.forEach(parameter -> isShadowElement.set(parameter.toLowerCase().contains("shadow")));
-        if (mode.get() == Locators.CSS || isShadowElement.get()) {
-            locator = By.cssSelector(buildSelectorExpression());
+        return buildPortable().toBy();
+    }
+
+    public ShaftLocator buildPortable() {
+        boolean isShadowElement = parameters.stream().anyMatch(parameter -> parameter.toLowerCase().contains("shadow"));
+        ShaftLocator locator;
+        if (mode.get() == Locators.CSS || isShadowElement) {
+            locator = ShaftLocator.css(buildSelectorExpression());
         } else {
-            locator = By.xpath(buildXpathExpression());
+            locator = ShaftLocator.xpath(buildXpathExpression());
         }
         mode.set(Locators.XPATH);
         return locator;
+    }
+
+    public Locator buildForPlaywright(Page page) {
+        return buildPortable().toPlaywrightLocator(page);
     }
 
     private String buildXpathExpression() {

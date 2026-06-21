@@ -3,7 +3,7 @@ package com.shaft.validation.internal;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.WebDriver;
 
-public class WebDriverBrowserValidationsBuilder {
+public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.BrowserAssertions {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
     protected final StringBuilder reportMessageBuilder;
@@ -23,6 +23,7 @@ public class WebDriverBrowserValidationsBuilder {
      * @param browserAttribute the target browser attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder attribute(String browserAttribute) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute;
@@ -36,6 +37,7 @@ public class WebDriverBrowserValidationsBuilder {
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     @SuppressWarnings("SpellCheckingInspection")
+    @Override
     public NativeValidationsBuilder url() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "currenturl";
@@ -48,6 +50,7 @@ public class WebDriverBrowserValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder title() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "title";
@@ -60,6 +63,7 @@ public class WebDriverBrowserValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder text() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "text";
