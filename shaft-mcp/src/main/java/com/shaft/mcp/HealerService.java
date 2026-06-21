@@ -123,6 +123,7 @@ public class HealerService {
     @Tool(name = "playwright_healer_run_failed_test",
             description = "reruns a failing SHAFT Playwright test, analyzes fresh Allure evidence,"
                     + " and returns review-only fixes plus agent replay guidance")
+    @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpHealerRunResult runFailedPlaywrightTest(
             String repositoryRoot,
             List<String> testCommand,
@@ -152,6 +153,7 @@ public class HealerService {
                 CodegenBackend.PLAYWRIGHT);
     }
 
+    @SuppressWarnings({"PMD.ExcessiveParameterList", "PMD.NPathComplexity"})
     private McpHealerRunResult runFailedTestInternal(
             String repositoryRoot,
             List<String> testCommand,

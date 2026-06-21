@@ -267,6 +267,7 @@ public class CaptureService {
      */
     @Tool(name = "playwright_capture_generate_replay",
             description = "generates, compiles, optionally replays, and returns copy-paste SHAFT Playwright code blocks")
+    @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpCaptureReplayResult generatePlaywrightReplay(
             String sessionPath,
             String outputDirectory,

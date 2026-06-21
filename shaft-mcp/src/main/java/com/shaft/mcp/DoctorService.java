@@ -133,6 +133,7 @@ public class DoctorService {
      */
     @Tool(name = "playwright_doctor_analyze_failed_allure",
             description = "analyzes failed Allure results and returns SHAFT Playwright remediation code blocks")
+    @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpAnalysisReport analyzeFailedPlaywrightAllure(
             List<String> allureResultPaths,
             List<String> historicalBundlePaths,

@@ -114,6 +114,7 @@ public final class CaptureGenerator {
      * @param backend generated SHAFT GUI backend
      * @return generated artifacts and report
      */
+    @SuppressWarnings("PMD.NPathComplexity")
     public CaptureGenerationResult generate(CaptureGenerationRequest request, CodegenBackend backend) {
         Objects.requireNonNull(request, "request");
         CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
@@ -288,6 +289,7 @@ public final class CaptureGenerator {
         }
     }
 
+    @SuppressWarnings("PMD.NPathComplexity")
     private GenerationState analyze(CaptureSession session, Path sessionPath, CodegenBackend backend) {
         List<String> unsupported = new ArrayList<>();
         List<String> flaky = new ArrayList<>();
