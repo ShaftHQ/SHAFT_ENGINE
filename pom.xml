@@ -94,7 +94,7 @@
         <rest.assured.version>6.0.0</rest.assured.version>
         <openapi.request.validator.version>3.0.0</openapi.request.validator.version>
         <json.path.version>3.0.0</json.path.version>
-        <javassist.version>3.31.0-GA</javassist.version>
+        <javassist.version>3.32.0-GA</javassist.version>
         <google.api.client.version>2.9.0</google.api.client.version>
         <google.http.client.version>2.1.0</google.http.client.version>
         <proto.google.common.protos.version>2.72.0</proto.google.common.protos.version>
