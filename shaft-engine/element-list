@@ -8,6 +8,7 @@ com.shaft.driver.internal.DriverFactory
 com.shaft.enums.internal
 com.shaft.gui.browser
 com.shaft.gui.browser.internal
+com.shaft.gui.driver
 com.shaft.gui.element
 com.shaft.gui.element.internal
 com.shaft.gui.internal.exceptions
@@ -16,6 +17,10 @@ com.shaft.gui.internal.image
 com.shaft.gui.internal.locator
 com.shaft.gui.internal.natural
 com.shaft.gui.internal.video
+com.shaft.gui.playwright.browser
+com.shaft.gui.playwright.element
+com.shaft.gui.playwright.internal
+com.shaft.gui.playwright.validation
 com.shaft.listeners
 com.shaft.listeners.internal
 com.shaft.performance.internal
