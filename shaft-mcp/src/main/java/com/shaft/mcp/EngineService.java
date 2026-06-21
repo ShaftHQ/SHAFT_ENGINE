@@ -123,7 +123,7 @@ public class EngineService {
         logger.info("Driver initialized successfully: {}", sessionName);
     }
 
-    private static void ensureEngineInitialized() {
+    static void ensureEngineInitialized() {
         // Initialize engine setup only once to avoid repeated initialization warnings
         if (!engineInitialized) {
             logger.info("Initializing SHAFT Engine for AI Agent mode...");

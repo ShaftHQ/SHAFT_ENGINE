@@ -104,7 +104,19 @@ public final class CaptureGenerator {
      * @return generated artifacts and report
      */
     public CaptureGenerationResult generate(CaptureGenerationRequest request) {
+        return generate(request, CodegenBackend.WEBDRIVER);
+    }
+
+    /**
+     * Generates, validates, and reports one SHAFT TestNG test for a selected GUI backend.
+     *
+     * @param request generation options
+     * @param backend generated SHAFT GUI backend
+     * @return generated artifacts and report
+     */
+    public CaptureGenerationResult generate(CaptureGenerationRequest request, CodegenBackend backend) {
         Objects.requireNonNull(request, "request");
+        CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
         Path sessionPath = request.sessionPath().toAbsolutePath().normalize();
         Path outputRoot = request.outputDirectory().toAbsolutePath().normalize();
         Path reportPath = outputRoot.resolve("target/shaft-capture/generation-report.json");
@@ -120,10 +132,10 @@ public final class CaptureGenerator {
             String deterministicMethodName = "replay" + javaClassName(session.sessionId());
             paths = artifactPaths(outputRoot, request.packageName(), deterministicClassName);
 
-            GenerationState state = analyze(session, sessionPath);
+            GenerationState state = analyze(session, sessionPath, targetBackend);
             Map<String, String> elementNames = defaultElementNames(state.targets());
             String deterministicSource = renderSource(session, request.packageName(), deterministicClassName,
-                    deterministicMethodName, state.targets(), state.data(), elementNames, List.of());
+                    deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend);
             String fingerprint = fingerprint(codec.write(session), deterministicSource);
 
             CaptureGenerationReport.Enrichment enrichment = CaptureGenerationReport.Enrichment.notRequested();
@@ -184,7 +196,7 @@ public final class CaptureGenerator {
                 paths = artifactPaths(outputRoot, request.packageName(), className);
             }
             String source = renderSource(session, request.packageName(), className, methodName,
-                    state.targets(), state.data(), finalElementNames, appliedProposal.assertions());
+                    state.targets(), state.data(), finalElementNames, appliedProposal.assertions(), targetBackend);
             String dataJson = writeJson(state.data().root());
 
             List<String> privacy = new ArrayList<>();
@@ -276,7 +288,7 @@ public final class CaptureGenerator {
         }
     }
 
-    private GenerationState analyze(CaptureSession session, Path sessionPath) {
+    private GenerationState analyze(CaptureSession session, Path sessionPath, CodegenBackend backend) {
         List<String> unsupported = new ArrayList<>();
         List<String> flaky = new ArrayList<>();
         List<String> fallback = new ArrayList<>();
@@ -297,7 +309,7 @@ public final class CaptureGenerator {
                     || event.context().replayStatus() == EventContext.ReplayStatus.SKIPPED) {
                 flaky.add(eventId + ": recorded replay status is " + event.context().replayStatus() + ".");
             }
-            validateEvent(event, unsupported, required, knownWindows);
+            validateEvent(event, unsupported, required, knownWindows, backend);
             if (event instanceof CaptureEvent.VerificationEvent) {
                 verificationSequences.add(event.context().sequence());
             }
@@ -368,7 +380,8 @@ public final class CaptureGenerator {
             CaptureEvent event,
             List<String> unsupported,
             List<String> required,
-            Set<String> knownWindows) {
+            Set<String> knownWindows,
+            CodegenBackend backend) {
         String id = eventId(event);
         if (hasShadowContext(event.context())) {
             unsupported.add(id + ": shadow-root replay requires a recorded host-selector chain. "
@@ -417,6 +430,10 @@ public final class CaptureGenerator {
         } else if (event instanceof CaptureEvent.VerificationEvent value) {
             validateVerification(id, value.verification(), value.target(), value.expected(),
                     value.context(), unsupported);
+        } else if (event instanceof CaptureEvent.FrameEvent value
+                && backend == CodegenBackend.PLAYWRIGHT
+                && value.action() != CaptureEvent.FrameAction.TOP) {
+            unsupported.add(id + ": Playwright codegen cannot replay WebDriver frame switching yet.");
         } else if (event instanceof CaptureEvent.AlertEvent value
                 && value.action() == CaptureEvent.AlertAction.VERIFY_TEXT
                 && isSecret(value.text())) {
@@ -520,17 +537,25 @@ public final class CaptureGenerator {
             List<TargetPlan> targets,
             DataPlan data,
             Map<String, String> elementNames,
-            List<CaptureEnrichmentPreview.AssertionSuggestion> extraAssertions) {
+            List<CaptureEnrichmentPreview.AssertionSuggestion> extraAssertions,
+            CodegenBackend backend) {
         StringBuilder source = new StringBuilder();
         line(source, "package " + packageName + ";");
         line(source, "");
-        line(source, "import com.shaft.driver.DriverFactory;");
-        line(source, "import com.shaft.driver.SHAFT;");
+        if (backend == CodegenBackend.WEBDRIVER) {
+            line(source, "import com.shaft.driver.DriverFactory;");
+            line(source, "import com.shaft.driver.SHAFT;");
+        } else {
+            line(source, "import com.shaft.driver.SHAFT;");
+            line(source, "import com.shaft.gui.driver.ShaftLocator;");
+        }
         line(source, "import com.shaft.gui.internal.locator.Role;");
         line(source, "import org.openqa.selenium.By;");
         line(source, "import org.openqa.selenium.Keys;");
         line(source, "import org.openqa.selenium.WindowType;");
-        line(source, "import org.openqa.selenium.support.ui.ExpectedConditions;");
+        if (backend == CodegenBackend.WEBDRIVER) {
+            line(source, "import org.openqa.selenium.support.ui.ExpectedConditions;");
+        }
         line(source, "import org.testng.annotations.AfterMethod;");
         line(source, "import org.testng.annotations.BeforeMethod;");
         line(source, "import org.testng.annotations.Test;");
@@ -547,19 +572,25 @@ public final class CaptureGenerator {
         if (!targets.isEmpty()) {
             line(source, "");
         }
-        line(source, "    private SHAFT.GUI.WebDriver driver;");
+        line(source, "    private SHAFT.GUI." + backend.driverClassName() + " driver;");
         line(source, "    private SHAFT.TestData.JSON testData;");
         line(source, "    private final Map<String, String> windows = new HashMap<>();");
         line(source, "");
         line(source, "    @BeforeMethod");
         line(source, "    public void setUp() {");
-        line(source, "        driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType."
-                + driverType(session.browser().browserName()) + ");");
+        if (backend == CodegenBackend.WEBDRIVER) {
+            line(source, "        driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType."
+                    + driverType(session.browser().browserName()) + ");");
+        } else {
+            line(source, "        SHAFT.Properties.playwright.set().browserName(\""
+                    + javaString(playwrightBrowserName(session.browser().browserName())) + "\");");
+            line(source, "        driver = new SHAFT.GUI.Playwright();");
+        }
         line(source, "        testData = new SHAFT.TestData.JSON(\"" + javaString(dataFileName(className)) + "\");");
         if (!session.events().isEmpty()) {
             line(source, "        windows.put(\""
                     + javaString(session.events().getFirst().context().page().logicalWindowId())
-                    + "\", driver.getDriver().getWindowHandle());");
+                    + "\", " + currentWindowHandleExpression(backend) + ");");
         }
         line(source, "    }");
         line(source, "");
@@ -571,7 +602,7 @@ public final class CaptureGenerator {
         Map<Long, CaptureEvent> eventsBySequence = new HashMap<>();
         session.events().forEach(event -> eventsBySequence.put(event.context().sequence(), event));
         for (CaptureEvent event : session.events()) {
-            renderEvent(source, event, targets, elementNames, data);
+            renderEvent(source, event, targets, elementNames, data, backend);
             for (Checkpoint checkpoint : checkpoints.getOrDefault(event.context().sequence(), List.of())) {
                 String description = checkpoint.description().isBlank()
                         ? ""
@@ -582,7 +613,7 @@ public final class CaptureGenerator {
             for (CaptureEnrichmentPreview.AssertionSuggestion assertion :
                     assertions.getOrDefault(event.context().sequence(), List.of())) {
                 renderSuggestedAssertion(source, eventsBySequence.get(assertion.eventSequence()),
-                        assertion, targets, elementNames);
+                        assertion, targets, elementNames, backend);
             }
         }
         line(source, "    }");
@@ -618,7 +649,8 @@ public final class CaptureGenerator {
             CaptureEvent event,
             List<TargetPlan> targets,
             Map<String, String> elementNames,
-            DataPlan data) {
+            DataPlan data,
+            CodegenBackend backend) {
         String locator = target(event)
                 .map(ElementSnapshot::logicalElementId)
                 .map(elementNames::get)
@@ -645,8 +677,7 @@ public final class CaptureGenerator {
             line(source, "        driver.element().select(" + locator + ", "
                     + dataExpression(value.value(), data) + ");");
         } else if (event instanceof CaptureEvent.ToggleEvent value) {
-            line(source, "        if (driver.getDriver().findElement(" + locator + ").isSelected() != "
-                    + value.checked() + ") {");
+            line(source, "        if (" + selectedExpression(locator, backend) + " != " + value.checked() + ") {");
             line(source, "            driver.element().click(" + locator + ");");
             line(source, "        }");
         } else if (event instanceof CaptureEvent.UploadEvent value) {
@@ -655,13 +686,12 @@ public final class CaptureGenerator {
         } else if (event instanceof CaptureEvent.KeyboardEvent value) {
             String keys = keys(value.keys());
             if (value.target() == null) {
-                line(source, "        new org.openqa.selenium.interactions.Actions(driver.getDriver())"
-                        + ".sendKeys(" + keys + ").perform();");
+                line(source, "        " + keyboardExpression(keys, backend));
             } else {
                 line(source, "        driver.element().typeAppend(" + locator + ", " + keys + ");");
             }
         } else if (event instanceof CaptureEvent.WindowEvent value) {
-            renderWindow(source, value);
+            renderWindow(source, value, backend);
         } else if (event instanceof CaptureEvent.FrameEvent value) {
             if (value.action() == CaptureEvent.FrameAction.TOP) {
                 line(source, "        driver.element().switchToDefaultContent();");
@@ -674,22 +704,27 @@ public final class CaptureGenerator {
                         + javaString(value.logicalFrameId()) + "\"));");
             }
         } else if (event instanceof CaptureEvent.AlertEvent value) {
-            renderAlert(source, value, data);
+            renderAlert(source, value, data, backend);
         } else if (event instanceof CaptureEvent.WaitEvent value) {
-            renderWait(source, value, locator, data);
+            renderWait(source, value, locator, data, backend);
         } else if (event instanceof CaptureEvent.VerificationEvent value) {
             renderVerification(source, value.verification(), value.target(), value.expected(),
-                    value.negated(), value.context(), locator, data);
+                    value.negated(), value.context(), locator, data, backend);
         }
     }
 
-    private static void renderWindow(StringBuilder source, CaptureEvent.WindowEvent value) {
+    private static void renderWindow(StringBuilder source, CaptureEvent.WindowEvent value, CodegenBackend backend) {
         switch (value.action()) {
             case OPEN_TAB, OPEN_WINDOW -> {
-                line(source, "        driver.getDriver().switchTo().newWindow(WindowType."
-                        + (value.action() == CaptureEvent.WindowAction.OPEN_TAB ? "TAB" : "WINDOW") + ");");
+                if (backend == CodegenBackend.WEBDRIVER) {
+                    line(source, "        driver.getDriver().switchTo().newWindow(WindowType."
+                            + (value.action() == CaptureEvent.WindowAction.OPEN_TAB ? "TAB" : "WINDOW") + ");");
+                } else {
+                    line(source, "        driver.browser().navigateToURL(\"about:blank\", WindowType."
+                            + (value.action() == CaptureEvent.WindowAction.OPEN_TAB ? "TAB" : "WINDOW") + ");");
+                }
                 line(source, "        windows.put(\"" + javaString(value.logicalWindowId())
-                        + "\", driver.getDriver().getWindowHandle());");
+                        + "\", " + currentWindowHandleExpression(backend) + ");");
             }
             case SWITCH -> line(source, "        driver.browser().switchToWindow(windows.get(\""
                     + javaString(value.logicalWindowId()) + "\"));");
@@ -700,12 +735,13 @@ public final class CaptureGenerator {
     private static void renderAlert(
             StringBuilder source,
             CaptureEvent.AlertEvent value,
-            DataPlan data) {
+            DataPlan data,
+            CodegenBackend backend) {
         switch (value.action()) {
             case ACCEPT -> line(source, "        driver.alert().acceptAlert();");
             case DISMISS -> line(source, "        driver.alert().dismissAlert();");
             case TYPE -> {
-                if (isSecret(value.text())) {
+                if (backend == CodegenBackend.WEBDRIVER && isSecret(value.text())) {
                     line(source, "        driver.getDriver().switchTo().alert().sendKeys("
                             + dataExpression(value.text(), data) + ");");
                 } else {
@@ -723,8 +759,13 @@ public final class CaptureGenerator {
             StringBuilder source,
             CaptureEvent.WaitEvent value,
             String locator,
-            DataPlan data) {
+            DataPlan data,
+            CodegenBackend backend) {
         long seconds = Math.max(1, value.timeout().toSeconds());
+        if (backend == CodegenBackend.PLAYWRIGHT) {
+            renderPlaywrightWait(source, value, locator, data);
+            return;
+        }
         switch (value.condition()) {
             case ELEMENT_PRESENT -> waitUntil(source, "presenceOfElementLocated(" + locator + ")", seconds);
             case ELEMENT_VISIBLE -> waitUntil(source, "visibilityOfElementLocated(" + locator + ")", seconds);
@@ -736,6 +777,26 @@ public final class CaptureGenerator {
                     "titleContains(" + dataExpression(value.expected(), data) + ")", seconds);
             case DOCUMENT_READY -> line(source, "        driver.browser().waitForLazyLoading();");
             case FIXED_DURATION -> line(source, "        Thread.sleep(" + value.timeout().toMillis() + "L);");
+        }
+    }
+
+    private static void renderPlaywrightWait(
+            StringBuilder source,
+            CaptureEvent.WaitEvent value,
+            String locator,
+            DataPlan data) {
+        switch (value.condition()) {
+            case ELEMENT_PRESENT, ELEMENT_VISIBLE, ELEMENT_CLICKABLE ->
+                    line(source, "        driver.assertThat().element(" + locator + ").isVisible().perform();");
+            case ELEMENT_ABSENT ->
+                    line(source, "        driver.assertThat().element(" + locator + ").doesNotExist().perform();");
+            case URL_CONTAINS -> nativeAssertion(source, "driver.assertThat().browser().url()",
+                    "contains", dataExpression(value.expected(), data));
+            case TITLE_CONTAINS -> nativeAssertion(source, "driver.assertThat().browser().title()",
+                    "contains", dataExpression(value.expected(), data));
+            case DOCUMENT_READY -> line(source, "        driver.browser().waitForLazyLoading();");
+            case FIXED_DURATION -> line(source, "        driver.getDriver().waitForTimeout("
+                    + value.timeout().toMillis() + ");");
         }
     }
 
@@ -752,13 +813,14 @@ public final class CaptureGenerator {
             boolean negated,
             EventContext context,
             String locator,
-            DataPlan data) {
+            DataPlan data,
+            CodegenBackend backend) {
         switch (verification) {
             case ELEMENT_PRESENT -> line(source, "        driver.assertThat().element(" + locator + ")."
                     + (negated ? "doesNotExist" : "exists") + "().perform();");
             case ELEMENT_VISIBLE -> {
                 if (negated) {
-                    stateAssertion(source, "driver.getDriver().findElement(" + locator + ").isDisplayed()", true);
+                    stateAssertion(source, displayedExpression(locator, backend), true);
                 } else {
                     line(source, "        driver.assertThat().element(" + locator + ").isVisible().perform();");
                 }
@@ -804,7 +866,8 @@ public final class CaptureGenerator {
             CaptureEvent event,
             CaptureEnrichmentPreview.AssertionSuggestion suggestion,
             List<TargetPlan> targets,
-            Map<String, String> elementNames) {
+            Map<String, String> elementNames,
+            CodegenBackend backend) {
         Optional<ElementSnapshot> target = target(event);
         if (target.isEmpty()) {
             return;
@@ -813,7 +876,7 @@ public final class CaptureGenerator {
         CaptureEvent.VerificationKind verification =
                 CaptureEvent.VerificationKind.valueOf(suggestion.verification());
         renderVerification(source, verification, target.get(), null, suggestion.negated(),
-                event.context(), locator, null);
+                event.context(), locator, null, backend);
     }
 
     private static String locatorExpression(TargetPlan plan) {
@@ -1464,6 +1527,35 @@ public final class CaptureGenerator {
         return "edge".equalsIgnoreCase(browserName) ? "EDGE" : "CHROME";
     }
 
+    private static String playwrightBrowserName(String browserName) {
+        String normalized = browserName == null || browserName.isBlank() ? "chromium" : browserName.toLowerCase(Locale.ROOT);
+        return "edge".equals(normalized) ? "chromium" : normalized;
+    }
+
+    private static String currentWindowHandleExpression(CodegenBackend backend) {
+        return backend == CodegenBackend.WEBDRIVER
+                ? "driver.getDriver().getWindowHandle()"
+                : "driver.browser().getWindowHandle()";
+    }
+
+    private static String selectedExpression(String locator, CodegenBackend backend) {
+        return backend == CodegenBackend.WEBDRIVER
+                ? "driver.getDriver().findElement(" + locator + ").isSelected()"
+                : "ShaftLocator.from(" + locator + ").toPlaywrightLocator(driver.getDriver()).isChecked()";
+    }
+
+    private static String displayedExpression(String locator, CodegenBackend backend) {
+        return backend == CodegenBackend.WEBDRIVER
+                ? "driver.getDriver().findElement(" + locator + ").isDisplayed()"
+                : "ShaftLocator.from(" + locator + ").toPlaywrightLocator(driver.getDriver()).isVisible()";
+    }
+
+    private static String keyboardExpression(String keys, CodegenBackend backend) {
+        return backend == CodegenBackend.WEBDRIVER
+                ? "new org.openqa.selenium.interactions.Actions(driver.getDriver()).sendKeys(" + keys + ").perform();"
+                : "driver.getDriver().keyboard().type(String.valueOf(" + keys + "));";
+    }
+
     private static List<String> splitWords(String value) {
         if (value == null) {
             return List.of();
@@ -1523,6 +1615,41 @@ public final class CaptureGenerator {
         printer.indentArraysWith(indenter);
         printer.indentObjectsWith(indenter);
         return printer;
+    }
+
+    /**
+     * SHAFT GUI backend used by generated capture replay code.
+     */
+    public enum CodegenBackend {
+        WEBDRIVER("WebDriver"),
+        PLAYWRIGHT("Playwright");
+
+        private final String driverClassName;
+
+        CodegenBackend(String driverClassName) {
+            this.driverClassName = driverClassName;
+        }
+
+        String driverClassName() {
+            return driverClassName;
+        }
+
+        /**
+         * Parses a backend name, defaulting to WebDriver.
+         *
+         * @param value backend name
+         * @return parsed backend
+         */
+        public static CodegenBackend from(String value) {
+            if (value == null || value.isBlank()) {
+                return WEBDRIVER;
+            }
+            String normalized = value.trim().toLowerCase(Locale.ROOT);
+            if ("playwright".equals(normalized) || "shaft-playwright".equals(normalized)) {
+                return PLAYWRIGHT;
+            }
+            return WEBDRIVER;
+        }
     }
 
     private record ArtifactPaths(Path root, Path source, Path data, Path classes) {

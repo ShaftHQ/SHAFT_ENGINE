@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Diagnosis;
 import com.shaft.doctor.model.DoctorAnalysisResult;
@@ -76,7 +77,32 @@ final class McpDoctorRemediationService {
             boolean useAi,
             ApprovalPolicy approvalPolicy,
             String driverVariableName) {
-        List<McpCodeBlock> blocks = deterministicBlocks(result.diagnosis(), driverVariableName);
+        return build(result, repositoryRoot, allowedSourcePaths, useAi, approvalPolicy,
+                driverVariableName, CodegenBackend.WEBDRIVER);
+    }
+
+    /**
+     * Builds deterministic and optional provider remediation for a selected GUI backend.
+     *
+     * @param result deterministic Doctor analysis result
+     * @param repositoryRoot optional repository root
+     * @param allowedSourcePaths optional approved source paths
+     * @param useAi whether provider fallback is requested
+     * @param approvalPolicy explicit provider approval
+     * @param driverVariableName Java driver variable name used in snippets
+     * @param backend generated GUI backend
+     * @return complete MCP report
+     */
+    McpAnalysisReport build(
+            DoctorAnalysisResult result,
+            Path repositoryRoot,
+            List<String> allowedSourcePaths,
+            boolean useAi,
+            ApprovalPolicy approvalPolicy,
+            String driverVariableName,
+            CodegenBackend backend) {
+        CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
+        List<McpCodeBlock> blocks = deterministicBlocks(result.diagnosis(), driverVariableName, targetBackend);
         List<McpActionRecord> actions = actions(result.diagnosis(), blocks);
         ProviderBlocks providerBlocks = useAi
                 ? providerBlocks(result, repositoryRoot, allowedSourcePaths, approvalPolicy, blocks)
@@ -119,11 +145,19 @@ final class McpDoctorRemediationService {
      * @return deterministic code blocks
      */
     List<McpCodeBlock> deterministicBlocks(Diagnosis diagnosis, String driverVariableName) {
+        return deterministicBlocks(diagnosis, driverVariableName, CodegenBackend.WEBDRIVER);
+    }
+
+    List<McpCodeBlock> deterministicBlocks(
+            Diagnosis diagnosis,
+            String driverVariableName,
+            CodegenBackend backend) {
         String driver = javaIdentifierOrDefault(driverVariableName, "driver");
         List<String> evidenceIds = evidenceIds(diagnosis);
+        CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
         return switch (diagnosis.primaryCause()) {
-            case LOCATOR -> List.of(locatorBlock(evidenceIds), waitBlock(driver, evidenceIds, false));
-            case TIMING_SYNCHRONIZATION -> List.of(waitBlock(driver, evidenceIds, true),
+            case LOCATOR -> List.of(locatorBlock(evidenceIds), waitBlock(driver, evidenceIds, false, targetBackend));
+            case TIMING_SYNCHRONIZATION -> List.of(waitBlock(driver, evidenceIds, true, targetBackend),
                     assertionBlock(driver, evidenceIds, false));
             case DATA -> List.of(dataBlock(evidenceIds));
             case ENVIRONMENT_CONFIGURATION -> List.of(setupBlock(evidenceIds));
@@ -380,7 +414,28 @@ final class McpDoctorRemediationService {
                 List.of("Doctor found locator evidence, but the MCP tool does not invent a new locator."));
     }
 
-    private static McpCodeBlock waitBlock(String driver, List<String> evidenceIds, boolean ready) {
+    private static McpCodeBlock waitBlock(
+            String driver,
+            List<String> evidenceIds,
+            boolean ready,
+            CodegenBackend backend) {
+        if (backend == CodegenBackend.PLAYWRIGHT) {
+            return new McpCodeBlock(
+                    "playwright-auto-wait-assertion",
+                    "Use Playwright auto-waiting with a state assertion",
+                    McpCodeBlock.Kind.WAIT,
+                    "java",
+                    List.of("org.openqa.selenium.By"),
+                    """
+                            By target = TARGET_ELEMENT;
+                            %s.assertThat().element(target).isVisible().perform();
+                            %s.element().click(target);
+                            """.formatted(driver, driver),
+                    "Paste inside the Playwright test method before or at the failing interaction.",
+                    ready,
+                    evidenceIds,
+                    ready ? List.of() : List.of("Replace TARGET_ELEMENT with the intended locator."));
+        }
         return new McpCodeBlock(
                 "explicit-wait",
                 "Add an evidence-backed explicit wait",

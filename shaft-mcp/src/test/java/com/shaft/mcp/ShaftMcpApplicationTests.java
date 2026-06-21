@@ -49,6 +49,13 @@ class ShaftMcpApplicationTests {
         assertTrue(toolNames.contains("capture_checkpoint"));
         assertTrue(toolNames.contains("browser_get_page_dom"));
         assertTrue(toolNames.contains("browser_take_screenshot"));
+        assertTrue(toolNames.contains("playwright_initialize"));
+        assertTrue(toolNames.contains("playwright_browser_get_page_dom"));
+        assertTrue(toolNames.contains("playwright_element_click"));
+        assertTrue(toolNames.contains("playwright_recording_code_blocks"));
+        assertTrue(toolNames.contains("playwright_capture_code_blocks"));
+        assertTrue(toolNames.contains("playwright_doctor_analyze_failed_allure"));
+        assertTrue(toolNames.contains("playwright_healer_run_failed_test"));
         assertTrue(toolNames.contains("mobile_initialize_web_emulation"));
         assertTrue(toolNames.contains("mobile_initialize_native"));
         assertTrue(toolNames.contains("mobile_get_contexts"));

@@ -2,6 +2,7 @@ package com.shaft.mcp;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.internal.DoctorRedactor;
 import com.shaft.doctor.model.CauseCategory;
 import org.springframework.ai.tool.annotation.Tool;
@@ -86,6 +87,85 @@ public class HealerService {
             boolean allowLocalAi,
             boolean allowRemoteAi,
             String driverVariableName) {
+        return runFailedTestInternal(
+                repositoryRoot,
+                testCommand,
+                outputDirectory,
+                maxAttempts,
+                includeScreenshots,
+                includePageSnapshots,
+                allowedSourcePaths,
+                networkValidationApproved,
+                useConfiguredAi,
+                allowLocalAi,
+                allowRemoteAi,
+                driverVariableName,
+                CodegenBackend.WEBDRIVER);
+    }
+
+    /**
+     * Reruns a failing SHAFT Playwright test and returns evidence-backed repair suggestions.
+     *
+     * @param repositoryRoot Git/Maven project root inside the MCP workspace
+     * @param testCommand tokenized Maven command for the failing test
+     * @param outputDirectory healer and Doctor output directory inside the MCP workspace
+     * @param maxAttempts maximum rerun attempts, clamped to 1..5
+     * @param includeScreenshots explicit approval to retain screenshot evidence
+     * @param includePageSnapshots explicit approval to retain page-source evidence
+     * @param allowedSourcePaths optional repository-relative source paths approved for provider evidence
+     * @param networkValidationApproved whether Maven may run without offline mode
+     * @param useConfiguredAi whether to request configured SHAFT provider snippets in addition to agent handoff
+     * @param allowLocalAi explicit local provider consent when configured AI is requested
+     * @param allowRemoteAi explicit remote provider consent when configured AI is requested
+     * @param driverVariableName Java driver variable name used in snippets
+     * @return guarded rerun attempts plus review-only remediation
+     */
+    @Tool(name = "playwright_healer_run_failed_test",
+            description = "reruns a failing SHAFT Playwright test, analyzes fresh Allure evidence,"
+                    + " and returns review-only fixes plus agent replay guidance")
+    public McpHealerRunResult runFailedPlaywrightTest(
+            String repositoryRoot,
+            List<String> testCommand,
+            String outputDirectory,
+            int maxAttempts,
+            boolean includeScreenshots,
+            boolean includePageSnapshots,
+            List<String> allowedSourcePaths,
+            boolean networkValidationApproved,
+            boolean useConfiguredAi,
+            boolean allowLocalAi,
+            boolean allowRemoteAi,
+            String driverVariableName) {
+        return runFailedTestInternal(
+                repositoryRoot,
+                testCommand,
+                outputDirectory,
+                maxAttempts,
+                includeScreenshots,
+                includePageSnapshots,
+                allowedSourcePaths,
+                networkValidationApproved,
+                useConfiguredAi,
+                allowLocalAi,
+                allowRemoteAi,
+                driverVariableName,
+                CodegenBackend.PLAYWRIGHT);
+    }
+
+    private McpHealerRunResult runFailedTestInternal(
+            String repositoryRoot,
+            List<String> testCommand,
+            String outputDirectory,
+            int maxAttempts,
+            boolean includeScreenshots,
+            boolean includePageSnapshots,
+            List<String> allowedSourcePaths,
+            boolean networkValidationApproved,
+            boolean useConfiguredAi,
+            boolean allowLocalAi,
+            boolean allowRemoteAi,
+            String driverVariableName,
+            CodegenBackend backend) {
         Path repository = workspacePolicy.existing(repositoryRoot, "Repository root");
         if (!Files.isDirectory(repository)) {
             throw new IllegalArgumentException("Repository root must be a directory.");
@@ -116,7 +196,7 @@ public class HealerService {
                     concise(process.output()),
                     changed.stream().map(file -> file.path().toString()).toList()));
             if (passed) {
-                return result(McpHealerRunResult.Status.PASSED, attempts, null, List.of(
+                return result(McpHealerRunResult.Status.PASSED, attempts, null, backend, List.of(
                         "The guarded rerun passed; no source change was proposed."));
             }
             if (!changed.isEmpty()) {
@@ -130,21 +210,21 @@ public class HealerService {
                         useConfiguredAi,
                         allowLocalAi,
                         allowRemoteAi,
-                        driverVariableName);
+                        driverVariableName,
+                        backend);
             }
         }
         if (latestAnalysis == null) {
-            return result(McpHealerRunResult.Status.GUARDRAIL_STOPPED, attempts, null, List.of(
+            return result(McpHealerRunResult.Status.GUARDRAIL_STOPPED, attempts, null, backend, List.of(
                     "No populated Allure result files changed during the guarded rerun.",
                     "Run the failing test with SHAFT reporting enabled, then call the healer again."));
         }
         McpHealerRunResult.Status status = latestAnalysis.primaryCause() == CauseCategory.PRODUCT
                 ? McpHealerRunResult.Status.PRODUCT_BUG_SUSPECTED
                 : McpHealerRunResult.Status.FAILED_WITH_SUGGESTIONS;
-        return result(status, attempts, latestAnalysis, List.of(
+        return result(status, attempts, latestAnalysis, backend, List.of(
                 "Review the suggested snippets before editing source.",
-                "Use the existing SHAFT MCP browser, DOM, screenshot, element, and natural action tools to replay"
-                        + " the failing Selenium flow when more UI evidence is needed."));
+                replayGuidance(backend)));
     }
 
     private McpAnalysisReport analyze(
@@ -157,9 +237,27 @@ public class HealerService {
             boolean useConfiguredAi,
             boolean allowLocalAi,
             boolean allowRemoteAi,
-            String driverVariableName) {
-        return new DoctorService(workspacePolicy, new McpDoctorRemediationService()).analyzeFailedAllure(
-                changed.stream().map(file -> file.path().toString()).toList(),
+            String driverVariableName,
+            CodegenBackend backend) {
+        DoctorService doctor = new DoctorService(workspacePolicy, new McpDoctorRemediationService());
+        List<String> paths = changed.stream().map(file -> file.path().toString()).toList();
+        if (backend == CodegenBackend.PLAYWRIGHT) {
+            return doctor.analyzeFailedPlaywrightAllure(
+                    paths,
+                    List.of(),
+                    output.toString(),
+                    includeScreenshots,
+                    includePageSnapshots,
+                    1,
+                    repository.toString(),
+                    allowedSourcePaths,
+                    useConfiguredAi,
+                    allowLocalAi,
+                    allowRemoteAi,
+                    driverVariableName);
+        }
+        return doctor.analyzeFailedAllure(
+                paths,
                 List.of(),
                 output.toString(),
                 includeScreenshots,
@@ -177,18 +275,20 @@ public class HealerService {
             McpHealerRunResult.Status status,
             List<McpHealerAttemptResult> attempts,
             McpAnalysisReport analysis,
+            CodegenBackend backend,
             List<String> warnings) {
         List<McpActionRecord> actions = new ArrayList<>();
         List<McpCodeBlock> blocks = new ArrayList<>();
         if (analysis != null) {
             actions.addAll(analysis.actions());
             blocks.addAll(analysis.codeBlocks());
-            blocks.add(agentHandoffBlock(analysis));
+            blocks.add(agentHandoffBlock(analysis, backend));
             actions.add(new McpActionRecord(
                     "agent-replay-flow",
-                    "Replay and inspect the failing Selenium flow",
+                    "Replay and inspect the failing " + backendLabel(backend) + " flow",
                     "AGENT_REPLAY",
-                    "Use the calling agent's own LLM and SHAFT MCP tools to replay the failed flow,"
+                    "Use the calling agent's own LLM and SHAFT MCP tools to replay the failed "
+                            + backendLabel(backend) + " flow,"
                             + " inspect DOM/screenshot/current UI state, and propose the smallest evidence-backed fix.",
                     List.of(),
                     List.of("agent-healer-handoff"),
@@ -209,16 +309,16 @@ public class HealerService {
                 List.copyOf(mergedWarnings));
     }
 
-    private static McpCodeBlock agentHandoffBlock(McpAnalysisReport analysis) {
+    private static McpCodeBlock agentHandoffBlock(McpAnalysisReport analysis, CodegenBackend backend) {
         return new McpCodeBlock(
                 "agent-healer-handoff",
-                "Agent Selenium healer handoff",
+                "Agent " + backendLabel(backend) + " healer handoff",
                 McpCodeBlock.Kind.PROVIDER_ADVISORY,
                 "text",
                 List.of(),
                 """
                         This healer call is an implicit agent approval boundary. The calling agent may use its own
-                        LLM and the available SHAFT MCP tools to replay the failed Selenium flow, inspect DOM,
+                        LLM and the available SHAFT MCP tools to replay the failed %s flow, inspect DOM,
                         screenshots, element state, and current browser behavior, then suggest a minimal fix for
                         user confirmation. No SHAFT provider API key is required for this agent-side reasoning.
 
@@ -226,7 +326,7 @@ public class HealerService {
                         assertion, or product-bug evidence supported by the Doctor report.
 
                         Diagnosis: %s
-                        """.formatted(analysis.summary()),
+                        """.formatted(backendLabel(backend), analysis.summary()),
                 "Agent: replay with SHAFT MCP browser tools when needed, then propose the smallest supported fix.",
                 true,
                 analysis.actions().stream()
@@ -234,6 +334,17 @@ public class HealerService {
                         .distinct()
                         .toList(),
                 List.of());
+    }
+
+    private static String replayGuidance(CodegenBackend backend) {
+        return backend == CodegenBackend.PLAYWRIGHT
+                ? "Use the SHAFT MCP playwright_* DOM, screenshot, element, and replay tools when more UI evidence is needed."
+                : "Use the existing SHAFT MCP browser, DOM, screenshot, element, and natural action tools to replay"
+                + " the failing Selenium/WebDriver flow when more UI evidence is needed.";
+    }
+
+    private static String backendLabel(CodegenBackend backend) {
+        return backend == CodegenBackend.PLAYWRIGHT ? "Playwright" : "Selenium/WebDriver";
     }
 
     private static List<String> validationCommand(List<String> requested, boolean networkApproved) {
