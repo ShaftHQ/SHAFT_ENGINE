@@ -22,9 +22,12 @@ public final class PlaywrightSessionFactory {
 
     public static PlaywrightSession create() {
         Playwright playwright = Playwright.create();
-        BrowserType browserType = resolveBrowserType(playwright);
-        Browser browser = createBrowser(browserType);
-        BrowserContext browserContext = browser.newContext(createContextOptions());
+        PlaywrightDeviceDescriptor deviceDescriptor =
+                PlaywrightDeviceDescriptor.resolve(playwright, SHAFT.Properties.playwright.deviceName()).orElse(null);
+        String resolvedBrowserName = browserName(deviceDescriptor);
+        BrowserType browserType = resolveBrowserType(playwright, resolvedBrowserName);
+        Browser browser = createBrowser(browserType, resolvedBrowserName);
+        BrowserContext browserContext = browser.newContext(createContextOptions(deviceDescriptor));
         Page page = browserContext.newPage();
         page.setDefaultTimeout(SHAFT.Properties.playwright.defaultTimeoutMilliseconds());
         page.setDefaultNavigationTimeout(SHAFT.Properties.playwright.navigationTimeoutMilliseconds());
@@ -32,7 +35,8 @@ public final class PlaywrightSessionFactory {
         PlaywrightTraceManager traceManager = PlaywrightTraceManager.startIfEnabled(browserContext, artifactsPath());
         PlaywrightSession session = new PlaywrightSession(playwright, browser, browserContext, page, traceManager);
         PlaywrightSessionManager.setSession(session);
-        ReportManager.logDiscrete("Created Playwright GUI session using browser '" + browserName() + "'.", Level.INFO);
+        String device = deviceDescriptor == null ? "" : " and device '" + deviceDescriptor.name() + "'";
+        ReportManager.logDiscrete("Created Playwright GUI session using browser '" + resolvedBrowserName + "'" + device + ".", Level.INFO);
         return session;
     }
 
@@ -43,7 +47,7 @@ public final class PlaywrightSessionFactory {
         return session;
     }
 
-    private static Browser createBrowser(BrowserType browserType) {
+    private static Browser createBrowser(BrowserType browserType, String resolvedBrowserName) {
         String connectionMode = SHAFT.Properties.playwright.connectionMode().trim().toLowerCase(Locale.ROOT);
         String endpoint = SHAFT.Properties.playwright.endpoint().trim();
         return switch (connectionMode) {
@@ -51,7 +55,7 @@ public final class PlaywrightSessionFactory {
                     .setTimeout(SHAFT.Properties.playwright.launchTimeoutMilliseconds())
                     .setSlowMo(SHAFT.Properties.playwright.slowMo()));
             case "connectovercdp", "cdp" -> {
-                if (!isChromium()) {
+                if (!isChromium(resolvedBrowserName)) {
                     throw new IllegalArgumentException("Playwright connectOverCDP supports Chromium only.");
                 }
                 yield browserType.connectOverCDP(endpoint, new BrowserType.ConnectOverCDPOptions()
@@ -78,15 +82,19 @@ public final class PlaywrightSessionFactory {
         return launchOptions;
     }
 
-    private static Browser.NewContextOptions createContextOptions() {
+    private static Browser.NewContextOptions createContextOptions(PlaywrightDeviceDescriptor deviceDescriptor) {
         Browser.NewContextOptions contextOptions = new Browser.NewContextOptions()
-                .setAcceptDownloads(SHAFT.Properties.playwright.acceptDownloads())
-                .setViewportSize(SHAFT.Properties.web.browserWindowWidth(), SHAFT.Properties.web.browserWindowHeight());
+                .setAcceptDownloads(SHAFT.Properties.playwright.acceptDownloads());
 
         if (!SHAFT.Properties.web.baseURL().isBlank()) {
             contextOptions.setBaseURL(SHAFT.Properties.web.baseURL());
         }
-        if (SHAFT.Properties.web.isMobileEmulation()) {
+        if (deviceDescriptor != null) {
+            deviceDescriptor.applyTo(contextOptions);
+        } else {
+            contextOptions.setViewportSize(SHAFT.Properties.web.browserWindowWidth(), SHAFT.Properties.web.browserWindowHeight());
+        }
+        if (deviceDescriptor == null && SHAFT.Properties.web.isMobileEmulation()) {
             contextOptions.setIsMobile(true)
                     .setDeviceScaleFactor(SHAFT.Properties.web.mobileEmulationPixelRatio());
             if (!SHAFT.Properties.web.mobileEmulationUserAgent().isBlank()) {
@@ -99,24 +107,28 @@ public final class PlaywrightSessionFactory {
         return contextOptions;
     }
 
-    private static BrowserType resolveBrowserType(Playwright playwright) {
-        return switch (browserName()) {
+    private static BrowserType resolveBrowserType(Playwright playwright, String resolvedBrowserName) {
+        return switch (resolvedBrowserName) {
             case "firefox" -> playwright.firefox();
             case "safari", "webkit" -> playwright.webkit();
             default -> playwright.chromium();
         };
     }
 
-    private static String browserName() {
+    private static String browserName(PlaywrightDeviceDescriptor deviceDescriptor) {
         String playwrightBrowser = SHAFT.Properties.playwright.browserName();
-        String browserName = playwrightBrowser == null || playwrightBrowser.isBlank()
-                ? SHAFT.Properties.web.targetBrowserName()
-                : playwrightBrowser;
+        String browserName;
+        if (playwrightBrowser == null || playwrightBrowser.isBlank()) {
+            browserName = deviceDescriptor == null || deviceDescriptor.defaultBrowserType().isBlank()
+                    ? SHAFT.Properties.web.targetBrowserName()
+                    : deviceDescriptor.defaultBrowserType();
+        } else {
+            browserName = playwrightBrowser;
+        }
         return browserName.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static boolean isChromium() {
-        String browser = browserName();
+    private static boolean isChromium(String browser) {
         return !("firefox".equals(browser) || "safari".equals(browser) || "webkit".equals(browser));
     }
 

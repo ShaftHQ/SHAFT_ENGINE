@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/graphify-updates-use-installed-cli-subcommands.md",
-  "content_hash": "sha256:e72a6e1b6f66a4b00e9e6e283ce5acf9327b369adbfda70ac8a5ccd6c29a5782",
+  "content_hash": "sha256:272f75ada9070b76b8928d9e38e834e3ac91c517054eee7ec8b3316821148066",
   "created_at": "2026-06-20T12:08:49+03:00",
   "evidence": [],
   "facets": {
@@ -28,5 +28,5 @@
   ],
   "title": "Graphify updates use installed CLI subcommands",
   "type": "gotcha",
-  "updated_at": "2026-06-20T12:08:49+03:00"
+  "updated_at": "2026-06-21T15:23:04+03:00"
 }
