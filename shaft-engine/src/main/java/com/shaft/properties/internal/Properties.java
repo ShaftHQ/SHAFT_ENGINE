@@ -50,6 +50,7 @@ public class Properties {
     static API baseApi;
     static Pilot basePilot;
     static NaturalActions baseNaturalActions;
+    static Playwright basePlaywright;
 
     // -------------------------------------------------------------------------
     // Thread-local override configs – updated by set() calls on each thread.
@@ -73,6 +74,7 @@ public class Properties {
     static final ThreadLocal<API> apiOverride = new ThreadLocal<>();
     static final ThreadLocal<Pilot> pilotOverride = new ThreadLocal<>();
     static final ThreadLocal<NaturalActions> naturalActionsOverride = new ThreadLocal<>();
+    static final ThreadLocal<Playwright> playwrightOverride = new ThreadLocal<>();
 
     // -------------------------------------------------------------------------
     // Public proxy fields – fully API-compatible with the previous static fields.
@@ -100,6 +102,7 @@ public class Properties {
             NaturalActions.class,
             naturalActionsOverride,
             () -> baseNaturalActions);
+    public static final Playwright playwright = createProxy(Playwright.class, playwrightOverride, () -> basePlaywright);
 
     // Read-only properties – not mutable after initialisation, no proxy needed.
     public static Internal internal;
@@ -229,5 +232,6 @@ public class Properties {
         apiOverride.remove();
         pilotOverride.remove();
         naturalActionsOverride.remove();
+        playwrightOverride.remove();
     }
 }

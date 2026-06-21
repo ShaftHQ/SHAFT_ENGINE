@@ -3,7 +3,7 @@ package com.shaft.validation.internal;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.WebDriver;
 
-public class WebDriverBrowserValidationsBuilder {
+public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.BrowserAssertions {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
     protected final StringBuilder reportMessageBuilder;

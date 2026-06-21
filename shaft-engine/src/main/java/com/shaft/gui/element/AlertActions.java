@@ -25,7 +25,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
  * @see FluentWebDriverAction
  */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
-public class AlertActions extends FluentWebDriverAction {
+public class AlertActions extends FluentWebDriverAction implements com.shaft.gui.driver.AlertActions {
     /**
      * Creates a new {@code AlertActions} instance using the currently active SHAFT-managed driver.
      * Waits for an alert to be present before returning.

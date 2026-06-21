@@ -7,7 +7,7 @@ import org.openqa.selenium.By;
 public class WizardHelpers {
     static DriverFactoryHelper helper;
 
-    public static class WebDriverAssertions {
+    public static class WebDriverAssertions implements com.shaft.gui.driver.DriverAssertions {
         public WebDriverAssertions(DriverFactoryHelper helper) {
             WizardHelpers.helper = helper;
         }
@@ -20,12 +20,12 @@ public class WizardHelpers {
             return com.shaft.validation.Validations.assertThat().element(helper.getDriver(), locator);
         }
 
-        public NativeValidationsBuilder object(boolean object) {
+        public NativeValidationsBuilder object(Object object) {
             return com.shaft.validation.Validations.assertThat().object(object);
         }
     }
 
-    public static class WebDriverVerifications {
+    public static class WebDriverVerifications implements com.shaft.gui.driver.DriverVerifications {
 
         public WebDriverVerifications(DriverFactoryHelper helper) {
             WizardHelpers.helper = helper;
@@ -39,7 +39,7 @@ public class WizardHelpers {
             return com.shaft.validation.Validations.verifyThat().element(helper.getDriver(), locator);
         }
 
-        public NativeValidationsBuilder object(boolean accessible)
+        public NativeValidationsBuilder object(Object accessible)
         {
             return com.shaft.validation.Validations.verifyThat().object(accessible);
         }

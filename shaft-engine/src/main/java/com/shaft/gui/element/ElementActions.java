@@ -33,7 +33,7 @@ import java.util.*;
  * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Element Actions</a>
  */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
-public class ElementActions extends FluentWebDriverAction {
+public class ElementActions extends FluentWebDriverAction implements com.shaft.gui.driver.ElementActions {
     /**
      * Creates an element actions instance using a lazily initialized default driver helper.
      */

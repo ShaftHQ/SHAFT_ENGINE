@@ -5,7 +5,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 @SuppressWarnings("unused")
-public class WebDriverElementValidationsBuilder {
+public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.ElementAssertions {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;
     protected final By locator;
