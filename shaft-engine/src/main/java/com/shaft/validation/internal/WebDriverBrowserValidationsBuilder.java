@@ -23,6 +23,7 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
      * @param browserAttribute the target browser attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder attribute(String browserAttribute) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute;
@@ -36,6 +37,7 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     @SuppressWarnings("SpellCheckingInspection")
+    @Override
     public NativeValidationsBuilder url() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "currenturl";
@@ -48,6 +50,7 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder title() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "title";
@@ -60,6 +63,7 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Override
     public NativeValidationsBuilder text() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "text";

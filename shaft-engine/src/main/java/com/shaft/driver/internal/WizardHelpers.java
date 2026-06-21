@@ -12,14 +12,17 @@ public class WizardHelpers {
             WizardHelpers.helper = helper;
         }
 
+        @Override
         public WebDriverBrowserValidationsBuilder browser() {
             return com.shaft.validation.Validations.assertThat().browser(helper.getDriver());
         }
 
+        @Override
         public WebDriverElementValidationsBuilder element(By locator) {
             return com.shaft.validation.Validations.assertThat().element(helper.getDriver(), locator);
         }
 
+        @Override
         public NativeValidationsBuilder object(Object object) {
             return com.shaft.validation.Validations.assertThat().object(object);
         }
@@ -31,16 +34,18 @@ public class WizardHelpers {
             WizardHelpers.helper = helper;
         }
 
+        @Override
         public WebDriverBrowserValidationsBuilder browser() {
             return com.shaft.validation.Validations.verifyThat().browser(helper.getDriver());
         }
 
+        @Override
         public WebDriverElementValidationsBuilder element(By locator) {
             return com.shaft.validation.Validations.verifyThat().element(helper.getDriver(), locator);
         }
 
-        public NativeValidationsBuilder object(Object accessible)
-        {
+        @Override
+        public NativeValidationsBuilder object(Object accessible) {
             return com.shaft.validation.Validations.verifyThat().object(accessible);
         }
     }

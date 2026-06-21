@@ -109,6 +109,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a {@link WebDriverBrowserValidationsBuilder} for chaining browser assertions
      */
+    @Override
     public WebDriverBrowserValidationsBuilder assertThat() {
         return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).browser();
     }
@@ -124,6 +125,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a {@link WebDriverBrowserValidationsBuilder} for chaining browser verifications
      */
+    @Override
     public WebDriverBrowserValidationsBuilder verifyThat() {
         return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).browser();
     }
@@ -137,6 +139,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference to be used to chain actions
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public BrowserActions capturePageSnapshot() {
         var serializedPageData = browserActionsHelper.capturePageSnapshot(driverFactoryHelper.getDriver());
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), serializedPageData);
@@ -148,6 +151,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return the URL that's currently open in the current page
      */
+    @Override
     public String getCurrentURL() {
         var currentURL = "";
         try {
@@ -164,6 +168,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return the title of the current window
      */
+    @Override
     public String getCurrentWindowTitle() {
         var currentWindowTitle = "";
         try {
@@ -180,6 +185,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return the source of the current page
      */
+    @Override
     public String getPageSource() {
         var pageSource = "";
         try {
@@ -200,6 +206,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return the window handle for the current window
      */
+    @Override
     public String getWindowHandle() {
         var windowHandle = "";
         try {
@@ -216,6 +223,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return the position of the current window
      */
+    @Override
     public String getWindowPosition() {
         var windowPosition = "";
         try {
@@ -232,6 +240,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return the size of the current window
      */
+    @Override
     public String getWindowSize() {
         var windowSize = "";
         try {
@@ -248,6 +257,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return the height of the current window
      */
+    @Override
     public String getWindowHeight() {
         var windowHeight = "";
         try {
@@ -263,6 +273,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return the width of the current window
      */
+    @Override
     public String getWindowWidth() {
         var windowWidth = "";
         try {
@@ -281,6 +292,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *                  to
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions navigateToURL(String targetUrl) {
         return navigateToURL(targetUrl, targetUrl);
     }
@@ -298,6 +310,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @param windowType the type of new context to open — either {@link WindowType#TAB} or {@link WindowType#WINDOW}
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions navigateToURL(String targetUrl, WindowType windowType) {
         var handleBeforeNavigation = driverFactoryHelper.getDriver().getWindowHandle();
         try {
@@ -332,6 +345,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *                                  navigation
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         //reset scope in case user was stuck inside an iFrame
         LocatorBuilder.getIFrameLocator().remove();
@@ -445,6 +459,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference to be used to chain actions
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         try {
             String domainName = browserActionsHelper.getDomainNameFromUrl(targetUrl);
@@ -480,6 +495,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions navigateBack() {
         return performNavigationAction(NavigationAction.BACK);
     }
@@ -489,6 +505,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions navigateForward() {
         return performNavigationAction(NavigationAction.FORWARD);
     }
@@ -498,6 +515,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions refreshCurrentPage() {
         return performNavigationAction(NavigationAction.REFRESH);
     }
@@ -535,6 +553,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     /**
      * Closes the current browser window
      */
+    @Override
     public void closeCurrentWindow() {
         driverFactoryHelper.closeDriver();
     }
@@ -544,6 +563,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions maximizeWindow() {
         Dimension initialWindowSize;
         Dimension currentWindowSize;
@@ -599,6 +619,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @param height the desired new height of the target window
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions setWindowSize(int width, int height) {
         Dimension initialWindowSize;
         Dimension currentWindowSize;
@@ -651,6 +672,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference to be used to chain actions
      */
     @Step("Mock HTTP Request")
+    @Override
     public BrowserActions mock(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
         return internalIntercept(requestPredicate, mockedResponse);
     }
@@ -677,6 +699,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a browser network interception request builder
      */
+    @Override
     public NetworkInterceptionRequestBuilder interceptRequest() {
         return new NetworkInterceptionRequestBuilder(this);
     }
@@ -699,6 +722,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference to be used to chain actions
      */
     @Step("Intercept HTTP Request")
+    @Override
     public BrowserActions intercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
         return internalIntercept(requestPredicate, mockedResponse);
     }
@@ -709,6 +733,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference to be used to chain actions
      */
     @Step("Clear Network Interceptors")
+    @Override
     public BrowserActions clearNetworkInterceptors() {
         try {
             driverFactoryHelper.clearBrowserNetworkInterceptors();
@@ -742,6 +767,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions fullScreenWindow() {
         Dimension initialWindowSize = driverFactoryHelper.getDriver().manage().window().getSize();
         ReportManager.logDiscrete("Initial window size: " + initialWindowSize.width + "x" + initialWindowSize.height + ".");
@@ -765,6 +791,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *                     ElementActions.getWindowHandle(WebDriver driver)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions switchToWindow(String nameOrHandle) {
         if (driverFactoryHelper.getDriver().getWindowHandles().contains(nameOrHandle)) {
             driverFactoryHelper.getDriver().switchTo().window(nameOrHandle);
@@ -782,6 +809,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @param value The cookie's name
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions addCookie(String key, String value) {
         driverFactoryHelper.getDriver().manage().addCookie(new Cookie(key, value));
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Add Cookie", "Key: " + key + " | Value: " + value);
@@ -794,6 +822,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @param cookieName The cookie's name.
      * @return the cookie.
      */
+    @Override
     public Cookie getCookie(String cookieName) {
         Cookie cookie = driverFactoryHelper.getDriver().manage().getCookieNamed(cookieName);
         if (cookie == null) {
@@ -807,6 +836,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return A Set of cookies for the current browsing context.
      */
+    @Override
     public Set<Cookie> getAllCookies() {
         Set<Cookie> cookies = driverFactoryHelper.getDriver().manage().getCookies();
         browserActionsHelper.passAction("");
@@ -819,6 +849,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @param cookieName The cookie's name.
      * @return te cookie domain;
      */
+    @Override
     public String getCookieDomain(String cookieName) {
         String cookieDomain = getCookie(cookieName).getDomain();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Get Cookie Domain with name: " + cookieName, cookieDomain);
@@ -831,6 +862,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @param cookieName The cookie's name.
      * @return the cookie value;
      */
+    @Override
     public String getCookieValue(String cookieName) {
         String cookieValue = getCookie(cookieName).getValue();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Get Cookie Value with name: " + cookieName, cookieValue);
@@ -843,6 +875,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @param cookieName The cookie's name.
      * @return the cookie path;
      */
+    @Override
     public String getCookiePath(String cookieName) {
         String cookiePath = getCookie(cookieName).getPath();
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Get Cookie Path with name: " + cookieName, cookiePath);
@@ -856,6 +889,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference to be used to chain actions.
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public BrowserActions deleteCookie(String cookieName) {
         driverFactoryHelper.getDriver().manage().deleteCookieNamed(cookieName);
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Delete Cookie", cookieName);
@@ -868,6 +902,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference to be used to chain actions.
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public BrowserActions deleteAllCookies() {
         driverFactoryHelper.getDriver().manage().deleteAllCookies();
         browserActionsHelper.passAction("");
@@ -880,6 +915,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference for chainable actions
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public BrowserActions captureScreenshot() {
         return this.captureScreenshot(Screenshots.FULL);
     }
@@ -890,6 +926,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @param type can either be `Screenshots.FULL`, or `Screenshots.VIEWPORT`
      * @return a self-reference for chainable actions
      */
+    @Override
     public BrowserActions captureScreenshot(Screenshots type) {
         var logText = "Capture " + type.name().toLowerCase() + " screenshot";
         var screenshotManager = new ScreenshotManager();
@@ -904,6 +941,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference for chainable actions
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public BrowserActions captureSnapshot() {
         var logMessage = "";
         var pageSnapshot = browserActionsHelper.capturePageSnapshot(driverFactoryHelper.getDriver());
@@ -926,6 +964,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *       .and().generateLightHouseReport();
      * }</pre>
      */
+    @Override
     public void generateLightHouseReport() {
         new LightHouseGenerateReport(driverFactoryHelper.getDriver()).generateLightHouseReport();
     }
@@ -943,6 +982,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions waitForLazyLoading() {
         JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
         return this;
@@ -954,6 +994,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return The current context handle
      */
+    @Override
     public String getContext() {
         String context = "";
         if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
@@ -974,6 +1015,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *                ElementActions.getContext(WebDriver driver)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions setContext(String context) {
         if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
             androidDriver.context(context);
@@ -992,6 +1034,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return list of window handles
      */
+    @Override
     public List<String> getWindowHandles() {
         List<String> windowHandles = new ArrayList<>(driverFactoryHelper.getDriver().getWindowHandles());
         elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
@@ -1004,6 +1047,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return list of context handles
      */
+    @Override
     public List<String> getContextHandles() {
         List<String> windowHandles = new ArrayList<>();
         if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
@@ -1031,6 +1075,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return an {@link AccessibilityActions} object tied to the current browser session
      */
+    @Override
     public AccessibilityActions accessibility() {
         WebDriver rawDriver = driverFactoryHelper.getDriver();
         return new AccessibilityActions(rawDriver, this);

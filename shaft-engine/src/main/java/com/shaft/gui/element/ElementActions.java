@@ -82,6 +82,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      * @return a {@link WebDriverElementValidationsBuilder} for chaining element assertions
      * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Assertions</a>
      */
+    @Override
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).element(elementLocator);
     }
@@ -94,6 +95,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      * @return a {@link WebDriverElementValidationsBuilder} for chaining element verifications
      * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Assertions</a>
      */
+    @Override
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).element(elementLocator);
     }
@@ -105,6 +107,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      * @return the count of matching elements, or {@code 0} if none are found
      * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Element Actions</a>
      */
+    @Override
     public int getElementsCount(By elementLocator) {
         return elementActionsHelper.getElementsCount(driverFactoryHelper.getDriver(), elementLocator);
     }
@@ -121,6 +124,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                   ImmutableMap.of("direction", "down")
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions executeNativeMobileCommand(String command, Map<String, String> parameters) {
         return new Actions(driverFactoryHelper).executeNativeMobileCommand(command, parameters);
     }
@@ -132,6 +136,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions click(By elementLocator) {
         return new Actions(driverFactoryHelper).click(elementLocator);
     }
@@ -143,6 +148,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions clickUsingJavascript(By elementLocator) {
         return new Actions(driverFactoryHelper).clickUsingJavascript(elementLocator);
     }
@@ -154,6 +160,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions scrollToElement(By elementLocator) {
         return new Actions(driverFactoryHelper).scrollToElement(elementLocator);
     }
@@ -165,6 +172,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions clickAndHold(By elementLocator) {
         return new Actions(driverFactoryHelper).clickAndHold(elementLocator);
     }
@@ -176,6 +184,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions doubleClick(By elementLocator) {
         return new Actions(driverFactoryHelper).doubleClick(elementLocator);
     }
@@ -192,6 +201,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                                  ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions dragAndDrop(By sourceElementLocator, By destinationElementLocator) {
         return new Actions(driverFactoryHelper).dragAndDrop(sourceElementLocator, destinationElementLocator);
     }
@@ -208,6 +218,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                             be moved
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
         return new Actions(driverFactoryHelper).dragAndDropByOffset(sourceElementLocator, xOffset, yOffset);
     }
@@ -221,6 +232,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions hover(By elementLocator) {
         return new Actions(driverFactoryHelper).hover(elementLocator);
     }
@@ -237,6 +249,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                                xpath, id, selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions hoverAndClick(List<By> hoverElementLocators, By clickableElementLocator) {
         hoverElementLocators.forEach(this::hover);
         return click(clickableElementLocator);
@@ -251,6 +264,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                           target dropDown menu or the string value of attribute "value"
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions select(By elementLocator, String valueOrVisibleText) {
         return new Actions(driverFactoryHelper).select(elementLocator, valueOrVisibleText);
     }
@@ -264,6 +278,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       element
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions setValueUsingJavaScript(By elementLocator, String value) {
         return new Actions(driverFactoryHelper).setValueUsingJavaScript(elementLocator, value);
     }
@@ -275,6 +290,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions submitFormUsingJavaScript(By elementLocator) {
         return new Actions(driverFactoryHelper).submitFormUsingJavaScript(elementLocator);
     }
@@ -288,6 +304,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       xpath, id, selector, name ...etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions switchToIframe(By elementLocator) {
         return new Actions(driverFactoryHelper).switchToIframe(elementLocator);
     }
@@ -300,6 +317,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      * @return a self-reference to be used to chain actions
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public Actions switchToDefaultContent() {
         return new Actions(driverFactoryHelper).switchToDefaultContent();
     }
@@ -309,6 +327,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @return currentFrame the current frame name
      */
+    @Override
     public String getCurrentFrame() {
         String currentFrame = (String) ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript("return self.name");
         ReportManager.logDiscrete("Current frame name: \"" + currentFrame + "\"");
@@ -324,6 +343,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       to be typed into the target webElement
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions type(By elementLocator, CharSequence... text) {
         return new Actions(driverFactoryHelper).type(elementLocator, text);
     }
@@ -335,6 +355,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       selector, name, etc.)
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions clear(By elementLocator) {
         return new Actions(driverFactoryHelper).clear(elementLocator);
     }
@@ -349,6 +370,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       target webElement
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions typeAppend(By elementLocator, CharSequence... text) {
         return new Actions(driverFactoryHelper).typeAppend(elementLocator, text);
     }
@@ -363,6 +385,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       path, Engine will detect that.
      * @return a self-reference to be used to chain actions.
      */
+    @Override
     public Actions typeFileLocationForUpload(By elementLocator, String filePath) {
         return new Actions(driverFactoryHelper).typeFileLocationForUpload(elementLocator, filePath);
     }
@@ -378,6 +401,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *                       webElement
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public Actions typeSecure(By elementLocator, CharSequence... text) {
         return new Actions(driverFactoryHelper).typeSecure(elementLocator, text);
     }
@@ -389,6 +413,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      * @param tableLocator the locator of the table which should be a table tag
      * @return List of Map format and each Map Object follows the following format (Key:column label, value: cell data)
      */
+    @Override
     public List<Map<String, String>> getTableRowsData(By tableLocator) {
         List<Map<String, String>> tableData = new ArrayList<>();
         // Wait for the table to be present and visible
@@ -435,6 +460,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      * @return an {@link Actions} instance for chaining further actions
      * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Element Actions</a>
      */
+    @Override
     public Actions captureScreenshot(By elementLocator) {
         return new Actions(driverFactoryHelper).captureScreenshot(elementLocator);
     }

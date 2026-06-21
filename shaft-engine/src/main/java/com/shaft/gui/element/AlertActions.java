@@ -101,6 +101,7 @@ public class AlertActions extends FluentWebDriverAction implements com.shaft.gui
      *
      * @return {@code true} if an alert is present and reachable; {@code false} otherwise
      */
+    @Override
     public boolean isAlertPresent() {
         try {
             waitForAlertToBePresent();
@@ -129,6 +130,7 @@ public class AlertActions extends FluentWebDriverAction implements com.shaft.gui
      * @return this {@code AlertActions} instance for fluent method chaining
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public AlertActions acceptAlert() {
         try {
             waitForAlertToBePresent();
@@ -152,6 +154,7 @@ public class AlertActions extends FluentWebDriverAction implements com.shaft.gui
      * @return this {@code AlertActions} instance for fluent method chaining
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public AlertActions dismissAlert() {
         try {
             waitForAlertToBePresent();
@@ -174,6 +177,7 @@ public class AlertActions extends FluentWebDriverAction implements com.shaft.gui
      * @return the alert message text, or {@code null} if the alert is not present or
      *         an error occurs while retrieving the text
      */
+    @Override
     public String getAlertText() {
         try {
             waitForAlertToBePresent();
@@ -200,6 +204,7 @@ public class AlertActions extends FluentWebDriverAction implements com.shaft.gui
      * @return this {@code AlertActions} instance for fluent method chaining
      */
     @SuppressWarnings("UnusedReturnValue")
+    @Override
     public AlertActions typeIntoPromptAlert(String text) {
         try {
             waitForAlertToBePresent();
