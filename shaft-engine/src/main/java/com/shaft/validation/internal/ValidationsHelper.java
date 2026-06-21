@@ -61,6 +61,35 @@ public class ValidationsHelper {
     }
 
     /**
+     * Records a soft verification failure so it can be reported at the end of the test.
+     *
+     * @param failureMessage the verification failure message to accumulate
+     */
+    public static void recordVerificationFailure(String failureMessage) {
+        verificationFailuresList.get().add(failureMessage);
+        verificationError.set(new AssertionError(String.join("\nAND ", verificationFailuresList.get())));
+    }
+
+    /**
+     * Reports a validation outcome that was evaluated by a non-WebDriver backend while preserving
+     * the same checkpoint, attachment, and failure-reporting semantics used by WebDriver validations.
+     *
+     * @param validationCategory the validation category
+     * @param validationState    true when the validation passed
+     * @param expected           the reported expected value
+     * @param actual             the reported actual value
+     * @param attachments        report attachments prepared by the backend
+     */
+    public static void reportValidationState(ValidationEnums.ValidationCategory validationCategory,
+                                             boolean validationState,
+                                             Object expected,
+                                             Object actual,
+                                             List<List<Object>> attachments) {
+        new ValidationsHelper(validationCategory)
+                .reportValidationState(validationState, expected, actual, null, null, attachments);
+    }
+
+    /**
      * Automatically formats an AssertionError by detecting the package from the stack trace.
      * This method extracts the package from the first stack trace element that is not from
      * framework packages (org.testng, java, com.shaft.validation.internal, etc.)
@@ -788,8 +817,7 @@ public class ValidationsHelper {
                 FailureReporter.fail(finalFailureMessage);
             } else {
                 // soft assert
-                ValidationsHelper.verificationFailuresList.get().add(failureMessage);
-                ValidationsHelper.verificationError.set(new AssertionError(String.join("\nAND ", ValidationsHelper.verificationFailuresList.get())));
+                ValidationsHelper.recordVerificationFailure(failureMessage);
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(finalFailureMessage));
             }

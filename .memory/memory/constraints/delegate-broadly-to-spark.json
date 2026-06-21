@@ -1,8 +1,13 @@
 {
   "body_path": "memory/constraints/delegate-broadly-to-spark.md",
-  "content_hash": "sha256:3ed18e153dbe348f0b8d31f4fd27e6176b1e9e6438f8f2c651ee815109986c1f",
+  "content_hash": "sha256:886037d1ed8b5ffe174fdfc1ea8f1a08e2e34c5ceb310529eb54db5e43dd072b",
   "created_at": "2026-06-21T10:28:12+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "2026-06-21-user-delegation-instruction",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "agent-guidance"
   },
@@ -25,5 +30,5 @@
   ],
   "title": "Delegate broadly to Spark agents",
   "type": "constraint",
-  "updated_at": "2026-06-21T10:28:12+03:00"
+  "updated_at": "2026-06-21T20:33:51+03:00"
 }

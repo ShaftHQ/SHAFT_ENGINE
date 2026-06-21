@@ -2,28 +2,39 @@ package com.shaft.gui.playwright.validation;
 
 import com.microsoft.playwright.Locator;
 import com.shaft.gui.driver.ElementAssertions;
+import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.validation.ValidationEnums;
-import com.shaft.validation.Validations;
 import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
 
 public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     private final ValidationEnums.ValidationCategory validationCategory;
+    private final PlaywrightSession session;
     private final Locator locator;
+    private final StringBuilder reportMessageBuilder = new StringBuilder("the element ");
 
-    public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Locator locator) {
+    public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                               PlaywrightSession session,
+                                               Locator locator) {
         this.validationCategory = validationCategory;
+        this.session = session;
         this.locator = locator;
     }
 
     @Override
     public ValidationsExecutor exists() {
-        return object(locator.count() > 0).isTrue();
+        reportMessageBuilder.append("exists.");
+        var executor = executor("elementExists", ValidationEnums.ValidationType.POSITIVE);
+        executor.internalPerform();
+        return executor;
     }
 
     @Override
     public ValidationsExecutor doesNotExist() {
-        return object(locator.count() == 0).isTrue();
+        reportMessageBuilder.append("does not exist.");
+        var executor = executor("elementExists", ValidationEnums.ValidationType.NEGATIVE);
+        executor.internalPerform();
+        return executor;
     }
 
     @Override
@@ -48,92 +59,113 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
 
     @Override
     public NativeValidationsBuilder attribute(String attribute) {
-        return object(locator.getAttribute(attribute));
+        reportMessageBuilder.append("Attribute \"").append(attribute).append("\" ");
+        return builder("elementAttributeEquals", attribute, null);
     }
 
     @Override
     public NativeValidationsBuilder domAttribute(String domAttribute) {
-        if ("text".equalsIgnoreCase(domAttribute)) {
-            return object(locator.textContent());
-        }
-        return object(locator.getAttribute(domAttribute));
+        reportMessageBuilder.append("DOM attribute \"").append(domAttribute).append("\" ");
+        return builder("elementDomAttributeEquals", domAttribute, null);
     }
 
     @Override
     public NativeValidationsBuilder domProperty(String domProperty) {
-        return object(locator.evaluate("(element, property) => element[property]", domProperty));
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
+        return builder("elementDomPropertyEquals", domProperty, null);
     }
 
     @Override
     public NativeValidationsBuilder property(String domProperty) {
-        return domProperty(domProperty);
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
+        return builder("elementPropertyEquals", domProperty, null);
     }
 
     @Override
     public ValidationsExecutor isSelected() {
-        return object(locator.evaluate("element => !!element.selected")).isTrue();
+        reportMessageBuilder.append("is selected; selected property ");
+        return expectedState("elementSelected", ValidationEnums.ValidationType.POSITIVE);
     }
 
     @Override
     public ValidationsExecutor isChecked() {
-        return object(locator.isChecked()).isTrue();
+        reportMessageBuilder.append("is checked; checked state ");
+        return expectedState("elementChecked", ValidationEnums.ValidationType.POSITIVE);
     }
 
     @Override
     public ValidationsExecutor isVisible() {
-        return object(locator.isVisible()).isTrue();
+        reportMessageBuilder.append("is visible; visible state ");
+        return expectedState("elementVisible", ValidationEnums.ValidationType.POSITIVE);
     }
 
     @Override
     public ValidationsExecutor isEnabled() {
-        return object(locator.isEnabled()).isTrue();
+        reportMessageBuilder.append("is enabled; enabled state ");
+        return expectedState("elementEnabled", ValidationEnums.ValidationType.POSITIVE);
     }
 
     @Override
     public ValidationsExecutor isNotSelected() {
-        return object(locator.evaluate("element => !element.selected")).isTrue();
+        reportMessageBuilder.append("is not selected; selected property ");
+        return expectedState("elementSelected", ValidationEnums.ValidationType.NEGATIVE);
     }
 
     @Override
     public ValidationsExecutor isNotChecked() {
-        return object(!locator.isChecked()).isTrue();
+        reportMessageBuilder.append("is not checked; checked state ");
+        return expectedState("elementChecked", ValidationEnums.ValidationType.NEGATIVE);
     }
 
     @Override
     public ValidationsExecutor isHidden() {
-        return object(!locator.isVisible()).isTrue();
+        reportMessageBuilder.append("is hidden; visible state ");
+        return expectedState("elementVisible", ValidationEnums.ValidationType.NEGATIVE);
     }
 
     @Override
     public ValidationsExecutor isDisabled() {
-        return object(!locator.isEnabled()).isTrue();
+        reportMessageBuilder.append("is disabled; enabled state ");
+        return expectedState("elementEnabled", ValidationEnums.ValidationType.NEGATIVE);
     }
 
     @Override
     public NativeValidationsBuilder text() {
-        return object(locator.textContent());
+        reportMessageBuilder.append("text ");
+        return builder("elementDomAttributeEquals", "text", null);
     }
 
     @Override
     public NativeValidationsBuilder textTrimmed() {
-        String text = locator.textContent();
-        return object(text == null ? null : text.trim());
+        reportMessageBuilder.append("text trimmed ");
+        return builder("elementDomAttributeEquals", "textTrimmed", null);
     }
 
     @Override
     public NativeValidationsBuilder cssProperty(String elementCssProperty) {
-        return object(locator.evaluate("(element, property) => getComputedStyle(element).getPropertyValue(property)",
-                elementCssProperty));
-    }
-
-    private NativeValidationsBuilder object(Object actual) {
-        return validationCategory == ValidationEnums.ValidationCategory.HARD_ASSERT
-                ? Validations.assertThat().object(actual)
-                : Validations.verifyThat().object(actual);
+        reportMessageBuilder.append("CSS property \"").append(elementCssProperty).append("\" ");
+        return builder("elementCssPropertyEquals", null, elementCssProperty);
     }
 
     private ValidationsExecutor unsupportedVisualValidation() {
-        return object("Playwright visual reference validation is not implemented yet")
+        return builder("playwrightUnsupportedVisualValidation", null, null)
                 .isEqualTo("Playwright visual reference validation is implemented");
+    }
+
+    private PlaywrightNativeValidationsBuilder builder(String validationMethod, String elementAttribute, String elementCssProperty) {
+        return new PlaywrightNativeValidationsBuilder(validationCategory, session, locator, validationMethod,
+                elementAttribute, elementCssProperty, null, reportMessageBuilder);
+    }
+
+    private ValidationsExecutor expectedState(String validationMethod, ValidationEnums.ValidationType validationType) {
+        reportMessageBuilder.append("is ").append(validationType.getValue() ? "TRUE." : "FALSE.");
+        var executor = executor(validationMethod, validationType);
+        executor.internalPerform();
+        return executor;
+    }
+
+    private PlaywrightValidationsExecutor executor(String validationMethod, ValidationEnums.ValidationType validationType) {
+        return builder(validationMethod, null, null)
+                .createExecutor(validationType, ValidationEnums.ValidationComparisonType.EQUALS, validationType.getValue());
     }
 }

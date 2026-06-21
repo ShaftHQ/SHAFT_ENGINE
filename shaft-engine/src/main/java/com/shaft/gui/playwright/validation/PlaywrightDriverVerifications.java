@@ -30,11 +30,12 @@ public class PlaywrightDriverVerifications implements DriverVerifications {
     @Override
     public ElementAssertions element(ShaftLocator elementLocator) {
         return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT,
-                elementLocator.toPlaywrightLocator(session.page()));
+                session, elementLocator.toPlaywrightLocator(session.page()));
     }
 
     public ElementAssertions element(com.microsoft.playwright.Locator elementLocator) {
-        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, elementLocator);
+        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, session,
+                elementLocator);
     }
 
     @Override
