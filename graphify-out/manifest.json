@@ -915,8 +915,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java": {
-    "mtime": 1782031872.2634442,
-    "ast_hash": "67bbc2bf90adc90f5a01ab0f8d3d49df",
+    "mtime": 1782033275.4889703,
+    "ast_hash": "c9f18b0b2baf32bed8dde68702ec044a",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/$.java": {
@@ -6174,11 +6174,6 @@
     "ast_hash": "7d445d728a831f021c59f6c932debe7a",
     "semantic_hash": ""
   },
-  "shaft-engine/src/main/java/com/shaft/gui/driver/Driver.java": {
-    "mtime": 1782031837.6588457,
-    "ast_hash": "75beea8441157f83bafb9b4e410cf6ae",
-    "semantic_hash": ""
-  },
   "shaft-engine/src/main/java/com/shaft/gui/driver/DriverAssertions.java": {
     "mtime": 1782026309.294241,
     "ast_hash": "8533a13bb064c4f7b276fcf4fca787de",
@@ -6265,8 +6260,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/GUIInterfaceCompatibilityCoverageUnitTest.java": {
-    "mtime": 1782032005.4842277,
-    "ast_hash": "0e8b0b8e8e5e8194060f4f98ae46530d",
+    "mtime": 1782033275.4909644,
+    "ast_hash": "43cdfd6db13c97e8211a6b54223b4727",
     "semantic_hash": ""
   },
   "shaft-mcp/allure-report/summary.json": {
@@ -8077,6 +8072,31 @@
   "shaft-engine/src/main/java/com/shaft/gui/driver/ElementActionsContract.java": {
     "mtime": 1782031831.4141324,
     "ast_hash": "0461678a3901062ac8e7a65179a6c7f0",
+    "semantic_hash": ""
+  },
+  ".memory/memory/decisions/gui-driver-facade-alias.json": {
+    "mtime": 1782033275.4255602,
+    "ast_hash": "112ffef31b2e7dcb5a67b10e4f252bcb",
+    "semantic_hash": ""
+  },
+  ".memory/memory/decisions/playwright-entrypoint-casing.json": {
+    "mtime": 1782032285.724434,
+    "ast_hash": "3fc127e756493c438d072ec7afa8d93e",
+    "semantic_hash": ""
+  },
+  "shaft-engine/src/main/java/com/shaft/gui/driver/DriverContract.java": {
+    "mtime": 1782033275.4899662,
+    "ast_hash": "4c8a0740e8dadf4b4ea33022614f731c",
+    "semantic_hash": ""
+  },
+  ".memory/memory/decisions/gui-driver-facade-alias.md": {
+    "mtime": 1782033275.4265606,
+    "ast_hash": "1d08f73622a67f46dd47f80a88936c27",
+    "semantic_hash": ""
+  },
+  ".memory/memory/decisions/playwright-entrypoint-casing.md": {
+    "mtime": 1782032285.7194345,
+    "ast_hash": "c02315cea77a741aa8857863c3ae432a",
     "semantic_hash": ""
   }
 }
