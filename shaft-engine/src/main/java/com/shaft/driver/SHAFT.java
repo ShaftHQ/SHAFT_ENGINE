@@ -71,6 +71,15 @@ public class SHAFT {
     public static class GUI {
 
         /**
+         * Shared GUI session contract implemented by Selenium/Appium WebDriver and
+         * Playwright sessions.
+         */
+        public interface Driver extends com.shaft.gui.driver.DriverContract {
+            @Override
+            Driver act(String intent, Object... args);
+        }
+
+        /**
          * Manages a Selenium/Appium WebDriver session and exposes fluent actions
          * for browser navigation, element interaction, touch gestures, alert
          * handling, and assertions.
@@ -90,7 +99,7 @@ public class SHAFT {
          *
          * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide</a>
          */
-        public static class WebDriver implements com.shaft.gui.driver.Driver {
+        public static class WebDriver implements Driver {
             DriverFactoryHelper helper;
             DriverFactory factory = new DriverFactory();
 
@@ -301,7 +310,7 @@ public class SHAFT {
          * Manages a Microsoft Playwright browser session and exposes SHAFT GUI
          * browser actions, element actions, alert helpers, and assertions.
          */
-        public static class Playwright implements com.shaft.gui.driver.Driver {
+        public static class Playwright implements Driver {
             private com.shaft.gui.playwright.internal.PlaywrightSession session;
 
             public Playwright() {

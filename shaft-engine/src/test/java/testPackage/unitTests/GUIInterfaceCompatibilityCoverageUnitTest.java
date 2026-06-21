@@ -5,7 +5,6 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.listeners.internal.RetryAnalyzer;
-import com.shaft.gui.driver.Driver;
 import com.shaft.gui.driver.DriverAssertions;
 import com.shaft.gui.driver.DriverVerifications;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
@@ -23,7 +22,7 @@ import java.lang.reflect.Method;
 public class GUIInterfaceCompatibilityCoverageUnitTest {
     @Test
     public void webDriverShouldImplementDriverInterface() throws NoSuchMethodException {
-        Assert.assertTrue(Driver.class.isAssignableFrom(SHAFT.GUI.WebDriver.class));
+        Assert.assertTrue(SHAFT.GUI.Driver.class.isAssignableFrom(SHAFT.GUI.WebDriver.class));
         Assert.assertTrue(
                 com.shaft.gui.driver.BrowserActionsContract.class.isAssignableFrom(shaftGuiBrowserActionsType()));
         Assert.assertTrue(
@@ -57,7 +56,7 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
 
     @Test
     public void playwrightShouldImplementDriverInterfaceWithoutInstantiation() throws NoSuchMethodException {
-        Assert.assertTrue(Driver.class.isAssignableFrom(SHAFT.GUI.Playwright.class));
+        Assert.assertTrue(SHAFT.GUI.Driver.class.isAssignableFrom(SHAFT.GUI.Playwright.class));
 
         Assert.assertTrue(com.shaft.gui.driver.BrowserActionsContract.class.isAssignableFrom(
                 SHAFT.GUI.Playwright.class.getMethod("browser").getReturnType()));
