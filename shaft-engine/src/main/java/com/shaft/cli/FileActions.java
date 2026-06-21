@@ -43,6 +43,9 @@ import java.util.zip.ZipOutputStream;
  */
 public class FileActions {
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
+    private static final String STRICT_HOST_KEY_CHECKING_PROPERTY = "shaft.cli.strictHostKeyChecking";
+    private static final String DEFAULT_STRICT_HOST_KEY_CHECKING = "ask";
+    private static final String STRICT_HOST_KEY_CHECKING_PATTERN = "^(?i)(yes|no|ask|off|accept-new)$";
     private boolean internalInstance = false;
 
     public static FileActions getInstance() {
@@ -280,7 +283,8 @@ public class FileActions {
             String destination = Path.of(pathToLocalParentFolder, targetFileName).toString();
             targetFilePath = destination;
 
-            String command = "scp -v -o StrictHostKeyChecking=no " + sshParameters + " -r " + source + " "
+            String command = "scp -v -o StrictHostKeyChecking=" + getStrictHostKeyCheckingMode() + " " + sshParameters
+                    + " -r " + source + " "
                     + destination;
 
             // restricting file access to bypass jenkins issue
@@ -976,5 +980,21 @@ public class FileActions {
 
     private boolean buildDirectory(File file) {
         return !file.exists() && !file.mkdirs();
+    }
+
+    private static String getStrictHostKeyCheckingMode() {
+        return normalizeStrictHostKeyCheckingMode(System.getProperty(STRICT_HOST_KEY_CHECKING_PROPERTY,
+                DEFAULT_STRICT_HOST_KEY_CHECKING));
+    }
+
+    private static String normalizeStrictHostKeyCheckingMode(String value) {
+        if (value == null || value.isBlank()) {
+            return DEFAULT_STRICT_HOST_KEY_CHECKING;
+        }
+        String normalized = value.strip().toLowerCase();
+        if (!normalized.matches(STRICT_HOST_KEY_CHECKING_PATTERN)) {
+            return DEFAULT_STRICT_HOST_KEY_CHECKING;
+        }
+        return normalized;
     }
 }

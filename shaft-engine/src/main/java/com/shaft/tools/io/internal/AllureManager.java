@@ -1206,7 +1206,10 @@ public class AllureManager {
 
     /** Wraps a path in double-quotes for safe shell inclusion. */
     private static String q(String path) {
-        return "\"" + path + "\"";
+        if (path == null) {
+            return "\"\"";
+        }
+        return "\"" + path.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private static void createAllureReportArchive() {

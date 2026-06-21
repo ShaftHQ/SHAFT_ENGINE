@@ -68,6 +68,9 @@ public class TerminalActions {
             "(?i)authorization\\s*:\\s*bearer\\s+\\S+");
     private static final Pattern TERMINAL_LOG_URI_CREDENTIALS_PATTERN = Pattern.compile(
             "(?i)(https?://)([^@/\\s]+)@");
+    private static final String STRICT_HOST_KEY_CHECKING_PROPERTY = "shaft.cli.strictHostKeyChecking";
+    private static final String DEFAULT_STRICT_HOST_KEY_CHECKING = "ask";
+    private static final String STRICT_HOST_KEY_CHECKING_PATTERN = "^(?i)(yes|no|ask|off|accept-new)$";
 
     /**
      * This constructor is used for local terminal actions.
@@ -539,7 +542,7 @@ public class TerminalActions {
                 + sshKeyFileName;
         try {
             Properties config = new Properties();
-            config.put("StrictHostKeyChecking", "no");
+            config.put("StrictHostKeyChecking", getStrictHostKeyCheckingMode());
             JSch jsch = new JSch();
             if (sshKeyFileName != null && !sshKeyFileName.isEmpty()) {
                 jsch.addIdentity(FileActions.getInstance(true).getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
@@ -553,6 +556,22 @@ public class TerminalActions {
             failAction(testData, rootCauseException);
         }
         return session;
+    }
+
+    private static String getStrictHostKeyCheckingMode() {
+        return normalizeStrictHostKeyCheckingMode(System.getProperty(STRICT_HOST_KEY_CHECKING_PROPERTY,
+                DEFAULT_STRICT_HOST_KEY_CHECKING));
+    }
+
+    private static String normalizeStrictHostKeyCheckingMode(String value) {
+        if (value == null || value.isBlank()) {
+            return DEFAULT_STRICT_HOST_KEY_CHECKING;
+        }
+        String normalized = value.strip().toLowerCase();
+        if (!normalized.matches(STRICT_HOST_KEY_CHECKING_PATTERN)) {
+            return DEFAULT_STRICT_HOST_KEY_CHECKING;
+        }
+        return normalized;
     }
 
     private void configureRemoteSshKeepAlive(Session session) throws JSchException {

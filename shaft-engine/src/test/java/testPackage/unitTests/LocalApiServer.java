@@ -8,6 +8,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public final class LocalApiServer implements AutoCloseable {
     private static final String FIXTURE_ROOT = "/testDataFiles/api/local-api/";
@@ -28,6 +30,14 @@ public final class LocalApiServer implements AutoCloseable {
             registerJsonResponse(server, "/users", "users.json");
             registerJsonResponse(server, "/us/90210", "zip-90210.json");
             registerCreateUserResponse(server, "/api/users");
+            registerRawResponse(server, "/xml/items",
+                    "<items><item><name>alpha</name><id>1</id></item><item><name>beta</name><id>2</id></item></items>",
+                    "application/xml");
+            registerMethodResponse(server, "/method/patch", "PATCH");
+            registerMethodResponse(server, "/method/put", "PUT");
+            registerMethodResponse(server, "/method/delete", "DELETE");
+            registerInspectResponse(server, "/inspect");
+            registerGraphQlResponse(server, "/graphql");
             server.start();
             return new LocalApiServer(server);
         } catch (IOException e) {
@@ -65,6 +75,67 @@ public final class LocalApiServer implements AutoCloseable {
         });
     }
 
+    private static void registerRawResponse(HttpServer server, String path, String body, String contentType) {
+        server.createContext(path, exchange -> {
+            sendResponse(exchange, 200, body, contentType);
+        });
+    }
+
+    private static void registerMethodResponse(HttpServer server, String path, String methodName) {
+        server.createContext(path, exchange -> {
+            if (!methodName.equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"method not allowed\"}");
+                return;
+            }
+            sendResponse(exchange, 200, String.format("{\"method\":\"%s\"}", methodName),
+                    "application/json");
+        });
+    }
+
+    private static void registerInspectResponse(HttpServer server, String path) {
+        server.createContext(path, exchange -> {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"method not allowed\"}");
+                return;
+            }
+            String customHeader = exchange.getRequestHeaders().getFirst("x-custom-header");
+            String cookieHeader = exchange.getRequestHeaders().getFirst("Cookie");
+            if (customHeader == null) {
+                customHeader = "";
+            }
+            if (cookieHeader == null) {
+                cookieHeader = "";
+            }
+            String payload = Map.of(
+                    "header", customHeader,
+                    "cookie", cookieHeader
+            ).entrySet()
+                    .stream()
+                    .map(entry -> String.format("\"%s\":\"%s\"", entry.getKey(),
+                            escapeJson(entry.getValue())))
+                    .collect(Collectors.joining(","));
+            sendResponse(exchange, 200, String.format("{%s}", payload), "application/json");
+        });
+    }
+
+    private static void registerGraphQlResponse(HttpServer server, String path) {
+        server.createContext(path, exchange -> {
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "{\"error\":\"method not allowed\"}");
+                return;
+            }
+            sendResponse(exchange, 200, "{\"data\":{\"ping\":\"pong\"}}", "application/json");
+        });
+    }
+
+    private static String escapeJson(String rawValue) {
+        if (rawValue == null) {
+            return "";
+        }
+        return rawValue.replace("\\", "\\\\")
+                .replace("\"", "\\\"");
+    }
+
     private static String readFixture(String fixtureName) {
         try (InputStream inputStream = LocalApiServer.class.getResourceAsStream(FIXTURE_ROOT + fixtureName)) {
             if (inputStream == null) {
@@ -77,8 +148,12 @@ public final class LocalApiServer implements AutoCloseable {
     }
 
     private static void sendResponse(HttpExchange exchange, int statusCode, String body) throws IOException {
+        sendResponse(exchange, statusCode, body, "application/json");
+    }
+
+    private static void sendResponse(HttpExchange exchange, int statusCode, String body, String contentType) throws IOException {
         byte[] responseBody = body.getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        exchange.getResponseHeaders().add("Content-Type", contentType);
         exchange.sendResponseHeaders(statusCode, responseBody.length);
         try (OutputStream outputStream = exchange.getResponseBody()) {
             outputStream.write(responseBody);

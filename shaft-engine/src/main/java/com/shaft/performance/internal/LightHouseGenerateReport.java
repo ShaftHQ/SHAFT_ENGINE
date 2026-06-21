@@ -10,6 +10,8 @@ import org.openqa.selenium.WebDriver;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -34,6 +36,8 @@ public class LightHouseGenerateReport {
     public void generateLightHouseReport() {
         PortNum = SHAFT.Properties.performance.port();
         PageName = getPageName();
+        String encodedCurrentUrl = encodeForLighthousePayload(driver.getCurrentUrl());
+        String encodedPageName = encodeForLighthousePayload(PageName);
 
         String commandToGenerateLightHouseReport;
         if (SHAFT.Properties.performance.isEnabled()) {
@@ -41,11 +45,12 @@ public class LightHouseGenerateReport {
             writeNodeScriptFileInProjectDirectory();
 
             if (SystemUtils.IS_OS_WINDOWS) {
-                commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
+                commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=" + encodedCurrentUrl
+                        + " --port=" + PortNum + " --reportName=" + encodedPageName + " ");
             } else {
-                commandToGenerateLightHouseReport = ("node GenerateLHScript.js --url=\"" + driver.getCurrentUrl() + "\" --port=" + PortNum + " --reportName=" + PageName + " ");
+                commandToGenerateLightHouseReport = ("node GenerateLHScript.js --url=" + encodedCurrentUrl
+                        + " --port=" + PortNum + " --reportName=" + encodedPageName + " ");
             }
-            commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
             (new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
             writeReportPathToFilesInProjectDirectory(PageName);
@@ -97,12 +102,11 @@ public class LightHouseGenerateReport {
                     const __dirname = path.resolve();
                      import desktopConfig from 'lighthouse/core/config/desktop-config.js';
                     // -------- Configs ----------
-                      var text = argv.url;
-                      var Url = text.replaceAll("N898", "&");
+                      var Url = Buffer.from((argv.url || ''), 'base64').toString('utf8');
+                      var ReportName = Buffer.from((argv.reportName || ''), 'base64').toString('utf8');
                       var Port = argv.port;
                       var LogLevel='info';
                       var OutputType='html'; // html , json
-                      var ReportName=argv.reportName;
                     //----------------------------
                     (async() => {
                       // Use Puppeteer to connect to the opened session by port
@@ -130,13 +134,11 @@ public class LightHouseGenerateReport {
                     const __dirname = path.resolve();
                     import desktopConfig from 'lighthouse/lighthouse-core/config/desktop-config.js';
                     // -------- Configs ----------
-                       var text = argv.url;
-                       var Url = text.replaceAll( "N898 ",  "& ");
-                       //Url=Url.replace( "'&' ",  "& ");
+                       var Url = Buffer.from((argv.url || ''), 'base64').toString('utf8');
+                       var ReportName = Buffer.from((argv.reportName || ''), 'base64').toString('utf8');
                        var Port = argv.port;
                        var LogLevel='info';
-                       var OutputType='html'; argv.outputType; // html , json
-                       var ReportName=argv.reportName;
+                       var OutputType='html'; // html , json
                     //----------------------------
                     (async() => {
                        // Use Puppeteer to connect to the opened session by port
@@ -172,6 +174,14 @@ public class LightHouseGenerateReport {
 //            return  (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis())+ "-" + Pagename;
             return "Error Occurred while creating the requested page name";
         }
+    }
+
+    private static String encodeForLighthousePayload(String value) {
+        if (value == null) {
+            return "";
+        }
+                return Base64.getEncoder()
+                        .encodeToString(value.getBytes(StandardCharsets.UTF_8));
     }
 
 }

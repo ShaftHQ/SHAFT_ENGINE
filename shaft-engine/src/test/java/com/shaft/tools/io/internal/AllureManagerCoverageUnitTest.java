@@ -2,16 +2,19 @@ package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
+import com.shaft.cli.TerminalActions;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -73,6 +76,49 @@ public class AllureManagerCoverageUnitTest {
 
         setField("allureResultsFolderPath", "");
         Assert.assertEquals(invoke("getResultsPath"), "");
+    }
+
+    @Test
+    public void initializeAllureReportingEnvironmentShouldCreateScriptsAndEnvironmentFileWithoutResolvingCLI() throws Exception {
+        setField("cachedAllureCommandPrefix", "");
+        Files.createDirectories(allureResultsDirectory);
+        Files.writeString(allureResultsDirectory.resolve("stale-result.txt"), "stale", StandardCharsets.UTF_8);
+
+        AllureManager.initializeAllureReportingEnvironment();
+
+        Path generatedReportScript = System.getProperty("os.name").toLowerCase().contains("win")
+                ? Path.of("generate_allure_report.bat")
+                : Path.of("generate_allure_report.sh");
+        Assert.assertTrue(Files.exists(generatedReportScript), "Environment script should be generated.");
+        Assert.assertTrue(Files.readString(generatedReportScript, StandardCharsets.UTF_8)
+                .contains("npx --yes allure@" + SHAFT.Properties.internal.allure3Version()));
+        Assert.assertFalse(Files.exists(allureResultsDirectory.resolve("stale-result.txt")),
+                "initializeAllureReportingEnvironment should clean stale results entries.");
+        Assert.assertTrue(Files.exists(allureResultsDirectory.resolve("environment.xml")));
+    }
+
+    @Test
+    public void openAllureReportAfterExecutionShouldCopyReportAndCallViewerCommandWhenReportExists() throws Exception {
+        setField("cachedAllureCommandPrefix", "");
+        Path outputDirectory = (Path) invoke("reportOutputDirectoryPath");
+        Path destinationDirectory = (Path) invoke("reportDirectoryPath");
+        Files.createDirectories(outputDirectory);
+        Files.writeString(outputDirectory.resolve("index.html"), "<html><body>Allure Report</body></html>");
+
+        Object originalTerminalSession = getFieldValue("internalTerminalSession");
+        TerminalActions terminalMock = Mockito.mock(TerminalActions.class);
+        setField("internalTerminalSession", terminalMock);
+        try {
+            AllureManager.openAllureReportAfterExecution();
+
+            Assert.assertTrue(Files.exists(destinationDirectory.resolve("AllureReport.html")),
+                    "Generated allure report should be copied and renamed.");
+            Assert.assertFalse(Files.exists(outputDirectory), "Temporary report output directory should be removed after copy.");
+            Mockito.verify(terminalMock).performTerminalCommand(Mockito.argThat(argument ->
+                    argument != null && argument.contains("AllureReport.html")));
+        } finally {
+            setField("internalTerminalSession", originalTerminalSession);
+        }
     }
 
     @Test
@@ -224,6 +270,15 @@ public class AllureManagerCoverageUnitTest {
     }
 
     @Test
+    public void qShouldEscapePathSeparatorsAndQuotationMarks() throws Exception {
+        String quoted = (String) invoke("q", new Class[]{String.class}, "C:\\tmp\\report\"path");
+        Assert.assertEquals(quoted, "\"C:\\\\tmp\\\\report\\\"path\"");
+
+        String quotedNull = (String) invoke("q", new Class[]{String.class}, (Object) null);
+        Assert.assertEquals(quotedNull, "\"\"");
+    }
+
+    @Test
     public void getCompletedProcessOutputShouldHandleSuccessExecutionFailureAndInterruption() throws Exception {
         CompletableFuture<String> completed = CompletableFuture.completedFuture("output");
         Assert.assertEquals(invoke("getCompletedProcessOutput", new Class[]{java.util.concurrent.Future.class, String.class}, completed, "stdout"), "output");
@@ -281,7 +336,49 @@ public class AllureManagerCoverageUnitTest {
     private static void setField(String fieldName, Object value) throws Exception {
         Field field = AllureManager.class.getDeclaredField(fieldName);
         field.setAccessible(true);
-        field.set(null, value);
+        try {
+            field.set(null, value);
+            return;
+        } catch (IllegalAccessException ignored) {
+            // Fall back to Unsafe for final/static fields on newer JDKs.
+        }
+
+        Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        sun.misc.Unsafe unsafe = (sun.misc.Unsafe) unsafeField.get(null);
+        if (Modifier.isStatic(field.getModifiers())) {
+            long fieldOffset = unsafe.staticFieldOffset(field);
+            Object base = unsafe.staticFieldBase(field);
+            Class<?> type = field.getType();
+            if (type == int.class) {
+                unsafe.putInt(base, fieldOffset, (Integer) value);
+            } else if (type == long.class) {
+                unsafe.putLong(base, fieldOffset, (Long) value);
+            } else if (type == boolean.class) {
+                unsafe.putBoolean(base, fieldOffset, (Boolean) value);
+            } else if (type == byte.class) {
+                unsafe.putByte(base, fieldOffset, (Byte) value);
+            } else if (type == short.class) {
+                unsafe.putShort(base, fieldOffset, (Short) value);
+            } else if (type == char.class) {
+                unsafe.putChar(base, fieldOffset, (Character) value);
+            } else if (type == float.class) {
+                unsafe.putFloat(base, fieldOffset, (Float) value);
+            } else if (type == double.class) {
+                unsafe.putDouble(base, fieldOffset, (Double) value);
+            } else {
+                unsafe.putObject(base, fieldOffset, value);
+            }
+            return;
+        }
+
+        throw new UnsupportedOperationException("Unable to set instance field through fallback: " + fieldName);
+    }
+
+    private static Object getFieldValue(String fieldName) throws Exception {
+        Field field = AllureManager.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(null);
     }
 
     private static void resetAllureManagerState() throws Exception {

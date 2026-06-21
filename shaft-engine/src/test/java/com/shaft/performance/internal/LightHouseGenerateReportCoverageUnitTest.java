@@ -15,6 +15,8 @@ import org.testng.annotations.Test;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.time.LocalDate;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -27,7 +29,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class LightHouseGenerateReportCoverageUnitTest {
-    private static final String AMPERSAND_PLACEHOLDER = "N898";
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
@@ -79,10 +80,11 @@ public class LightHouseGenerateReportCoverageUnitTest {
 
             Assert.assertEquals(mockedTerminalActions.constructed().size(), 2);
             verify(mockedTerminalActions.constructed().getFirst(), times(1))
-                    .performTerminalCommand(Mockito.argThat(command ->
+                                    .performTerminalCommand(Mockito.argThat(command ->
                             command.contains("node GenerateLHScript.js")
                                     && command.contains("--port=9999")
-                                    && command.contains(AMPERSAND_PLACEHOLDER)));
+                                    && command.contains(Base64.getEncoder()
+                                    .encodeToString("https://example.com/search?q=shaft&lang=en".getBytes(StandardCharsets.UTF_8)))));
             verify(mockedTerminalActions.constructed().get(1), times(1))
                     .performTerminalCommand(Mockito.argThat(command -> command.contains("node OpenLHReport.js")));
         }

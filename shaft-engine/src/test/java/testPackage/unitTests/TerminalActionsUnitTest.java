@@ -173,6 +173,24 @@ public class TerminalActionsUnitTest {
                 "Verbose getRemoteInstance() should create a remote instance");
     }
 
+    @Test(description = "getRemoteInstance overload without verbose flag should create reusable remote terminal")
+    public void getRemoteInstanceWithoutVerboseShouldCreateReusableRemoteTerminal() throws Exception {
+        TerminalActions terminal = TerminalActions.getRemoteInstance(
+                "host.example.com", 2222, "user", "/keys/", "id_rsa");
+
+        Field reuseRemoteSessionField = TerminalActions.class.getDeclaredField("reuseRemoteSession");
+        Field verboseField = TerminalActions.class.getDeclaredField("verbose");
+        reuseRemoteSessionField.setAccessible(true);
+        verboseField.setAccessible(true);
+
+        Assert.assertTrue(terminal.isRemoteTerminal(),
+                "getRemoteInstance() should create a remote terminal");
+        Assert.assertTrue((Boolean) reuseRemoteSessionField.get(terminal),
+                "getRemoteInstance() should enable reusable SSH session lifecycle");
+        Assert.assertFalse((Boolean) verboseField.get(terminal),
+                "getRemoteInstance() without verbose should default verbose mode to false");
+    }
+
     @Test(description = "quit should be safe before any reusable SSH connection is opened")
     public void quitShouldBeSafeBeforeReusableRemoteConnection() {
         TerminalActions terminal = SHAFT.CLI.remoteTerminal(
@@ -654,5 +672,17 @@ public class TerminalActionsUnitTest {
         InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
                 () -> createSshSession.invoke(terminal));
         Assert.assertTrue(failure.getCause() instanceof RuntimeException);
+    }
+
+    @Test
+    public void normalizeStrictHostKeyCheckingModeShouldNormalizeAndValidateValues() throws Exception {
+        Method normalize = TerminalActions.class.getDeclaredMethod("normalizeStrictHostKeyCheckingMode", String.class);
+        normalize.setAccessible(true);
+        Assert.assertEquals(normalize.invoke(null, "YES"), "yes");
+        Assert.assertEquals(normalize.invoke(null, "  no  "), "no");
+        Assert.assertEquals(normalize.invoke(null, "AcCePt-NeW"), "accept-new");
+        Assert.assertEquals(normalize.invoke(null, "invalid"), "ask");
+        Assert.assertEquals(normalize.invoke(null, ""), "ask");
+        Assert.assertEquals(normalize.invoke(null, (Object) null), "ask");
     }
 }

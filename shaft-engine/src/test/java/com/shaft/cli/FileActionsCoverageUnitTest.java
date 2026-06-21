@@ -183,6 +183,70 @@ public class FileActionsCoverageUnitTest {
     }
 
     @Test
+    public void copyFileToLocalMachineShouldSanitizeStrictHostKeyCheckingInScpCommandForRemoteTerminals() throws Exception {
+        FileActions realActions = FileActions.getInstance(true);
+        FileActions helperActions = Mockito.spy(FileActions.getInstance(true));
+        java.util.List<String> terminalCommands = new java.util.ArrayList<>();
+        String localTempFolder = tempDirectory.resolve("local-temp-remote").toString();
+
+        Mockito.doReturn(localTempFolder).when(helperActions).getAbsolutePath("target/temp");
+        Mockito.doReturn(tempDirectory.resolve("keys/id_rsa").toString()).when(helperActions)
+                .getAbsolutePath("keys/", "id_rsa");
+
+        TerminalActions remoteTerminal = new TerminalActions(
+                "host.example.com",
+                2222,
+                "user",
+                "keys/",
+                "id_rsa");
+
+        String originalStrictMode = System.getProperty("shaft.cli.strictHostKeyChecking");
+        try {
+            System.setProperty("shaft.cli.strictHostKeyChecking", "ask; rm -rf /");
+            try (var terminalConstructions = Mockito.mockConstruction(TerminalActions.class,
+                    (mock, context) -> Mockito.when(mock.performTerminalCommand(Mockito.anyString())).thenAnswer(
+                            invocation -> {
+                                terminalCommands.add((String) invocation.getArgument(0));
+                                return "copied";
+                            }));
+                 var fileActionsStatic = Mockito.mockStatic(FileActions.class, Mockito.CALLS_REAL_METHODS)) {
+                fileActionsStatic.when(() -> FileActions.getInstance(true)).thenReturn(helperActions);
+
+                String localPath = realActions.copyFileToLocalMachine(remoteTerminal,
+                        "/var/log/",
+                        "app.log",
+                        "/remote-temp/");
+
+                Assert.assertEquals(terminalCommands.size(), 2,
+                        "Expected chmod and scp commands for remote copy flow.");
+                Assert.assertTrue(localPath.startsWith(java.nio.file.Path.of(localTempFolder).resolve("app.log").toString()));
+                Assert.assertTrue(terminalCommands.get(1).contains("-o StrictHostKeyChecking=ask"),
+                        terminalCommands.get(1));
+                Assert.assertTrue(terminalCommands.get(1).contains("-r user@host.example.com:/var/log/app.log"),
+                        terminalCommands.get(1));
+            }
+        } finally {
+            if (originalStrictMode == null) {
+                System.clearProperty("shaft.cli.strictHostKeyChecking");
+            } else {
+                System.setProperty("shaft.cli.strictHostKeyChecking", originalStrictMode);
+            }
+        }
+    }
+
+    @Test
+    public void normalizeStrictHostKeyCheckingModeShouldNormalizeAndValidateValues() throws Exception {
+        Method normalize = FileActions.class.getDeclaredMethod("normalizeStrictHostKeyCheckingMode", String.class);
+        normalize.setAccessible(true);
+        Assert.assertEquals(normalize.invoke(null, "YES"), "yes");
+        Assert.assertEquals(normalize.invoke(null, "  no  "), "no");
+        Assert.assertEquals(normalize.invoke(null, "AcCePt-NeW"), "accept-new");
+        Assert.assertEquals(normalize.invoke(null, "invalid"), "ask");
+        Assert.assertEquals(normalize.invoke(null, ""), "ask");
+        Assert.assertEquals(normalize.invoke(null, (Object) null), "ask");
+    }
+
+    @Test
     public void zipUnpackDownloadAndJarCopyShouldRoundTripTempFiles() throws Exception {
         FileActions actions = FileActions.getInstance();
         Path archiveSource = tempDirectory.resolve("archive-source");

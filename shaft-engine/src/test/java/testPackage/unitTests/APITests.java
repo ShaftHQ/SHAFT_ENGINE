@@ -6,6 +6,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Map;
 
 public class APITests {
     ThreadLocal<SHAFT.API> driver = new ThreadLocal<>();
@@ -116,6 +117,85 @@ public class APITests {
         driver.set(new SHAFT.API(localApiBaseUrl));
         driver.get().get("/todos").perform();
         driver.get().verifyThatResponse().extractedJsonValueAsList("$[?(@.completed==true)].completed").isEqualTo("true").perform();
+    }
+
+    @Test
+    public void test_getInstanceFactoryMethod() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.get("/users").perform();
+        List<Object> names = api.getResponseJSONValueAsList("$..name");
+        SHAFT.Validations.verifyThat().number(names.size()).isGreaterThanOrEquals(5).perform();
+    }
+
+    @Test
+    public void test_patchRequestShouldTargetPatchEndpoint() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.patch("/method/patch").setRequestBody(Map.of("operation", "patch")).perform();
+        SHAFT.Validations.assertThat().object(api.getResponseJSONValue("method")).isEqualTo("PATCH").perform();
+    }
+
+    @Test
+    public void test_putRequestShouldTargetPutEndpoint() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.put("/method/put").setRequestBody(Map.of("operation", "put")).perform();
+        SHAFT.Validations.assertThat().object(api.getResponseJSONValue("method")).isEqualTo("PUT").perform();
+    }
+
+    @Test
+    public void test_deleteRequestShouldTargetDeleteEndpoint() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.delete("/method/delete").perform();
+        SHAFT.Validations.assertThat().object(api.getResponseJSONValue("method")).isEqualTo("DELETE").perform();
+    }
+
+    @Test
+    public void test_sendGraphQlRequestShouldSendBasicQuery() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.sendGraphQlRequest("/graphql", "query { ping }").perform();
+        SHAFT.Validations.assertThat().object(api.getResponseJSONValue("data.ping")).isEqualTo("pong").perform();
+    }
+
+    @Test
+    public void test_sendGraphQlRequestShouldSendQueryWithVariables() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.sendGraphQlRequest("/graphql", "query $id { ping(id: $id) }", Map.of("id", 42)).perform();
+        SHAFT.Validations.assertThat().object(api.getResponseJSONValue("data.ping")).isEqualTo("pong").perform();
+    }
+
+    @Test
+    public void test_sendGraphQlRequestShouldSendQueryWithVariablesAndFragment() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.sendGraphQlRequest("/graphql", "query { ping }", Map.of("id", 42), "fragment Ping on Query { ping }").perform();
+        SHAFT.Validations.assertThat().object(api.getResponseJSONValue("data.ping")).isEqualTo("pong").perform();
+    }
+
+    @Test
+    public void test_addHeaderAndCookieShouldBeSentForSubsequentRequests() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.addHeader("x-custom-header", "header-value");
+        api.addCookie("session", "abc123");
+        api.get("/inspect").perform();
+
+        SHAFT.Validations.assertThat().object(api.getResponseJSONValue("header")).isEqualTo("header-value").perform();
+        SHAFT.Validations.assertThat().object(api.getResponseJSONValue("cookie")).contains("session=abc123").perform();
+    }
+
+    @Test
+    public void test_getResponseXMLValue() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.get("/xml/items").perform();
+        String firstName = api.getResponseXMLValue("items.item[0].name");
+        SHAFT.Validations.assertThat().object(firstName).isEqualTo("alpha").perform();
+    }
+
+    @Test
+    public void test_getResponseXMLValueAsList() {
+        SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
+        api.get("/xml/items").perform();
+        List<Object> itemNames = api.getResponseXMLValueAsList("items.item.name");
+        SHAFT.Validations.assertThat().object(itemNames.size()).isEqualTo(2).perform();
+        SHAFT.Validations.assertThat().object(itemNames.get(0).toString()).isEqualTo("alpha").perform();
+        SHAFT.Validations.assertThat().object(itemNames.get(1).toString()).isEqualTo("beta").perform();
     }
 
     @Test
