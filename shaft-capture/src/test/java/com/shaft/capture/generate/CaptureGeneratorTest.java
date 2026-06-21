@@ -102,6 +102,39 @@ class CaptureGeneratorTest {
     }
 
     @Test
+    void playwrightBackendGeneratesCompilableShaftPlaywrightSource() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        CaptureSession simple = new CaptureSession(
+                base.schemaVersion(),
+                "playwright-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                base.startedAt().plusSeconds(5),
+                base.browser(),
+                base.events().subList(0, 4),
+                List.of(),
+                List.of(CaptureFixtures.ordinary()),
+                base.redactionSummary(),
+                base.extensions());
+        Path session = session(simple);
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(
+                request(session, temp.resolve("playwright")),
+                CaptureGenerator.CodegenBackend.PLAYWRIGHT);
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                result.report().compilation().status());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("private SHAFT.GUI.Playwright driver;"));
+        assertTrue(source.contains("driver = new SHAFT.GUI.Playwright();"));
+        assertTrue(source.contains("driver.element().click(USERNAME_INPUT_LOCATOR);"));
+        assertFalse(source.contains("DriverFactory"));
+        assertFalse(source.contains("ExpectedConditions"));
+    }
+
+    @Test
     void secretCanaryInExternalDataIsRejectedWithoutLeakingIntoReport() throws Exception {
         Path session = session(CaptureFixtures.representativeSession());
         String canary = "sk-secret-canary-123456789";

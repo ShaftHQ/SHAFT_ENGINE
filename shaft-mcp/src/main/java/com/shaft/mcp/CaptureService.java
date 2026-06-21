@@ -3,6 +3,7 @@ package com.shaft.mcp;
 import com.shaft.capture.generate.CaptureGenerationRequest;
 import com.shaft.capture.generate.CaptureGenerationResult;
 import com.shaft.capture.generate.CaptureGenerator;
+import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.capture.generate.CodegenFeatureCatalog;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.runtime.CaptureBrowser;
@@ -244,7 +245,53 @@ public class CaptureService {
                 false,
                 false,
                 allowLocalAi,
-                allowRemoteAi);
+                allowRemoteAi,
+                CodegenBackend.WEBDRIVER);
+        return replayResult(result, driverVariableName);
+    }
+
+    /**
+     * Generates, compiles, and optionally replays a SHAFT Playwright TestNG test from a Capture session.
+     *
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param outputDirectory generated project root inside the MCP workspace
+     * @param packageName generated Java package
+     * @param className optional generated class name
+     * @param overwrite whether existing artifacts may be replaced
+     * @param replay whether to execute the generated test
+     * @param useAi whether to request optional AI enrichment preview
+     * @param allowLocalAi explicit approval for local inference
+     * @param allowRemoteAi explicit approval for remote inference
+     * @param driverVariableName Java driver variable name used in extracted snippets
+     * @return generation report plus copy-paste code blocks
+     */
+    @Tool(name = "playwright_capture_generate_replay",
+            description = "generates, compiles, optionally replays, and returns copy-paste SHAFT Playwright code blocks")
+    @SuppressWarnings("PMD.ExcessiveParameterList")
+    public McpCaptureReplayResult generatePlaywrightReplay(
+            String sessionPath,
+            String outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            boolean replay,
+            boolean useAi,
+            boolean allowLocalAi,
+            boolean allowRemoteAi,
+            String driverVariableName) {
+        CaptureGenerationResult result = generateInternal(
+                sessionPath,
+                outputDirectory,
+                packageName,
+                className,
+                overwrite,
+                replay,
+                useAi,
+                false,
+                false,
+                allowLocalAi,
+                allowRemoteAi,
+                CodegenBackend.PLAYWRIGHT);
         return replayResult(result, driverVariableName);
     }
 
@@ -279,7 +326,44 @@ public class CaptureService {
                 false,
                 false,
                 false,
-                false);
+                false,
+                CodegenBackend.WEBDRIVER);
+        return replayResult(result, driverVariableName);
+    }
+
+    /**
+     * Generates deterministic copy-paste SHAFT Playwright code blocks from a persisted Capture session.
+     *
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param outputDirectory generated project root inside the MCP workspace
+     * @param packageName generated Java package
+     * @param className optional generated class name
+     * @param overwrite whether existing artifacts may be replaced
+     * @param driverVariableName Java driver variable name used in extracted snippets
+     * @return generated snippets and report
+     */
+    @Tool(name = "playwright_capture_code_blocks",
+            description = "generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion")
+    public McpCaptureReplayResult playwrightCodeBlocks(
+            String sessionPath,
+            String outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            String driverVariableName) {
+        CaptureGenerationResult result = generateInternal(
+                sessionPath,
+                outputDirectory,
+                packageName,
+                className,
+                overwrite,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                CodegenBackend.PLAYWRIGHT);
         return replayResult(result, driverVariableName);
     }
 
@@ -324,7 +408,8 @@ public class CaptureService {
                 applyEnrichment,
                 approveEnrichment,
                 allowLocalAi,
-                allowRemoteAi);
+                allowRemoteAi,
+                CodegenBackend.WEBDRIVER);
     }
 
     /**
@@ -346,7 +431,8 @@ public class CaptureService {
             boolean applyEnrichment,
             boolean approveEnrichment,
             boolean allowLocalAi,
-            boolean allowRemoteAi) {
+            boolean allowRemoteAi,
+            CodegenBackend backend) {
         Path output = outputDirectory == null || outputDirectory.isBlank()
                 ? workspacePolicy.output("generated-tests", "Capture generation output directory")
                 : workspacePolicy.output(outputDirectory, "Capture generation output directory");
@@ -371,7 +457,8 @@ public class CaptureService {
                 new ApprovalPolicy(
                         allowLocalAi || aiPreview || applyEnrichment,
                         allowRemoteAi || aiPreview || applyEnrichment,
-                        EnumSet.of(EvidenceCategory.TEXT))));
+                        EnumSet.of(EvidenceCategory.TEXT))),
+                backend);
     }
 
     private String workspacePath(String value, String label) {
