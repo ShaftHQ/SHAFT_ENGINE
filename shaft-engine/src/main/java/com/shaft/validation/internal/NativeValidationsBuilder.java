@@ -91,7 +91,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to \"").append(expectedValue).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -120,7 +120,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -136,7 +136,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("contains \"").append(expectedValue).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -152,7 +152,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not contain \"").append(expectedValue).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -168,7 +168,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("matches this regular expression \"").append(expectedValue).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -184,7 +184,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not match this regular expression \"").append(expectedValue).append("\".");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -200,7 +200,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("equals \"").append(expectedValue).append("\", ignoring case sensitivity.");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -216,7 +216,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\", ignoring case sensitivity.");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -231,7 +231,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is NULL.");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -246,7 +246,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not NULL.");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -261,7 +261,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is TRUE.");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -276,7 +276,7 @@ public class NativeValidationsBuilder {
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is FALSE.");
-        var executor = new ValidationsExecutor(this);
+        var executor = createExecutor();
         executor.internalPerform();
         return executor;
     }
@@ -365,5 +365,9 @@ public class NativeValidationsBuilder {
             metadataBuilder = new NativeValidationsBuilder(this, "browserAttributeEquals", null, metadataAttribute);
         }
         return new TextDirectionValidationsBuilder(metadataBuilder);
+    }
+
+    protected ValidationsExecutor createExecutor() {
+        return new ValidationsExecutor(this);
     }
 }

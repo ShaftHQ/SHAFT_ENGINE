@@ -1,6 +1,5 @@
 package testPackage.playwright;
 
-import com.shaft.driver.SHAFT;
 import org.testng.annotations.Test;
 import testPackage.TestPageServer;
 
@@ -9,16 +8,16 @@ public abstract class PlaywrightMobileWebE2ETestBase extends PlaywrightActionsE2
     public void shouldApplyMobileDeviceDescriptor() {
         driver().browser().navigateToURL(TestPageServer.url("mobileViewportFixture.html"));
 
-        SHAFT.Validations.assertThat().object(evaluateString("() => navigator.userAgent"))
+        driver().assertThat().browser().attribute("userAgent")
                 .contains(expectedUserAgentText())
                 .perform();
-        SHAFT.Validations.assertThat().object(evaluateNumber("() => window.innerWidth"))
-                .isEqualTo((double) expectedViewportWidth())
+        driver().assertThat().browser().attribute("windowWidth")
+                .isEqualTo(expectedViewportWidth())
                 .perform();
-        SHAFT.Validations.assertThat().object(evaluateNumber("() => window.innerHeight"))
-                .isEqualTo((double) expectedViewportHeight())
+        driver().assertThat().browser().attribute("windowHeight")
+                .isEqualTo(expectedViewportHeight())
                 .perform();
-        SHAFT.Validations.assertThat().object(evaluateNumber("() => window.devicePixelRatio"))
+        driver().assertThat().browser().attribute("devicePixelRatio")
                 .isEqualTo(expectedDeviceScaleFactor())
                 .perform();
     }
@@ -30,12 +29,4 @@ public abstract class PlaywrightMobileWebE2ETestBase extends PlaywrightActionsE2
     protected abstract int expectedViewportHeight();
 
     protected abstract double expectedDeviceScaleFactor();
-
-    private String evaluateString(String expression) {
-        return String.valueOf(driver().getDriver().evaluate(expression));
-    }
-
-    private double evaluateNumber(String expression) {
-        return ((Number) driver().getDriver().evaluate(expression)).doubleValue();
-    }
 }

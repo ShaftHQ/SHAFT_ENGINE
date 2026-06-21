@@ -41,7 +41,8 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementAssertions assertThat(Locator elementLocator) {
-        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, elementLocator);
+        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, session,
+                elementLocator);
     }
 
     @Override
@@ -55,7 +56,8 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementAssertions verifyThat(Locator elementLocator) {
-        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, elementLocator);
+        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, session,
+                elementLocator);
     }
 
     @Override
