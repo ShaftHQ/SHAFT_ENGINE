@@ -8,7 +8,8 @@ public class IPhone17ProMaxPlaywrightActionsE2ETest extends PlaywrightMobileWebE
 
     @Override
     protected String expectedUserAgentText() {
-        return "iPhone OS 26_0";
+        // ponytail: keep UA check resilient to OS version churn in Playwright/browser updates
+        return "iPhone OS";
     }
 
     @Override
