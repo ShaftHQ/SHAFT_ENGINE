@@ -4,91 +4,48 @@
 
 # SHAFT
 
-### One Java 25 engine for Web, Mobile, API, CLI, and Database testing.
+### Java 25 automation framework for Web, Mobile, API, CLI, and Database testing.
 
-Fluent automation, synchronized actions, built-in assertions, rich evidence,
-and optional agent tools without rebuilding the framework for every surface.
+SHAFT is a Maven-published test automation engine with one fluent API for
+synchronized actions, assertions, configuration, test data, reporting, evidence,
+and optional agent-assisted workflows.
 
 [![GitHub Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=flat-square&logo=github)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=flat-square&logo=apachemaven)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 [![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/e2eTests.yml?branch=main&style=flat-square&label=tests)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
 [![Docs](https://img.shields.io/badge/docs-live-5b4bff?style=flat-square)](https://shaftengine.netlify.app/docs/start/overview)
 
-[Start](https://shaftengine.netlify.app/docs/start/quick-start) ·
-[Connect an AI agent](https://shaftengine.netlify.app/docs/agentic/mcp) ·
-[Explore features](https://shaftengine.netlify.app/docs/features/modules) ·
-[Star SHAFT](https://github.com/ShaftHQ/SHAFT_ENGINE)
+[User Guide](https://shaftengine.netlify.app/docs/start/overview) ·
+[Quick Start](https://shaftengine.netlify.app/docs/start/quick-start) ·
+[Architecture](https://shaftengine.netlify.app/docs/features/architecture) ·
+[Contribute](CONTRIBUTING.md)
 
 </div>
 
-## Launch shaft-mcp
+## What SHAFT Provides
 
-Connect Codex to SHAFT browser automation, Capture, and Doctor:
+- Web, mobile, API, CLI, database, validation, test data, and reporting APIs.
+- Built-in synchronization, assertions, screenshots, logs, and Allure evidence.
+- TestNG, JUnit 5, and Cucumber integration.
+- Required `shaft-engine` runtime plus optional modules for MCP, Capture,
+  Doctor, Heal, AI providers, BrowserStack, local video, and visual processing.
+- Deterministic agent workflows through SHAFT MCP, Capture, Doctor, and Heal,
+  with provider-backed AI features kept optional.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp.sh | sh -s -- --codex
-```
+## Go Straight To The Guide
 
-Windows PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp.ps1 | iex; Install-ShaftMcp -Client codex
-```
-
-Then ask:
-
-> Use SHAFT to open `https://example.com`, verify the page title, and summarize
-> the generated test evidence.
-
-[Copilot / IntelliJ IDEA setup](https://shaftengine.netlify.app/docs/agentic/mcp) ·
-[Doctor command](https://shaftengine.netlify.app/docs/agentic/doctor) ·
-[Heal command](https://shaftengine.netlify.app/docs/agentic/heal)
-
-## A Complete Web Test
-
-```java
-import com.shaft.driver.SHAFT;
-import org.openqa.selenium.By;
-import org.testng.annotations.*;
-
-public class SearchTest {
-    private SHAFT.GUI.WebDriver driver;
-
-    @BeforeMethod
-    public void openBrowser() {
-        driver = new SHAFT.GUI.WebDriver();
-    }
-
-    @Test
-    public void search() {
-        driver.browser().navigateToURL("https://duckduckgo.com/")
-                .and().element().type(By.name("q"), "SHAFT Engine")
-                .and().assertThat().title().contains("DuckDuckGo");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void closeBrowser() {
-        driver.quit();
-    }
-}
-```
-
-[Install SHAFT](https://shaftengine.netlify.app/docs/start/installation) ·
-[Web guide](https://shaftengine.netlify.app/docs/testing/web)
-
-## Go Straight to Your Goal
-
-| I want to... | Open |
+| Goal | Open |
 |---|---|
-| Test a browser | [Web testing](https://shaftengine.netlify.app/docs/testing/web) |
-| Test Android, iOS, or Flutter | [Mobile testing](https://shaftengine.netlify.app/docs/testing/mobile) |
+| Evaluate SHAFT quickly | [SHAFT at a glance](https://shaftengine.netlify.app/docs/start/overview) |
+| Create and run a project | [Quick start](https://shaftengine.netlify.app/docs/start/quick-start) |
+| Install or generate a project | [Installation](https://shaftengine.netlify.app/docs/start/installation) |
+| Understand artifacts and boundaries | [Architecture and modules](https://shaftengine.netlify.app/docs/features/architecture) |
+| Test browsers | [Web testing](https://shaftengine.netlify.app/docs/testing/web) |
+| Test mobile apps | [Mobile testing](https://shaftengine.netlify.app/docs/testing/mobile) |
 | Test REST or GraphQL APIs | [API testing](https://shaftengine.netlify.app/docs/testing/api) |
-| Run terminal or file actions | [CLI testing](https://shaftengine.netlify.app/docs/testing/cli) |
-| Query and validate databases | [Database testing](https://shaftengine.netlify.app/docs/testing/database) |
-| Diagnose a failed run | [SHAFT Doctor](https://shaftengine.netlify.app/docs/agentic/doctor) |
-| Recover an eligible locator | [SHAFT Heal](https://shaftengine.netlify.app/docs/agentic/heal) |
-| Upgrade from `SHAFT_ENGINE` | [Upgrade guide](https://shaftengine.netlify.app/docs/start/upgrade) |
-| Understand the modules | [Architecture and modules](https://shaftengine.netlify.app/docs/features/architecture) |
+| Use agent tools | [SHAFT MCP](https://shaftengine.netlify.app/docs/agentic/mcp) |
+| Diagnose or recover failed runs | [Doctor](https://shaftengine.netlify.app/docs/agentic/doctor) and [Heal](https://shaftengine.netlify.app/docs/agentic/heal) |
+| Upgrade an existing project | [Upgrade guide](https://shaftengine.netlify.app/docs/start/upgrade) |
 
 ## Evidence
 
@@ -101,13 +58,12 @@ recognized through the
 
 ## Contribute
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), open an
-[issue](https://github.com/ShaftHQ/SHAFT_ENGINE/issues), or join the
-[community](https://shaftengine.netlify.app/docs/start/overview#community).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the full local setup, validation,
+documentation, and pull request checklist.
 
-Public documentation is maintained in
+Public product documentation is maintained in
 [ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io).
-Engine changes that affect users must include a linked documentation-site pull
-request or explain why documentation is not required.
+User-facing engine changes need a linked documentation pull request or a clear
+reason why documentation is not required.
 
 MIT licensed. See [LICENSE](LICENSE).
