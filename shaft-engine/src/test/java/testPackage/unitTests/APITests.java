@@ -120,7 +120,7 @@ public class APITests {
     }
 
     @Test
-    public void test_getInstanceFactoryMethod() {
+    public void testGetInstanceFactoryMethod() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.get("/users").perform();
         List<Object> names = api.getResponseJSONValueAsList("$..name");
@@ -128,49 +128,49 @@ public class APITests {
     }
 
     @Test
-    public void test_patchRequestShouldTargetPatchEndpoint() {
+    public void testPatchRequestShouldTargetPatchEndpoint() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.patch("/method/patch").setRequestBody(Map.of("operation", "patch")).perform();
         SHAFT.Validations.assertThat().object(api.getResponseJSONValue("method")).isEqualTo("PATCH").perform();
     }
 
     @Test
-    public void test_putRequestShouldTargetPutEndpoint() {
+    public void testPutRequestShouldTargetPutEndpoint() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.put("/method/put").setRequestBody(Map.of("operation", "put")).perform();
         SHAFT.Validations.assertThat().object(api.getResponseJSONValue("method")).isEqualTo("PUT").perform();
     }
 
     @Test
-    public void test_deleteRequestShouldTargetDeleteEndpoint() {
+    public void testDeleteRequestShouldTargetDeleteEndpoint() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.delete("/method/delete").perform();
         SHAFT.Validations.assertThat().object(api.getResponseJSONValue("method")).isEqualTo("DELETE").perform();
     }
 
     @Test
-    public void test_sendGraphQlRequestShouldSendBasicQuery() {
+    public void testSendGraphQlRequestShouldSendBasicQuery() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.sendGraphQlRequest("/graphql", "query { ping }").perform();
         SHAFT.Validations.assertThat().object(api.getResponseJSONValue("data.ping")).isEqualTo("pong").perform();
     }
 
     @Test
-    public void test_sendGraphQlRequestShouldSendQueryWithVariables() {
+    public void testSendGraphQlRequestShouldSendQueryWithVariables() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.sendGraphQlRequest("/graphql", "query $id { ping(id: $id) }", Map.of("id", 42)).perform();
         SHAFT.Validations.assertThat().object(api.getResponseJSONValue("data.ping")).isEqualTo("pong").perform();
     }
 
     @Test
-    public void test_sendGraphQlRequestShouldSendQueryWithVariablesAndFragment() {
+    public void testSendGraphQlRequestShouldSendQueryWithVariablesAndFragment() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.sendGraphQlRequest("/graphql", "query { ping }", Map.of("id", 42), "fragment Ping on Query { ping }").perform();
         SHAFT.Validations.assertThat().object(api.getResponseJSONValue("data.ping")).isEqualTo("pong").perform();
     }
 
     @Test
-    public void test_addHeaderAndCookieShouldBeSentForSubsequentRequests() {
+    public void testAddHeaderAndCookieShouldBeSentForSubsequentRequests() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.addHeader("x-custom-header", "header-value");
         api.addCookie("session", "abc123");
@@ -181,7 +181,7 @@ public class APITests {
     }
 
     @Test
-    public void test_getResponseXMLValue() {
+    public void testGetResponseXMLValue() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.get("/xml/items").perform();
         String firstName = api.getResponseXMLValue("items.item[0].name");
@@ -189,7 +189,7 @@ public class APITests {
     }
 
     @Test
-    public void test_getResponseXMLValueAsList() {
+    public void testGetResponseXMLValueAsList() {
         SHAFT.API api = SHAFT.API.getInstance(localApiBaseUrl);
         api.get("/xml/items").perform();
         List<Object> itemNames = api.getResponseXMLValueAsList("items.item.name");

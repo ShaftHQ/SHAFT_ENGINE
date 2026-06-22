@@ -186,7 +186,7 @@ public class FileActionsCoverageUnitTest {
     public void copyFileToLocalMachineShouldSanitizeStrictHostKeyCheckingInScpCommandForRemoteTerminals() throws Exception {
         FileActions realActions = FileActions.getInstance(true);
         FileActions helperActions = Mockito.spy(FileActions.getInstance(true));
-        java.util.List<String> terminalCommands = new java.util.ArrayList<>();
+        List<String> terminalCommands = new java.util.ArrayList<>();
         String localTempFolder = tempDirectory.resolve("local-temp-remote").toString();
 
         Mockito.doReturn(localTempFolder).when(helperActions).getAbsolutePath("target/temp");
@@ -219,7 +219,7 @@ public class FileActionsCoverageUnitTest {
 
                 Assert.assertEquals(terminalCommands.size(), 2,
                         "Expected chmod and scp commands for remote copy flow.");
-                Assert.assertTrue(localPath.startsWith(java.nio.file.Path.of(localTempFolder).resolve("app.log").toString()));
+                Assert.assertTrue(localPath.startsWith(Path.of(localTempFolder).resolve("app.log").toString()));
                 Assert.assertTrue(terminalCommands.get(1).contains("-o StrictHostKeyChecking=ask"),
                         terminalCommands.get(1));
                 Assert.assertTrue(terminalCommands.get(1).contains("-r user@host.example.com:/var/log/app.log"),
@@ -234,6 +234,7 @@ public class FileActionsCoverageUnitTest {
         }
     }
 
+    @SuppressWarnings("PMD.AvoidAccessibilityAlteration")
     @Test
     public void normalizeStrictHostKeyCheckingModeShouldNormalizeAndValidateValues() throws Exception {
         Method normalize = FileActions.class.getDeclaredMethod("normalizeStrictHostKeyCheckingMode", String.class);

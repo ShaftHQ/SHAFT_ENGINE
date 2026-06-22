@@ -354,33 +354,20 @@ public class AllureManagerCoverageUnitTest {
         if (value != null || !targetType.isPrimitive()) {
             return value;
         }
-        if (targetType == int.class) {
-            return 0;
-        }
-        if (targetType == long.class) {
-            return 0L;
-        }
-        if (targetType == boolean.class) {
-            return false;
-        }
-        if (targetType == byte.class) {
-            return (byte) 0;
-        }
-        if (targetType == short.class) {
-            return (short) 0;
-        }
-        if (targetType == char.class) {
-            return (char) 0;
-        }
-        if (targetType == float.class) {
-            return 0.0f;
-        }
-        if (targetType == double.class) {
-            return 0.0d;
-        }
-        return false;
+        return switch (targetType.getTypeName()) {
+            case "int" -> 0;
+            case "long" -> 0L;
+            case "boolean" -> false;
+            case "byte" -> (byte) 0;
+            case "short" -> (short) 0;
+            case "char" -> (char) 0;
+            case "float" -> 0.0f;
+            case "double" -> 0.0d;
+            default -> false;
+        };
     }
 
+    @SuppressWarnings("PMD.AvoidAccessibilityAlteration")
     private static void disableFinalModifier(Field field) {
         try {
             Field modifiersField = Field.class.getDeclaredField("modifiers");
