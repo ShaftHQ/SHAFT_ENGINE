@@ -559,6 +559,9 @@ public class PublicMethodCoverageSmokeTest {
     }
 
     private static String descriptorFor(Class<?> type) {
+        if (type == null) {
+            return "V";
+        }
         if (type == void.class) {
             return "V";
         }
@@ -586,9 +589,6 @@ public class PublicMethodCoverageSmokeTest {
             }
             if (type == double.class) {
                 return "D";
-            }
-            if (type == null) {
-                return "V";
             }
             return "V";
         }

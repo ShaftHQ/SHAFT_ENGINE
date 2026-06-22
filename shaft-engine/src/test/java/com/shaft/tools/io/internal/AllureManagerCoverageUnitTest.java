@@ -336,43 +336,59 @@ public class AllureManagerCoverageUnitTest {
     private static void setField(String fieldName, Object value) throws Exception {
         Field field = AllureManager.class.getDeclaredField(fieldName);
         field.setAccessible(true);
+        Object fieldValue = normalizeFieldValue(field.getType(), value);
+
         try {
-            field.set(null, value);
-            return;
-        } catch (IllegalAccessException ignored) {
-            // Fall back to Unsafe for final/static fields on newer JDKs.
-        }
-
-        Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-        unsafeField.setAccessible(true);
-        sun.misc.Unsafe unsafe = (sun.misc.Unsafe) unsafeField.get(null);
-        if (Modifier.isStatic(field.getModifiers())) {
-            long fieldOffset = unsafe.staticFieldOffset(field);
-            Object base = unsafe.staticFieldBase(field);
-            Class<?> type = field.getType();
-            if (type == int.class) {
-                unsafe.putInt(base, fieldOffset, (Integer) value);
-            } else if (type == long.class) {
-                unsafe.putLong(base, fieldOffset, (Long) value);
-            } else if (type == boolean.class) {
-                unsafe.putBoolean(base, fieldOffset, (Boolean) value);
-            } else if (type == byte.class) {
-                unsafe.putByte(base, fieldOffset, (Byte) value);
-            } else if (type == short.class) {
-                unsafe.putShort(base, fieldOffset, (Short) value);
-            } else if (type == char.class) {
-                unsafe.putChar(base, fieldOffset, (Character) value);
-            } else if (type == float.class) {
-                unsafe.putFloat(base, fieldOffset, (Float) value);
-            } else if (type == double.class) {
-                unsafe.putDouble(base, fieldOffset, (Double) value);
-            } else {
-                unsafe.putObject(base, fieldOffset, value);
+            if (Modifier.isFinal(field.getModifiers())) {
+                disableFinalModifier(field);
             }
+            field.set(null, fieldValue);
             return;
+        } catch (IllegalAccessException | IllegalArgumentException ignored) {
+            // keep deterministic behavior if reflective write fails under JPMS access rules
         }
+        throw new UnsupportedOperationException("Unable to set static field through reflection: " + fieldName);
+    }
 
-        throw new UnsupportedOperationException("Unable to set instance field through fallback: " + fieldName);
+    private static Object normalizeFieldValue(Class<?> targetType, Object value) {
+        if (value != null || !targetType.isPrimitive()) {
+            return value;
+        }
+        if (targetType == int.class) {
+            return 0;
+        }
+        if (targetType == long.class) {
+            return 0L;
+        }
+        if (targetType == boolean.class) {
+            return false;
+        }
+        if (targetType == byte.class) {
+            return (byte) 0;
+        }
+        if (targetType == short.class) {
+            return (short) 0;
+        }
+        if (targetType == char.class) {
+            return (char) 0;
+        }
+        if (targetType == float.class) {
+            return 0.0f;
+        }
+        if (targetType == double.class) {
+            return 0.0d;
+        }
+        return false;
+    }
+
+    private static void disableFinalModifier(Field field) {
+        try {
+            Field modifiersField = Field.class.getDeclaredField("modifiers");
+            modifiersField.setAccessible(true);
+            modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+        } catch (NoSuchFieldException | IllegalAccessException ignored) {
+            // JDK 12+ may hide Field#modifiers; best effort fallback keeps behavior stable for non-final fields.
+        }
     }
 
     private static Object getFieldValue(String fieldName) throws Exception {
