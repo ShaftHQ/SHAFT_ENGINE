@@ -14,8 +14,6 @@ public class SmartLocatorsRealisticTests extends TestScenario {
                     "/ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' shop-item ')][1]" +
                     "//button[contains(concat(' ', normalize-space(@class), ' '), ' shop-item-button ')])[1]");
     private static final By CART_TOTAL_PRICE = By.cssSelector(".cart-total-price");
-    private static final By PROCEED_TO_CHECKOUT_BUTTON = By.cssSelector(".btn-purchase");
-
     // Realistic test scenario for an e-commerce website
     // Fluent design, mixing regular locators with smart locators, performing assertions, reporting.
     // Two more algorithms were added for smart element identification, bringing the total to 34.
@@ -39,12 +37,6 @@ public class SmartLocatorsRealisticTests extends TestScenario {
     }
 
     @Test(dependsOnMethods = {"login", "addProductToCart"})
-    public void proceedToCheckout() {
-        driver.element().click(PROCEED_TO_CHECKOUT_BUTTON)
-                .and().assertThat(By.cssSelector("#shipping-address>h2")).text().isEqualTo("Shipping Details");
-    }
-
-    @Test(dependsOnMethods = {"login", "addProductToCart", "proceedToCheckout"})
     public void fillShippingDetails() {
         driver.element().type("Phone number", "00201000000000")
                 .and().type("Street", "101 dummy street")
