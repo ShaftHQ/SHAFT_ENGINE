@@ -14,7 +14,7 @@ public class SmartLocatorsRealisticTests extends TestScenario {
                     "/ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' shop-item ')][1]" +
                     "//button[contains(concat(' ', normalize-space(@class), ' '), ' shop-item-button ')])[1]");
     private static final By CART_TOTAL_PRICE = By.cssSelector(".cart-total-price");
-    private static final By PROCEED_TO_CHECKOUT_BUTTON = By.cssSelector(".btn-purchase");
+    private static final By PROCEED_TO_CHECKOUT_BUTTON = By.xpath("//button[contains(.,'Purchase') or contains(.,'Checkout')]");
 
     // Realistic test scenario for an e-commerce website
     // Fluent design, mixing regular locators with smart locators, performing assertions, reporting.

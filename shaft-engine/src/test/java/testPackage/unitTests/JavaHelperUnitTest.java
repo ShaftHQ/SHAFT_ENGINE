@@ -285,6 +285,18 @@ public class JavaHelperUnitTest {
         Assert.assertEquals(result, 1, "Equal numbers literal comparison should return 1");
     }
 
+    @Test(description = "compareTwoObjects: mixed integer/double literal positive → 1")
+    public void compareTwoObjectsMixedNumberLiteralTypesPositiveShouldReturnOne() {
+        int result = JavaHelper.compareTwoObjects(3, 3.0, 1, true);
+        Assert.assertEquals(result, 1, "Integer and double numeric values should compare equally");
+    }
+
+    @Test(description = "compareTwoObjects: mixed integer/double literal negative → 0")
+    public void compareTwoObjectsMixedNumberLiteralTypesNegativeShouldReturnZero() {
+        int result = JavaHelper.compareTwoObjects(3, 4.0, 1, true);
+        Assert.assertEquals(result, 0, "Different integer and double numeric values should fail positive assertion");
+    }
+
     // ─── compareTwoObjects – NumbersComparativeRelation ──────────────────────
 
     @Test(description = "compareTwoObjects: NumbersComparativeRelation EQUALS match → 1")

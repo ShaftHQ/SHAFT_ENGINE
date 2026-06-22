@@ -162,7 +162,7 @@ public class JavaHelper {
                     case String expectedString when actualValue instanceof String actualString ->
                             Assertions.assertEquals(expectedString, actualString);
                     case Number expectedNumber when actualValue instanceof Number actualNumber ->
-                            Assertions.assertEquals(expectedNumber, actualNumber);
+                            Assertions.assertEquals(expectedNumber.doubleValue(), actualNumber.doubleValue());
                     default -> Assertions.assertEquals(expectedValue, actualValue);
                 }
             }
@@ -192,7 +192,7 @@ public class JavaHelper {
                     case String expectedString when actualValue instanceof String actualString ->
                             Assertions.assertNotEquals(expectedString, actualString);
                     case Number expectedNumber when actualValue instanceof Number actualNumber ->
-                            Assertions.assertNotEquals(expectedNumber, actualNumber);
+                            Assertions.assertNotEquals(expectedNumber.doubleValue(), actualNumber.doubleValue());
                     default -> Assertions.assertNotEquals(expectedValue, actualValue);
                 }
             }
