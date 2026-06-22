@@ -586,7 +586,7 @@ public class ElementActionsHelper {
                 return new ScreenshotManager().takeScreenshot(driver, null, actionName, true);
             }
         } else {
-            return new ScreenshotManager().takeScreenshot(driver, elementLocator, actionName, false);
+            return new ScreenshotManager().takeScreenshot(driver, null, actionName, false);
         }
         return new ArrayList<>();
     }
