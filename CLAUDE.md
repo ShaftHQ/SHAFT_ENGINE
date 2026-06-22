@@ -11,6 +11,13 @@
 - Keep plans and final responses proportional to the task and stop when the
   requested behavior is verified.
 
+## gstack
+
+Use matching gstack workflow skills when available: `/browse` for browser work
+(never `mcp__claude-in-chrome__*`), `/investigate` for bugs, `/review` for
+diff review, `/qa` for browser validation, `/cso` for security, and `/ship`
+for PR/release flow.
+
 <!-- memory:start -->
 ## Memory
 
