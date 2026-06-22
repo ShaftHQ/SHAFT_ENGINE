@@ -527,6 +527,10 @@ public class DriverFactoryHelperCoverageUnitTest {
         try (MockedConstruction<RemoteWebDriver> ignored = org.mockito.Mockito.mockConstruction(RemoteWebDriver.class,
                 (mock, context) -> {
                     constructionArguments.add(context.arguments());
+                    WebDriver.Options options = org.mockito.Mockito.mock(WebDriver.Options.class);
+                    WebDriver.Window window = org.mockito.Mockito.mock(WebDriver.Window.class);
+                    org.mockito.Mockito.when(mock.manage()).thenReturn(options);
+                    org.mockito.Mockito.when(options.window()).thenReturn(window);
                     org.mockito.Mockito.when(mock.getCapabilities()).thenReturn(new ImmutableCapabilities());
                 })) {
             helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.CHROME, null);

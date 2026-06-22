@@ -15,7 +15,8 @@ public class LazyLoadingTests {
     public void test() {
         driver.get().browser().navigateToURL(url);
         if (!DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari")) {
-            By needsScrolling = By.cssSelector("h2 [title='The Rollercoaster Life']");
+            By needsScrolling = By.cssSelector("h2:last-of-type");
+            driver.get().browser().waitForLazyLoading();
             driver.get().element().scrollToElement(needsScrolling);
             driver.get().assertThat().element(needsScrolling).text().doesNotEqual("").withCustomReportMessage("find element which requires scrolling to exist on the page DOM").perform();
         }
