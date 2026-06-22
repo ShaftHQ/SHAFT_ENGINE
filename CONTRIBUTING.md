@@ -1,88 +1,161 @@
-Contribution is easy!
+# Contributing To SHAFT Engine
 
-Just join our Slack channel linked in the readme.md, tell us your idea, and we'll help you implement it yourself.
-The more you contribute, the more you'll get the hang of how things are done.
+This repository contains the Java 25 Maven reactor for SHAFT Engine. The public
+user guide lives in
+[ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io).
 
-## Requirements
+## 1. Check Out The Code
 
-For fixes, provide focused evidence that reproduces the problem and proves the
-result on the affected path. Add tests for behavior changes and JavaDocs for
-new public APIs.
-
-Nothing fancy... Just keep it clear and simple.
-
-## Code Quality Standards
-
-### JavaDocs
-- Every `public` class and method **must** have a JavaDoc comment.
-- Include `@param`, `@return`, and `@throws` tags where applicable.
-- Add `@see` links to related classes and the [SHAFT User Guide](https://shaftengine.netlify.app/docs/start/overview) where appropriate.
-- Use `{@code ...}` for inline code references and `{@link ...}` for type references.
-- Validate JavaDoc output locally with `mvn -pl shaft-engine javadoc:javadoc` before opening a PR when JavaDocs were changed.
-
-### Logging
-- Use Log4j (`LogManager.getLogger(ClassName.class)`) or SHAFT's `ReportManager` for all logging.
-- **Never** use `System.out.println` or `System.err.println` in production code.
-- Use `ReportManager.log()` for user-visible report steps and `ReportManager.logDiscrete()` for diagnostic messages.
-
-### Testing
-- All tests should use SHAFT's fluent assertion API (`driver.assertThat()`, `Validations.assertThat()`).
-- Use `@BeforeMethod` / `@AfterMethod(alwaysRun = true)` for driver lifecycle.
-- Follow the naming convention: `[Feature]Tests` for classes, `shouldExpectedBehaviorWhenCondition` for methods.
-- Store test data in JSON files under `shaft-engine/src/test/resources/testDataFiles/`.
-
-### Complexity
-- Keep methods short and focused (ideally under 30 lines).
-- Prefer extracting helper methods over deep nesting.
-- Use meaningful, descriptive names for variables and methods.
-- Prefer direct boolean expressions over multi-branch temporary flags when readability is improved.
-
-## Validation By Risk
-
-- **Documentation or agent guidance:** run the relevant deterministic validator
-  plus `python3 scripts/ci/validate_documentation_boundaries.py`
-  (`py -3 ...` on Windows) and
-  `git diff --check`; no Maven build is needed.
-- **Localized code:** run the affected tests, then compile/package once before
-  finalizing the change.
-- **Shared API, concurrency, build, or release changes:** run targeted tests,
-  relevant module checks, and the full compile/package command.
-- **Visual behavior:** include image or browser evidence. Console output and
-  test reports are sufficient for non-visual changes.
-- **External/cloud E2E:** run only when the required infrastructure is
-  available and the result is necessary to prove the change.
-
-Keep simplifications local, clear `ThreadLocal` state at lifecycle boundaries,
-and preserve readable non-interactive logging.
-
-## Documentation
-
-The Docusaurus site is the canonical location for product, usage,
-architecture, migration, and maintainer documentation. Do not add public
-guides, module READMEs, or a local `docs/` tree to this repository.
-
-When a change affects users:
-
-1. Update [ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io).
-2. Verify the documentation deploy preview and its affected canonical routes.
-3. Link the documentation pull request in the engine pull request.
-4. Merge and deploy the documentation first. Confirm the production routes
-   return HTTP 200 before merging dependent engine documentation cleanup.
-5. If documentation is not required, provide a concrete reason in the pull
-   request template.
-
-Operational Markdown remains allowed for agent instructions, governance,
-GitHub templates, skills, and test fixtures.
-
-## Build & Test
+Fork the repository if you are not a maintainer. Then clone your fork:
 
 ```bash
-# Build without tests
-mvn clean install -DskipTests -Dgpg.skip
+git clone https://github.com/<your-user>/SHAFT_ENGINE.git
+cd SHAFT_ENGINE
+git remote add upstream https://github.com/ShaftHQ/SHAFT_ENGINE.git
+```
 
-# Run a specific test class
-mvn -pl shaft-engine -am test -Dtest=TestClassName
+Maintainers can clone the canonical repository directly:
 
-# Generate JavaDocs
+```bash
+git clone https://github.com/ShaftHQ/SHAFT_ENGINE.git
+cd SHAFT_ENGINE
+```
+
+Start every change from current `main`:
+
+```bash
+git fetch --prune origin
+git switch main
+git pull --ff-only origin main
+git switch -c <short-topic-branch>
+```
+
+If you work from a fork, replace the pull command with:
+
+```bash
+git fetch --prune upstream
+git switch main
+git merge --ff-only upstream/main
+git push origin main
+git switch -c <short-topic-branch>
+```
+
+## 2. Install The Toolchain
+
+Required:
+
+- JDK 25.x only.
+- Maven 3.9.0 or newer.
+- Git.
+
+The repository includes `.java-version` and `.sdkmanrc` for version managers.
+With SDKMAN:
+
+```bash
+sdk env install
+sdk env
+```
+
+Verify the active tools before building:
+
+```bash
+java -version
+mvn -version
+```
+
+Expected: Java reports version `25.x`, and Maven reports `3.9.0` or newer.
+
+## 3. Build Locally
+
+PowerShell users should keep Maven `-D` arguments quoted as shown.
+
+```bash
+mvn clean install "-DskipTests" "-Dgpg.skip"
+```
+
+This compiles the reactor and installs local artifacts without running the test
+suite.
+
+## 4. Make The Change
+
+- Keep the scope tight and follow existing package and module boundaries.
+- Preserve public API compatibility. Deprecate before removing or renaming a
+  public API.
+- Add JavaDocs for every new public class or public method.
+- Use Log4j or SHAFT `ReportManager`; do not use `System.out.println` or
+  `System.err.println` in production code.
+- Use SHAFT fluent assertions in tests where applicable.
+- Do not commit generated reports, binaries, secrets, `target/`, or local
+  credential files.
+
+The Docusaurus user guide is the canonical location for product, usage,
+architecture, migration, and maintainer documentation. Do not add public guides
+or module READMEs to this repository.
+
+## 5. Validate By Risk
+
+For documentation or agent-guidance changes:
+
+```bash
+py -3 scripts/ci/validate_agent_setup.py
+py -3 scripts/ci/validate_documentation_boundaries.py
+git diff --check
+```
+
+For localized code changes, run the affected test first:
+
+```bash
+mvn -pl shaft-engine -am test "-Dtest=TestClassName"
+```
+
+Then run one compile/package pass appropriate to the change. For broad API,
+concurrency, build, or release changes, run targeted tests and the full
+compile/package command before opening a pull request.
+
+When public JavaDocs change, also run:
+
+```bash
 mvn -pl shaft-engine javadoc:javadoc
 ```
+
+For visual behavior changes, include image or browser evidence. Run external or
+credentialed cloud suites only when the required infrastructure is available and
+the result is necessary.
+
+## 6. Update Documentation When Needed
+
+If the change affects public behavior, update the user guide in
+[ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io) in
+the same delivery.
+
+Before the engine PR is ready:
+
+1. Open the documentation PR.
+2. Verify the documentation deploy preview and affected canonical routes.
+3. Link the documentation PR from the engine PR.
+4. If documentation is not required, state the concrete reason in the engine PR.
+
+## 7. Open The Pull Request
+
+Push your branch:
+
+```bash
+git push -u origin <short-topic-branch>
+```
+
+Open a pull request against `ShaftHQ/SHAFT_ENGINE:main`.
+
+The PR is ready for review when it includes:
+
+- A clear problem statement and solution summary.
+- Focused tests or evidence for the changed path.
+- Validation commands and results copied into the PR description.
+- JavaDocs for new public APIs.
+- Compatibility preserved, or deprecations added before removals.
+- A linked user-guide PR for user-facing behavior changes, or a clear reason no
+  docs change is needed.
+- No generated reports, binaries, secrets, `target/`, or credentialed cloud
+  output.
+
+Reviewers should be able to check out the branch, run the listed commands, and
+see the same result.
