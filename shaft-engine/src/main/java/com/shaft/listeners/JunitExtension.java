@@ -15,9 +15,8 @@ import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.InvocationInterceptor;
 import org.junit.jupiter.api.extension.LifecycleMethodExecutionExceptionHandler;
-import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
+import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
 import org.opentest4j.TestAbortedException;
 
 import java.lang.reflect.Method;
@@ -27,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Jupiter extension for SHAFT execution behavior that cannot be provided by a launcher listener.
  */
 public class JunitExtension implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback,
-        AfterTestExecutionCallback, InvocationInterceptor, LifecycleMethodExecutionExceptionHandler {
+        AfterTestExecutionCallback, TestExecutionExceptionHandler, LifecycleMethodExecutionExceptionHandler {
     private static final AtomicLong suiteStartTime = new AtomicLong(0);
 
     @Override
@@ -49,38 +48,26 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
     }
 
     @Override
-    public void interceptTestMethod(Invocation<Void> invocation, ReflectiveInvocationContext<Method> invocationContext,
-                                    ExtensionContext extensionContext) throws Throwable {
-        int maxRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
-        Throwable lastFailure = null;
-        for (int attempt = 0; attempt <= maxRetryCount; attempt++) {
-            boolean retryAttempt = attempt > 0;
+    public void handleTestExecutionException(ExtensionContext context, Throwable throwable) throws Throwable {
+        int maxRetryCount = RetryAnalyzer.retryMaximumNumberOfAttempts();
+        Throwable lastFailure = throwable;
+        Method method = context.getRequiredTestMethod();
+        Object target = context.getTestInstance().orElse(null);
+        for (int attempt = 1; attempt <= maxRetryCount; attempt++) {
+            JunitListener.recordRetriedFailure(toTestExecutionInfo(context, method, lastFailure));
             try {
-                if (retryAttempt) {
-                    ReportManagerHelper.enableDebugFileLogging();
-                    RetryAnalyzer.enableSupportingEvidenceCaptureForRetryAttempt();
-                    RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();
-                    ReportManager.logDiscrete("Retry #" + attempt + "/" + maxRetryCount
-                            + " for test: " + invocationContext.getExecutable().getName()
-                            + ", on thread: " + Thread.currentThread().getName());
-                }
-                invocation.proceed();
+                logRetryAttempt(method, attempt, maxRetryCount);
+                RetryAnalyzer.enableSupportingEvidenceCaptureForRetryAttempt();
+                RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();
+                context.getExecutableInvoker().invoke(method, target);
                 return;
-            } catch (Throwable throwable) {
-                lastFailure = throwable;
-                if (attempt >= maxRetryCount) {
-                    throw throwable;
-                }
-                JunitListener.recordRetriedFailure(toTestExecutionInfo(extensionContext, invocationContext.getExecutable(), throwable));
+            } catch (Throwable retryFailure) {
+                lastFailure = retryFailure;
             } finally {
-                if (retryAttempt) {
-                    RetryAnalyzer.restoreSupportingEvidenceCaptureForRetryAttempt();
-                }
+                RetryAnalyzer.restoreSupportingEvidenceCaptureForRetryAttempt();
             }
         }
-        if (lastFailure != null) {
-            throw lastFailure;
-        }
+        throw lastFailure;
     }
 
     @Override
@@ -143,6 +130,13 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
             ReportManagerHelper.logDiscrete(exception);
             throw exception;
         }
+    }
+
+    private static void logRetryAttempt(Method method, int attempt, int maxRetryCount) {
+        ReportManagerHelper.enableDebugFileLogging();
+        ReportManager.logDiscrete("Retry #" + attempt + "/" + maxRetryCount
+                + " for test: " + method.getName()
+                + ", on thread: " + Thread.currentThread().getName());
     }
 
     private static TestExecutionInfo toTestExecutionInfo(ExtensionContext context, Method method, Throwable throwable) {

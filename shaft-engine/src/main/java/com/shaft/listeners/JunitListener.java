@@ -127,6 +127,10 @@ public class JunitListener implements LauncherSessionListener {
         countsTracker.recordFailed(info);
     }
 
+    static void clearRecordedFailures() {
+        countsTracker.clearFailures();
+    }
+
     private void afterInvocation(TestExecutionInfo info) {
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
         ExecutionLifecycleHelper.attachTestArtifacts(info);

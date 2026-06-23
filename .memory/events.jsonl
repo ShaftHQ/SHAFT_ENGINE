@@ -84,3 +84,4 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.graphify-updates-use-installed-cli-subcommands","timestamp":"2026-06-21T15:23:04+03:00"}
 {"actor":"agent","event":"memory.updated","id":"constraint.delegate-broadly-to-spark","timestamp":"2026-06-21T20:33:51+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.agent-guidance-progressive-disclosure","timestamp":"2026-06-23T11:42:44+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.do-not-wait-for-ci-unless-explicitly-requested","timestamp":"2026-06-23T20:24:32+03:00"}

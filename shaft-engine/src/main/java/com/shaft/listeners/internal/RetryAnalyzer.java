@@ -1,6 +1,7 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
@@ -23,13 +24,14 @@ import org.testng.ITestResult;
  * parameter combination for data-driven tests).
  */
 public class RetryAnalyzer implements IRetryAnalyzer {
+    private static final String RETRY_MAXIMUM_NUMBER_OF_ATTEMPTS = "retryMaximumNumberOfAttempts";
     private static final ThreadLocal<SupportingEvidenceState> supportingEvidenceState = new ThreadLocal<>();
     private int counter = 0;
 
     @Override
     public boolean retry(ITestResult iTestResult) {
         try {
-            int maxRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+            int maxRetryCount = retryMaximumNumberOfAttempts();
             if (counter < maxRetryCount) {
                 counter++;
                 String message = "Retry #" + counter + "/" + maxRetryCount
@@ -45,6 +47,28 @@ public class RetryAnalyzer implements IRetryAnalyzer {
             ReportManagerHelper.logDiscrete(e, Level.DEBUG);
         }
         return false;
+    }
+
+    /**
+     * Resolves the live retry count shared by TestNG and JUnit retry adapters.
+     *
+     * @return configured retry attempts, never negative
+     */
+    public static int retryMaximumNumberOfAttempts() {
+        String value = ThreadLocalPropertiesManager.getProperty(RETRY_MAXIMUM_NUMBER_OF_ATTEMPTS);
+        if (value != null && !value.isBlank()) {
+            return parseRetryCount(value);
+        }
+        return Math.max(0, SHAFT.Properties.flags.retryMaximumNumberOfAttempts());
+    }
+
+    private static int parseRetryCount(String value) {
+        try {
+            return Math.max(0, Integer.parseInt(value.trim()));
+        } catch (NumberFormatException e) {
+            ReportManagerHelper.logDiscrete(e, Level.DEBUG);
+            return 0;
+        }
     }
 
     /**

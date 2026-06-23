@@ -49,6 +49,13 @@ public class ExecutionCountsTracker {
     }
 
     /**
+     * Clears recorded failing ids while preserving passed and skipped ids.
+     */
+    public void clearFailures() {
+        failedIds.clear();
+    }
+
+    /**
      * Creates a deduplicated count snapshot.
      *
      * @return immutable count snapshot

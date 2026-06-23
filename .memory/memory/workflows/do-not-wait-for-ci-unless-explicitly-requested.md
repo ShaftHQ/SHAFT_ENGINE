@@ -1,0 +1,1 @@
+User instruction: when opening or updating SHAFT_ENGINE pull requests, do not wait for CI results by default. Report the PR and any checks already observed, but only wait for all CI to pass when the user explicitly asks to ensure that checks are passing.
