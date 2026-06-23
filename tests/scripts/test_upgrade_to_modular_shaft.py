@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import sys
 import tempfile
@@ -32,6 +33,50 @@ SIMPLE_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
 </project>
 """
 
+SELENIUM_TESTNG_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>example</groupId>
+    <artifactId>selenium-demo</artifactId>
+    <version>1.0.0</version>
+    <dependencies>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.29.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.11.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+"""
+
+REST_ASSURED_TESTNG_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>example</groupId>
+    <artifactId>api-demo</artifactId>
+    <version>1.0.0</version>
+    <dependencies>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>5.5.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.11.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+"""
+
 
 def command_result(returncode: int, output: str = "") -> upgrade.CommandResult:
     return upgrade.CommandResult(("mvn", "test-compile"), returncode, output, "")
@@ -55,6 +100,18 @@ class UpgradeToModularShaftTests(unittest.TestCase):
         <versions><version>1.8</version><version>1.9</version></versions>
         </versioning></metadata>"""
         self.assertEqual(upgrade.metadata_release(metadata), "1.9")
+
+    def test_metadata_release_falls_back_when_release_is_snapshot(self):
+        metadata = """<metadata><versioning><latest>2.1-SNAPSHOT</latest><release>2.1-SNAPSHOT</release>
+        <versions><version>2.0</version><version>2.1-SNAPSHOT</version></versions>
+        </versioning></metadata>"""
+        self.assertEqual(upgrade.metadata_release(metadata), "2.0")
+
+    def test_metadata_release_ignores_unstable_qualifiers(self):
+        metadata = """<metadata><versioning>
+        <versions><version>2.0</version><version>2.1-rc1</version><version>2.2-M1</version></versions>
+        </versioning></metadata>"""
+        self.assertEqual(upgrade.metadata_release(metadata), "2.0")
 
     def test_transform_replaces_legacy_dependency_and_imports_bom(self):
         transformed = upgrade.transform_pom_bytes(
@@ -235,6 +292,74 @@ class UpgradeToModularShaftTests(unittest.TestCase):
         self.assertTrue(evidence["shaft-video"])
         self.assertTrue(evidence["shaft-browserstack"])
 
+    def test_legacy_pom_dependency_coordinates_trigger_optional_modules(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>legacy</artifactId><version>1</version>
+                <dependencies>
+                  <dependency><groupId>io.github.shafthq</groupId>
+                    <artifactId>SHAFT_ENGINE</artifactId><version>9.3.20250928</version></dependency>
+                  <dependency><groupId>com.browserstack</groupId>
+                    <artifactId>browserstack-java-sdk</artifactId><version>1</version></dependency>
+                  <dependency><groupId>com.automation-remarks</groupId>
+                    <artifactId>video-recorder-junit5</artifactId><version>1</version></dependency>
+                  <dependency><groupId>org.openpnp</groupId>
+                    <artifactId>opencv</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(
+            analysis.optional_modules,
+            ("shaft-browserstack", "shaft-video", "shaft-visual"),
+        )
+
+    def test_scan_optional_modules_accepts_current_shaft_property_styles(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            properties = root / "src/test/resources/custom.properties"
+            properties.parent.mkdir(parents=True)
+            properties.write_text("videoParams_recordVideo=true\n", encoding="utf-8")
+            java = root / "src/test/java/Demo.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """class Demo {
+                    void configure() {
+                        SHAFT.Properties.browserStack.set().platformsList("[{}]");
+                        SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
+                    }
+                }""",
+                encoding="utf-8",
+            )
+
+            evidence = upgrade.scan_optional_modules(root)
+
+        self.assertTrue(evidence["shaft-video"])
+        self.assertTrue(evidence["shaft-browserstack"])
+
+    def test_direct_browserstack_settings_do_not_trigger_sdk_module(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "src/test/java/Demo.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """class Demo {
+                    void configure() {
+                        SHAFT.Properties.browserStack.set().deviceName("Pixel 9");
+                    }
+                }""",
+                encoding="utf-8",
+            )
+
+            evidence = upgrade.scan_optional_modules(root)
+
+        self.assertFalse(evidence["shaft-browserstack"])
+
     def test_all_supported_native_stack_and_runner_combinations_are_detected(self):
         stacks = {
             "selenium": ("org.seleniumhq.selenium", "selenium-chrome-driver"),
@@ -290,6 +415,153 @@ class UpgradeToModularShaftTests(unittest.TestCase):
 
         self.assertEqual(analysis.stacks, ("selenium",))
         self.assertEqual(analysis.runners, ("junit",))
+
+    def test_rest_assured_family_coordinate_is_supported(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>api</artifactId><version>1</version>
+                <dependencies>
+                  <dependency><groupId>io.rest-assured</groupId>
+                    <artifactId>json-schema-validator</artifactId><version>1</version></dependency>
+                  <dependency><groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(analysis.stacks, ("rest-assured",))
+        self.assertEqual(analysis.runners, ("testng",))
+
+    def test_bom_only_modular_project_is_supported(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>modular</artifactId><version>1</version>
+                <dependencyManagement><dependencies>
+                  <dependency><groupId>io.github.shafthq</groupId>
+                    <artifactId>shaft-bom</artifactId><version>10.2.20260623</version>
+                    <type>pom</type><scope>import</scope></dependency>
+                </dependencies></dependencyManagement>
+                </project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertTrue(analysis.existing_modular_project)
+
+    def test_native_child_pom_inherits_runner_detection_from_parent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>parent</artifactId><version>1</version>
+                <packaging>pom</packaging>
+                <modules><module>web-tests</module></modules>
+                <dependencies>
+                  <dependency><groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+            child = root / "web-tests"
+            child.mkdir()
+            (child / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <parent><groupId>example</groupId><artifactId>parent</artifactId><version>1</version></parent>
+                <artifactId>web-tests</artifactId>
+                <dependencies>
+                  <dependency><groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-java</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(
+            [pom.relative_to(root).as_posix() for pom in analysis.candidate_poms],
+            ["web-tests/pom.xml"],
+        )
+
+    def test_native_child_with_junit_platform_coordinate_is_candidate(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>parent</artifactId><version>1</version>
+                <packaging>pom</packaging>
+                <modules><module>web-tests</module></modules></project>""",
+                encoding="utf-8",
+            )
+            child = root / "web-tests"
+            child.mkdir()
+            (child / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <parent><groupId>example</groupId><artifactId>parent</artifactId><version>1</version></parent>
+                <artifactId>web-tests</artifactId>
+                <dependencies>
+                  <dependency><groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-java</artifactId><version>1</version></dependency>
+                  <dependency><groupId>org.junit.platform</groupId>
+                    <artifactId>junit-platform-suite-api</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(
+            [pom.relative_to(root).as_posix() for pom in analysis.candidate_poms],
+            ["web-tests/pom.xml"],
+        )
+
+    def test_native_rest_assured_family_child_inherits_runner_from_parent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>parent</artifactId><version>1</version>
+                <packaging>pom</packaging>
+                <modules><module>api-tests</module></modules>
+                <dependencies>
+                  <dependency><groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+            child = root / "api-tests"
+            child.mkdir()
+            (child / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <parent><groupId>example</groupId><artifactId>parent</artifactId><version>1</version></parent>
+                <artifactId>api-tests</artifactId>
+                <dependencies>
+                  <dependency><groupId>io.rest-assured</groupId>
+                    <artifactId>json-schema-validator</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(
+            [pom.relative_to(root).as_posix() for pom in analysis.candidate_poms],
+            ["api-tests/pom.xml"],
+        )
 
     def test_cucumber_project_is_supported(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -353,6 +625,328 @@ class UpgradeToModularShaftTests(unittest.TestCase):
             analysis = upgrade.analyze_project(root)
 
         self.assertEqual(analysis.optional_modules, ())
+
+    def test_transform_does_not_copy_bom_import_metadata_to_engine_dependency(self):
+        pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>example</groupId>
+            <artifactId>demo</artifactId>
+            <version>1.0.0</version>
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.shafthq</groupId>
+                    <artifactId>shaft-bom</artifactId>
+                    <version>10.2.20260623</version>
+                    <type>pom</type>
+                    <scope>import</scope>
+                </dependency>
+            </dependencies>
+        </project>
+        """
+
+        transformed = upgrade.transform_pom_bytes(pom.encode(), "10.2.20260623", ())
+        root = upgrade.parse_xml(transformed)
+        dependencies = upgrade.direct_child(root, "dependencies")
+        engine = next(
+            dependency
+            for dependency in dependencies
+            if upgrade.child_text(dependency, "artifactId") == "shaft-engine"
+        )
+
+        self.assertEqual(upgrade.child_text(engine, "type"), "")
+        self.assertEqual(upgrade.child_text(engine, "scope"), "")
+
+    def test_agent_plan_lists_three_upgrade_types_for_selenium_projects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+
+            plan = upgrade.agent_upgrade_plan(
+                analysis,
+                "10.2.20260623",
+                "shaft-upgrader/upgrade_to_modular_shaft.py",
+            )
+
+        options = plan["upgradeTypes"]
+        self.assertEqual([option["id"] for option in options], ["basic", "session", "full"])
+        self.assertEqual([option["risk"] for option in options], ["low", "medium", "high"])
+        self.assertTrue(options[0]["eligible"])
+        self.assertTrue(options[1]["eligible"])
+        self.assertTrue(options[2]["eligible"])
+        self.assertIn("--upgrade-type basic", options[0]["recommendedCommand"])
+        self.assertIn("--upgrade-type session", options[1]["recommendedCommand"])
+        self.assertIn("--upgrade-type full", options[2]["recommendedCommand"])
+
+    def test_agent_plan_marks_source_upgrades_ineligible_for_api_projects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(REST_ASSURED_TESTNG_POM, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+
+            plan = upgrade.agent_upgrade_plan(
+                analysis,
+                "10.2.20260623",
+                "shaft-upgrader/upgrade_to_modular_shaft.py",
+            )
+
+        options = {option["id"]: option for option in plan["upgradeTypes"]}
+        self.assertTrue(options["basic"]["eligible"])
+        self.assertFalse(options["session"]["eligible"])
+        self.assertFalse(options["full"]["eligible"])
+        self.assertIn("Selenium/Appium", options["session"]["reason"])
+
+    def test_agent_plan_cli_prints_json_without_running_upgrade(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            stdout = io.StringIO()
+
+            with mock.patch.object(sys, "stdout", stdout):
+                exit_code = upgrade.main(
+                    [
+                        "--project",
+                        str(root),
+                        "--shaft-version",
+                        "10.2.20260623",
+                        "--agent-plan",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+            pom_text = (root / "pom.xml").read_text(encoding="utf-8")
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["shaftVersion"], "10.2.20260623")
+        self.assertEqual([option["id"] for option in payload["upgradeTypes"]], ["basic", "session", "full"])
+        self.assertEqual(pom_text, SELENIUM_TESTNG_POM)
+
+    def test_session_upgrade_rewrites_driver_creation_transactionally(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = root / "pom.xml"
+            pom.write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DemoTest.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """package demo;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DemoTest {
+    private WebDriver driver;
+
+    void opens() {
+        driver = new ChromeDriver();
+        driver.close();
+    }
+}
+""",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="session",
+            )
+
+            updated = java.read_text(encoding="utf-8")
+            self.assertTrue(execution.succeeded)
+            self.assertEqual(execution.upgrade_type, "session")
+            self.assertIn("import com.shaft.driver.SHAFT;", updated)
+            self.assertIn("private SHAFT.GUI.WebDriver driver;", updated)
+            self.assertIn("driver = new SHAFT.GUI.WebDriver(new ChromeDriver());", updated)
+            self.assertIn("driver.quit();", updated)
+            self.assertNotIn("driver.close();", updated)
+            self.assertIn("<artifactId>shaft-engine</artifactId>", pom.read_text(encoding="utf-8"))
+
+    def test_session_upgrade_rewrites_driver_factory_types(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DriverFactory.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """package demo;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DriverFactory {
+    private static final ThreadLocal<WebDriver> DRIVER = new ThreadLocal<>();
+
+    static WebDriver createDriver() {
+        return new ChromeDriver();
+    }
+
+    static void setDriver(WebDriver driver) {
+        DRIVER.set(driver);
+    }
+}
+""",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+
+            upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="session",
+            )
+
+            updated = java.read_text(encoding="utf-8")
+            self.assertIn("ThreadLocal<SHAFT.GUI.WebDriver> DRIVER", updated)
+            self.assertIn("static SHAFT.GUI.WebDriver createDriver()", updated)
+            self.assertIn("return new SHAFT.GUI.WebDriver(new ChromeDriver());", updated)
+            self.assertIn("static void setDriver(SHAFT.GUI.WebDriver driver)", updated)
+
+    def test_full_upgrade_rewrites_simple_selenium_actions(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DemoTest.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """package demo;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DemoTest {
+    void login(String url, String nextUrl) {
+        WebDriver driver = new ChromeDriver();
+        driver.get(url);
+        driver.navigate().to(nextUrl);
+        driver.findElement(By.id("username")).sendKeys("demo");
+        driver.findElement(By.id("login")).click();
+        String message = driver.findElement(By.id("message")).getText();
+        boolean visible = driver.findElement(By.cssSelector(".toast")).isDisplayed();
+    }
+}
+""",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="full",
+            )
+
+            updated = java.read_text(encoding="utf-8")
+            self.assertTrue(execution.succeeded)
+            self.assertIn("SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver(new ChromeDriver());", updated)
+            self.assertIn("driver.browser().navigateToURL(url);", updated)
+            self.assertIn("driver.browser().navigateToURL(nextUrl);", updated)
+            self.assertIn('driver.element().type(By.id("username"), "demo");', updated)
+            self.assertIn('driver.element().click(By.id("login"));', updated)
+            self.assertIn('driver.element().get().text(By.id("message"));', updated)
+            self.assertIn('driver.element().get().isDisplayed(By.cssSelector(".toast"));', updated)
+            self.assertNotIn("driver.findElement(", updated)
+
+    def test_source_upgrade_rejects_non_selenium_appium_project(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(REST_ASSURED_TESTNG_POM, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+
+            with self.assertRaisesRegex(upgrade.UpgradeError, "Selenium/Appium"):
+                upgrade.execute_upgrade_transaction(
+                    analysis,
+                    "10.2.20260623",
+                    ("mvn", "test-compile"),
+                    30,
+                    compile_runner=lambda *_: command_result(0),
+                    upgrade_type="session",
+                )
+
+    def test_source_rewrites_roll_back_when_upgraded_compile_fails(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = root / "pom.xml"
+            pom.write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DemoTest.java"
+            java.parent.mkdir(parents=True)
+            original_java = """package demo;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DemoTest {
+    WebDriver driver = new ChromeDriver();
+}
+"""
+            java.write_text(original_java, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(1, "compile failure")))
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="session",
+            )
+
+            self.assertFalse(execution.succeeded)
+            self.assertTrue(execution.rolled_back)
+            self.assertEqual(pom.read_text(encoding="utf-8"), SELENIUM_TESTNG_POM)
+            self.assertEqual(java.read_text(encoding="utf-8"), original_java)
+
+    def test_report_includes_upgrade_type_and_source_migration(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DemoTest.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """package demo;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DemoTest {
+    WebDriver driver = new ChromeDriver();
+}
+""",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="session",
+            )
+            report = root / "upgrade-report.json"
+
+            upgrade.write_report(report, analysis, "10.2.20260623", execution)
+            payload = json.loads(report.read_text(encoding="utf-8"))
+
+        self.assertEqual(payload["upgradeType"], "session")
+        self.assertEqual(payload["sourceMigration"]["changedFiles"], ["src/test/java/demo/DemoTest.java"])
+        self.assertIn("driver session", payload["sourceMigration"]["changesByFile"]["src/test/java/demo/DemoTest.java"])
 
     def test_failed_compile_restores_original_pom(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -525,6 +1119,10 @@ class UpgradeToModularShaftTests(unittest.TestCase):
                 }
             ]
         }
+        self.assertIn('"summary": "ok"', upgrade.extract_response_output_text(payload))
+
+    def test_extract_response_output_text_reads_top_level_text(self):
+        payload = {"output_text": json.dumps({"summary": "ok", "changes": []})}
         self.assertIn('"summary": "ok"', upgrade.extract_response_output_text(payload))
 
     def test_file_transaction_restores_created_and_existing_files(self):
