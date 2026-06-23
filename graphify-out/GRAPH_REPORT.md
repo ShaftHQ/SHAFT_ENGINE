@@ -1,16 +1,16 @@
-# Graph Report - SHAFT_ENGINE  (2026-06-21)
+# Graph Report - SHAFT_ENGINE-codex-core-hardening-first  (2026-06-23)
 
 ## Corpus Check
-- 1352 files · ~609,720 words
+- 1025 files · ~562,882 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 14128 nodes · 36271 edges · 786 communities (700 shown, 86 thin omitted)
-- Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 6963 edges (avg confidence: 0.8)
+- 14186 nodes · 36470 edges · 783 communities (697 shown, 86 thin omitted)
+- Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 6996 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2b81a753`
+- Built from commit: `b24212ea`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -669,14 +669,11 @@
 - [[_COMMUNITY_Community 766|Community 766]]
 - [[_COMMUNITY_Community 767|Community 767]]
 - [[_COMMUNITY_Community 768|Community 768]]
-- [[_COMMUNITY_Community 769|Community 769]]
-- [[_COMMUNITY_Community 770|Community 770]]
 - [[_COMMUNITY_Community 771|Community 771]]
 - [[_COMMUNITY_Community 773|Community 773]]
 - [[_COMMUNITY_Community 775|Community 775]]
 - [[_COMMUNITY_Community 776|Community 776]]
 - [[_COMMUNITY_Community 777|Community 777]]
-- [[_COMMUNITY_Community 780|Community 780]]
 - [[_COMMUNITY_Community 781|Community 781]]
 - [[_COMMUNITY_Community 788|Community 788]]
 - [[_COMMUNITY_Community 800|Community 800]]
@@ -685,16 +682,16 @@
 - [[_COMMUNITY_Community 805|Community 805]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `SHAFT` - 287 edges
-2. `IOException` - 112 edges
+1. `SHAFT` - 288 edges
+2. `IOException` - 113 edges
 3. `RestActionsComprehensiveTests` - 99 edges
 4. `Test` - 98 edges
-5. `ArrayList` - 83 edges
+5. `ArrayList` - 84 edges
 6. `CaptureGenerator` - 77 edges
 7. `ReportManagerHelper` - 76 edges
 8. `Actions` - 63 edges
-9. `JavaHelperUnitTest` - 58 edges
-10. `Test` - 58 edges
+9. `JavaHelperUnitTest` - 60 edges
+10. `Test` - 60 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `defaults()` --calls--> `denyAll()`  [INFERRED]
@@ -711,30 +708,30 @@
 ## Import Cycles
 - None detected.
 
-## Communities (786 total, 86 thin omitted)
+## Communities (783 total, 86 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.04
-Nodes (7): RestActionsComprehensiveTests, ComparisonType, Deprecated, InputStream, SuppressWarnings, BeforeMethod, Test
+Nodes (6): RestActionsComprehensiveTests, ComparisonType, InputStream, SuppressWarnings, BeforeMethod, Test
 
 ### Community 1 - "Community 1"
 Cohesion: 0.06
 Nodes (13): BrowserActionsContract, AccessibilityActions, BrowserAssertions, Cookie, HttpRequest, HttpResponse, List, NetworkInterceptionRequestBuilder (+5 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.12
-Nodes (23): DoctorAiAnalysisService, ConfigurationIdentity, AiRequest, AiResponse, AiResponseStatus, AiUsage, CauseCategory, Diagnosis (+15 more)
+Cohesion: 0.07
+Nodes (29): DoctorAiAnalysisService, ConfigurationIdentity, CoverageTests, AiRequest, AiResponse, AiResponseStatus, AiUsage, CauseCategory (+21 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.12
-Nodes (15): LocatorAssertions, PageAssertions, LinkedHashMap, List, Locator, Object, Override, Pattern (+7 more)
+Nodes (15): LocatorAssertions, Outcome, PageAssertions, LinkedHashMap, List, Locator, Object, Override (+7 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.07
 Nodes (6): Pilot, SetProperty, DefaultValue, Key, SetProperty, String
 
 ### Community 5 - "Community 5"
-Cohesion: 0.38
+Cohesion: 0.36
 Nodes (4): JunitApiSmokeTest, AfterAll, BeforeAll, Test
 
 ### Community 6 - "Community 6"
@@ -743,7 +740,7 @@ Nodes (14): CSVFileManager, CSVFileManagerTest, List, Map, String, BeforeMethod,
 
 ### Community 7 - "Community 7"
 Cohesion: 0.08
-Nodes (26): KeyboardKeys, LocatorOperation, MobileService, McpMobileAccessibilityTree, McpMobileContextSnapshot, McpMobileSessionResult, BrowserType, By (+18 more)
+Nodes (25): LocatorOperation, MobileService, McpMobileAccessibilityTree, McpMobileContextSnapshot, McpMobileSessionResult, BrowserType, By, Class (+17 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.07
@@ -752,10 +749,6 @@ Nodes (23): BrowserStackSdkHelper, BrowserStackSdkTests, List, Map, Object, Stri
 ### Community 9 - "Community 9"
 Cohesion: 0.08
 Nodes (7): LambdaTest, SetProperty, Boolean, DefaultValue, Key, SetProperty, String
-
-### Community 10 - "Community 10"
-Cohesion: 0.07
-Nodes (8): Boolean, By, NumbersComparativeRelation, Object, String, Test, JavaHelper, JavaHelperUnitTest
 
 ### Community 11 - "Community 11"
 Cohesion: 0.09
@@ -766,8 +759,8 @@ Cohesion: 0.07
 Nodes (11): BrowserStack, SetProperty, DefaultValue, Key, SetProperty, String, AfterMethod, Object (+3 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.14
-Nodes (4): AfterMethod, BeforeClass, Test, JSONFileManagerUnitTest
+Cohesion: 0.06
+Nodes (20): DataType, FileReader, JSONFileManager, JSONFileManagerTestAccessor, JSONFileManagerTests, List, Map, Object (+12 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.08
@@ -778,19 +771,19 @@ Cohesion: 0.08
 Nodes (10): ShaftRestAssuredFilter, FilterableRequestSpecification, FilterableResponseSpecification, FilterContext, Override, Response, String, BeforeMethod (+2 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (6): AfterMethod, Path, String, SuppressWarnings, Test, TerminalActionsUnitTest
 
 ### Community 17 - "Community 17"
-Cohesion: 0.07
-Nodes (17): AsyncAppender, ReportManagerHelper, ReportManager, TestCaseStarted, ByteArrayOutputStream, CheckpointStatus, InputStream, Level (+9 more)
+Cohesion: 0.12
+Nodes (5): AsyncAppender, ReportManagerHelper, ByteArrayOutputStream, Path, Status
 
 ### Community 18 - "Community 18"
-Cohesion: 0.09
-Nodes (22): FileActions, FileActionsCoverageUnitTest, JarEntry, Boolean, Collection, Exception, File, InputStream (+14 more)
+Cohesion: 0.08
+Nodes (20): FileActions, FileActionsCoverageUnitTest, ReportHelper, Boolean, Collection, Exception, File, String (+12 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (13): McpMobileToolchainService, McpAndroidEmulatorProposal, Duration, List, Map, McpMobileDevice, McpMobileToolchainStatus, McpProcessRunner (+5 more)
 
 ### Community 20 - "Community 20"
@@ -798,36 +791,36 @@ Cohesion: 0.20
 Nodes (3): RestActionsCoverageUnitTest, AfterMethod, Test
 
 ### Community 21 - "Community 21"
-Cohesion: 0.07
-Nodes (27): BrowserStackModuleTest, HealingSupport, WebDriverListener, InvocationTargetException, JsonSchemaValidatorTest, Navigation, Test, Alert (+19 more)
+Cohesion: 0.06
+Nodes (32): BrowserStackModuleTest, CaptureCliTest, HealingSupport, WebDriverListener, InvocationTargetException, JsonSchemaValidatorTest, Navigation, Test (+24 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.16
 Nodes (15): AfterAllCallback, AfterTestExecutionCallback, BeforeAllCallback, BeforeEachCallback, Invocation, InvocationInterceptor, LifecycleMethodExecutionExceptionHandler, JunitExtension (+7 more)
 
 ### Community 23 - "Community 23"
-Cohesion: 0.08
-Nodes (22): ImageProcessingActions, List, Boolean, By, Color, File, Integer, List (+14 more)
+Cohesion: 0.04
+Nodes (39): ClassLoader, ImageProcessingActions, ImageProcessingActionsCoverageUnitTest, OpenCvBlockingClassLoader, List, Boolean, By, Color (+31 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.10
-Nodes (9): AllureManager, ArrayNode, Future, InputStream, List, ObjectNode, Path, Process (+1 more)
+Cohesion: 0.09
+Nodes (11): AllureManager, BooleanSupplier, Counts, ArrayNode, Future, InputStream, List, ObjectNode (+3 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.05
-Nodes (47): AllureVerdict, DoctorRepairPublicationRequest, ExistingPullRequest, GuardedPatch, PatchManifestEntry, RecordingRunner, changedSince(), DoctorRepairService (+39 more)
+Cohesion: 0.19
+Nodes (9): DoctorRepairPublicationRequest, ExistingPullRequest, DoctorRepairService, Diagnosis, DoctorRepairRequest, Path, RepairProposal, RepairPublicationResult (+1 more)
 
 ### Community 26 - "Community 26"
 Cohesion: 0.07
-Nodes (14): DriverFactoryHelperCoverageUnitTest, TestableDriverFactoryHelper, AfterMethod, AtomicInteger, CountDownLatch, DriverFactoryHelper, DriverType, Method (+6 more)
+Nodes (15): DriverFactoryHelperCoverageUnitTest, TestableDriverFactoryHelper, OptionsManager, AfterMethod, AtomicInteger, CountDownLatch, DriverFactoryHelper, DriverType (+7 more)
 
 ### Community 27 - "Community 27"
 Cohesion: 0.08
 Nodes (4): ValidationTests, AfterMethod, BeforeMethod, Test
 
 ### Community 28 - "Community 28"
-Cohesion: 0.08
-Nodes (11): ThreadLocalPropertiesManager, HashMap, MutableCapabilities, Object, Properties, String, AfterMethod, Path (+3 more)
+Cohesion: 0.13
+Nodes (5): AfterMethod, Path, String, Test, ThreadLocalPropertiesTest
 
 ### Community 29 - "Community 29"
 Cohesion: 0.11
@@ -835,19 +828,19 @@ Nodes (14): AccessibilityConfig, AccessibilityHelper, AccessibilityResult, Acces
 
 ### Community 30 - "Community 30"
 Cohesion: 0.06
-Nodes (17): PathParamTest, TestUpload, GraphqlRequestTests, Map, AfterClass, BeforeClass, Test, Test (+9 more)
+Nodes (24): PathParamTest, TestUpload, BasicAPITests, GraphqlRequestTests, Map, ParametersType, AfterClass, BeforeClass (+16 more)
 
 ### Community 31 - "Community 31"
-Cohesion: 0.10
-Nodes (16): ChannelSftp, TerminalActions, ProcessBuilder, SftpTransferDirection, Boolean, BufferedReader, Deprecated, Exception (+8 more)
+Cohesion: 0.09
+Nodes (18): ChannelSftp, TerminalActions, LocalShellTests, ProcessBuilder, SftpTransferDirection, Boolean, BufferedReader, Deprecated (+10 more)
 
 ### Community 32 - "Community 32"
-Cohesion: 0.10
-Nodes (7): AfterMethod, Class, Object, Path, String, Test, AllureManagerUnitTest
+Cohesion: 0.08
+Nodes (11): EngineServiceRuntimePathTest, AfterMethod, Class, Object, Path, String, Test, AfterEach (+3 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.07
-Nodes (28): empty(), LocatorRankerTest, McpAppiumCommandRecorderTest, reviewUiPath(), disabled(), McpResultRecordsTest, defaults(), lower() (+20 more)
+Cohesion: 0.06
+Nodes (30): empty(), LocatorRankerTest, reviewUiPath(), disabled(), McpResultRecordsTest, defaults(), lower(), normalizePath() (+22 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.08
@@ -855,59 +848,59 @@ Nodes (27): DeterministicNaturalActionPlanner, unsupported(), NaturalActionPlann
 
 ### Community 35 - "Community 35"
 Cohesion: 0.06
-Nodes (32): Constructor, IAlterSuiteListener, IAnnotationTransformer, IExecutionListener, IInvokedMethodListener, IMethodInstance, IMethodInterceptor, ExecutionSummaryReport (+24 more)
+Nodes (35): Constructor, notRequested(), skipped(), IAlterSuiteListener, IAnnotationTransformer, IExecutionListener, IInvokedMethodListener, IMethodInstance (+27 more)
 
 ### Community 36 - "Community 36"
-Cohesion: 0.07
-Nodes (28): DataTableArgument, EmbedEvent, HookTestStep, CucumberFeatureListener, Parameter, PickleStepTestStep, Result, Scenario (+20 more)
+Cohesion: 0.08
+Nodes (25): DataTableArgument, HookTestStep, CucumberFeatureListener, PickleStepTestStep, Result, Scenario, AllureLifecycle, EventPublisher (+17 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.13
-Nodes (9): Paths, SetProperty, PathsTests, DefaultValue, Key, SetProperty, String, BeforeClass (+1 more)
+Cohesion: 0.09
+Nodes (16): ApiPerformanceExecutionReport, Paths, SetProperty, PathsTests, DefaultValue, Key, SetProperty, String (+8 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.11
+Cohesion: 0.10
 Nodes (18): BrowserNetworkInterceptor, Capabilities, ClientConfig, DriverFactoryHelper, BrowserNetworkInterceptionRule, Class, DriverType, List (+10 more)
 
 ### Community 39 - "Community 39"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (12): Boolean, AfterMethod, BeforeMethod, Class, List, Object, Path, String (+4 more)
 
 ### Community 40 - "Community 40"
-Cohesion: 0.08
-Nodes (20): AccessibilityActions, BrowserActions, BrowserNetworkInterceptionRule, Cookie, DriverFactoryHelper, HttpRequest, HttpResponse, List (+12 more)
+Cohesion: 0.10
+Nodes (12): NavigationAction, BrowserActions, Cookie, List, NetworkInterceptionRequestBuilder, Override, Set, String (+4 more)
 
 ### Community 41 - "Community 41"
 Cohesion: 0.17
 Nodes (15): CollectionState, EvidenceCollector, CollectionState, DoctorRedactor, DefaultPrettyPrinter, DoctorAnalysisRequest, EvidenceBundle, EvidenceCategory (+7 more)
 
 ### Community 42 - "Community 42"
-Cohesion: 0.15
-Nodes (8): ClipboardAction, GetElementInformation, Beta, By, ClipboardAction, Override, Step, String
+Cohesion: 0.11
+Nodes (12): ElementLookup, GetElementInformation, Actions, ClipboardAction, GetElementInformation, By, ClipboardAction, JavascriptExecutor (+4 more)
 
 ### Community 43 - "Community 43"
-Cohesion: 0.05
-Nodes (17): NativeValidationsBuilder, TextDirectionValidationsBuilder, E2ECoverageTests, FileValidationsBuilder, RestValidationsBuilder, String, ValidationsBuilder, WebDriverBrowserValidationsBuilder (+9 more)
+Cohesion: 0.07
+Nodes (9): TextDirectionValidationsBuilder, E2ECoverageTests, NativeValidationsBuilder, ValidationsExecutor, AfterMethod, BeforeMethod, Test, TextDirection (+1 more)
 
 ### Community 44 - "Community 44"
-Cohesion: 0.21
-Nodes (4): AfterMethod, String, Test, PropertyFileManagerUnitTest
+Cohesion: 0.18
+Nodes (5): BeforeMethod, AfterMethod, String, Test, PropertyFileManagerUnitTest
 
 ### Community 45 - "Community 45"
-Cohesion: 0.11
-Nodes (19): ActionsCoverageUnitTest, RecordingActions, RecordingActions, ActionType, AfterMethod, AllureLifecycle, BeforeMethod, By (+11 more)
+Cohesion: 0.10
+Nodes (21): Actions, ActionsCoverageUnitTest, RecordingActions, Parameter, RecordingActions, ActionType, AfterMethod, AllureLifecycle (+13 more)
 
 ### Community 46 - "Community 46"
-Cohesion: 0.17
-Nodes (6): AssertionSteps, PDFTests, ValidationsBuilderTests, String, Then, String
+Cohesion: 0.18
+Nodes (7): AssertionSteps, PDFTests, String, Then, ThreadLocal, WebDriver, String
 
 ### Community 47 - "Community 47"
 Cohesion: 0.08
 Nodes (4): NewValidationHelperTests, AfterMethod, BeforeMethod, Test
 
 ### Community 48 - "Community 48"
-Cohesion: 0.09
-Nodes (9): NumberValidationsBuilder, Number, Object, Override, SuppressWarnings, ValidationsExecutor, AfterMethod, Test (+1 more)
+Cohesion: 0.07
+Nodes (12): NumberValidationsBuilder, ValidationsBuilderTests, Number, Object, Override, RestValidationsBuilder, SuppressWarnings, ValidationsBuilder (+4 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.09
@@ -918,28 +911,28 @@ Cohesion: 0.04
 Nodes (47): additionalProperties, minLength, type, maximum, minimum, type, type, minLength (+39 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.07
-Nodes (13): AssertApiResponseEqualsTests, MatchJsonSchemaTests, ApiActionsMockedTests, RequestBuilder, Test, Test, AfterMethod, BeforeMethod (+5 more)
+Cohesion: 0.08
+Nodes (12): AssertApiResponseEqualsTests, ApiActionsMockedTests, RequestBuilder, Test, AfterMethod, BeforeMethod, Test, AfterClass (+4 more)
 
 ### Community 52 - "Community 52"
 Cohesion: 0.16
 Nodes (4): AccessibilityTest, AfterMethod, BeforeMethod, Test
 
 ### Community 53 - "Community 53"
-Cohesion: 0.08
-Nodes (24): RequestBuilderTests, RestActions, AuthenticationType, RequestSpecBuilder, RestAssuredConfig, API, ArrayNode, Boolean (+16 more)
+Cohesion: 0.13
+Nodes (17): RestActions, RequestSpecBuilder, RestAssuredConfig, API, ArrayNode, Boolean, ContentType, Deprecated (+9 more)
 
 ### Community 54 - "Community 54"
 Cohesion: 0.11
 Nodes (34): AllureFailure, _clean_cell(), extract_failures(), extract_surefire_failures(), _failure_group_key(), _first_trace_line(), _is_allure_test_result_payload(), _is_generated_report_non_test_result() (+26 more)
 
 ### Community 55 - "Community 55"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (14): ElementActionsHelper, TextDetectionStrategy(), Boolean, By, Class, ClipboardAction, HealingResolution, List (+6 more)
 
 ### Community 56 - "Community 56"
-Cohesion: 0.11
-Nodes (19): McpMobileInspectorRecordingService, Session, McpMobileToolchainService, Duration, List, Map, McpCodeBlock, McpMobileDevice (+11 more)
+Cohesion: 0.14
+Nodes (16): McpMobileInspectorRecordingService, Session, Duration, List, Map, McpCodeBlock, McpMobileDevice, McpMobileInspectorPlan (+8 more)
 
 ### Community 57 - "Community 57"
 Cohesion: 0.13
@@ -974,8 +967,8 @@ Cohesion: 0.11
 Nodes (11): COSDocument, DeleteFileAfterValidationStatus, PdfFileManager, PDFParser, RandomAccessReadBufferedFile, File, String, AfterMethod (+3 more)
 
 ### Community 65 - "Community 65"
-Cohesion: 0.10
-Nodes (6): LocatorMockedTests, ShadowLocatorBuilder, Test, Test, LocatorBuilderUnitTest, XpathAxis
+Cohesion: 0.15
+Nodes (4): LocatorMockedTests, ShadowLocatorBuilder, Test, XpathAxis
 
 ### Community 66 - "Community 66"
 Cohesion: 0.05
@@ -990,27 +983,27 @@ Cohesion: 0.05
 Nodes (42): additionalProperties, default, description, examples, $id, title, type, default (+34 more)
 
 ### Community 69 - "Community 69"
-Cohesion: 0.10
-Nodes (12): DriverFactoryHelper, OptionsManager, AfterMethod, AtomicInteger, CountDownLatch, DriverType, Method, MutableCapabilities (+4 more)
+Cohesion: 0.11
+Nodes (11): DriverFactoryHelper, AfterMethod, AtomicInteger, CountDownLatch, DriverType, Method, MutableCapabilities, Override (+3 more)
 
 ### Community 70 - "Community 70"
-Cohesion: 0.11
-Nodes (41): expand_globs(), issue(), local_link_targets(), markdown_body(), normalized_paragraphs(), parse_frontmatter(), quoted_yaml_value(), Keep the consolidated guidance below the approved baseline reduction. (+33 more)
+Cohesion: 0.10
+Nodes (43): expand_globs(), issue(), load_budget(), local_link_targets(), markdown_body(), normalized_paragraphs(), parse_frontmatter(), quoted_yaml_value() (+35 more)
 
 ### Community 71 - "Community 71"
 Cohesion: 0.13
-Nodes (16): ShaftHeal, ShaftHealingProviderTest, Outcome, HealingReport, Optional, AfterMethod, AppiumDriver, BeforeMethod (+8 more)
+Nodes (15): ShaftHeal, ShaftHealingProviderTest, HealingReport, Optional, AfterMethod, AppiumDriver, BeforeMethod, DataProvider (+7 more)
 
 ### Community 72 - "Community 72"
-Cohesion: 0.29
-Nodes (7): denyAll(), CaptureGeneratorTest, CaptureGenerationRequest, CaptureSession, Path, String, Test
+Cohesion: 0.10
+Nodes (17): ArtifactPaths, failure(), withUnsupported(), GenerationState, CaptureEnrichmentPreview, CaptureGenerationReport, CaptureGenerationRequest, CaptureGenerationResult (+9 more)
 
 ### Community 73 - "Community 73"
-Cohesion: 0.09
-Nodes (12): ApiPerformanceReportTest, SwaggerContractTest, Object, ParametersType, AfterMethod, AfterSuite, BeforeMethod, Test (+4 more)
+Cohesion: 0.10
+Nodes (10): ApiPerformanceReportTest, SwaggerContractTest, AfterMethod, AfterSuite, BeforeMethod, Test, AfterClass, AfterMethod (+2 more)
 
 ### Community 74 - "Community 74"
-Cohesion: 0.10
+Cohesion: 0.11
 Nodes (15): CaptureEventPipeline, CapturePrivacyClassifier, ManagedCaptureRecorder, BrowserMetadata, BrowserSignal, CapturePrivacyPolicy, CaptureSessionStore, CaptureStartRequest (+7 more)
 
 ### Community 75 - "Community 75"
@@ -1018,8 +1011,8 @@ Cohesion: 0.15
 Nodes (11): Actions, By, DriverFactoryHelper, ElementActions, List, Map, Override, String (+3 more)
 
 ### Community 76 - "Community 76"
-Cohesion: 0.10
-Nodes (24): Session1Test, LocatorOperation, PlaywrightService, AfterMethod, BeforeMethod, String, Test, By (+16 more)
+Cohesion: 0.06
+Nodes (38): ChromeOptions, Session1Test, WebDomHealingAcceptanceTest, MoonTests, LocatorOperation, PlaywrightService, AfterMethod, BeforeMethod (+30 more)
 
 ### Community 77 - "Community 77"
 Cohesion: 0.12
@@ -1034,19 +1027,19 @@ Cohesion: 0.18
 Nodes (9): CaptureControlFiles, ControlDescriptor, CaptureStartRequest, CaptureStatus, Class, Object, Path, String (+1 more)
 
 ### Community 80 - "Community 80"
-Cohesion: 0.19
-Nodes (9): ElementService, LocatorOperation, By, Deprecated, LocatorOperation, locatorStrategy, String, Tool (+1 more)
+Cohesion: 0.17
+Nodes (11): ElementService, LocatorOperation, By, Deprecated, LocatorOperation, locatorStrategy, String, Tool (+3 more)
 
 ### Community 81 - "Community 81"
-Cohesion: 0.18
-Nodes (7): AfterClass, AfterMethod, SuppressWarnings, Test, ThreadLocal, WebDriver, RecordManagerTest
+Cohesion: 0.23
+Nodes (4): SuppressWarnings, Test, ThreadLocal, RecordManagerTest
 
 ### Community 82 - "Community 82"
 Cohesion: 0.05
 Nodes (39): additionalProperties, type, maximum, minimum, type, additionalProperties, properties, required (+31 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.10
+Cohesion: 0.09
 Nodes (21): option(), ProviderConfiguration(), ProviderConfigurationTest, FirestoreRestClient, Properties, CaptureStartRequest(), validateUrl(), CaptureBrowser (+13 more)
 
 ### Community 85 - "Community 85"
@@ -1058,20 +1051,20 @@ Cohesion: 0.19
 Nodes (13): DoctorAnalyzerTest, DoctorAiAnalysisResult, Arguments, CauseCategory, DoctorAnalysisRequest, DoctorAnalysisResult, List, MethodSource (+5 more)
 
 ### Community 87 - "Community 87"
-Cohesion: 0.15
-Nodes (9): ElementActionsHelper, IOSDriver, AfterMethod, BeforeMethod, RemoteWebDriver, Runnable, Test, TouchActions (+1 more)
+Cohesion: 0.05
+Nodes (32): FileUploadDownloadTest, getValue(), KeyboardKeys(), TouchActions, ElementActionsHelper, ImmutableMap, KeyboardKeys, viewport() (+24 more)
 
 ### Community 88 - "Community 88"
-Cohesion: 0.12
-Nodes (9): JunitListenerHelper, TestNGListenerHelper, TestIdentifier, ISuite, ITestContext, ITestNGMethod, ITestResult, List (+1 more)
+Cohesion: 0.11
+Nodes (11): TestNGListenerHelper, Browser, ISuite, ITestContext, ITestNGMethod, ITestResult, List, Method (+3 more)
 
 ### Community 89 - "Community 89"
-Cohesion: 0.11
-Nodes (14): WebDriverElementValidationsBuilder, GuiVerificationTests, By, NativeValidationsBuilder, Override, String, StringBuilder, ValidationCategory (+6 more)
+Cohesion: 0.23
+Nodes (6): WebDriverElementValidationsBuilder, NativeValidationsBuilder, Override, String, ValidationsExecutor, VisualValidationEngine
 
 ### Community 90 - "Community 90"
-Cohesion: 0.11
-Nodes (29): append(), checkpoint(), complete(), ensureIncomplete(), interrupt(), sortedCheckpoints(), sortedEvents(), sortedReferences() (+21 more)
+Cohesion: 0.22
+Nodes (11): CaptureEvent, CaptureJsonCodec, CaptureSession, Checkpoint, ExternalTestDataReference, Instant, List, Path (+3 more)
 
 ### Community 91 - "Community 91"
 Cohesion: 0.10
@@ -1082,20 +1075,20 @@ Cohesion: 0.13
 Nodes (38): add_text_child(), child_text(), copy_dependency_metadata(), create_dependency(), dependency_coordinate(), dependency_template(), direct_child(), elements_named() (+30 more)
 
 ### Community 93 - "Community 93"
-Cohesion: 0.07
-Nodes (17): LocatorBuilder, ShadowDomTest, JDK21VirtualThreadsAndAsyncActionsTests, RelativeBy, By, Locator, Page, Role (+9 more)
+Cohesion: 0.11
+Nodes (9): LocatorBuilder, RelativeBy, By, Locator, Page, Role, ShaftLocator, String (+1 more)
 
 ### Community 94 - "Community 94"
 Cohesion: 0.05
 Nodes (37): type, additionalProperties, minLength, type, items, type, type, required (+29 more)
 
 ### Community 95 - "Community 95"
-Cohesion: 0.10
-Nodes (18): builder(), evidenceCategories(), withSanitizedContent(), withTimeout(), AiAuditSink, AiImage, ShaftAiAuditSink, AiRequest (+10 more)
+Cohesion: 0.11
+Nodes (15): builder(), evidenceCategories(), withSanitizedContent(), withTimeout(), AiValueObjectsTest, AiRequest, ApprovalPolicy, Duration (+7 more)
 
 ### Community 96 - "Community 96"
-Cohesion: 0.09
-Nodes (18): DriverFactory, DriverType(), DatabaseActions, DatabaseType, Deprecated, DriverFactoryHelper, DriverType, MutableCapabilities (+10 more)
+Cohesion: 0.10
+Nodes (17): DriverFactory, DriverType(), DatabaseActions, DatabaseType, Deprecated, DriverFactoryHelper, DriverType, MutableCapabilities (+9 more)
 
 ### Community 97 - "Community 97"
 Cohesion: 0.07
@@ -1107,7 +1100,7 @@ Nodes (6): Healing, SetProperty, DefaultValue, Key, SetProperty, String
 
 ### Community 99 - "Community 99"
 Cohesion: 0.22
-Nodes (5): SilentElementReader, ValidationsHelper, By, String, WebDriver
+Nodes (6): SilentElementReader, ValidationsHelper, By, String, ValidationComparisonType, WebDriver
 
 ### Community 100 - "Community 100"
 Cohesion: 0.13
@@ -1126,8 +1119,8 @@ Cohesion: 0.18
 Nodes (11): AlertActionsContext, AfterMethod, Alert, AlertActions, BeforeMethod, Object, String, Test (+3 more)
 
 ### Community 104 - "Community 104"
-Cohesion: 0.14
-Nodes (10): Dimension, BrowserActionsHelper, Boolean, SneakyThrows, String, WebDriver, AfterMethod, BeforeMethod (+2 more)
+Cohesion: 0.24
+Nodes (6): Dimension, BrowserActionsHelper, Boolean, SneakyThrows, String, WebDriver
 
 ### Community 105 - "Community 105"
 Cohesion: 0.14
@@ -1150,24 +1143,24 @@ Cohesion: 0.31
 Nodes (5): AfterTest, BeforeTest, ConfigurationHelper, ITestContext, Step
 
 ### Community 110 - "Community 110"
-Cohesion: 0.16
-Nodes (14): AiExecutionServiceTest, StubProvider, AiCapabilities, AiExecutionService, AiProviderAvailability, AiProviderRegistry, AiRequest, AiResponse (+6 more)
+Cohesion: 0.15
+Nodes (15): AiExecutionServiceTest, StubProvider, denyAll(), AiCapabilities, AiExecutionService, AiProviderAvailability, AiProviderRegistry, AiRequest (+7 more)
 
 ### Community 111 - "Community 111"
 Cohesion: 0.17
 Nodes (17): DeterministicRuleEngine, Confidence, Finding, Remediation, RetrySummary, RuleMatch, CauseCategory, Diagnosis (+9 more)
 
 ### Community 112 - "Community 112"
-Cohesion: 0.10
-Nodes (17): CSVFileManager, API, CSV, GUI, Locator, Properties, Report, TestData (+9 more)
+Cohesion: 0.05
+Nodes (33): AsyncElementActions, UnitTestsSHAFT, CSVFileManager, DatabaseActions, API, Async, CLI, CSV (+25 more)
 
 ### Community 113 - "Community 113"
-Cohesion: 0.13
-Nodes (6): JunitCoreAssertionMigrationTest, Role, Test, AfterMethod, Test, LocatorBuilderExtendedUnitTest
+Cohesion: 0.07
+Nodes (23): JunitCoreAssertionMigrationTest, RemoteGridVideoAttachmentIT, CaptureServiceTest, McpMobileToolchainServiceTest, Role, Override, Test, AfterMethod (+15 more)
 
 ### Community 114 - "Community 114"
-Cohesion: 0.15
-Nodes (15): LauncherSession, Override, AfterMethod, BeforeMethod, Duration, List, Object, Optional (+7 more)
+Cohesion: 0.13
+Nodes (17): getType(), LauncherSession, Screenshots, Override, AfterMethod, BeforeMethod, Duration, List (+9 more)
 
 ### Community 115 - "Community 115"
 Cohesion: 0.06
@@ -1178,20 +1171,20 @@ Cohesion: 0.13
 Nodes (18): ActionReportContext, abbreviate(), empty(), from(), hasElementName(), hasLocator(), hasStepValue(), shouldUseDataInStepName() (+10 more)
 
 ### Community 117 - "Community 117"
-Cohesion: 0.17
-Nodes (19): AllureFile, changedSince(), HealerService, ProcessExecutor, successful(), McpHealerAttemptResult, McpHealerRunResult, AllureSnapshot (+11 more)
+Cohesion: 0.15
+Nodes (21): AllureFile, changedSince(), HealerService, ProcessExecutor, successful(), McpHealerAttemptResult, McpHealerRunResult, ProcessExecutor (+13 more)
 
 ### Community 118 - "Community 118"
 Cohesion: 0.17
 Nodes (16): CandidateExtractor, LocatorProposal, nativePlatform(), SearchContext, By, Collection, HealingConfiguration, HealingPlatform (+8 more)
 
 ### Community 119 - "Community 119"
-Cohesion: 0.29
-Nodes (5): RestValidationsBuilder, JSONValidationsBuilder, NativeValidationsBuilder, String, ValidationsExecutor
+Cohesion: 0.11
+Nodes (12): RestValidationsBuilder, JSONValidationsBuilder, JsonCompareWithSpecialCharactersTests, MatchJsonSchemaTests, NativeValidationsBuilder, Object, String, StringBuilder (+4 more)
 
 ### Community 120 - "Community 120"
-Cohesion: 0.20
-Nodes (12): YAMLFileManager, Boolean, Class, Date, Double, Integer, List, Long (+4 more)
+Cohesion: 0.18
+Nodes (13): EmbedEvent, YAMLFileManager, Boolean, Class, Date, Double, Integer, List (+5 more)
 
 ### Community 121 - "Community 121"
 Cohesion: 0.25
@@ -1226,20 +1219,20 @@ Cohesion: 0.18
 Nodes (14): AiExecutionService, CircuitState, AiAuditSink, AiProvider, AiProviderRegistry, AiRequest, AiResponse, AiResponseStatus (+6 more)
 
 ### Community 129 - "Community 129"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (9): Platform, SetProperty, PlatformTests, DefaultValue, Key, SetProperty, String, BeforeClass (+1 more)
 
 ### Community 130 - "Community 130"
-Cohesion: 0.10
-Nodes (21): Config, JiraHelper, Class, IInvokedMethod, ITestNGMethod, ITestResult, List, String (+13 more)
+Cohesion: 0.15
+Nodes (12): Config, List, String, SuppressWarnings, AfterMethod, BeforeMethod, HttpExchange, Object (+4 more)
 
 ### Community 131 - "Community 131"
-Cohesion: 0.11
-Nodes (24): DoctorRepairProposalResult, DoctorRepairService, HealingLocatorProposalRequest, DoctorService, McpWorkspacePolicy, McpDoctorRemediationService, ApprovalPolicy, Diagnosis (+16 more)
+Cohesion: 0.09
+Nodes (28): DoctorRepairProposalResult, DoctorRepairService, HealingLocatorProposalRequest, DoctorService, DoctorServiceTest, McpWorkspacePolicy, McpDoctorRemediationService, ApprovalPolicy (+20 more)
 
 ### Community 132 - "Community 132"
-Cohesion: 0.16
-Nodes (12): ITestNGService, AfterMethod, ITestNGMethod, ITestResult, List, Object, String, SuppressWarnings (+4 more)
+Cohesion: 0.13
+Nodes (15): AfterMethod, Class, ITestNGMethod, ITestResult, List, Object, Set, String (+7 more)
 
 ### Community 133 - "Community 133"
 Cohesion: 0.15
@@ -1258,8 +1251,8 @@ Cohesion: 0.16
 Nodes (27): ut(), _(), a(), b(), c(), d(), f(), g() (+19 more)
 
 ### Community 137 - "Community 137"
-Cohesion: 0.10
-Nodes (12): IIOMetadataNode, AnimatedGifManager, GifSession, ImageOutputStream, ImageWriter, getType(), RenderedImage, Screenshots (+4 more)
+Cohesion: 0.08
+Nodes (16): IIOMetadataNode, AnimatedGifManager, GifSession, AnimatedGifManagerCoverageUnitTest, ImageOutputStream, ImageWriter, RenderedImage, BufferedImage (+8 more)
 
 ### Community 138 - "Community 138"
 Cohesion: 0.17
@@ -1294,12 +1287,12 @@ Cohesion: 0.06
 Nodes (38): AiProviderRegistryTest, availability(), capabilities(), execute(), Builder, CompletableFuture, Controller, Headers (+30 more)
 
 ### Community 146 - "Community 146"
-Cohesion: 0.28
-Nodes (8): CaptureCodegenStartRequest, CaptureService, McpCaptureReplayResult, CaptureGenerationResult, CaptureStatus, String, SuppressWarnings, Tool
+Cohesion: 0.05
+Nodes (38): CaptureFixtures, CaptureCodegenStartRequest, CaptureJsonCodecTest, reviewPath(), reviewUiPath(), CaptureGeneratorTest, CaptureCodegenStartRequest, CaptureService (+30 more)
 
 ### Community 147 - "Community 147"
-Cohesion: 0.35
-Nodes (3): BrowserEventScript, List, String
+Cohesion: 0.13
+Nodes (14): BrowserEventScript, CaptureCollectorUtilityTest, close(), start(), List, String, BrowserSignal, Class (+6 more)
 
 ### Community 148 - "Community 148"
 Cohesion: 0.14
@@ -1313,21 +1306,25 @@ Nodes (6): Flags, SetProperty, DefaultValue, Key, SetProperty, String
 Cohesion: 0.20
 Nodes (20): DoctorCli, flag(), optionalPath(), parse(), path(), pathRequired(), paths(), pathsRequired() (+12 more)
 
+### Community 151 - "Community 151"
+Cohesion: 0.17
+Nodes (16): RecordingRunner, DoctorRepairServiceTest, RecordingRunner, validationPassed(), RepairProcessRunner, RepositoryFixture, DoctorRepairRequest, Duration (+8 more)
+
 ### Community 152 - "Community 152"
-Cohesion: 0.19
+Cohesion: 0.20
 Nodes (11): LocatorRef, McpAppiumCommandRecorder, PointerGesture, BooleanSupplier, JsonNode, locatorStrategy, Map, McpMobileRecordedAction (+3 more)
 
 ### Community 153 - "Community 153"
-Cohesion: 0.13
-Nodes (5): NumberValidationsBuilder, AfterMethod, BeforeClass, Test, RestValidationsBuilderUnitTest
+Cohesion: 0.15
+Nodes (4): NumberValidationsBuilder, AfterMethod, Test, RestValidationsBuilderUnitTest
 
 ### Community 154 - "Community 154"
-Cohesion: 0.18
+Cohesion: 0.16
 Nodes (11): HistoryDocument, HistoryRecord, HealingHistoryStore, HealingConfiguration, HealingContext, LocatorFingerprint, Optional, Path (+3 more)
 
 ### Community 155 - "Community 155"
-Cohesion: 0.21
-Nodes (11): AlphaProvider, ZuluProvider, Boolean, By, Integer, List, Override, String (+3 more)
+Cohesion: 0.11
+Nodes (16): BomConsumer, AlphaProvider, VisualProcessingProviderRegistryTest, ZuluProvider, AfterMethod, Boolean, By, Integer (+8 more)
 
 ### Community 156 - "Community 156"
 Cohesion: 0.18
@@ -1338,8 +1335,8 @@ Cohesion: 0.18
 Nodes (12): By, ElementActions, ElementAssertions, List, Locator, Map, Override, PlaywrightSession (+4 more)
 
 ### Community 158 - "Community 158"
-Cohesion: 0.20
-Nodes (4): LocatorBuilderTest, AfterMethod, BeforeMethod, Test
+Cohesion: 0.13
+Nodes (7): LocatorBuilderTest, XpathAxis, LocatorBuilder, String, AfterMethod, BeforeMethod, Test
 
 ### Community 159 - "Community 159"
 Cohesion: 0.21
@@ -1374,24 +1371,24 @@ Cohesion: 0.14
 Nodes (6): BrowserActions, List, Override, Page, String, WindowType
 
 ### Community 167 - "Community 167"
-Cohesion: 0.08
-Nodes (14): AsyncElementActions, AsyncElementActionsCoverageUnitTest, Log4j, Log4jTests, By, ClipboardAction, DriverFactoryHelper, String (+6 more)
+Cohesion: 0.19
+Nodes (7): Log4j, Log4jTests, DefaultValue, Key, String, BeforeClass, Test
 
 ### Community 168 - "Community 168"
 Cohesion: 0.15
 Nodes (6): Reporting, SetProperty, DefaultValue, Key, SetProperty, String
 
 ### Community 169 - "Community 169"
-Cohesion: 0.11
-Nodes (10): AfterMethod, BeforeMethod, Issue, Issues, ITestResult, String, Test, TmsLink (+2 more)
+Cohesion: 0.12
+Nodes (8): AfterMethod, BeforeMethod, Issue, Issues, ITestResult, String, Test, TestNGListenerHelperCoverageUnitTest
 
 ### Community 170 - "Community 170"
-Cohesion: 0.06
-Nodes (16): BrowserService, EngineServiceTest, CoverageTests, AfterClass, AfterMethod, BeforeClass, BeforeMethod, Test (+8 more)
+Cohesion: 0.15
+Nodes (7): BrowserService, McpPageDomSnapshot, McpScreenshotResult, McpWorkspacePolicy, Path, String, Tool
 
 ### Community 171 - "Community 171"
-Cohesion: 0.13
-Nodes (11): EngineService, MobileServiceConfigurationTest, PostConstruct, BrowserType, By, Path, String, Tool (+3 more)
+Cohesion: 0.08
+Nodes (18): Executable, EngineService, McpNoDriverServiceTest, MobileRecordingServiceTest, MobileServiceConfigurationTest, PlaywrightServiceTest, PostConstruct, BrowserType (+10 more)
 
 ### Community 172 - "Community 172"
 Cohesion: 0.17
@@ -1402,19 +1399,19 @@ Cohesion: 0.14
 Nodes (8): DatabaseActionsMockedTests, AfterMethod, BeforeMethod, DatabaseActions, Object, ResultSet, String, Test
 
 ### Community 174 - "Community 174"
-Cohesion: 0.10
-Nodes (6): PropertiesHelper, String, AfterMethod, BeforeMethod, Test, PropertiesHelperCoverageUnitTest
+Cohesion: 0.20
+Nodes (4): AfterMethod, BeforeMethod, Test, PropertiesHelperCoverageUnitTest
 
 ### Community 175 - "Community 175"
-Cohesion: 0.15
-Nodes (8): PropertyFileManager, PropertyFileManagerInternalUnitTest, File, Map, Properties, String, URL, Test
+Cohesion: 0.16
+Nodes (9): PropertyFileManager, File, HashMap, Map, MutableCapabilities, Object, Properties, String (+1 more)
 
 ### Community 176 - "Community 176"
-Cohesion: 0.11
-Nodes (15): CaptureEnrichmentService, CodegenBackend(), from(), MutableTargetPlan, GeneratedTestValidator, LocatorRanker, CaptureJsonCodec, Checkpoint (+7 more)
+Cohesion: 0.40
+Nodes (4): CaptureEnrichmentService, GeneratedTestValidator, LocatorRanker, CaptureJsonCodec
 
 ### Community 177 - "Community 177"
-Cohesion: 0.19
+Cohesion: 0.18
 Nodes (11): ManagedCaptureRecorder, CaptureManager, CaptureStartRequest, CaptureStatus, CheckpointKind, Function, ManagedCaptureRecorder, Override (+3 more)
 
 ### Community 178 - "Community 178"
@@ -1422,16 +1419,16 @@ Cohesion: 0.22
 Nodes (8): TestAutomationService, McpCodeGuardrailResult, McpCodeGuardrailViolation, McpScenarioCatalogResult, McpTestAutomationScenario, List, String, Tool
 
 ### Community 179 - "Community 179"
-Cohesion: 0.15
-Nodes (12): TouchActions, viewport(), By, HashMap, Object, Override, String, SuppressWarnings (+4 more)
+Cohesion: 0.17
+Nodes (9): ReportManager, CheckpointStatus, InputStream, List, Object, Step, Throwable, Level (+1 more)
 
 ### Community 180 - "Community 180"
 Cohesion: 0.17
 Nodes (15): CaptureEnrichmentService, AiRequest, AiResponse, ApprovalPolicy, CaptureEnrichmentPreview, CaptureEvent, CaptureSession, ElementSnapshot (+7 more)
 
 ### Community 181 - "Community 181"
-Cohesion: 0.10
-Nodes (12): API, SetProperty, Performance, SetProperty, DefaultValue, Key, SetProperty, String (+4 more)
+Cohesion: 0.13
+Nodes (8): API, SetProperty, SetProperty, DefaultValue, Key, SetProperty, String, String
 
 ### Community 182 - "Community 182"
 Cohesion: 0.11
@@ -1446,8 +1443,8 @@ Cohesion: 0.23
 Nodes (6): Internal, InternalTests, DefaultValue, Key, String, Test
 
 ### Community 185 - "Community 185"
-Cohesion: 0.16
-Nodes (12): McpMobileRecordingService, List, locatorStrategy, Map, McpCodeBlock, McpMobileRecordedAction, McpMobileRecording, McpMobileRecordingStatus (+4 more)
+Cohesion: 0.12
+Nodes (14): McpAppiumCommandRecorderTest, McpMobileRecordingService, List, locatorStrategy, Map, McpCodeBlock, McpMobileRecordedAction, McpMobileRecording (+6 more)
 
 ### Community 186 - "Community 186"
 Cohesion: 0.19
@@ -1466,8 +1463,8 @@ Cohesion: 0.18
 Nodes (13): DoctorRepairPatchResult, DoctorRepairAiService, AiRequest, AiResponse, AiResponseStatus, Diagnosis, DoctorRepairAiRequest, EvidenceReference (+5 more)
 
 ### Community 190 - "Community 190"
-Cohesion: 0.21
-Nodes (13): Actions, Boolean, ComparisonType, LinkedHashMap, List, Number, NumbersComparativeRelation, Object (+5 more)
+Cohesion: 0.23
+Nodes (11): Boolean, ComparisonType, LinkedHashMap, List, Number, NumbersComparativeRelation, Object, Response (+3 more)
 
 ### Community 191 - "Community 191"
 Cohesion: 0.23
@@ -1482,16 +1479,16 @@ Cohesion: 0.17
 Nodes (7): ElementActionsContract, By, ElementAssertions, List, Map, ShaftLocator, String
 
 ### Community 194 - "Community 194"
-Cohesion: 0.17
-Nodes (9): DataType, JSON, JSONFileManager, JSONFileManagerTests, List, Map, Object, String (+1 more)
+Cohesion: 0.16
+Nodes (3): TestCaseStarted, Level, String
 
 ### Community 195 - "Community 195"
-Cohesion: 0.15
-Nodes (21): load_budget(), Load the JSON guidance budget., build_parser(), collect_metrics(), issue(), main(), Run one external check and return a concise issue on failure., Collect stable context and memory size metrics. (+13 more)
+Cohesion: 0.17
+Nodes (19): build_parser(), collect_metrics(), issue(), main(), Run one external check and return a concise issue on failure., Collect stable context and memory size metrics., Run all agent setup checks., Build the command-line parser. (+11 more)
 
 ### Community 196 - "Community 196"
-Cohesion: 0.15
-Nodes (14): ElementAssertions, Locator, NativeValidationsBuilder, Override, PlaywrightNativeValidationsBuilder, PlaywrightSession, PlaywrightValidationsExecutor, String (+6 more)
+Cohesion: 0.22
+Nodes (9): NativeValidationsBuilder, Override, PlaywrightNativeValidationsBuilder, PlaywrightValidationsExecutor, String, ValidationsExecutor, ValidationType, VisualValidationEngine (+1 more)
 
 ### Community 197 - "Community 197"
 Cohesion: 0.24
@@ -1502,8 +1499,8 @@ Cohesion: 0.18
 Nodes (6): ElementInformation, ElementInformationCoverageUnitTest, Element, List, String, Test
 
 ### Community 199 - "Community 199"
-Cohesion: 0.14
-Nodes (12): RequestBuilder, API, ContentType, Deprecated, Exception, RequestSpecification, RequestType, Response (+4 more)
+Cohesion: 0.07
+Nodes (25): RequestBuilder, RequestBuilderTests, AuthenticationType, Performance, API, ContentType, Deprecated, Exception (+17 more)
 
 ### Community 200 - "Community 200"
 Cohesion: 0.14
@@ -1522,12 +1519,12 @@ Cohesion: 0.19
 Nodes (12): OpenAiProvider, AiCapabilities, AiRequest, AiUsage, Function, HttpClient, JsonNode, Map (+4 more)
 
 ### Community 205 - "Community 205"
-Cohesion: 0.23
-Nodes (10): AllureSummary, Diagnostic, GeneratedTestValidator, JarFile, JavaFileObject, Duration, List, Path (+2 more)
+Cohesion: 0.22
+Nodes (11): AllureSummary, Diagnostic, GeneratedTestValidator, JarEntry, JarFile, JavaFileObject, Duration, List (+3 more)
 
 ### Community 206 - "Community 206"
-Cohesion: 0.25
-Nodes (6): Callable, Path, Test, Test, CaptureSessionStoreTest, RestActionsFailureLoggingUnitTest
+Cohesion: 0.39
+Nodes (5): AtomicReference, Callable, Path, Test, CaptureSessionStoreTest
 
 ### Community 207 - "Community 207"
 Cohesion: 0.23
@@ -1542,12 +1539,12 @@ Cohesion: 0.33
 Nodes (4): CaptureFormatException, String, Throwable, IllegalArgumentException
 
 ### Community 210 - "Community 210"
-Cohesion: 0.10
-Nodes (15): HasCdp, Image, ScreenshotHelper, ScreenshotHelperCoverageUnitTest, Boolean, BufferedImage, String, SuppressWarnings (+7 more)
+Cohesion: 0.19
+Nodes (7): HasCdp, Image, ScreenshotHelper, Boolean, BufferedImage, SuppressWarnings, WebDriver
 
 ### Community 211 - "Community 211"
-Cohesion: 0.21
-Nodes (10): HealingManager, By, HealingExplanation, HealingProvider, HealingResolution, List, Optional, String (+2 more)
+Cohesion: 0.10
+Nodes (20): HealingManager, current(), HealingStrategy(), parse(), usesHealenium(), usesShaftHeal(), HealingStrategyTest, By (+12 more)
 
 ### Community 212 - "Community 212"
 Cohesion: 0.08
@@ -1558,8 +1555,8 @@ Cohesion: 0.16
 Nodes (5): ElementAssertions, NativeValidationsBuilder, String, ValidationsExecutor, VisualValidationEngine
 
 ### Community 214 - "Community 214"
-Cohesion: 0.18
-Nodes (9): TestNG, TestNGTests, Browser, XmlSuite, DefaultValue, Integer, Key, String (+1 more)
+Cohesion: 0.25
+Nodes (7): TestNG, TestNGTests, DefaultValue, Integer, Key, String, Test
 
 ### Community 215 - "Community 215"
 Cohesion: 0.12
@@ -1590,20 +1587,20 @@ Cohesion: 0.20
 Nodes (13): AiCandidateReranker, AiExecutionService, Double, HealingConfiguration, JsonNode, List, Map, ObjectNode (+5 more)
 
 ### Community 222 - "Community 222"
-Cohesion: 0.24
-Nodes (7): ExecutionLifecycleHelper, List, Method, Status, StatusIcon, String, TestExecutionInfo
+Cohesion: 0.16
+Nodes (10): ExecutionLifecycleHelper, List, Method, RunType, Status, StatusIcon, String, TestExecutionInfo (+2 more)
 
 ### Community 223 - "Community 223"
 Cohesion: 0.19
 Nodes (6): Healenium, SetProperty, DefaultValue, Key, SetProperty, String
 
 ### Community 224 - "Community 224"
-Cohesion: 0.21
+Cohesion: 0.20
 Nodes (4): Path, String, Test, AttachmentReporterUnitTest
 
 ### Community 225 - "Community 225"
-Cohesion: 0.11
-Nodes (12): skipped(), KeysetHandle, GoogleTink, GoogleTinkApiCoverageUnitTest, String, Validation, Counts, String (+4 more)
+Cohesion: 0.17
+Nodes (8): KeysetHandle, GoogleTink, GoogleTinkApiCoverageUnitTest, String, AfterMethod, BeforeMethod, Path, Test
 
 ### Community 226 - "Community 226"
 Cohesion: 0.19
@@ -1634,20 +1631,20 @@ Cohesion: 0.17
 Nodes (10): PilotTestConfiguration, RedactionPolicy, RedactionResult, Redactor, AiRequest, Set, String, PilotConfiguration (+2 more)
 
 ### Community 233 - "Community 233"
-Cohesion: 0.14
-Nodes (15): Bean, BrowserService, ElementService, GuideService, ShaftMcpApplication, MobileService, NaturalActionService, PlaywrightService (+7 more)
+Cohesion: 0.13
+Nodes (16): Bean, BrowserService, ElementService, GuideService, ShaftMcpApplication, MobileService, NaturalActionService, PlaywrightService (+8 more)
 
 ### Community 234 - "Community 234"
 Cohesion: 0.27
 Nodes (5): BrowserStackHelper, Boolean, DriverFactoryHelper, MutableCapabilities, String
 
 ### Community 235 - "Community 235"
-Cohesion: 0.13
-Nodes (10): AndroidDriver, AndroidTouchActionsTests, getValue(), KeyboardKeys(), ImmutableMap, ScreenOrientation, DriverFactoryHelper, List (+2 more)
+Cohesion: 0.10
+Nodes (6): Boolean, By, NumbersComparativeRelation, Object, String, JavaHelper
 
 ### Community 236 - "Community 236"
-Cohesion: 0.07
-Nodes (37): AlertEvent, ArtifactPaths, AssertionSuggestion, DataPlan, CaptureGenerator, driverClassName(), failure(), withUnsupported() (+29 more)
+Cohesion: 0.08
+Nodes (31): AlertEvent, AssertionSuggestion, DataPlan, CaptureGenerator, CodegenBackend(), driverClassName(), from(), MutableTargetPlan (+23 more)
 
 ### Community 237 - "Community 237"
 Cohesion: 0.24
@@ -1658,7 +1655,7 @@ Cohesion: 0.23
 Nodes (7): HealingHistoryStoreTest, AfterMethod, HealingConfiguration, Map, Object, String, Test
 
 ### Community 240 - "Community 240"
-Cohesion: 0.18
+Cohesion: 0.19
 Nodes (6): LightHouseGenerateReport, LightHouseGenerateReportCoverageUnitTest, String, WebDriver, AfterMethod, Test
 
 ### Community 241 - "Community 241"
@@ -1678,8 +1675,8 @@ Cohesion: 0.22
 Nodes (6): McpRuntimePaths, McpRuntimePathsTest, Map, Path, String, Test
 
 ### Community 245 - "Community 245"
-Cohesion: 0.18
-Nodes (12): AnthropicProvider, AiCapabilities, AiRequest, AiUsage, Function, HttpClient, JsonNode, Map (+4 more)
+Cohesion: 0.17
+Nodes (13): AiImage, AnthropicProvider, AiCapabilities, AiRequest, AiUsage, Function, HttpClient, JsonNode (+5 more)
 
 ### Community 246 - "Community 246"
 Cohesion: 0.10
@@ -1702,11 +1699,11 @@ Cohesion: 0.12
 Nodes (19): build_parser(), confirm_upgrade(), log(), main(), print_analysis(), ProjectAnalysis, ArgumentParser, Print the migration decision before any writes. (+11 more)
 
 ### Community 251 - "Community 251"
-Cohesion: 0.16
-Nodes (8): AndroidDragAndDropTest, FileUploadDownloadTest, MobileTest, File, Test, Test, AfterMethod, BeforeMethod
+Cohesion: 0.25
+Nodes (5): AndroidDragAndDropTest, MobileTest, Test, AfterMethod, BeforeMethod
 
 ### Community 252 - "Community 252"
-Cohesion: 0.33
+Cohesion: 0.40
 Nodes (3): FileActionsReflectionInvoker, FileActions, String
 
 ### Community 253 - "Community 253"
@@ -1726,8 +1723,8 @@ Cohesion: 0.19
 Nodes (6): FailureReporter, Class, String, Throwable, Test, FailureReporterUnitTest
 
 ### Community 257 - "Community 257"
-Cohesion: 0.20
-Nodes (6): FileReader, JSONFileManagerTestAccessor, SuppressWarnings, AfterMethod, Test, MemoryLeakFixTests
+Cohesion: 0.18
+Nodes (5): AsyncElementActions, By, ClipboardAction, DriverFactoryHelper, String
 
 ### Community 258 - "Community 258"
 Cohesion: 0.20
@@ -1738,7 +1735,7 @@ Cohesion: 0.19
 Nodes (7): ShaftLocator, By, Locator, Override, Page, String, Strategy
 
 ### Community 260 - "Community 260"
-Cohesion: 0.18
+Cohesion: 0.19
 Nodes (10): ThrowingInvocation, WebDriverElementValidationsBuilderCoverageUnitTest, AfterMethod, NativeValidationsBuilder, String, Test, ValidationType, VisualValidationEngine (+2 more)
 
 ### Community 261 - "Community 261"
@@ -1774,8 +1771,8 @@ Cohesion: 0.28
 Nodes (7): LocatorRanker, ScoredLocator, ElementSnapshot, EventContext, LocatorCandidate, LocatorSelection, String
 
 ### Community 269 - "Community 269"
-Cohesion: 0.19
-Nodes (10): current(), HealingStrategy(), parse(), usesHealenium(), usesShaftHeal(), HealingStrategyTest, String, AfterMethod (+2 more)
+Cohesion: 0.24
+Nodes (8): GuardedPatch, RepairGuard, FilePatch, List, Path, Set, String, ValidationCommand
 
 ### Community 270 - "Community 270"
 Cohesion: 0.25
@@ -1794,8 +1791,8 @@ Cohesion: 0.31
 Nodes (5): HealingLocatorProposalService, HealingLocatorProposal, JsonNode, Path, String
 
 ### Community 274 - "Community 274"
-Cohesion: 0.18
-Nodes (8): AfterMethod, BeforeMethod, InputStream, Override, String, Test, RecordManagerDesktopProviderTest, StubDesktopVideoRecordingProvider
+Cohesion: 0.20
+Nodes (7): AfterMethod, AndroidDriver, BeforeMethod, CountDownLatch, Test, Throwable, RecordManagerDesktopProviderTest
 
 ### Community 275 - "Community 275"
 Cohesion: 0.21
@@ -1814,20 +1811,16 @@ Cohesion: 0.20
 Nodes (3): BeforeClass, Test, TestDataUnitTest
 
 ### Community 280 - "Community 280"
-Cohesion: 0.12
-Nodes (10): AssertEqualsTests, VerifyEqualsTests, Object, Override, SuppressWarnings, BeforeMethod, Test, AfterMethod (+2 more)
-
-### Community 281 - "Community 281"
-Cohesion: 0.20
-Nodes (9): CaptureFixtures, PageContext, BrowserMetadata, CaptureEvent, CaptureSession, ElementSnapshot, EventContext, ExternalTestDataReference (+1 more)
+Cohesion: 0.09
+Nodes (19): NativeValidationsBuilder, AssertEqualsTests, VerifyEqualsTests, FileValidationsBuilder, Object, Override, RestValidationsBuilder, String (+11 more)
 
 ### Community 282 - "Community 282"
 Cohesion: 0.24
 Nodes (9): main(), text(), validate_maven_jvm_configuration(), validate_quality_configuration(), validate_surefire_jacoco_arg_lines(), validate_workflow_coverage_policy(), Element, Path (+1 more)
 
 ### Community 283 - "Community 283"
-Cohesion: 0.12
-Nodes (26): copy(), dataBoolean(), dataInt(), dataStrings(), fromJson(), generated(), longValue(), map() (+18 more)
+Cohesion: 0.29
+Nodes (15): copy(), dataBoolean(), dataInt(), dataStrings(), fromJson(), generated(), longValue(), map() (+7 more)
 
 ### Community 284 - "Community 284"
 Cohesion: 0.18
@@ -1842,11 +1835,11 @@ Cohesion: 0.18
 Nodes (7): HealingActionsIntegrationTest, AfterMethod, BeforeMethod, DataProvider, Object, String, Test
 
 ### Community 287 - "Community 287"
-Cohesion: 0.10
-Nodes (11): ElementLookup, GetElementInformation, Actions, ActionsExceptionDetailsUnitTest, NoSuchElementException, JavascriptExecutor, List, Rectangle (+3 more)
+Cohesion: 0.15
+Nodes (7): ActionsExceptionDetailsUnitTest, NoSuchElementException, AppiumDriver, List, Map, Rectangle, Test
 
 ### Community 288 - "Community 288"
-Cohesion: 0.22
+Cohesion: 0.20
 Nodes (4): ProgressBarLoggerTestAccessor, AfterMethod, Test, ValidationAndProgressBarTests
 
 ### Community 289 - "Community 289"
@@ -1870,8 +1863,8 @@ Cohesion: 0.16
 Nodes (12): McpPlaywrightRecordingService, List, locatorStrategy, Map, McpCodeBlock, McpMobileRecordedAction, McpMobileRecording, McpMobileRecordingStatus (+4 more)
 
 ### Community 295 - "Community 295"
-Cohesion: 0.15
-Nodes (13): MobileRecordingServiceTest, PlaywrightServiceTest, DoctorReportWriter, Diagnosis, DoctorAdvisory, EvidenceBundle, List, Path (+5 more)
+Cohesion: 0.27
+Nodes (9): DoctorReportWriter, Diagnosis, DoctorAdvisory, EvidenceBundle, List, Path, String, StringBuilder (+1 more)
 
 ### Community 296 - "Community 296"
 Cohesion: 0.12
@@ -1906,32 +1899,32 @@ Cohesion: 0.28
 Nodes (9): PollingBrowserEventCollector, BrowserSignal, Consumer, List, Object, Override, Set, String (+1 more)
 
 ### Community 305 - "Community 305"
-Cohesion: 0.18
-Nodes (8): DesktopVideoRecordingProvider, AfterMethod, InputStream, Override, String, Test, DesktopVideoRecordingProviderRegistryTest, StubDesktopVideoRecordingProvider
+Cohesion: 0.20
+Nodes (7): AfterMethod, InputStream, Override, String, Test, DesktopVideoRecordingProviderRegistryTest, StubDesktopVideoRecordingProvider
 
 ### Community 306 - "Community 306"
 Cohesion: 0.28
 Nodes (5): ScreenshotManagerCoverageUnitTest, AfterMethod, BeforeMethod, Color, Test
 
 ### Community 307 - "Community 307"
-Cohesion: 0.12
-Nodes (11): FluentWebDriverAction, SelectedValueTests, Actions, AlertActions, BrowserActions, DriverFactoryHelper, TouchActions, WebDriver (+3 more)
+Cohesion: 0.19
+Nodes (7): FluentWebDriverAction, Actions, AlertActions, BrowserActions, DriverFactoryHelper, TouchActions, WebDriver
 
 ### Community 308 - "Community 308"
-Cohesion: 0.20
-Nodes (7): AnimatedGifManagerCoverageUnitTest, AfterMethod, BeforeMethod, Color, Method, String, Test
+Cohesion: 0.12
+Nodes (14): AllureVerdict, PatchManifestEntry, changedSince(), RepairGuard, RepairProposalStore, AllureSnapshot, DoctorJsonCodec, Duration (+6 more)
 
 ### Community 309 - "Community 309"
-Cohesion: 0.27
+Cohesion: 0.25
 Nodes (5): ValidationsHelperCoverageUnitTest, AssertionError, AfterMethod, SuppressWarnings, Test
 
 ### Community 311 - "Community 311"
-Cohesion: 0.18
-Nodes (9): AllureCucumber7Jvm, CucumberTestRunnerListener, EventPublisher, Feature, Optional, Override, TestSourceParsed, TestStepStarted (+1 more)
+Cohesion: 0.14
+Nodes (10): AllureCucumber7Jvm, CucumberTestRunnerListener, EventPublisher, Feature, Optional, Override, TestCaseFinished, TestSourceParsed (+2 more)
 
 ### Community 312 - "Community 312"
-Cohesion: 0.17
-Nodes (10): Autowired, ShaftMcpApplicationTests, EngineService, McpMobileInspectorRecordingService, McpMobileRecordingService, McpWorkspacePolicy, Set, String (+2 more)
+Cohesion: 0.18
+Nodes (9): Autowired, ShaftMcpApplicationTests, EngineService, McpMobileInspectorRecordingService, McpMobileRecordingService, McpWorkspacePolicy, Set, String (+1 more)
 
 ### Community 313 - "Community 313"
 Cohesion: 0.27
@@ -1958,16 +1951,12 @@ Cohesion: 0.14
 Nodes (14): DecisionResult, DeterministicScorerTest, HealingDecisionEngine, HealingConfiguration, List, RankedCandidate, Status, String (+6 more)
 
 ### Community 319 - "Community 319"
-Cohesion: 0.15
-Nodes (13): MultipleElementsFoundException, VisualEvidenceService, String, Throwable, Double, HealingConfiguration, HealingVisualProvider, List (+5 more)
+Cohesion: 0.23
+Nodes (9): VisualEvidenceService, Double, HealingConfiguration, HealingVisualProvider, List, Optional, RankedCandidate, String (+1 more)
 
 ### Community 320 - "Community 320"
 Cohesion: 0.31
 Nodes (7): BrowserAssertions, NativeValidationsBuilder, Override, PlaywrightSession, String, ValidationCategory, PlaywrightBrowserValidationsBuilder
-
-### Community 321 - "Community 321"
-Cohesion: 0.30
-Nodes (4): CaptureServiceTest, CaptureService, Path, Test
 
 ### Community 322 - "Community 322"
 Cohesion: 0.27
@@ -1986,8 +1975,8 @@ Cohesion: 0.13
 Nodes (14): additionalProperties, $id, required, type, properties, records, schemaVersion, items (+6 more)
 
 ### Community 326 - "Community 326"
-Cohesion: 0.36
-Nodes (3): XpathAxis, LocatorBuilder, String
+Cohesion: 0.22
+Nodes (18): append(), checkpoint(), complete(), ensureIncomplete(), interrupt(), sortedCheckpoints(), sortedEvents(), sortedReferences() (+10 more)
 
 ### Community 328 - "Community 328"
 Cohesion: 0.21
@@ -1995,7 +1984,7 @@ Nodes (7): AfterMethod, BeforeClass, BeforeMethod, Override, String, Test, TestC
 
 ### Community 329 - "Community 329"
 Cohesion: 0.17
-Nodes (6): AndroidBasicInteractionsTests, MultipleElementsFailureTest, Test, AfterMethod, BeforeMethod, Test
+Nodes (4): AndroidBasicInteractionsTests, AndroidTouchActionsTests, Test, Test
 
 ### Community 330 - "Community 330"
 Cohesion: 0.29
@@ -2014,7 +2003,7 @@ Cohesion: 0.17
 Nodes (9): JunitExtensionLifecycleTest, AfterEach, ExtensionContext, Issue, Method, ReflectiveInvocationContext, String, SuppressWarnings (+1 more)
 
 ### Community 334 - "Community 334"
-Cohesion: 0.30
+Cohesion: 0.19
 Nodes (8): IssueReporter, Boolean, ITestNGMethod, ITestResult, List, Method, String, TestExecutionInfo
 
 ### Community 335 - "Community 335"
@@ -2022,12 +2011,12 @@ Cohesion: 0.33
 Nodes (6): HealingLocatorProposalServiceTest, AfterEach, BeforeEach, Path, String, Test
 
 ### Community 336 - "Community 336"
-Cohesion: 0.31
-Nodes (3): Class, Test, GUIInterfaceCompatibilityCoverageUnitTest
+Cohesion: 0.29
+Nodes (4): ElementActions, Class, Test, GUIInterfaceCompatibilityCoverageUnitTest
 
 ### Community 337 - "Community 337"
-Cohesion: 0.15
-Nodes (8): EXCEL, ExcelFileManager, TestDataTests, String, Test, BeforeClass, Test, IoExcelFileManagerTests
+Cohesion: 0.10
+Nodes (12): ExcelFileManager, TestDataTests, String, Test, AfterMethod, BeforeMethod, Path, Test (+4 more)
 
 ### Community 338 - "Community 338"
 Cohesion: 0.40
@@ -2038,8 +2027,8 @@ Cohesion: 0.26
 Nodes (6): ModelSupport, JsonNode, List, Map, String, T
 
 ### Community 340 - "Community 340"
-Cohesion: 0.18
-Nodes (7): OpenCvVisualConsumer, HealingVisualProvider, OpenCvHealingVisualProvider, Override, String, Mat, String
+Cohesion: 0.12
+Nodes (10): OpenCvVisualConsumer, HealingVisualProvider, OpenCvHealingVisualProvider, OpenCvHealingVisualProviderTest, Override, String, Color, Test (+2 more)
 
 ### Community 341 - "Community 341"
 Cohesion: 0.12
@@ -2062,16 +2051,16 @@ Cohesion: 0.23
 Nodes (12): ActionMetadata, disabled(), HealingReport(), minimized(), pending(), ProviderMetadata(), PrivacyMetadata, HealingCandidate (+4 more)
 
 ### Community 346 - "Community 346"
-Cohesion: 0.21
-Nodes (7): ApiPerformanceExecutionReport, String, Double, List, Map, String, PerformanceReportHTMLHelper
+Cohesion: 0.22
+Nodes (9): AccessibilityActions, BrowserNetworkInterceptionRule, DriverFactoryHelper, HttpRequest, HttpResponse, Predicate, Screenshots, Step (+1 more)
 
 ### Community 347 - "Community 347"
 Cohesion: 0.18
 Nodes (9): PlaywrightDeviceDescriptor, PlaywrightDeviceDescriptorTest, JsonArray, JsonObject, NewContextOptions, Optional, Playwright, String (+1 more)
 
 ### Community 348 - "Community 348"
-Cohesion: 0.33
-Nodes (3): Validations, StandaloneAssertions, StandaloneVerifications
+Cohesion: 0.26
+Nodes (3): ThreadLocalPropertiesManager, Properties, String
 
 ### Community 349 - "Community 349"
 Cohesion: 0.26
@@ -2082,24 +2071,24 @@ Cohesion: 0.40
 Nodes (12): configuration_path(), expected_java(), installed_args(), installed_dependencies(), installed_jar(), installer_command(), main(), sha256() (+4 more)
 
 ### Community 351 - "Community 351"
-Cohesion: 0.29
-Nodes (4): CaptureJsonCodecTest, Path, String, Test
+Cohesion: 0.16
+Nodes (9): MultipleElementsFoundException, IOSDriver, String, Throwable, Path, AfterClass, AfterMethod, WebDriver (+1 more)
 
 ### Community 352 - "Community 352"
-Cohesion: 0.25
-Nodes (6): WebDomHealingAcceptanceTest, AfterMethod, BeforeMethod, Path, String, Test
+Cohesion: 0.24
+Nodes (9): JiraHelper, Class, IInvokedMethod, ITestNGMethod, ITestResult, List, String, SuppressWarnings (+1 more)
 
 ### Community 353 - "Community 353"
 Cohesion: 0.18
 Nodes (7): FileValidationsBuilder, NativeValidationsBuilder, String, StringBuilder, SuppressWarnings, ValidationCategory, ValidationsExecutor
 
 ### Community 354 - "Community 354"
-Cohesion: 0.37
-Nodes (4): DoctorServiceTest, DoctorService, Path, Test
+Cohesion: 0.26
+Nodes (4): AfterMethod, BeforeMethod, Test, BrowserActionsHelperCoverageUnitTest
 
 ### Community 355 - "Community 355"
-Cohesion: 0.38
-Nodes (5): CaptureCliTest, Class, Object, String, Test
+Cohesion: 0.27
+Nodes (6): AiCandidateRerankerTest, AfterMethod, HealingConfiguration, HttpExchange, String, Test
 
 ### Community 356 - "Community 356"
 Cohesion: 0.22
@@ -2110,7 +2099,7 @@ Cohesion: 0.26
 Nodes (3): SmartLocatorsPOC1Tests, CharSequence, String
 
 ### Community 358 - "Community 358"
-Cohesion: 0.24
+Cohesion: 0.26
 Nodes (5): SmartLocatorsRealisticTests, Test, AfterClass, BeforeClass, TestScenario
 
 ### Community 359 - "Community 359"
@@ -2158,16 +2147,16 @@ Cohesion: 0.33
 Nodes (4): VisualProcessingProviderRegistry, List, Optional, VisualProcessingProvider
 
 ### Community 370 - "Community 370"
-Cohesion: 0.31
-Nodes (4): AfterMethod, BeforeMethod, Test, VisualValidationTests
+Cohesion: 0.11
+Nodes (12): ScreenshotHelperCoverageUnitTest, String, AfterMethod, BeforeMethod, Color, Object, String, Test (+4 more)
 
 ### Community 371 - "Community 371"
 Cohesion: 0.23
 Nodes (8): VisualProcessingProvider, Boolean, By, Integer, List, String, VisualValidationEngine, WebDriver
 
 ### Community 372 - "Community 372"
-Cohesion: 0.13
-Nodes (11): IOSBasicInteractionsTest, ElementActions, Test_LTMobIPAAppURL, AfterMethod, BeforeMethod, SuppressWarnings, Test, AfterMethod (+3 more)
+Cohesion: 0.29
+Nodes (5): Test_LTMobIPAAppURL, AfterMethod, BeforeMethod, String, Test
 
 ### Community 373 - "Community 373"
 Cohesion: 0.41
@@ -2176,6 +2165,10 @@ Nodes (7): BrowserNetworkInterceptionRule, Consumer, Function, HttpRequest, Http
 ### Community 374 - "Community 374"
 Cohesion: 0.20
 Nodes (6): PlaywrightSessionManager, Browser, BrowserContext, Page, Playwright, PlaywrightSession
+
+### Community 375 - "Community 375"
+Cohesion: 0.20
+Nodes (3): ExecutionSummaryReport, CheckpointStatus, StringBuilder
 
 ### Community 376 - "Community 376"
 Cohesion: 0.17
@@ -2190,12 +2183,12 @@ Cohesion: 0.29
 Nodes (4): DragAndDropTests, AfterMethod, BeforeMethod, Test
 
 ### Community 379 - "Community 379"
-Cohesion: 0.23
-Nodes (5): AfterMethod, BeforeMethod, Path, Test, ExcelFileManagerCoverageUnitTest
+Cohesion: 0.29
+Nodes (3): EngineServiceTest, AfterEach, Test
 
 ### Community 380 - "Community 380"
-Cohesion: 0.17
-Nodes (8): CaptureCodegenStartRequest, McpCaptureCodeBlockService, PreDestroy, CaptureManager, CodegenBackend, Feature, List, McpWorkspacePolicy
+Cohesion: 0.31
+Nodes (4): GuiVerificationTests, AfterMethod, BeforeMethod, Test
 
 ### Community 381 - "Community 381"
 Cohesion: 0.33
@@ -2222,12 +2215,12 @@ Cohesion: 0.17
 Nodes (12): type, scope, pattern, type, branch, project, task, additionalProperties (+4 more)
 
 ### Community 387 - "Community 387"
-Cohesion: 0.17
-Nodes (12): minLength, type, type, properties, bundleId, evidence, redaction, schemaVersion (+4 more)
+Cohesion: 0.67
+Nodes (3): redaction, required, type
 
 ### Community 388 - "Community 388"
 Cohesion: 0.17
-Nodes (12): type, items, properties, required, type, content, redacted, relativePath (+4 more)
+Nodes (12): type, properties, minLength, type, content, mediaType, redacted, relativePath (+4 more)
 
 ### Community 389 - "Community 389"
 Cohesion: 0.26
@@ -2246,8 +2239,8 @@ Cohesion: 0.36
 Nodes (4): HttpExchange, Path, String, TestPageServer
 
 ### Community 394 - "Community 394"
-Cohesion: 0.24
-Nodes (6): Class, Object, String, SuppressWarnings, Test, SmartLocatorsCoverageUnitTest
+Cohesion: 0.27
+Nodes (4): JDK21VirtualThreadsAndAsyncActionsTests, AfterMethod, BeforeMethod, Test
 
 ### Community 395 - "Community 395"
 Cohesion: 0.26
@@ -2294,8 +2287,8 @@ Cohesion: 0.29
 Nodes (5): Test_LTMobAPKAPPURL, AfterMethod, BeforeMethod, String, Test
 
 ### Community 406 - "Community 406"
-Cohesion: 0.15
-Nodes (7): AsyncElementActions, UnitTestsSHAFT, Async, CLI, FileActions, TerminalActions, Test
+Cohesion: 0.27
+Nodes (5): IOSBasicInteractionsTest, AfterMethod, BeforeMethod, SuppressWarnings, Test
 
 ### Community 407 - "Community 407"
 Cohesion: 0.27
@@ -2358,12 +2351,12 @@ Cohesion: 0.31
 Nodes (4): JSONValidationsBuilder, Object, RestValidationsBuilder, ValidationsExecutor
 
 ### Community 423 - "Community 423"
-Cohesion: 0.20
-Nodes (9): Build & Test, Code Quality Standards, Complexity, Documentation, JavaDocs, Logging, Requirements, Testing (+1 more)
+Cohesion: 0.22
+Nodes (8): 1. Check Out The Code, 2. Install The Toolchain, 3. Build Locally, 4. Make The Change, 5. Validate By Risk, 6. Update Documentation When Needed, 7. Open The Pull Request, Contributing To SHAFT Engine
 
 ### Community 424 - "Community 424"
-Cohesion: 0.29
-Nodes (6): FileChannel, FileLock, CaptureSingleSessionLock, Override, Path, AutoCloseable
+Cohesion: 0.33
+Nodes (5): FileChannel, FileLock, CaptureSingleSessionLock, Override, Path
 
 ### Community 425 - "Community 425"
 Cohesion: 0.29
@@ -2374,12 +2367,12 @@ Cohesion: 0.26
 Nodes (6): Pattern, SetProperty, DefaultValue, Key, SetProperty, String
 
 ### Community 427 - "Community 427"
-Cohesion: 0.21
-Nodes (11): FakeRunner, McpMobileToolchainServiceTest, Duration, List, Map, Override, Path, Process (+3 more)
+Cohesion: 0.30
+Nodes (9): FakeRunner, Duration, List, Map, Override, Path, Process, ProcessResult (+1 more)
 
 ### Community 428 - "Community 428"
-Cohesion: 0.22
-Nodes (8): ChromeOptions, MoonTests, AfterEach, BeforeEach, String, Test, WebDriver, TestInfo
+Cohesion: 0.31
+Nodes (4): SelectedValueTests, AfterMethod, BeforeMethod, Test
 
 ### Community 430 - "Community 430"
 Cohesion: 0.31
@@ -2394,11 +2387,11 @@ Cohesion: 0.29
 Nodes (4): FlutterTest, AfterMethod, BeforeMethod, Test
 
 ### Community 433 - "Community 433"
-Cohesion: 0.25
-Nodes (4): DatabaseActions, DB, DatabaseType, ResultSet
+Cohesion: 0.27
+Nodes (4): ShadowDomTest, AfterMethod, BeforeMethod, Test
 
 ### Community 434 - "Community 434"
-Cohesion: 0.31
+Cohesion: 0.33
 Nodes (4): HealingProviderRegistry, HealingProvider, List, Optional
 
 ### Community 435 - "Community 435"
@@ -2438,20 +2431,16 @@ Cohesion: 0.20
 Nodes (9): Alternative: Email, Dependency Security, Disclosure Policy, Preferred: GitHub Private Security Advisory, Reporting a Vulnerability, Response Timeline, Scope, Security Policy (+1 more)
 
 ### Community 444 - "Community 444"
-Cohesion: 0.31
+Cohesion: 0.29
 Nodes (5): AfterMethod, BeforeClass, BeforeMethod, Test, TestClass
 
 ### Community 445 - "Community 445"
-Cohesion: 0.36
-Nodes (4): DeterministicNaturalActionPlannerTest, NaturalActionRequest, String, Test
+Cohesion: 0.19
+Nodes (7): FilesSize, DeterministicNaturalActionPlannerTest, NaturalActionRequest, String, Test, Test, RestActionsFailureLoggingUnitTest
 
 ### Community 446 - "Community 446"
 Cohesion: 0.31
 Nodes (4): AfterMethod, Object, Test, LambdaTestSetPropertyCoverageUnitTest
-
-### Community 447 - "Community 447"
-Cohesion: 0.31
-Nodes (3): NavigationAction, Test, NavigationActionUnitTest
 
 ### Community 448 - "Community 448"
 Cohesion: 0.22
@@ -2478,12 +2467,12 @@ Cohesion: 0.32
 Nodes (5): CaptureJsonCodec, CaptureSession, JsonNode, Path, String
 
 ### Community 454 - "Community 454"
-Cohesion: 0.70
-Nodes (3): reviewPath(), reviewUiPath(), Path
+Cohesion: 0.31
+Nodes (4): MultipleElementsFailureTest, AfterMethod, BeforeMethod, Test
 
 ### Community 455 - "Community 455"
-Cohesion: 0.20
-Nodes (6): PlaywrightActionsE2ETestBase, AfterMethod, BeforeMethod, Playwright, String, Test
+Cohesion: 0.30
+Nodes (4): PlaywrightActionsE2ETestBase, AfterMethod, Playwright, Test
 
 ### Community 456 - "Community 456"
 Cohesion: 0.36
@@ -2518,8 +2507,8 @@ Cohesion: 0.31
 Nodes (5): EngineProperties, SetProperty, Object, SetProperty, String
 
 ### Community 464 - "Community 464"
-Cohesion: 0.31
-Nodes (3): VisualProcessingProviderRegistryTest, AfterMethod, Test
+Cohesion: 0.32
+Nodes (5): DesktopVideoRecordingProvider, InputStream, Override, String, StubDesktopVideoRecordingProvider
 
 ### Community 465 - "Community 465"
 Cohesion: 0.25
@@ -2528,10 +2517,6 @@ Nodes (4): CaptureEvent, ElementSnapshot, EventContext, ExternalTestDataReferenc
 ### Community 466 - "Community 466"
 Cohesion: 0.25
 Nodes (4): NaturalActionPlanner, NaturalActionPlan, NaturalActionRequest, String
-
-### Community 467 - "Community 467"
-Cohesion: 0.28
-Nodes (6): BasicAPITests, AfterClass, BeforeClass, List, Map, String
 
 ### Community 468 - "Community 468"
 Cohesion: 0.31
@@ -2542,7 +2527,7 @@ Cohesion: 0.23
 Nodes (6): InputStream, Override, Path, Test, CloseTrackingInputStream, ReportManagerHelperAttachmentIoUnitTest
 
 ### Community 471 - "Community 471"
-Cohesion: 0.31
+Cohesion: 0.29
 Nodes (5): AfterEach, BeforeAll, BeforeEach, Test, TestClass
 
 ### Community 472 - "Community 472"
@@ -2558,8 +2543,8 @@ Cohesion: 0.22
 Nodes (7): DriverAssertions, BrowserAssertions, By, ElementAssertions, NativeValidationsBuilder, Object, ShaftLocator
 
 ### Community 475 - "Community 475"
-Cohesion: 0.09
-Nodes (18): ClassLoader, ImageProcessingActionsCoverageUnitTest, OpenCvBlockingClassLoader, Override, AfterMethod, BeforeMethod, BufferedImage, Class (+10 more)
+Cohesion: 0.29
+Nodes (6): Deletion Checklist, Generated PR Workflows, GitHub Actions Workflows, Relationship Map, Shared Composite Actions, Workflow Inventory
 
 ### Community 476 - "Community 476"
 Cohesion: 0.39
@@ -2586,12 +2571,12 @@ Cohesion: 0.32
 Nodes (4): ValidationsExecutorTestAccessor, Object, ValidationsExecutor, WebDriver
 
 ### Community 482 - "Community 482"
-Cohesion: 0.33
+Cohesion: 0.31
 Nodes (3): ProgressBarLoggerCoverageUnitTest, AfterMethod, Test
 
 ### Community 483 - "Community 483"
-Cohesion: 0.36
-Nodes (3): ValidationsHelperNewPatternCoverageUnitTest, AfterMethod, Test
+Cohesion: 0.23
+Nodes (6): ValidationsHelperNewPatternCoverageUnitTest, AfterMethod, List, Object, String, Test
 
 ### Community 484 - "Community 484"
 Cohesion: 0.36
@@ -2634,8 +2619,8 @@ Cohesion: 0.36
 Nodes (4): LazyLoadingTests, AfterMethod, BeforeMethod, Test
 
 ### Community 494 - "Community 494"
-Cohesion: 0.36
-Nodes (4): RemoteGridVideoAttachmentIT, AfterMethod, BeforeMethod, Test
+Cohesion: 0.33
+Nodes (4): AiAuditSink, ShaftAiAuditSink, AiAuditEvent, Override
 
 ### Community 495 - "Community 495"
 Cohesion: 0.43
@@ -2646,8 +2631,8 @@ Cohesion: 0.36
 Nodes (4): TouchActionsTests, AfterMethod, BeforeMethod, Test
 
 ### Community 497 - "Community 497"
-Cohesion: 0.25
-Nodes (7): A Complete Web Test, Contribute, Evidence, Go Straight to Your Goal, Launch shaft-mcp, One Java 25 engine for Web, Mobile, API, CLI, and Database testing., SHAFT
+Cohesion: 0.29
+Nodes (6): Contribute, Evidence, Go Straight To The Guide, Java 25 automation framework for Web, Mobile, API, CLI, and Database testing., SHAFT, What SHAFT Provides
 
 ### Community 498 - "Community 498"
 Cohesion: 0.36
@@ -2682,8 +2667,8 @@ Cohesion: 0.39
 Nodes (3): AfterEach, Test, DesktopVideoRecordingProviderRegistrationTest
 
 ### Community 508 - "Community 508"
-Cohesion: 0.48
-Nodes (6): main(), property_map(), text(), validate(), Element, Path
+Cohesion: 0.43
+Nodes (7): main(), property_map(), text(), validate(), validate_tool_manifest(), Element, Path
 
 ### Community 509 - "Community 509"
 Cohesion: 0.43
@@ -2698,20 +2683,20 @@ Cohesion: 0.29
 Nodes (5): AfterMethod, BeforeClass, BeforeMethod, Test, TestClass
 
 ### Community 512 - "Community 512"
-Cohesion: 0.23
-Nodes (6): InputStream, Path, String, SuppressWarnings, WebDriver, RecordManager
+Cohesion: 0.26
+Nodes (5): InputStream, String, SuppressWarnings, WebDriver, RecordManager
 
 ### Community 513 - "Community 513"
-Cohesion: 0.05
-Nodes (25): testPostRequest, ArrayList, SHAFT, FileInputStream, AppiumMobileConsumer, BrowserStackSdkConsumer, LegacyCoordinateConsumer, AiCandidateRerankerTest (+17 more)
+Cohesion: 0.06
+Nodes (19): testPostRequest, ArrayList, SHAFT, Field, FileInputStream, AppiumMobileConsumer, BrowserStackSdkConsumer, LegacyCoordinateConsumer (+11 more)
 
 ### Community 514 - "Community 514"
 Cohesion: 0.43
 Nodes (3): NaturalActionsTests, AfterMethod, Test
 
 ### Community 515 - "Community 515"
-Cohesion: 0.33
-Nodes (4): EngineServiceRuntimePathTest, AfterEach, BeforeEach, Test
+Cohesion: 0.40
+Nodes (4): ElementAssertions, Locator, PlaywrightSession, ValidationCategory
 
 ### Community 516 - "Community 516"
 Cohesion: 0.29
@@ -2722,8 +2707,8 @@ Cohesion: 0.31
 Nodes (4): NoSuchElementFailureTest, AfterMethod, BeforeMethod, Test
 
 ### Community 518 - "Community 518"
-Cohesion: 0.29
-Nodes (7): type, additionalProperties, type, additionalProperties, type, attributes, metadata
+Cohesion: 0.40
+Nodes (5): type, additionalProperties, type, additionalProperties, attributes
 
 ### Community 519 - "Community 519"
 Cohesion: 0.29
@@ -2742,8 +2727,8 @@ Cohesion: 0.31
 Nodes (6): RepairProcessRunner, Duration, List, Path, ProcessResult, String
 
 ### Community 524 - "Community 524"
-Cohesion: 0.67
-Nodes (5): is_allowed(), main(), tracked_markdown(), validate_repository(), Path
+Cohesion: 0.28
+Nodes (6): is_allowed(), main(), tracked_markdown(), validate_repository(), Path, ValidateDocumentationBoundariesTest
 
 ### Community 525 - "Community 525"
 Cohesion: 0.53
@@ -2754,8 +2739,8 @@ Cohesion: 0.39
 Nodes (3): BrowserAssertions, NativeValidationsBuilder, String
 
 ### Community 527 - "Community 527"
-Cohesion: 0.29
-Nodes (4): AfterMethod, String, Test, PropertiesHelperInitializationUnitTest
+Cohesion: 0.40
+Nodes (4): By, StringBuilder, ValidationCategory, WebDriver
 
 ### Community 528 - "Community 528"
 Cohesion: 0.25
@@ -2766,8 +2751,8 @@ Cohesion: 0.33
 Nodes (4): DynamicLoadingTest, AfterMethod, BeforeMethod, Test
 
 ### Community 530 - "Community 530"
-Cohesion: 0.36
-Nodes (3): ProgressBarLogger, Override, String
+Cohesion: 0.33
+Nodes (4): ProgressBarLogger, AutoCloseable, Override, String
 
 ### Community 531 - "Community 531"
 Cohesion: 0.47
@@ -2842,8 +2827,8 @@ Cohesion: 0.40
 Nodes (4): CaptureBrowser(), parse(), DriverType, String
 
 ### Community 553 - "Community 553"
-Cohesion: 0.33
-Nodes (5): $id, required, $schema, title, type
+Cohesion: 0.17
+Nodes (11): minLength, type, $id, type, properties, bundleId, metadata, required (+3 more)
 
 ### Community 555 - "Community 555"
 Cohesion: 0.33
@@ -2862,8 +2847,8 @@ Cohesion: 0.60
 Nodes (4): defaults(), DoctorAnalysisRequest, List, Path
 
 ### Community 561 - "Community 561"
-Cohesion: 0.22
-Nodes (11): expired(), InstantDeadline(), ManagedCaptureRecorderBrowserTest, BooleanSupplier, Duration, HttpExchange, HttpServer, ParameterizedTest (+3 more)
+Cohesion: 0.24
+Nodes (10): expired(), InstantDeadline(), ManagedCaptureRecorderBrowserTest, Duration, HttpExchange, HttpServer, ParameterizedTest, Path (+2 more)
 
 ### Community 562 - "Community 562"
 Cohesion: 0.70
@@ -2885,13 +2870,13 @@ Nodes (4): RelativeLocatorsTests, AfterMethod, BeforeMethod, Test
 Cohesion: 0.32
 Nodes (3): DesktopVideoRecordingProvider, Optional, DesktopVideoRecordingProviderRegistry
 
+### Community 567 - "Community 567"
+Cohesion: 0.40
+Nodes (4): SHAFT Marketing Ad Producer, Output, Stack, Workflow
+
 ### Community 568 - "Community 568"
 Cohesion: 0.60
 Nodes (4): copy(), text(), List, String
-
-### Community 569 - "Community 569"
-Cohesion: 0.48
-Nodes (3): OpenCvHealingVisualProviderTest, Color, Test
 
 ### Community 570 - "Community 570"
 Cohesion: 0.60
@@ -2917,6 +2902,10 @@ Nodes (3): Output, Workflow, CI Failure Investigator
 Cohesion: 0.50
 Nodes (4): build_parser(), main(), Build the command-line parser., ArgumentParser
 
+### Community 578 - "Community 578"
+Cohesion: 0.40
+Nodes (5): items, type, required, type, evidence
+
 ### Community 580 - "Community 580"
 Cohesion: 0.50
 Nodes (3): Output, Workflow, Flaky Test Stabilizer
@@ -2928,6 +2917,10 @@ Nodes (3): Release And Dependency Guard, Output, Workflow
 ### Community 584 - "Community 584"
 Cohesion: 0.53
 Nodes (3): RepairProposalStore, Path, RepairProposal
+
+### Community 588 - "Community 588"
+Cohesion: 0.50
+Nodes (3): McpMobileToolchainService, McpMobileRecordingService, McpWorkspacePolicy
 
 ### Community 591 - "Community 591"
 Cohesion: 0.50
@@ -2961,13 +2954,13 @@ Nodes (3): sha256, minLength, type
 Cohesion: 0.67
 Nodes (3): sizeBytes, minimum, type
 
-### Community 628 - "Community 628"
-Cohesion: 0.50
-Nodes (3): Object, StringBuilder, ValidationCategory
-
 ### Community 757 - "Community 757"
-Cohesion: 0.21
-Nodes (7): AiValueObjectsTest, allows(), ApprovalPolicy(), EvidenceCategory, ProcessingLocation, Set, Test
+Cohesion: 0.53
+Nodes (5): allows(), ApprovalPolicy(), EvidenceCategory, ProcessingLocation, Set
+
+### Community 758 - "Community 758"
+Cohesion: 0.67
+Nodes (3): schemaVersion, enum, type
 
 ### Community 759 - "Community 759"
 Cohesion: 0.36
@@ -2993,10 +2986,6 @@ Nodes (3): UploadFileTests, String, Test
 Cohesion: 0.33
 Nodes (5): SynchronizationManager, Class, Exception, List, WebDriver
 
-### Community 769 - "Community 769"
-Cohesion: 0.67
-Nodes (3): minLength, type, mediaType
-
 ### Community 771 - "Community 771"
 Cohesion: 0.42
 Nodes (5): ClassifiedValue, Collection, Path, String, ExternalTestDataWriter
@@ -3016,10 +3005,6 @@ Nodes (6): Metadata, asCacheHit(), disabled(), empty(), DoctorAdvisory, Provider
 ### Community 777 - "Community 777"
 Cohesion: 0.36
 Nodes (3): IPhone17ProMaxPlaywrightActionsE2ETest, Override, String
-
-### Community 780 - "Community 780"
-Cohesion: 0.39
-Nodes (4): Executable, McpNoDriverServiceTest, BeforeEach, Test
 
 ### Community 788 - "Community 788"
 Cohesion: 0.39
@@ -3042,24 +3027,24 @@ Cohesion: 0.40
 Nodes (3): WebKitPlaywrightActionsE2ETest, Override, String
 
 ## Knowledge Gaps
-- **1435 isolated node(s):** `$id`, `$schema`, `additionalProperties`, `additionalProperties`, `type` (+1430 more)
+- **1445 isolated node(s):** `$id`, `$schema`, `additionalProperties`, `additionalProperties`, `type` (+1440 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **86 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SHAFT` connect `Community 513` to `Community 512`, `Community 514`, `Community 3`, `Community 5`, `Community 517`, `Community 7`, `Community 8`, `Community 10`, `Community 12`, `Community 13`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 530`, `Community 20`, `Community 21`, `Community 529`, `Community 23`, `Community 24`, `Community 22`, `Community 26`, `Community 538`, `Community 19`, `Community 27`, `Community 30`, `Community 31`, `Community 543`, `Community 540`, `Community 34`, `Community 35`, `Community 36`, `Community 541`, `Community 38`, `Community 551`, `Community 37`, `Community 544`, `Community 545`, `Community 43`, `Community 547`, `Community 45`, `Community 46`, `Community 47`, `Community 44`, `Community 40`, `Community 51`, `Community 52`, `Community 53`, `Community 565`, `Community 55`, `Community 563`, `Community 57`, `Community 65`, `Community 579`, `Community 69`, `Community 582`, `Community 71`, `Community 73`, `Community 74`, `Community 587`, `Community 76`, `Community 80`, `Community 81`, `Community 597`, `Community 87`, `Community 89`, `Community 93`, `Community 95`, `Community 96`, `Community 103`, `Community 104`, `Community 106`, `Community 108`, `Community 621`, `Community 112`, `Community 114`, `Community 116`, `Community 121`, `Community 123`, `Community 125`, `Community 126`, `Community 129`, `Community 130`, `Community 134`, `Community 137`, `Community 138`, `Community 28`, `Community 142`, `Community 145`, `Community 155`, `Community 156`, `Community 158`, `Community 159`, `Community 161`, `Community 162`, `Community 32`, `Community 165`, `Community 542`, `Community 167`, `Community 169`, `Community 170`, `Community 171`, `Community 172`, `Community 174`, `Community 184`, `Community 546`, `Community 190`, `Community 191`, `Community 194`, `Community 39`, `Community 548`, `Community 199`, `Community 549`, `Community 206`, `Community 550`, `Community 210`, `Community 214`, `Community 217`, `Community 218`, `Community 219`, `Community 220`, `Community 222`, `Community 224`, `Community 225`, `Community 226`, `Community 230`, `Community 234`, `Community 235`, `Community 240`, `Community 241`, `Community 247`, `Community 759`, `Community 251`, `Community 767`, `Community 768`, `Community 261`, `Community 775`, `Community 266`, `Community 269`, `Community 270`, `Community 273`, `Community 274`, `Community 275`, `Community 788`, `Community 276`, `Community 279`, `Community 280`, `Community 284`, `Community 285`, `Community 286`, `Community 290`, `Community 293`, `Community 306`, `Community 307`, `Community 308`, `Community 311`, `Community 327`, `Community 328`, `Community 329`, `Community 333`, `Community 335`, `Community 336`, `Community 337`, `Community 346`, `Community 352`, `Community 358`, `Community 359`, `Community 360`, `Community 362`, `Community 367`, `Community 370`, `Community 372`, `Community 378`, `Community 381`, `Community 382`, `Community 389`, `Community 390`, `Community 391`, `Community 395`, `Community 399`, `Community 401`, `Community 403`, `Community 405`, `Community 406`, `Community 407`, `Community 408`, `Community 409`, `Community 411`, `Community 412`, `Community 417`, `Community 421`, `Community 428`, `Community 429`, `Community 431`, `Community 432`, `Community 433`, `Community 435`, `Community 436`, `Community 444`, `Community 446`, `Community 450`, `Community 451`, `Community 455`, `Community 456`, `Community 460`, `Community 461`, `Community 467`, `Community 468`, `Community 471`, `Community 473`, `Community 475`, `Community 480`, `Community 483`, `Community 484`, `Community 485`, `Community 486`, `Community 487`, `Community 488`, `Community 489`, `Community 490`, `Community 491`, `Community 492`, `Community 493`, `Community 494`, `Community 496`, `Community 498`, `Community 501`, `Community 502`, `Community 503`, `Community 504`, `Community 505`, `Community 506`, `Community 509`, `Community 511`?**
-  _High betweenness centrality (0.122) - this node is a cross-community bridge._
-- **Why does `IOException` connect `Community 513` to `Community 512`, `Community 2`, `Community 7`, `Community 8`, `Community 523`, `Community 527`, `Community 528`, `Community 18`, `Community 19`, `Community 23`, `Community 24`, `Community 535`, `Community 25`, `Community 29`, `Community 31`, `Community 41`, `Community 561`, `Community 56`, `Community 57`, `Community 60`, `Community 61`, `Community 62`, `Community 64`, `Community 71`, `Community 584`, `Community 73`, `Community 74`, `Community 76`, `Community 79`, `Community 85`, `Community 86`, `Community 102`, `Community 105`, `Community 116`, `Community 117`, `Community 122`, `Community 124`, `Community 131`, `Community 133`, `Community 138`, `Community 141`, `Community 145`, `Community 147`, `Community 148`, `Community 154`, `Community 156`, `Community 170`, `Community 171`, `Community 175`, `Community 176`, `Community 185`, `Community 189`, `Community 191`, `Community 194`, `Community 205`, `Community 210`, `Community 218`, `Community 233`, `Community 235`, `Community 239`, `Community 244`, `Community 248`, `Community 251`, `Community 257`, `Community 771`, `Community 775`, `Community 271`, `Community 273`, `Community 788`, `Community 279`, `Community 294`, `Community 295`, `Community 299`, `Community 308`, `Community 313`, `Community 314`, `Community 319`, `Community 328`, `Community 351`, `Community 352`, `Community 363`, `Community 364`, `Community 379`, `Community 402`, `Community 410`, `Community 418`, `Community 424`, `Community 453`, `Community 455`, `Community 458`, `Community 467`, `Community 470`, `Community 494`, `Community 506`?**
-  _High betweenness centrality (0.032) - this node is a cross-community bridge._
-- **Why does `ArrayList` connect `Community 513` to `Community 256`, `Community 768`, `Community 2`, `Community 3`, `Community 7`, `Community 264`, `Community 10`, `Community 268`, `Community 141`, `Community 14`, `Community 143`, `Community 273`, `Community 19`, `Community 148`, `Community 150`, `Community 152`, `Community 25`, `Community 154`, `Community 410`, `Community 283`, `Community 156`, `Community 413`, `Community 157`, `Community 33`, `Community 34`, `Community 35`, `Community 162`, `Community 38`, `Community 167`, `Community 39`, `Community 169`, `Community 41`, `Community 427`, `Community 294`, `Community 45`, `Community 176`, `Community 178`, `Community 180`, `Community 56`, `Community 185`, `Community 59`, `Community 60`, `Community 189`, `Community 62`, `Community 64`, `Community 194`, `Community 322`, `Community 198`, `Community 200`, `Community 74`, `Community 205`, `Community 334`, `Community 206`, `Community 85`, `Community 217`, `Community 90`, `Community 93`, `Community 222`, `Community 95`, `Community 232`, `Community 111`, `Community 116`, `Community 117`, `Community 118`, `Community 377`, `Community 125`, `Community 255`?**
-  _High betweenness centrality (0.024) - this node is a cross-community bridge._
+- **Why does `SHAFT` connect `Community 513` to `Community 2`, `Community 514`, `Community 3`, `Community 5`, `Community 517`, `Community 7`, `Community 8`, `Community 10`, `Community 12`, `Community 13`, `Community 15`, `Community 16`, `Community 17`, `Community 18`, `Community 530`, `Community 20`, `Community 21`, `Community 529`, `Community 23`, `Community 24`, `Community 22`, `Community 26`, `Community 538`, `Community 19`, `Community 27`, `Community 30`, `Community 31`, `Community 543`, `Community 540`, `Community 34`, `Community 35`, `Community 36`, `Community 37`, `Community 38`, `Community 551`, `Community 544`, `Community 545`, `Community 546`, `Community 43`, `Community 547`, `Community 45`, `Community 46`, `Community 47`, `Community 48`, `Community 44`, `Community 563`, `Community 52`, `Community 53`, `Community 565`, `Community 55`, `Community 57`, `Community 65`, `Community 579`, `Community 69`, `Community 582`, `Community 71`, `Community 73`, `Community 74`, `Community 76`, `Community 80`, `Community 597`, `Community 87`, `Community 88`, `Community 96`, `Community 103`, `Community 104`, `Community 106`, `Community 108`, `Community 621`, `Community 112`, `Community 113`, `Community 114`, `Community 116`, `Community 628`, `Community 119`, `Community 121`, `Community 123`, `Community 125`, `Community 126`, `Community 129`, `Community 130`, `Community 132`, `Community 134`, `Community 137`, `Community 138`, `Community 28`, `Community 142`, `Community 145`, `Community 155`, `Community 156`, `Community 158`, `Community 159`, `Community 161`, `Community 162`, `Community 541`, `Community 32`, `Community 165`, `Community 542`, `Community 167`, `Community 170`, `Community 171`, `Community 172`, `Community 174`, `Community 184`, `Community 190`, `Community 191`, `Community 39`, `Community 548`, `Community 199`, `Community 549`, `Community 550`, `Community 210`, `Community 211`, `Community 214`, `Community 217`, `Community 218`, `Community 219`, `Community 220`, `Community 222`, `Community 224`, `Community 225`, `Community 226`, `Community 230`, `Community 234`, `Community 235`, `Community 240`, `Community 241`, `Community 247`, `Community 759`, `Community 251`, `Community 768`, `Community 261`, `Community 775`, `Community 266`, `Community 270`, `Community 273`, `Community 274`, `Community 275`, `Community 788`, `Community 276`, `Community 279`, `Community 280`, `Community 284`, `Community 285`, `Community 286`, `Community 290`, `Community 293`, `Community 306`, `Community 311`, `Community 327`, `Community 328`, `Community 329`, `Community 333`, `Community 335`, `Community 336`, `Community 337`, `Community 346`, `Community 351`, `Community 352`, `Community 354`, `Community 355`, `Community 358`, `Community 359`, `Community 360`, `Community 362`, `Community 367`, `Community 370`, `Community 372`, `Community 378`, `Community 380`, `Community 381`, `Community 382`, `Community 389`, `Community 390`, `Community 391`, `Community 394`, `Community 395`, `Community 399`, `Community 401`, `Community 403`, `Community 405`, `Community 406`, `Community 407`, `Community 408`, `Community 409`, `Community 411`, `Community 412`, `Community 417`, `Community 421`, `Community 428`, `Community 429`, `Community 431`, `Community 432`, `Community 433`, `Community 435`, `Community 436`, `Community 444`, `Community 445`, `Community 446`, `Community 450`, `Community 451`, `Community 454`, `Community 456`, `Community 460`, `Community 461`, `Community 468`, `Community 471`, `Community 473`, `Community 480`, `Community 483`, `Community 484`, `Community 485`, `Community 486`, `Community 487`, `Community 488`, `Community 489`, `Community 490`, `Community 491`, `Community 492`, `Community 493`, `Community 494`, `Community 496`, `Community 498`, `Community 501`, `Community 502`, `Community 503`, `Community 504`, `Community 505`, `Community 506`, `Community 509`, `Community 511`?**
+  _High betweenness centrality (0.098) - this node is a cross-community bridge._
+- **Why does `ArrayList` connect `Community 513` to `Community 256`, `Community 768`, `Community 2`, `Community 257`, `Community 132`, `Community 3`, `Community 7`, `Community 264`, `Community 268`, `Community 141`, `Community 13`, `Community 143`, `Community 269`, `Community 273`, `Community 14`, `Community 19`, `Community 147`, `Community 148`, `Community 150`, `Community 151`, `Community 152`, `Community 154`, `Community 410`, `Community 156`, `Community 413`, `Community 157`, `Community 33`, `Community 34`, `Community 35`, `Community 162`, `Community 38`, `Community 39`, `Community 294`, `Community 41`, `Community 427`, `Community 45`, `Community 178`, `Community 180`, `Community 308`, `Community 56`, `Community 185`, `Community 59`, `Community 60`, `Community 189`, `Community 62`, `Community 64`, `Community 322`, `Community 198`, `Community 326`, `Community 200`, `Community 74`, `Community 205`, `Community 334`, `Community 206`, `Community 467`, `Community 85`, `Community 88`, `Community 217`, `Community 93`, `Community 222`, `Community 95`, `Community 232`, `Community 235`, `Community 236`, `Community 111`, `Community 116`, `Community 117`, `Community 118`, `Community 377`, `Community 125`, `Community 255`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
+- **Why does `IOException` connect `Community 513` to `Community 2`, `Community 7`, `Community 8`, `Community 523`, `Community 13`, `Community 528`, `Community 18`, `Community 19`, `Community 23`, `Community 24`, `Community 535`, `Community 29`, `Community 30`, `Community 31`, `Community 33`, `Community 41`, `Community 561`, `Community 56`, `Community 57`, `Community 60`, `Community 61`, `Community 62`, `Community 64`, `Community 71`, `Community 584`, `Community 73`, `Community 74`, `Community 76`, `Community 79`, `Community 85`, `Community 86`, `Community 87`, `Community 102`, `Community 105`, `Community 113`, `Community 116`, `Community 117`, `Community 122`, `Community 124`, `Community 131`, `Community 133`, `Community 138`, `Community 141`, `Community 145`, `Community 146`, `Community 147`, `Community 148`, `Community 151`, `Community 154`, `Community 156`, `Community 170`, `Community 175`, `Community 185`, `Community 189`, `Community 191`, `Community 205`, `Community 210`, `Community 218`, `Community 233`, `Community 236`, `Community 239`, `Community 244`, `Community 248`, `Community 771`, `Community 775`, `Community 269`, `Community 271`, `Community 273`, `Community 788`, `Community 279`, `Community 294`, `Community 295`, `Community 299`, `Community 308`, `Community 313`, `Community 314`, `Community 319`, `Community 328`, `Community 337`, `Community 351`, `Community 355`, `Community 363`, `Community 364`, `Community 402`, `Community 410`, `Community 418`, `Community 424`, `Community 453`, `Community 458`, `Community 470`, `Community 506`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
 - **What connects `$id`, `$schema`, `additionalProperties` to the rest of the system?**
-  _1529 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1539 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.041561314791403285 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.04083216891786989 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.05764411027568922 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.12217194570135746 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0730593607305936 - nodes in this community are weakly interconnected._

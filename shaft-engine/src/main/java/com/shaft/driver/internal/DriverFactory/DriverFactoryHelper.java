@@ -573,12 +573,18 @@ public class DriverFactoryHelper {
                 HealingManager.clear(driver);
                 browserNetworkInterceptor = null;
                 seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
-                webDriverManager.remove();
+                clearThreadLocalDriverState();
                 ReportManager.log("Closed the WebDriver session.");
             }
         } else {
+            clearThreadLocalDriverState();
             ReportManager.log("WebDriver session was already closed.");
         }
+    }
+
+    private static void clearThreadLocalDriverState() {
+        webDriverManager.remove();
+        setTargetHubUrl(null);
     }
 
     private void disableCacheEdgeAndChrome() {

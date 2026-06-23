@@ -164,7 +164,11 @@ public class AllureManagerUnitTest {
     public void cleanAllureResultsDirectoryShouldRecreateResultsDirectory() throws Exception {
         Path resultsDirectory = Files.createTempDirectory("shaft-allure-results");
         Path staleResult = resultsDirectory.resolve("stale-result.json");
+        Path nestedDirectory = resultsDirectory.resolve("nested");
+        Path nestedResult = nestedDirectory.resolve("nested-result.json");
+        Files.createDirectories(nestedDirectory);
         Files.writeString(staleResult, "stale", StandardCharsets.UTF_8);
+        Files.writeString(nestedResult, "nested-stale", StandardCharsets.UTF_8);
         setStaticField(AllureManager.class, "allureResultsFolderPath", resultsDirectory.toString());
         SHAFT.Properties.allure.set().cleanResultsDirectory(true);
         Method cleanAllureResultsDirectory = AllureManager.class.getDeclaredMethod("cleanAllureResultsDirectory");
@@ -174,6 +178,26 @@ public class AllureManagerUnitTest {
 
         SHAFT.Validations.assertThat().object(Files.isDirectory(resultsDirectory)).isTrue().perform();
         SHAFT.Validations.assertThat().object(Files.exists(staleResult)).isFalse().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(nestedResult)).isFalse().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(nestedDirectory)).isFalse().perform();
+    }
+
+    @Test(description = "cleanAllureResultsDirectoryContents should ignore blank paths")
+    public void cleanAllureResultsDirectoryContentsShouldIgnoreBlankPaths() throws Exception {
+        Path sentinelDirectory = Files.createTempDirectory("shaft-allure-blank-path");
+        Path sentinelFile = sentinelDirectory.resolve("sentinel.txt");
+        Files.writeString(sentinelFile, "keep", StandardCharsets.UTF_8);
+
+        Method cleanAllureResultsDirectoryContents = AllureManager.class
+                .getDeclaredMethod("cleanAllureResultsDirectoryContents", String.class);
+        cleanAllureResultsDirectoryContents.setAccessible(true);
+
+        cleanAllureResultsDirectoryContents.invoke(null, (String) null);
+        cleanAllureResultsDirectoryContents.invoke(null, "");
+        cleanAllureResultsDirectoryContents.invoke(null, "   ");
+
+        SHAFT.Validations.assertThat().object(Files.isDirectory(sentinelDirectory)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(sentinelFile)).isTrue().perform();
     }
 
     @Test(description = "AllureManager utility class constructor should be blocked")

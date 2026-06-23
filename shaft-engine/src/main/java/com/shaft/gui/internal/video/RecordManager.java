@@ -32,7 +32,7 @@ public class RecordManager {
     private static final String MISSING_DESKTOP_PROVIDER_MESSAGE = "Desktop video recording is enabled, but no provider "
             + "is available. Add io.github.shafthq:shaft-video to the test runtime dependencies.";
     private static final ThreadLocal<WebDriver> videoDriver = new ThreadLocal<>();
-    private static boolean isRecordingStarted = false;
+    private static final ThreadLocal<Boolean> isRecordingStarted = ThreadLocal.withInitial(() -> false);
 
     private RecordManager() {
         throw new IllegalStateException("Utility class");
@@ -46,7 +46,7 @@ public class RecordManager {
     @SuppressWarnings("SpellCheckingInspection")
     public static void startVideoRecording(WebDriver driver) {
         if (SHAFT.Properties.visuals.videoParamsRecordVideo()
-                && !isRecordingStarted
+                && !isRecordingStarted.get()
                 && driver != null
                 && DriverFactoryHelper.isMobileNativeExecution()) {
             videoDriver.set(driver);
@@ -57,7 +57,7 @@ public class RecordManager {
                     iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions().withVideoType("libx264").withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM).withTimeLimit(Duration.ofMinutes(30)));
                 }
                 ReportManager.logDiscrete("Started device screen recording.");
-                isRecordingStarted = true;
+                isRecordingStarted.set(true);
             } catch (WebDriverException exception) {
                 ReportManager.logDiscrete("Could not start device screen recording.");
             }
@@ -161,7 +161,7 @@ public class RecordManager {
                 inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording));
             }
             videoDriver.remove();
-            isRecordingStarted = false;
+            isRecordingStarted.remove();
         }
         return inputStream;
     }
