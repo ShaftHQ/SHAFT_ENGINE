@@ -510,7 +510,7 @@ public class ValidationsHelper {
             byte[] referenceImage = ImageProcessingActions.getReferenceImage(locator);
             if (referenceImage !=null && !Arrays.equals(new byte[0], referenceImage)) {
                 ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
-                List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
+                List<Object> expectedValueAttachment = Arrays.asList("Screenshot", "Reference Screenshot",
                         referenceImage);
                 attachments.add(expectedValueAttachment);
             } else {
@@ -535,7 +535,7 @@ public class ValidationsHelper {
                 }
                 actualResult = ImageProcessingActions.compareAgainstBaseline(driver, locator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
 
-                List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
+                List<Object> actualValueAttachment = Arrays.asList("Screenshot", "Actual Screenshot",
                         elementScreenshot);
                 attachments.add(actualValueAttachment);
 
@@ -549,7 +549,7 @@ public class ValidationsHelper {
                     //if shutterbug and failed, get differences screenshot
                     shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(locator);
                     if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {
-                        List<Object> differencesAttachment = Arrays.asList("Validation Test Data", "Differences",
+                        List<Object> differencesAttachment = Arrays.asList("Screenshot", "Differences",
                                 shutterbugDifferencesImage);
                         attachments.add(differencesAttachment);
                     }

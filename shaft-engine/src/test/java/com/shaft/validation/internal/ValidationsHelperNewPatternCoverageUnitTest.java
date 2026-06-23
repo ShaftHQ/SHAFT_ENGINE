@@ -7,7 +7,9 @@ import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -162,6 +164,39 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         Assert.assertFalse(elementBuilder.reportMessageBuilder.toString().contains("By.id: message"));
     }
 
+    @Test(description = "Visual validation screenshot bytes should be routed as screenshot attachments")
+    public void visualValidationImageBytesShouldUseScreenshotAttachmentType() {
+        ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.HARD_ASSERT);
+        By locator = By.id("logo");
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = mock(WebElement.class);
+        byte[] referenceScreenshot = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47};
+        byte[] actualScreenshot = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 1};
+        SHAFT.Properties.visuals.set().whenToTakePageSourceSnapshot("Never");
+        when(driver.findElement(any(By.class))).thenReturn(element);
+        when(element.getScreenshotAs(any())).thenReturn(actualScreenshot);
+
+        try (MockedStatic<ImageProcessingActions> imageProcessingMocked = Mockito.mockStatic(ImageProcessingActions.class);
+             MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class)) {
+            imageProcessingMocked.when(() -> ImageProcessingActions.getReferenceImage(any(By.class)))
+                    .thenReturn(referenceScreenshot);
+            imageProcessingMocked.when(() -> ImageProcessingActions.compareAgainstBaseline(any(), any(By.class), any(byte[].class), any()))
+                    .thenReturn(true);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            ArgumentCaptor<List<List<Object>>> attachmentsCaptor = (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
+
+            helper.validateElementMatches(driver, locator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV,
+                    ValidationEnums.ValidationType.POSITIVE);
+
+            reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
+            List<List<Object>> attachments = attachmentsCaptor.getValue();
+            Assert.assertTrue(hasAttachment(attachments, "Screenshot", "Reference Screenshot", referenceScreenshot));
+            Assert.assertTrue(hasAttachment(attachments, "Screenshot", "Actual Screenshot", actualScreenshot));
+            Assert.assertFalse(attachments.stream().anyMatch(attachment ->
+                    "Validation Test Data".equals(attachment.get(0)) && attachment.get(1).toString().contains("Screenshot")));
+        }
+    }
+
     @Test(description = "Covers private utility methods used by validation reporting")
     public void privateUtilityMethodsShouldReturnExpectedValues() throws Exception {
         Method normalizeDirection = ValidationsHelper.class.getDeclaredMethod("normalizeDirection", String.class);
@@ -200,5 +235,10 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
 
         Assert.assertEquals(performValidation.invoke(helper, "a", "b", ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE), false);
         Assert.assertEquals(performValidation.invoke(helper, 3, 3, ValidationEnums.NumbersComparativeRelation.EQUALS, ValidationEnums.ValidationType.POSITIVE), true);
+    }
+
+    private boolean hasAttachment(List<List<Object>> attachments, String type, String name, byte[] content) {
+        return attachments.stream().anyMatch(attachment ->
+                type.equals(attachment.get(0)) && name.equals(attachment.get(1)) && attachment.get(2) == content);
     }
 }
