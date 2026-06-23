@@ -20,6 +20,7 @@ ALLOWED_EXACT = {
     ".github/pull_request_template.md",
     ".github/RELEASE_BODY_TEMPLATE.md",
     ".github/skills/README.md",
+    ".github/workflows/README.md",
     "graphify-out/GRAPH_REPORT.md",
     "shaft-mcp/.github/copilot-instructions.md",
 }
@@ -76,7 +77,7 @@ def validate_repository(root: Path = ROOT) -> list[str]:
         if not is_allowed(path):
             errors.append(f"public or unapproved Markdown remains: {path}")
         if path != "README.md" and Path(path).name.lower() == "readme.md":
-            if path != ".github/skills/README.md":
+            if path not in {".github/skills/README.md", ".github/workflows/README.md"}:
                 errors.append(f"non-root README is prohibited: {path}")
 
     readme = (root / "README.md").read_text(encoding="utf-8")
