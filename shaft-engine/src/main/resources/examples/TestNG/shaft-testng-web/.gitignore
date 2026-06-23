@@ -44,5 +44,7 @@ allure-results/
 execution-summary/
 performanceReport/
 generate_allure_report.bat
-.idea/
+.idea/*
+!.idea/runConfigurations/
+!.idea/runConfigurations/*.xml
 
