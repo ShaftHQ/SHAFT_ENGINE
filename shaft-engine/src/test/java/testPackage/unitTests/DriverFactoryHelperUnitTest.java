@@ -76,6 +76,18 @@ public class DriverFactoryHelperUnitTest {
         SHAFT.Validations.assertThat().object(getTargetHubUrl()).isEqualTo(explicitBrowserStackUrl).perform();
     }
 
+    @Test(description = "closeDriver should clear the current thread target hub URL even when no driver is attached")
+    public void closeDriverClearsTargetHubUrlWhenDriverIsNull() throws Exception {
+        savedExecutionAddress = SHAFT.Properties.platform.executionAddress();
+        SHAFT.Properties.platform.set().executionAddress("http://localhost:4444");
+        DriverFactoryHelper.initializeSystemProperties();
+        SHAFT.Validations.assertThat().object(getTargetHubUrl()).isEqualTo("http://localhost:4444").perform();
+
+        new DriverFactoryHelper().closeDriver(null);
+
+        SHAFT.Validations.assertThat().object(getTargetHubUrl()).isNull().perform();
+    }
+
     @DataProvider(name = "remoteServerPingBaseUrls")
     public Object[][] remoteServerPingBaseUrls() {
         return new Object[][]{

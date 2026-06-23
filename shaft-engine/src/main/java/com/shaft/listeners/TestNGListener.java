@@ -96,6 +96,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionStart() {
         Reporter.setEscapeHtml(false);
+        resetTrackedResultState();
+        resetThreadLocalLifecycleState(false);
         engineSetup(ProjectStructureManager.RunType.TESTNG);
         initializeReportPortalIfEnabled();
     }
@@ -313,10 +315,15 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onExecutionFinish() {
-        TestExecutionCounts counts = getDeduplicatedTestExecutionCounts();
-        ExecutionLifecycleHelper.engineTearDown(executionStartTime,
-                new ExecutionCountsTracker.Counts(counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
-        if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishLaunch();
+        try {
+            TestExecutionCounts counts = getDeduplicatedTestExecutionCounts();
+            ExecutionLifecycleHelper.engineTearDown(executionStartTime,
+                    new ExecutionCountsTracker.Counts(counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
+            if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishLaunch();
+        } finally {
+            resetTrackedResultState();
+            resetThreadLocalLifecycleState(true);
+        }
     }
 
     private static TestExecutionInfo toTestExecutionInfo(ITestResult testResult) {
@@ -347,6 +354,27 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     private static TestExecutionCounts getDeduplicatedTestExecutionCounts() {
         return getDeduplicatedTestExecutionCounts(passedTests, failedTests, skippedTests);
+    }
+
+    private static void resetTrackedResultState() {
+        synchronized (passedTests) {
+            passedTests.clear();
+        }
+        synchronized (failedTests) {
+            failedTests.clear();
+        }
+        synchronized (skippedTests) {
+            skippedTests.clear();
+        }
+    }
+
+    private static void resetThreadLocalLifecycleState(boolean clearProperties) {
+        activeTestClass.remove();
+        TestNGListenerHelper.cleanup();
+        ReportContext.clear();
+        if (clearProperties) {
+            Properties.clearForCurrentThread();
+        }
     }
 
     private static TestExecutionCounts getDeduplicatedTestExecutionCounts(

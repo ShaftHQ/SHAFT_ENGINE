@@ -3,6 +3,7 @@ package testPackage.unitTests;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.testng.ITestNGService;
 import com.shaft.listeners.TestNGListener;
+import com.shaft.listeners.internal.ExecutionLifecycleHelper;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.listeners.internal.TestNGListenerHelper;
@@ -21,6 +22,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
@@ -60,6 +62,48 @@ public class TestNGListenerCoverageUnitTest {
         initializeReportPortal.invoke(listener);
 
         assertNull(getReportPortalService(listener));
+    }
+
+    @Test
+    public void onExecutionStartShouldResetTrackedResultState() throws Exception {
+        TestNGListener listener = new TestNGListener();
+        TrackedResultState originalState = captureTrackedResultState();
+        try {
+            getTrackedMethods("passedTests").add(createTestMethod("stalePassed"));
+            getTrackedMethods("failedTests").add(createTestMethod("staleFailed"));
+            getTrackedMethods("skippedTests").add(createTestMethod("staleSkipped"));
+            ThreadLocalPropertiesManager.setProperty("rp.enable", "false");
+
+            try (MockedStatic<ExecutionLifecycleHelper> ignoredExecutionLifecycle =
+                         Mockito.mockStatic(ExecutionLifecycleHelper.class)) {
+                listener.onExecutionStart();
+            }
+
+            assertEquals(getTrackedMethods("passedTests").size(), 0);
+            assertEquals(getTrackedMethods("failedTests").size(), 0);
+            assertEquals(getTrackedMethods("skippedTests").size(), 0);
+        } finally {
+            restoreTrackedResultState(originalState);
+        }
+    }
+
+    @Test
+    public void onExecutionFinishShouldClearThreadLocalLifecycleState() throws Exception {
+        TestNGListener listener = new TestNGListener();
+        TrackedResultState originalState = captureTrackedResultState();
+        try {
+            ThreadLocalPropertiesManager.setProperty("disableLogging", "true");
+
+            try (MockedStatic<ExecutionLifecycleHelper> ignoredExecutionLifecycle =
+                         Mockito.mockStatic(ExecutionLifecycleHelper.class)) {
+                listener.onExecutionFinish();
+            }
+
+            assertNull(ThreadLocalPropertiesManager.getProperty("disableLogging"));
+        } finally {
+            restoreTrackedResultState(originalState);
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
     }
 
     @Test
@@ -121,6 +165,7 @@ public class TestNGListenerCoverageUnitTest {
     public void onTestFailureShouldReportToReportPortalWhenEnabled() throws Exception {
         TestNGListener listener = new TestNGListener();
         ITestResult testResult = createTestResult("failingTest", new RuntimeException("failed"));
+        TrackedResultState originalState = captureTrackedResultState();
 
         ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
         setReportPortalService(listener, reportPortalService);
@@ -130,7 +175,7 @@ public class TestNGListenerCoverageUnitTest {
             Mockito.verify(reportPortalService).sendReportPortalMsg(testResult);
             Mockito.verify(reportPortalService).finishTestMethod(ItemStatus.FAILED, testResult);
         } finally {
-            removeTrackedMethod("failedTests", testResult.getMethod());
+            restoreTrackedResultState(originalState);
             setReportPortalEnabled(false);
         }
     }
@@ -139,6 +184,7 @@ public class TestNGListenerCoverageUnitTest {
     public void onTestSkippedShouldHandleNullThrowableAndReportToReportPortalWhenEnabled() throws Exception {
         TestNGListener listener = new TestNGListener();
         ITestResult testResult = createTestResult("skippedTest", null);
+        TrackedResultState originalState = captureTrackedResultState();
 
         ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
         setReportPortalService(listener, reportPortalService);
@@ -147,7 +193,7 @@ public class TestNGListenerCoverageUnitTest {
             listener.onTestSkipped(testResult);
             Mockito.verify(reportPortalService).finishTestMethod(ItemStatus.SKIPPED, testResult);
         } finally {
-            removeTrackedMethod("skippedTests", testResult.getMethod());
+            restoreTrackedResultState(originalState);
             setReportPortalEnabled(false);
         }
     }
@@ -200,15 +246,33 @@ public class TestNGListenerCoverageUnitTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static void removeTrackedMethod(String fieldName, ITestNGMethod testMethod) throws Exception {
-        getTrackedMethods(fieldName).remove(testMethod);
-    }
-
-    @SuppressWarnings("unchecked")
     private static List<ITestNGMethod> getTrackedMethods(String fieldName) throws Exception {
         Field trackedMethodsField = TestNGListener.class.getDeclaredField(fieldName);
         trackedMethodsField.setAccessible(true);
         return (List<ITestNGMethod>) trackedMethodsField.get(null);
+    }
+
+    private static TrackedResultState captureTrackedResultState() throws Exception {
+        return new TrackedResultState(
+                new ArrayList<>(getTrackedMethods("passedTests")),
+                new ArrayList<>(getTrackedMethods("failedTests")),
+                new ArrayList<>(getTrackedMethods("skippedTests")));
+    }
+
+    private static void restoreTrackedResultState(TrackedResultState state) throws Exception {
+        restoreTrackedMethods("passedTests", state.passedTests());
+        restoreTrackedMethods("failedTests", state.failedTests());
+        restoreTrackedMethods("skippedTests", state.skippedTests());
+    }
+
+    private static void restoreTrackedMethods(String fieldName, List<ITestNGMethod> methods) throws Exception {
+        List<ITestNGMethod> trackedMethods = getTrackedMethods(fieldName);
+        trackedMethods.clear();
+        trackedMethods.addAll(methods);
+    }
+
+    private record TrackedResultState(List<ITestNGMethod> passedTests, List<ITestNGMethod> failedTests,
+                                      List<ITestNGMethod> skippedTests) {
     }
 
     private static ITestResult createTestResult(String methodName, Throwable throwable) {
