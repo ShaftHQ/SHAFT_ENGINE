@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "scripts/ci/validate_modular_documentation.py": {
-    "mtime": 1782224465.769836,
-    "ast_hash": "70c3a2403cb931b20d810a6da7c0c0b1",
+    "mtime": 1782225215.0345619,
+    "ast_hash": "8ba85959f817c99fd1e48482568bef6c",
     "semantic_hash": ""
   },
   "scripts/ci/validate_quality_configuration.py": {
