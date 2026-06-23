@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>shaft-parent</artifactId>
-    <version>10.2.20260622</version>
+    <version>10.2.20260623</version>
     <packaging>pom</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Build parent and reactor aggregator for SHAFT modules.</description>
