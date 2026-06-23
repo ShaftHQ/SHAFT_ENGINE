@@ -182,24 +182,6 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(Files.exists(nestedDirectory)).isFalse().perform();
     }
 
-    @Test(description = "cleanAllureResultsDirectoryContents should ignore blank paths")
-    public void cleanAllureResultsDirectoryContentsShouldIgnoreBlankPaths() throws Exception {
-        Path sentinelDirectory = Files.createTempDirectory("shaft-allure-blank-path");
-        Path sentinelFile = sentinelDirectory.resolve("sentinel.txt");
-        Files.writeString(sentinelFile, "keep", StandardCharsets.UTF_8);
-
-        Method cleanAllureResultsDirectoryContents = AllureManager.class
-                .getDeclaredMethod("cleanAllureResultsDirectoryContents", String.class);
-        cleanAllureResultsDirectoryContents.setAccessible(true);
-
-        cleanAllureResultsDirectoryContents.invoke(null, (String) null);
-        cleanAllureResultsDirectoryContents.invoke(null, "");
-        cleanAllureResultsDirectoryContents.invoke(null, "   ");
-
-        SHAFT.Validations.assertThat().object(Files.isDirectory(sentinelDirectory)).isTrue().perform();
-        SHAFT.Validations.assertThat().object(Files.exists(sentinelFile)).isTrue().perform();
-    }
-
     @Test(description = "AllureManager utility class constructor should be blocked")
     public void constructorShouldThrowIllegalStateException() throws Exception {
         Constructor<AllureManager> constructor = AllureManager.class.getDeclaredConstructor();

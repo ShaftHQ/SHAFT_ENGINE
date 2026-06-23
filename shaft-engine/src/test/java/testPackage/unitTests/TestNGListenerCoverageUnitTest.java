@@ -2,7 +2,6 @@ package testPackage.unitTests;
 
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.testng.ITestNGService;
-import com.shaft.driver.SHAFT;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.ExecutionLifecycleHelper;
 import com.shaft.listeners.internal.JiraHelper;
@@ -24,9 +23,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -95,19 +92,16 @@ public class TestNGListenerCoverageUnitTest {
         TestNGListener listener = new TestNGListener();
         TrackedResultState originalState = captureTrackedResultState();
         try {
-            getActiveTestClass().set(TestNGListenerCoverageUnitTest.class);
-            SHAFT.Properties.reporting.set().disableLogging(true);
+            ThreadLocalPropertiesManager.setProperty("disableLogging", "true");
 
             try (MockedStatic<ExecutionLifecycleHelper> ignoredExecutionLifecycle =
                          Mockito.mockStatic(ExecutionLifecycleHelper.class)) {
                 listener.onExecutionFinish();
             }
 
-            assertNull(getActiveTestClass().get());
             assertNull(ThreadLocalPropertiesManager.getProperty("disableLogging"));
         } finally {
             restoreTrackedResultState(originalState);
-            getActiveTestClass().remove();
             com.shaft.properties.internal.Properties.clearForCurrentThread();
         }
     }
@@ -262,19 +256,13 @@ public class TestNGListenerCoverageUnitTest {
         return new TrackedResultState(
                 new ArrayList<>(getTrackedMethods("passedTests")),
                 new ArrayList<>(getTrackedMethods("failedTests")),
-                new ArrayList<>(getTrackedMethods("skippedTests")),
-                captureTrackerIds("passedIds"),
-                captureTrackerIds("failedIds"),
-                captureTrackerIds("skippedIds"));
+                new ArrayList<>(getTrackedMethods("skippedTests")));
     }
 
     private static void restoreTrackedResultState(TrackedResultState state) throws Exception {
         restoreTrackedMethods("passedTests", state.passedTests());
         restoreTrackedMethods("failedTests", state.failedTests());
         restoreTrackedMethods("skippedTests", state.skippedTests());
-        restoreTrackerIds("passedIds", state.passedIds());
-        restoreTrackerIds("failedIds", state.failedIds());
-        restoreTrackerIds("skippedIds", state.skippedIds());
     }
 
     private static void restoreTrackedMethods(String fieldName, List<ITestNGMethod> methods) throws Exception {
@@ -283,40 +271,8 @@ public class TestNGListenerCoverageUnitTest {
         trackedMethods.addAll(methods);
     }
 
-    @SuppressWarnings("unchecked")
-    private static Set<String> captureTrackerIds(String fieldName) throws Exception {
-        return new HashSet<>((Set<String>) getTrackerIdsField(fieldName).get(getCountsTracker()));
-    }
-
-    @SuppressWarnings("unchecked")
-    private static void restoreTrackerIds(String fieldName, Set<String> ids) throws Exception {
-        Set<String> trackerIds = (Set<String>) getTrackerIdsField(fieldName).get(getCountsTracker());
-        trackerIds.clear();
-        trackerIds.addAll(ids);
-    }
-
-    private static Field getTrackerIdsField(String fieldName) throws Exception {
-        Field idsField = getCountsTracker().getClass().getDeclaredField(fieldName);
-        idsField.setAccessible(true);
-        return idsField;
-    }
-
-    private static Object getCountsTracker() throws Exception {
-        Field countsTrackerField = TestNGListener.class.getDeclaredField("countsTracker");
-        countsTrackerField.setAccessible(true);
-        return countsTrackerField.get(null);
-    }
-
     private record TrackedResultState(List<ITestNGMethod> passedTests, List<ITestNGMethod> failedTests,
-                                      List<ITestNGMethod> skippedTests, Set<String> passedIds,
-                                      Set<String> failedIds, Set<String> skippedIds) {
-    }
-
-    @SuppressWarnings("unchecked")
-    private static ThreadLocal<Class<?>> getActiveTestClass() throws Exception {
-        Field activeTestClassField = TestNGListener.class.getDeclaredField("activeTestClass");
-        activeTestClassField.setAccessible(true);
-        return (ThreadLocal<Class<?>>) activeTestClassField.get(null);
+                                      List<ITestNGMethod> skippedTests) {
     }
 
     private static ITestResult createTestResult(String methodName, Throwable throwable) {

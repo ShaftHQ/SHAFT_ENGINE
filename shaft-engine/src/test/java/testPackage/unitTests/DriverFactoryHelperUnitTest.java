@@ -77,7 +77,7 @@ public class DriverFactoryHelperUnitTest {
     }
 
     @Test(description = "closeDriver should clear the current thread target hub URL even when no driver is attached")
-    public void closeDriver_clearsTargetHubUrlWhenDriverIsNull() throws Exception {
+    public void closeDriverClearsTargetHubUrlWhenDriverIsNull() throws Exception {
         savedExecutionAddress = SHAFT.Properties.platform.executionAddress();
         SHAFT.Properties.platform.set().executionAddress("http://localhost:4444");
         DriverFactoryHelper.initializeSystemProperties();

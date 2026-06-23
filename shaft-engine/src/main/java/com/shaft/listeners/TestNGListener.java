@@ -64,7 +64,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static final List<ITestNGMethod> passedTests = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestNGMethod> failedTests = Collections.synchronizedList(new ArrayList<>());
     private static final List<ITestNGMethod> skippedTests = Collections.synchronizedList(new ArrayList<>());
-    private static final ExecutionCountsTracker countsTracker = new ExecutionCountsTracker();
     // ReportPortal
     private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
     /** Tracks the test class currently active on each thread to detect class boundaries. */
@@ -354,10 +353,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     }
 
     private static TestExecutionCounts getDeduplicatedTestExecutionCounts() {
-        ExecutionCountsTracker.Counts counts = countsTracker.snapshot();
-        if (counts.finalPassed() + counts.failed() + counts.skipped() > 0) {
-            return new TestExecutionCounts(counts.passed(), counts.failed(), counts.skipped(), counts.flaky());
-        }
         return getDeduplicatedTestExecutionCounts(passedTests, failedTests, skippedTests);
     }
 
@@ -371,7 +366,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         synchronized (skippedTests) {
             skippedTests.clear();
         }
-        countsTracker.clear();
     }
 
     private static void resetThreadLocalLifecycleState(boolean clearProperties) {
@@ -415,7 +409,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestSuccess(ITestResult testResult) {
         passedTests.add(testResult.getMethod());
-        countsTracker.recordPassed(toTestExecutionInfo(testResult));
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), "",
                 ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
@@ -425,7 +418,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestFailure(ITestResult testResult) {
         failedTests.add(testResult.getMethod());
-        countsTracker.recordFailed(toTestExecutionInfo(testResult));
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), testResult.getThrowable().getMessage(),
                 ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.getIssueAnnotationValue(testResult));
@@ -436,7 +428,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestSkipped(ITestResult testResult) {
         skippedTests.add(testResult.getMethod());
-        countsTracker.recordSkipped(toTestExecutionInfo(testResult));
         String throwableMessage = testResult.getThrowable() != null ? testResult.getThrowable().getMessage() : "";
         ExecutionSummaryReport.casesDetailsIncrement(TestNGListenerHelper.getTmsLinkAnnotationValue(testResult), testResult.getMethod().getQualifiedName().replace("." + testResult.getMethod().getMethodName(), ""),
                 testResult.getMethod().getMethodName(), testResult.getMethod().getDescription(), throwableMessage,
