@@ -204,6 +204,12 @@ jobs:
               await github.rest.issues.create({ owner, repo, title, body: reportBody, labels });
             }
 
+      - name: Detect changed files for link audit
+        if: steps.lychee.outputs.exit_code != '0' && github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          git diff --name-only "origin/${{ github.base_ref }}" HEAD > changed-files.txt
+
       - name: Fail changed-file link audit
         if: steps.lychee.outputs.exit_code != '0' && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
         run: |
@@ -212,12 +218,33 @@ jobs:
 
           report = Path("lychee/out.md").read_text(encoding="utf-8", errors="replace")
           errors = report.split("## Errors per input", 1)[-1].split("## Redirects per input", 1)[0]
-          error_lines = [line for line in errors.splitlines() if line.startswith("* ")]
+          changed_files = None
+          changed_files_path = Path("changed-files.txt")
+          if changed_files_path.is_file():
+              changed_files = {
+                  line.strip()
+                  for line in changed_files_path.read_text(encoding="utf-8").splitlines()
+                  if line.strip()
+              }
+
+          current_input = None
+          error_lines = []
+          for line in errors.splitlines():
+              if line.startswith("### Errors in "):
+                  current_input = line.removeprefix("### Errors in ").strip()
+              elif line.startswith("* "):
+                  if changed_files is None or current_input in changed_files:
+                      error_lines.append(line)
+
           transient_markers = ("Network error:", "Connection reset by peer", "operation timed out")
           non_transient = [
               line for line in error_lines
               if not any(marker in line for marker in transient_markers)
           ]
+
+          if changed_files is not None and not error_lines:
+              print("::warning::Broken links were detected only outside changed files.")
+              raise SystemExit(0)
 
           if error_lines and not non_transient:
               print("::warning::Only transient network link errors were detected.")
