@@ -98,7 +98,7 @@ SUPPORTED_STACK_MARKERS = {
         "io.appium.java_client.",
     ),
     "rest-assured": (
-        "io.rest-assured:rest-assured",
+        "io.rest-assured:",
         "io.restassured.",
     ),
 }
@@ -114,9 +114,11 @@ SUPPORTED_RUNNER_MARKERS = {
     ),
     "junit": (
         "org.junit.jupiter:",
+        "org.junit.platform:",
         "org.junit:",
         "junit:junit",
         "org.junit.jupiter.",
+        "org.junit.platform.",
         "org.junit.",
     ),
 }
@@ -171,9 +173,8 @@ OPTIONAL_PATTERNS: dict[str, tuple[tuple[str, re.Pattern[str]], ...]] = {
         (
             "BrowserStack SDK property",
             re.compile(
-                r"(?:SHAFT\.Properties\.browserStack\b|browserStack\.|"
-                r"(?:platformsList|parallelsPerPlatform|"
-                r"browserstackAutomation|customBrowserStackYmlPath))"
+                r"(?:(?:SHAFT\.Properties\.browserStack(?:\.set\(\))?\s*\.\s*|browserStack\.)?"
+                r"(?:platformsList|parallelsPerPlatform|browserstackAutomation|customBrowserStackYmlPath))"
             ),
         ),
         (
@@ -518,7 +519,7 @@ def coordinates_have_supported_stack(coordinates: set[str]) -> bool:
         any(coordinate.startswith("io.cucumber:") for coordinate in coordinates)
         or any(coordinate.startswith("org.seleniumhq.selenium:") for coordinate in coordinates)
         or "io.appium:java-client" in coordinates
-        or "io.rest-assured:rest-assured" in coordinates
+        or any(coordinate.startswith("io.rest-assured:") for coordinate in coordinates)
     )
 
 
@@ -529,6 +530,7 @@ def coordinates_have_supported_runner(coordinates: set[str]) -> bool:
         or coordinate == "org.testng:testng"
         or coordinate.startswith("org.junit:")
         or coordinate.startswith("org.junit.jupiter:")
+        or coordinate.startswith("org.junit.platform:")
         or coordinate == "junit:junit"
         for coordinate in coordinates
     )
@@ -595,7 +597,7 @@ def analyze_project(project_root: Path) -> ProjectAnalysis:
         for coordinates in pom_coordinates.values()
     )
     existing_modular_project = any(
-        any(f"{SHAFT_GROUP}:{artifact}" in coordinates for artifact in {ENGINE_ARTIFACT, *OPTIONAL_MODULES})
+        any(f"{SHAFT_GROUP}:{artifact}" in coordinates for artifact in {ENGINE_ARTIFACT, BOM_ARTIFACT, *OPTIONAL_MODULES})
         for coordinates in pom_coordinates.values()
     )
     stacks, runners, _ = detect_markers(project_root, all_poms)
@@ -609,7 +611,7 @@ def analyze_project(project_root: Path) -> ProjectAnalysis:
         )
         or (
             coordinates_have_supported_stack(coordinates)
-            and coordinates_have_supported_runner(coordinates)
+            and (coordinates_have_supported_runner(coordinates) or runners)
         )
     ]
 
@@ -751,7 +753,7 @@ def dependency_template(root: ET.Element) -> ET.Element | None:
         if local_name(dependency.tag) != "dependency":
             continue
         group, artifact = dependency_coordinate(dependency)
-        if group == SHAFT_GROUP and artifact in SHAFT_ARTIFACTS:
+        if group == SHAFT_GROUP and artifact in SHAFT_ARTIFACTS and artifact != BOM_ARTIFACT:
             return dependency
     return None
 
@@ -948,6 +950,11 @@ def validate_upgraded_poms(
             raise UpgradeError(f"{pom}: shaft-bom import must use ${{shaft.version}}.")
 
 
+def is_stable_release(version: str) -> bool:
+    """Return whether a Maven version is a stable release, not preview metadata."""
+    return bool(version) and not re.search(r"(?i)(?:[-.](?:alpha|beta|rc|m)\d*|snapshot)$", version)
+
+
 def metadata_release(xml_text: str) -> str:
     """Extract the latest release from Maven metadata."""
     try:
@@ -957,18 +964,20 @@ def metadata_release(xml_text: str) -> str:
     versioning = direct_child(root, "versioning")
     if versioning is None:
         raise UpgradeError("Maven metadata has no <versioning> section.")
-    release = child_text(versioning, "release") or child_text(versioning, "latest")
-    if not release:
-        versions = direct_child(versioning, "versions")
-        available = [
-            (child.text or "").strip()
-            for child in list(versions or [])
-            if local_name(child.tag) == "version" and (child.text or "").strip()
-        ]
-        release = available[-1] if available else ""
-    if not release or release.endswith("-SNAPSHOT"):
-        raise UpgradeError("No stable modular SHAFT release was found in Maven metadata.")
-    return release
+    versions = direct_child(versioning, "versions")
+    available = [
+        (child.text or "").strip()
+        for child in (list(versions) if versions is not None else [])
+        if local_name(child.tag) == "version" and (child.text or "").strip()
+    ]
+    for release in (
+        child_text(versioning, "release"),
+        child_text(versioning, "latest"),
+        *reversed(available),
+    ):
+        if is_stable_release(release):
+            return release
+    raise UpgradeError("No stable modular SHAFT release was found in Maven metadata.")
 
 
 def resolve_latest_shaft_version(
@@ -1060,6 +1069,9 @@ def run_command(command: Sequence[str], cwd: Path, timeout_seconds: int) -> Comm
 
 def extract_response_output_text(response: Mapping[str, object]) -> str:
     """Extract the assistant output text from a Responses API payload."""
+    output_text = response.get("output_text")
+    if isinstance(output_text, str):
+        return output_text
     for item in response.get("output", []):
         if not isinstance(item, Mapping) or item.get("type") != "message":
             continue

@@ -56,6 +56,18 @@ class UpgradeToModularShaftTests(unittest.TestCase):
         </versioning></metadata>"""
         self.assertEqual(upgrade.metadata_release(metadata), "1.9")
 
+    def test_metadata_release_falls_back_when_release_is_snapshot(self):
+        metadata = """<metadata><versioning><latest>2.1-SNAPSHOT</latest><release>2.1-SNAPSHOT</release>
+        <versions><version>2.0</version><version>2.1-SNAPSHOT</version></versions>
+        </versioning></metadata>"""
+        self.assertEqual(upgrade.metadata_release(metadata), "2.0")
+
+    def test_metadata_release_ignores_unstable_qualifiers(self):
+        metadata = """<metadata><versioning>
+        <versions><version>2.0</version><version>2.1-rc1</version><version>2.2-M1</version></versions>
+        </versioning></metadata>"""
+        self.assertEqual(upgrade.metadata_release(metadata), "2.0")
+
     def test_transform_replaces_legacy_dependency_and_imports_bom(self):
         transformed = upgrade.transform_pom_bytes(
             SIMPLE_POM.encode(),
@@ -273,7 +285,7 @@ class UpgradeToModularShaftTests(unittest.TestCase):
             java.write_text(
                 """class Demo {
                     void configure() {
-                        SHAFT.Properties.browserStack.set().deviceName("Pixel 9");
+                        SHAFT.Properties.browserStack.set().platformsList("[{}]");
                         SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
                     }
                 }""",
@@ -284,6 +296,24 @@ class UpgradeToModularShaftTests(unittest.TestCase):
 
         self.assertTrue(evidence["shaft-video"])
         self.assertTrue(evidence["shaft-browserstack"])
+
+    def test_direct_browserstack_settings_do_not_trigger_sdk_module(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "src/test/java/Demo.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """class Demo {
+                    void configure() {
+                        SHAFT.Properties.browserStack.set().deviceName("Pixel 9");
+                    }
+                }""",
+                encoding="utf-8",
+            )
+
+            evidence = upgrade.scan_optional_modules(root)
+
+        self.assertFalse(evidence["shaft-browserstack"])
 
     def test_all_supported_native_stack_and_runner_combinations_are_detected(self):
         stacks = {
@@ -340,6 +370,153 @@ class UpgradeToModularShaftTests(unittest.TestCase):
 
         self.assertEqual(analysis.stacks, ("selenium",))
         self.assertEqual(analysis.runners, ("junit",))
+
+    def test_rest_assured_family_coordinate_is_supported(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>api</artifactId><version>1</version>
+                <dependencies>
+                  <dependency><groupId>io.rest-assured</groupId>
+                    <artifactId>json-schema-validator</artifactId><version>1</version></dependency>
+                  <dependency><groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(analysis.stacks, ("rest-assured",))
+        self.assertEqual(analysis.runners, ("testng",))
+
+    def test_bom_only_modular_project_is_supported(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>modular</artifactId><version>1</version>
+                <dependencyManagement><dependencies>
+                  <dependency><groupId>io.github.shafthq</groupId>
+                    <artifactId>shaft-bom</artifactId><version>10.2.20260623</version>
+                    <type>pom</type><scope>import</scope></dependency>
+                </dependencies></dependencyManagement>
+                </project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertTrue(analysis.existing_modular_project)
+
+    def test_native_child_pom_inherits_runner_detection_from_parent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>parent</artifactId><version>1</version>
+                <packaging>pom</packaging>
+                <modules><module>web-tests</module></modules>
+                <dependencies>
+                  <dependency><groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+            child = root / "web-tests"
+            child.mkdir()
+            (child / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <parent><groupId>example</groupId><artifactId>parent</artifactId><version>1</version></parent>
+                <artifactId>web-tests</artifactId>
+                <dependencies>
+                  <dependency><groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-java</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(
+            [pom.relative_to(root).as_posix() for pom in analysis.candidate_poms],
+            ["web-tests/pom.xml"],
+        )
+
+    def test_native_child_with_junit_platform_coordinate_is_candidate(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>parent</artifactId><version>1</version>
+                <packaging>pom</packaging>
+                <modules><module>web-tests</module></modules></project>""",
+                encoding="utf-8",
+            )
+            child = root / "web-tests"
+            child.mkdir()
+            (child / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <parent><groupId>example</groupId><artifactId>parent</artifactId><version>1</version></parent>
+                <artifactId>web-tests</artifactId>
+                <dependencies>
+                  <dependency><groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-java</artifactId><version>1</version></dependency>
+                  <dependency><groupId>org.junit.platform</groupId>
+                    <artifactId>junit-platform-suite-api</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(
+            [pom.relative_to(root).as_posix() for pom in analysis.candidate_poms],
+            ["web-tests/pom.xml"],
+        )
+
+    def test_native_rest_assured_family_child_inherits_runner_from_parent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>parent</artifactId><version>1</version>
+                <packaging>pom</packaging>
+                <modules><module>api-tests</module></modules>
+                <dependencies>
+                  <dependency><groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+            child = root / "api-tests"
+            child.mkdir()
+            (child / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <parent><groupId>example</groupId><artifactId>parent</artifactId><version>1</version></parent>
+                <artifactId>api-tests</artifactId>
+                <dependencies>
+                  <dependency><groupId>io.rest-assured</groupId>
+                    <artifactId>json-schema-validator</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(
+            [pom.relative_to(root).as_posix() for pom in analysis.candidate_poms],
+            ["api-tests/pom.xml"],
+        )
 
     def test_cucumber_project_is_supported(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -403,6 +580,36 @@ class UpgradeToModularShaftTests(unittest.TestCase):
             analysis = upgrade.analyze_project(root)
 
         self.assertEqual(analysis.optional_modules, ())
+
+    def test_transform_does_not_copy_bom_import_metadata_to_engine_dependency(self):
+        pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>example</groupId>
+            <artifactId>demo</artifactId>
+            <version>1.0.0</version>
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.shafthq</groupId>
+                    <artifactId>shaft-bom</artifactId>
+                    <version>10.2.20260623</version>
+                    <type>pom</type>
+                    <scope>import</scope>
+                </dependency>
+            </dependencies>
+        </project>
+        """
+
+        transformed = upgrade.transform_pom_bytes(pom.encode(), "10.2.20260623", ())
+        root = upgrade.parse_xml(transformed)
+        dependencies = upgrade.direct_child(root, "dependencies")
+        engine = next(
+            dependency
+            for dependency in dependencies
+            if upgrade.child_text(dependency, "artifactId") == "shaft-engine"
+        )
+
+        self.assertEqual(upgrade.child_text(engine, "type"), "")
+        self.assertEqual(upgrade.child_text(engine, "scope"), "")
 
     def test_failed_compile_restores_original_pom(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -575,6 +782,10 @@ class UpgradeToModularShaftTests(unittest.TestCase):
                 }
             ]
         }
+        self.assertIn('"summary": "ok"', upgrade.extract_response_output_text(payload))
+
+    def test_extract_response_output_text_reads_top_level_text(self):
+        payload = {"output_text": json.dumps({"summary": "ok", "changes": []})}
         self.assertIn('"summary": "ok"', upgrade.extract_response_output_text(payload))
 
     def test_file_transaction_restores_created_and_existing_files(self):
