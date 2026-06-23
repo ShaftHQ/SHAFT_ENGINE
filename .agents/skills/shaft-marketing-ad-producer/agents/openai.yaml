@@ -1,0 +1,6 @@
+interface:
+  display_name: "SHAFT Marketing Ad Producer"
+  short_description: "Plan and produce reusable SHAFT ads"
+  default_prompt: "Use $shaft-marketing-ad-producer to plan and produce this SHAFT marketing ad."
+policy:
+  allow_implicit_invocation: true
