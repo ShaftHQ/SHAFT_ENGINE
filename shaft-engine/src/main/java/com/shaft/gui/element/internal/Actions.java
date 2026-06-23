@@ -357,10 +357,10 @@ public class Actions extends ElementActions {
 
     /**
      * Waits until the given condition returns {@code true}, using the framework's default
-     * element-identification timeout multiplied by ten seconds.
+     * UI state timeout.
      *
-     * <p>Delegates to {@link #waitUntil(Function, Duration)} with a computed timeout derived
-     * from {@code SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()}.
+     * <p>Delegates to {@link #waitUntil(Function, Duration)} with a timeout derived from
+     * {@code SHAFT.Properties.timeouts.waitForUiStateTimeout()}.
      *
      * <pre>{@code
      * driver.element().waitUntil(ExpectedConditions.titleContains("Dashboard"));
@@ -370,7 +370,7 @@ public class Actions extends ElementActions {
      * @return this {@code Actions} instance for fluent chaining
      */
     public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue) {
-        return waitUntil(isTrue, Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout()) * 10));
+        return waitUntil(isTrue, Duration.ofSeconds(SHAFT.Properties.timeouts.waitForUiStateTimeout()));
     }
 
     /**

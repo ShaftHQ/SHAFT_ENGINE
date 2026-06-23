@@ -2,6 +2,7 @@ package com.shaft.gui.element.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.image.ImageProcessingActions;
@@ -32,6 +33,7 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebElement;
+import org.openqa.selenium.support.ui.FluentWait;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.testng.Assert;
@@ -43,6 +45,7 @@ import java.awt.Color;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -341,9 +344,18 @@ public class ActionsCoverageUnitTest {
     @Test
     public void constructorsAndDefaultWaitUntilShouldCoverConveniencePaths() {
         WebDriver driver = mock(WebDriver.class);
-        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+        @SuppressWarnings("unchecked")
+        FluentWait<WebDriver> wait = mock(FluentWait.class);
+        when(wait.withTimeout(any(Duration.class))).thenReturn(wait);
+        when(wait.until(any())).thenReturn(true);
+
+        SHAFT.Properties.timeouts.set().waitForUiStateTimeout(7);
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedConstruction<SynchronizationManager> ignoredWait = org.mockito.Mockito.mockConstruction(SynchronizationManager.class,
+                     (manager, context) -> when(manager.fluentWait()).thenReturn(wait))) {
             Actions silentActions = new Actions(driver, true);
             Assert.assertSame(silentActions.waitUntil(d -> true), silentActions);
+            verify(wait).withTimeout(Duration.ofSeconds(7));
         }
     }
 
