@@ -153,31 +153,41 @@ git commit -m "test: harden doctor healed locator workspace paths"
 
 - [ ] **Step 1: Write focused policy regressions**
 
-Add tests that assert `McpWorkspacePolicy` rejects blank allowlist entries, missing output ancestors, and symlink escapes when the platform supports symbolic links.
+Add tests that assert `McpWorkspacePolicy` rejects blank allowlist entries and symlink escapes. Missing output parents inside the workspace remain valid because the policy only requires the nearest existing ancestor to resolve inside the workspace.
 
 ```java
 @Test
-void workspacePolicyRejectsBlankAllowlistAndMissingOutputAncestor() throws Exception {
+void workspacePolicyRejectsBlankAllowlistAndSymlinkEscapes() throws Exception {
     Path root = Files.createDirectories(temp.resolve("workspace"));
     Path repository = Files.createDirectories(root.resolve("repo"));
+    Path outside = Files.createDirectories(temp.resolve("outside"));
+    Path secret = Files.writeString(outside.resolve("secret.txt"), "secret");
+    Path link = root.resolve("link");
     McpWorkspacePolicy policy = McpWorkspacePolicy.of(root);
 
     assertThrows(IllegalArgumentException.class,
             () -> policy.sourceAllowlist(repository, List.of(" ")));
-    assertThrows(IllegalArgumentException.class,
-            () -> policy.output(root.resolve("missing-parent/report.json").toString(), "Report"));
+    assertEquals(root.resolve("repo/out/report.json").toAbsolutePath().normalize(),
+            policy.output("repo/out/report.json", "Report").toAbsolutePath().normalize());
+    try {
+        Files.createSymbolicLink(link, outside);
+    } catch (UnsupportedOperationException | IOException exception) {
+        return;
+    }
+    assertThrows(IllegalArgumentException.class, () -> policy.existing("link/secret.txt", "Evidence"));
+    assertThrows(IllegalArgumentException.class, () -> policy.output("link/report.txt", "Report"));
 }
 ```
 
-- [ ] **Step 2: Run RED, then keep or minimally adjust policy**
+- [ ] **Step 2: Run focused policy coverage**
 
 Run:
 
 ```powershell
-mvn -pl shaft-mcp -Dtest=McpResultRecordsTest#workspacePolicyRejectsBlankAllowlistAndMissingOutputAncestor test
+mvn -pl shaft-mcp -Dtest=McpResultRecordsTest#workspacePolicyRejectsBlankAllowlistAndSymlinkEscapes test
 ```
 
-Expected: If it passes, keep the test as coverage and do not change production code. If it fails because missing ancestors are accepted, update only `McpWorkspacePolicy.output(...)` to preserve the documented nearest-existing-ancestor rule.
+Expected: PASS with existing policy. If symlink creation is unsupported, the test returns after covering blank allowlist and missing-parent output behavior.
 
 - [ ] **Step 3: Commit Task 2**
 
