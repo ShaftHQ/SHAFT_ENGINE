@@ -59,6 +59,36 @@ MAX_AI_FILE_CHARS = 80_000
 MAX_AI_CHANGE_CHARS = 500_000
 MAVEN_NAMESPACE = "http://maven.apache.org/POM/4.0.0"
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
+UPGRADE_TYPES = ("basic", "session", "full")
+SOURCE_UPGRADE_TYPES = {"session", "full"}
+SOURCE_UPGRADE_STACKS = {"selenium", "appium"}
+SELENIUM_APPIUM_DRIVER_TYPES = (
+    "ChromeDriver",
+    "FirefoxDriver",
+    "EdgeDriver",
+    "SafariDriver",
+    "RemoteWebDriver",
+    "AndroidDriver",
+    "IOSDriver",
+    "AppiumDriver",
+)
+DRIVER_TYPE_PATTERN = "|".join(re.escape(driver_type) for driver_type in SELENIUM_APPIUM_DRIVER_TYPES)
+DRIVER_CONSTRUCTOR_PATTERN = re.compile(
+    rf"new\s+(?P<driver>{DRIVER_TYPE_PATTERN})\s*\((?P<args>[^;\n]*)\)"
+)
+WEBDRIVER_DECLARATION_PATTERNS = (
+    re.compile(r"(?<![\w.])WebDriver(?=\s+[A-Za-z_$][\w$]*\s*(?:[=;,\)]|\())"),
+    re.compile(r"(?<![\w.])WebDriver(?=\s*[>,])"),
+    re.compile(r"\borg\.openqa\.selenium\.WebDriver\b"),
+)
+SHAFT_DRIVER_VARIABLE_PATTERN = re.compile(r"\bSHAFT\.GUI\.WebDriver\s+([A-Za-z_$][\w$]*)")
+UNSUPPORTED_FULL_UPGRADE_PATTERNS = (
+    ("WebElement variables need manual element/action migration", re.compile(r"\bWebElement\s+")),
+    ("findElements collection handling needs manual migration", re.compile(r"\.findElements\s*\(")),
+    ("JavascriptExecutor calls need manual migration", re.compile(r"\bJavascriptExecutor\b|\.executeScript\s*\(")),
+    ("Selenium Actions chains need manual migration", re.compile(r"\bnew\s+Actions\s*\(")),
+    ("explicit Selenium waits need manual migration", re.compile(r"\bWebDriverWait\b|ExpectedConditions\s*\.")),
+)
 
 IGNORED_DIRECTORIES = {
     ".git",
@@ -249,6 +279,20 @@ class ProjectAnalysis:
 
 
 @dataclasses.dataclass(frozen=True)
+class SourceMigration:
+    """Source-file rewrites prepared for session or full upgrades."""
+
+    transformed_files: Mapping[Path, str] = dataclasses.field(default_factory=dict)
+    changes_by_file: Mapping[Path, tuple[str, ...]] = dataclasses.field(default_factory=dict)
+    unsupported_by_file: Mapping[Path, tuple[str, ...]] = dataclasses.field(default_factory=dict)
+
+    @property
+    def changed_files(self) -> tuple[Path, ...]:
+        """Return source files whose contents should be replaced."""
+        return tuple(self.transformed_files)
+
+
+@dataclasses.dataclass(frozen=True)
 class UpgradeExecution:
     """Final transaction outcome."""
 
@@ -257,6 +301,8 @@ class UpgradeExecution:
     compile_attempts: int
     ai_attempts: int
     final_result: CommandResult
+    upgrade_type: str = "basic"
+    source_migration: SourceMigration = dataclasses.field(default_factory=SourceMigration)
 
 
 @dataclasses.dataclass
@@ -1201,6 +1247,264 @@ def format_diff(path: Path, before: bytes, after: bytes, project_root: Path) -> 
     )
 
 
+def source_upgrade_supported(analysis: ProjectAnalysis) -> bool:
+    """Return whether source rewrites are eligible for this project."""
+    return bool(SOURCE_UPGRADE_STACKS.intersection(analysis.stacks))
+
+
+def validate_upgrade_type(analysis: ProjectAnalysis, upgrade_type: str) -> None:
+    """Validate the requested upgrade type against the detected project shape."""
+    if upgrade_type not in UPGRADE_TYPES:
+        raise UpgradeError(f"Unsupported upgrade type: {upgrade_type}.")
+    if upgrade_type in SOURCE_UPGRADE_TYPES and not source_upgrade_supported(analysis):
+        detected = ", ".join(analysis.stacks) if analysis.stacks else "none"
+        raise UpgradeError(
+            f"{upgrade_type.capitalize()} upgrade requires a Selenium/Appium project. "
+            f"Detected stacks: {detected}."
+        )
+
+
+def agent_upgrade_plan(
+    analysis: ProjectAnalysis,
+    version: str,
+    script_path: str = "shaft-upgrader/upgrade_to_modular_shaft.py",
+) -> dict[str, object]:
+    """Return a machine-readable upgrade menu for AI agents."""
+    source_eligible = source_upgrade_supported(analysis)
+    source_reason = (
+        "Selenium/Appium project detected."
+        if source_eligible
+        else "Requires a Selenium/Appium project; detected stacks: "
+        + (", ".join(analysis.stacks) if analysis.stacks else "none")
+        + "."
+    )
+
+    def command(upgrade_type: str) -> str:
+        return (
+            f"python {shlex.quote(script_path)} --project "
+            f"{shlex.quote(str(analysis.project_root))} --upgrade-type {upgrade_type} --yes"
+        )
+
+    return {
+        "schemaVersion": 1,
+        "project": str(analysis.project_root),
+        "shaftVersion": version,
+        "detected": {
+            "stacks": list(analysis.stacks),
+            "runners": list(analysis.runners),
+            "candidatePoms": [
+                str(path.relative_to(analysis.project_root)) for path in analysis.candidate_poms
+            ],
+            "optionalModules": list(analysis.optional_modules),
+        },
+        "upgradeTypes": [
+            {
+                "id": "basic",
+                "risk": "low",
+                "eligible": True,
+                "reason": "Supported Maven automation project detected.",
+                "description": (
+                    "Upgrade the POM to modular SHAFT, enable SHAFT for new tests, "
+                    "and preserve existing test source."
+                ),
+                "recommendedCommand": command("basic"),
+            },
+            {
+                "id": "session",
+                "risk": "medium",
+                "eligible": source_eligible,
+                "reason": source_reason,
+                "description": (
+                    "Run the basic upgrade, then wrap Selenium/Appium driver session "
+                    "creation with SHAFT.GUI.WebDriver."
+                ),
+                "recommendedCommand": command("session"),
+            },
+            {
+                "id": "full",
+                "risk": "high",
+                "eligible": source_eligible,
+                "reason": source_reason,
+                "description": (
+                    "Run the session upgrade, then replace simple Selenium browser "
+                    "and element actions with SHAFT engine calls."
+                ),
+                "manualFollowUp": "Element and browser assertions remain manual.",
+                "recommendedCommand": command("full"),
+            },
+        ],
+    }
+
+
+def ensure_shaft_import(text: str) -> str:
+    """Add the SHAFT import required by rewritten Java source."""
+    if "import com.shaft.driver.SHAFT;" in text:
+        return text
+    newline = "\r\n" if "\r\n" in text else "\n"
+    import_line = f"import com.shaft.driver.SHAFT;{newline}"
+    lines = text.splitlines(keepends=True)
+
+    last_import_index = -1
+    for index, line in enumerate(lines):
+        if line.strip().startswith("import "):
+            last_import_index = index
+    if last_import_index >= 0:
+        lines.insert(last_import_index + 1, import_line)
+        return "".join(lines)
+
+    for index, line in enumerate(lines):
+        if line.strip().startswith("package ") and line.strip().endswith(";"):
+            lines.insert(index + 1, import_line)
+            return "".join(lines)
+
+    return import_line + text
+
+
+def migrate_session_source(text: str) -> tuple[str, tuple[str, ...]]:
+    """Wrap basic Selenium/Appium driver construction with SHAFT's driver session."""
+    changes: list[str] = []
+    lines = text.splitlines(keepends=True)
+    migrated_lines: list[str] = []
+    declaration_count = 0
+    constructor_count = 0
+
+    for line in lines:
+        migrated = line
+        stripped = line.strip()
+        if not stripped.startswith("import "):
+            for pattern in WEBDRIVER_DECLARATION_PATTERNS:
+                migrated, count = pattern.subn("SHAFT.GUI.WebDriver", migrated)
+                declaration_count += count
+        if "new SHAFT.GUI.WebDriver(" not in migrated:
+            migrated, count = DRIVER_CONSTRUCTOR_PATTERN.subn(
+                lambda match: (
+                    f"new SHAFT.GUI.WebDriver(new {match.group('driver')}"
+                    f"({match.group('args')}))"
+                ),
+                migrated,
+            )
+            constructor_count += count
+        migrated_lines.append(migrated)
+
+    migrated_text = "".join(migrated_lines)
+    if declaration_count or constructor_count:
+        migrated_text = ensure_shaft_import(migrated_text)
+        changes.append("driver session")
+        close_count = 0
+        for variable in shaft_driver_variables(migrated_text):
+            migrated_text, count = re.subn(
+                rf"\b{re.escape(variable)}\.close\(\)",
+                f"{variable}.quit()",
+                migrated_text,
+            )
+            close_count += count
+        if close_count:
+            changes.append("driver termination")
+    return migrated_text, tuple(changes)
+
+
+def shaft_driver_variables(text: str) -> tuple[str, ...]:
+    """Return SHAFT driver variable names from rewritten Java source."""
+    return tuple(dict.fromkeys(SHAFT_DRIVER_VARIABLE_PATTERN.findall(text)))
+
+
+def migrate_full_source(text: str) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
+    """Replace simple Selenium actions with SHAFT engine action calls."""
+    changes: list[str] = []
+    migrated = text
+    driver_variables = shaft_driver_variables(migrated)
+
+    for variable in driver_variables:
+        variable_pattern = re.escape(variable)
+        replacements: tuple[tuple[str, re.Pattern[str], str], ...] = (
+            (
+                "browser navigation",
+                re.compile(rf"\b{variable_pattern}\.navigate\(\)\.to\((?P<url>[^;\n]+)\)"),
+                rf"{variable}.browser().navigateToURL(\g<url>)",
+            ),
+            (
+                "browser navigation",
+                re.compile(rf"\b{variable_pattern}\.get\((?P<url>[^;\n]+)\)"),
+                rf"{variable}.browser().navigateToURL(\g<url>)",
+            ),
+            (
+                "element type",
+                re.compile(
+                    rf"\b{variable_pattern}\.findElement\((?P<locator>[^;\n]+)\)"
+                    rf"\.sendKeys\((?P<text>[^;\n]*)\)"
+                ),
+                rf"{variable}.element().type(\g<locator>, \g<text>)",
+            ),
+            (
+                "element click",
+                re.compile(
+                    rf"\b{variable_pattern}\.findElement\((?P<locator>[^;\n]+)\)\.click\(\)"
+                ),
+                rf"{variable}.element().click(\g<locator>)",
+            ),
+            (
+                "element text",
+                re.compile(
+                    rf"\b{variable_pattern}\.findElement\((?P<locator>[^;\n]+)\)\.getText\(\)"
+                ),
+                rf"{variable}.element().get().text(\g<locator>)",
+            ),
+            (
+                "element visibility",
+                re.compile(
+                    rf"\b{variable_pattern}\.findElement\((?P<locator>[^;\n]+)\)"
+                    rf"\.isDisplayed\(\)"
+                ),
+                rf"{variable}.element().get().isDisplayed(\g<locator>)",
+            ),
+            (
+                "element attribute",
+                re.compile(
+                    rf"\b{variable_pattern}\.findElement\((?P<locator>[^;\n]+)\)"
+                    rf"\.getAttribute\((?P<name>[^;\n]+)\)"
+                ),
+                rf"{variable}.element().get().attribute(\g<locator>, \g<name>)",
+            ),
+        )
+        for label, pattern, replacement in replacements:
+            migrated, count = pattern.subn(replacement, migrated)
+            if count and label not in changes:
+                changes.append(label)
+
+    unsupported = tuple(
+        reason for reason, pattern in UNSUPPORTED_FULL_UPGRADE_PATTERNS if pattern.search(migrated)
+    )
+    return migrated, tuple(changes), unsupported
+
+
+def collect_source_migration(analysis: ProjectAnalysis, upgrade_type: str) -> SourceMigration:
+    """Prepare Java source changes for the requested upgrade type."""
+    validate_upgrade_type(analysis, upgrade_type)
+    if upgrade_type == "basic":
+        return SourceMigration()
+
+    transformed_files: dict[Path, str] = {}
+    changes_by_file: dict[Path, tuple[str, ...]] = {}
+    unsupported_by_file: dict[Path, tuple[str, ...]] = {}
+    for path in sorted(iter_scan_files(analysis.project_root), key=lambda item: str(item)):
+        if path.suffix.lower() != ".java":
+            continue
+        original = path.read_text(encoding="utf-8", errors="replace")
+        migrated, session_changes = migrate_session_source(original)
+        changes = list(session_changes)
+        unsupported: tuple[str, ...] = ()
+        if upgrade_type == "full":
+            migrated, full_changes, unsupported = migrate_full_source(migrated)
+            changes.extend(label for label in full_changes if label not in changes)
+        if migrated != original:
+            transformed_files[path] = migrated
+            changes_by_file[path] = tuple(changes)
+        if unsupported:
+            unsupported_by_file[path] = unsupported
+
+    return SourceMigration(transformed_files, changes_by_file, unsupported_by_file)
+
+
 def execute_upgrade_transaction(
     analysis: ProjectAnalysis,
     version: str,
@@ -1209,11 +1513,12 @@ def execute_upgrade_transaction(
     compile_runner: Callable[[Sequence[str], Path, int], CommandResult] = run_command,
     repair_client: OpenAIRepairClient | None = None,
     skip_baseline_compile: bool = False,
+    upgrade_type: str = "basic",
 ) -> UpgradeExecution:
     """Apply, compile, optionally repair, and commit or rollback the migration."""
+    source_migration = collect_source_migration(analysis, upgrade_type)
     compile_attempts = 0
     ai_attempts = 0
-    successful_result = CommandResult(tuple(compile_command), 0, "", "")
 
     if not skip_baseline_compile:
         log("Compiling the unchanged project to establish a valid baseline...")
@@ -1237,6 +1542,8 @@ def execute_upgrade_transaction(
     try:
         for pom, content in transformed.items():
             transaction.write_bytes(pom, content)
+        for source_file, content in source_migration.transformed_files.items():
+            transaction.write_text(source_file, content)
         validate_upgraded_poms(analysis.candidate_poms, version, analysis.optional_modules)
 
         log("Compiling the upgraded project...")
@@ -1244,11 +1551,27 @@ def execute_upgrade_transaction(
         compile_attempts += 1
         if result.returncode == 0:
             transaction.commit()
-            return UpgradeExecution(True, False, compile_attempts, ai_attempts, result)
+            return UpgradeExecution(
+                True,
+                False,
+                compile_attempts,
+                ai_attempts,
+                result,
+                upgrade_type,
+                source_migration,
+            )
 
         if repair_client is None:
             transaction.rollback()
-            return UpgradeExecution(False, True, compile_attempts, ai_attempts, result)
+            return UpgradeExecution(
+                False,
+                True,
+                compile_attempts,
+                ai_attempts,
+                result,
+                upgrade_type,
+                source_migration,
+            )
 
         for attempt in range(1, MAX_AI_REPAIR_ATTEMPTS + 1):
             ai_attempts += 1
@@ -1299,10 +1622,26 @@ def execute_upgrade_transaction(
                     analysis.optional_modules,
                 )
                 transaction.commit()
-                return UpgradeExecution(True, False, compile_attempts, ai_attempts, result)
+                return UpgradeExecution(
+                    True,
+                    False,
+                    compile_attempts,
+                    ai_attempts,
+                    result,
+                    upgrade_type,
+                    source_migration,
+                )
 
         transaction.rollback()
-        return UpgradeExecution(False, True, compile_attempts, ai_attempts, result)
+        return UpgradeExecution(
+            False,
+            True,
+            compile_attempts,
+            ai_attempts,
+            result,
+            upgrade_type,
+            source_migration,
+        )
     except BaseException:
         transaction.rollback()
         raise
@@ -1344,10 +1683,14 @@ def write_report(
     execution: UpgradeExecution,
 ) -> None:
     """Write an optional machine-readable migration report."""
+    def relative(path: Path) -> str:
+        return path.relative_to(analysis.project_root).as_posix()
+
     payload = {
         "schemaVersion": 1,
         "project": str(analysis.project_root),
         "shaftVersion": version,
+        "upgradeType": execution.upgrade_type,
         "legacyProject": analysis.legacy_project,
         "existingModularProject": analysis.existing_modular_project,
         "stacks": list(analysis.stacks),
@@ -1363,6 +1706,17 @@ def write_report(
         "rolledBack": execution.rolled_back,
         "compileAttempts": execution.compile_attempts,
         "aiAttempts": execution.ai_attempts,
+        "sourceMigration": {
+            "changedFiles": [relative(path) for path in execution.source_migration.changed_files],
+            "changesByFile": {
+                relative(path): list(items)
+                for path, items in execution.source_migration.changes_by_file.items()
+            },
+            "unsupportedByFile": {
+                relative(path): list(items)
+                for path, items in execution.source_migration.unsupported_by_file.items()
+            },
+        },
     }
     atomic_write(report_path.resolve(), (json.dumps(payload, indent=2) + "\n").encode("utf-8"))
 
@@ -1387,6 +1741,9 @@ def build_parser() -> argparse.ArgumentParser:
   python shaft-upgrader/upgrade_to_modular_shaft.py --project .
   python shaft-upgrader/upgrade_to_modular_shaft.py --project . --yes
   python shaft-upgrader/upgrade_to_modular_shaft.py --project . --dry-run
+  python shaft-upgrader/upgrade_to_modular_shaft.py --project . --agent-plan
+  python shaft-upgrader/upgrade_to_modular_shaft.py --project . --upgrade-type session --yes
+  python shaft-upgrader/upgrade_to_modular_shaft.py --project . --upgrade-type full --yes
   python shaft-upgrader/upgrade_to_modular_shaft.py --project . --shaft-version 10.2.20260609 --yes
 
 Optional AI repair:
@@ -1419,11 +1776,25 @@ Optional AI repair:
         help="Compilation timeout in seconds. Default: 900.",
     )
     parser.add_argument(
+        "--upgrade-type",
+        choices=UPGRADE_TYPES,
+        default="basic",
+        help=(
+            "Upgrade depth: basic updates POMs only; session also wraps Selenium/Appium "
+            "driver sessions; full also rewrites simple Selenium actions. Default: basic."
+        ),
+    )
+    parser.add_argument(
+        "--agent-plan",
+        action="store_true",
+        help="Print JSON describing the basic/session/full options for AI agents, then exit.",
+    )
+    parser.add_argument(
         "--skip-baseline-compile",
         action="store_true",
         help="Skip compilation before editing. Not recommended.",
     )
-    parser.add_argument("--dry-run", action="store_true", help="Print POM diffs without writing or compiling.")
+    parser.add_argument("--dry-run", action="store_true", help="Print diffs without writing or compiling.")
     parser.add_argument("--yes", action="store_true", help="Apply without interactive confirmation.")
     parser.add_argument(
         "--report",
@@ -1459,15 +1830,40 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         analysis = analyze_project(args.project)
         version = args.shaft_version or resolve_latest_shaft_version()
+        if args.agent_plan:
+            print(
+                json.dumps(
+                    agent_upgrade_plan(
+                        analysis,
+                        version,
+                        "shaft-upgrader/upgrade_to_modular_shaft.py",
+                    ),
+                    indent=2,
+                )
+            )
+            return 0
+
+        validate_upgrade_type(analysis, args.upgrade_type)
         print_analysis(analysis, version)
+        log(f"Upgrade type: {args.upgrade_type}")
 
         transformed = {
             pom: transform_pom_bytes(pom.read_bytes(), version, analysis.optional_modules)
             for pom in analysis.candidate_poms
         }
+        source_migration = collect_source_migration(analysis, args.upgrade_type)
         if args.dry_run:
             for pom, after in transformed.items():
                 print(format_diff(pom, pom.read_bytes(), after, analysis.project_root))
+            for source_file, after in source_migration.transformed_files.items():
+                print(
+                    format_diff(
+                        source_file,
+                        source_file.read_bytes(),
+                        after.encode("utf-8"),
+                        analysis.project_root,
+                    )
+                )
             return 0
 
         if not args.yes and not confirm_upgrade():
@@ -1498,6 +1894,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.compile_timeout,
             repair_client=repair_client,
             skip_baseline_compile=args.skip_baseline_compile,
+            upgrade_type=args.upgrade_type,
         )
         if args.report:
             write_report(args.report, analysis, version, execution)

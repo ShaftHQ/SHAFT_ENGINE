@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import sys
 import tempfile
@@ -26,6 +27,50 @@ SIMPLE_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
             <groupId>io.github.shafthq</groupId>
             <artifactId>SHAFT_ENGINE</artifactId>
             <version>9.3.20250928</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+"""
+
+SELENIUM_TESTNG_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>example</groupId>
+    <artifactId>selenium-demo</artifactId>
+    <version>1.0.0</version>
+    <dependencies>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.29.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.11.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+"""
+
+REST_ASSURED_TESTNG_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>example</groupId>
+    <artifactId>api-demo</artifactId>
+    <version>1.0.0</version>
+    <dependencies>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>5.5.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.11.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -610,6 +655,298 @@ class UpgradeToModularShaftTests(unittest.TestCase):
 
         self.assertEqual(upgrade.child_text(engine, "type"), "")
         self.assertEqual(upgrade.child_text(engine, "scope"), "")
+
+    def test_agent_plan_lists_three_upgrade_types_for_selenium_projects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+
+            plan = upgrade.agent_upgrade_plan(
+                analysis,
+                "10.2.20260623",
+                "shaft-upgrader/upgrade_to_modular_shaft.py",
+            )
+
+        options = plan["upgradeTypes"]
+        self.assertEqual([option["id"] for option in options], ["basic", "session", "full"])
+        self.assertEqual([option["risk"] for option in options], ["low", "medium", "high"])
+        self.assertTrue(options[0]["eligible"])
+        self.assertTrue(options[1]["eligible"])
+        self.assertTrue(options[2]["eligible"])
+        self.assertIn("--upgrade-type basic", options[0]["recommendedCommand"])
+        self.assertIn("--upgrade-type session", options[1]["recommendedCommand"])
+        self.assertIn("--upgrade-type full", options[2]["recommendedCommand"])
+
+    def test_agent_plan_marks_source_upgrades_ineligible_for_api_projects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(REST_ASSURED_TESTNG_POM, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+
+            plan = upgrade.agent_upgrade_plan(
+                analysis,
+                "10.2.20260623",
+                "shaft-upgrader/upgrade_to_modular_shaft.py",
+            )
+
+        options = {option["id"]: option for option in plan["upgradeTypes"]}
+        self.assertTrue(options["basic"]["eligible"])
+        self.assertFalse(options["session"]["eligible"])
+        self.assertFalse(options["full"]["eligible"])
+        self.assertIn("Selenium/Appium", options["session"]["reason"])
+
+    def test_agent_plan_cli_prints_json_without_running_upgrade(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            stdout = io.StringIO()
+
+            with mock.patch.object(sys, "stdout", stdout):
+                exit_code = upgrade.main(
+                    [
+                        "--project",
+                        str(root),
+                        "--shaft-version",
+                        "10.2.20260623",
+                        "--agent-plan",
+                    ]
+                )
+
+            payload = json.loads(stdout.getvalue())
+            pom_text = (root / "pom.xml").read_text(encoding="utf-8")
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["shaftVersion"], "10.2.20260623")
+        self.assertEqual([option["id"] for option in payload["upgradeTypes"]], ["basic", "session", "full"])
+        self.assertEqual(pom_text, SELENIUM_TESTNG_POM)
+
+    def test_session_upgrade_rewrites_driver_creation_transactionally(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = root / "pom.xml"
+            pom.write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DemoTest.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """package demo;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DemoTest {
+    private WebDriver driver;
+
+    void opens() {
+        driver = new ChromeDriver();
+        driver.close();
+    }
+}
+""",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="session",
+            )
+
+            updated = java.read_text(encoding="utf-8")
+            self.assertTrue(execution.succeeded)
+            self.assertEqual(execution.upgrade_type, "session")
+            self.assertIn("import com.shaft.driver.SHAFT;", updated)
+            self.assertIn("private SHAFT.GUI.WebDriver driver;", updated)
+            self.assertIn("driver = new SHAFT.GUI.WebDriver(new ChromeDriver());", updated)
+            self.assertIn("driver.quit();", updated)
+            self.assertNotIn("driver.close();", updated)
+            self.assertIn("<artifactId>shaft-engine</artifactId>", pom.read_text(encoding="utf-8"))
+
+    def test_session_upgrade_rewrites_driver_factory_types(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DriverFactory.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """package demo;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DriverFactory {
+    private static final ThreadLocal<WebDriver> DRIVER = new ThreadLocal<>();
+
+    static WebDriver createDriver() {
+        return new ChromeDriver();
+    }
+
+    static void setDriver(WebDriver driver) {
+        DRIVER.set(driver);
+    }
+}
+""",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+
+            upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="session",
+            )
+
+            updated = java.read_text(encoding="utf-8")
+            self.assertIn("ThreadLocal<SHAFT.GUI.WebDriver> DRIVER", updated)
+            self.assertIn("static SHAFT.GUI.WebDriver createDriver()", updated)
+            self.assertIn("return new SHAFT.GUI.WebDriver(new ChromeDriver());", updated)
+            self.assertIn("static void setDriver(SHAFT.GUI.WebDriver driver)", updated)
+
+    def test_full_upgrade_rewrites_simple_selenium_actions(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DemoTest.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """package demo;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DemoTest {
+    void login(String url, String nextUrl) {
+        WebDriver driver = new ChromeDriver();
+        driver.get(url);
+        driver.navigate().to(nextUrl);
+        driver.findElement(By.id("username")).sendKeys("demo");
+        driver.findElement(By.id("login")).click();
+        String message = driver.findElement(By.id("message")).getText();
+        boolean visible = driver.findElement(By.cssSelector(".toast")).isDisplayed();
+    }
+}
+""",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="full",
+            )
+
+            updated = java.read_text(encoding="utf-8")
+            self.assertTrue(execution.succeeded)
+            self.assertIn("SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver(new ChromeDriver());", updated)
+            self.assertIn("driver.browser().navigateToURL(url);", updated)
+            self.assertIn("driver.browser().navigateToURL(nextUrl);", updated)
+            self.assertIn('driver.element().type(By.id("username"), "demo");', updated)
+            self.assertIn('driver.element().click(By.id("login"));', updated)
+            self.assertIn('driver.element().get().text(By.id("message"));', updated)
+            self.assertIn('driver.element().get().isDisplayed(By.cssSelector(".toast"));', updated)
+            self.assertNotIn("driver.findElement(", updated)
+
+    def test_source_upgrade_rejects_non_selenium_appium_project(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(REST_ASSURED_TESTNG_POM, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+
+            with self.assertRaisesRegex(upgrade.UpgradeError, "Selenium/Appium"):
+                upgrade.execute_upgrade_transaction(
+                    analysis,
+                    "10.2.20260623",
+                    ("mvn", "test-compile"),
+                    30,
+                    compile_runner=lambda *_: command_result(0),
+                    upgrade_type="session",
+                )
+
+    def test_source_rewrites_roll_back_when_upgraded_compile_fails(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = root / "pom.xml"
+            pom.write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DemoTest.java"
+            java.parent.mkdir(parents=True)
+            original_java = """package demo;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DemoTest {
+    WebDriver driver = new ChromeDriver();
+}
+"""
+            java.write_text(original_java, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(1, "compile failure")))
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="session",
+            )
+
+            self.assertFalse(execution.succeeded)
+            self.assertTrue(execution.rolled_back)
+            self.assertEqual(pom.read_text(encoding="utf-8"), SELENIUM_TESTNG_POM)
+            self.assertEqual(java.read_text(encoding="utf-8"), original_java)
+
+    def test_report_includes_upgrade_type_and_source_migration(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(SELENIUM_TESTNG_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/DemoTest.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """package demo;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+
+class DemoTest {
+    WebDriver driver = new ChromeDriver();
+}
+""",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260623",
+                ("mvn", "test-compile"),
+                30,
+                compile_runner=lambda *_: next(results),
+                upgrade_type="session",
+            )
+            report = root / "upgrade-report.json"
+
+            upgrade.write_report(report, analysis, "10.2.20260623", execution)
+            payload = json.loads(report.read_text(encoding="utf-8"))
+
+        self.assertEqual(payload["upgradeType"], "session")
+        self.assertEqual(payload["sourceMigration"]["changedFiles"], ["src/test/java/demo/DemoTest.java"])
+        self.assertIn("driver session", payload["sourceMigration"]["changesByFile"]["src/test/java/demo/DemoTest.java"])
 
     def test_failed_compile_restores_original_pom(self):
         with tempfile.TemporaryDirectory() as temp_dir:
