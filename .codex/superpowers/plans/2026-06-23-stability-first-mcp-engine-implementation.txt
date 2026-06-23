@@ -1,0 +1,292 @@
+# Stability-First MCP and Engine Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Make the accepted stability-first design true in code, starting with MCP contract drift and workspace safety before broader runtime or installer changes.
+
+**Architecture:** Keep `shaft-engine` independent from `shaft-mcp`. Strengthen existing `shaft-mcp` tests and validators first; add production changes only where a failing stability test proves that a path-taking MCP service or contract invariant is not protected.
+
+**Tech Stack:** Java 25, Maven, JUnit 5, Spring AI MCP tool callbacks, Python validation scripts, existing SHAFT CI scripts.
+
+---
+
+## Files
+
+- Modify: `shaft-mcp/src/test/java/com/shaft/mcp/DoctorServiceTest.java`
+- Modify: `shaft-mcp/src/main/java/com/shaft/mcp/DoctorService.java`
+- Modify: `shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java`
+- Modify: `scripts/ci/validate_shaft_mcp_configuration.py`
+- Optional after evidence: `tests/scripts/test_install_shaft_mcp.py`
+- Optional after evidence: `shaft-engine/src/main/java/...`
+
+## Task 1: Harden Doctor Healed-Locator Workspace Paths
+
+**Files:**
+- Modify: `shaft-mcp/src/test/java/com/shaft/mcp/DoctorServiceTest.java`
+- Modify: `shaft-mcp/src/main/java/com/shaft/mcp/DoctorService.java`
+
+- [ ] **Step 1: Write the failing outside-workspace test**
+
+Add this test to `DoctorServiceTest`:
+
+```java
+@Test
+void proposeHealedLocatorRejectsRepositoryOutsideWorkspace(@TempDir Path temp) throws Exception {
+    Path workspace = Files.createDirectories(temp.resolve("workspace"));
+    Path outside = Files.createDirectories(temp.resolve("outside"));
+    Path source = Files.createDirectories(outside.resolve("src/test/java/example"))
+            .resolve("LoginTest.java");
+    Files.writeString(source, """
+            package example;
+
+            class LoginTest {
+                void login() {
+                    driver.element().click(By.id("old-login"));
+                }
+            }
+            """, StandardCharsets.UTF_8);
+    Path report = Files.writeString(workspace.resolve("healing-report.json"), """
+            {
+              "schemaVersion": "1.0",
+              "suiteId": "suite",
+              "testId": "test",
+              "failedLocator": "By.id(\\"old-login\\")",
+              "candidates": [{
+                "id": "candidate-1",
+                "locator": "By.id(\\"new-login\\")",
+                "score": 0.94,
+                "evidence": ["test-id exact match"],
+                "unique": true,
+                "contextMatched": true
+              }],
+              "decision": {"status": "RECOVERED", "selectedCandidateId": "candidate-1", "confidence": 0.94},
+              "action": {"outcome": "PASSED", "postActionVerification": "ELEMENT_INTERACTABLE"}
+            }
+            """, StandardCharsets.UTF_8);
+
+    IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+            () -> service(workspace).proposeHealedLocator(
+                    outside.toString(),
+                    report.toString(),
+                    "src/test/java/example/LoginTest.java",
+                    true,
+                    "target/proposals"));
+
+    assertTrue(failure.getMessage().contains("Repository root is outside the MCP workspace"));
+}
+```
+
+- [ ] **Step 2: Run the focused test and verify RED**
+
+Run:
+
+```powershell
+mvn -pl shaft-mcp -Dtest=DoctorServiceTest#proposeHealedLocatorRejectsRepositoryOutsideWorkspace test
+```
+
+Expected: FAIL because `DoctorService.proposeHealedLocator(...)` currently uses raw `Path.of(repositoryRoot)`.
+
+- [ ] **Step 3: Route healed-locator paths through `McpWorkspacePolicy`**
+
+Replace `DoctorService.proposeHealedLocator(...)` with:
+
+```java
+@Tool(name = "doctor_propose_healed_locator",
+        description = "maps a verified SHAFT Heal report to one reviewable locator patch"
+                + " without editing source or publishing")
+public HealingLocatorProposal proposeHealedLocator(
+        String repositoryRoot,
+        String healingReportPath,
+        String sourcePath,
+        boolean sourcePatchConsent,
+        String outputDirectory) {
+    Path repository = workspacePolicy.existing(repositoryRoot, "Repository root");
+    Path healingReport = workspacePolicy.existing(healingReportPath, "Healing report path");
+    String approvedSourcePath = workspacePolicy.sourceAllowlist(repository, List.of(sourcePath)).getFirst();
+    Path output = outputDirectory == null || outputDirectory.isBlank()
+            ? workspacePolicy.output("target/shaft-doctor/healing-proposals", "Doctor healing proposal output directory")
+            : workspacePolicy.output(outputDirectory, "Doctor healing proposal output directory");
+    return new HealingLocatorProposalService().propose(new HealingLocatorProposalRequest(
+            repository,
+            healingReport,
+            approvedSourcePath,
+            sourcePatchConsent,
+            output));
+}
+```
+
+- [ ] **Step 4: Update existing healed-locator happy path to use scoped service**
+
+In `DoctorServiceTest.proposeHealedLocatorCreatesReviewOnlyPatch`, replace:
+
+```java
+var proposal = new DoctorService().proposeHealedLocator(
+```
+
+with:
+
+```java
+var proposal = service(temp).proposeHealedLocator(
+```
+
+- [ ] **Step 5: Run focused Doctor tests and verify GREEN**
+
+Run:
+
+```powershell
+mvn -pl shaft-mcp -Dtest=DoctorServiceTest#proposeHealedLocatorRejectsRepositoryOutsideWorkspace,DoctorServiceTest#proposeHealedLocatorCreatesReviewOnlyPatch test
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit Task 1**
+
+```powershell
+git add shaft-mcp/src/test/java/com/shaft/mcp/DoctorServiceTest.java shaft-mcp/src/main/java/com/shaft/mcp/DoctorService.java
+git commit -m "test: harden doctor healed locator workspace paths"
+```
+
+## Task 2: Tighten Shared Workspace Policy Regression Coverage
+
+**Files:**
+- Modify: `shaft-mcp/src/test/java/com/shaft/mcp/McpResultRecordsTest.java`
+
+- [ ] **Step 1: Write focused policy regressions**
+
+Add tests that assert `McpWorkspacePolicy` rejects blank allowlist entries, missing output ancestors, and symlink escapes when the platform supports symbolic links.
+
+```java
+@Test
+void workspacePolicyRejectsBlankAllowlistAndMissingOutputAncestor() throws Exception {
+    Path root = Files.createDirectories(temp.resolve("workspace"));
+    Path repository = Files.createDirectories(root.resolve("repo"));
+    McpWorkspacePolicy policy = McpWorkspacePolicy.of(root);
+
+    assertThrows(IllegalArgumentException.class,
+            () -> policy.sourceAllowlist(repository, List.of(" ")));
+    assertThrows(IllegalArgumentException.class,
+            () -> policy.output(root.resolve("missing-parent/report.json").toString(), "Report"));
+}
+```
+
+- [ ] **Step 2: Run RED, then keep or minimally adjust policy**
+
+Run:
+
+```powershell
+mvn -pl shaft-mcp -Dtest=McpResultRecordsTest#workspacePolicyRejectsBlankAllowlistAndMissingOutputAncestor test
+```
+
+Expected: If it passes, keep the test as coverage and do not change production code. If it fails because missing ancestors are accepted, update only `McpWorkspacePolicy.output(...)` to preserve the documented nearest-existing-ancestor rule.
+
+- [ ] **Step 3: Commit Task 2**
+
+```powershell
+git add shaft-mcp/src/test/java/com/shaft/mcp/McpResultRecordsTest.java shaft-mcp/src/main/java/com/shaft/mcp/McpWorkspacePolicy.java
+git commit -m "test: cover mcp workspace policy edge cases"
+```
+
+## Task 3: Strengthen MCP Tool Contract Checks
+
+**Files:**
+- Modify: `shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java`
+- Modify: `scripts/ci/validate_shaft_mcp_configuration.py`
+
+- [ ] **Step 1: Add manifest metadata assertions**
+
+Extend `ShaftMcpApplicationTests.contextRegistersExpectedLeanMcpToolApi()` so every fixture tool has unique `name`, boolean `mutation`, boolean `sensitive`, and boolean `deprecated` fields. Replace the generic `arg0`/`arg1` check with a regex check for `"arg\\d+"`.
+
+- [ ] **Step 2: Run focused contract test**
+
+```powershell
+mvn -pl shaft-mcp -Dtest=ShaftMcpApplicationTests#contextRegistersExpectedLeanMcpToolApi test
+```
+
+Expected: PASS after only test-side contract tightening unless the manifest has real metadata drift.
+
+- [ ] **Step 3: Add equivalent lightweight Python validator coverage**
+
+In `scripts/ci/validate_shaft_mcp_configuration.py`, after loading `manifest`, assert:
+
+```python
+if manifest.get("schemaVersion") != "1.0":
+    errors.append("MCP tool manifest schemaVersion must remain 1.0")
+seen_tools = set()
+for tool in manifest.get("tools", []):
+    name = tool.get("name")
+    if not name:
+        errors.append("MCP tool manifest contains a tool without a name")
+        continue
+    if name in seen_tools:
+        errors.append(f"MCP tool manifest contains duplicate tool: {name}")
+    seen_tools.add(name)
+    for key in ("mutation", "sensitive", "deprecated"):
+        if not isinstance(tool.get(key), bool):
+            errors.append(f"MCP tool manifest tool {name} must define boolean {key}")
+```
+
+- [ ] **Step 4: Run Python validator**
+
+```powershell
+py -3 scripts\ci\validate_shaft_mcp_configuration.py
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit Task 3**
+
+```powershell
+git add shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java scripts/ci/validate_shaft_mcp_configuration.py
+git commit -m "test: lock mcp tool manifest metadata"
+```
+
+## Task 4: Final Focused Validation
+
+**Files:**
+- No planned source edits.
+
+- [ ] **Step 1: Run smallest non-redundant checks**
+
+```powershell
+py -3 scripts\ci\validate_documentation_boundaries.py
+py -3 scripts\ci\validate_agent_setup.py
+py -3 scripts\ci\validate_shaft_mcp_configuration.py
+mvn -pl shaft-mcp -Dtest=DoctorServiceTest,McpResultRecordsTest,ShaftMcpApplicationTests test
+mvn -pl shaft-engine,shaft-mcp -am test-compile
+```
+
+- [ ] **Step 2: Refresh graphify or report blocker**
+
+Run:
+
+```powershell
+graphify . --update
+```
+
+If unavailable or too slow, report the blocker and the existing graph freshness.
+
+- [ ] **Step 3: Update PR body and mark ready only if implementation is complete**
+
+```powershell
+$body = @'
+## Summary
+- Adds stability-first MCP contract and workspace-safety hardening.
+- Keeps WebDriver as the default MCP browser surface and Playwright opt-in.
+- Tightens existing validators instead of adding a new validation layer.
+
+## Validation
+- py -3 scripts\ci\validate_documentation_boundaries.py
+- py -3 scripts\ci\validate_agent_setup.py
+- py -3 scripts\ci\validate_shaft_mcp_configuration.py
+- mvn -pl shaft-mcp -Dtest=DoctorServiceTest,McpResultRecordsTest,ShaftMcpApplicationTests test
+- mvn -pl shaft-engine,shaft-mcp -am test-compile
+
+## Risk
+- Transport smoke requires packaged runtime dependencies and is listed if not run locally.
+'@
+$body | Set-Content -Encoding UTF8 .codex\superpowers\plans\pr-3015-body.txt
+gh pr edit 3015 --body-file .codex\superpowers\plans\pr-3015-body.txt
+gh pr ready 3015
+```
+
+Expected: PR lists changed files, validation commands, and residual risks.
