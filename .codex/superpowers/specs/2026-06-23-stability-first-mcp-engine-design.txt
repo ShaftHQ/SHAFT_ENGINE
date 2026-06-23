@@ -1,0 +1,120 @@
+# Stability-First MCP and Engine Solidification Design
+
+**Goal:** Make `shaft-mcp` and the core `shaft-engine` hooks it depends on harder to regress without expanding the public feature surface.
+
+**Decision:** Start with stability-first work: contract checks, workspace-path safety, validation coverage, installer/config reliability, and only the minimal `shaft-engine` hooks needed to make MCP behavior deterministic.
+
+## Context
+
+`shaft-mcp` already exposes a broad tool surface for WebDriver browser and element actions, capture, Doctor, Heal, guide search, mobile, natural actions, test automation guidance, and opt-in Playwright. The current risk is not a lack of tools. The risk is drift between `@Tool` methods, fixture manifests, installer expectations, transport smoke tests, and the global runtime behavior inherited from `shaft-engine`.
+
+The core engine must remain independent of `shaft-mcp`. Any `shaft-engine` change in this track must support existing runtime/reporting/driver behavior directly and must not add an MCP dependency.
+
+## Scope
+
+1. Lock the MCP tool contract.
+2. Harden workspace path handling for MCP services that accept user-supplied files or directories.
+3. Make MCP runtime lifecycle behavior deterministic enough to test without launching real browsers unless the test explicitly owns that scope.
+4. Keep installer, transport, Docker, workflow, and registry metadata in sync through existing validation scripts.
+5. Add only minimal core engine hooks where MCP currently has to depend on global behavior.
+
+## Non-Goals
+
+1. No new MCP feature families.
+2. No default switch from WebDriver to Playwright.
+3. No new installer framework.
+4. No release, deploy, publish, or credentialed cloud validation.
+5. No broad `shaft-engine` refactor.
+
+## Design
+
+### MCP Tool Contract
+
+Add a generated-contract check that compares live Spring AI tool callbacks against `shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json`.
+
+The check must verify:
+
+1. Required tools stay present.
+2. Removed or sensitive tools stay absent.
+3. Parameter names are real names, not `arg0` or `arg1`.
+4. WebDriver tools remain the default browser automation surface.
+5. Playwright tools remain opt-in and prefixed with `playwright_`.
+6. Result records keep `schemaVersion` fields where records already expose them.
+
+The existing fixture remains the reviewed public contract. If a tool changes intentionally, the implementation updates the fixture and the focused contract test in the same commit.
+
+### Workspace Safety
+
+Every MCP service method that accepts paths must resolve them through `McpWorkspacePolicy` before reading or writing. Tests must cover the shared policy instead of duplicating path checks in every service.
+
+The policy contract is:
+
+1. Existing input paths must resolve to real paths inside the workspace root.
+2. Output paths may not exist, but their nearest existing ancestor must resolve inside the workspace root.
+3. Repository-relative allowlist paths must stay relative, non-blank, and inside the repository.
+4. Symlinks, `..`, absolute paths, and missing ancestors must not escape the workspace.
+5. Error messages must name the rejected input category without leaking secrets.
+
+### Runtime Lifecycle
+
+MCP runtime setup should be deterministic and narrow:
+
+1. `EngineService.configureRuntimePaths(...)` owns MCP runtime folders and `user.dir` setup.
+2. `EngineService.ensureEngineInitialized()` remains idempotent.
+3. Driver lifecycle tests use mock-backed or no-driver paths unless they explicitly validate browser startup.
+4. Report generation keeps using the existing Allure manager entry point and avoids deleting the `allure-results` root.
+5. Static state cleanup must be explicit in tests that mutate driver or runtime state.
+
+Any needed `shaft-engine` hook should be a small public or package-private behavior that is useful outside MCP too, such as clearer runtime path resolution or report lifecycle error handling.
+
+### Installer and Transport Reliability
+
+Keep the thin JAR plus runtime dependency argfile model. Strengthen existing validators instead of adding another installer layer.
+
+The validation surface is:
+
+1. `scripts/ci/validate_shaft_mcp_configuration.py` remains the packaging, metadata, Docker, workflow, and installer drift gate.
+2. `scripts/ci/validate_shaft_mcp_transports.py` remains the packaged stdio and HTTP smoke gate.
+3. `tests/scripts/test_install_shaft_mcp.py` remains the installer unit test surface.
+4. The installer must continue to verify Java 25, checksum downloaded artifacts, write an argfile with `shaft.mcp.workspaceRoot`, and probe stdio before editing client config.
+5. Client config writes must stay atomic or rollback-backed.
+
+### Documentation Boundary
+
+Implementation changes that alter user-visible behavior need a public docs PR in `C:\Users\Mohab\IdeaProjects\shafthq.github.io`. Contract-only tests and internal validators do not need public docs unless they change setup, tool names, or user-facing guidance.
+
+## Testing Strategy
+
+Use the smallest check that proves the edited surface:
+
+1. Contract drift: focused `shaft-mcp` contract test plus `py -3 scripts/ci/validate_shaft_mcp_configuration.py`.
+2. Transport behavior: package `shaft-mcp`, copy runtime dependencies, then run `py -3 scripts/ci/validate_shaft_mcp_transports.py`.
+3. Workspace safety: focused `McpWorkspacePolicyTest` and service tests for any touched path-taking service.
+4. Installer behavior: focused `py -3 -m pytest tests/scripts/test_install_shaft_mcp.py`.
+5. Core engine hooks: affected unit tests, then `mvn -pl shaft-engine,shaft-mcp -am test-compile` or a package pass only when the change touches shared build/runtime behavior.
+
+Avoid `mvn test` until the active Surefire/TestNG gotchas are checked. Browser tests stay headless.
+
+## Acceptance Criteria
+
+1. MCP tools cannot drift from the reviewed fixture without a failing test or validator.
+2. Path-taking MCP services have a shared policy-backed safety boundary with focused tests.
+3. Installer, transport, Docker, workflow, registry metadata, and thin-classpath assumptions are covered by existing validators with any missing assertions added in place.
+4. WebDriver stays the default MCP browser backend; Playwright remains opt-in.
+5. `shaft-engine` still has no dependency on `shaft-mcp`.
+6. Validation commands and any remaining risks are reported in the implementation PR.
+
+## Implementation Order
+
+1. Add or tighten MCP tool contract tests.
+2. Audit path-taking MCP service methods and route any misses through `McpWorkspacePolicy`.
+3. Add missing workspace policy/service regression tests.
+4. Tighten installer/config/transport validators only where they fail to cover an accepted invariant above.
+5. Add minimal `shaft-engine` hook fixes only if a stability test proves the need.
+6. Refresh graphify after core/docs relationship changes, or report why it could not run.
+
+## Risks
+
+1. Full transport validation requires a packaged MCP jar and runtime dependencies, so it is slower than unit tests.
+2. Some runtime behavior depends on static SHAFT state; tests must restore state explicitly.
+3. Public docs live in a separate repository, so behavior changes may need a second PR.

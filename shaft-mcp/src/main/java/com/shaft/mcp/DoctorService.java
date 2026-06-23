@@ -391,14 +391,19 @@ public class DoctorService {
             String sourcePath,
             boolean sourcePatchConsent,
             String outputDirectory) {
+        Path repository = workspacePolicy.existing(repositoryRoot, "Repository root");
+        Path healingReport = workspacePolicy.existing(healingReportPath, "Healing report path");
+        String approvedSourcePath = workspacePolicy.sourceAllowlist(repository, List.of(sourcePath)).getFirst();
+        Path output = outputDirectory == null || outputDirectory.isBlank()
+                ? workspacePolicy.output("target/shaft-doctor/healing-proposals",
+                        "Doctor healing proposal output directory")
+                : workspacePolicy.output(outputDirectory, "Doctor healing proposal output directory");
         return new HealingLocatorProposalService().propose(new HealingLocatorProposalRequest(
-                Path.of(repositoryRoot),
-                Path.of(healingReportPath),
-                sourcePath,
+                repository,
+                healingReport,
+                approvedSourcePath,
                 sourcePatchConsent,
-                outputDirectory == null || outputDirectory.isBlank()
-                        ? Path.of("target", "shaft-doctor", "healing-proposals")
-                        : Path.of(outputDirectory)));
+                output));
     }
 
     /**

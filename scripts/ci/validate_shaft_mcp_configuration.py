@@ -28,6 +28,31 @@ def property_map(path: Path) -> dict[str, str]:
     return properties
 
 
+def validate_tool_manifest(manifest: dict[str, object]) -> list[str]:
+    errors: list[str] = []
+    if manifest.get("schemaVersion") != "1.0":
+        errors.append("MCP tool manifest schemaVersion must remain 1.0")
+    seen_tools: set[str] = set()
+    tools = manifest.get("tools", [])
+    if not isinstance(tools, list):
+        return errors + ["MCP tool manifest tools must be a list"]
+    for tool in tools:
+        if not isinstance(tool, dict):
+            errors.append("MCP tool manifest contains a non-object tool entry")
+            continue
+        name = tool.get("name")
+        if not isinstance(name, str) or not name:
+            errors.append("MCP tool manifest contains a tool without a name")
+            continue
+        if name in seen_tools:
+            errors.append(f"MCP tool manifest contains duplicate tool: {name}")
+        seen_tools.add(name)
+        for key in ("mutation", "sensitive", "deprecated"):
+            if not isinstance(tool.get(key), bool):
+                errors.append(f"MCP tool manifest tool {name} must define boolean {key}")
+    return errors
+
+
 def validate(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     parent = ET.parse(root / "pom.xml").getroot()
@@ -118,6 +143,7 @@ def validate(root: Path = ROOT) -> list[str]:
 
     manifest_path = root / "shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    errors.extend(validate_tool_manifest(manifest))
     tools = {tool["name"] for tool in manifest.get("tools", [])}
     required_tools = {
         "doctor_analyze_failed_allure",

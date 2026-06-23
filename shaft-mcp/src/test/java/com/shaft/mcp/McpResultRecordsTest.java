@@ -3,6 +3,7 @@ package com.shaft.mcp;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -120,6 +121,28 @@ class McpResultRecordsTest {
         assertThrows(IllegalArgumentException.class, () -> policy.output("../outside.txt", "Report"));
         assertThrows(IllegalArgumentException.class,
                 () -> policy.sourceAllowlist(repository, List.of("../outside.java")));
+    }
+
+    @Test
+    void workspacePolicyRejectsBlankAllowlistAndSymlinkEscapes() throws Exception {
+        Path root = Files.createDirectories(temp.resolve("workspace"));
+        Path repository = Files.createDirectories(root.resolve("repo"));
+        Path outside = Files.createDirectories(temp.resolve("outside"));
+        Files.writeString(outside.resolve("secret.txt"), "secret");
+        Path link = root.resolve("link");
+        McpWorkspacePolicy policy = McpWorkspacePolicy.of(root);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> policy.sourceAllowlist(repository, List.of(" ")));
+        assertEquals(root.resolve("repo/out/report.json").toAbsolutePath().normalize(),
+                policy.output("repo/out/report.json", "Report").toAbsolutePath().normalize());
+        try {
+            Files.createSymbolicLink(link, outside);
+        } catch (UnsupportedOperationException | IOException exception) {
+            return;
+        }
+        assertThrows(IllegalArgumentException.class, () -> policy.existing("link/secret.txt", "Evidence"));
+        assertThrows(IllegalArgumentException.class, () -> policy.output("link/report.txt", "Report"));
     }
 
 }

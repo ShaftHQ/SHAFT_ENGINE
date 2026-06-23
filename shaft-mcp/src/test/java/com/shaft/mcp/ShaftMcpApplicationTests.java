@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = "spring.ai.mcp.server.enabled=false")
 class ShaftMcpApplicationTests {
+    private static final Pattern GENERIC_PARAMETER_NAME = Pattern.compile("\"arg\\d+\"");
+
     @Autowired
     private ApplicationContext context;
 
@@ -40,7 +44,7 @@ class ShaftMcpApplicationTests {
                 .map(ToolCallback.class::cast)
                 .forEach(callback -> {
                     String schema = callback.getToolDefinition().inputSchema();
-                    assertFalse(schema.contains("\"arg0\"") || schema.contains("\"arg1\""),
+                    assertFalse(GENERIC_PARAMETER_NAME.matcher(schema).find(),
                             callback.getToolDefinition().name() + " exposes generic parameter names: " + schema);
                 });
         assertTrue(toolNames.contains("doctor_analyze_failed_allure"));
@@ -104,10 +108,23 @@ class ShaftMcpApplicationTests {
     }
 
     private static Set<String> expectedTools() throws Exception {
-        var root = new ObjectMapper().readTree(Files.readString(Path.of(
+        JsonNode root = new ObjectMapper().readTree(Files.readString(Path.of(
                 "src/test/resources/fixtures/mcp-tool-manifest.json")));
-        return java.util.stream.StreamSupport.stream(root.path("tools").spliterator(), false)
-                .map(node -> node.path("name").asText())
-                .collect(Collectors.toCollection(java.util.TreeSet::new));
+        assertEquals("1.0", root.path("schemaVersion").asText());
+        Set<String> tools = new java.util.TreeSet<>();
+        Set<String> duplicates = new java.util.TreeSet<>();
+        for (JsonNode tool : root.path("tools")) {
+            String name = tool.path("name").asText();
+            assertFalse(name.isBlank(), "MCP tool manifest contains a tool without a name");
+            if (!tools.add(name)) {
+                duplicates.add(name);
+            }
+            for (String metadata : List.of("mutation", "sensitive", "deprecated")) {
+                assertTrue(tool.path(metadata).isBoolean(),
+                        "MCP tool manifest tool " + name + " must define boolean " + metadata);
+            }
+        }
+        assertTrue(duplicates.isEmpty(), "MCP tool manifest contains duplicate tools: " + duplicates);
+        return tools;
     }
 }

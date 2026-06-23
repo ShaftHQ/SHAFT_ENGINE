@@ -217,6 +217,56 @@ class DoctorServiceTest {
     }
 
     @Test
+    void healedLocatorToolRejectsRepositoryOutsideWorkspace(@TempDir Path temp) throws Exception {
+        SHAFT.Properties.healing.set().sourcePatchEnabled(true);
+        Path workspace = Files.createDirectories(temp.resolve("workspace"));
+        Path outside = Files.createDirectories(temp.resolve("outside"));
+        Path source = outside.resolve("src/test/java/example/LoginTest.java");
+        Files.createDirectories(source.getParent());
+        Files.writeString(source, """
+                package example;
+                import org.openqa.selenium.By;
+                class LoginTest {
+                    private static final By LOGIN = By.id("old-login");
+                }
+                """, StandardCharsets.UTF_8);
+        Path report = workspace.resolve("healing-report.json");
+        Files.writeString(report, """
+                {
+                  "schemaVersion": "2.0",
+                  "attemptId": "attempt-mcp",
+                  "originalLocator": "By.id: old-login",
+                  "candidates": [{
+                    "candidateId": "candidate-1",
+                    "proposedLocator": "By.id: new-login",
+                    "evidence": ["test-id exact match"],
+                    "unique": true,
+                    "contextMatched": true
+                  }],
+                  "decision": {
+                    "status": "RECOVERED",
+                    "selectedCandidateId": "candidate-1",
+                    "confidence": 0.94
+                  },
+                  "action": {
+                    "outcome": "PASSED",
+                    "postActionVerification": "ELEMENT_INTERACTABLE"
+                  }
+                }
+                """, StandardCharsets.UTF_8);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service(workspace).proposeHealedLocator(
+                        outside.toString(),
+                        report.toString(),
+                        "src/test/java/example/LoginTest.java",
+                        true,
+                        "target/proposals"));
+
+        assertTrue(failure.getMessage().contains("Repository root is outside the MCP workspace"));
+    }
+
+    @Test
     void healedLocatorToolCreatesProposalWithoutChangingSource(@TempDir Path temp) throws Exception {
         SHAFT.Properties.healing.set().sourcePatchEnabled(true);
         Path source = temp.resolve("src/test/java/example/LoginTest.java");
@@ -254,7 +304,7 @@ class DoctorServiceTest {
                 }
                 """, StandardCharsets.UTF_8);
 
-        var proposal = new DoctorService().proposeHealedLocator(
+        var proposal = service(temp).proposeHealedLocator(
                 temp.toString(),
                 report.toString(),
                 "src/test/java/example/LoginTest.java",
