@@ -68,6 +68,10 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
 
         self.assertTrue(commands)
         for command in commands:
+            if "exec:java" in command:
+                self.assertIn("-f shaft-engine/pom.xml", command)
+                self.assertNotIn("shaft-browserstack", command)
+                continue
             if "-DexecutionAddress=browserstack" in command:
                 expected_module = "shaft-browserstack"
             elif (
