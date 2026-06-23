@@ -16,6 +16,7 @@
 - Modify: `shaft-mcp/src/main/java/com/shaft/mcp/DoctorService.java`
 - Modify: `shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java`
 - Modify: `scripts/ci/validate_shaft_mcp_configuration.py`
+- Create: `tests/scripts/test_validate_shaft_mcp_configuration.py`
 - Optional after evidence: `tests/scripts/test_install_shaft_mcp.py`
 - Optional after evidence: `shaft-engine/src/main/java/...`
 
@@ -201,20 +202,30 @@ git commit -m "test: cover mcp workspace policy edge cases"
 **Files:**
 - Modify: `shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java`
 - Modify: `scripts/ci/validate_shaft_mcp_configuration.py`
+- Create: `tests/scripts/test_validate_shaft_mcp_configuration.py`
 
-- [ ] **Step 1: Add manifest metadata assertions**
+- [ ] **Step 1: Add a failing Python validator test**
+
+Create `tests/scripts/test_validate_shaft_mcp_configuration.py` with a unittest that calls `validate_tool_manifest(...)` using an invalid manifest containing schema drift, duplicate names, missing names, and non-boolean metadata.
+
+- [ ] **Step 2: Implement manifest metadata validator helper**
+
+Add `validate_tool_manifest(manifest)` to `scripts/ci/validate_shaft_mcp_configuration.py` and call it from `validate(...)` after loading `mcp-tool-manifest.json`.
+
+- [ ] **Step 3: Add Java manifest metadata assertions**
 
 Extend `ShaftMcpApplicationTests.contextRegistersExpectedLeanMcpToolApi()` so every fixture tool has unique `name`, boolean `mutation`, boolean `sensitive`, and boolean `deprecated` fields. Replace the generic `arg0`/`arg1` check with a regex check for `"arg\\d+"`.
 
-- [ ] **Step 2: Run focused contract test**
+- [ ] **Step 4: Run focused contract tests**
 
 ```powershell
+py -3 -m unittest tests.scripts.test_validate_shaft_mcp_configuration
 mvn -pl shaft-mcp -Dtest=ShaftMcpApplicationTests#contextRegistersExpectedLeanMcpToolApi test
 ```
 
-Expected: PASS after only test-side contract tightening unless the manifest has real metadata drift.
+Expected: PASS.
 
-- [ ] **Step 3: Add equivalent lightweight Python validator coverage**
+- [ ] **Step 5: Add equivalent lightweight Python validator coverage**
 
 In `scripts/ci/validate_shaft_mcp_configuration.py`, after loading `manifest`, assert:
 
@@ -235,7 +246,7 @@ for tool in manifest.get("tools", []):
             errors.append(f"MCP tool manifest tool {name} must define boolean {key}")
 ```
 
-- [ ] **Step 4: Run Python validator**
+- [ ] **Step 6: Run Python validator**
 
 ```powershell
 py -3 scripts\ci\validate_shaft_mcp_configuration.py
@@ -243,10 +254,10 @@ py -3 scripts\ci\validate_shaft_mcp_configuration.py
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 3**
+- [ ] **Step 7: Commit Task 3**
 
 ```powershell
-git add shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java scripts/ci/validate_shaft_mcp_configuration.py
+git add shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java scripts/ci/validate_shaft_mcp_configuration.py tests/scripts/test_validate_shaft_mcp_configuration.py
 git commit -m "test: lock mcp tool manifest metadata"
 ```
 
