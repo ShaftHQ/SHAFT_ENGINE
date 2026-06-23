@@ -1,14 +1,18 @@
 {
   "body_path": "memory/decisions/agent-guidance-progressive-disclosure.md",
-  "content_hash": "sha256:b80a257f34df4e8931e9316109043fc889dd5b90cf98bbbb508c7551faad4f53",
+  "content_hash": "sha256:58addec188b150aa87de77e6ccf48d514428e2df140880e32553f57553cac8df",
   "created_at": "2026-06-15T17:06:51+03:00",
   "evidence": [
     {
-      "id": "AGENTS.md",
+      "id": "scripts/ci/agent_guidance_budget.json",
       "kind": "file"
     },
     {
-      "id": "scripts/ci/validate_agent_guidance.py",
+      "id": ".agents/skills/shaft-marketing-ad-producer/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "id": ".github/skills/shaft-marketing-ad-producer/SKILL.md",
       "kind": "file"
     }
   ],
@@ -40,5 +44,5 @@
   ],
   "title": "Use progressive disclosure for agent guidance",
   "type": "decision",
-  "updated_at": "2026-06-15T17:06:51+03:00"
+  "updated_at": "2026-06-23T11:42:44+03:00"
 }

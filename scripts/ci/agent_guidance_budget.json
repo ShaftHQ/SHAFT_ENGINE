@@ -68,12 +68,14 @@
       "flaky-test-stabilizer",
       "framework-source-rules",
       "java-test-rules",
-      "release-dependency-guard"
+      "release-dependency-guard",
+      "shaft-marketing-ad-producer"
     ],
     ".github/skills": [
       "ci-failure-investigator",
       "flaky-test-stabilizer",
-      "release-dependency-guard"
+      "release-dependency-guard",
+      "shaft-marketing-ad-producer"
     ]
   },
   "skill_budgets": {
