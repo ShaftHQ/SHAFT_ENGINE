@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -16,6 +17,8 @@ EXPECTED_OPTIONAL = {
     "shaft-junit-web": "shaft-visual",
     "shaft-testng-web": "shaft-visual",
 }
+INTELLIJ_RUN_TEMPLATE = ".idea/runConfigurations/SHAFT_Run_Templates.xml"
+INTELLIJ_SHORT_COMMAND_TYPES = {"Application", "JUnit", "TestNG"}
 
 
 def fail(message: str) -> None:
@@ -27,19 +30,63 @@ def text(node, path):
     return (node.findtext(path, default="", namespaces=NS) or "").strip()
 
 
-def parse_trusted_pom(path: Path):
-    # Repository-owned Maven POMs are trusted validator inputs.
+def parse_trusted_xml(path: Path):
+    # Repository-owned XML files are trusted validator inputs.
     return ET.parse(path).getroot()  # nosec B314
 
 
+def validate_intellij_run_template(project: Path, artifact: str) -> None:
+    template = project / INTELLIJ_RUN_TEMPLATE
+    if not template.is_file():
+        fail(f"{project}: missing IntelliJ run template {INTELLIJ_RUN_TEMPLATE}")
+
+    root = parse_trusted_xml(template)
+    if root.tag != "component" or root.get("name") != "ProjectRunConfigurationManager":
+        fail(f"{template}: root must be ProjectRunConfigurationManager")
+
+    expected_types = set(INTELLIJ_SHORT_COMMAND_TYPES)
+    if artifact == "shaft-cucumber-web":
+        expected_types.add("CucumberJavaRunConfigurationType")
+    configurations = {
+        node.get("type"): node
+        for node in root.findall("configuration")
+        if node.get("default") == "true"
+    }
+    for config_type in expected_types:
+        configuration = configurations.get(config_type)
+        if configuration is None:
+            fail(f"{template}: missing default {config_type} template")
+        shortener = configuration.find("shortenClasspath")
+        if shortener is None or shortener.get("name") != "ARGS_FILE":
+            fail(f"{template}: {config_type} must use ARGS_FILE command shortening")
+
+    gitignore = (project / ".gitignore").read_text(encoding="utf-8")
+    for required in ("!.idea/runConfigurations/", "!.idea/runConfigurations/*.xml"):
+        if required not in gitignore:
+            fail(f"{project / '.gitignore'}: must keep shared IntelliJ run templates unignored")
+    relative_template = template.relative_to(ROOT).as_posix()
+    try:
+        ignore_check = subprocess.run(
+            ["git", "check-ignore", "--no-index", "--quiet", "--", relative_template],
+            cwd=ROOT,
+            check=False,
+        )
+    except FileNotFoundError:
+        fail("git executable is required to validate generated-project .gitignore rules")
+    if ignore_check.returncode == 0:
+        fail(f"{project / '.gitignore'}: {INTELLIJ_RUN_TEMPLATE} is still ignored")
+    if ignore_check.returncode != 1:
+        fail(f"git check-ignore failed for {relative_template}")
+
+
 def main() -> None:
-    reactor_version = text(parse_trusted_pom(ROOT / "pom.xml"), "m:version")
+    reactor_version = text(parse_trusted_xml(ROOT / "pom.xml"), "m:version")
     poms = sorted(EXAMPLES.rglob("pom.xml"))
     if len(poms) != 7:
         fail(f"expected seven bundled example POMs, found {len(poms)}")
 
     for pom in poms:
-        root = parse_trusted_pom(pom)
+        root = parse_trusted_xml(pom)
         artifact = text(root, "m:artifactId")
         props = root.find("m:properties", NS)
         prop_names = {
@@ -78,10 +125,11 @@ def main() -> None:
                 f"{pom}: expected optional modules {sorted(expected)}, "
                 f"found {sorted(optional)}"
             )
+        validate_intellij_run_template(pom.parent, artifact)
 
     for pom in sorted((ROOT / "tools/modularization/consumer-fixtures").glob("*/pom.xml")):
         fixture_version = text(
-            parse_trusted_pom(pom).find("m:properties", NS),
+            parse_trusted_xml(pom).find("m:properties", NS),
             "m:shaft.version",
         )
         if fixture_version != reactor_version:

@@ -29,14 +29,14 @@ For file edits unless told otherwise:
 ## Working Rules
 
 - Read first; follow patterns; tight scope; preserve user work.
-- Delegate Codex Spark when useful; no permission needed. Agent owns review.
+- Delegate Codex Spark when useful; no permission needed. Own review.
 - Structured APIs for structured data.
 - Reproduce defects and add focused regression coverage.
 - Preserve public API; deprecate before removal/rename.
 - Public docs: `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`/excerpts.
   Functionality changes need guide update plus docs PR.
-- Before PRs, refresh graphify for core/docs file/relationship changes; report blockers.
-- Never expose secrets or run deploy, publish, history rewrites, cleanup, or credentialed cloud suites unless explicit.
+- Before PRs, refresh graphify for core/docs changes; report blockers.
+- Never expose secrets or run deploy, publish, history rewrites, cleanup, or cloud suites unless explicit.
 - No generated reports, binaries, or `target/`.
 - Browser tests headless unless headed approved.
 
@@ -49,7 +49,7 @@ decisions, constraints, gotchas, workflows, or corrections with evidence. Reuse 
 
 ## Validation
 
-Before forked Maven/Surefire/TestNG, load gotchas. If the Surefire/TestNG delete gotcha is active, avoid `mvn test`; use compile/test-compile, static checks, or a disposable copy.
+Before forked Maven/Surefire/TestNG, load gotchas. If the delete gotcha is active, avoid `mvn test`; use compile/test-compile, static checks, or a disposable copy.
 
 Use the smallest non-redundant check. Do not rerun passing checks unless edits,
 rebases, or dependencies invalidate them.

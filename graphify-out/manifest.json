@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "scripts/ci/validate_modular_documentation.py": {
-    "mtime": 1782206120.8478863,
-    "ast_hash": "cdf6c87022fd7a562d45b0869b05ff16",
+    "mtime": 1782229707.6328974,
+    "ast_hash": "ac7475d121f5393093437e2212b97bbb",
     "semantic_hash": ""
   },
   "scripts/ci/validate_quality_configuration.py": {
@@ -4285,8 +4285,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1782206120.7763753,
-    "ast_hash": "54ee8db6f656adb95e8455f2c8716a6c",
+    "mtime": 1782230031.8377647,
+    "ast_hash": "dad72d3936fa98530b1ecfa9cad6c208",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
