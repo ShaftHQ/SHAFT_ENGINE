@@ -10,6 +10,7 @@ public class TimeoutsTests {
     int pageLoadTimeout;
     int scriptExecutionTimeout;
     double defaultElementIdentificationTimeout;
+    int waitForUiStateTimeout;
     int apiSocketTimeout;
     int apiConnectionTimeout;
     int apiConnectionManagerTimeout;
@@ -31,6 +32,7 @@ public class TimeoutsTests {
         pageLoadTimeout = SHAFT.Properties.timeouts.pageLoadTimeout();
         scriptExecutionTimeout = SHAFT.Properties.timeouts.scriptExecutionTimeout();
         defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        waitForUiStateTimeout = SHAFT.Properties.timeouts.waitForUiStateTimeout();
         apiSocketTimeout = SHAFT.Properties.timeouts.apiSocketTimeout();
         apiConnectionTimeout = SHAFT.Properties.timeouts.apiConnectionTimeout();
         apiConnectionManagerTimeout = SHAFT.Properties.timeouts.apiConnectionManagerTimeout();
@@ -53,6 +55,7 @@ public class TimeoutsTests {
         SHAFT.Properties.timeouts.set().pageLoadTimeout(pageLoadTimeout);
         SHAFT.Properties.timeouts.set().scriptExecutionTimeout(scriptExecutionTimeout);
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
+        SHAFT.Properties.timeouts.set().waitForUiStateTimeout(waitForUiStateTimeout);
         SHAFT.Properties.timeouts.set().apiConnectionTimeout(apiConnectionTimeout);
         SHAFT.Properties.timeouts.set().apiConnectionManagerTimeout(apiConnectionManagerTimeout);
         SHAFT.Properties.timeouts.set().shellSessionTimeout(shellSessionTimeout);

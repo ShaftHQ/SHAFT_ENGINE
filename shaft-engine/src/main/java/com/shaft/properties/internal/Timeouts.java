@@ -11,6 +11,7 @@ import org.aeonbits.owner.ConfigFactory;
  * <p>Use {@link #set()} to override values programmatically:
  * <pre>{@code
  * SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(10);
+ * SHAFT.Properties.timeouts.set().waitForUiStateTimeout(600);
  * }</pre>
  */
 @SuppressWarnings("unused")
@@ -41,6 +42,13 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     @Key("defaultElementIdentificationTimeout")
     @DefaultValue("10")
     double defaultElementIdentificationTimeout();
+
+    /**
+     * Timeout in seconds for default UI state waits.
+     */
+    @Key("waitForUiStateTimeout")
+    @DefaultValue("600")
+    int waitForUiStateTimeout();
 
     @Key("apiSocketTimeout")
     @DefaultValue("30")
@@ -98,10 +106,6 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     @DefaultValue("5")
     int remoteServerInstanceCreationTimeout();
 
-    @Key("waitUntilTimeout")
-    @DefaultValue("60")
-    int waitUntilTimeout();
-
     default SetProperty set() {
         return new SetProperty();
     }
@@ -134,6 +138,11 @@ public interface Timeouts extends EngineProperties<Timeouts> {
 
         public SetProperty defaultElementIdentificationTimeout(double value) {
             setProperty("defaultElementIdentificationTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty waitForUiStateTimeout(int value) {
+            setProperty("waitForUiStateTimeout", String.valueOf(value));
             return this;
         }
 
@@ -198,11 +207,6 @@ public interface Timeouts extends EngineProperties<Timeouts> {
 
         public SetProperty remoteServerInstanceCreationTimeout(int value) {
             setProperty("remoteServerInstanceCreationTimeout", String.valueOf(value));
-            return this;
-        }
-
-        public SetProperty waitUntilTimeout(int value) {
-            setProperty("waitUntilTimeout", String.valueOf(value));
             return this;
         }
 
