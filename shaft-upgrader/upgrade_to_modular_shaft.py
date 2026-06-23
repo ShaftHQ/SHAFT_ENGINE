@@ -150,7 +150,10 @@ OPTIONAL_PATTERNS: dict[str, tuple[tuple[str, re.Pattern[str]], ...]] = {
     "shaft-video": (
         (
             "desktop recording enabled",
-            re.compile(r"(?:videoParamsRecordVideo|videoParams\.recordVideo)\s*[=:]\s*true", re.IGNORECASE),
+            re.compile(
+                r"(?:videoParamsRecordVideo|videoParams[._]recordVideo)\s*(?:[=:]|\()\s*true",
+                re.IGNORECASE,
+            ),
         ),
         (
             "desktop recording API",
@@ -168,8 +171,9 @@ OPTIONAL_PATTERNS: dict[str, tuple[tuple[str, re.Pattern[str]], ...]] = {
         (
             "BrowserStack SDK property",
             re.compile(
-                r"(?:browserStack\.)?(?:platformsList|parallelsPerPlatform|"
-                r"browserstackAutomation|customBrowserStackYmlPath)"
+                r"(?:SHAFT\.Properties\.browserStack\b|browserStack\.|"
+                r"(?:platformsList|parallelsPerPlatform|"
+                r"browserstackAutomation|customBrowserStackYmlPath))"
             ),
         ),
         (
@@ -564,6 +568,8 @@ def scan_optional_modules(project_root: Path) -> dict[str, tuple[str, ...]]:
         text = read_text(path)
         if not text:
             continue
+        if path.name == "pom.xml":
+            text = f"{text}\n" + "\n".join(sorted(dependency_coordinates(path)))
         relative = path.relative_to(project_root).as_posix()
         for module, patterns in OPTIONAL_PATTERNS.items():
             for reason, pattern in patterns:

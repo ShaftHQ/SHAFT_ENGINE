@@ -235,6 +235,56 @@ class UpgradeToModularShaftTests(unittest.TestCase):
         self.assertTrue(evidence["shaft-video"])
         self.assertTrue(evidence["shaft-browserstack"])
 
+    def test_legacy_pom_dependency_coordinates_trigger_optional_modules(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "pom.xml").write_text(
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+                <modelVersion>4.0.0</modelVersion>
+                <groupId>example</groupId><artifactId>legacy</artifactId><version>1</version>
+                <dependencies>
+                  <dependency><groupId>io.github.shafthq</groupId>
+                    <artifactId>SHAFT_ENGINE</artifactId><version>9.3.20250928</version></dependency>
+                  <dependency><groupId>com.browserstack</groupId>
+                    <artifactId>browserstack-java-sdk</artifactId><version>1</version></dependency>
+                  <dependency><groupId>com.automation-remarks</groupId>
+                    <artifactId>video-recorder-junit5</artifactId><version>1</version></dependency>
+                  <dependency><groupId>org.openpnp</groupId>
+                    <artifactId>opencv</artifactId><version>1</version></dependency>
+                </dependencies></project>""",
+                encoding="utf-8",
+            )
+
+            analysis = upgrade.analyze_project(root)
+
+        self.assertEqual(
+            analysis.optional_modules,
+            ("shaft-browserstack", "shaft-video", "shaft-visual"),
+        )
+
+    def test_scan_optional_modules_accepts_current_shaft_property_styles(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            properties = root / "src/test/resources/custom.properties"
+            properties.parent.mkdir(parents=True)
+            properties.write_text("videoParams_recordVideo=true\n", encoding="utf-8")
+            java = root / "src/test/java/Demo.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                """class Demo {
+                    void configure() {
+                        SHAFT.Properties.browserStack.set().deviceName("Pixel 9");
+                        SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
+                    }
+                }""",
+                encoding="utf-8",
+            )
+
+            evidence = upgrade.scan_optional_modules(root)
+
+        self.assertTrue(evidence["shaft-video"])
+        self.assertTrue(evidence["shaft-browserstack"])
+
     def test_all_supported_native_stack_and_runner_combinations_are_detected(self):
         stacks = {
             "selenium": ("org.seleniumhq.selenium", "selenium-chrome-driver"),
