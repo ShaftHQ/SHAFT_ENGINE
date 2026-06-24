@@ -42,6 +42,8 @@ public class ElementActionsHelper {
     public static final String OBFUSCATED_STRING = "•";
     private static final boolean GET_ELEMENT_HTML = true; //TODO: expose parameter
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
+    private static final String PAGE_SNAPSHOT_ATTACHMENT_TYPE = "Page Snapshot";
+    private static final String PAGE_HTML_ATTACHMENT_TYPE = "Page HTML";
     private final boolean isSilent;
 
     /**
@@ -236,33 +238,38 @@ public class ElementActionsHelper {
         try {
             return new SynchronizationManager(driver).fluentWait(isValidToCheckForVisibility)
                     .until(f -> {
-                        final WebElement[] targetElement = new WebElement[1];
                         ElementInformation elementInformation = new ElementInformation();
+                        List<WebElement> targetElements;
                         // BLOCK #1 :: GETTING THE ELEMENT
                         By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
                         By cssSelector = ShadowLocatorBuilder.cssSelector.get();
                         if (shadowDomLocator != null && cssSelector == elementLocator) {
-                            targetElement[0] = driver.findElement(shadowDomLocator)
-                                    .getShadowRoot()
-                                    .findElement(cssSelector);
+                            SearchContext shadowRoot = driver.findElement(shadowDomLocator).getShadowRoot();
+                            targetElements = shadowRoot.findElements(cssSelector);
+                            ensureElementListIsNotEmpty(targetElements, cssSelector);
                         } else if (LocatorBuilder.getIFrameLocator().get() != null) {
                             try {
-                                targetElement[0] = driver.switchTo().frame(driver.findElement(LocatorBuilder.getIFrameLocator().get())).findElement(elementLocator);
+                                targetElements = driver.switchTo()
+                                        .frame(driver.findElement(LocatorBuilder.getIFrameLocator().get()))
+                                        .findElements(elementLocator);
+                                ensureElementListIsNotEmpty(targetElements, elementLocator);
                             } catch (NoSuchElementException exception) {
-                                targetElement[0] = safeFindElement(driver, elementLocator);
+                                targetElements = resolveMatchingElements(driver, elementLocator);
                             }
                         } else {
                             try {
-                                targetElement[0] = safeFindElement(driver, elementLocator);
+                                targetElements = resolveMatchingElements(driver, elementLocator);
                             } catch (InvalidSelectorException invalidSelectorException) {
                                 //break and fail immediately if invalid selector
                                 reportActionResult(driver, null, null, null, null, null, false);
                                 FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
+                                throw invalidSelectorException;
                             }
                         }
+                        WebElement targetElement = targetElements.getFirst();
                         // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
                         try {
-                            elementInformation.setElementRect(targetElement[0].getRect());
+                            elementInformation.setElementRect(targetElement.getRect());
                         } catch (ElementNotInteractableException elementNotInteractableException) {
                             // this exception happens sometimes with certain browsers and causes a timeout
                             // this empty block should handle that issue
@@ -275,12 +282,12 @@ public class ElementActionsHelper {
                                     ((JavascriptExecutor) driver).executeScript("""
                                                     
                                                     arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""",
-                                            targetElement[0]);
+                                            targetElement);
                                 } catch (Throwable throwable) {
                                     try {
                                         // w3c compliant scroll
                                         new Actions(driver).
-                                                scrollToElement(targetElement[0]).
+                                                scrollToElement(targetElement).
                                                 perform();
                                     } catch (Throwable throwable1) {
                                         // old school selenium scroll
@@ -289,31 +296,21 @@ public class ElementActionsHelper {
                                     }
                                 }
                             } else {
-                                targetElement[0].
+                                targetElement.
                                         isDisplayed();
                             }
                         }
                         // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
-                        if (shadowDomLocator != null &&
-                                cssSelector == elementLocator) {
-                            elementInformation.setNumberOfFoundElements(driver.
-                                    findElement(shadowDomLocator)
-                                    .getShadowRoot
-                                            ()
-                                    .findElements(cssSelector)
-                                    .size());
-                        } else {
-                            elementInformation.setNumberOfFoundElements(safeFindElements(driver, elementLocator).size());
-                        }
+                        elementInformation.setNumberOfFoundElements(targetElements.size());
 
                         // BLOCK #5 :: GETTING INNER HTML AND OUTER HTML
                         if (!
 
                                 isMobileExecution &&
                                 GET_ELEMENT_HTML) {
-                            elementInformation.setOuterHTML(targetElement[0].getDomProperty("outerHTML"));
+                            elementInformation.setOuterHTML(targetElement.getDomProperty("outerHTML"));
                             elementInformation.setInnerHTML(
-                                    targetElement[0].getDomProperty("innerHTML"));
+                                    targetElement.getDomProperty("innerHTML"));
                         }
                         // BLOCK #6 :: GETTING ELEMENT NAME
                         if (SHAFT.Properties.reporting.
@@ -324,7 +321,7 @@ public class ElementActionsHelper {
                                 // getAccessibleName() triggers GET .../computedlabel which is
                                 // unsupported by Appium native sessions (returns 404)
                                 if (!DriverFactoryHelper.isMobileNativeExecution()) {
-                                    var accessibleName = targetElement[0].getAccessibleName();
+                                    var accessibleName = targetElement.getAccessibleName();
                                     if (
                                             accessibleName != null && !accessibleName.
                                                     isBlank()) {
@@ -339,12 +336,12 @@ public class ElementActionsHelper {
                             }
                             elementInformation.setElementName(elementName);
                         }
-                        elementInformation.setFirstElement(targetElement[0]);
+                        elementInformation.setFirstElement(targetElement);
                         elementInformation.setLocator(elementLocator);
                         HealingManager.observe(
                                 driver,
                                 elementLocator,
-                                List.of(targetElement[0]),
+                                targetElements,
                                 "ELEMENT_RESOLUTION",
                                 LocatorBuilder.getIFrameLocator().get(),
                                 shadowDomLocator,
@@ -388,6 +385,18 @@ public class ElementActionsHelper {
             elementInformation.add(null);
             elementInformation.add(invalidSelectorException);
             return elementInformation;
+        }
+    }
+
+    private static List<WebElement> resolveMatchingElements(WebDriver driver, By elementLocator) {
+        List<WebElement> targetElements = safeFindElements(driver, elementLocator);
+        ensureElementListIsNotEmpty(targetElements, elementLocator);
+        return targetElements;
+    }
+
+    private static void ensureElementListIsNotEmpty(List<WebElement> elements, By elementLocator) {
+        if (elements.isEmpty()) {
+            throw new NoSuchElementException("Cannot locate an element using " + JavaHelper.formatLocatorToString(elementLocator));
         }
     }
 
@@ -437,10 +446,11 @@ public class ElementActionsHelper {
         var elementInformation = new ArrayList<>();
         try {
             boolean elementFound = new SynchronizationManager(driver).fluentWait().until(f -> {
-                if (!safeFindElements(driver, elementLocator).isEmpty()) {
+                List<WebElement> targetElements = safeFindElements(driver, elementLocator);
+                if (!targetElements.isEmpty()) {
                     ReportManagerHelper.logDiscrete("Element found.", Level.DEBUG);
-                    elementInformation.add(safeFindElements(driver, elementLocator).size());
-                    elementInformation.add(safeFindElement(driver, elementLocator));
+                    elementInformation.add(targetElements.size());
+                    elementInformation.add(targetElements.getFirst());
                     return true;
                 }
                 try {
@@ -481,7 +491,10 @@ public class ElementActionsHelper {
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
                 new SynchronizationManager(driver).fluentWait(false)
-                        .until(f -> safeFindElement(driver, elementLocator).isDisplayed() && safeFindElement(driver, elementLocator).isEnabled());
+                        .until(f -> {
+                            WebElement targetElement = safeFindElement(driver, elementLocator);
+                            return targetElement.isDisplayed() && targetElement.isEnabled();
+                        });
 
                 return new SynchronizationManager(driver).fluentWait(true)
                         .until(f -> {
@@ -949,14 +962,14 @@ public class ElementActionsHelper {
 
         if (driver != null && (Boolean.FALSE.equals(passFailStatus)
                 || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("always"))) {
-            var logMessage = "";
             var pageSnapshot = new BrowserActionsHelper(false).capturePageSnapshot(driver);
+            var attachmentType = "";
             if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
-                logMessage = "page snapshot";
+                attachmentType = PAGE_SNAPSHOT_ATTACHMENT_TYPE;
             } else if (pageSnapshot.startsWith("<html")) {
-                logMessage = "page HTML";
+                attachmentType = PAGE_HTML_ATTACHMENT_TYPE;
             }
-            List<Object> sourceAttachment = Arrays.asList(actionName, logMessage, pageSnapshot);
+            List<Object> sourceAttachment = Arrays.asList(attachmentType, actionName, pageSnapshot);
             attachments.add(sourceAttachment);
         }
 
