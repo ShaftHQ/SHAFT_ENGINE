@@ -232,13 +232,13 @@ public class MobileService {
     }
 
     /**
-     * Returns local Appium/Android/iOS toolchain discovery status.
+     * Returns local Appium/Android/iOS toolchain discovery status and repair diagnostics.
      *
      * @param platformName Android or iOS; blank defaults to Android
      * @return local mobile toolchain status
      */
     @Tool(name = "mobile_toolchain_status",
-            description = "checks local Appium, Inspector, adb, emulator, and SDK tooling status")
+            description = "checks local Appium, Inspector, adb, emulator, and SDK tooling status with repair diagnostics")
     public McpMobileToolchainStatus toolchainStatus(String platformName) {
         return inspectorRecorder.toolchainStatus(platformName);
     }

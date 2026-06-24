@@ -72,6 +72,10 @@ final class McpMobileInspectorRecordingService {
         String automation = "Android".equals(platform) ? "UiAutomator2" : "XCUITest";
         McpMobileToolchainStatus status = toolchain.status(platform);
         List<String> warnings = new ArrayList<>(status.warnings());
+        status.diagnostics().stream()
+                .filter(diagnostic -> !diagnostic.available())
+                .map(McpMobileInspectorRecordingService::diagnosticWarning)
+                .forEach(warnings::add);
         warnings.addAll(McpMobileCode.nativeWarnings(platform, app, appPackage, appActivity, bundleId));
         List<String> nextSteps = new ArrayList<>();
 
@@ -89,6 +93,9 @@ final class McpMobileInspectorRecordingService {
         boolean willProvision = false;
         McpAndroidEmulatorProposal proposal = null;
         boolean readyToStart = appReady;
+        if (status.diagnostics().stream().anyMatch(McpMobileInspectorRecordingService::blocksInspectorStart)) {
+            readyToStart = false;
+        }
 
         if ("Android".equals(platform)) {
             boolean androidReadyDevice = !plannedDeviceId.isBlank()
@@ -340,6 +347,23 @@ final class McpMobileInspectorRecordingService {
                 recordingStatus.actionCount(),
                 blocks,
                 warnings);
+    }
+
+    private static String diagnosticWarning(McpMobileToolchainDiagnostic diagnostic) {
+        StringBuilder warning = new StringBuilder("Toolchain dependency `")
+                .append(diagnostic.dependencyId())
+                .append("` is not ready");
+        if (!diagnostic.failureCause().isBlank()) {
+            warning.append(": ").append(diagnostic.failureCause());
+        }
+        if (!diagnostic.repairGuidance().isBlank()) {
+            warning.append(" Repair: ").append(diagnostic.repairGuidance());
+        }
+        return warning.toString();
+    }
+
+    private static boolean blocksInspectorStart(McpMobileToolchainDiagnostic diagnostic) {
+        return "ios-host".equals(diagnostic.dependencyId()) && !diagnostic.available();
     }
 
     private McpCodeBlock setupBlock(McpMobileInspectorPlan plan, String appiumServerUrl, String deviceId) {

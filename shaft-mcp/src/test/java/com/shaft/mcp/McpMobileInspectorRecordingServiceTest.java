@@ -86,6 +86,66 @@ class McpMobileInspectorRecordingServiceTest {
     }
 
     @Test
+    void prepareSurfacesToolchainDiagnosticWarnings() {
+        McpMobileInspectorRecordingService service = service();
+
+        McpMobileInspectorPlan plan = service.prepare(
+                "Android",
+                "recordings/native.json",
+                false,
+                "",
+                "com.example",
+                ".MainActivity",
+                "",
+                "",
+                "Pixel 8",
+                "",
+                "",
+                0,
+                "",
+                "",
+                "",
+                0,
+                0,
+                false);
+
+        assertFalse(plan.readyToStart());
+        assertTrue(plan.warnings().stream().anyMatch(warning -> warning.contains("adb was not found")
+                && warning.contains("platform-tools")));
+        assertTrue(plan.warnings().stream().anyMatch(warning -> warning.contains("Android emulator")
+                && warning.contains("sdkmanager")));
+    }
+
+    @Test
+    void prepareBlocksIosInspectorOnNonMacHost() {
+        McpMobileInspectorRecordingService service = service();
+
+        McpMobileInspectorPlan plan = service.prepare(
+                "iOS",
+                "recordings/native-ios.json",
+                false,
+                "",
+                "",
+                "",
+                "com.example.ios",
+                "",
+                "iPhone 15",
+                "",
+                "",
+                0,
+                "",
+                "",
+                "",
+                0,
+                0,
+                false);
+
+        assertFalse(plan.readyToStart());
+        assertTrue(plan.warnings().stream().anyMatch(warning -> warning.contains("ios-host")
+                && warning.contains("requires macOS")));
+    }
+
+    @Test
     void rejectsUnknownConfirmationToken() {
         McpMobileInspectorRecordingService service = service();
 
