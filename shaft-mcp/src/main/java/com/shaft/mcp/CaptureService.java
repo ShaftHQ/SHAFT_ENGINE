@@ -469,7 +469,7 @@ public class CaptureService {
 
     private McpCaptureReplayResult replayResult(CaptureGenerationResult result, String driverVariableName) {
         var blocks = result.successful() && result.sourcePath() != null
-                ? codeBlocks.fromGeneratedSource(result.sourcePath(), driverVariableName)
+                ? codeBlocks.fromGeneratedSource(result.sourcePath(), driverVariableName, result.report())
                 : java.util.List.<McpCodeBlock>of();
         return new McpCaptureReplayResult(
                 result.sourcePath(),

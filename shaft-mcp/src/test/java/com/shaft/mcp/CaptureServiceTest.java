@@ -46,9 +46,43 @@ class CaptureServiceTest {
                 .anyMatch(block -> block.kind() == McpCodeBlock.Kind.TEST_METHOD
                         && block.placement().contains("browser")));
         assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("capture-pom-manual-mapping-warning")
+                        && block.warnings().stream().anyMatch(message -> message.contains("manual mapping"))));
+        assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.id().equals("capture-agent-integration")
                         && block.code().contains("Page Object")));
         assertTrue(Files.readString(result.reviewUiPath()).contains("Playwright Codegen Feature Map"));
+    }
+
+    @Test
+    void playwrightCodeBlocksToolGeneratesPlaywrightPomGuidanceInsideWorkspace() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.playwrightCodeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-playwright").toString(),
+                    "generated.capture",
+                    "PlaywrightGoldenSessionTest",
+                    false,
+                    "page");
+        } finally {
+            service.close();
+        }
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertTrue(Files.readString(result.sourcePath()).contains("SHAFT.GUI.Playwright"));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("capture-test-method")
+                        && block.placement().contains("SHAFT.GUI.Playwright")
+                        && block.placement().contains("page")));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("capture-pom-manual-mapping-warning")
+                        && block.warnings().stream().anyMatch(message -> message.contains("manual mapping"))));
     }
 
     @Test
@@ -218,4 +252,5 @@ class CaptureServiceTest {
         }
         throw new IllegalStateException("Repository root could not be resolved.");
     }
+
 }
