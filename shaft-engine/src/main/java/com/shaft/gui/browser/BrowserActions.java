@@ -812,7 +812,78 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public BrowserActions addCookie(String key, String value) {
         driverFactoryHelper.getDriver().manage().addCookie(new Cookie(key, value));
-        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Add Cookie", "Key: " + key + " | Value: " + value);
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Add Cookie", "Key: " + key + " | Value: ********");
+        return this;
+    }
+
+    /**
+     * Imports API session cookies into the current browser context.
+     *
+     * @param api the API session to read cookies from
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions importCookiesFrom(SHAFT.API api) {
+        return importCookiesFrom(api, null, null);
+    }
+
+    /**
+     * Imports matching API session cookies into the current browser context.
+     *
+     * @param api          the API session to read cookies from
+     * @param domainFilter optional exact cookie domain filter; pass {@code null} or blank to import every domain
+     * @param pathFilter   optional exact cookie path filter; pass {@code null} or blank to import every path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions importCookiesFrom(SHAFT.API api, String domainFilter, String pathFilter) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            Objects.requireNonNull(api, "api");
+            URI currentUri = requireHttpBrowserUri(driver.getCurrentUrl());
+            List<Cookie> cookiesToImport = new ArrayList<>();
+            for (io.restassured.http.Cookie apiCookie : api.getCookies().values()) {
+                if (matchesApiCookieFilter(apiCookie, domainFilter, pathFilter)) {
+                    cookiesToImport.add(toSeleniumCookie(apiCookie, currentUri.getHost()));
+                }
+            }
+            cookiesToImport.forEach(cookie -> driver.manage().addCookie(cookie));
+            browserActionsHelper.passAction(driver, "Import Cookies From API", "Imported Cookies: " + cookiesToImport.size());
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Import Cookies From API",
+                    "Could not import API cookies. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Copies a selected API session header into {@code localStorage}.
+     *
+     * @param api        the API session to read headers from
+     * @param headerName the header name to copy
+     * @param storageKey the localStorage key to write
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions importHeaderToLocalStorage(SHAFT.API api, String headerName, String storageKey) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            Objects.requireNonNull(api, "api");
+            requireNonBlank(headerName, "headerName");
+            requireNonBlank(storageKey, "storageKey");
+            requireHttpBrowserUri(driver.getCurrentUrl());
+            String headerValue = api.getHeaders().get(headerName);
+            if (headerValue == null) {
+                throw new IllegalArgumentException("API session does not contain header \"" + headerName + "\".");
+            }
+            if (!(driver instanceof JavascriptExecutor javascriptExecutor)) {
+                throw new IllegalStateException("The active WebDriver does not support JavaScript execution.");
+            }
+            javascriptExecutor.executeScript("window.localStorage.setItem(arguments[0], arguments[1]);",
+                    storageKey, headerValue);
+            browserActionsHelper.passAction(driver, "Import Header To Local Storage",
+                    "Header: " + headerName + " | Storage Key: " + storageKey);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Import Header To Local Storage",
+                    "Could not import API header to localStorage. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
         return this;
     }
 
@@ -865,7 +936,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public String getCookieValue(String cookieName) {
         String cookieValue = getCookie(cookieName).getValue();
-        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Get Cookie Value with name: " + cookieName, cookieValue);
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Get Cookie Value with name: " + cookieName, "********");
         return cookieValue;
     }
 
@@ -1081,5 +1152,76 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         return new AccessibilityActions(rawDriver, this);
     }
 
+    private static Cookie toSeleniumCookie(io.restassured.http.Cookie apiCookie, String currentHost) {
+        Cookie.Builder builder = new Cookie.Builder(apiCookie.getName(), apiCookie.hasValue() ? apiCookie.getValue() : "");
+        if (apiCookie.hasDomain()) {
+            String cookieDomain = normalizeDomain(apiCookie.getDomain());
+            if (!hostMatchesDomain(currentHost, cookieDomain)) {
+                throw new IllegalArgumentException("Current browser host \"" + currentHost
+                        + "\" is not compatible with cookie domain \"" + apiCookie.getDomain() + "\".");
+            }
+            builder.domain(cookieDomain);
+        }
+        builder.path(apiCookie.hasPath() ? apiCookie.getPath() : "/");
+        if (apiCookie.hasExpiryDate()) {
+            builder.expiresOn(apiCookie.getExpiryDate());
+        }
+        builder.isSecure(apiCookie.isSecured());
+        builder.isHttpOnly(apiCookie.isHttpOnly());
+        if (apiCookie.hasSameSite()) {
+            builder.sameSite(apiCookie.getSameSite());
+        }
+        return builder.build();
+    }
+
+    private static URI requireHttpBrowserUri(String currentUrl) {
+        if (currentUrl == null || currentUrl.isBlank()) {
+            throw new IllegalStateException("Navigate to an HTTP or HTTPS page before importing auth state.");
+        }
+        URI currentUri = URI.create(currentUrl);
+        String scheme = currentUri.getScheme();
+        if (currentUri.getHost() == null
+                || scheme == null
+                || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
+            throw new IllegalStateException("Navigate to an HTTP or HTTPS page before importing auth state.");
+        }
+        return currentUri;
+    }
+
+    private static void requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be blank.");
+        }
+    }
+
+    private static boolean matchesApiCookieFilter(io.restassured.http.Cookie cookie, String domainFilter, String pathFilter) {
+        return matchesFilter(cookie.hasDomain() ? cookie.getDomain() : null, domainFilter, true)
+                && matchesFilter(cookie.hasPath() ? cookie.getPath() : null, pathFilter, false);
+    }
+
+    private static boolean matchesFilter(String actual, String filter, boolean domain) {
+        if (filter == null || filter.isBlank()) {
+            return true;
+        }
+        if (actual == null || actual.isBlank()) {
+            return false;
+        }
+        String normalizedActual = domain ? normalizeDomain(actual) : actual;
+        String normalizedFilter = domain ? normalizeDomain(filter) : filter;
+        return normalizedActual.equals(normalizedFilter);
+    }
+
+    private static boolean hostMatchesDomain(String host, String domain) {
+        String normalizedHost = normalizeDomain(host);
+        return normalizedHost.equals(domain) || normalizedHost.endsWith("." + domain);
+    }
+
+    private static String normalizeDomain(String domain) {
+        String normalized = domain.toLowerCase(Locale.ROOT);
+        while (normalized.startsWith(".")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
+    }
 
 }

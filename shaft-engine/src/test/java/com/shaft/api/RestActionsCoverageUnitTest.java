@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.properties.internal.Properties;
 import com.shaft.validation.Validations;
 import com.sun.net.httpserver.HttpServer;
@@ -34,6 +35,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class RestActionsCoverageUnitTest {
@@ -281,6 +283,40 @@ public class RestActionsCoverageUnitTest {
         Validations.assertThat().object(actions.getSessionHeaders().get("Authorization")).isEqualTo("Bearer abc123").perform();
         Validations.assertThat().object(actions.getSessionHeaders().get("X-XSRF-TOKEN")).isEqualTo("csrf-header").perform();
         Validations.assertThat().object(actions.getSessionCookies().get("XSRF-TOKEN")).isEqualTo("csrf-value").perform();
+        Assert.assertEquals(actions.getCookies().get("XSRF-TOKEN").getDomain(), "localhost");
+    }
+
+    @Test
+    public void apiShouldImportBrowserCookiesWithDomainAndPathFilter() {
+        BrowserActionsContract browser = Mockito.mock(BrowserActionsContract.class);
+        org.openqa.selenium.Cookie sessionCookie = new org.openqa.selenium.Cookie.Builder("session", "secret")
+                .domain(".example.com")
+                .path("/app")
+                .isSecure(true)
+                .isHttpOnly(true)
+                .sameSite("Strict")
+                .build();
+        org.openqa.selenium.Cookie skippedCookie = new org.openqa.selenium.Cookie.Builder("other", "value")
+                .domain("other.example.com")
+                .path("/")
+                .build();
+        Mockito.when(browser.getAllCookies()).thenReturn(Set.of(sessionCookie, skippedCookie));
+
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.importCookiesFrom(browser, "example.com", "/app");
+
+        Map<String, Cookie> cookies = api.getCookies();
+        Cookie imported = cookies.get("session");
+        Assert.assertNotNull(imported);
+        Assert.assertEquals(imported.getValue(), "secret");
+        Assert.assertEquals(imported.getDomain(), ".example.com");
+        Assert.assertEquals(imported.getPath(), "/app");
+        Assert.assertTrue(imported.isSecured());
+        Assert.assertTrue(imported.isHttpOnly());
+        Assert.assertEquals(imported.getSameSite(), "Strict");
+        Assert.assertFalse(cookies.containsKey("other"));
+        Assert.assertThrows(UnsupportedOperationException.class,
+                () -> cookies.put("new", new Cookie.Builder("new", "value").build()));
     }
 
     @Test

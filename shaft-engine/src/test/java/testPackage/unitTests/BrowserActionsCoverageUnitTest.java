@@ -179,6 +179,71 @@ public class BrowserActionsCoverageUnitTest {
     }
 
     @Test
+    public void shouldImportApiCookiesIntoCompatibleBrowserDomain() {
+        com.shaft.gui.driver.BrowserActionsContract sourceBrowser = Mockito.mock(com.shaft.gui.driver.BrowserActionsContract.class);
+        Cookie sourceCookie = new Cookie.Builder("session", "secret")
+                .domain(".example.com")
+                .path("/app")
+                .isSecure(true)
+                .isHttpOnly(true)
+                .sameSite("Strict")
+                .build();
+        Cookie skippedCookie = new Cookie.Builder("other", "value")
+                .domain("other.example.com")
+                .path("/")
+                .build();
+        Mockito.when(sourceBrowser.getAllCookies()).thenReturn(Set.of(sourceCookie, skippedCookie));
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.importCookiesFrom(sourceBrowser);
+        when(driver.getCurrentUrl()).thenReturn("https://app.example.com/app/dashboard");
+
+        browserActions.importCookiesFrom(api, "example.com", "/app");
+
+        org.mockito.ArgumentCaptor<Cookie> cookieCaptor = org.mockito.ArgumentCaptor.forClass(Cookie.class);
+        Mockito.verify(options).addCookie(cookieCaptor.capture());
+        Cookie imported = cookieCaptor.getValue();
+        Assert.assertEquals(imported.getName(), "session");
+        Assert.assertEquals(imported.getValue(), "secret");
+        Assert.assertEquals(imported.getDomain(), "example.com");
+        Assert.assertEquals(imported.getPath(), "/app");
+        Assert.assertTrue(imported.isSecure());
+        Assert.assertTrue(imported.isHttpOnly());
+        Assert.assertEquals(imported.getSameSite(), "Strict");
+    }
+
+    @Test
+    public void shouldImportApiHeaderIntoLocalStorage() {
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.addHeader("Authorization", "Bearer secret");
+        when(driver.getCurrentUrl()).thenReturn("https://example.com/app");
+
+        browserActions.importHeaderToLocalStorage(api, "Authorization", "authToken");
+
+        Mockito.verify((JavascriptExecutor) driver)
+                .executeScript("window.localStorage.setItem(arguments[0], arguments[1]);", "authToken", "Bearer secret");
+    }
+
+    @Test
+    public void shouldValidateApiCookieDomainsBeforeImportingAnyCookie() {
+        com.shaft.gui.driver.BrowserActionsContract sourceBrowser = Mockito.mock(com.shaft.gui.driver.BrowserActionsContract.class);
+        Cookie compatibleCookie = new Cookie.Builder("session", "secret")
+                .domain(".example.com")
+                .path("/")
+                .build();
+        Cookie incompatibleCookie = new Cookie.Builder("admin", "secret")
+                .domain("admin.example.org")
+                .path("/")
+                .build();
+        Mockito.when(sourceBrowser.getAllCookies()).thenReturn(Set.of(compatibleCookie, incompatibleCookie));
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.importCookiesFrom(sourceBrowser);
+        when(driver.getCurrentUrl()).thenReturn("https://app.example.com/");
+
+        Assert.assertThrows(RuntimeException.class, () -> browserActions.importCookiesFrom(api));
+        Mockito.verify(options, Mockito.never()).addCookie(any(Cookie.class));
+    }
+
+    @Test
     public void shouldCoverConstructorsAndExtraControlPaths() {
         BrowserActions browserActionsWithDriver = new BrowserActions(driver);
         BrowserActions browserActionsWithHelper = new BrowserActions(new DriverFactoryHelper(driver));

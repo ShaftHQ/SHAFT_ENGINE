@@ -8,6 +8,7 @@ import com.shaft.db.DatabaseActions;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.AsyncElementActions;
 import com.shaft.gui.element.TouchActions;
@@ -576,6 +577,48 @@ public class SHAFT {
          */
         public void addCookie(String key, String value) {
             session.addCookieVariable(key, value);
+        }
+
+        /**
+         * Imports all browser cookies into this API session.
+         *
+         * @param browserActions browser actions facade to read cookies from
+         * @return this API session for fluent chaining
+         */
+        public API importCookiesFrom(BrowserActionsContract browserActions) {
+            return importCookiesFrom(browserActions, null, null);
+        }
+
+        /**
+         * Imports browser cookies that match the optional domain and path filters into this API session.
+         *
+         * @param browserActions browser actions facade to read cookies from
+         * @param domainFilter   optional exact domain filter; pass {@code null} or blank to import every domain
+         * @param pathFilter     optional exact path filter; pass {@code null} or blank to import every path
+         * @return this API session for fluent chaining
+         */
+        public API importCookiesFrom(BrowserActionsContract browserActions, String domainFilter, String pathFilter) {
+            java.util.Objects.requireNonNull(browserActions, "browserActions");
+            session.importCookiesFrom(browserActions.getAllCookies(), domainFilter, pathFilter);
+            return this;
+        }
+
+        /**
+         * Returns an immutable snapshot of cookies attached to this API session.
+         *
+         * @return API session cookies keyed by cookie name
+         */
+        public Map<String, io.restassured.http.Cookie> getCookies() {
+            return session.getCookies();
+        }
+
+        /**
+         * Returns an immutable snapshot of headers attached to this API session.
+         *
+         * @return API session headers keyed by header name
+         */
+        public Map<String, String> getHeaders() {
+            return session.getHeaders();
         }
 
         /**

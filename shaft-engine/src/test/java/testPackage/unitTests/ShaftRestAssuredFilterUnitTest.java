@@ -2,6 +2,7 @@ package testPackage.unitTests;
 
 import com.shaft.api.ShaftRestAssuredFilter;
 import com.shaft.driver.SHAFT;
+import io.qameta.allure.Allure;
 import io.restassured.filter.FilterContext;
 import io.restassured.http.Cookie;
 import io.restassured.http.Cookies;
@@ -11,10 +12,14 @@ import io.restassured.response.Response;
 import io.restassured.response.ResponseBody;
 import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -68,6 +73,70 @@ public class ShaftRestAssuredFilterUnitTest {
 
         SHAFT.Validations.assertThat().object(actual).isEqualTo(response).perform();
         Mockito.verify(filterContext).next(requestSpec, responseSpec);
+    }
+
+    @Test(description = "filter redacts auth headers and cookies from request and response metadata")
+    public void filterShouldRedactSensitiveHeadersAndCookies() throws Exception {
+        FilterableRequestSpecification requestSpec = Mockito.mock(FilterableRequestSpecification.class);
+        FilterableResponseSpecification responseSpec = Mockito.mock(FilterableResponseSpecification.class);
+        FilterContext filterContext = Mockito.mock(FilterContext.class);
+        Response response = Mockito.mock(Response.class);
+        ResponseBody<?> responseBody = Mockito.mock(ResponseBody.class);
+
+        Mockito.when(requestSpec.getMethod()).thenReturn("GET");
+        Mockito.when(requestSpec.getURI()).thenReturn("https://example.test/api");
+        Mockito.when(requestSpec.getHeaders()).thenReturn(new Headers(
+                new Header("Authorization", "Bearer request-secret"),
+                new Header("X-Trace", "trace-1")));
+        Mockito.when(requestSpec.getCookies())
+                .thenReturn(new Cookies(new Cookie.Builder("session", "cookie-secret").build()));
+        Mockito.when(requestSpec.getFormParams()).thenReturn(new LinkedHashMap<>());
+        Mockito.when(requestSpec.getBody()).thenReturn("{\"username\":\"shaft\",\"password\":\"request-password\"}");
+        Mockito.when(requestSpec.getContentType()).thenReturn("application/json");
+
+        Mockito.when(filterContext.next(requestSpec, responseSpec)).thenReturn(response);
+        Mockito.when(response.getStatusLine()).thenReturn("HTTP/1.1 200 OK");
+        Mockito.when(response.getTime()).thenReturn(10L);
+        Mockito.when(response.getHeaders()).thenReturn(new Headers(
+                new Header("Set-Cookie", "session=response-secret"),
+                new Header("Content-Type", "application/json")));
+        Mockito.when(response.getContentType()).thenReturn("application/json");
+        Mockito.when(response.getBody()).thenReturn(responseBody);
+        Mockito.when(responseBody.asString()).thenReturn("{\"type\":\"bearer\",\"token\":\"response-token\"}");
+
+        try (MockedStatic<Allure> allure = Mockito.mockStatic(Allure.class)) {
+            filter.filter(requestSpec, responseSpec, filterContext);
+
+            ArgumentCaptor<InputStream> requestStream = ArgumentCaptor.forClass(InputStream.class);
+            allure.verify(() -> Allure.addAttachment(Mockito.eq("Request"), Mockito.eq("text/plain"),
+                    requestStream.capture(), Mockito.eq(".txt")));
+            String requestMetadata = new String(requestStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
+            org.testng.Assert.assertFalse(requestMetadata.contains("request-secret"));
+            org.testng.Assert.assertFalse(requestMetadata.contains("cookie-secret"));
+            org.testng.Assert.assertTrue(requestMetadata.contains("Authorization: ********"));
+            org.testng.Assert.assertTrue(requestMetadata.contains("session=********"));
+
+            ArgumentCaptor<InputStream> responseStream = ArgumentCaptor.forClass(InputStream.class);
+            allure.verify(() -> Allure.addAttachment(Mockito.eq("Response"), Mockito.eq("text/plain"),
+                    responseStream.capture(), Mockito.eq(".txt")));
+            String responseMetadata = new String(responseStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
+            org.testng.Assert.assertFalse(responseMetadata.contains("response-secret"));
+            org.testng.Assert.assertTrue(responseMetadata.contains("Set-Cookie: ********"));
+
+            ArgumentCaptor<InputStream> requestBodyStream = ArgumentCaptor.forClass(InputStream.class);
+            allure.verify(() -> Allure.addAttachment(Mockito.eq("Request Body"), Mockito.eq("application/json"),
+                    requestBodyStream.capture(), Mockito.eq(".json")));
+            String requestBody = new String(requestBodyStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
+            org.testng.Assert.assertFalse(requestBody.contains("request-password"));
+            org.testng.Assert.assertTrue(requestBody.contains("\"password\": \"********\""));
+
+            ArgumentCaptor<InputStream> responseBodyStream = ArgumentCaptor.forClass(InputStream.class);
+            allure.verify(() -> Allure.addAttachment(Mockito.eq("Response Body"), Mockito.eq("application/json"),
+                    responseBodyStream.capture(), Mockito.eq(".json")));
+            String responseBodyText = new String(responseBodyStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
+            org.testng.Assert.assertFalse(responseBodyText.contains("response-token"));
+            org.testng.Assert.assertTrue(responseBodyText.contains("\"token\": \"********\""));
+        }
     }
 
     @Test(description = "filter handles binary request and binary response bodies with normalized MIME types")

@@ -2,8 +2,12 @@ package com.shaft.api;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import io.qameta.allure.Allure;
 import io.restassured.filter.Filter;
 import io.restassured.filter.FilterContext;
@@ -13,6 +17,8 @@ import io.restassured.specification.FilterableResponseSpecification;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * A SHAFT-native Allure filter for REST Assured that replaces the default
@@ -50,6 +56,11 @@ import java.nio.charset.StandardCharsets;
  */
 public class ShaftRestAssuredFilter implements Filter {
     private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final String MASKED_VALUE = "********";
+    private static final Pattern SENSITIVE_KEY_VALUE_PATTERN = Pattern.compile(
+            "(?i)(\\b[\\w-]*(?:authorization|cookie|password|passwd|secret|token|apikey|api-key)[\\w-]*\\b\\s*[:=]\\s*)(\"[^\"]*\"|'[^']*'|[^&\\s,;]+)");
+    private static final Pattern SENSITIVE_XML_ELEMENT_PATTERN = Pattern.compile(
+            "(?is)(<([\\w:-]*(?:authorization|cookie|password|passwd|secret|token|apikey|api-key)[\\w:-]*)\\b[^>]*>)(.*?)(</\\2>)");
 
     /**
      * Intercepts every REST Assured request, attaches the request and response
@@ -93,21 +104,22 @@ public class ShaftRestAssuredFilter implements Filter {
         if (requestSpec.getHeaders().size() > 0) {
             info.append("\nHeaders:\n");
             requestSpec.getHeaders().forEach(h ->
-                    info.append("  ").append(h.getName()).append(": ").append(h.getValue()).append("\n"));
+                    info.append("  ").append(h.getName()).append(": ")
+                            .append(redactForReport(h.getName(), h.getValue())).append("\n"));
         }
 
         // Cookies
         if (requestSpec.getCookies().size() > 0) {
             info.append("\nCookies:\n");
             requestSpec.getCookies().forEach(c ->
-                    info.append("  ").append(c.getName()).append("=").append(c.getValue()).append("\n"));
+                    info.append("  ").append(c.getName()).append("=").append(MASKED_VALUE).append("\n"));
         }
 
         // Form params
         if (!requestSpec.getFormParams().isEmpty()) {
             info.append("\nForm Params:\n");
             requestSpec.getFormParams().forEach((k, v) ->
-                    info.append("  ").append(k).append("=").append(v).append("\n"));
+                    info.append("  ").append(k).append("=").append(redactForReport(k, v)).append("\n"));
         }
 
         Allure.addAttachment("Request", "text/plain",
@@ -131,7 +143,7 @@ public class ShaftRestAssuredFilter implements Filter {
                 if (!bodyStr.isEmpty()) {
                     String contentType = detectContentType(bodyStr,
                             requestSpec.getContentType() != null ? requestSpec.getContentType() : "");
-                    String formatted = formatBody(bodyStr, contentType);
+                    String formatted = formatBody(redactBodyForReport(bodyStr, contentType), contentType);
                     Allure.addAttachment("Request Body", contentType,
                             new ByteArrayInputStream(formatted.getBytes(StandardCharsets.UTF_8)),
                             getFileExtension(contentType));
@@ -162,7 +174,8 @@ public class ShaftRestAssuredFilter implements Filter {
         if (response.getHeaders().size() > 0) {
             info.append("\nHeaders:\n");
             response.getHeaders().forEach(h ->
-                    info.append("  ").append(h.getName()).append(": ").append(h.getValue()).append("\n"));
+                    info.append("  ").append(h.getName()).append(": ")
+                            .append(redactForReport(h.getName(), h.getValue())).append("\n"));
         }
 
         Allure.addAttachment("Response", "text/plain",
@@ -183,7 +196,7 @@ public class ShaftRestAssuredFilter implements Filter {
             String body = response.getBody().asString();
             if (body != null && !body.isEmpty()) {
                 String detectedContentType = detectContentType(body, declaredContentType);
-                String formatted = formatBody(body, detectedContentType);
+                String formatted = formatBody(redactBodyForReport(body, detectedContentType), detectedContentType);
                 Allure.addAttachment("Response Body", detectedContentType,
                         new ByteArrayInputStream(formatted.getBytes(StandardCharsets.UTF_8)),
                         getFileExtension(detectedContentType));
@@ -192,6 +205,60 @@ public class ShaftRestAssuredFilter implements Filter {
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────────
+
+    private static String redactForReport(String key, Object value) {
+        return isSensitiveKey(key) ? MASKED_VALUE : String.valueOf(value);
+    }
+
+    private static boolean isSensitiveKey(String key) {
+        String normalizedKey = key == null ? "" : key.toLowerCase();
+        return normalizedKey.contains("authorization")
+                || normalizedKey.contains("cookie")
+                || normalizedKey.contains("password")
+                || normalizedKey.contains("passwd")
+                || normalizedKey.contains("secret")
+                || normalizedKey.contains("token")
+                || normalizedKey.contains("apikey")
+                || normalizedKey.contains("api-key");
+    }
+
+    private String redactBodyForReport(String body, String contentType) {
+        if (body == null || body.isEmpty()) {
+            return body;
+        }
+        if ("application/json".equals(contentType) || looksLikeJson(body)) {
+            try {
+                return PRETTY_GSON.toJson(redactJson(JsonParser.parseString(body)));
+            } catch (JsonParseException ignored) {
+                // Fall back to text redaction if the body only looks like JSON.
+            }
+        }
+        String redacted = SENSITIVE_KEY_VALUE_PATTERN.matcher(body).replaceAll("$1" + MASKED_VALUE);
+        return SENSITIVE_XML_ELEMENT_PATTERN.matcher(redacted).replaceAll("$1" + MASKED_VALUE + "$4");
+    }
+
+    private static JsonElement redactJson(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return element;
+        }
+        if (element.isJsonObject()) {
+            JsonObject redacted = new JsonObject();
+            for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet()) {
+                redacted.add(entry.getKey(), isSensitiveKey(entry.getKey())
+                        ? new JsonPrimitive(MASKED_VALUE)
+                        : redactJson(entry.getValue()));
+            }
+            return redacted;
+        }
+        if (element.isJsonArray()) {
+            JsonArray redacted = new JsonArray();
+            for (JsonElement child : element.getAsJsonArray()) {
+                redacted.add(redactJson(child));
+            }
+            return redacted;
+        }
+        return element.deepCopy();
+    }
 
     /**
      * Determines the best MIME type for an attachment body.

@@ -52,6 +52,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.*;
+import java.net.URI;
 import java.net.URLConnection;
 import java.nio.file.Files;
 import java.util.*;
@@ -102,6 +103,7 @@ public class RestActions {
     private final String serviceURI;
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
+    private final Map<String, Cookie> sessionDetailedCookies;
     private final RestAssuredConfig sessionConfig;
     private SHAFT.API driver;
 
@@ -121,8 +123,9 @@ public class RestActions {
         initializeSystemProperties();
         headerAuthorization = "";
         this.serviceURI = serviceURI;
-        sessionCookies = new HashMap<>();
-        sessionHeaders = new HashMap<>();
+        sessionCookies = new LinkedHashMap<>();
+        sessionDetailedCookies = new LinkedHashMap<>();
+        sessionHeaders = new LinkedHashMap<>();
         sessionConfig = config();
         this.driver = driver;
     }
@@ -159,8 +162,9 @@ public class RestActions {
         initializeSystemProperties();
         headerAuthorization = "";
         this.serviceURI = serviceURI;
-        sessionCookies = new HashMap<>();
-        sessionHeaders = new HashMap<>();
+        sessionCookies = new LinkedHashMap<>();
+        sessionDetailedCookies = new LinkedHashMap<>();
+        sessionHeaders = new LinkedHashMap<>();
         sessionConfig = config();
     }
 
@@ -1116,6 +1120,47 @@ public class RestActions {
         return sessionCookies;
     }
 
+    /**
+     * Returns an immutable snapshot of the cookies currently attached to this API session.
+     *
+     * @return session cookies keyed by cookie name
+     */
+    public Map<String, Cookie> getCookies() {
+        Map<String, Cookie> cookies = new LinkedHashMap<>(sessionDetailedCookies);
+        sessionCookies.forEach((name, value) -> {
+            if (name != null && !cookies.containsKey(name)) {
+                cookies.put(name, new Cookie.Builder(name, value == null ? "" : String.valueOf(value)).build());
+            }
+        });
+        return Collections.unmodifiableMap(cookies);
+    }
+
+    /**
+     * Returns an immutable snapshot of the headers currently attached to this API session.
+     *
+     * @return session headers keyed by header name
+     */
+    public Map<String, String> getHeaders() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(sessionHeaders));
+    }
+
+    /**
+     * Imports browser cookies into this API session.
+     *
+     * @param cookies      browser cookies to import
+     * @param domainFilter optional exact domain filter; pass {@code null} or blank to import every domain
+     * @param pathFilter   optional exact path filter; pass {@code null} or blank to import every path
+     * @return self-reference to be used for chaining actions
+     */
+    public RestActions importCookiesFrom(Set<org.openqa.selenium.Cookie> cookies, String domainFilter, String pathFilter) {
+        Objects.requireNonNull(cookies, "cookies");
+        cookies.stream()
+                .filter(cookie -> matchesBrowserCookieFilter(cookie, domainFilter, pathFilter))
+                .map(RestActions::toRestAssuredCookie)
+                .forEach(this::putSessionCookie);
+        return this;
+    }
+
     protected RestAssuredConfig getSessionConfig() {
         return sessionConfig;
     }
@@ -1181,6 +1226,9 @@ public class RestActions {
     @Deprecated(since = "10.2.20260620", forRemoval = false)
     public RestActions addCookieVariable(String key, String value) {
         sessionCookies.put(key, value);
+        if (key != null && value != null) {
+            sessionDetailedCookies.put(key, new Cookie.Builder(key, value).build());
+        }
         return this;
     }
 
@@ -1372,10 +1420,10 @@ public class RestActions {
         return null;
     }
 
-    private void extractCookiesFromResponse(Response response) {
+    private void extractCookiesFromResponse(Response response, String originHost) {
         if (response.getDetailedCookies().size() > 0) {
             for (Cookie cookie : response.getDetailedCookies()) {
-                sessionCookies.put(cookie.getName(), cookie.getValue());
+                putSessionCookie(withOriginHost(cookie, originHost));
                 if (cookie.getName().equals("XSRF-TOKEN")) {
                     sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
                 }
@@ -1438,7 +1486,7 @@ public class RestActions {
     String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
                                 String serviceName, ContentType contentType, String urlArguments) {
         if (response != null) {
-            extractCookiesFromResponse(response);
+            extractCookiesFromResponse(response, resolveRequestHost(serviceName));
             extractHeadersFromResponse(response);
             StringBuilder reportMessage = new StringBuilder();
             reportMessage.append(requestType);
@@ -1451,6 +1499,85 @@ public class RestActions {
             return reportMessage.toString().trim();
         }
         return "";
+    }
+
+    private void putSessionCookie(Cookie cookie) {
+        sessionCookies.put(cookie.getName(), cookie.getValue());
+        sessionDetailedCookies.put(cookie.getName(), cookie);
+    }
+
+    private static Cookie withOriginHost(Cookie cookie, String originHost) {
+        if (cookie.hasDomain() || originHost == null || originHost.isBlank()) {
+            return cookie;
+        }
+        Cookie.Builder builder = new Cookie.Builder(cookie.getName(), cookie.hasValue() ? cookie.getValue() : "");
+        builder.setDomain(originHost);
+        if (cookie.hasPath()) {
+            builder.setPath(cookie.getPath());
+        }
+        if (cookie.hasExpiryDate()) {
+            builder.setExpiryDate(cookie.getExpiryDate());
+        }
+        builder.setSecured(cookie.isSecured());
+        builder.setHttpOnly(cookie.isHttpOnly());
+        if (cookie.hasSameSite()) {
+            builder.setSameSite(cookie.getSameSite());
+        }
+        return builder.build();
+    }
+
+    private String resolveRequestHost(String serviceName) {
+        try {
+            URI baseUri = URI.create(serviceURI);
+            URI requestUri = baseUri.resolve(serviceName == null ? "" : serviceName);
+            return requestUri.getHost();
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private static Cookie toRestAssuredCookie(org.openqa.selenium.Cookie cookie) {
+        Cookie.Builder builder = new Cookie.Builder(cookie.getName(), cookie.getValue());
+        if (cookie.getDomain() != null) {
+            builder.setDomain(cookie.getDomain());
+        }
+        if (cookie.getPath() != null) {
+            builder.setPath(cookie.getPath());
+        }
+        if (cookie.getExpiry() != null) {
+            builder.setExpiryDate(cookie.getExpiry());
+        }
+        builder.setSecured(cookie.isSecure());
+        builder.setHttpOnly(cookie.isHttpOnly());
+        if (cookie.getSameSite() != null) {
+            builder.setSameSite(cookie.getSameSite());
+        }
+        return builder.build();
+    }
+
+    private static boolean matchesBrowserCookieFilter(org.openqa.selenium.Cookie cookie, String domainFilter, String pathFilter) {
+        return matchesFilter(cookie.getDomain(), domainFilter, true)
+                && matchesFilter(cookie.getPath(), pathFilter, false);
+    }
+
+    private static boolean matchesFilter(String actual, String filter, boolean domain) {
+        if (filter == null || filter.isBlank()) {
+            return true;
+        }
+        if (actual == null || actual.isBlank()) {
+            return false;
+        }
+        String normalizedActual = domain ? normalizeDomain(actual) : actual;
+        String normalizedFilter = domain ? normalizeDomain(filter) : filter;
+        return normalizedActual.equals(normalizedFilter);
+    }
+
+    private static String normalizeDomain(String domain) {
+        String normalized = domain.toLowerCase(Locale.ROOT);
+        while (normalized.startsWith(".")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
     }
 
 
