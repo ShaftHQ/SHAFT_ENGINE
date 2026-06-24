@@ -58,6 +58,55 @@ class McpMobileToolchainServiceTest {
         assertTrue(status.cachedAndroidEmulators().contains("Pixel_API_36"));
         assertTrue(status.cachedAndroidEmulators().contains("Cached_Pixel"));
         assertFalse(status.missingDependencies().contains("adb"));
+        assertTrue(diagnostic(status, "appium").available());
+        assertTrue(diagnostic(status, "appium").detectedPath().endsWith("appium.cmd"));
+        assertEquals("3.5.2", diagnostic(status, "appium").detectedVersion());
+        assertTrue(diagnostic(status, "appium-inspector-plugin").available());
+        assertEquals("", diagnostic(status, "appium-inspector-plugin").detectedVersion());
+    }
+
+    @Test
+    void statusReportsRepairableDiagnosticsForMissingAndroidToolchain() {
+        Path toolRoot = temp.resolve("tools");
+        McpMobileToolchainService service = new McpMobileToolchainService(new FakeRunner(),
+                Map.of("PATH", "", "ANDROID_SDK_ROOT", temp.resolve("android-sdk").toString()),
+                toolRoot, "Windows 11", "amd64");
+
+        McpMobileToolchainStatus status = service.status("Android");
+
+        McpMobileToolchainDiagnostic adb = diagnostic(status, "adb");
+        assertFalse(adb.available());
+        assertEquals("", adb.detectedPath());
+        assertTrue(adb.failureCause().contains("adb was not found"));
+        assertTrue(adb.repairGuidance().contains("platform-tools"));
+        assertTrue(status.missingDependencies().contains("android platform-tools"));
+        assertFalse(diagnostic(status, "node").available());
+        assertFalse(diagnostic(status, "npm").available());
+        assertFalse(diagnostic(status, "appium").available());
+        assertFalse(diagnostic(status, "appium-inspector-plugin").available());
+
+        McpMobileToolchainDiagnostic emulator = diagnostic(status, "android-emulator");
+        assertFalse(emulator.available());
+        assertTrue(emulator.failureCause().contains("Android emulator"));
+        assertTrue(emulator.repairGuidance().contains("sdkmanager"));
+
+        McpMobileToolchainDiagnostic sdkManager = diagnostic(status, "android-sdkmanager");
+        assertFalse(sdkManager.available());
+        assertTrue(sdkManager.repairGuidance().contains("cmdline-tools"));
+        assertFalse(diagnostic(status, "android-avdmanager").available());
+    }
+
+    @Test
+    void statusReportsIosHostConstraintOnNonMac() {
+        McpMobileToolchainService service = new McpMobileToolchainService(new FakeRunner(),
+                Map.of("PATH", ""), temp.resolve("tools"), "Windows 11", "amd64");
+
+        McpMobileToolchainStatus status = service.status("iOS");
+
+        McpMobileToolchainDiagnostic iosHost = diagnostic(status, "ios-host");
+        assertFalse(iosHost.available());
+        assertTrue(iosHost.failureCause().contains("requires macOS"));
+        assertTrue(iosHost.repairGuidance().contains("Xcode"));
     }
 
     @Test
@@ -106,6 +155,13 @@ class McpMobileToolchainServiceTest {
     private static void create(Path directory, String fileName) throws Exception {
         Files.createDirectories(directory);
         Files.writeString(directory.resolve(fileName), "");
+    }
+
+    private static McpMobileToolchainDiagnostic diagnostic(McpMobileToolchainStatus status, String dependencyId) {
+        return status.diagnostics().stream()
+                .filter(diagnostic -> dependencyId.equals(diagnostic.dependencyId()))
+                .findFirst()
+                .orElseThrow();
     }
 
     private static final class FakeRunner implements McpProcessRunner {

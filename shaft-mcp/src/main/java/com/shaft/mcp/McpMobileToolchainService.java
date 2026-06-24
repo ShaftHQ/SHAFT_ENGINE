@@ -81,6 +81,7 @@ final class McpMobileToolchainService {
                 .resolve("latest").resolve("bin")));
         Optional<Path> avdManager = resolveExecutable("avdmanager", List.of(androidSdkRoot.resolve("cmdline-tools")
                 .resolve("latest").resolve("bin")));
+        Path inspectorPluginPath = appiumRoot.resolve("node_modules").resolve("appium-inspector-plugin");
 
         List<McpMobileDevice> devices = adb.map(this::androidDevices).orElseGet(() -> {
             warnings.add("adb was not found on PATH or in the SHAFT-managed Android SDK cache.");
@@ -88,7 +89,10 @@ final class McpMobileToolchainService {
         });
         List<String> avds = cachedAndroidEmulators(emulator.orElse(null), androidAvdHome);
         boolean inspector = appium.filter(this::hasInspectorPlugin).isPresent()
-                || Files.isDirectory(appiumRoot.resolve("node_modules").resolve("appium-inspector-plugin"));
+                || Files.isDirectory(inspectorPluginPath);
+        String detectedAppiumVersion = appiumVersion(appium.orElse(null));
+        List<McpMobileToolchainDiagnostic> diagnostics = diagnostics(platform, androidSdkRoot, appiumRoot, node, npm,
+                appium, inspector, inspectorPluginPath, adb, emulator, sdkManager, avdManager, detectedAppiumVersion);
 
         List<String> missing = new ArrayList<>();
         if (node.isEmpty()) {
@@ -132,12 +136,101 @@ final class McpMobileToolchainService {
                 androidSdkRoot,
                 androidAvdHome,
                 appiumRoot,
-                appiumVersion(appium.orElse(null)),
+                detectedAppiumVersion,
                 SHAFT.Properties.internal.appiumInspectorPluginVersion(),
                 devices,
                 avds,
                 missing,
-                warnings);
+                warnings,
+                diagnostics);
+    }
+
+    private List<McpMobileToolchainDiagnostic> diagnostics(
+            String platform,
+            Path androidSdkRoot,
+            Path appiumRoot,
+            Optional<Path> node,
+            Optional<Path> npm,
+            Optional<Path> appium,
+            boolean inspector,
+            Path inspectorPluginPath,
+            Optional<Path> adb,
+            Optional<Path> emulator,
+            Optional<Path> sdkManager,
+            Optional<Path> avdManager,
+            String detectedAppiumVersion) {
+        List<McpMobileToolchainDiagnostic> diagnostics = new ArrayList<>();
+        diagnostics.add(dependency("node", node, "",
+                "node was not found on PATH or in the SHAFT-managed Node.js cache.",
+                "Install Node.js " + SHAFT.Properties.internal.nodeLtsVersion()
+                        + " and ensure `node` is on PATH, or let SHAFT prepare its portable Node.js cache."));
+        diagnostics.add(dependency("npm", npm, "",
+                "npm was not found on PATH or in the SHAFT-managed Node.js cache.",
+                "Install npm with Node.js " + SHAFT.Properties.internal.nodeLtsVersion()
+                        + " and ensure `npm` is on PATH."));
+        diagnostics.add(dependency("appium", appium, detectedAppiumVersion,
+                "Appium was not found on PATH or in the SHAFT-managed Appium cache.",
+                "Run `npm --prefix " + appiumRoot + " install appium@"
+                        + SHAFT.Properties.internal.appiumServerVersion() + " appium-inspector-plugin@"
+                        + SHAFT.Properties.internal.appiumInspectorPluginVersion() + "`."));
+        String inspectorPath = Files.isDirectory(inspectorPluginPath)
+                ? inspectorPluginPath.toString()
+                : appium.map(Path::toString).orElse("");
+        diagnostics.add(new McpMobileToolchainDiagnostic(
+                "appium-inspector-plugin",
+                inspector,
+                inspector ? inspectorPath : "",
+                "",
+                inspector ? "" : "Appium Inspector plugin was not reported by Appium or found in the SHAFT cache.",
+                inspector ? "" : "Run `appium plugin install --source=npm appium-inspector-plugin@"
+                        + SHAFT.Properties.internal.appiumInspectorPluginVersion() + "`."));
+        if ("Android".equals(platform)) {
+            diagnostics.add(dependency("adb", adb, "",
+                    "adb was not found on PATH or under " + androidSdkRoot.resolve("platform-tools") + ".",
+                    "Install Android platform-tools with `sdkmanager --sdk_root=" + androidSdkRoot
+                            + " platform-tools`."));
+            diagnostics.add(dependency("android-emulator", emulator, "",
+                    "Android emulator was not found on PATH or under " + androidSdkRoot.resolve("emulator") + ".",
+                    "Install Android Emulator with `sdkmanager --sdk_root=" + androidSdkRoot + " emulator`."));
+            diagnostics.add(dependency("android-sdkmanager", sdkManager, "",
+                    "Android sdkmanager was not found on PATH or under "
+                            + androidSdkRoot.resolve("cmdline-tools").resolve("latest").resolve("bin") + ".",
+                    "Install Android command-line tools under " + androidSdkRoot.resolve("cmdline-tools")
+                            .resolve("latest") + " so sdkmanager is available."));
+            diagnostics.add(dependency("android-avdmanager", avdManager, "",
+                    "Android avdmanager was not found on PATH or under "
+                            + androidSdkRoot.resolve("cmdline-tools").resolve("latest").resolve("bin") + ".",
+                    "Install Android command-line tools under " + androidSdkRoot.resolve("cmdline-tools")
+                            .resolve("latest") + " so avdmanager is available."));
+        }
+        if ("iOS".equals(platform)) {
+            boolean mac = isMac();
+            diagnostics.add(new McpMobileToolchainDiagnostic(
+                    "ios-host",
+                    mac,
+                    "",
+                    mac ? text(osName) : "",
+                    mac ? "" : "iOS Appium recording requires macOS; current OS is " + text(osName) + ".",
+                    mac ? "" : "Run iOS Inspector recording on macOS with Xcode command-line tools and a reachable "
+                            + "iOS simulator or device."));
+        }
+        return List.copyOf(diagnostics);
+    }
+
+    private McpMobileToolchainDiagnostic dependency(
+            String dependencyId,
+            Optional<Path> executable,
+            String detectedVersion,
+            String failureCause,
+            String repairGuidance) {
+        boolean available = executable.isPresent();
+        return new McpMobileToolchainDiagnostic(
+                dependencyId,
+                available,
+                available ? executable.get().toString() : "",
+                available ? detectedVersion : "",
+                available ? "" : failureCause,
+                available ? "" : repairGuidance);
     }
 
     McpAndroidEmulatorProposal defaultAndroidProposal(
