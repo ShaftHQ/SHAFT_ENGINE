@@ -36,6 +36,8 @@ class TestAutomationServiceTest {
         assertTrue(ids.contains("failure-doctor-analysis"));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("Thread.sleep")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("absolute XPath")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("driver.findElement")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("hard-coded secrets")));
     }
 
     @Test
@@ -85,5 +87,79 @@ class TestAutomationServiceTest {
         assertTrue(result.passed());
         assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("PAGE_FACTORY")
                 && violation.severity().equals("WARNING")));
+    }
+
+    @Test
+    void guardrailWarnsOnRawSeleniumWaitsDriverCallsHeadedSetupAndSystemProperties() {
+        McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
+                import org.openqa.selenium.By;
+                import org.openqa.selenium.WebDriver;
+                import org.openqa.selenium.chrome.ChromeOptions;
+
+                class GeneratedLoginTest {
+                    void antiPatterns(WebDriver driver) {
+                        driver.manage().timeouts().implicitlyWait(java.time.Duration.ofSeconds(5));
+                        driver.findElement(By.id("login")).click();
+                        driver.findElements(By.cssSelector(".error"));
+                        ChromeOptions options = new ChromeOptions();
+                        options.setHeadless(false);
+                        String baseUrl = System.getProperty("base.url");
+                    }
+                }
+                """);
+
+        assertTrue(result.passed());
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("Lexical guardrail check only")));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("IMPLICIT_WAIT")
+                && violation.severity().equals("WARNING") && violation.line() == 7));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("RAW_FIND_ELEMENT")
+                && violation.severity().equals("WARNING") && violation.line() == 8));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("RAW_FIND_ELEMENT")
+                && violation.severity().equals("WARNING") && violation.line() == 9));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("HEADED_BROWSER")
+                && violation.severity().equals("WARNING") && violation.line() == 11));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("DIRECT_SYSTEM_PROPERTY")
+                && violation.severity().equals("WARNING") && violation.line() == 12));
+    }
+
+    @Test
+    void guardrailRejectsHardcodedSecretsAndRedactsSecretSnippet() {
+        McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
+                import java.util.Map;
+
+                class GeneratedApiTest {
+                    void leaksSecret(Map<String, String> headers) {
+                        headers.put("Authorization", "Bearer sk_live_1234567890abcdef");
+                    }
+                }
+                """);
+
+        assertFalse(result.passed());
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("HARDCODED_SECRET")
+                && violation.severity().equals("ERROR")
+                && violation.line() == 5
+                && violation.snippet().contains("[REDACTED]")
+                && !violation.snippet().contains("sk_live_1234567890abcdef")));
+    }
+
+    @Test
+    void guardrailAllowsShaftFacadeAndSmartLocatorUsage() {
+        McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
+                import com.shaft.driver.SHAFT;
+                import org.openqa.selenium.By;
+
+                class LoginPage {
+                    private final By email = SHAFT.GUI.Locator.inputField("Email");
+                    private final By submit = SHAFT.GUI.Locator.clickableField("Sign In");
+
+                    void login(SHAFT.GUI.WebDriver browser) {
+                        browser.element().type(email, "user@example.com");
+                        browser.element().click(submit);
+                    }
+                }
+                """);
+
+        assertTrue(result.passed());
+        assertTrue(result.violations().isEmpty());
     }
 }

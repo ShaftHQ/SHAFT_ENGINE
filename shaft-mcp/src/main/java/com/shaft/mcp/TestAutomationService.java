@@ -19,9 +19,37 @@ public class TestAutomationService {
     private static final Pattern THREAD_SLEEP = Pattern.compile("\\bThread\\s*\\.\\s*sleep\\s*\\(");
     private static final Pattern BY_XPATH = Pattern.compile("\\bBy\\s*\\.\\s*xpath\\s*\\(\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
     private static final Pattern PAGE_FACTORY = Pattern.compile("(?:@FindBy\\b|\\bPageFactory\\b)");
+    private static final Pattern IMPLICIT_WAIT = Pattern.compile(
+            "\\.\\s*manage\\s*\\(\\s*\\)\\s*\\.\\s*timeouts\\s*\\(\\s*\\)\\s*\\.\\s*implicitlyWait\\s*\\(");
+    private static final Pattern RAW_FIND_ELEMENT = Pattern.compile("\\bdriver\\s*\\.\\s*findElements?\\s*\\(");
+    private static final Pattern HEADED_BROWSER = Pattern.compile(
+            "(?:\\.\\s*setHeadless\\s*\\(\\s*false\\s*\\)|--headed\\b|--headless\\s*=\\s*false|\\bheadless\\s*=\\s*false\\b)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern DIRECT_SYSTEM_PROPERTY = Pattern.compile("\\bSystem\\s*\\.\\s*getProperty\\s*\\(");
+    private static final Pattern HARDCODED_SECRET_ASSIGNMENT = Pattern.compile(
+            "\\b\\w*(?:password|passwd|pwd|secret|token|apikey|api_key|authorization|clientsecret|client_secret"
+                    + "|accesstoken|access_token)\\w*\\s*=\\s*\"((?:\\\\.|[^\"\\\\]){8,})\"",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern HARDCODED_SECRET_HEADER = Pattern.compile(
+            "\\b(?:put|header|setHeader|addHeader)\\s*\\(\\s*\"[^\"]*(?:authorization|token|password|secret"
+                    + "|api[-_ ]?key)[^\"]*\"\\s*,\\s*\"((?:\\\\.|[^\"\\\\]){8,})\"",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern HARDCODED_SECRET_SETTER = Pattern.compile(
+            "\\b(?:setPassword|setToken|setSecret|setApiKey|setAuthorization|bearerToken|basicAuth)\\s*\\("
+                    + "\\s*\"((?:\\\\.|[^\"\\\\]){8,})\"",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern STRING_LITERAL = Pattern.compile("\"(?:\\\\.|[^\"\\\\])*\"");
     private static final String NO_SLEEP = "Do not generate Thread.sleep; use SHAFT waits/actions/assertions.";
     private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer smart locators,"
             + " SHAFT.GUI.Locator builders, or stable By/AppiumBy locators.";
+    private static final String NO_IMPLICIT_WAIT = "Avoid Selenium implicit waits; use SHAFT waits/actions/assertions.";
+    private static final String NO_RAW_FIND_ELEMENT = "Avoid direct driver.findElement/findElements calls in generated"
+            + " SHAFT tests; route actions through SHAFT facades or page objects.";
+    private static final String NO_HEADED_BROWSER = "Do not hard-code headed browser setup; keep generated tests"
+            + " headless-configurable.";
+    private static final String NO_DIRECT_SYSTEM_PROPERTY = "Avoid direct System.getProperty() in SHAFT-like snippets;"
+            + " use SHAFT properties or injected configuration.";
+    private static final String NO_HARDCODED_SECRET = "Do not hard-code obvious header, token, or password secrets.";
     private static final List<String> GUIDANCE_RULES = List.of(
             "Call shaft_guide_search before writing SHAFT API, GUI, mobile, CLI, DB, or troubleshooting code.",
             "Keep MCP as guidance and inspection; the calling agent writes repository files and runs validation.",
@@ -32,7 +60,12 @@ public class TestAutomationService {
             "Use WebDriver MCP tools by default; use playwright_* tools when the project or user asks for SHAFT Playwright.",
             "Prefer SHAFT smart/semantic locators, ARIA locators, and SHAFT.GUI.Locator builders before raw By objects.",
             NO_SLEEP,
-            NO_ABSOLUTE_XPATH);
+            NO_ABSOLUTE_XPATH,
+            NO_IMPLICIT_WAIT,
+            NO_RAW_FIND_ELEMENT,
+            NO_HEADED_BROWSER,
+            NO_DIRECT_SYSTEM_PROPERTY,
+            "Do not generate hard-coded secrets in headers, tokens, passwords, or API keys.");
     private static final List<McpTestAutomationScenario> CATALOG = scenarios();
 
     /**
@@ -80,16 +113,22 @@ public class TestAutomationService {
      * @return code guardrail result
      */
     @Tool(name = "test_code_guardrails_check",
-            description = "checks generated SHAFT test code for banned Thread.sleep calls and absolute XPath locators")
+            description = "checks generated SHAFT test code for lexical anti-patterns such as sleeps, brittle locators,"
+                    + " raw driver calls, headed setup, direct system properties, and obvious secrets")
     public McpCodeGuardrailResult checkGeneratedCode(String language, String code) {
         String source = code == null ? "" : code;
         List<McpCodeGuardrailViolation> violations = new ArrayList<>();
         addThreadSleepViolations(source, violations);
         addAbsoluteXpathViolations(source, violations);
         addPageFactoryWarnings(source, violations);
+        addImplicitWaitWarnings(source, violations);
+        addRawFindElementWarnings(source, violations);
+        addHeadedBrowserWarnings(source, violations);
+        addDirectSystemPropertyWarnings(source, violations);
+        addHardcodedSecretViolations(source, violations);
         List<String> warnings = source.isBlank()
                 ? List.of("No code was supplied.")
-                : List.of("Lexical guardrail check only; compile and run the smallest relevant SHAFT tests next.");
+                : List.of("Lexical guardrail check only; compile/runtime validation is still required.");
         boolean passed = violations.stream().noneMatch(violation -> "ERROR".equals(violation.severity()));
         return new McpCodeGuardrailResult(
                 McpCodeGuardrailResult.CURRENT_SCHEMA_VERSION,
@@ -100,20 +139,15 @@ public class TestAutomationService {
     }
 
     private static void addThreadSleepViolations(String source, List<McpCodeGuardrailViolation> violations) {
-        Matcher matcher = THREAD_SLEEP.matcher(source);
-        while (matcher.find()) {
-            violations.add(violation(
-                    "THREAD_SLEEP",
-                    "ERROR",
-                    NO_SLEEP,
-                    source,
-                    matcher.start()));
-        }
+        addPatternViolations(source, violations, THREAD_SLEEP, "THREAD_SLEEP", "ERROR", NO_SLEEP);
     }
 
     private static void addAbsoluteXpathViolations(String source, List<McpCodeGuardrailViolation> violations) {
         Matcher matcher = BY_XPATH.matcher(source);
         while (matcher.find()) {
+            if (isCommentOnlyLine(source, matcher.start())) {
+                continue;
+            }
             String xpath = matcher.group(1).replace("\\\"", "\"").trim();
             if (isAbsoluteXpath(xpath)) {
                 violations.add(violation(
@@ -127,19 +161,89 @@ public class TestAutomationService {
     }
 
     private static void addPageFactoryWarnings(String source, List<McpCodeGuardrailViolation> violations) {
-        Matcher matcher = PAGE_FACTORY.matcher(source);
+        addPatternViolations(source, violations, PAGE_FACTORY, "PAGE_FACTORY", "WARNING",
+                "Prefer Selenium By objects and SHAFT.GUI.Locator instead of @FindBy or PageFactory.");
+    }
+
+    private static void addImplicitWaitWarnings(String source, List<McpCodeGuardrailViolation> violations) {
+        addPatternViolations(source, violations, IMPLICIT_WAIT, "IMPLICIT_WAIT", "WARNING", NO_IMPLICIT_WAIT);
+    }
+
+    private static void addRawFindElementWarnings(String source, List<McpCodeGuardrailViolation> violations) {
+        addPatternViolations(source, violations, RAW_FIND_ELEMENT, "RAW_FIND_ELEMENT", "WARNING", NO_RAW_FIND_ELEMENT);
+    }
+
+    private static void addHeadedBrowserWarnings(String source, List<McpCodeGuardrailViolation> violations) {
+        addPatternViolations(source, violations, HEADED_BROWSER, "HEADED_BROWSER", "WARNING", NO_HEADED_BROWSER);
+    }
+
+    private static void addDirectSystemPropertyWarnings(String source, List<McpCodeGuardrailViolation> violations) {
+        addPatternViolations(source, violations, DIRECT_SYSTEM_PROPERTY, "DIRECT_SYSTEM_PROPERTY", "WARNING",
+                NO_DIRECT_SYSTEM_PROPERTY);
+    }
+
+    private static void addHardcodedSecretViolations(String source, List<McpCodeGuardrailViolation> violations) {
+        addSecretViolations(source, violations, HARDCODED_SECRET_ASSIGNMENT);
+        addSecretViolations(source, violations, HARDCODED_SECRET_HEADER);
+        addSecretViolations(source, violations, HARDCODED_SECRET_SETTER);
+    }
+
+    private static void addPatternViolations(
+            String source,
+            List<McpCodeGuardrailViolation> violations,
+            Pattern pattern,
+            String kind,
+            String severity,
+            String message) {
+        Matcher matcher = pattern.matcher(source);
         while (matcher.find()) {
-            violations.add(violation(
-                    "PAGE_FACTORY",
-                    "WARNING",
-                    "Prefer Selenium By objects and SHAFT.GUI.Locator instead of @FindBy or PageFactory.",
-                    source,
-                    matcher.start()));
+            if (isCommentOnlyLine(source, matcher.start())) {
+                continue;
+            }
+            violations.add(violation(kind, severity, message, source, matcher.start()));
+        }
+    }
+
+    private static void addSecretViolations(
+            String source,
+            List<McpCodeGuardrailViolation> violations,
+            Pattern pattern) {
+        Matcher matcher = pattern.matcher(source);
+        while (matcher.find()) {
+            if (isCommentOnlyLine(source, matcher.start()) || !isSuspiciousSecretLiteral(matcher.group(1))) {
+                continue;
+            }
+            violations.add(secretViolation(source, matcher.start()));
         }
     }
 
     private static boolean isAbsoluteXpath(String xpath) {
         return (xpath.startsWith("/") && !xpath.startsWith("//")) || xpath.startsWith("(/");
+    }
+
+    private static boolean isSuspiciousSecretLiteral(String literal) {
+        String value = literal == null ? "" : literal.trim();
+        if (value.length() < 8 || value.contains("${")) {
+            return false;
+        }
+        String lower = value.toLowerCase(Locale.ROOT);
+        if (lower.contains("example") || lower.contains("sample") || lower.contains("dummy")
+                || lower.contains("placeholder") || lower.contains("redacted") || lower.contains("changeme")
+                || lower.contains("change-me") || lower.contains("your_") || lower.contains("your-")) {
+            return false;
+        }
+        String compact = lower.replaceAll("[^a-z0-9]+", "");
+        return switch (compact) {
+            case "authorization", "apikey", "token", "accesstoken", "password", "passwd", "pwd", "secret",
+                    "clientsecret" -> false;
+            default -> true;
+        };
+    }
+
+    private static boolean isCommentOnlyLine(String source, int offset) {
+        int lineStart = source.lastIndexOf('\n', Math.max(0, offset - 1)) + 1;
+        String prefix = source.substring(lineStart, Math.min(offset, source.length())).trim();
+        return prefix.startsWith("//") || prefix.startsWith("/*") || prefix.startsWith("*");
     }
 
     private static McpCodeGuardrailViolation violation(
@@ -149,6 +253,15 @@ public class TestAutomationService {
             String source,
             int offset) {
         return new McpCodeGuardrailViolation(kind, severity, message, lineNumber(source, offset), lineSnippet(source, offset));
+    }
+
+    private static McpCodeGuardrailViolation secretViolation(String source, int offset) {
+        return new McpCodeGuardrailViolation(
+                "HARDCODED_SECRET",
+                "ERROR",
+                NO_HARDCODED_SECRET,
+                lineNumber(source, offset),
+                STRING_LITERAL.matcher(lineSnippet(source, offset)).replaceAll("\"[REDACTED]\""));
     }
 
     private static int lineNumber(String source, int offset) {
