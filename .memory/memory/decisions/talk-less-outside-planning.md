@@ -1,0 +1,1 @@
+User preference reinforced on 2026-06-24: outside planning mode or direct questions to the user, keep commentary as silent as possible while working. Explain details only when planning, asking a question, reporting a blocker, or giving the final result. Avoid routine status narration.
