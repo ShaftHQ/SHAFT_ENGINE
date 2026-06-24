@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-DOCS_BASE = "https://shaftengine.netlify.app/docs/"
+DOCS_BASE = "https://shafthq.github.io/docs/"
 
 ALLOWED_EXACT = {
     "README.md",

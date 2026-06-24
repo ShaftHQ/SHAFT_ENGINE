@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
  * completes via try-with-resources. ANSI styling is disabled in non-interactive runs and when
  * {@code cucumber.ansi-colors.disabled=true} to keep CI logs readable.</p>
  *
- * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide</a>
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
  */
 public class ProgressBarLogger implements AutoCloseable {
     private static final String ANSI_BRIGHT_CYAN = "\u001b[36;1m";

@@ -23,7 +23,7 @@ public class JunitParallelizationTests {
     @RepeatedTest(20)
     void test() {
         System.out.println("Test " + Thread.currentThread().threadId());
-        driver.browser().navigateToURL("https://shaftengine.netlify.app/")
+        driver.browser().navigateToURL("https://shafthq.github.io/")
                 .and().element().assertThat(pageTitleLabel).isVisible();
     }
 }

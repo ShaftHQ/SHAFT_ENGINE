@@ -32,8 +32,8 @@ public class NegativeValidationsTests {
 
     @Test
     public void url_passing() {
-        driver.get().browser().navigateToURL("https://shaftengine.netlify.app/");
-        driver.get().browser().assertThat().url().isEqualTo("https://shaftengine.netlify.app/").perform();
+        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().assertThat().url().isEqualTo("https://shafthq.github.io/").perform();
     }
 
     @Test(expectedExceptions = AssertionError.class)

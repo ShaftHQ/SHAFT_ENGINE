@@ -1,1 +1,1 @@
-Public product and maintainer documentation is maintained outside the engine repository and served at https://shaftengine.netlify.app. This repository keeps only operational guidance and its root landing page.
+Public product and maintainer documentation is maintained outside the engine repository and served at https://shafthq.github.io. This repository keeps only operational guidance and its root landing page.

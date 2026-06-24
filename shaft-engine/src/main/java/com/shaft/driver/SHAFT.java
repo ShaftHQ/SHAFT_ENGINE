@@ -55,7 +55,7 @@ import java.util.Map;
  * driver.quit();
  * }</pre>
  *
- * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide</a>
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
  * @see GUI.WebDriver
  * @see API
  */
@@ -97,7 +97,7 @@ public class SHAFT {
          * driver.quit();
          * }</pre>
          *
-         * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide</a>
+         * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
          */
         public static class WebDriver implements Driver {
             DriverFactoryHelper helper;
@@ -407,7 +407,7 @@ public class SHAFT {
          * Entry point for building element locators using SHAFT's fluent
          * {@link com.shaft.gui.internal.locator.Locator Locator} API.
          *
-         * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Locators</a>
+         * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Locators</a>
          */
         public static class Locator extends com.shaft.gui.internal.locator.Locator {
         }
@@ -425,7 +425,7 @@ public class SHAFT {
      * }</pre>
      *
      * @see RequestBuilder
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
      */
     @SuppressWarnings("deprecation")
     public static class API {
