@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static com.shaft.mcp.EngineService.getLocator;
@@ -26,6 +28,41 @@ import static com.shaft.mcp.EngineService.getLocator;
 public class PlaywrightService {
     private static final int DEFAULT_DOM_CHARACTER_LIMIT = 200_000;
     private static final Logger logger = LoggerFactory.getLogger(PlaywrightService.class);
+    private static final List<String> CLICKABLE_SEMANTIC_XPATH_TEMPLATES = List.of(
+            "//button[contains(text(),%s)]",
+            "//button[contains(@id,%s)]",
+            "//button[contains(@title,%s)]",
+            "//button[contains(@value,%s)]",
+            "//button[contains(@name,%s)]",
+            "//button[contains(@aria-label,%s)]",
+            "//a[contains(text(),%s)]",
+            "//a[contains(@id,%s)]",
+            "//a[contains(@title,%s)]",
+            "//a[contains(@value,%s)]",
+            "//a[contains(@name,%s)]",
+            "//a[contains(@aria-label,%s)]",
+            "//input[@type='submit' and contains(@value,%s)]",
+            "//input[@type='button' and contains(@value,%s)]",
+            "//input[@type='image' and contains(@alt,%s)]",
+            "//*[contains(@role,'button') and contains(text(),%s)]",
+            "//*[contains(@role,'link') and contains(text(),%s)]",
+            "//*[contains(@role,'tab') and contains(text(),%s)]",
+            "//*[contains(@role,'menuitem') and contains(text(),%s)]",
+            "//*[text()=%s and (@role='button' or @type='submit')]",
+            "//input[contains(@id,%s)]",
+            "(//*[contains(text(),%s)]/following::button)[1]",
+            "(//*[contains(text(),%s)]/following::a)[1]");
+    private static final List<String> INPUT_SEMANTIC_XPATH_TEMPLATES = List.of(
+            "//input[contains(@placeholder,%s)]",
+            "//input[contains(@aria-label,%s)]",
+            "//input[contains(@id,%s)]",
+            "(//*[contains(text(),%s)]/input)[1]",
+            "//textarea[contains(@placeholder,%s)]",
+            "//textarea[contains(@aria-label,%s)]",
+            "//textarea[contains(@id,%s)]",
+            "(//*[contains(text(),%s)]/textarea)[1]",
+            "(//*[contains(text(),%s)]/following::input)[1]",
+            "(//*[contains(text(),%s)]/preceding::input)[1]");
 
     private final McpWorkspacePolicy workspacePolicy;
     private final McpPlaywrightRecordingService recorder;
@@ -303,6 +340,19 @@ public class PlaywrightService {
     }
 
     /**
+     * Clicks a Playwright element resolved from a human-readable semantic name.
+     *
+     * @param elementName visible text, label, or accessible name of the target element
+     * @return recorded action metadata
+     */
+    @Tool(name = "playwright_element_click_semantic",
+            description = "clicks an element by human-readable name using SHAFT Playwright")
+    public McpMobileActionResult clickSemantic(String elementName) {
+        getDriver().element().click(semanticClickableLocator(elementName));
+        return recordSemantic("click_semantic", elementName, semanticClickCode(elementName), false);
+    }
+
+    /**
      * Clicks a Playwright element using JavaScript.
      */
     @Tool(name = "playwright_element_click_js", description = "clicks an element using JavaScript in SHAFT Playwright")
@@ -344,6 +394,26 @@ public class PlaywrightService {
                 + ", \"<redacted>\");";
         return recordLocator("type", locatorStrategy, locatorValue, code, redacted, true,
                 Map.of("value", text(textValue)));
+    }
+
+    /**
+     * Types into a Playwright element resolved from a human-readable semantic name.
+     *
+     * @param elementName visible label, placeholder, or accessible name of the target input
+     * @param textValue typed value
+     * @return recorded action metadata
+     */
+    @Tool(name = "playwright_element_type_semantic",
+            description = "types value into an element by human-readable name using SHAFT Playwright")
+    public McpMobileActionResult typeSemantic(String elementName, String textValue) {
+        getDriver().element().type(semanticInputLocator(elementName), textValue);
+        return recordSemantic(
+                "type_semantic",
+                elementName,
+                semanticTypeCode(elementName, textValue),
+                semanticTypeCode(elementName, "<redacted>"),
+                true,
+                Map.of("elementName", text(elementName), "value", text(textValue)));
     }
 
     /**
@@ -470,6 +540,8 @@ public class PlaywrightService {
             case "double_click" -> getDriver().element().doubleClick(getLocator(strategy, locatorValue));
             case "hover" -> getDriver().element().hover(getLocator(strategy, locatorValue));
             case "type" -> getDriver().element().type(getLocator(strategy, locatorValue), parameters.get("value"));
+            case "click_semantic" -> getDriver().element().click(semanticClickableLocator(locatorValue));
+            case "type_semantic" -> getDriver().element().type(semanticInputLocator(locatorValue), parameters.get("value"));
             case "append_text" -> getDriver().element().typeAppend(getLocator(strategy, locatorValue), parameters.get("value"));
             case "set_value_js" -> getDriver().element().setValueUsingJavaScript(
                     getLocator(strategy, locatorValue), parameters.get("value"));
@@ -513,6 +585,24 @@ public class PlaywrightService {
         return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive);
     }
 
+    private McpMobileActionResult recordSemantic(
+            String action,
+            String elementName,
+            String javaCode,
+            boolean sensitive) {
+        return record(action, null, text(elementName), Map.of("elementName", text(elementName)), javaCode, sensitive);
+    }
+
+    private McpMobileActionResult recordSemantic(
+            String action,
+            String elementName,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive,
+            Map<String, String> parameters) {
+        return record(action, null, text(elementName), parameters, javaCode, redactedJavaCode, sensitive);
+    }
+
     private McpMobileActionResult record(
             String action,
             locatorStrategy locatorStrategy,
@@ -550,7 +640,8 @@ public class PlaywrightService {
                 "SHAFT Playwright action",
                 McpCodeBlock.Kind.TEST_METHOD,
                 "java",
-                List.of("com.shaft.driver.SHAFT", "org.openqa.selenium.By", "org.openqa.selenium.WindowType"),
+                List.of("com.shaft.driver.SHAFT", "com.shaft.gui.driver.ShaftLocator",
+                        "org.openqa.selenium.By", "org.openqa.selenium.WindowType"),
                 javaCode,
                 "Paste inside a method that owns an initialized SHAFT.GUI.Playwright named driver.",
                 true,
@@ -566,6 +657,68 @@ public class PlaywrightService {
 
     private com.microsoft.playwright.Locator locator(locatorStrategy locatorStrategy, String locatorValue) {
         return ShaftLocator.from(getLocator(locatorStrategy, locatorValue)).toPlaywrightLocator(getDriver().getDriver());
+    }
+
+    private static ShaftLocator semanticClickableLocator(String elementName) {
+        return ShaftLocator.xpath(semanticXpath(elementName, CLICKABLE_SEMANTIC_XPATH_TEMPLATES));
+    }
+
+    private static ShaftLocator semanticInputLocator(String elementName) {
+        return ShaftLocator.xpath(semanticXpath(elementName, INPUT_SEMANTIC_XPATH_TEMPLATES));
+    }
+
+    private static String semanticClickCode(String elementName) {
+        return "driver.element().click(" + semanticClickableLocatorCode(elementName) + ");";
+    }
+
+    static String semanticTypeCode(String elementName, String textValue) {
+        return "driver.element().type(" + semanticInputLocatorCode(elementName)
+                + ", \"" + javaString(textValue) + "\");";
+    }
+
+    private static String semanticClickableLocatorCode(String elementName) {
+        return "ShaftLocator.xpath(\"" + javaString(semanticXpath(elementName, CLICKABLE_SEMANTIC_XPATH_TEMPLATES))
+                + "\")";
+    }
+
+    private static String semanticInputLocatorCode(String elementName) {
+        return "ShaftLocator.xpath(\"" + javaString(semanticXpath(elementName, INPUT_SEMANTIC_XPATH_TEMPLATES))
+                + "\")";
+    }
+
+    private static String semanticXpath(String elementName, List<String> templates) {
+        List<String> parts = new ArrayList<>();
+        for (String variant : semanticNameVariants(elementName)) {
+            String literal = xpathLiteral(variant);
+            for (String template : templates) {
+                parts.add(template.formatted(literal));
+            }
+        }
+        return String.join("|", parts);
+    }
+
+    private static List<String> semanticNameVariants(String elementName) {
+        String normalized = requireSemanticElementName(elementName);
+        List<String> variants = new ArrayList<>();
+        addVariant(variants, normalized);
+        addVariant(variants, normalized.toLowerCase(Locale.ROOT));
+        addVariant(variants, normalized.toUpperCase(Locale.ROOT));
+        addVariant(variants,
+                Character.toUpperCase(normalized.charAt(0)) + normalized.substring(1).toLowerCase(Locale.ROOT));
+        return variants;
+    }
+
+    private static void addVariant(List<String> variants, String value) {
+        if (!variants.contains(value)) {
+            variants.add(value);
+        }
+    }
+
+    private static String requireSemanticElementName(String elementName) {
+        if (elementName == null || elementName.isBlank()) {
+            throw new IllegalArgumentException("Semantic element name must not be blank.");
+        }
+        return elementName.trim();
     }
 
     private Path writeScreenshot(String outputPath, byte[] png) {
@@ -609,6 +762,16 @@ public class PlaywrightService {
                 .replace("\r", "\\r")
                 .replace("\n", "\\n")
                 .replace("\t", "\\t");
+    }
+
+    private static String xpathLiteral(String value) {
+        if (!value.contains("'")) {
+            return "'" + value + "'";
+        }
+        if (!value.contains("\"")) {
+            return "\"" + value + "\"";
+        }
+        return "concat('" + value.replace("'", "',\"'\",'") + "')";
     }
 
     @FunctionalInterface
