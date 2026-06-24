@@ -3,8 +3,11 @@ package com.shaft.gui.element.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
+import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -197,6 +200,7 @@ public class ElementsHelperCoverageUnitTest {
             Assert.assertTrue(helper.waitForElementToBeClickable(driver, locator, ""));
             verify(element).isDisplayed();
             verify(element).isEnabled();
+            verify(driver, Mockito.times(1)).findElement(locator);
         }
     }
 
@@ -230,6 +234,31 @@ public class ElementsHelperCoverageUnitTest {
 
             Assert.assertEquals(information.get(0), 1);
             Assert.assertSame(information.get(1), element);
+            verify(driver, Mockito.times(1)).findElements(locator);
+            verify(driver, Mockito.never()).findElement(locator);
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Test
+    public void reportActionResultShouldUseStablePageHtmlAttachmentLabel() {
+        ElementActionsHelper reportingHelper = new ElementActionsHelper(false);
+        List<List<Object>> existingAttachments = List.of(List.of("Click", "Screenshot", new byte[]{1}));
+        String pageHtml = "<html><body>sample</body></html>";
+
+        try (MockedConstruction<BrowserActionsHelper> ignoredBrowserActionsHelper = Mockito.mockConstruction(BrowserActionsHelper.class,
+                (browserActionsHelper, context) -> when(browserActionsHelper.capturePageSnapshot(driver)).thenReturn(pageHtml));
+             MockedStatic<ReportManagerHelper> reportManagerHelper = Mockito.mockStatic(ReportManagerHelper.class)) {
+            reportingHelper.reportActionResult(driver, "click", null, locator, existingAttachments, "Save", false);
+
+            ArgumentCaptor<List> attachmentsCaptor = ArgumentCaptor.forClass(List.class);
+            reportManagerHelper.verify(() -> ReportManagerHelper.log(eq("Failed to Click \"Save\"."), attachmentsCaptor.capture()));
+
+            List<List<Object>> attachments = attachmentsCaptor.getValue();
+            List<Object> pageSourceAttachment = attachments.get(1);
+            Assert.assertEquals(pageSourceAttachment.get(0), "Page HTML");
+            Assert.assertEquals(pageSourceAttachment.get(1), "Click");
+            Assert.assertEquals(pageSourceAttachment.get(2), pageHtml);
         }
     }
 
