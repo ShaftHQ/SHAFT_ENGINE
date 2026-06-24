@@ -52,6 +52,42 @@ public interface Platform extends EngineProperties<Platform> {
     @DefaultValue("true")
     boolean enableBiDi();
 
+    /**
+     * Enables Selenium Grid status and GraphQL preflight checks before remote session creation.
+     *
+     * @return {@code true} when remote Grid preflight checks are enabled
+     */
+    @Key("remotePreflightEnabled")
+    @DefaultValue("false")
+    boolean remotePreflightEnabled();
+
+    /**
+     * Enables per-endpoint session throttling based on detected Selenium Grid slot capacity.
+     *
+     * @return {@code true} when SHAFT should throttle local remote-session creation
+     */
+    @Key("remoteAdaptiveSessionThrottling")
+    @DefaultValue("false")
+    boolean remoteAdaptiveSessionThrottling();
+
+    /**
+     * Fails remote session startup when Grid preflight proves the requested capabilities cannot run.
+     *
+     * @return {@code true} when incompatible Grid capacity should fail before session creation
+     */
+    @Key("remotePreflightFailFast")
+    @DefaultValue("false")
+    boolean remotePreflightFailFast();
+
+    /**
+     * Timeout, in seconds, for each Selenium Grid preflight endpoint call.
+     *
+     * @return preflight HTTP timeout in seconds
+     */
+    @Key("remotePreflightTimeoutSeconds")
+    @DefaultValue("5")
+    int remotePreflightTimeoutSeconds();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -93,6 +129,26 @@ public interface Platform extends EngineProperties<Platform> {
 
         public SetProperty enableBiDi(boolean value) {
             setProperty("enableBiDi", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty remotePreflightEnabled(boolean value) {
+            setProperty("remotePreflightEnabled", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty remoteAdaptiveSessionThrottling(boolean value) {
+            setProperty("remoteAdaptiveSessionThrottling", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty remotePreflightFailFast(boolean value) {
+            setProperty("remotePreflightFailFast", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty remotePreflightTimeoutSeconds(int value) {
+            setProperty("remotePreflightTimeoutSeconds", String.valueOf(value));
             return this;
         }
     }

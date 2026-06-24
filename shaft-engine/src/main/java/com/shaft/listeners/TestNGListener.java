@@ -6,6 +6,7 @@ import com.epam.reportportal.testng.ITestNGService;
 import com.epam.reportportal.testng.TestNGService;
 import com.epam.reportportal.utils.MemoizingSupplier;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
@@ -143,6 +144,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onStart(ISuite suite) {
         TestNGListenerHelper.setTotalNumberOfTests(suite);
+        DriverFactoryHelper.preflightRemoteGridIfConfigured();
         executionStartTime = System.currentTimeMillis();
         if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.startTestSuite(suite);
     }

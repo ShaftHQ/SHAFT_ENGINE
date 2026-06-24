@@ -85,6 +85,7 @@ public class DriverFactoryHelper {
     @Getter
     private WebDriver driver;
     private BrowserNetworkInterceptor browserNetworkInterceptor;
+    private RemoteGridPreflight.SessionPermit remoteGridPreflightPermit = RemoteGridPreflight.SessionPermit.noop();
 
     /**
      * Creates a helper instance without an attached WebDriver.
@@ -176,6 +177,10 @@ public class DriverFactoryHelper {
 
     private static RuntimeException createSessionInitializationTimeoutFailure(String sessionDescription, long timeoutInSeconds, long startTimeInMillis, Throwable primaryCause, List<Throwable> priorFailures, String targetEndpoint) {
         var message = "Timed out while " + sessionDescription + ".";
+        var failureCategory = RemoteGridPreflight.classifyRemoteSessionFailure(primaryCause);
+        if (isActionableRemoteFailureCategory(failureCategory)) {
+            message = message + " Category: " + failureCategory + ".";
+        }
         if (timeoutInSeconds > 0) {
             message = message + " Configured timeout: " + timeoutInSeconds + "s.";
         }
@@ -196,6 +201,10 @@ public class DriverFactoryHelper {
 
     private static RuntimeException createSessionInitializationFailure(String sessionDescription, long startTimeInMillis, Throwable primaryCause, List<Throwable> priorFailures, String targetEndpoint) {
         var message = "Failed to initialize " + sessionDescription + " session. Elapsed time: " + (System.currentTimeMillis() - startTimeInMillis) + "ms.";
+        var failureCategory = RemoteGridPreflight.classifyRemoteSessionFailure(primaryCause);
+        if (isActionableRemoteFailureCategory(failureCategory)) {
+            message = message + " Category: " + failureCategory + ".";
+        }
         var redactedTarget = redactUriCredentials(targetEndpoint);
         if (!redactedTarget.isBlank()) {
             message = message + " Target: `" + redactedTarget + "`.";
@@ -226,6 +235,12 @@ public class DriverFactoryHelper {
                 failureTarget.addSuppressed(candidateFailure);
             }
         }
+    }
+
+    private static boolean isActionableRemoteFailureCategory(String failureCategory) {
+        return failureCategory != null
+                && !failureCategory.isBlank()
+                && !"unclassified remote failure".equals(failureCategory);
     }
 
     private static boolean isCausedBy(Throwable throwable, Class<? extends Throwable> expectedCauseType) {
@@ -338,7 +353,7 @@ public class DriverFactoryHelper {
      * @param url the URI string that may contain embedded credentials
      * @return the URI with user-info replaced by {@code ***:***}, or the original string on parse failure
      */
-    private static String redactUriCredentials(String url) {
+    static String redactUriCredentials(String url) {
         if (url == null) {
             return "";
         }
@@ -504,6 +519,25 @@ public class DriverFactoryHelper {
                 : "http://" + executionAddress);
     }
 
+    /**
+     * Performs configured Selenium Grid preflight during framework suite startup.
+     */
+    public static void preflightRemoteGridIfConfigured() {
+        initializeSystemProperties();
+        var executionAddress = SHAFT.Properties.platform.executionAddress();
+        if (executionAddress == null
+                || executionAddress.equalsIgnoreCase("local")
+                || executionAddress.equalsIgnoreCase("dockerized")) {
+            return;
+        }
+        var capabilities = new MutableCapabilities();
+        var browserName = SHAFT.Properties.web.targetBrowserName();
+        if (browserName != null && !browserName.isBlank()) {
+            capabilities.setCapability("browserName", browserName);
+        }
+        RemoteGridPreflight.beforeSuite(getTargetHubUrl(), capabilities);
+    }
+
     private static String getTargetHubUrl() {
         return TARGET_HUB_URL.get();
     }
@@ -572,13 +606,22 @@ public class DriverFactoryHelper {
             } finally {
                 HealingManager.clear(driver);
                 browserNetworkInterceptor = null;
+                releaseRemoteGridPreflightPermit();
                 seleniumWebSocketLogger.setLevel(previousWebSocketLoggerLevel);
                 clearThreadLocalDriverState();
                 ReportManager.log("Closed the WebDriver session.");
             }
         } else {
+            releaseRemoteGridPreflightPermit();
             clearThreadLocalDriverState();
             ReportManager.log("WebDriver session was already closed.");
+        }
+    }
+
+    private void releaseRemoteGridPreflightPermit() {
+        if (remoteGridPreflightPermit != null) {
+            remoteGridPreflightPermit.close();
+            remoteGridPreflightPermit = RemoteGridPreflight.SessionPermit.noop();
         }
     }
 
@@ -883,8 +926,12 @@ public class DriverFactoryHelper {
         // stage 2: create remote driver instance (requires some time with dockerized appium)
         ReportManager.logDiscrete("Creating the remote WebDriver session. Timeout: " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minute(s).");
         var remoteCreationStart = System.currentTimeMillis();
+        var preflightPermit = RemoteGridPreflight.SessionPermit.noop();
         try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
+            preflightPermit = RemoteGridPreflight.beforeSession(getTargetHubUrl(), capabilities);
             setDriver(attemptRemoteServerConnection(capabilities));
+            remoteGridPreflightPermit = preflightPermit;
+            preflightPermit = RemoteGridPreflight.SessionPermit.noop();
             if (driver instanceof RemoteWebDriver remoteWebDriver)
                 remoteWebDriver.setFileDetector(new LocalFileDetector());
             if (!isNotMobileExecution()
@@ -922,6 +969,8 @@ public class DriverFactoryHelper {
                     throwable1,
                     null,
                     getTargetHubUrl()));
+        } finally {
+            preflightPermit.close();
         }
     }
 

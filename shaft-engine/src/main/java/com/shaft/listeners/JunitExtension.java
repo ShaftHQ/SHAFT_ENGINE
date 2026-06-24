@@ -33,6 +33,7 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
     public void beforeAll(ExtensionContext context) {
         suiteStartTime.compareAndSet(0, System.currentTimeMillis());
         Properties.clearForCurrentThread();
+        DriverFactoryHelper.preflightRemoteGridIfConfigured();
     }
 
     @Override
