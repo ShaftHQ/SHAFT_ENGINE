@@ -14,6 +14,8 @@ public class SmartLocatorsRealisticTests extends TestScenario {
                     "/ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' shop-item ')][1]" +
                     "//button[contains(concat(' ', normalize-space(@class), ' '), ' shop-item-button ')])[1]");
     private static final By CART_TOTAL_PRICE = By.cssSelector(".cart-total-price");
+    private static final By PROCEED_TO_CHECKOUT_BUTTON = By.xpath("//button[normalize-space()='PROCEED TO CHECKOUT']");
+    private static final By PHONE_INPUT = By.id("phone");
     // Realistic test scenario for an e-commerce website
     // Fluent design, mixing regular locators with smart locators, performing assertions, reporting.
     // Two more algorithms were added for smart element identification, bringing the total to 34.
@@ -38,7 +40,11 @@ public class SmartLocatorsRealisticTests extends TestScenario {
 
     @Test(dependsOnMethods = {"login", "addProductToCart"})
     public void fillShippingDetails() {
-        driver.element().type("Phone number", "00201000000000")
+        driver.element()
+                .waitUntil(ExpectedConditions.elementToBeClickable(PROCEED_TO_CHECKOUT_BUTTON), Duration.ofSeconds(10))
+                .and().click(PROCEED_TO_CHECKOUT_BUTTON)
+                .and().waitUntil(ExpectedConditions.elementToBeClickable(PHONE_INPUT), Duration.ofSeconds(10))
+                .and().type("Phone number", "00201000000000")
                 .and().type("Street", "101 dummy street")
                 .and().type("City", "Cairo")
                 .and().select(By.id("countries_dropdown_menu"), "Egypt")

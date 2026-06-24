@@ -52,6 +52,11 @@ public class RecordManagerTest {
         return (ThreadLocal<WebDriver>) VIDEO_DRIVER_FIELD.get(null);
     }
 
+    @SuppressWarnings("unchecked")
+    private ThreadLocal<Boolean> getIsRecordingStartedThreadLocal() throws Exception {
+        return (ThreadLocal<Boolean>) IS_RECORDING_STARTED_FIELD.get(null);
+    }
+
     private void setVideoRecordingEnabled(boolean value) {
         SHAFT.Properties.visuals.set().videoParamsRecordVideo(value);
     }
@@ -64,7 +69,7 @@ public class RecordManagerTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         getVideoDriverThreadLocal().remove();
-        IS_RECORDING_STARTED_FIELD.setBoolean(null, false);
+        getIsRecordingStartedThreadLocal().remove();
         setVideoRecordingEnabled(false);
         Properties.clearForCurrentThread();
     }
@@ -97,7 +102,7 @@ public class RecordManagerTest {
         String encoded = Base64.getEncoder().encodeToString("video-bytes".getBytes(StandardCharsets.UTF_8));
         when(mockDriver.stopRecordingScreen()).thenReturn(encoded);
         getVideoDriverThreadLocal().set(mockDriver);
-        IS_RECORDING_STARTED_FIELD.setBoolean(null, true);
+        getIsRecordingStartedThreadLocal().set(true);
 
         InputStream result = RecordManager.getVideoRecording();
         byte[] bytes = result.readAllBytes();
@@ -105,7 +110,7 @@ public class RecordManagerTest {
 
         SHAFT.Validations.assertThat().object(new String(bytes, StandardCharsets.UTF_8)).isEqualTo("video-bytes").perform();
         SHAFT.Validations.assertThat().object(getVideoDriverThreadLocal().get()).isNull().perform();
-        SHAFT.Validations.assertThat().object(IS_RECORDING_STARTED_FIELD.getBoolean(null)).isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(getIsRecordingStartedThreadLocal().get()).isEqualTo(false).perform();
         verify(mockDriver).stopRecordingScreen();
     }
 
@@ -117,13 +122,13 @@ public class RecordManagerTest {
                 .thenThrow(new WebDriverException("Command is not supported"));
 
         getVideoDriverThreadLocal().set(mockDriver);
-        IS_RECORDING_STARTED_FIELD.setBoolean(null, true);
+        getIsRecordingStartedThreadLocal().set(true);
 
         InputStream result = RecordManager.getVideoRecording();
         SHAFT.Validations.assertThat().object(result).isNull().perform();
         verify(mockDriver).stopRecordingScreen();
         SHAFT.Validations.assertThat().object(getVideoDriverThreadLocal().get()).isNull().perform();
-        SHAFT.Validations.assertThat().object(IS_RECORDING_STARTED_FIELD.getBoolean(null)).isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(getIsRecordingStartedThreadLocal().get()).isEqualTo(false).perform();
     }
 
     @Test(description = "startVideoRecording starts Android native recording when mobile execution is detected")
@@ -135,7 +140,7 @@ public class RecordManagerTest {
             RecordManager.startVideoRecording(mockDriver);
         }
         verify(mockDriver).startRecordingScreen(any());
-        SHAFT.Validations.assertThat().object(IS_RECORDING_STARTED_FIELD.getBoolean(null)).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(getIsRecordingStartedThreadLocal().get()).isEqualTo(true).perform();
         SHAFT.Validations.assertThat().object(getVideoDriverThreadLocal().get() != null).isEqualTo(true).perform();
     }
 
@@ -149,7 +154,7 @@ public class RecordManagerTest {
             driverFactoryHelperMock.when(DriverFactoryHelper::isMobileNativeExecution).thenReturn(true);
             RecordManager.startVideoRecording(mockDriver);
         }
-        SHAFT.Validations.assertThat().object(IS_RECORDING_STARTED_FIELD.getBoolean(null)).isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(getIsRecordingStartedThreadLocal().get()).isEqualTo(false).perform();
     }
 
     @Test(description = "startVideoRecording starts iOS native recording when mobile execution is detected")
@@ -161,7 +166,7 @@ public class RecordManagerTest {
             RecordManager.startVideoRecording(mockDriver);
         }
         verify(mockDriver).startRecordingScreen(any());
-        SHAFT.Validations.assertThat().object(IS_RECORDING_STARTED_FIELD.getBoolean(null)).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(getIsRecordingStartedThreadLocal().get()).isEqualTo(true).perform();
     }
 
     @Test(description = "getVideoRecordingFilePath writes decoded video to temp path")
@@ -171,7 +176,7 @@ public class RecordManagerTest {
         String encoded = Base64.getEncoder().encodeToString("file-video".getBytes(StandardCharsets.UTF_8));
         when(mockDriver.stopRecordingScreen()).thenReturn(encoded);
         getVideoDriverThreadLocal().set(mockDriver);
-        IS_RECORDING_STARTED_FIELD.setBoolean(null, true);
+        getIsRecordingStartedThreadLocal().set(true);
 
         String filePath = RecordManager.getVideoRecordingFilePath();
         SHAFT.Validations.assertThat().object(filePath).isEqualTo("target/tempVideoFile/").perform();

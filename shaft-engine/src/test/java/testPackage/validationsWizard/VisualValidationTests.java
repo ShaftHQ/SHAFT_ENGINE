@@ -12,7 +12,7 @@ import org.testng.annotations.Test;
 public class VisualValidationTests {
     protected static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     String firstRunElementReferenceFilePath;
-    By firstRunElement = By.cssSelector("img[alt='SHAFT_Engine']");
+    By firstRunElement = By.xpath("(//img[@alt='SHAFT_Engine'])[1]");
 
     @Test
     public void visualValidation_1stRun(){
@@ -38,7 +38,7 @@ public class VisualValidationTests {
     @BeforeMethod
     public void beforeMethod(){
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().navigateToURL("https://shaftengine.netlify.app/");
     }
 
     @AfterMethod(alwaysRun = true)
