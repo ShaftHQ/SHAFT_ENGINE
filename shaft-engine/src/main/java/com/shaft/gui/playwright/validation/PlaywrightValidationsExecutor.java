@@ -6,6 +6,7 @@ import com.microsoft.playwright.assertions.LocatorAssertions;
 import com.microsoft.playwright.assertions.PageAssertions;
 import com.microsoft.playwright.assertions.PlaywrightAssertions;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.tools.internal.support.JavaHelper;
@@ -21,6 +22,7 @@ import io.qameta.allure.Step;
 import io.qameta.allure.model.Parameter;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -31,8 +33,10 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final PlaywrightSession session;
     private final Locator locator;
+    private final String locatorDescription;
     private final ValidationEnums.ValidationType validationType;
     private final String validationMethod;
+    private final ValidationEnums.VisualValidationEngine visualValidationEngine;
     private final String elementAttribute;
     private final String elementCssProperty;
     private final String browserAttribute;
@@ -47,8 +51,10 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         this.validationCategory = builder.validationCategory();
         this.session = builder.session();
         this.locator = builder.playwrightLocator();
+        this.locatorDescription = builder.playwrightLocatorDescription();
         this.validationMethod = builder.validationMethod();
         this.validationType = builder.validationType();
+        this.visualValidationEngine = builder.visualValidationEngine();
         this.validationComparisonType = builder.validationComparisonType();
         this.expectedValue = builder.expectedValue();
         this.elementAttribute = builder.playwrightElementAttribute();
@@ -97,6 +103,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     }
 
     private Outcome evaluate() {
+        if ("elementMatches".equals(validationMethod)) {
+            return evaluateElementMatches();
+        }
         Object reportedExpected = expectedValue;
         Supplier<Object> actualSupplier = this::readActual;
         Runnable assertion = createPlaywrightAssertion();
@@ -105,7 +114,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         }
         Object actual = safelyRead(actualSupplier);
         return new Outcome(compare(reportedExpected, actual), reportedExpected, actual,
-                commonParameters(reportedExpected, actual));
+                commonParameters(reportedExpected, actual), List.of());
     }
 
     private Runnable createPlaywrightAssertion() {
@@ -227,7 +236,32 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             passed = false;
         }
         Object actual = safelyRead(actualSupplier);
-        return new Outcome(passed, reportedExpected, actual, commonParameters(reportedExpected, actual));
+        return new Outcome(passed, reportedExpected, actual, commonParameters(reportedExpected, actual), List.of());
+    }
+
+    private Outcome evaluateElementMatches() {
+        boolean expected = validationType.getValue();
+        List<List<Object>> visualAttachments = new ArrayList<>();
+        byte[] referenceImage = ImageProcessingActions.getReferenceImage(locatorDescription);
+        if (referenceImage != null && !Arrays.equals(new byte[0], referenceImage)) {
+            visualAttachments.add(Arrays.asList("Screenshot", "Reference Screenshot", referenceImage));
+        }
+
+        byte[] elementScreenshot = locator.screenshot();
+        Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(locatorDescription, elementScreenshot,
+                ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+        visualAttachments.add(Arrays.asList("Screenshot", "Actual Screenshot", elementScreenshot));
+
+        if (visualValidationEngine.equals(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG)
+                && !Boolean.TRUE.equals(actualResult)) {
+            byte[] shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(locatorDescription);
+            if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {
+                visualAttachments.add(Arrays.asList("Screenshot", "Differences", shutterbugDifferencesImage));
+            }
+        }
+
+        boolean actual = Boolean.TRUE.equals(actualResult);
+        return new Outcome(expected == actual, expected, actual, commonParameters(expected, actual), visualAttachments);
     }
 
     private Object readActual() {
@@ -245,7 +279,6 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                     locator.evaluate("(element, property) => getComputedStyle(element).getPropertyValue(property)",
                             elementCssProperty);
             case "browserAttributeEquals" -> readBrowserAttribute();
-            case "playwrightUnsupportedVisualValidation" -> "Playwright visual reference validation is not implemented yet";
             default -> null;
         };
     }
@@ -344,6 +377,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementEnabled" -> parameters.put("State", "enabled");
             case "elementCssPropertyEquals" -> parameters.put("CSS Property", elementCssProperty);
             case "browserAttributeEquals" -> parameters.put("Attribute", browserAttribute);
+            case "elementMatches" -> {
+                parameters.put("Should match", String.valueOf(expected));
+                parameters.put("Visual engine", visualValidationEngine.name());
+                parameters.put("Actual value", String.valueOf(actual));
+                return parameters;
+            }
             default -> {
             }
         }
@@ -373,12 +412,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     private void reportValidationState(Outcome outcome) {
         ValidationsHelper.reportValidationState(validationCategory, outcome.passed(), outcome.expected(),
-                outcome.actual(), attachments(outcome.passed()));
+                outcome.actual(), attachments(outcome));
     }
 
-    private List<List<Object>> attachments(boolean passed) {
-        List<List<Object>> attachments = new ArrayList<>();
-        if (shouldAttachScreenshot(passed)) {
+    private List<List<Object>> attachments(Outcome outcome) {
+        List<List<Object>> attachments = new ArrayList<>(outcome.attachments());
+        if (shouldAttachScreenshot(outcome.passed())) {
             try {
                 byte[] screenshot = session.page().screenshot(new Page.ScreenshotOptions().setFullPage(true));
                 List<Object> screenshotAttachment = new ScreenshotManager()
@@ -390,7 +429,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                 ReportManagerHelper.logDiscrete(e);
             }
         }
-        if (shouldAttachPageSnapshot(passed)) {
+        if (shouldAttachPageSnapshot(outcome.passed())) {
             try {
                 attachments.add(List.of(validationCategoryString, "page HTML", session.page().content()));
             } catch (RuntimeException e) {
@@ -419,7 +458,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     private record Outcome(boolean passed,
                            Object expected,
                            Object actual,
-                           LinkedHashMap<String, String> parameters) {
+                           LinkedHashMap<String, String> parameters,
+                           List<List<Object>> attachments) {
     }
 
     private static final class SeedBuilder extends ValidationsBuilder {

@@ -40,7 +40,7 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     }
 
     private NativeValidationsBuilder builder(String browserAttribute) {
-        return new PlaywrightNativeValidationsBuilder(validationCategory, session, null, "browserAttributeEquals",
+        return new PlaywrightNativeValidationsBuilder(validationCategory, session, null, null, "browserAttributeEquals",
                 null, null, browserAttribute, reportMessageBuilder);
     }
 }

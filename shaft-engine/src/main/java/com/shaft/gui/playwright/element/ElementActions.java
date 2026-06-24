@@ -37,12 +37,13 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
 
     @Override
     public ElementAssertions assertThat(ShaftLocator elementLocator) {
-        return assertThat(elementLocator.toPlaywrightLocator(session.page()));
+        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, session,
+                elementLocator.toPlaywrightLocator(session.page()), elementLocator.toString());
     }
 
     public ElementAssertions assertThat(Locator elementLocator) {
         return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, session,
-                elementLocator);
+                elementLocator, String.valueOf(elementLocator));
     }
 
     @Override
@@ -52,12 +53,13 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
 
     @Override
     public ElementAssertions verifyThat(ShaftLocator elementLocator) {
-        return verifyThat(elementLocator.toPlaywrightLocator(session.page()));
+        return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, session,
+                elementLocator.toPlaywrightLocator(session.page()), elementLocator.toString());
     }
 
     public ElementAssertions verifyThat(Locator elementLocator) {
         return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, session,
-                elementLocator);
+                elementLocator, String.valueOf(elementLocator));
     }
 
     @Override

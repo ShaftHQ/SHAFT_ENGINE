@@ -11,14 +11,23 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final PlaywrightSession session;
     private final Locator locator;
+    private final String locatorDescription;
     private final StringBuilder reportMessageBuilder = new StringBuilder("the element ");
 
     public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
                                                PlaywrightSession session,
                                                Locator locator) {
+        this(validationCategory, session, locator, String.valueOf(locator));
+    }
+
+    public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                               PlaywrightSession session,
+                                               Locator locator,
+                                               String locatorDescription) {
         this.validationCategory = validationCategory;
         this.session = session;
         this.locator = locator;
+        this.locatorDescription = locatorDescription;
     }
 
     @Override
@@ -39,22 +48,22 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
 
     @Override
     public ValidationsExecutor matchesReferenceImage() {
-        return unsupportedVisualValidation();
+        return visualValidation(ValidationEnums.ValidationType.POSITIVE, ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
     }
 
     @Override
     public ValidationsExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
-        return unsupportedVisualValidation();
+        return visualValidation(ValidationEnums.ValidationType.POSITIVE, visualValidationEngine);
     }
 
     @Override
     public ValidationsExecutor doesNotMatchReferenceImage() {
-        return unsupportedVisualValidation();
+        return visualValidation(ValidationEnums.ValidationType.NEGATIVE, ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
     }
 
     @Override
     public ValidationsExecutor doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
-        return unsupportedVisualValidation();
+        return visualValidation(ValidationEnums.ValidationType.NEGATIVE, visualValidationEngine);
     }
 
     @Override
@@ -147,14 +156,19 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
         return builder("elementCssPropertyEquals", null, elementCssProperty);
     }
 
-    private ValidationsExecutor unsupportedVisualValidation() {
-        return builder("playwrightUnsupportedVisualValidation", null, null)
-                .isEqualTo("Playwright visual reference validation is implemented");
+    private PlaywrightNativeValidationsBuilder builder(String validationMethod, String elementAttribute, String elementCssProperty) {
+        return new PlaywrightNativeValidationsBuilder(validationCategory, session, locator, locatorDescription, validationMethod,
+                elementAttribute, elementCssProperty, null, reportMessageBuilder);
     }
 
-    private PlaywrightNativeValidationsBuilder builder(String validationMethod, String elementAttribute, String elementCssProperty) {
-        return new PlaywrightNativeValidationsBuilder(validationCategory, session, locator, validationMethod,
-                elementAttribute, elementCssProperty, null, reportMessageBuilder);
+    private ValidationsExecutor visualValidation(ValidationEnums.ValidationType validationType,
+                                                 ValidationEnums.VisualValidationEngine visualValidationEngine) {
+        reportMessageBuilder.append(validationType.getValue() ? "matches" : "does not match")
+                .append(" the reference image \"").append(visualValidationEngine).append("\".");
+        var executor = builder("elementMatches", null, null)
+                .createVisualExecutor(validationType, visualValidationEngine);
+        executor.internalPerform();
+        return executor;
     }
 
     private ValidationsExecutor expectedState(String validationMethod, ValidationEnums.ValidationType validationType) {
