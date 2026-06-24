@@ -1,0 +1,37 @@
+{
+  "body_path": "memory/decisions/talk-less-outside-planning.md",
+  "content_hash": "sha256:fe7bcbd89273f0c8f7f9302cf19c90c4ea5342f26382597664431bda7ca6c5f2",
+  "created_at": "2026-06-24T11:50:28+03:00",
+  "evidence": [
+    {
+      "id": "2026-06-24-user-talk-less-instruction",
+      "kind": "task"
+    },
+    {
+      "id": "2026-06-24-user-stay-silent-instruction",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "category": "agent-guidance"
+  },
+  "id": "decision.talk-less-outside-planning",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record communication preference from user"
+  },
+  "status": "active",
+  "tags": [
+    "communication",
+    "agent-guidance"
+  ],
+  "title": "Talk less outside planning mode",
+  "type": "decision",
+  "updated_at": "2026-06-24T12:19:34+03:00"
+}
