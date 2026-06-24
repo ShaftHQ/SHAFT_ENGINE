@@ -53,8 +53,6 @@ class ShaftMcpApplicationTests {
         assertTrue(toolNames.contains("capture_checkpoint"));
         assertTrue(toolNames.contains("browser_get_page_dom"));
         assertTrue(toolNames.contains("browser_take_screenshot"));
-        assertTrue(toolNames.contains("element_click_semantic"));
-        assertTrue(toolNames.contains("element_type_semantic"));
         assertTrue(toolNames.contains("playwright_initialize"));
         assertTrue(toolNames.contains("playwright_browser_get_page_dom"));
         assertTrue(toolNames.contains("playwright_element_click"));
@@ -81,6 +79,8 @@ class ShaftMcpApplicationTests {
         assertFalse(toolNames.contains("doctor_publish_draft_pr"));
         assertFalse(toolNames.contains("browser_get_page_source"));
         assertFalse(toolNames.contains("browser_get_cookie"));
+        assertFalse(toolNames.contains("element_click_semantic"));
+        assertFalse(toolNames.contains("element_type_semantic"));
         assertFalse(toolNames.contains("element_click_ai"));
     }
 

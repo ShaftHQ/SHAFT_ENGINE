@@ -133,18 +133,18 @@ class JunitExtensionLifecycleTest {
     void junitLauncherShouldRetryWithoutInvocationInterceptorChainFailure() {
         SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(1);
         LauncherDiscoveryRequest request = LauncherDiscoveryRequestBuilder.request()
-                .selectors(DiscoverySelectors.selectClass(FlakyJunitRetryFixture.class))
+                .selectors(DiscoverySelectors.selectClass(LauncherRetryFixture.class))
                 .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
                 .build();
         SummaryGeneratingListener summaryListener = new SummaryGeneratingListener();
-        FlakyJunitRetryFixture.attempts.set(0);
+        LauncherRetryFixture.attempts.set(0);
 
         LauncherFactory.create(LauncherConfig.builder()
                 .enableLauncherSessionListenerAutoRegistration(false)
                 .build()).execute(request, summaryListener);
 
         TestExecutionSummary summary = summaryListener.getSummary();
-        assertEquals(2, FlakyJunitRetryFixture.attempts.get());
+        assertEquals(2, LauncherRetryFixture.attempts.get());
         assertEquals(0, summary.getFailures().size(), () -> summary.getFailures().toString());
         assertTrue(summary.getTestsSucceededCount() > 0);
     }
@@ -156,19 +156,6 @@ class JunitExtensionLifecycleTest {
 
     private void retryFixture() {
         // Used by reflection.
-    }
-
-    static class FlakyJunitRetryFixture {
-        private static final AtomicInteger attempts = new AtomicInteger();
-
-        @Test
-        void failsOnceThenPasses() {
-            int currentAttempt = attempts.incrementAndGet();
-            if (currentAttempt == 1) {
-                throw new AssertionError("first attempt");
-            }
-            assertEquals(2, currentAttempt);
-        }
     }
 
     private static ExtensionContext mockExtensionContext(String displayName) {
@@ -189,5 +176,18 @@ class JunitExtensionLifecycleTest {
         when(context.getTestInstance()).thenReturn(Optional.of(this));
         when(context.getExecutableInvoker()).thenReturn(invoker);
         return context;
+    }
+}
+
+class LauncherRetryFixture {
+    static final AtomicInteger attempts = new AtomicInteger();
+
+    @Test
+    void failsOnceThenPasses() {
+        int currentAttempt = attempts.incrementAndGet();
+        if (currentAttempt == 1) {
+            throw new AssertionError("first attempt");
+        }
+        assertEquals(2, currentAttempt);
     }
 }

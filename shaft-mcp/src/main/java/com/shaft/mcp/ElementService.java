@@ -40,12 +40,11 @@ public class ElementService {
     }
 
     /**
-     * Clicks an element using SHAFT semantic locator behavior.
+     * Clicks an element using SHAFT semantic locator behavior for direct Java callers.
+     * Not exposed as an MCP tool because semantic names may contain sensitive application text.
      *
      * @param elementName semantic element name
      */
-    @Tool(name = "element_click_semantic",
-            description = "clicks an element by human-readable name using SHAFT smart locators")
     public void clickSemantic(String elementName) {
         try {
             getDriver().element().click(elementName);
@@ -135,13 +134,12 @@ public class ElementService {
     }
 
     /**
-     * Types text using SHAFT semantic locator behavior.
+     * Types text using SHAFT semantic locator behavior for direct Java callers.
+     * Not exposed as an MCP tool because semantic names and typed values may contain sensitive application text.
      *
      * @param elementName semantic element name
      * @param textValue text values
      */
-    @Tool(name = "element_type_semantic",
-            description = "types value into an element by human-readable name using SHAFT smart locators")
     public void typeSemantic(String elementName, CharSequence... textValue) {
         try {
             getDriver().element().type(elementName, textValue);

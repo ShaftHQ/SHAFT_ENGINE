@@ -91,15 +91,17 @@ public class TestNGListenerCoverageUnitTest {
     public void onExecutionFinishShouldClearThreadLocalLifecycleState() throws Exception {
         TestNGListener listener = new TestNGListener();
         TrackedResultState originalState = captureTrackedResultState();
+        String originalDisableLogging = ThreadLocalPropertiesManager.getProperty("disableLogging");
+        String threadLocalOverride = "true".equalsIgnoreCase(originalDisableLogging) ? "false" : "true";
         try {
-            ThreadLocalPropertiesManager.setProperty("disableLogging", "true");
+            ThreadLocalPropertiesManager.setProperty("disableLogging", threadLocalOverride);
 
             try (MockedStatic<ExecutionLifecycleHelper> ignoredExecutionLifecycle =
                          Mockito.mockStatic(ExecutionLifecycleHelper.class)) {
                 listener.onExecutionFinish();
             }
 
-            assertNull(ThreadLocalPropertiesManager.getProperty("disableLogging"));
+            assertEquals(ThreadLocalPropertiesManager.getProperty("disableLogging"), originalDisableLogging);
         } finally {
             restoreTrackedResultState(originalState);
             com.shaft.properties.internal.Properties.clearForCurrentThread();
