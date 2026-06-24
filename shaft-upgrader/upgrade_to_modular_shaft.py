@@ -46,10 +46,19 @@ ENGINE_ARTIFACT = "shaft-engine"
 BOM_ARTIFACT = "shaft-bom"
 OPTIONAL_MODULES = ("shaft-browserstack", "shaft-video", "shaft-visual")
 SHAFT_ARTIFACTS = {LEGACY_ARTIFACT, ENGINE_ARTIFACT, BOM_ARTIFACT, *OPTIONAL_MODULES}
+ASPECTJ_GROUP = "org.aspectj"
+ASPECTJ_ARTIFACT = "aspectjweaver"
+SUREFIRE_GROUP = "org.apache.maven.surefire"
+SUREFIRE_TESTNG_ARTIFACT = "surefire-testng"
+MAVEN_PLUGINS_GROUP = "org.apache.maven.plugins"
+MAVEN_SUREFIRE_PLUGIN = "maven-surefire-plugin"
 JSONASSERT_GROUP = "org.skyscreamer"
 JSONASSERT_ARTIFACT = "jsonassert"
 ANDROID_JSON_GROUP = "com.vaadin.external.google"
 ANDROID_JSON_ARTIFACT = "android-json"
+GENERATOR_ASPECTJ_VERSION = "1.9.25.1"
+GENERATOR_SUREFIRE_PLUGIN_VERSION = "3.5.5"
+GENERATOR_SUREFIRE_TESTNG_VERSION = "3.5.5"
 MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2"
 DEFAULT_OPENAI_MODEL = "gpt-5.5"
 DEFAULT_OPENAI_KEY_ENV = "OPENAI_API_KEY"
@@ -62,6 +71,16 @@ XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 UPGRADE_TYPES = ("basic", "session", "full")
 SOURCE_UPGRADE_TYPES = {"session", "full"}
 SOURCE_UPGRADE_STACKS = {"selenium", "appium"}
+SHAFT_PROVIDED_DEPENDENCIES = {
+    ("org.seleniumhq.selenium", "selenium-java"),
+    ("io.appium", "java-client"),
+    ("io.rest-assured", "rest-assured"),
+    ("org.testng", "testng"),
+    ("org.junit.jupiter", "junit-jupiter"),
+    ("io.cucumber", "cucumber-java"),
+    ("io.cucumber", "cucumber-testng"),
+    ("io.cucumber", "cucumber-picocontainer"),
+}
 SELENIUM_APPIUM_DRIVER_TYPES = (
     "ChromeDriver",
     "FirefoxDriver",
@@ -736,6 +755,15 @@ def child_text(parent: ET.Element, name: str) -> str:
     return (child.text or "").strip() if child is not None else ""
 
 
+def set_text_child(parent: ET.Element, namespace: str, name: str, value: str) -> ET.Element:
+    """Create or replace one direct text child."""
+    child = direct_child(parent, name)
+    if child is None:
+        child = ET.SubElement(parent, qualified(namespace, name))
+    child.text = value
+    return child
+
+
 def elements_named(root: ET.Element, name: str) -> Iterable[ET.Element]:
     """Yield descendants by local name."""
     return (element for element in root.iter() if local_name(element.tag) == name)
@@ -848,6 +876,17 @@ def remove_json_runtime_conflicts(container: ET.Element | None, namespace: str) 
             ensure_android_json_exclusion(dependency, namespace)
 
 
+def remove_shaft_provided_dependencies(container: ET.Element | None) -> None:
+    """Remove direct dependencies already supplied by shaft-engine."""
+    if container is None:
+        return
+    for dependency in list(container):
+        if local_name(dependency.tag) != "dependency":
+            continue
+        if dependency_coordinate(dependency) in SHAFT_PROVIDED_DEPENDENCIES:
+            container.remove(dependency)
+
+
 def copy_dependency_metadata(
     destination: ET.Element,
     template: ET.Element | None,
@@ -885,22 +924,187 @@ def create_dependency(
     return dependency
 
 
+def create_external_dependency(
+    namespace: str,
+    group: str,
+    artifact: str,
+    version: str | None = None,
+) -> ET.Element:
+    """Create one non-SHAFT dependency."""
+    dependency = ET.Element(qualified(namespace, "dependency"))
+    add_text_child(dependency, namespace, "groupId", group)
+    add_text_child(dependency, namespace, "artifactId", artifact)
+    if version:
+        add_text_child(dependency, namespace, "version", version)
+    return dependency
+
+
+def ensure_dependency(
+    dependencies: ET.Element,
+    namespace: str,
+    group: str,
+    artifact: str,
+    version: str | None = None,
+) -> ET.Element:
+    """Ensure a dependency coordinate exists, updating its version when supplied."""
+    for dependency in dependencies:
+        if local_name(dependency.tag) != "dependency":
+            continue
+        if dependency_coordinate(dependency) == (group, artifact):
+            if version:
+                set_text_child(dependency, namespace, "version", version)
+            return dependency
+    dependency = create_external_dependency(namespace, group, artifact, version)
+    dependencies.append(dependency)
+    return dependency
+
+
 def set_shaft_version_property(root: ET.Element, namespace: str, version: str) -> None:
     """Create or update the canonical SHAFT version property."""
     properties = ensure_project_child(root, namespace, "properties")
     legacy_property = direct_child(properties, "shaft_engine.version")
     if legacy_property is not None:
         properties.remove(legacy_property)
-    property_element = direct_child(properties, "shaft.version")
-    if property_element is None:
-        property_element = ET.SubElement(properties, qualified(namespace, "shaft.version"))
-    property_element.text = version
+    set_text_child(properties, namespace, "shaft.version", version)
+
+
+def set_generator_properties(root: ET.Element, namespace: str, version: str, runner: str) -> None:
+    """Add generated-project execution properties required for Allure AspectJ steps."""
+    set_shaft_version_property(root, namespace, version)
+    properties = ensure_project_child(root, namespace, "properties")
+    set_text_child(properties, namespace, "aspectjweaver.version", GENERATOR_ASPECTJ_VERSION)
+    if runner == "testng":
+        set_text_child(properties, namespace, "surefire-testng.version", GENERATOR_SUREFIRE_TESTNG_VERSION)
+    set_text_child(properties, namespace, "maven-surefire-plugin.version", GENERATOR_SUREFIRE_PLUGIN_VERSION)
+    set_text_child(properties, namespace, "surefireArgLine", "")
+
+
+def infer_runner_from_pom(root: ET.Element) -> str:
+    """Infer the generated-project runner profile from POM dependencies."""
+    coordinates = {
+        dependency_coordinate(dependency)
+        for dependency in elements_named(root, "dependency")
+    }
+    if ("org.testng", "testng") in coordinates or ("io.cucumber", "cucumber-testng") in coordinates:
+        return "testng"
+    if any(group == "org.junit.jupiter" or group == "org.junit.platform" or group == "junit" for group, _ in coordinates):
+        return "junit"
+    if any(group == "io.cucumber" for group, _ in coordinates):
+        return "testng"
+    return "testng"
+
+
+def preferred_runner(runners: Sequence[str]) -> str:
+    """Choose the generated-project execution profile for detected runners."""
+    if "testng" in runners or "cucumber" in runners:
+        return "testng"
+    if "junit" in runners:
+        return "junit"
+    return "testng"
+
+
+def ensure_generator_dependency_set(dependencies: ET.Element, namespace: str, runner: str) -> None:
+    """Add generated-project runtime dependencies while preserving user extras."""
+    ensure_dependency(dependencies, namespace, ASPECTJ_GROUP, ASPECTJ_ARTIFACT, "${aspectjweaver.version}")
+    if runner == "testng":
+        ensure_dependency(dependencies, namespace, SUREFIRE_GROUP, SUREFIRE_TESTNG_ARTIFACT, "${surefire-testng.version}")
+
+
+def create_plugin(namespace: str, artifact: str, version_property: str) -> ET.Element:
+    """Create a Maven plugin shell."""
+    plugin = ET.Element(qualified(namespace, "plugin"))
+    add_text_child(plugin, namespace, "groupId", MAVEN_PLUGINS_GROUP)
+    add_text_child(plugin, namespace, "artifactId", artifact)
+    add_text_child(plugin, namespace, "version", version_property)
+    return plugin
+
+
+def append_plugin_dependency(
+    dependencies: ET.Element,
+    namespace: str,
+    group: str,
+    artifact: str,
+    version: str,
+) -> None:
+    """Append one plugin dependency."""
+    dependency = ET.SubElement(dependencies, qualified(namespace, "dependency"))
+    add_text_child(dependency, namespace, "groupId", group)
+    add_text_child(dependency, namespace, "artifactId", artifact)
+    add_text_child(dependency, namespace, "version", version)
+
+
+def create_property(namespace: str, name: str, value: str) -> ET.Element:
+    """Create one Surefire property element."""
+    prop = ET.Element(qualified(namespace, "property"))
+    add_text_child(prop, namespace, "name", name)
+    add_text_child(prop, namespace, "value", value)
+    return prop
+
+
+def create_surefire_profile(namespace: str, runner: str) -> ET.Element:
+    """Create the generated-project Surefire profile with AspectJ weaving."""
+    profile = ET.Element(qualified(namespace, "profile"))
+    add_text_child(profile, namespace, "id", runner)
+    activation = ET.SubElement(profile, qualified(namespace, "activation"))
+    add_text_child(activation, namespace, "activeByDefault", "true")
+
+    build = ET.SubElement(profile, qualified(namespace, "build"))
+    plugins = ET.SubElement(build, qualified(namespace, "plugins"))
+    surefire = create_plugin(namespace, MAVEN_SUREFIRE_PLUGIN, "${maven-surefire-plugin.version}")
+    dependencies = ET.SubElement(surefire, qualified(namespace, "dependencies"))
+    append_plugin_dependency(dependencies, namespace, ASPECTJ_GROUP, ASPECTJ_ARTIFACT, "${aspectjweaver.version}")
+    if runner == "testng":
+        append_plugin_dependency(dependencies, namespace, SUREFIRE_GROUP, SUREFIRE_TESTNG_ARTIFACT, "${surefire-testng.version}")
+
+    configuration = ET.SubElement(surefire, qualified(namespace, "configuration"))
+    add_text_child(configuration, namespace, "encoding", "UTF-8")
+    add_text_child(configuration, namespace, "useManifestOnlyJar", "true")
+    system_properties = ET.SubElement(configuration, qualified(namespace, "systemPropertyVariables"))
+    if runner == "testng":
+        add_text_child(system_properties, namespace, "testng.dtd.http", "true")
+    add_text_child(system_properties, namespace, "jacoco-agent.destfile", "target/jacoco.exec")
+    add_text_child(configuration, namespace, "testFailureIgnore", "true")
+    add_text_child(configuration, namespace, "failIfNoSpecifiedTests", "false")
+    add_text_child(configuration, namespace, "failIfNoTests", "false")
+    add_text_child(configuration, namespace, "trimStackTrace", "false")
+    add_text_child(configuration, namespace, "useFile", "false")
+    arg_line = ET.SubElement(configuration, qualified(namespace, "argLine"))
+    arg_line.text = (
+        '\n                                ${surefireArgLine}\n'
+        '                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/'
+        '${aspectjweaver.version}/aspectjweaver-${aspectjweaver.version}.jar"\n'
+        '                            '
+    )
+    properties = ET.SubElement(configuration, qualified(namespace, "properties"))
+    listener = "com.shaft.listeners.TestNGListener" if runner == "testng" else "com.shaft.listeners.JunitListener"
+    properties.append(create_property(namespace, "listener", listener))
+    if runner == "testng":
+        properties.append(
+            create_property(
+                namespace,
+                "reporter",
+                "org.testng.reporters.XMLReporter:generateTestResultAttributes=true,generateGroupsAttribute=true",
+            )
+        )
+    plugins.append(surefire)
+    return profile
+
+
+def ensure_generator_profile(root: ET.Element, namespace: str, runner: str) -> None:
+    """Replace runner execution profile with generated-project Surefire profile."""
+    profiles = ensure_project_child(root, namespace, "profiles")
+    for profile in list(profiles):
+        if local_name(profile.tag) == "profile" and child_text(profile, "id") in {"testng", "junit"}:
+            profiles.remove(profile)
+    profiles.append(create_surefire_profile(namespace, runner))
+
 
 
 def transform_pom_bytes(
     original: bytes,
     version: str,
     optional_modules: Sequence[str],
+    runner: str | None = None,
 ) -> bytes:
     """Return a POM with the modular SHAFT BOM and selected dependencies."""
     try:
@@ -913,7 +1117,8 @@ def transform_pom_bytes(
         ET.register_namespace("xsi", XSI_NAMESPACE)
 
     template = dependency_template(root)
-    set_shaft_version_property(root, namespace, version)
+    runner = runner or infer_runner_from_pom(root)
+    set_generator_properties(root, namespace, version, runner)
 
     dependency_management = ensure_project_child(root, namespace, "dependencyManagement")
     managed_dependencies = direct_child(dependency_management, "dependencies")
@@ -937,10 +1142,13 @@ def transform_pom_bytes(
     dependencies = ensure_project_child(root, namespace, "dependencies")
     remove_shaft_dependencies(dependencies)
     remove_json_runtime_conflicts(dependencies, namespace)
+    remove_shaft_provided_dependencies(dependencies)
     dependencies.append(create_dependency(namespace, ENGINE_ARTIFACT, template=template))
     for module in OPTIONAL_MODULES:
         if module in optional_modules:
             dependencies.append(create_dependency(namespace, module, template=template))
+    ensure_generator_dependency_set(dependencies, namespace, runner)
+    ensure_generator_profile(root, namespace, runner)
 
     ET.indent(root, space="    ")
     xml_declaration = original.lstrip().startswith(b"<?xml")
@@ -977,6 +1185,45 @@ def shaft_dependency_state(pom: Path) -> tuple[str, set[str], str]:
     return version, direct_artifacts, managed_version
 
 
+def has_generator_execution_profile(root: ET.Element) -> bool:
+    """Return whether the POM contains the generated AspectJ Surefire profile."""
+    properties = direct_child(root, "properties")
+    if properties is None:
+        return False
+    if child_text(properties, "aspectjweaver.version") != GENERATOR_ASPECTJ_VERSION:
+        return False
+    if child_text(properties, "maven-surefire-plugin.version") != GENERATOR_SUREFIRE_PLUGIN_VERSION:
+        return False
+    if direct_child(properties, "surefireArgLine") is None:
+        return False
+
+    dependencies = direct_child(root, "dependencies")
+    dependency_coordinates = {
+        dependency_coordinate(dependency)
+        for dependency in dependencies
+        if local_name(dependency.tag) == "dependency"
+    } if dependencies is not None else set()
+    if (ASPECTJ_GROUP, ASPECTJ_ARTIFACT) not in dependency_coordinates:
+        return False
+
+    profiles = direct_child(root, "profiles")
+    if profiles is None:
+        return False
+    for profile in profiles:
+        if local_name(profile.tag) != "profile" or child_text(profile, "id") not in {"testng", "junit"}:
+            continue
+        for plugin in elements_named(profile, "plugin"):
+            if child_text(plugin, "artifactId") != MAVEN_SUREFIRE_PLUGIN:
+                continue
+            configuration = direct_child(plugin, "configuration")
+            if configuration is None:
+                continue
+            arg_line = child_text(configuration, "argLine")
+            if "${surefireArgLine}" in arg_line and "aspectjweaver" in arg_line and "-javaagent:" in arg_line:
+                return True
+    return False
+
+
 def validate_upgraded_poms(
     poms: Sequence[Path],
     version: str,
@@ -994,6 +1241,9 @@ def validate_upgraded_poms(
             )
         if managed_version != "${shaft.version}":
             raise UpgradeError(f"{pom}: shaft-bom import must use ${{shaft.version}}.")
+        root = parse_xml(pom.read_bytes())
+        if not has_generator_execution_profile(root):
+            raise UpgradeError(f"{pom}: generated SHAFT AspectJ/Surefire execution profile is missing.")
 
 
 def is_stable_release(version: str) -> bool:
@@ -1531,11 +1781,13 @@ def execute_upgrade_transaction(
             )
 
     transaction = FileTransaction()
+    runner = preferred_runner(analysis.runners)
     transformed: dict[Path, bytes] = {
         pom: transform_pom_bytes(
             pom.read_bytes(),
             version,
             analysis.optional_modules,
+            runner,
         )
         for pom in analysis.candidate_poms
     }
@@ -1846,9 +2098,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         validate_upgrade_type(analysis, args.upgrade_type)
         print_analysis(analysis, version)
         log(f"Upgrade type: {args.upgrade_type}")
+        runner = preferred_runner(analysis.runners)
 
         transformed = {
-            pom: transform_pom_bytes(pom.read_bytes(), version, analysis.optional_modules)
+            pom: transform_pom_bytes(pom.read_bytes(), version, analysis.optional_modules, runner)
             for pom in analysis.candidate_poms
         }
         source_migration = collect_source_migration(analysis, args.upgrade_type)
