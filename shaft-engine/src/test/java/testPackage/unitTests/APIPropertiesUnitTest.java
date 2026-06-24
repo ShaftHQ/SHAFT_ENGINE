@@ -8,6 +8,8 @@ import org.testng.annotations.Test;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.testng.Assert.assertThrows;
+
 /**
  * Unit tests for API properties defaults, fluent overrides, and thread-local isolation.
  */
@@ -23,16 +25,22 @@ public class APIPropertiesUnitTest {
     public void testApiPropertiesDefaults() {
         assertFalse(SHAFT.Properties.api.swaggerValidationEnabled());
         assertEquals(SHAFT.Properties.api.swaggerValidationUrl(), "");
+        assertFalse(SHAFT.Properties.api.openApiCoverageReportEnabled());
+        assertEquals(SHAFT.Properties.api.openApiCoverageThreshold(), 0);
     }
 
     @Test(description = "Validate API fluent setters update values and support chaining")
     public void testApiPropertySetterChainingAndReads() {
         SHAFT.Properties.api.set()
                 .swaggerValidationEnabled(true)
-                .swaggerValidationUrl("https://example.org/swagger.json");
+                .swaggerValidationUrl("https://example.org/swagger.json")
+                .openApiCoverageReportEnabled(true)
+                .openApiCoverageThreshold(80);
 
         assertTrue(SHAFT.Properties.api.swaggerValidationEnabled());
         assertEquals(SHAFT.Properties.api.swaggerValidationUrl(), "https://example.org/swagger.json");
+        assertTrue(SHAFT.Properties.api.openApiCoverageReportEnabled());
+        assertEquals(SHAFT.Properties.api.openApiCoverageThreshold(), 80);
     }
 
     @Test(description = "Validate API properties are isolated per thread")
@@ -92,17 +100,33 @@ public class APIPropertiesUnitTest {
     public void testClearForCurrentThreadRestoresApiDefaults() {
         boolean defaultEnabled = SHAFT.Properties.api.swaggerValidationEnabled();
         String defaultSwaggerUrl = SHAFT.Properties.api.swaggerValidationUrl();
+        boolean defaultCoverageEnabled = SHAFT.Properties.api.openApiCoverageReportEnabled();
+        int defaultCoverageThreshold = SHAFT.Properties.api.openApiCoverageThreshold();
 
         SHAFT.Properties.api.set()
                 .swaggerValidationEnabled(!defaultEnabled)
-                .swaggerValidationUrl("https://temp/swagger.json");
+                .swaggerValidationUrl("https://temp/swagger.json")
+                .openApiCoverageReportEnabled(!defaultCoverageEnabled)
+                .openApiCoverageThreshold(90);
         assertEquals(SHAFT.Properties.api.swaggerValidationEnabled(), !defaultEnabled);
         assertEquals(SHAFT.Properties.api.swaggerValidationUrl(), "https://temp/swagger.json");
+        assertEquals(SHAFT.Properties.api.openApiCoverageReportEnabled(), !defaultCoverageEnabled);
+        assertEquals(SHAFT.Properties.api.openApiCoverageThreshold(), 90);
 
         Properties.clearForCurrentThread();
 
         assertEquals(SHAFT.Properties.api.swaggerValidationEnabled(), defaultEnabled);
         assertEquals(SHAFT.Properties.api.swaggerValidationUrl(), defaultSwaggerUrl);
+        assertEquals(SHAFT.Properties.api.openApiCoverageReportEnabled(), defaultCoverageEnabled);
+        assertEquals(SHAFT.Properties.api.openApiCoverageThreshold(), defaultCoverageThreshold);
+    }
+
+    @Test(description = "Validate API coverage threshold rejects impossible percentages")
+    public void testApiCoverageThresholdBounds() {
+        assertThrows(IllegalArgumentException.class,
+                () -> SHAFT.Properties.api.set().openApiCoverageThreshold(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> SHAFT.Properties.api.set().openApiCoverageThreshold(101));
     }
 
     private void assertEquals(Object actual, Object expected) {

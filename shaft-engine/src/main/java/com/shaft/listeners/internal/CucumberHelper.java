@@ -1,5 +1,6 @@
 package com.shaft.listeners.internal;
 
+import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.TestNGListener;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
@@ -133,6 +134,7 @@ public class CucumberHelper {
             ReportHelper.attachIssuesLog();
 
             ReportManagerHelper.setDiscreteLogging(true);
+            AssertionError openApiCoverageFailure = OpenApiCoverageReporter.reportAndGetThresholdFailure();
             JiraHelper.reportExecutionStatusToJira();
             GoogleTink.encrypt();
             AllureManager.generateAllureReportArchive();
@@ -154,6 +156,9 @@ public class CucumberHelper {
                         uniquePassed, uniqueFailed, skippedScenarios.get(), flakyCount);
             });
             ReportManagerHelper.logEngineClosure();
+            if (openApiCoverageFailure != null) {
+                throw openApiCoverageFailure;
+            }
         }
     }
 }
