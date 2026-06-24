@@ -129,10 +129,10 @@ class UpgradeToModularShaftTests(unittest.TestCase):
             for dependency in dependencies
             if upgrade.local_name(dependency.tag) == "dependency"
         }
-        self.assertEqual(
-            artifacts,
-            {"shaft-engine": "test", "shaft-visual": "test"},
-        )
+        self.assertEqual(artifacts["shaft-engine"], "test")
+        self.assertEqual(artifacts["shaft-visual"], "test")
+        self.assertIn("aspectjweaver", artifacts)
+        self.assertIn("surefire-testng", artifacts)
 
         dependency_management = upgrade.direct_child(root, "dependencyManagement")
         managed = upgrade.direct_child(dependency_management, "dependencies")
@@ -168,6 +168,177 @@ class UpgradeToModularShaftTests(unittest.TestCase):
 
         self.assertEqual(upgrade.child_text(properties, "shaft.version"), "10.2.20260609")
         self.assertIsNone(upgrade.direct_child(properties, "shaft_engine.version"))
+
+    def test_transform_adds_generator_style_testng_execution_profile(self):
+        transformed = upgrade.transform_pom_bytes(
+            SELENIUM_TESTNG_POM.encode(),
+            "10.2.20260623",
+            (),
+        )
+        root = upgrade.parse_xml(transformed)
+        properties = upgrade.direct_child(root, "properties")
+        dependencies = upgrade.direct_child(root, "dependencies")
+        dependency_artifacts = [
+            (
+                upgrade.child_text(dependency, "groupId"),
+                upgrade.child_text(dependency, "artifactId"),
+            )
+            for dependency in dependencies
+            if upgrade.local_name(dependency.tag) == "dependency"
+        ]
+        profile = upgrade.direct_child(upgrade.direct_child(root, "profiles"), "profile")
+        plugin = upgrade.direct_child(
+            upgrade.direct_child(
+                upgrade.direct_child(
+                    upgrade.direct_child(profile, "build"),
+                    "plugins",
+                ),
+                "plugin",
+            ),
+            "configuration",
+        )
+
+        self.assertEqual(upgrade.child_text(properties, "aspectjweaver.version"), "1.9.25.1")
+        self.assertEqual(upgrade.child_text(properties, "surefire-testng.version"), "3.5.5")
+        self.assertIn((upgrade.SHAFT_GROUP, upgrade.ENGINE_ARTIFACT), dependency_artifacts)
+        self.assertIn(("org.aspectj", "aspectjweaver"), dependency_artifacts)
+        self.assertIn(("org.apache.maven.surefire", "surefire-testng"), dependency_artifacts)
+        self.assertNotIn(("org.seleniumhq.selenium", "selenium-java"), dependency_artifacts)
+        self.assertNotIn(("org.testng", "testng"), dependency_artifacts)
+        self.assertEqual(upgrade.child_text(profile, "id"), "testng")
+        self.assertEqual(
+            upgrade.child_text(upgrade.direct_child(profile, "activation"), "activeByDefault"),
+            "true",
+        )
+        self.assertIn("aspectjweaver", upgrade.child_text(plugin, "argLine"))
+        self.assertIn("com.shaft.listeners.TestNGListener", upgrade.ET.tostring(profile, encoding="unicode"))
+
+    def test_transform_adds_generator_style_junit_execution_profile(self):
+        pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>example</groupId>
+            <artifactId>junit-demo</artifactId>
+            <version>1.0.0</version>
+            <dependencies>
+                <dependency>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-java</artifactId>
+                    <version>4.29.0</version>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter</artifactId>
+                    <version>6.0.0</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </project>
+        """
+
+        transformed = upgrade.transform_pom_bytes(pom.encode(), "10.2.20260623", ())
+        root = upgrade.parse_xml(transformed)
+        dependencies = upgrade.direct_child(root, "dependencies")
+        dependency_artifacts = [
+            (
+                upgrade.child_text(dependency, "groupId"),
+                upgrade.child_text(dependency, "artifactId"),
+            )
+            for dependency in dependencies
+            if upgrade.local_name(dependency.tag) == "dependency"
+        ]
+        profile = upgrade.direct_child(upgrade.direct_child(root, "profiles"), "profile")
+
+        self.assertEqual(upgrade.child_text(profile, "id"), "junit")
+        self.assertIn(("org.aspectj", "aspectjweaver"), dependency_artifacts)
+        self.assertNotIn(("org.apache.maven.surefire", "surefire-testng"), dependency_artifacts)
+        self.assertNotIn(("org.seleniumhq.selenium", "selenium-java"), dependency_artifacts)
+        self.assertNotIn(("org.junit.jupiter", "junit-jupiter"), dependency_artifacts)
+        self.assertIn("com.shaft.listeners.JunitListener", upgrade.ET.tostring(profile, encoding="unicode"))
+
+    def test_transform_adds_testng_execution_profile_for_cucumber_projects(self):
+        pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>example</groupId>
+            <artifactId>cucumber-demo</artifactId>
+            <version>1.0.0</version>
+            <dependencies>
+                <dependency>
+                    <groupId>io.cucumber</groupId>
+                    <artifactId>cucumber-java</artifactId>
+                    <version>7.23.0</version>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.cucumber</groupId>
+                    <artifactId>cucumber-testng</artifactId>
+                    <version>7.23.0</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </project>
+        """
+
+        transformed = upgrade.transform_pom_bytes(pom.encode(), "10.2.20260623", ())
+        root = upgrade.parse_xml(transformed)
+        dependencies = upgrade.direct_child(root, "dependencies")
+        dependency_artifacts = {
+            (
+                upgrade.child_text(dependency, "groupId"),
+                upgrade.child_text(dependency, "artifactId"),
+            )
+            for dependency in dependencies
+            if upgrade.local_name(dependency.tag) == "dependency"
+        }
+        profile = upgrade.direct_child(upgrade.direct_child(root, "profiles"), "profile")
+        profile_xml = upgrade.ET.tostring(profile, encoding="unicode")
+
+        self.assertEqual(upgrade.child_text(profile, "id"), "testng")
+        self.assertIn(("org.apache.maven.surefire", "surefire-testng"), dependency_artifacts)
+        self.assertNotIn(("io.cucumber", "cucumber-java"), dependency_artifacts)
+        self.assertNotIn(("io.cucumber", "cucumber-testng"), dependency_artifacts)
+        self.assertIn("com.shaft.listeners.TestNGListener", profile_xml)
+
+    def test_transform_preserves_existing_build_plugins_when_adding_execution_profile(self):
+        pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>example</groupId>
+            <artifactId>custom-build-demo</artifactId>
+            <version>1.0.0</version>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.11.0</version>
+                        <configuration>
+                            <release>21</release>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <dependencies>
+                <dependency>
+                    <groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId>
+                    <version>7.11.0</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </project>
+        """
+
+        transformed = upgrade.transform_pom_bytes(pom.encode(), "10.2.20260623", ())
+        root = upgrade.parse_xml(transformed)
+        properties = upgrade.direct_child(root, "properties")
+        build = upgrade.direct_child(root, "build")
+        plugin = upgrade.direct_child(upgrade.direct_child(build, "plugins"), "plugin")
+        configuration = upgrade.direct_child(plugin, "configuration")
+
+        self.assertIsNone(upgrade.direct_child(properties, "jdk.version"))
+        self.assertIsNone(upgrade.direct_child(properties, "maven-compiler-plugin.version"))
+        self.assertEqual(upgrade.child_text(plugin, "artifactId"), "maven-compiler-plugin")
+        self.assertEqual(upgrade.child_text(configuration, "release"), "21")
 
     def test_transform_removes_android_json_and_excludes_jsonassert(self):
         pom = """<project xmlns="http://maven.apache.org/POM/4.0.0">

@@ -1218,9 +1218,20 @@ public class Actions extends ElementActions {
         String actionName = JavaHelper.convertToSentenceCase(action).replaceAll("\\s+", " ");
         String value = context.stepValue();
         if (context.hasStepValue() && !value.isBlank()) {
-            return actionName + " \"" + value + "\"";
+            String stepName = actionName + " \"" + value + "\"";
+            if (shouldAppendElementNameToTypedStep(action) && context.hasStepTarget()) {
+                stepName += " into \"" + context.elementName() + "\"";
+            }
+            return stepName;
         }
         return actionName + " \"" + elementName + "\"";
+    }
+
+    private static boolean shouldAppendElementNameToTypedStep(String action) {
+        return ActionType.TYPE.name().equals(action)
+                || ActionType.TYPE_APPEND.name().equals(action)
+                || ActionType.TYPE_SECURELY.name().equals(action)
+                || ActionType.JAVASCRIPT_SET_VALUE.name().equals(action);
     }
 
     private static void updateActionStepMetadata(ActionReportContext context) {
@@ -1270,6 +1281,10 @@ public class Actions extends ElementActions {
             return !elementName.isBlank()
                     && !elementName.equals(locator)
                     && !locator.equals("Smart Locator: \"" + elementName + "\"");
+        }
+
+        boolean hasStepTarget() {
+            return !elementName.isBlank() && !elementName.equals(locator);
         }
 
         private static boolean shouldUseDataInStepName(ActionType action) {

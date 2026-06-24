@@ -169,7 +169,7 @@ public class ActionsCoverageUnitTest {
 
             new Actions(helperFor(driver)).type(LOCATOR, typedText);
 
-            Assert.assertEquals(step.getName(), "Type \"" + expectedPreview + "\"");
+            Assert.assertEquals(step.getName(), "Type \"" + expectedPreview + "\" into \"accessible target\"");
             Assert.assertEquals(parameterValue(step, "locator"), "By.id: target");
             Assert.assertFalse(hasParameter(step, "txt"));
             Assert.assertEquals(parameterValue(step, "element name"), "accessible target");
@@ -198,7 +198,7 @@ public class ActionsCoverageUnitTest {
 
             new Actions(helperFor(driver)).type("Email", "user@example.com");
 
-            Assert.assertEquals(step.getName(), "Type \"user@example.com\"");
+            Assert.assertEquals(step.getName(), "Type \"user@example.com\" into \"Email\"");
             Assert.assertEquals(parameterValue(step, "locator"), "Smart Locator: \"Email\"");
             Assert.assertFalse(hasParameter(step, "elementName"));
             Assert.assertFalse(hasParameter(step, "element name"));
