@@ -7,7 +7,7 @@
     <packaging>pom</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Build parent and reactor aggregator for SHAFT modules.</description>
-    <url>https://shaftengine.netlify.app/</url>
+    <url>https://shafthq.github.io/</url>
     <licenses>
         <license>
             <name>MIT License</name>

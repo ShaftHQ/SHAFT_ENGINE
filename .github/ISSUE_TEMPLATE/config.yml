@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/ShaftHQ/SHAFT_ENGINE/discussions
     about: Ask questions, share ideas, and connect with the community.
   - name: 📖 Documentation
-    url: https://shaftengine.netlify.app/docs/start/overview
+    url: https://shafthq.github.io/docs/start/overview
     about: Browse the official SHAFT_ENGINE user guide and API reference.
   - name: 💼 Slack Community
     url: https://join.slack.com/t/shaft-engine/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw

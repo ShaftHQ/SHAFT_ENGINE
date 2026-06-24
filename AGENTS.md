@@ -3,7 +3,7 @@
 ## Repository
 
 SHAFT_ENGINE is a Maven-published Java 25 automation framework; config wins.
-Core: `shaft-engine/`; optional/publication: `shaft-*`; tools: `scripts/ci/`; docs: `https://shaftengine.netlify.app`.
+Core: `shaft-engine/`; optional/publication: `shaft-*`; tools: `scripts/ci/`; docs: `https://shafthq.github.io`.
 
 Start from goal/files. Prefer `rg`, excerpts, parsers, scripts. Expand only for uncertainty.
 

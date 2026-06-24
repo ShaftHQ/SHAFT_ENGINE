@@ -83,7 +83,7 @@ public class BrowserActionsTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://shaftengine.netlify.app/");
+        driver.get().browser().navigateToURL("https://shafthq.github.io/");
     }
 
     @AfterMethod(alwaysRun = true)

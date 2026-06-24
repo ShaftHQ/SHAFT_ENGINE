@@ -60,7 +60,7 @@ public class MultipleDriverSessionTerminationTest {
     }
 
     private void basicNavigation() {
-        var url = "https://shaftengine.netlify.app/";
+        var url = "https://shafthq.github.io/";
         if (SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             url = SHAFT.Properties.paths.testData() + "test.html";

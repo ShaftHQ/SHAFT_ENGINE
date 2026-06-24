@@ -81,7 +81,7 @@ import static io.restassured.RestAssured.given;
  *
  * @see com.shaft.driver.SHAFT.API
  * @see RequestBuilder
- * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
  */
 @SuppressWarnings("unused")
 public class RestActions {
@@ -196,7 +196,7 @@ public class RestActions {
      * @param requestType   the HTTP method to use (e.g. {@link RequestType#GET})
      * @return a {@link RequestBuilder} ready for further configuration and execution
      * @deprecated use {@link com.shaft.driver.SHAFT.API} request methods instead.
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
      */
     @Deprecated(since = "10.2.20260620", forRemoval = false)
     @SuppressWarnings("deprecation")
@@ -447,7 +447,7 @@ public class RestActions {
      * @param response the REST-Assured response object
      * @param jsonPath the JSONPath expression that resolves to an array (e.g. {@code "$.items[*].id"})
      * @return a {@link List} of matched objects, or {@code null} if none are found
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
      */
     public static List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
         List<Object> searchPool = null;
@@ -522,7 +522,7 @@ public class RestActions {
      * @param response the REST-Assured response object with an XML body
      * @param xmlPath  the XPath expression (e.g. {@code "root.item.name"})
      * @return the extracted string value, or {@code null} if not found
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
      */
     public static String getResponseXMLValue(Response response, String xmlPath) {
         String searchPool = "";
@@ -1097,7 +1097,7 @@ public class RestActions {
      * @param requestType the HTTP method to use (e.g. {@link RequestType#POST})
      * @return a {@link RequestBuilder} for configuring and executing the request
      * @deprecated use {@link com.shaft.driver.SHAFT.API} request methods instead.
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; API Testing</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
      */
     @Deprecated(since = "10.2.20260620", forRemoval = false)
     public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {

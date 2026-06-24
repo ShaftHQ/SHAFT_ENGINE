@@ -13,7 +13,7 @@ Please confirm the following before submitting:
 
 - [ ] I have searched [existing issues](https://github.com/ShaftHQ/SHAFT_ENGINE/issues) and this bug has not been reported before.
 - [ ] I am using the **latest release** of SHAFT_ENGINE (we only support the latest version).
-- [ ] I have read the [documentation](https://shaftengine.netlify.app/docs/start/overview) and this is not a configuration mistake.
+- [ ] I have read the [documentation](https://shafthq.github.io/docs/start/overview) and this is not a configuration mistake.
 
 
 ## 🐛 Describe the Bug

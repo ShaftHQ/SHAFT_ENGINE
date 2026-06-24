@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "shaft-engine/src/main/resources/examples"
 MCP_FIXTURES = ROOT / "shaft-mcp/src/test/resources/fixtures/shaft-pilot/mcp"
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
-DOCS_BASE = "https://shaftengine.netlify.app/docs"
+DOCS_BASE = "https://shafthq.github.io/docs"
 EXPECTED_OPTIONAL = {
     "shaft-cucumber-web": "shaft-visual",
     "shaft-junit-web": "shaft-visual",

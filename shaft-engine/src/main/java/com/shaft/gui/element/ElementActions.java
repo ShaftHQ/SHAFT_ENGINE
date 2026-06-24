@@ -30,7 +30,7 @@ import java.util.*;
  * }</pre>
  *
  * @see com.shaft.gui.element.internal.Actions
- * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Element Actions</a>
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a>
  */
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class ElementActions extends FluentWebDriverAction implements com.shaft.gui.driver.ElementActionsContract {
@@ -80,7 +80,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @param elementLocator the locator of the element under test (e.g. {@code By.id("result")})
      * @return a {@link WebDriverElementValidationsBuilder} for chaining element assertions
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Assertions</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Assertions</a>
      */
     @Override
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
@@ -93,7 +93,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @param elementLocator the locator of the element under test (e.g. {@code By.id("result")})
      * @return a {@link WebDriverElementValidationsBuilder} for chaining element verifications
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Assertions</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Assertions</a>
      */
     @Override
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
@@ -105,7 +105,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @param elementLocator the locator used to find elements (e.g. {@code By.cssSelector(".item")})
      * @return the count of matching elements, or {@code 0} if none are found
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Element Actions</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a>
      */
     @Override
     public int getElementsCount(By elementLocator) {
@@ -458,7 +458,7 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *
      * @param elementLocator the locator of the element to screenshot
      * @return an {@link Actions} instance for chaining further actions
-     * @see <a href="https://shaftengine.netlify.app/">SHAFT User Guide &ndash; Element Actions</a>
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a>
      */
     @Override
     public Actions captureScreenshot(By elementLocator) {

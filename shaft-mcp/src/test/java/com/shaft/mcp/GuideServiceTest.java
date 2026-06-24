@@ -32,7 +32,7 @@ class GuideServiceTest {
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("Thread.sleep")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("request builders")));
         assertTrue(http.requested().stream()
-                .allMatch(uri -> "shaftengine.netlify.app".equalsIgnoreCase(uri.getHost())));
+                .allMatch(uri -> "shafthq.github.io".equalsIgnoreCase(uri.getHost())));
     }
 
     @Test
@@ -117,7 +117,7 @@ class GuideServiceTest {
                   }
                 }
                 """);
-        responses.put("https://shaftengine.netlify.app/docs/reference/guides/Solution_Design", """
+        responses.put("https://shafthq.github.io/docs/reference/guides/Solution_Design", """
                 <html><body><main>
                   <h1>Test Automation Solution Design Patterns</h1>
                   <h2 id="page-object-model-pom">Page Object Model (POM)</h2>
@@ -129,7 +129,7 @@ class GuideServiceTest {
                   <h2 id="fluent-page-object-method-chaining">Fluent Page Object</h2>
                 </main></body></html>
                 """);
-        responses.put("https://shaftengine.netlify.app/docs/reference/actions/GUI/didYouKnow/Shaft_Locator_Builder", """
+        responses.put("https://shafthq.github.io/docs/reference/actions/GUI/didYouKnow/Shaft_Locator_Builder", """
                 <html><body><main>
                   <h1>SHAFT Locator Builder</h1>
                   <h2 id="basic-syntax">Basic Syntax</h2>
@@ -141,7 +141,7 @@ class GuideServiceTest {
                   <h2 id="available-builder-methods">Available Builder Methods</h2>
                 </main></body></html>
                 """);
-        responses.put("https://shaftengine.netlify.app/docs/reference/guides/Element_Identification", """
+        responses.put("https://shafthq.github.io/docs/reference/guides/Element_Identification", """
                 <html><body><main>
                   <h1>Element Identification Best Practices</h1>
                   <h2 id="use-by-objects-not-findby">Use By Objects, Not FindBy</h2>
@@ -164,7 +164,7 @@ class GuideServiceTest {
                     {"id":%d,"pageTitle":"API Testing %d","sectionTitle":"API Section %d","sectionRoute":"/docs/testing/api-%d","type":"docs"}\
                     """.formatted(index, index, index, index));
             postings.append("\"").append(index).append("\":{}");
-            responses.put("https://shaftengine.netlify.app/docs/testing/api-" + index, """
+            responses.put("https://shafthq.github.io/docs/testing/api-" + index, """
                     <html><body><main><h1>API Testing</h1><p>Use official SHAFT API guide examples.</p></main></body></html>
                     """);
         }

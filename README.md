@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://shaftengine.netlify.app/img/shaft-automation-hero.png" alt="SHAFT connects Web, Mobile, API, CLI, Database, reporting, and agent workflows" width="900">
+<img src="https://shafthq.github.io/img/shaft-automation-hero.png" alt="SHAFT connects Web, Mobile, API, CLI, Database, reporting, and agent workflows" width="900">
 
 # SHAFT
 
@@ -13,11 +13,11 @@ and optional agent-assisted workflows.
 [![GitHub Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=flat-square&logo=github)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=flat-square&logo=apachemaven)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 [![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/e2eTests.yml?branch=main&style=flat-square&label=tests)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
-[![Docs](https://img.shields.io/badge/docs-live-5b4bff?style=flat-square)](https://shaftengine.netlify.app/docs/start/overview)
+[![Docs](https://img.shields.io/badge/docs-live-5b4bff?style=flat-square)](https://shafthq.github.io/docs/start/overview)
 
-[User Guide](https://shaftengine.netlify.app/docs/start/overview) ·
-[Quick Start](https://shaftengine.netlify.app/docs/start/quick-start) ·
-[Architecture](https://shaftengine.netlify.app/docs/features/architecture) ·
+[User Guide](https://shafthq.github.io/docs/start/overview) ·
+[Quick Start](https://shafthq.github.io/docs/start/quick-start) ·
+[Architecture](https://shafthq.github.io/docs/features/architecture) ·
 [Contribute](CONTRIBUTING.md)
 
 </div>
@@ -36,16 +36,16 @@ and optional agent-assisted workflows.
 
 | Goal | Open |
 |---|---|
-| Evaluate SHAFT quickly | [SHAFT at a glance](https://shaftengine.netlify.app/docs/start/overview) |
-| Create and run a project | [Quick start](https://shaftengine.netlify.app/docs/start/quick-start) |
-| Install or generate a project | [Installation](https://shaftengine.netlify.app/docs/start/installation) |
-| Understand artifacts and boundaries | [Architecture and modules](https://shaftengine.netlify.app/docs/features/architecture) |
-| Test browsers | [Web testing](https://shaftengine.netlify.app/docs/testing/web) |
-| Test mobile apps | [Mobile testing](https://shaftengine.netlify.app/docs/testing/mobile) |
-| Test REST or GraphQL APIs | [API testing](https://shaftengine.netlify.app/docs/testing/api) |
-| Use agent tools | [SHAFT MCP](https://shaftengine.netlify.app/docs/agentic/mcp) |
-| Diagnose or recover failed runs | [Doctor](https://shaftengine.netlify.app/docs/agentic/doctor) and [Heal](https://shaftengine.netlify.app/docs/agentic/heal) |
-| Upgrade an existing project | [Upgrade guide](https://shaftengine.netlify.app/docs/start/upgrade) |
+| Evaluate SHAFT quickly | [SHAFT at a glance](https://shafthq.github.io/docs/start/overview) |
+| Create and run a project | [Quick start](https://shafthq.github.io/docs/start/quick-start) |
+| Install or generate a project | [Installation](https://shafthq.github.io/docs/start/installation) |
+| Understand artifacts and boundaries | [Architecture and modules](https://shafthq.github.io/docs/features/architecture) |
+| Test browsers | [Web testing](https://shafthq.github.io/docs/testing/web) |
+| Test mobile apps | [Mobile testing](https://shafthq.github.io/docs/testing/mobile) |
+| Test REST or GraphQL APIs | [API testing](https://shafthq.github.io/docs/testing/api) |
+| Use agent tools | [SHAFT MCP](https://shafthq.github.io/docs/agentic/mcp) |
+| Diagnose or recover failed runs | [Doctor](https://shafthq.github.io/docs/agentic/doctor) and [Heal](https://shafthq.github.io/docs/agentic/heal) |
+| Upgrade an existing project | [Upgrade guide](https://shafthq.github.io/docs/start/upgrade) |
 
 ## Evidence
 

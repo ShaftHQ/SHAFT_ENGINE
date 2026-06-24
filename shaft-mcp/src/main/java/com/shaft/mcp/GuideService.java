@@ -33,9 +33,9 @@ import java.util.regex.Pattern;
 @Service
 public class GuideService {
     static final URI GUIDE_INDEX_URI = URI.create(
-            "https://shaftengine.netlify.app/search-index-docs-default-current.json");
-    private static final String GUIDE_HOST = "shaftengine.netlify.app";
-    private static final String GUIDE_ROOT = "https://shaftengine.netlify.app";
+            "https://shafthq.github.io/search-index-docs-default-current.json");
+    private static final String GUIDE_HOST = "shafthq.github.io";
+    private static final String GUIDE_ROOT = "https://shafthq.github.io";
     private static final int DEFAULT_LIMIT = 5;
     private static final int MAX_LIMIT = 5;
     private static final int EXCERPT_LIMIT = 900;

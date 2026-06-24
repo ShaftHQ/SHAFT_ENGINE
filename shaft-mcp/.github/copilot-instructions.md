@@ -10,6 +10,6 @@ Follow the repository-root `AGENTS.md` and `.github/copilot-instructions.md`.
 - Do not add model-provider credentials to shaft-mcp configuration or tests.
 - Store executable client examples under
   `src/test/resources/fixtures/shaft-pilot/`; public guidance belongs on the
-  [Docusaurus MCP page](https://shaftengine.netlify.app/docs/agentic/mcp).
+  [Docusaurus MCP page](https://shafthq.github.io/docs/agentic/mcp).
 - Validate focused changes with the affected `shaft-mcp` tests and the
   repository release-contract scripts.

@@ -17,7 +17,7 @@ Use this playbook only for CI failure triage.
 3. Search logs for the first actionable exception and its surrounding setup or
    teardown lines. Separate primary failure from reporting and cleanup noise.
 4. For SHAFT artifacts, follow
-   [the CI investigation runbook](https://shaftengine.netlify.app/docs/maintainers/ci-failure-investigation).
+   [the CI investigation runbook](https://shafthq.github.io/docs/maintainers/ci-failure-investigation).
    Parse self-contained Allure HTML or result JSON instead of opening large
    reports manually.
 5. Count result files before trusting statuses. Inspect failed, broken, and
