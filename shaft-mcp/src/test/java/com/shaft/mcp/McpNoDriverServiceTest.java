@@ -75,6 +75,16 @@ class McpNoDriverServiceTest {
     }
 
     @Test
+    void playwrightElementToolsShouldFailWhenNoPlaywrightSessionExists() {
+        PlaywrightService service = new PlaywrightService(McpWorkspacePolicy.of(temp));
+
+        assertNoDriver(() -> service.click(locatorStrategy.ID, "submit"));
+        assertNoDriver(() -> service.clickSemantic("Submit"));
+        assertNoDriver(() -> service.type(locatorStrategy.ID, "name", "value"));
+        assertNoDriver(() -> service.typeSemantic("Name", "value"));
+    }
+
+    @Test
     void mobileAndNaturalToolsShouldFailWhenNoDriverSessionExists() {
         MobileService mobile = new MobileService(engineService, McpWorkspacePolicy.of(temp));
         NaturalActionService natural = new NaturalActionService();

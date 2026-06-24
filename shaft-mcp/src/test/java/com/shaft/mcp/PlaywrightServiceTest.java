@@ -39,4 +39,31 @@ class PlaywrightServiceTest {
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("redacted")));
         assertFalse(code.contains("alice@example.test"));
     }
+
+    @Test
+    void semanticTypeRecordingCodeBlocksRedactTypedValues() {
+        McpPlaywrightRecordingService recorder = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("recordings/playwright-semantic.json");
+
+        recorder.start(recording.toString(), "playwright", false);
+        recorder.record(
+                "type_semantic",
+                null,
+                "Password",
+                Map.of("value", "super-secret"),
+                PlaywrightService.semanticTypeCode("Password", "super-secret"),
+                PlaywrightService.semanticTypeCode("Password", "<redacted>"),
+                true);
+        recorder.stop(false);
+
+        McpMobileReplayResult result = recorder.codeBlocks(recording.toString(), "page");
+
+        String code = result.codeBlocks().getFirst().code();
+        assertTrue(result.codeBlocks().getFirst().imports().contains("com.shaft.gui.driver.ShaftLocator"));
+        assertTrue(code.contains("ShaftLocator.xpath("));
+        assertTrue(code.contains("Password"));
+        assertTrue(code.contains("<redacted>"));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("redacted")));
+        assertFalse(code.contains("super-secret"));
+    }
 }
