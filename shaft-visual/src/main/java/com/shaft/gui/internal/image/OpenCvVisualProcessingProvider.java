@@ -200,6 +200,20 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
         return compareUsingEyes(elementScreenshot, visualValidationEngine, referenceImagePath);
     }
 
+    @Override
+    public Boolean compareAgainstBaseline(String elementLocatorName, byte[] elementScreenshot,
+                                          ImageProcessingActions.VisualValidationEngine visualValidationEngine,
+                                          String referenceImagePath, String differencesImagePath) {
+        if (visualValidationEngine == ImageProcessingActions.VisualValidationEngine.EXACT_SHUTTERBUG) {
+            ReportManager.logDiscrete("Playwright visual validation cannot use Selenium Shutterbug; using EXACT_OPENCV for screenshot bytes.");
+            return compareUsingOpenCv(elementScreenshot, referenceImagePath);
+        }
+        if (visualValidationEngine == ImageProcessingActions.VisualValidationEngine.EXACT_OPENCV) {
+            return compareUsingOpenCv(elementScreenshot, referenceImagePath);
+        }
+        return compareUsingEyes(elementScreenshot, visualValidationEngine, referenceImagePath);
+    }
+
     private boolean compareUsingShutterbug(WebDriver driver, By elementLocator, byte[] elementScreenshot,
                                            String referenceImagePath, String differencesImagePath) {
         if (Files.exists(Paths.get(referenceImagePath)) && elementScreenshot != null && elementScreenshot.length > 0) {

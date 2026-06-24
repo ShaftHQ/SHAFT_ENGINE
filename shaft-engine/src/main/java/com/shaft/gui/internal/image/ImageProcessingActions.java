@@ -168,20 +168,61 @@ public class ImageProcessingActions {
 
     private static final ConcurrentHashMap<String, String> locatorHashMapping = new ConcurrentHashMap<>();
 
+    /**
+     * Formats a Selenium locator into the stable visual-baseline file-name hash used by SHAFT.
+     *
+     * @param elementLocator locator of the element being compared
+     * @return stable hashed baseline file name without extension
+     */
     public static String formatElementLocatorToImagePath(By elementLocator) {
-        String elementFileName = ReportManagerHelper.getCallingClassFullName() + "_" + JavaHelper.formatLocatorToString(elementLocator);
+        return formatElementLocatorToImagePath(JavaHelper.formatLocatorToString(elementLocator), String.valueOf(elementLocator));
+    }
+
+    /**
+     * Formats a backend-neutral locator description into the stable visual-baseline file-name hash used by SHAFT.
+     *
+     * @param elementLocatorName stable element locator description
+     * @return stable hashed baseline file name without extension
+     */
+    public static String formatElementLocatorToImagePath(String elementLocatorName) {
+        return formatElementLocatorToImagePath(Objects.requireNonNull(elementLocatorName, "elementLocatorName"), elementLocatorName);
+    }
+
+    private static String formatElementLocatorToImagePath(String locatorKey, String locatorLogText) {
+        String elementFileName = ReportManagerHelper.getCallingClassFullName() + "_" + locatorKey;
         return locatorHashMapping.computeIfAbsent(elementFileName, key -> {
             String hashedFileName = key.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
                     .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
             // https://github.com/ShaftHQ/SHAFT_ENGINE/issues/1604
             hashedFileName = Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString();
-            ReportManager.log("Element Locator: " + elementLocator + " was formatted to: " + key, Level.INFO);
+            ReportManager.log("Element Locator: " + locatorLogText + " was formatted to: " + key, Level.INFO);
             return hashedFileName;
         });
     }
 
+    /**
+     * Reads the existing reference image for a Selenium locator, when present.
+     *
+     * @param elementLocator locator of the element being compared
+     * @return encoded reference image bytes, or {@code null} when no baseline exists
+     */
     public static byte[] getReferenceImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+        return getReferenceImageByHashedLocatorName(hashedLocatorName);
+    }
+
+    /**
+     * Reads the existing reference image for a backend-neutral locator, when present.
+     *
+     * @param elementLocatorName stable element locator description
+     * @return encoded reference image bytes, or {@code null} when no baseline exists
+     */
+    public static byte[] getReferenceImage(String elementLocatorName) {
+        String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocatorName);
+        return getReferenceImageByHashedLocatorName(hashedLocatorName);
+    }
+
+    private static byte[] getReferenceImageByHashedLocatorName(String hashedLocatorName) {
         String referenceImagePath = getAiFolderPath() + hashedLocatorName + ".png";
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {
             return FileActions.getInstance(true).readFileAsByteArray(referenceImagePath);
@@ -192,6 +233,21 @@ public class ImageProcessingActions {
 
     public static byte[] getShutterbugDifferencesImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+        return getShutterbugDifferencesImageByHashedLocatorName(hashedLocatorName);
+    }
+
+    /**
+     * Reads a generated Shutterbug differences image for a backend-neutral locator, when present.
+     *
+     * @param elementLocatorName stable element locator description
+     * @return encoded differences image bytes, or an empty byte array when no differences image exists
+     */
+    public static byte[] getShutterbugDifferencesImage(String elementLocatorName) {
+        String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocatorName);
+        return getShutterbugDifferencesImageByHashedLocatorName(hashedLocatorName);
+    }
+
+    private static byte[] getShutterbugDifferencesImageByHashedLocatorName(String hashedLocatorName) {
         String referenceImagePath = getAiFolderPath() + hashedLocatorName + "_shutterbug.png";
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {
             return FileActions.getInstance(true).readFileAsByteArray(referenceImagePath);
@@ -205,6 +261,22 @@ public class ImageProcessingActions {
         String visualBaselinePath = getAiFolderPath() + hashedLocatorName;
         return VisualProcessingProviderRegistry.requireProvider().compareAgainstBaseline(
                 driver, elementLocator, elementScreenshot, visualValidationEngine,
+                visualBaselinePath + ".png", visualBaselinePath + "_shutterbug");
+    }
+
+    /**
+     * Compares backend-neutral screenshot bytes against the visual baseline for the supplied locator description.
+     *
+     * @param elementLocatorName stable element locator description
+     * @param elementScreenshot encoded screenshot bytes
+     * @param visualValidationEngine requested visual validation engine
+     * @return {@code true} when the comparison passes or creates a new baseline
+     */
+    public static Boolean compareAgainstBaseline(String elementLocatorName, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
+        String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocatorName);
+        String visualBaselinePath = getAiFolderPath() + hashedLocatorName;
+        return VisualProcessingProviderRegistry.requireProvider().compareAgainstBaseline(
+                elementLocatorName, elementScreenshot, visualValidationEngine,
                 visualBaselinePath + ".png", visualBaselinePath + "_shutterbug");
     }
 

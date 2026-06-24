@@ -10,13 +10,16 @@ import com.shaft.validation.internal.ValidationsExecutor;
 final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder {
     private final PlaywrightSession session;
     private final Locator playwrightLocator;
+    private final String playwrightLocatorDescription;
     private final String playwrightElementAttribute;
     private final String playwrightElementCssProperty;
     private final String playwrightBrowserAttribute;
+    private ValidationEnums.VisualValidationEngine visualValidationEngine;
 
     PlaywrightNativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
                                        PlaywrightSession session,
                                        Locator playwrightLocator,
+                                       String playwrightLocatorDescription,
                                        String validationMethod,
                                        String elementAttribute,
                                        String elementCssProperty,
@@ -25,6 +28,7 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
         super(new SeedBuilder(validationCategory, validationMethod, reportMessageBuilder));
         this.session = session;
         this.playwrightLocator = playwrightLocator;
+        this.playwrightLocatorDescription = playwrightLocatorDescription;
         this.playwrightElementAttribute = elementAttribute;
         this.playwrightElementCssProperty = elementCssProperty;
         this.playwrightBrowserAttribute = browserAttribute;
@@ -35,6 +39,15 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
 
     @Override
     protected ValidationsExecutor createExecutor() {
+        return new PlaywrightValidationsExecutor(this);
+    }
+
+    PlaywrightValidationsExecutor createVisualExecutor(ValidationEnums.ValidationType validationType,
+                                                       ValidationEnums.VisualValidationEngine visualValidationEngine) {
+        this.validationType = validationType;
+        this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
+        this.expectedValue = validationType.getValue();
+        this.visualValidationEngine = visualValidationEngine;
         return new PlaywrightValidationsExecutor(this);
     }
 
@@ -53,6 +66,10 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
 
     Locator playwrightLocator() {
         return playwrightLocator;
+    }
+
+    String playwrightLocatorDescription() {
+        return playwrightLocatorDescription;
     }
 
     String playwrightElementAttribute() {
@@ -85,6 +102,10 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
 
     Object expectedValue() {
         return expectedValue;
+    }
+
+    ValidationEnums.VisualValidationEngine visualValidationEngine() {
+        return visualValidationEngine;
     }
 
     StringBuilder reportMessageBuilder() {

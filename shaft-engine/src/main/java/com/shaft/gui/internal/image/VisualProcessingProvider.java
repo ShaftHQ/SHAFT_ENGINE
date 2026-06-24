@@ -37,6 +37,26 @@ public interface VisualProcessingProvider {
                                    String referenceImagePath, String differencesImagePath);
 
     /**
+     * Compares screenshot bytes against a visual baseline without requiring a Selenium {@link WebDriver}.
+     *
+     * <p>This path is used by non-WebDriver backends such as Playwright. Providers that cannot compare raw
+     * screenshots may keep the default implementation, preserving compatibility with existing implementations.</p>
+     *
+     * @param elementLocatorName stable element locator description used for diagnostics
+     * @param elementScreenshot encoded screenshot of the element or page
+     * @param visualValidationEngine requested visual validation engine
+     * @param referenceImagePath path to the saved reference image
+     * @param differencesImagePath path prefix for a generated differences image
+     * @return {@code true} when the comparison passes or creates a new baseline
+     * @throws UnsupportedOperationException when the provider does not support raw screenshot comparison
+     */
+    default Boolean compareAgainstBaseline(String elementLocatorName, byte[] elementScreenshot,
+                                           ImageProcessingActions.VisualValidationEngine visualValidationEngine,
+                                           String referenceImagePath, String differencesImagePath) {
+        throw new UnsupportedOperationException("The configured visual processing provider does not support byte-based baseline comparison.");
+    }
+
+    /**
      * Loads any native libraries required by this provider.
      */
     void load();
