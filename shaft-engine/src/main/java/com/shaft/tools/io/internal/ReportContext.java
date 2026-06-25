@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 public final class ReportContext {
     private static final ThreadLocal<TestExecutionInfo> currentTest = new ThreadLocal<>();
     private static final ThreadLocal<List<String>> output = ThreadLocal.withInitial(ArrayList::new);
+    private static final ThreadLocal<List<AttachmentRecord>> attachments = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<Consumer<String>> logSink = new ThreadLocal<>();
     private static final ThreadLocal<Status> status = new ThreadLocal<>();
 
@@ -29,6 +30,7 @@ public final class ReportContext {
     public static void start(TestExecutionInfo info) {
         currentTest.set(info);
         output.get().clear();
+        attachments.get().clear();
         logSink.remove();
         status.remove();
     }
@@ -62,6 +64,36 @@ public final class ReportContext {
      */
     public static List<String> snapshotOutput() {
         return Collections.unmodifiableList(new ArrayList<>(output.get()));
+    }
+
+    /**
+     * Records one attachment created for the current test thread.
+     *
+     * @param description   report-visible attachment description
+     * @param contentType   MIME type sent to Allure
+     * @param fileExtension file extension sent to Allure
+     * @param purpose       machine-readable purpose, or blank to infer
+     * @param sizeBytes     attachment size in bytes, or {@code -1} when unknown
+     */
+    public static void recordAttachment(String description, String contentType, String fileExtension,
+                                        String purpose, long sizeBytes) {
+        attachments.get().add(new AttachmentRecord(
+                value(description),
+                value(contentType),
+                value(fileExtension),
+                purpose == null || purpose.isBlank()
+                        ? inferAttachmentPurpose(description, contentType, fileExtension)
+                        : purpose,
+                sizeBytes));
+    }
+
+    /**
+     * Returns a stable copy of attachment records for the current test thread.
+     *
+     * @return recorded attachments
+     */
+    public static List<AttachmentRecord> snapshotAttachments() {
+        return Collections.unmodifiableList(new ArrayList<>(attachments.get()));
     }
 
     /**
@@ -125,7 +157,59 @@ public final class ReportContext {
     public static void clear() {
         currentTest.remove();
         output.remove();
+        attachments.remove();
         logSink.remove();
         status.remove();
+    }
+
+    /**
+     * Machine-readable SHAFT attachment metadata for one test thread.
+     *
+     * @param description   report-visible attachment description
+     * @param contentType   MIME type sent to Allure
+     * @param fileExtension file extension sent to Allure
+     * @param purpose       inferred or supplied evidence purpose
+     * @param sizeBytes     attachment size in bytes, or {@code -1} when unknown
+     */
+    public record AttachmentRecord(
+            String description,
+            String contentType,
+            String fileExtension,
+            String purpose,
+            long sizeBytes) {
+    }
+
+    private static String inferAttachmentPurpose(String description, String contentType, String fileExtension) {
+        String text = (value(description) + " " + value(contentType) + " " + value(fileExtension)).toLowerCase();
+        if (text.contains("screenshot") || text.contains("image/png") || text.contains("image/jpeg")) {
+            return "screenshot";
+        }
+        if (text.contains("video") || text.contains("recording") || text.contains("image/gif")
+                || text.contains("video/")) {
+            return "video";
+        }
+        if (text.contains("page snapshot") || text.contains(".mhtml")) {
+            return "page-snapshot";
+        }
+        if (text.contains("trace") || text.contains("diagnostics") || text.contains(".zip")) {
+            return "trace-or-bundle";
+        }
+        if (text.contains("response") || text.contains("request") || text.contains("api ")) {
+            return "api";
+        }
+        if (text.contains("accessibility")) {
+            return "accessibility";
+        }
+        if (text.contains("performance")) {
+            return "performance";
+        }
+        if (text.contains("log")) {
+            return "log";
+        }
+        return "general";
+    }
+
+    private static String value(String value) {
+        return value == null ? "" : value;
     }
 }

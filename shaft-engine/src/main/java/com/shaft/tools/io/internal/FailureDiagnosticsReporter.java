@@ -431,10 +431,10 @@ public final class FailureDiagnosticsReporter {
     private record ArtifactReference(String id, String type, String path) {
     }
 
-    private static final class Redactor {
+    static final class Redactor {
         private final Set<String> rulesApplied = new LinkedHashSet<>();
 
-        private String redact(String value) {
+        String redact(String value) {
             String redacted = value(value);
             redacted = replace(redacted, AUTHORIZATION_PATTERN, "$1$2********", "authorization-header");
             redacted = replace(redacted, COOKIE_PATTERN, "$1$2********", "cookie-header");
@@ -450,7 +450,7 @@ public final class FailureDiagnosticsReporter {
             return output;
         }
 
-        private List<String> rulesApplied() {
+        List<String> rulesApplied() {
             return rulesApplied.stream().sorted().toList();
         }
     }

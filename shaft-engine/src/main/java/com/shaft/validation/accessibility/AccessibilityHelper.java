@@ -1181,13 +1181,16 @@ public class AccessibilityHelper {
         html.append("<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>");
         html.append("<meta name='viewport' content='width=device-width, initial-scale=1'>");
         html.append("<title>Accessibility Report - ").append(escapeHtml(pageName)).append("</title>");
-        html.append("<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css' rel='stylesheet'>");
-        html.append("<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'></script>");
-        html.append("<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'></script>");
         html.append("<style>");
-        html.append("body{background:#f8fafc;font-family:'Segoe UI',sans-serif;padding:20px;}");
+        html.append("body{background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;padding:20px;color:#111827;}");
+        html.append(".container{max-width:1180px;margin:0 auto;}.text-center{text-align:center}.text-muted{color:#6b7280}.small{font-size:.85rem}");
+        html.append(".mb-4{margin-bottom:1.5rem}.mb-3{margin-bottom:1rem}.mt-2{margin-top:.5rem}.mt-4{margin-top:1.5rem}");
+        html.append(".card{background:#fff;border:1px solid #dbe3ef;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.06)}.p-3{padding:1rem}");
+        html.append(".row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.col{padding:8px}.fw-bold{font-weight:700}.h4{font-size:1.5rem;font-weight:700;margin-top:.35rem}");
         html.append("h2{font-weight:600;margin-bottom:10px;}");
         html.append(".score-wrap{position:relative;width:200px;height:200px;margin:20px auto;}");
+        html.append(".score-gauge{width:200px;height:200px;border-radius:50%;background:conic-gradient(var(--score-color) var(--score),#e9ecef 0);}");
+        html.append(".score-gauge:after{content:'';position:absolute;inset:30px;background:#fff;border-radius:50%;box-shadow:inset 0 0 0 1px #e5e7eb;}");
         html.append(".score-text{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:2.5rem;font-weight:700;color:#111;}");
         html.append(".summary-boxes{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;margin-top:25px;}");
         html.append(".summary-item{min-width:120px;text-align:center;padding:15px 20px;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}");
@@ -1197,8 +1200,10 @@ public class AccessibilityHelper {
         html.append(".text-warning{color:#ffc107!important;}");
         html.append(".text-success{color:#198754!important;}");
         html.append(".text-secondary{color:#6c757d!important;}");
-        html.append(".accordion-button{text-transform:capitalize;font-weight:500;}");
-        html.append("table{font-size:0.9rem;}th,td{vertical-align:middle!important;}");
+        html.append(".accordion-item{background:#fff;border:1px solid #dbe3ef;border-radius:8px;margin-bottom:10px;overflow:hidden}");
+        html.append(".accordion-button{display:block;width:100%;cursor:pointer;text-transform:capitalize;font-weight:600;padding:12px 14px;background:#f9fafb;}");
+        html.append(".accordion-body{padding:14px}.table-responsive{overflow:auto}");
+        html.append("table{font-size:0.9rem;border-collapse:collapse;width:100%;background:#fff}th,td{border:1px solid #dbe3ef;padding:8px;vertical-align:middle!important;}");
         html.append(".filter-select{width:100%;font-size:0.85rem;}");
         html.append("</style></head><body><div class='container'>");
 
@@ -1217,7 +1222,8 @@ public class AccessibilityHelper {
 
         html.append("<div class='mb-4'>");
         html.append("<div class='card p-3 text-center mb-3'><div class='score-wrap'>");
-        html.append("<canvas id='gauge'></canvas>");
+        html.append("<div class='score-gauge' style='--score:").append(formattedScore)
+                .append("%;--score-color:").append(scoreColor(score)).append("'></div>");
         html.append("<div class='score-text'>").append(formattedScore).append("%</div>");
         html.append("</div><div class='text-muted small mt-2'>Overall Accessibility Score</div></div>");
         html.append("<div class='card p-3'><div class='row text-center'>");
@@ -1245,14 +1251,6 @@ public class AccessibilityHelper {
                 .append(" by SHAFT ENGINE AccessibilityHelper</div>");
 
         html.append("<script>");
-        html.append("(function(){const ctx=document.getElementById('gauge');if(!ctx)return;");
-        html.append("const score=").append(formattedScore).append(";");
-        html.append("function color(v){if(v>=90)return '#0cce6b';if(v>=50)return '#ffa400';return '#ff4e42';}");
-        html.append("new Chart(ctx,{type:'doughnut',data:{datasets:[{data:[score,100-score],backgroundColor:[color(score),'#e9ecef'],borderWidth:0}]},");
-        html.append("options:{rotation:0,circumference:360,cutout:'70%',plugins:{legend:{display:false},tooltip:{enabled:false}}}});})();");
-        html.append("</script>");
-
-        html.append("<script>");
         html.append("document.querySelectorAll('.filter-select').forEach(sel=>{sel.addEventListener('change',()=>{\n");
         html.append("const table=sel.closest('table');const colIndex=sel.dataset.col;\n");
         html.append("const val=sel.value.toLowerCase();\n");
@@ -1268,7 +1266,6 @@ public class AccessibilityHelper {
 
     private static String buildAccordionSection(String title, JSONArray arr, String color, int index) throws JSONException {
         if (arr == null) arr = new JSONArray();
-        String collapseId = "collapse" + index;
         String cardHeader = title + " (" + arr.length() + ")";
 
         Set<String> impacts = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
@@ -1281,13 +1278,9 @@ public class AccessibilityHelper {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("<div class='accordion-item'>");
-        sb.append("<h2 class='accordion-header'>");
-        sb.append("<button class='accordion-button collapsed text-").append(color)
-                .append("' type='button' data-bs-toggle='collapse' data-bs-target='#")
-                .append(collapseId).append("'>").append(cardHeader).append("</button></h2>");
-        sb.append("<div id='").append(collapseId)
-                .append("' class='accordion-collapse collapse' data-bs-parent='#accessibilityAccordion'>");
+        sb.append("<details class='accordion-item'>");
+        sb.append("<summary class='accordion-button text-").append(color)
+                .append("'>").append(cardHeader).append("</summary>");
         sb.append("<div class='accordion-body'>");
 
         if (arr.length() == 0) {
@@ -1330,8 +1323,14 @@ public class AccessibilityHelper {
             }
             sb.append("</tbody></table></div>");
         }
-        sb.append("</div></div></div>");
+        sb.append("</div></details>");
         return sb.toString();
+    }
+
+    private static String scoreColor(double score) {
+        if (score >= 90) return "#0cce6b";
+        if (score >= 50) return "#ffa400";
+        return "#ff4e42";
     }
 
     private static String escapeHtml(String text) {

@@ -40,33 +40,49 @@ public class AttachmentReporter {
 
     static {
         attachmentHandlers.put("screenshot", AttachmentReporter::handleScreenshot);
+        attachmentHandlers.put("jpeg", AttachmentReporter::handleJpeg);
         attachmentHandlers.put("recording", AttachmentReporter::handleRecording);
         attachmentHandlers.put("gif", AttachmentReporter::handleGif);
         attachmentHandlers.put("csv", AttachmentReporter::handleCsv);
         attachmentHandlers.put("xml", AttachmentReporter::handleXml);
         attachmentHandlers.put("excel", AttachmentReporter::handleExcel);
+        attachmentHandlers.put("docx", AttachmentReporter::handleDocx);
+        attachmentHandlers.put("pptx", AttachmentReporter::handlePptx);
         attachmentHandlers.put("json", AttachmentReporter::handleJson);
+        attachmentHandlers.put("yaml", AttachmentReporter::handleYaml);
+        attachmentHandlers.put("markdown", AttachmentReporter::handleMarkdown);
+        attachmentHandlers.put("har", AttachmentReporter::handleHar);
+        attachmentHandlers.put("pdf", AttachmentReporter::handlePdf);
         attachmentHandlers.put("properties", AttachmentReporter::handleProperties);
         attachmentHandlers.put("link", AttachmentReporter::handleLink);
         attachmentHandlers.put("engine logs", AttachmentReporter::handleEngineLogs);
         attachmentHandlers.put("page snapshot", AttachmentReporter::handlePageSnapshot);
         attachmentHandlers.put("html", AttachmentReporter::handleHtml);
         attachmentHandlers.put("zip", AttachmentReporter::handleZip);
+        attachmentHandlers.put("binary", AttachmentReporter::handleBinary);
         attachmentHandlers.put("default", AttachmentReporter::handleDefault);
 
         attachmentFormats.put("screenshot", new AttachmentFormat("image/png", ".png"));
+        attachmentFormats.put("jpeg", new AttachmentFormat("image/jpeg", ".jpg"));
         attachmentFormats.put("recording", new AttachmentFormat("video/mp4", ".mp4"));
         attachmentFormats.put("gif", new AttachmentFormat("image/gif", ".gif"));
         attachmentFormats.put("csv", new AttachmentFormat("text/csv", ".csv"));
         attachmentFormats.put("xml", new AttachmentFormat("text/xml", ".xml"));
         attachmentFormats.put("excel", new AttachmentFormat("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"));
+        attachmentFormats.put("docx", new AttachmentFormat("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"));
+        attachmentFormats.put("pptx", new AttachmentFormat("application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx"));
         attachmentFormats.put("json", new AttachmentFormat("application/json", ".json"));
+        attachmentFormats.put("yaml", new AttachmentFormat("application/yaml", ".yaml"));
+        attachmentFormats.put("markdown", new AttachmentFormat("text/markdown", ".md"));
+        attachmentFormats.put("har", new AttachmentFormat("application/json", ".har"));
+        attachmentFormats.put("pdf", new AttachmentFormat("application/pdf", ".pdf"));
         attachmentFormats.put("properties", new AttachmentFormat("text/plain", ".properties"));
         attachmentFormats.put("link", new AttachmentFormat("text/uri-list", ".uri"));
         attachmentFormats.put("engine logs", new AttachmentFormat("text/plain", ".txt"));
         attachmentFormats.put("page snapshot", new AttachmentFormat("multipart/related", ".mhtml"));
         attachmentFormats.put("html", new AttachmentFormat("text/html", ".html"));
         attachmentFormats.put("zip", new AttachmentFormat("application/zip", ".zip"));
+        attachmentFormats.put("binary", new AttachmentFormat("application/octet-stream", ".bin"));
         attachmentFormats.put("default", new AttachmentFormat("text/plain", ".txt"));
     }
 
@@ -75,6 +91,10 @@ public class AttachmentReporter {
 
     private static void handleScreenshot(String attachmentDescription, ByteArrayOutputStream content) {
         attachFileBased(attachmentDescription, "image/png", content, ".png");
+    }
+
+    private static void handleJpeg(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "image/jpeg", content, ".jpg");
     }
 
     private static void handleRecording(String attachmentDescription, ByteArrayOutputStream content) {
@@ -98,8 +118,32 @@ public class AttachmentReporter {
         attachFileBased(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", content, ".xlsx");
     }
 
+    private static void handleDocx(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", content, ".docx");
+    }
+
+    private static void handlePptx(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "application/vnd.openxmlformats-officedocument.presentationml.presentation", content, ".pptx");
+    }
+
     private static void handleJson(String attachmentDescription, ByteArrayOutputStream content) {
         attachFileBased(attachmentDescription, "application/json", content, ".json");
+    }
+
+    private static void handleYaml(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "application/yaml", content, ".yaml");
+    }
+
+    private static void handleMarkdown(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "text/markdown", content, ".md");
+    }
+
+    private static void handleHar(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "application/json", content, ".har");
+    }
+
+    private static void handlePdf(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "application/pdf", content, ".pdf");
     }
 
     private static void handleProperties(String attachmentDescription, ByteArrayOutputStream content) {
@@ -126,12 +170,17 @@ public class AttachmentReporter {
         attachFileBased(attachmentDescription, "application/zip", content, ".zip");
     }
 
+    private static void handleBinary(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "application/octet-stream", content, ".bin");
+    }
+
     private static void handleDefault(String attachmentDescription, ByteArrayOutputStream content) {
         attachFileBased(attachmentDescription, "text/plain", content, ".txt");
     }
 
     private static void attachFileBased(String attachmentDescription, String contentType, ByteArrayOutputStream content, String fileExtension) {
         Allure.addAttachment(attachmentDescription, contentType, new ByteArrayInputStream(content.toByteArray()), fileExtension);
+        ReportContext.recordAttachment(attachmentDescription, contentType, fileExtension, "", content.size());
         if (TestNGListener.isReportPortalEnabled()) {
             File file = null;
             try {
@@ -153,6 +202,8 @@ public class AttachmentReporter {
     private static void attachFileBased(String attachmentDescription, AttachmentFormat attachmentFormat, Path contentPath) {
         try (InputStream content = java.nio.file.Files.newInputStream(contentPath)) {
             Allure.addAttachment(attachmentDescription, attachmentFormat.contentType(), content, attachmentFormat.fileExtension());
+            ReportContext.recordAttachment(attachmentDescription, attachmentFormat.contentType(),
+                    attachmentFormat.fileExtension(), "", java.nio.file.Files.size(contentPath));
             if (TestNGListener.isReportPortalEnabled()) {
                 ReportPortal.emitLog(attachmentDescription, "INFO", Calendar.getInstance().getTime(), contentPath.toFile());
             }
@@ -212,24 +263,71 @@ public class AttachmentReporter {
     }
 
     private static String getAttachmentCase(String attachmentType, String attachmentName) {
-        for (String key : attachmentHandlers.keySet()) {
-            switch (key) {
-                case "screenshot", "properties", "link", "recording", "gif", "page snapshot", "engine logs", "html" -> {
-                    if (attachmentType.toLowerCase().contains(key)) {
-                        return key;
-                    }
-                }
-                case "csv", "json", "xml", "excel", "zip" -> {
-                    if (attachmentType.toLowerCase().contains(key) || attachmentName.toLowerCase().contains(key)) {
-                        return key;
-                    }
-                }
-                default -> {
-                    return "default";
-                }
+        String type = value(attachmentType).toLowerCase();
+        String name = value(attachmentName).toLowerCase();
+        String extensionCase = caseFromExtension(name);
+        if (!extensionCase.isBlank()) {
+            return extensionCase;
+        }
+        String combined = type + " " + name;
+        if (containsAny(combined, "screenshot", "png", "image/png", "playwright screenshot")) return "screenshot";
+        if (containsAny(combined, "jpeg", "jpg", "image/jpeg")) return "jpeg";
+        if (containsAny(combined, "gif", "animated gif", "image/gif")) return "gif";
+        if (containsAny(combined, "recording", "video", "mp4", "video/mp4")) return "recording";
+        if (containsAny(combined, "har", "network.har")) return "har";
+        if (containsAny(combined, "json", "application/json")) return "json";
+        if (containsAny(combined, "xml", "text/xml", "application/xml")) return "xml";
+        if (containsAny(combined, "csv", "text/csv")) return "csv";
+        if (containsAny(combined, "yaml", "yml", "application/yaml")) return "yaml";
+        if (containsAny(combined, "markdown", "text/markdown")) return "markdown";
+        if (containsAny(combined, "pdf", "application/pdf")) return "pdf";
+        if (containsAny(combined, "excel", "xlsx")) return "excel";
+        if (containsAny(combined, "docx")) return "docx";
+        if (containsAny(combined, "pptx")) return "pptx";
+        if (containsAny(combined, "html", "text/html")) return "html";
+        if (containsAny(combined, "page snapshot", "mhtml")) return "page snapshot";
+        if (containsAny(combined, "link", "uri", "text/uri-list")) return "link";
+        if (containsAny(combined, "engine logs")) return "engine logs";
+        if (containsAny(combined, "zip", "trace", "diagnostics", "application/zip")) return "zip";
+        if (containsAny(combined, "octet-stream", "binary")) return "binary";
+        if (containsAny(combined, "properties")) return "properties";
+        return "default";
+    }
+
+    private static String caseFromExtension(String attachmentName) {
+        if (attachmentName.endsWith(".png")) return "screenshot";
+        if (attachmentName.endsWith(".jpeg") || attachmentName.endsWith(".jpg")) return "jpeg";
+        if (attachmentName.endsWith(".gif")) return "gif";
+        if (attachmentName.endsWith(".mp4")) return "recording";
+        if (attachmentName.endsWith(".har")) return "har";
+        if (attachmentName.endsWith(".json")) return "json";
+        if (attachmentName.endsWith(".xml")) return "xml";
+        if (attachmentName.endsWith(".csv")) return "csv";
+        if (attachmentName.endsWith(".yaml") || attachmentName.endsWith(".yml")) return "yaml";
+        if (attachmentName.endsWith(".md")) return "markdown";
+        if (attachmentName.endsWith(".pdf")) return "pdf";
+        if (attachmentName.endsWith(".xlsx")) return "excel";
+        if (attachmentName.endsWith(".docx")) return "docx";
+        if (attachmentName.endsWith(".pptx")) return "pptx";
+        if (attachmentName.endsWith(".html") || attachmentName.endsWith(".htm")) return "html";
+        if (attachmentName.endsWith(".mhtml")) return "page snapshot";
+        if (attachmentName.endsWith(".uri")) return "link";
+        if (attachmentName.endsWith(".zip")) return "zip";
+        if (attachmentName.endsWith(".properties")) return "properties";
+        return "";
+    }
+
+    private static boolean containsAny(String value, String... tokens) {
+        for (String token : tokens) {
+            if (value.contains(token)) {
+                return true;
             }
         }
-        return "";
+        return false;
+    }
+
+    private static String value(String value) {
+        return value == null ? "" : value;
     }
 
 }

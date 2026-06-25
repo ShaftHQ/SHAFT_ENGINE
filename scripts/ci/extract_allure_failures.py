@@ -32,6 +32,7 @@ class AllureFailure:
     reason: str
     trace_top: str
     occurrences: int = 1
+    open_first: str = ""
 
 
 @dataclass(frozen=True)
@@ -51,8 +52,6 @@ def _iter_embedded_html_payloads(path: Path) -> Iterator[tuple[str, dict[str, An
 
     for match in re.finditer(r'd\("([^"\\]+\.json)","([A-Za-z0-9+/=]+)"\)', html):
         source, encoded_payload = match.groups()
-        if not source.startswith("data/test-results/"):
-            continue
         try:
             payload = json.loads(base64.b64decode(encoded_payload).decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
@@ -272,7 +271,9 @@ def extract_failures(paths: Iterable[Path]) -> list[AllureFailure]:
     failures_by_group: dict[tuple[str, str, str, str], AllureFailure] = {}
     ranks_by_group: dict[tuple[str, str, str, str], tuple[int, int, int]] = {}
     for path in paths:
-        for source, payload in _iter_json_payloads(path):
+        payloads = list(_iter_json_payloads(path))
+        payloads_by_source = {_source_key(source): payload for source, payload in payloads}
+        for source, payload in payloads:
             if _is_generated_report_non_test_result(source):
                 continue
             if not _is_allure_test_result_payload(source, payload):
@@ -284,15 +285,24 @@ def extract_failures(paths: Iterable[Path]) -> list[AllureFailure]:
             reason, trace_top = _status_details(payload)
             key = _failure_group_key(source, payload, status, method, reason)
             rank = _root_cause_rank(method, reason, payload.get("start"))
+            open_first = _failure_brief_open_first(source, payload, payloads_by_source)
             existing_failure = failures_by_group.get(key)
             if existing_failure is None:
-                failures_by_group[key] = AllureFailure(source, status, method, reason, trace_top)
+                failures_by_group[key] = AllureFailure(source, status, method, reason, trace_top, open_first=open_first)
                 ranks_by_group[key] = rank
                 continue
 
             occurrences = existing_failure.occurrences + 1
             if rank < ranks_by_group[key]:
-                failures_by_group[key] = AllureFailure(source, status, method, reason, trace_top, occurrences)
+                failures_by_group[key] = AllureFailure(
+                    source,
+                    status,
+                    method,
+                    reason,
+                    trace_top,
+                    occurrences=occurrences,
+                    open_first=open_first,
+                )
                 ranks_by_group[key] = rank
             else:
                 failures_by_group[key] = AllureFailure(
@@ -302,8 +312,73 @@ def extract_failures(paths: Iterable[Path]) -> list[AllureFailure]:
                     existing_failure.reason,
                     existing_failure.trace_top,
                     occurrences,
+                    existing_failure.open_first,
                 )
     return list(failures_by_group.values())
+
+
+def _source_key(source: str) -> str:
+    return source.replace("\\", "/")
+
+
+def _failure_brief_open_first(
+    result_source: str, result_payload: dict[str, Any], payloads_by_source: dict[str, dict[str, Any]]
+) -> str:
+    for attachment in result_payload.get("attachments") or []:
+        if not isinstance(attachment, dict):
+            continue
+        name = str(attachment.get("name") or "").lower()
+        source = str(attachment.get("source") or "")
+        if "shaft-failure-brief" not in name and "shaft-failure-brief" not in source.lower():
+            continue
+        brief = _lookup_attachment_payload(result_source, source, payloads_by_source)
+        if brief:
+            return _format_open_first(brief.get("openFirst") or [])
+    return ""
+
+
+def _lookup_attachment_payload(
+    result_source: str, attachment_source: str, payloads_by_source: dict[str, dict[str, Any]]
+) -> dict[str, Any] | None:
+    for candidate in _attachment_source_candidates(result_source, attachment_source):
+        payload = payloads_by_source.get(_source_key(candidate))
+        if payload is not None:
+            return payload
+    return None
+
+
+def _attachment_source_candidates(result_source: str, attachment_source: str) -> Iterator[str]:
+    if not attachment_source:
+        return
+    normalized_result = _source_key(result_source)
+    normalized_attachment = _source_key(attachment_source)
+    yield normalized_attachment
+    if "!" in normalized_result:
+        container, inner = normalized_result.split("!", 1)
+        yield f"{container}!{normalized_attachment}"
+        if "/" in inner:
+            yield f"{container}!{inner.rsplit('/', 1)[0]}/{normalized_attachment}"
+    if "/" in normalized_result:
+        yield f"{normalized_result.rsplit('/', 1)[0]}/{normalized_attachment}"
+    try:
+        result_path = Path(normalized_result)
+        yield str(result_path.parent / normalized_attachment)
+    except (OSError, ValueError):
+        return
+
+
+def _format_open_first(open_first: list[Any]) -> str:
+    items: list[str] = []
+    for item in open_first:
+        if isinstance(item, str):
+            value = item
+        elif isinstance(item, dict):
+            value = str(item.get("description") or item.get("name") or item.get("path") or "")
+        else:
+            value = str(item or "")
+        if value:
+            items.append(value)
+    return "; ".join(items[:3])
 
 
 def to_markdown(failures: list[AllureFailure]) -> str:
@@ -311,16 +386,17 @@ def to_markdown(failures: list[AllureFailure]) -> str:
         return "No failed or broken Allure test cases were found."
 
     rows = [
-        "| Status | Test method | Failure reason | Top trace frame | Occurrences | Source |",
-        "|---|---|---|---|---:|---|",
+        "| Status | Test method | Failure reason | Top trace frame | Open first | Occurrences | Source |",
+        "|---|---|---|---|---|---:|---|",
     ]
     for failure in failures:
         rows.append(
-            "| {status} | `{method}` | {reason} | `{trace}` | {occurrences} | `{source}` |".format(
+            "| {status} | `{method}` | {reason} | `{trace}` | {open_first} | {occurrences} | `{source}` |".format(
                 status=_clean_cell(failure.status),
                 method=_clean_cell(failure.method),
                 reason=_clean_cell(failure.reason),
                 trace=_clean_cell(failure.trace_top or "n/a"),
+                open_first=_clean_cell(failure.open_first or "n/a"),
                 occurrences=failure.occurrences,
                 source=_clean_cell(failure.source),
             )

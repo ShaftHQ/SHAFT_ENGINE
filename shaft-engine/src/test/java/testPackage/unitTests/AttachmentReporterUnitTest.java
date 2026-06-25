@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.internal.AttachmentReporter;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -34,6 +35,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * that was previously used.
  */
 public class AttachmentReporterUnitTest {
+
+    private record AttachmentSnapshot(String type, String source) {
+    }
 
     // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -71,6 +75,31 @@ public class AttachmentReporterUnitTest {
                             + "AttachmentReporter.attachBasedOnFileType() may have failed silently.");
         }
         return capturedType.get();
+    }
+
+    private AttachmentSnapshot captureAttachment(String attachmentType, String attachmentName) {
+        ByteArrayOutputStream content = new ByteArrayOutputStream();
+        try {
+            content.write("sample content".getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to write sample content", e);
+        }
+
+        AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, content,
+                attachmentType + " - " + attachmentName);
+
+        AtomicReference<AttachmentSnapshot> captured = new AtomicReference<>(null);
+        Allure.getLifecycle().updateTestCase(result -> {
+            List<Attachment> attachments = result.getAttachments();
+            if (!attachments.isEmpty()) {
+                Attachment attachment = attachments.getLast();
+                captured.set(new AttachmentSnapshot(attachment.getType(), attachment.getSource()));
+            }
+        });
+        if (captured.get() == null) {
+            throw new AssertionError("No attachment found for type='" + attachmentType + "', name='" + attachmentName + "'.");
+        }
+        return captured.get();
     }
 
     private String captureFileBackedAttachmentMimeType(String attachmentType, String attachmentName, Path contentPath) {
@@ -232,6 +261,49 @@ public class AttachmentReporterUnitTest {
     public void unknownAttachmentTypeShouldFallBackToTextPlain() {
         String mimeType = captureAttachmentMimeType("unknownType", "someFile.bin");
         SHAFT.Validations.assertThat().object(mimeType).isEqualTo("text/plain").perform();
+    }
+
+    @DataProvider(name = "allSupportedAttachmentFormats")
+    public Object[][] allSupportedAttachmentFormats() {
+        return new Object[][]{
+                {"screenshot", "homepage.png", "image/png", ".png"},
+                {"playwright screenshot", "screen", "image/png", ".png"},
+                {"jpeg", "photo.jpeg", "image/jpeg", ".jpg"},
+                {"jpg", "photo.jpg", "image/jpeg", ".jpg"},
+                {"animated gif", "test_actions.gif", "image/gif", ".gif"},
+                {"recording", "test_execution.mp4", "video/mp4", ".mp4"},
+                {"application/json", "body.txt", "application/json", ".json"},
+                {"text/xml", "body.dat", "text/xml", ".xml"},
+                {"application/xml", "body.dat", "text/xml", ".xml"},
+                {"text/csv", "data.txt", "text/csv", ".csv"},
+                {"yaml", "config.yaml", "application/yaml", ".yaml"},
+                {"markdown", "notes.md", "text/markdown", ".md"},
+                {"har", "network.har", "application/json", ".har"},
+                {"pdf", "report.pdf", "application/pdf", ".pdf"},
+                {"excel", "report.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"},
+                {"docx", "report.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"},
+                {"pptx", "slides.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", ".pptx"},
+                {"html", "report.html", "text/html", ".html"},
+                {"Playwright Page Snapshot", "page.html", "text/html", ".html"},
+                {"page snapshot", "snapshot.mhtml", "multipart/related", ".mhtml"},
+                {"link", "test_link.uri", "text/uri-list", ".uri"},
+                {"trace", "shaft-trace.zip", "application/zip", ".zip"},
+                {"octet-stream", "payload.bin", "application/octet-stream", ".bin"},
+                {"unknown text", "readme.unknown", "text/plain", ".txt"}
+        };
+    }
+
+    @Test(dataProvider = "allSupportedAttachmentFormats",
+            description = "Attachment routing should honor supported MIME aliases and extensions")
+    public void attachmentRoutingShouldUseSupportedMimeTypesAndExtensions(
+            String attachmentType,
+            String attachmentName,
+            String expectedMimeType,
+            String expectedExtension) {
+        AttachmentSnapshot attachment = captureAttachment(attachmentType, attachmentName);
+
+        SHAFT.Validations.assertThat().object(attachment.type()).isEqualTo(expectedMimeType).perform();
+        SHAFT.Validations.assertThat().object(attachment.source().endsWith(expectedExtension)).isEqualTo(true).perform();
     }
 
     // ─── routing tests ───────────────────────────────────────────────────────────

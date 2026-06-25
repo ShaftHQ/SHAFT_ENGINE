@@ -52,7 +52,7 @@ public class ShaftRestAssuredFilterUnitTest {
         formParams.put("k", "v");
 
         Mockito.when(requestSpec.getMethod()).thenReturn("POST");
-        Mockito.when(requestSpec.getURI()).thenReturn("https://example.test/api");
+        Mockito.when(requestSpec.getURI()).thenReturn("https://example.test/api?token=request-secret&safe=1");
         Mockito.when(requestSpec.getHeaders())
                 .thenReturn(new Headers(new Header("Content-Type", "application/json")));
         Mockito.when(requestSpec.getCookies())
@@ -96,6 +96,7 @@ public class ShaftRestAssuredFilterUnitTest {
 
         Mockito.when(filterContext.next(requestSpec, responseSpec)).thenReturn(response);
         Mockito.when(response.getStatusLine()).thenReturn("HTTP/1.1 200 OK");
+        Mockito.when(response.getStatusCode()).thenReturn(200);
         Mockito.when(response.getTime()).thenReturn(10L);
         Mockito.when(response.getHeaders()).thenReturn(new Headers(
                 new Header("Set-Cookie", "session=response-secret"),
@@ -108,30 +109,31 @@ public class ShaftRestAssuredFilterUnitTest {
             filter.filter(requestSpec, responseSpec, filterContext);
 
             ArgumentCaptor<InputStream> requestStream = ArgumentCaptor.forClass(InputStream.class);
-            allure.verify(() -> Allure.addAttachment(Mockito.eq("Request"), Mockito.eq("text/plain"),
+            allure.verify(() -> Allure.addAttachment(Mockito.eq("API Request - GET /api"), Mockito.eq("text/plain"),
                     requestStream.capture(), Mockito.eq(".txt")));
             String requestMetadata = new String(requestStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
             org.testng.Assert.assertFalse(requestMetadata.contains("request-secret"));
             org.testng.Assert.assertFalse(requestMetadata.contains("cookie-secret"));
+            org.testng.Assert.assertFalse(requestMetadata.contains("token=request-secret"));
             org.testng.Assert.assertTrue(requestMetadata.contains("Authorization: ********"));
             org.testng.Assert.assertTrue(requestMetadata.contains("session=********"));
 
             ArgumentCaptor<InputStream> responseStream = ArgumentCaptor.forClass(InputStream.class);
-            allure.verify(() -> Allure.addAttachment(Mockito.eq("Response"), Mockito.eq("text/plain"),
+            allure.verify(() -> Allure.addAttachment(Mockito.eq("API Response - 200 GET /api - 10ms"), Mockito.eq("text/plain"),
                     responseStream.capture(), Mockito.eq(".txt")));
             String responseMetadata = new String(responseStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
             org.testng.Assert.assertFalse(responseMetadata.contains("response-secret"));
             org.testng.Assert.assertTrue(responseMetadata.contains("Set-Cookie: ********"));
 
             ArgumentCaptor<InputStream> requestBodyStream = ArgumentCaptor.forClass(InputStream.class);
-            allure.verify(() -> Allure.addAttachment(Mockito.eq("Request Body"), Mockito.eq("application/json"),
+            allure.verify(() -> Allure.addAttachment(Mockito.eq("API Request Body - GET /api"), Mockito.eq("application/json"),
                     requestBodyStream.capture(), Mockito.eq(".json")));
             String requestBody = new String(requestBodyStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
             org.testng.Assert.assertFalse(requestBody.contains("request-password"));
             org.testng.Assert.assertTrue(requestBody.contains("\"password\": \"********\""));
 
             ArgumentCaptor<InputStream> responseBodyStream = ArgumentCaptor.forClass(InputStream.class);
-            allure.verify(() -> Allure.addAttachment(Mockito.eq("Response Body"), Mockito.eq("application/json"),
+            allure.verify(() -> Allure.addAttachment(Mockito.eq("API Response Body - 200 GET /api"), Mockito.eq("application/json"),
                     responseBodyStream.capture(), Mockito.eq(".json")));
             String responseBodyText = new String(responseBodyStream.getValue().readAllBytes(), StandardCharsets.UTF_8);
             org.testng.Assert.assertFalse(responseBodyText.contains("response-token"));
@@ -376,12 +378,14 @@ public class ShaftRestAssuredFilterUnitTest {
                 .object(filter.getFileExtension("text/html")).isEqualTo(".html").perform();
     }
 
-    @Test(description = "getFileExtension returns .txt for text/plain and unknown types")
-    public void getFileExtensionShouldReturnDotTxtForTextPlainAndUnknown() {
+    @Test(description = "getFileExtension returns .txt for text/plain, .bin for octet-stream, and .txt for unknown types")
+    public void getFileExtensionShouldReturnExpectedFallbackExtensions() {
         SHAFT.Validations.assertThat()
                 .object(filter.getFileExtension("text/plain")).isEqualTo(".txt").perform();
         SHAFT.Validations.assertThat()
-                .object(filter.getFileExtension("application/octet-stream")).isEqualTo(".txt").perform();
+                .object(filter.getFileExtension("application/octet-stream")).isEqualTo(".bin").perform();
+        SHAFT.Validations.assertThat()
+                .object(filter.getFileExtension("application/unknown")).isEqualTo(".txt").perform();
     }
 
     @Test(description = "getFileExtension returns .png for image/png")
