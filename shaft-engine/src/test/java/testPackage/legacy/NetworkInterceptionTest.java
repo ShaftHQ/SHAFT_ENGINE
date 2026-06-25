@@ -15,7 +15,7 @@ import java.util.Locale;
 import java.util.function.Predicate;
 
 public class NetworkInterceptionTest extends Tests {
-    private static final String SHAFT_DOCS_URL = "https://shaftengine.netlify.app/";
+    private static final String SHAFT_DOCS_URL = "https://shafthq.github.io/";
     private static final By SHAFT_LOGO = By.xpath("(//img[@alt='SHAFT_Engine'])[1]");
 
     @Test
