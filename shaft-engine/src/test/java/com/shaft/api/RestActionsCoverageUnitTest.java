@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -40,6 +41,9 @@ import java.util.concurrent.TimeUnit;
 
 public class RestActionsCoverageUnitTest {
     private static final String COVERAGE_TEST_DATA = "src/test/resources/testDataFiles/restActionsCoverage/";
+
+    private record ApiUser(int id, String name) {
+    }
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
@@ -379,6 +383,82 @@ public class RestActionsCoverageUnitTest {
         Validations.assertThat().object(RestActions.parseBodyToJson(objectNode)).isNotNull().perform();
         Validations.assertThat().object(RestActions.parseBodyToJson(arrayNode)).isNotNull().perform();
         Validations.assertThat().object(RestActions.parseBodyToJson(Map.of("x", 1))).isNotNull().perform();
+    }
+
+    @Test
+    public void getResponseAsMapsJsonBodyToRecord() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn("application/json; charset=utf-8");
+        Mockito.when(response.asString()).thenReturn("{\"id\":7,\"name\":\"shaft\"}");
+
+        ApiUser user = RestActions.getResponseAs(response, ApiUser.class);
+
+        Validations.assertThat().object(user).isEqualTo(new ApiUser(7, "shaft")).perform();
+    }
+
+    @Test
+    public void getResponseAsListMapsJsonArrayToRecords() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn("application/json");
+        Mockito.when(response.asString()).thenReturn("[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"}]");
+
+        List<ApiUser> users = RestActions.getResponseAsList(response, ApiUser.class);
+
+        Validations.assertThat().object(users).isEqualTo(List.of(new ApiUser(1, "alpha"), new ApiUser(2, "beta"))).perform();
+    }
+
+    @Test
+    public void getResponseAsMapsJsonBodyToGenericTypeReference() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn("application/problem+json");
+        Mockito.when(response.asString()).thenReturn("{\"users\":[{\"id\":1,\"name\":\"alpha\"}]}");
+
+        Map<String, List<ApiUser>> payload = RestActions.getResponseAs(response, new TypeReference<>() {
+        });
+
+        Validations.assertThat().object(payload).isEqualTo(Map.of("users", List.of(new ApiUser(1, "alpha")))).perform();
+    }
+
+    @Test
+    public void shaftApiMapsLastResponseWithTypedHelpers() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn("application/json");
+        Mockito.when(response.asString()).thenReturn("[{\"id\":1,\"name\":\"alpha\"}]");
+        RestActions actions = new RestActions("http://localhost/");
+        actions.setLastResponse(response);
+        SHAFT.API api = new SHAFT.API(actions);
+
+        List<ApiUser> users = api.getResponseAsList(ApiUser.class);
+
+        Validations.assertThat().object(users).isEqualTo(List.of(new ApiUser(1, "alpha"))).perform();
+    }
+
+    @Test
+    public void getResponseAsReportsClearMappingErrors() {
+        Response emptyResponse = Mockito.mock(Response.class);
+        Mockito.when(emptyResponse.getContentType()).thenReturn("application/json");
+        Mockito.when(emptyResponse.asString()).thenReturn(" ");
+
+        IllegalStateException emptyBody = Assert.expectThrows(IllegalStateException.class,
+                () -> RestActions.getResponseAs(emptyResponse, ApiUser.class));
+        Assert.assertTrue(emptyBody.getMessage().contains("empty response body"));
+
+        Response textResponse = Mockito.mock(Response.class);
+        Mockito.when(textResponse.getContentType()).thenReturn("text/plain");
+        Mockito.when(textResponse.asString()).thenReturn("plain text");
+
+        IllegalStateException nonJson = Assert.expectThrows(IllegalStateException.class,
+                () -> RestActions.getResponseAs(textResponse, ApiUser.class));
+        Assert.assertTrue(nonJson.getMessage().contains("Content-Type is not JSON"));
+
+        Response invalidUserResponse = Mockito.mock(Response.class);
+        Mockito.when(invalidUserResponse.getContentType()).thenReturn("application/json");
+        Mockito.when(invalidUserResponse.asString()).thenReturn("{\"id\":{},\"name\":\"shaft\"}");
+
+        IllegalArgumentException mappingFailure = Assert.expectThrows(IllegalArgumentException.class,
+                () -> RestActions.getResponseAs(invalidUserResponse, ApiUser.class));
+        Assert.assertTrue(mappingFailure.getMessage().contains("Failed to map response body"));
+        Assert.assertNotNull(mappingFailure.getCause());
     }
 
     @Test

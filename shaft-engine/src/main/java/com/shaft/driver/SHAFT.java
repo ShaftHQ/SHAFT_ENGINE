@@ -1,5 +1,6 @@
 package com.shaft.driver;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
@@ -657,6 +658,48 @@ public class SHAFT {
          */
         public String getResponseBody() {
             return RestActions.getResponseBody(session.getResponse());
+        }
+
+        /**
+         * Maps the most recent JSON response body to the requested Java type.
+         *
+         * @param responseType the target class, record, or POJO type
+         * @param <T>          the mapped response type
+         * @return the response body mapped to {@code responseType}
+         * @throws NullPointerException  if {@code responseType} is {@code null}
+         * @throws IllegalStateException if the response body is empty or the response is not JSON
+         * @throws IllegalArgumentException if the response body cannot be mapped to {@code responseType}
+         */
+        public <T> T getResponseAs(Class<T> responseType) {
+            return RestActions.getResponseAs(session.getResponse(), responseType);
+        }
+
+        /**
+         * Maps the most recent JSON array response body to a list of the requested Java type.
+         *
+         * @param elementType the target class, record, or POJO type for each array item
+         * @param <T>         the mapped list element type
+         * @return the response body mapped to a {@link List}
+         * @throws NullPointerException  if {@code elementType} is {@code null}
+         * @throws IllegalStateException if the response body is empty or the response is not JSON
+         * @throws IllegalArgumentException if the response body cannot be mapped to {@code List<elementType>}
+         */
+        public <T> List<T> getResponseAsList(Class<T> elementType) {
+            return RestActions.getResponseAsList(session.getResponse(), elementType);
+        }
+
+        /**
+         * Maps the most recent JSON response body to a generic Java type.
+         *
+         * @param typeReference the target generic type reference
+         * @param <T>           the mapped response type
+         * @return the response body mapped to {@code typeReference}
+         * @throws NullPointerException  if {@code typeReference} is {@code null}
+         * @throws IllegalStateException if the response body is empty or the response is not JSON
+         * @throws IllegalArgumentException if the response body cannot be mapped to {@code typeReference}
+         */
+        public <T> T getResponseAs(TypeReference<T> typeReference) {
+            return RestActions.getResponseAs(session.getResponse(), typeReference);
         }
 
         /**
