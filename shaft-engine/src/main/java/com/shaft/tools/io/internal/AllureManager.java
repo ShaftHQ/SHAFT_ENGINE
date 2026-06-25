@@ -78,6 +78,196 @@ public class AllureManager {
     // ─── Allure 3 report paths & config ────────────────────────────────────────
     private static final String allureReportPath = "allure-report";
     private static final String allureConfigFileName = "allurerc.yaml";
+    private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_ID = "shaft-allure-attachment-preview-fix";
+    private static final String ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID = "shaft-allure-attachment-preview-script";
+    private static final String ALLURE_THEME_COLORS_ID = "shaft-allure-theme-colors";
+    private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE = """
+            <style id="shaft-allure-attachment-preview-fix">
+            .shaft-allure-image-modal {
+              overflow-y: auto !important;
+              overflow-x: hidden !important;
+            }
+            .shaft-allure-image-preview-wrapper {
+              display: block !important;
+              overflow: visible !important;
+              width: 100% !important;
+              height: auto !important;
+              max-height: none !important;
+            }
+            .shaft-allure-image-preview {
+              display: block !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              height: auto !important;
+              max-height: none !important;
+              object-fit: contain !important;
+            }
+            </style>
+            """;
+    private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT = """
+            <script id="shaft-allure-attachment-preview-script">
+            (() => {
+              const imageSelector = 'img[src^="blob:"], img[src^="data:image/"], img[src*="/attachments/"]';
+              const isModalRoot = (element) => {
+                const style = window.getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                const zIndex = Number.parseInt(style.zIndex, 10);
+                return element.matches('[role="dialog"], [aria-modal="true"]')
+                  || style.position === 'fixed'
+                  || (['absolute', 'fixed'].includes(style.position)
+                    && Number.isFinite(zIndex)
+                    && zIndex > 10
+                    && rect.width > window.innerWidth * 0.5
+                    && rect.height > window.innerHeight * 0.5);
+              };
+              const findModalRoot = (element) => {
+                for (let node = element.parentElement, depth = 0; node && depth < 16; node = node.parentElement, depth += 1) {
+                  if (isModalRoot(node)) {
+                    return node;
+                  }
+                }
+                return null;
+              };
+              const patch = () => {
+                document.querySelectorAll(imageSelector).forEach((img) => {
+                  const modalRoot = findModalRoot(img);
+                  if (!modalRoot) {
+                    return;
+                  }
+                  img.classList.add('shaft-allure-image-preview');
+                  if (img.parentElement) {
+                    img.parentElement.classList.add('shaft-allure-image-preview-wrapper');
+                  }
+                  for (let node = img.parentElement, depth = 0; node && depth < 16; node = node.parentElement, depth += 1) {
+                    const style = window.getComputedStyle(node);
+                    const scrollableOverflow = ['auto', 'scroll'].includes(style.overflow)
+                      || ['auto', 'scroll'].includes(style.overflowY);
+                    const clippedOverflow = style.overflow === 'hidden' || style.overflowY === 'hidden';
+                    if (node === modalRoot || scrollableOverflow || clippedOverflow) {
+                      node.classList.add('shaft-allure-image-modal');
+                    }
+                    if (node === modalRoot) {
+                      break;
+                    }
+                  }
+                });
+              };
+              new MutationObserver(patch).observe(document.documentElement, { childList: true, subtree: true });
+              document.addEventListener('click', () => window.setTimeout(patch, 0), true);
+              patch();
+            })();
+            </script>
+            """;
+    private static final String ALLURE_THEME_COLORS_STYLE = """
+            <style id="shaft-allure-theme-colors">
+            :root:not([data-theme="dark"]) {
+              --color-bg-canvas: #c8d6e7;
+              --color-bg-primary: #ffffff;
+              --color-bg-secondary: #ffffff;
+              --color-bg-raised: #ffffff;
+              --color-bg-neutral: #c8d6e7;
+              --color-bg-inverse-primary: #102a31;
+              --color-bg-inverse-raised: #181f2a;
+              --color-text-primary: #102a31;
+              --color-text-secondary: #181f2a;
+              --color-text-muted: #405765;
+              --color-text-inverse: #ffffff;
+              --color-text-inverse-secondary: #c8d6e7;
+              --color-text-on-accent: #ffffff;
+              --color-icon-primary: #102a31;
+              --color-icon-secondary: #405765;
+              --color-icon-muted: #66788a;
+              --color-border-subtle: rgba(16, 42, 49, 0.10);
+              --color-border-default: rgba(16, 42, 49, 0.18);
+              --color-border-medium: rgba(16, 42, 49, 0.28);
+              --color-border-control: rgba(16, 42, 49, 0.28);
+              --color-border-strong: #102a31;
+              --color-focus-ring: #006ec0;
+              --color-control-bg: rgba(200, 214, 231, 0.55);
+              --color-control-bg-hover: rgba(200, 214, 231, 0.75);
+              --color-control-bg-active: rgba(200, 214, 231, 0.92);
+              --color-control-bg-ghost-hover: rgba(0, 110, 192, 0.08);
+              --color-control-bg-ghost-active: rgba(0, 110, 192, 0.14);
+              --color-nav-item-bg-hover: rgba(0, 110, 192, 0.08);
+              --color-nav-item-bg-active: rgba(0, 110, 192, 0.14);
+              --color-nav-item-bg-active-hover: rgba(0, 110, 192, 0.20);
+              --color-nav-item-text-active: #006ec0;
+              --color-nav-item-icon-active: #006ec0;
+              --color-row-bg-hover: rgba(0, 110, 192, 0.06);
+              --color-row-bg-selected: rgba(0, 110, 192, 0.10);
+              --color-row-bg-selected-hover: rgba(0, 110, 192, 0.14);
+              --color-sorter-fg-active: #006ec0;
+              --color-link-text: #006ec0;
+              --color-link-text-hover: #006ec0;
+              --color-link-text-active: #004d86;
+              --color-intent-primary-bg: #006ec0;
+              --color-intent-primary-bg-hover: #005da3;
+              --color-intent-primary-bg-active: #004d86;
+              --color-intent-primary-text: #006ec0;
+              --color-intent-primary-on-bg: #ffffff;
+              --color-chart-categorical-1: #006ec0;
+              --color-chart-categorical-2: #102a31;
+              --color-chart-categorical-3: #4b9bd6;
+              --color-chart-categorical-4: #181f2a;
+              --color-chart-categorical-5: #c8d6e7;
+              --color-tag-default-bg: rgba(200, 214, 231, 0.65);
+              --color-tag-default-text: #102a31;
+            }
+            :root[data-theme="dark"] {
+              --color-bg-canvas: #07111f;
+              --color-bg-primary: #102a31;
+              --color-bg-secondary: #07111f;
+              --color-bg-raised: #181f2a;
+              --color-bg-neutral: #102a31;
+              --color-bg-inverse-primary: #07111f;
+              --color-bg-inverse-raised: #102a31;
+              --color-text-primary: #f5fdff;
+              --color-text-secondary: #dff5f4;
+              --color-text-muted: #c8d6e7;
+              --color-text-inverse: #f5fdff;
+              --color-text-inverse-secondary: #dff5f4;
+              --color-text-on-accent: #07111f;
+              --color-icon-primary: #f5fdff;
+              --color-icon-secondary: #dff5f4;
+              --color-icon-muted: #c8d6e7;
+              --color-border-subtle: rgba(223, 245, 244, 0.10);
+              --color-border-default: rgba(223, 245, 244, 0.18);
+              --color-border-medium: rgba(223, 245, 244, 0.28);
+              --color-border-control: rgba(223, 245, 244, 0.28);
+              --color-border-strong: #dff5f4;
+              --color-focus-ring: #4cc2ff;
+              --color-control-bg: rgba(223, 245, 244, 0.08);
+              --color-control-bg-hover: rgba(223, 245, 244, 0.13);
+              --color-control-bg-active: rgba(223, 245, 244, 0.18);
+              --color-control-bg-ghost-hover: rgba(76, 194, 255, 0.10);
+              --color-control-bg-ghost-active: rgba(76, 194, 255, 0.16);
+              --color-nav-item-bg-hover: rgba(76, 194, 255, 0.10);
+              --color-nav-item-bg-active: rgba(76, 194, 255, 0.16);
+              --color-nav-item-bg-active-hover: rgba(76, 194, 255, 0.22);
+              --color-nav-item-text-active: #4cc2ff;
+              --color-nav-item-icon-active: #4cc2ff;
+              --color-row-bg-hover: rgba(76, 194, 255, 0.08);
+              --color-row-bg-selected: rgba(76, 194, 255, 0.12);
+              --color-row-bg-selected-hover: rgba(76, 194, 255, 0.18);
+              --color-sorter-fg-active: #4cc2ff;
+              --color-link-text: #4cc2ff;
+              --color-link-text-hover: #7bcfff;
+              --color-link-text-active: #a9dfff;
+              --color-intent-primary-bg: #4cc2ff;
+              --color-intent-primary-bg-hover: #7bcfff;
+              --color-intent-primary-bg-active: #a9dfff;
+              --color-intent-primary-text: #4cc2ff;
+              --color-intent-primary-on-bg: #07111f;
+              --color-chart-categorical-1: #4cc2ff;
+              --color-chart-categorical-2: #dff5f4;
+              --color-chart-categorical-3: #102a31;
+              --color-chart-categorical-4: #f5fdff;
+              --color-chart-categorical-5: #c8d6e7;
+              --color-tag-default-bg: rgba(223, 245, 244, 0.10);
+              --color-tag-default-text: #f5fdff;
+            }
+            </style>
+            """;
 
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────
     /** Cache directory for the downloaded portable Node.js distribution. */
@@ -410,10 +600,9 @@ public class AllureManager {
         internalFileSession.createFolder(allureOutPutDirectory);
 
         if (!cachedIsAllure2) {
-            // Pre-process result files to ensure every step has a statusDetails object.
-            // The awesome plugin's renderer crashes with a TypeError when step.statusDetails is
-            // undefined (absent from passing steps). Adding an empty object prevents the crash
-            // and allows test details to be opened without JavaScript console errors.
+            // Pre-process result files for Awesome report compatibility and SHAFT's default tree.
+            // This prevents crashes on absent statusDetails and normalizes package/testClass labels
+            // before Allure groups results.
             patchMissingStatusDetailsInResults(getResultsPath());
 
             // Write allurerc.yaml with current settings (including custom title and optional history path)
@@ -425,6 +614,9 @@ public class AllureManager {
         String cmd = getCommandToCreateAllureReport();
         if (cmd != null && !cmd.isBlank()) {
             executeAllureGenerateCommand(cmd);
+            if (!cachedIsAllure2) {
+                patchGeneratedAllureReportIndex(Path.of(allureOutPutDirectory));
+            }
         } else {
             ReportManager.logDiscrete("Allure report generation skipped because the Allure CLI could not be resolved."
                     + (cachedIsAllure2
@@ -463,6 +655,7 @@ public class AllureManager {
         if (!safeCustomLogo.isBlank()) {
             configBuilder.append("      logo: \"").append(safeCustomLogo).append("\"\n");
         }
+        configBuilder.append("      theme: \"").append(normalizeAllureTheme(SHAFT.Properties.allure.theme())).append("\"\n");
         configBuilder.append("      reportLanguage: \"")
                 .append(escapeYamlString(SHAFT.Properties.allure.reportLanguage()))
                 .append("\"\n");
@@ -483,9 +676,50 @@ public class AllureManager {
                 .filter(option -> !option.isBlank())
                 .toList();
         if (configuredOptions.isEmpty()) {
-            return List.of("parentSuite", "suite", "subSuite");
+            return List.of("package", "testClass");
         }
         return configuredOptions;
+    }
+
+    private static String normalizeAllureTheme(String theme) {
+        if (theme == null) {
+            return "auto";
+        }
+        String normalizedTheme = theme.trim().toLowerCase();
+        return switch (normalizedTheme) {
+            case "light", "dark", "auto" -> normalizedTheme;
+            default -> "auto";
+        };
+    }
+
+    private static void patchGeneratedAllureReportIndex(Path reportDirectory) {
+        Path indexPath = reportDirectory.resolve("index.html");
+        if (!Files.isRegularFile(indexPath)) {
+            return;
+        }
+        try {
+            String html = Files.readString(indexPath, StandardCharsets.UTF_8);
+            String previewFix = "";
+            if (!html.contains("id=\"" + ALLURE_ATTACHMENT_PREVIEW_FIX_ID + "\"")) {
+                previewFix += ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE;
+            }
+            if (!html.contains("id=\"" + ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID + "\"")) {
+                previewFix += ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT;
+            }
+            if (!html.contains("id=\"" + ALLURE_THEME_COLORS_ID + "\"")) {
+                previewFix += ALLURE_THEME_COLORS_STYLE;
+            }
+            if (previewFix.isEmpty()) {
+                return;
+            }
+            int headEnd = html.indexOf("</head>");
+            String patchedHtml = headEnd >= 0
+                    ? html.substring(0, headEnd) + previewFix + html.substring(headEnd)
+                    : previewFix + html;
+            Files.writeString(indexPath, patchedHtml, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            ReportManager.logDiscrete("Could not patch Allure report image preview styling: " + e.getMessage());
+        }
     }
 
     private static void executeAllureGenerateCommand(String command) {
@@ -657,11 +891,8 @@ public class AllureManager {
     }
 
     /**
-     * Patches Allure result JSON files so that every step (at any nesting depth) has a
-     * {@code statusDetails} object. The Allure 3 awesome-plugin renderer assumes the field
-     * is always present and throws a {@code TypeError: Cannot read properties of undefined
-     * (reading 'message')} when a passing step omits it (the default for
-     * {@code allure-testng} / {@code allure-junit5} adapters).
+     * Patches Allure result JSON files so steps have {@code statusDetails} and class labels
+     * can group reports by Java package and test class.
      *
      * <p>The patch is purely additive: files and steps that already have
      * {@code statusDetails} are untouched. If the results directory does not exist, or a
@@ -689,25 +920,21 @@ public class AllureManager {
                     Files.writeString(file.toPath(), patched, StandardCharsets.UTF_8);
                 }
             } catch (IOException e) {
-                ReportManager.logDiscrete("Could not patch statusDetails in " + file.getName() + ": " + e.getMessage());
+                ReportManager.logDiscrete("Could not patch Allure result metadata in " + file.getName() + ": " + e.getMessage());
             }
         }
     }
 
     /**
-     * Ensures every step in a result/container JSON has a {@code statusDetails.message} value.
+     * Normalizes one Allure result/container JSON document for Awesome report rendering.
      *
-     * <p>The Allure 3 awesome-plugin renderer reads {@code step.statusDetails.message} for each
-     * rendered step. Some adapters emit steps with:
-     * <ul>
-     *   <li>no {@code statusDetails} object at all, or</li>
-     *   <li>{@code statusDetails} containing only {@code trace} / flags and no {@code message} key.</li>
-     * </ul>
-     * Both forms trigger frontend runtime errors and blank test-detail panes. This method normalizes
-     * both cases by guaranteeing an object and adding an empty {@code message} when missing.
+     * <p>Passing steps can omit {@code statusDetails.message}, which the Awesome renderer reads
+     * unconditionally. TestNG can also emit {@code package} as the full class name, so SHAFT
+     * narrows it back to the Java package before applying the default {@code package,testClass}
+     * hierarchy.
      *
      * @param json the raw JSON string of a single result or container file
-     * @return the patched JSON string (identical to input when no patch was needed)
+     * @return patched JSON, or the original JSON when no change was needed
      */
     private static String patchStatusDetailsInJson(String json) {
         try {
@@ -718,6 +945,7 @@ public class AllureManager {
 
             boolean changed = false;
             changed |= ensureStatusDetailsMessage(root);
+            changed |= normalizePackageAndClassLabels(root);
 
             JsonNode steps = root.get("steps");
             if (steps instanceof ArrayNode) {
@@ -745,9 +973,80 @@ public class AllureManager {
             }
             return JSON_MAPPER.writeValueAsString(root);
         } catch (Exception e) {
-            ReportManager.logDiscrete("Could not normalize statusDetails in Allure JSON: " + e.getMessage());
+            ReportManager.logDiscrete("Could not normalize Allure JSON metadata: " + e.getMessage());
             return json;
         }
+    }
+
+    private static boolean normalizePackageAndClassLabels(ObjectNode root) {
+        JsonNode labelsNode = root.get("labels");
+        if (!(labelsNode instanceof ArrayNode labels)) {
+            return false;
+        }
+
+        String testClass = labelValue(labels, "testClass");
+        if (testClass.isBlank()) {
+            testClass = classNameFromFullName(root.path("fullName").asText(""));
+        }
+        if (testClass.isBlank()) {
+            return false;
+        }
+
+        boolean changed = false;
+        if (findLabel(labels, "testClass") == null) {
+            addLabel(labels, "testClass", testClass);
+            changed = true;
+        }
+
+        String packageName = packageNameFromClassName(testClass);
+        if (packageName.isBlank()) {
+            return changed;
+        }
+
+        ObjectNode packageLabel = findLabel(labels, "package");
+        if (packageLabel == null) {
+            addLabel(labels, "package", packageName);
+            return true;
+        }
+
+        String currentPackage = packageLabel.path("value").asText("");
+        if (currentPackage.isBlank()
+                || currentPackage.equals(testClass)
+                || currentPackage.equals(root.path("fullName").asText(""))) {
+            packageLabel.put("value", packageName);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private static ObjectNode findLabel(ArrayNode labels, String name) {
+        for (JsonNode label : labels) {
+            if (label instanceof ObjectNode labelObject && name.equals(labelObject.path("name").asText())) {
+                return labelObject;
+            }
+        }
+        return null;
+    }
+
+    private static String labelValue(ArrayNode labels, String name) {
+        ObjectNode label = findLabel(labels, name);
+        return label == null ? "" : label.path("value").asText("");
+    }
+
+    private static void addLabel(ArrayNode labels, String name, String value) {
+        ObjectNode label = labels.addObject();
+        label.put("name", name);
+        label.put("value", value);
+    }
+
+    private static String classNameFromFullName(String fullName) {
+        int methodSeparator = fullName.lastIndexOf('.');
+        return methodSeparator > 0 ? fullName.substring(0, methodSeparator) : "";
+    }
+
+    private static String packageNameFromClassName(String className) {
+        int classSeparator = className.lastIndexOf('.');
+        return classSeparator > 0 ? className.substring(0, classSeparator) : "";
     }
 
     /**

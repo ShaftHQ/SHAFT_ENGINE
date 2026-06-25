@@ -40,6 +40,7 @@ public class AllureManagerCoverageUnitTest {
                 .forceConfiguredCliVersion(true)
                 .generateArchive(false)
                 .realtimeMonitoring(false)
+                .theme("auto")
                 .singleFile(true)
                 .open(false)
                 .groupBy("parentSuite,suite,subSuite");
@@ -165,12 +166,59 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertTrue(config.contains("name: \"Report \\\"Name\\\"\""), config);
         Assert.assertTrue(config.contains("output: \"" + outputDirectory.toString().replace("\\", "/").replace("\"", "\\\"") + "\""), config);
         Assert.assertTrue(config.contains("logo: \"logo\\\\path\\\"name\""), config);
+        Assert.assertTrue(config.contains("theme: \"auto\""), config);
         Assert.assertTrue(config.contains("reportLanguage: \"en\\\"GB\""), config);
         Assert.assertTrue(config.contains("singleFile: false"), config);
         Assert.assertTrue(config.contains("open: true"), config);
-        Assert.assertTrue(config.contains("        - parentSuite"), config);
-        Assert.assertTrue(config.contains("        - suite"), config);
-        Assert.assertTrue(config.contains("        - subSuite"), config);
+        Assert.assertTrue(config.contains("        - package"), config);
+        Assert.assertTrue(config.contains("        - testClass"), config);
+        Assert.assertFalse(config.contains("        - parentSuite"), config);
+        Assert.assertFalse(config.contains("        - suite"), config);
+        Assert.assertFalse(config.contains("        - subSuite"), config);
+    }
+
+    @Test
+    public void writeAllureConfigShouldFallbackToAutoThemeWhenConfiguredThemeIsBlankOrInvalid() throws Exception {
+        Path outputDirectory = testDirectory.resolve("report-output");
+
+        SHAFT.Properties.allure.set().theme("  ");
+        invoke("writeAllureConfig", new Class[]{String.class, String.class}, "Blank Theme Report", outputDirectory.toString());
+        String blankThemeConfig = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
+
+        SHAFT.Properties.allure.set().theme("neon");
+        invoke("writeAllureConfig", new Class[]{String.class, String.class}, "Invalid Theme Report", outputDirectory.toString());
+        String invalidThemeConfig = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
+
+        SHAFT.Properties.allure.set().theme("dark");
+        invoke("writeAllureConfig", new Class[]{String.class, String.class}, "Dark Theme Report", outputDirectory.toString());
+        String darkThemeConfig = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
+
+        Assert.assertTrue(blankThemeConfig.contains("theme: \"auto\""), blankThemeConfig);
+        Assert.assertTrue(invalidThemeConfig.contains("theme: \"auto\""), invalidThemeConfig);
+        Assert.assertTrue(darkThemeConfig.contains("theme: \"dark\""), darkThemeConfig);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldInjectAttachmentPreviewAndThemeCssOnce() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index, "<html><head></head><body></body></html>", StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        String html = Files.readString(index, StandardCharsets.UTF_8);
+        Assert.assertEquals(html.split("id=\"shaft-allure-attachment-preview-fix\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("id=\"shaft-allure-theme-colors\"", -1).length - 1, 1, html);
+        Assert.assertTrue(html.contains("img[src^=\"blob:\"]"), html);
+        Assert.assertTrue(html.contains("MutationObserver"), html);
+        Assert.assertTrue(html.contains("shaft-allure-image-modal"), html);
+        Assert.assertTrue(html.contains("--color-intent-primary-bg: #006ec0"), html);
+        Assert.assertTrue(html.contains(":root[data-theme=\"dark\"]"), html);
+        Assert.assertTrue(html.contains("--color-intent-primary-bg: #4cc2ff"), html);
+        Assert.assertTrue(html.contains("width: 100% !important"), html);
+        Assert.assertTrue(html.contains("height: auto !important"), html);
     }
 
     @Test
@@ -199,6 +247,20 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertTrue(patchedContainer.contains("\"trace\":\"trace\",\"message\":\"\""), patchedContainer);
         Assert.assertTrue(patchedContainer.contains("\"attachments\":[{\"name\":\"fixture-attachment\"}]"), patchedContainer);
         Assert.assertEquals(ignored, "{\"steps\":[{\"name\":\"ignored\"}]}");
+    }
+
+    @Test
+    public void patchMissingStatusDetailsInResultsShouldNormalizePackageLabelFromTestClass() throws Exception {
+        Path resultFile = allureResultsDirectory.resolve("sample-result.json");
+        Files.writeString(resultFile, """
+                {"name":"testMethod","fullName":"example.tests.SampleTest.testMethod","labels":[{"name":"package","value":"example.tests.SampleTest"},{"name":"testClass","value":"example.tests.SampleTest"}]}
+                """, StandardCharsets.UTF_8);
+
+        invoke("patchMissingStatusDetailsInResults", new Class[]{String.class}, allureResultsDirectory.toString());
+
+        String patchedResult = Files.readString(resultFile, StandardCharsets.UTF_8);
+        Assert.assertTrue(patchedResult.contains("\"name\":\"package\",\"value\":\"example.tests\""), patchedResult);
+        Assert.assertTrue(patchedResult.contains("\"name\":\"testClass\",\"value\":\"example.tests.SampleTest\""), patchedResult);
     }
 
     @Test
