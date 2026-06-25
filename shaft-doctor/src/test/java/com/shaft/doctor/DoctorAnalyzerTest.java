@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.EnumSet;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -358,6 +360,38 @@ class DoctorAnalyzerTest {
     }
 
     @Test
+    void allureDiagnosticsZipAttachmentFeedsDoctorRules(@TempDir Path temp) throws IOException {
+        Path input = Files.createDirectories(temp.resolve("diagnostics-input"));
+        Path zip = input.resolve("shaft-diagnostics.zip");
+        writeZip(zip, "diagnostics.json", """
+                {
+                  "schemaVersion": 1,
+                  "failure": {
+                    "type": "org.openqa.selenium.NoSuchElementException",
+                    "message": "Unable to locate element token=DO-NOT-RETAIN-DIAGNOSTICS-SECRET",
+                    "stacktrace": "NoSuchElementException: unable to locate element"
+                  }
+                }
+                """);
+        Path resultPath = input.resolve("diagnostics-result.json");
+        writeResult(resultPath, "failed", "", "", "diagnostics", 1);
+        var tree = (com.fasterxml.jackson.databind.node.ObjectNode) MAPPER.readTree(resultPath.toFile());
+        tree.set("attachments", MAPPER.valueToTree(List.of(Map.of(
+                "name", "shaft-diagnostics",
+                "source", "shaft-diagnostics.zip",
+                "type", "application/zip"))));
+        Files.writeString(resultPath, MAPPER.writeValueAsString(tree), StandardCharsets.UTF_8);
+
+        DoctorAnalysisResult result = analyze(temp, input, "diagnostics-output", 1, false, false, List.of());
+
+        assertEquals(CauseCategory.LOCATOR, result.diagnosis().primaryCause());
+        assertTrue(result.bundle().evidence().stream()
+                .anyMatch(item -> item.category() == EvidenceCategory.SHAFT_LOG
+                        && "true".equals(item.attributes().get("diagnostics"))));
+        assertOutputDoesNotContain(result, "DO-NOT-RETAIN-DIAGNOSTICS-SECRET");
+    }
+
+    @Test
     void enforcesAllowedRootsAndArtifactLimits(@TempDir Path temp) throws IOException {
         Path allowed = Files.createDirectories(temp.resolve("allowed"));
         Path outside = Files.createDirectories(temp.resolve("outside"));
@@ -528,8 +562,16 @@ class DoctorAnalyzerTest {
                 "statusDetails", Map.of("message", message, "trace", trace),
                 "labels", List.of(
                         Map.of("name", "testClass", "value", "example.Test"),
-                        Map.of("name", "testMethod", "value", "test-" + historyId)));
+                Map.of("name", "testMethod", "value", "test-" + historyId)));
         Files.writeString(path, MAPPER.writeValueAsString(result), StandardCharsets.UTF_8);
+    }
+
+    private static void writeZip(Path path, String entryName, String content) throws IOException {
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(path))) {
+            zip.putNextEntry(new ZipEntry(entryName));
+            zip.write(content.getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
     }
 
     private static void assertOutputDoesNotContain(

@@ -13,6 +13,8 @@ public class ReportingTests {
     boolean openExecutionSummaryReportAfterExecution;
     boolean disableLogging;
     boolean attachFullLog;
+    boolean diagnosticsBundleEnabled;
+    int diagnosticsMaxArtifactMb;
     boolean traceEnabled;
     String traceMode;
     boolean traceIncludeCodeContext;
@@ -32,6 +34,8 @@ public class ReportingTests {
         openExecutionSummaryReportAfterExecution = SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution();
         disableLogging = SHAFT.Properties.reporting.disableLogging();
         attachFullLog = SHAFT.Properties.reporting.attachFullLog();
+        diagnosticsBundleEnabled = SHAFT.Properties.reporting.diagnosticsBundleEnabled();
+        diagnosticsMaxArtifactMb = SHAFT.Properties.reporting.diagnosticsMaxArtifactMb();
         traceEnabled = SHAFT.Properties.reporting.traceEnabled();
         traceMode = SHAFT.Properties.reporting.traceMode();
         traceIncludeCodeContext = SHAFT.Properties.reporting.traceIncludeCodeContext();
@@ -53,6 +57,8 @@ public class ReportingTests {
         SHAFT.Properties.reporting.set().openExecutionSummaryReportAfterExecution(openExecutionSummaryReportAfterExecution);
         SHAFT.Properties.reporting.set().disableLogging(disableLogging);
         SHAFT.Properties.reporting.set().attachFullLog(attachFullLog);
+        SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(diagnosticsBundleEnabled);
+        SHAFT.Properties.reporting.set().diagnosticsMaxArtifactMb(diagnosticsMaxArtifactMb);
         SHAFT.Properties.reporting.set().traceEnabled(traceEnabled);
         SHAFT.Properties.reporting.set().traceMode(traceMode);
         SHAFT.Properties.reporting.set().traceIncludeCodeContext(traceIncludeCodeContext);

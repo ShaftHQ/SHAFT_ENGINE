@@ -12,6 +12,7 @@ import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.AllureManager;
 import com.shaft.tools.io.internal.ApiPerformanceExecutionReport;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
+import com.shaft.tools.io.internal.FailureDiagnosticsReporter;
 import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import com.shaft.tools.io.internal.ReportContext;
@@ -102,6 +103,7 @@ public final class ExecutionLifecycleHelper {
         String logText = createTestLog(ReportContext.snapshotOutput());
         ReportManagerHelper.attachTestLog(valueOrBlank(info.methodName()), logText);
         FailureTraceReporter.attachOnFailure(info, logText, attachments);
+        FailureDiagnosticsReporter.attachOnFailure(info, logText, attachments);
         JiraHelper.reportBugsToJIRA(attachments, logText, info);
     }
 
