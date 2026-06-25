@@ -670,6 +670,29 @@ public class AllureManagerUnitTest {
         Files.deleteIfExists(resultsDirectory.getParent().resolve("allurerc.yaml"));
     }
 
+    @Test(description = "writeAllureCategoriesIfSupported should write valid Allure 3 failure categories")
+    public void writeAllureCategoriesIfSupportedShouldWriteAllure3Categories() throws Exception {
+        Method writeCategories = AllureManager.class.getDeclaredMethod("writeAllureCategoriesIfSupported");
+        writeCategories.setAccessible(true);
+
+        Path resultsDirectory = Files.createTempDirectory("shaft-allure-categories");
+        Path categories = resultsDirectory.resolve("categories.json");
+        setStaticField(AllureManager.class, "allureResultsFolderPath", resultsDirectory.toString());
+
+        setStaticField(AllureManager.class, "cachedIsAllure2", false);
+        writeCategories.invoke(null);
+        JsonNode root = MAPPER.readTree(categories.toFile());
+        SHAFT.Validations.assertThat().object(root.isArray()).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(root.toString().contains("Assertion / validation failure")).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(root.toString().contains("Locator / element interaction")).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(root.toString().contains("Provider / grid / device issue")).isEqualTo(true).perform();
+
+        Files.deleteIfExists(categories);
+        setStaticField(AllureManager.class, "cachedIsAllure2", true);
+        writeCategories.invoke(null);
+        SHAFT.Validations.assertThat().object(Files.exists(categories)).isEqualTo(false).perform();
+    }
+
     @Test(description = "resolveAllureCommandPrefix should support legacy resolution and cached-empty shortcut")
     public void resolveAllureCommandPrefixShouldSupportLegacyResolutionAndCachedEmptyShortcut() throws Exception {
         Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");

@@ -79,6 +79,43 @@ class ExtractAllureFailuresTests(unittest.TestCase):
         self.assertIn("value \\| was invalid", markdown)
         self.assertIn("`allure-results/test-result.json`", markdown)
 
+    def test_includes_failure_brief_open_first_from_raw_results(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "failed-result.json").write_text(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "fullName": "pkg.BriefTest.fails",
+                        "statusDetails": {"message": "expected dashboard"},
+                        "attachments": [
+                            {
+                                "name": "shaft-failure-brief.json",
+                                "source": "shaft-failure-brief-attachment.json",
+                                "type": "application/json",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "shaft-failure-brief-attachment.json").write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "openFirst": ["Screenshot - failed Assert", "SHAFT Trace Report.html"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            failures = extract_failures([root])
+            markdown = to_markdown(failures)
+
+        self.assertEqual(failures[0].open_first, "Screenshot - failed Assert; SHAFT Trace Report.html")
+        self.assertIn("| Open first |", markdown)
+        self.assertIn("Screenshot - failed Assert; SHAFT Trace Report.html", markdown)
+
     def test_ignores_non_result_json_payloads(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

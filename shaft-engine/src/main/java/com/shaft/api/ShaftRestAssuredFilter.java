@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.shaft.tools.io.internal.ReportContext;
 import io.qameta.allure.Allure;
 import io.restassured.filter.Filter;
 import io.restassured.filter.FilterContext;
@@ -16,6 +17,8 @@ import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
 
 import java.io.ByteArrayInputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -78,7 +81,7 @@ public class ShaftRestAssuredFilter implements Filter {
                            FilterContext filterContext) {
         attachRequest(requestSpec);
         Response response = filterContext.next(requestSpec, responseSpec);
-        attachResponse(response);
+        attachResponse(response, labels(requestSpec));
         return response;
     }
 
@@ -97,8 +100,9 @@ public class ShaftRestAssuredFilter implements Filter {
      * @param requestSpec the outgoing request specification
      */
     private void attachRequest(FilterableRequestSpecification requestSpec) {
+        ApiEvidenceLabels labels = labels(requestSpec);
         StringBuilder info = new StringBuilder();
-        info.append(requestSpec.getMethod()).append(" ").append(requestSpec.getURI()).append("\n");
+        info.append(labels.method()).append(" ").append(labels.path()).append("\n");
 
         // Headers
         if (requestSpec.getHeaders().size() > 0) {
@@ -122,8 +126,8 @@ public class ShaftRestAssuredFilter implements Filter {
                     info.append("  ").append(k).append("=").append(redactForReport(k, v)).append("\n"));
         }
 
-        Allure.addAttachment("Request", "text/plain",
-                new ByteArrayInputStream(info.toString().getBytes(StandardCharsets.UTF_8)), ".txt");
+        addAttachment("API Request - " + labels.requestTarget(), "text/plain",
+                info.toString().getBytes(StandardCharsets.UTF_8), ".txt");
 
         // Request body — always attached separately (no threshold) so it receives the
         // correct MIME type and renders with syntax highlighting in Allure 3.
@@ -134,8 +138,8 @@ public class ShaftRestAssuredFilter implements Filter {
                     String declaredType = requestSpec.getContentType() != null
                             ? requestSpec.getContentType() : "application/octet-stream";
                     String mimeType = normalizeMimeType(declaredType);
-                    Allure.addAttachment("Request Body", mimeType,
-                            new ByteArrayInputStream(binaryBody),
+                    addAttachment("API Request Body - " + labels.requestTarget(), mimeType,
+                            binaryBody,
                             getFileExtension(mimeType));
                 }
             } else {
@@ -144,8 +148,8 @@ public class ShaftRestAssuredFilter implements Filter {
                     String contentType = detectContentType(bodyStr,
                             requestSpec.getContentType() != null ? requestSpec.getContentType() : "");
                     String formatted = formatBody(redactBodyForReport(bodyStr, contentType), contentType);
-                    Allure.addAttachment("Request Body", contentType,
-                            new ByteArrayInputStream(formatted.getBytes(StandardCharsets.UTF_8)),
+                    addAttachment("API Request Body - " + labels.requestTarget(), contentType,
+                            formatted.getBytes(StandardCharsets.UTF_8),
                             getFileExtension(contentType));
                 }
             }
@@ -166,7 +170,7 @@ public class ShaftRestAssuredFilter implements Filter {
      *
      * @param response the HTTP response returned by the server
      */
-    private void attachResponse(Response response) {
+    private void attachResponse(Response response, ApiEvidenceLabels labels) {
         StringBuilder info = new StringBuilder();
         info.append("Status: ").append(response.getStatusLine()).append("\n");
         info.append("Time: ").append(response.getTime()).append("ms\n");
@@ -178,8 +182,10 @@ public class ShaftRestAssuredFilter implements Filter {
                             .append(redactForReport(h.getName(), h.getValue())).append("\n"));
         }
 
-        Allure.addAttachment("Response", "text/plain",
-                new ByteArrayInputStream(info.toString().getBytes(StandardCharsets.UTF_8)), ".txt");
+        int statusCode = response.getStatusCode();
+        String responseTarget = statusCode + " " + labels.requestTarget();
+        addAttachment("API Response - " + responseTarget + " - " + response.getTime() + "ms", "text/plain",
+                info.toString().getBytes(StandardCharsets.UTF_8), ".txt");
 
         // Response body — always attached separately (no threshold).
         // Binary types use byte[] to preserve the raw content; text types are decoded and formatted.
@@ -188,8 +194,8 @@ public class ShaftRestAssuredFilter implements Filter {
             byte[] bodyBytes = response.getBody().asByteArray();
             if (bodyBytes != null && bodyBytes.length > 0) {
                 String mimeType = normalizeMimeType(declaredContentType);
-                Allure.addAttachment("Response Body", mimeType,
-                        new ByteArrayInputStream(bodyBytes),
+                addAttachment("API Response Body - " + responseTarget, mimeType,
+                        bodyBytes,
                         getFileExtension(mimeType));
             }
         } else {
@@ -197,8 +203,8 @@ public class ShaftRestAssuredFilter implements Filter {
             if (body != null && !body.isEmpty()) {
                 String detectedContentType = detectContentType(body, declaredContentType);
                 String formatted = formatBody(redactBodyForReport(body, detectedContentType), detectedContentType);
-                Allure.addAttachment("Response Body", detectedContentType,
-                        new ByteArrayInputStream(formatted.getBytes(StandardCharsets.UTF_8)),
+                addAttachment("API Response Body - " + responseTarget, detectedContentType,
+                        formatted.getBytes(StandardCharsets.UTF_8),
                         getFileExtension(detectedContentType));
             }
         }
@@ -220,6 +226,32 @@ public class ShaftRestAssuredFilter implements Filter {
                 || normalizedKey.contains("token")
                 || normalizedKey.contains("apikey")
                 || normalizedKey.contains("api-key");
+    }
+
+    private static ApiEvidenceLabels labels(FilterableRequestSpecification requestSpec) {
+        String method = requestSpec.getMethod() == null ? "REQUEST" : requestSpec.getMethod();
+        String path = sanitizedPath(requestSpec.getURI());
+        return new ApiEvidenceLabels(method, path);
+    }
+
+    private static String sanitizedPath(String uri) {
+        if (uri == null || uri.isBlank()) {
+            return "/";
+        }
+        try {
+            URI parsed = new URI(uri);
+            String path = parsed.getRawPath();
+            return path == null || path.isBlank() ? "/" : path;
+        } catch (URISyntaxException e) {
+            int queryIndex = uri.indexOf('?');
+            String path = queryIndex >= 0 ? uri.substring(0, queryIndex) : uri;
+            return path.isBlank() ? "/" : path;
+        }
+    }
+
+    private static void addAttachment(String name, String contentType, byte[] content, String fileExtension) {
+        Allure.addAttachment(name, contentType, new ByteArrayInputStream(content), fileExtension);
+        ReportContext.recordAttachment(name, contentType, fileExtension, "api", content.length);
     }
 
     private String redactBodyForReport(String body, String contentType) {
@@ -426,9 +458,16 @@ public class ShaftRestAssuredFilter implements Filter {
         if (lower.startsWith("video/")) return ".mp4";
         if (lower.contains("pdf")) return ".pdf";
         if (lower.contains("zip")) return ".zip";
+        if (lower.contains("octet-stream")) return ".bin";
         if (lower.contains("vnd.openxmlformats-officedocument.spreadsheetml")) return ".xlsx";
         if (lower.contains("vnd.openxmlformats-officedocument.wordprocessingml")) return ".docx";
         if (lower.contains("vnd.openxmlformats-officedocument.presentationml")) return ".pptx";
         return ".txt";
+    }
+
+    private record ApiEvidenceLabels(String method, String path) {
+        String requestTarget() {
+            return method + " " + path;
+        }
     }
 }

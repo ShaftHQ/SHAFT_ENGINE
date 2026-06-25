@@ -59,6 +59,10 @@ public class AccessibilityHelperCoverageUnitTest {
             verify(builder).setOptions("{ \"resultTypes\": [\"violations\", \"incomplete\", \"inapplicable\", \"passes\"] }");
             Assert.assertEquals(countFiles(reportsDir, "AccessibilityJSON_SuccessfulPage_", ".json"), 1);
             Assert.assertEquals(countFiles(reportsDir, "AccessibilityReport_SuccessfulPage_", ".html"), 1);
+            String html = Files.readString(latestFile(reportsDir, "AccessibilityReport_SuccessfulPage_", ".html"));
+            Assert.assertFalse(html.contains("cdn.jsdelivr.net"), html);
+            Assert.assertFalse(html.contains("new Chart("), html);
+            Assert.assertTrue(html.contains("Overall Accessibility Score"), html);
         }
     }
 

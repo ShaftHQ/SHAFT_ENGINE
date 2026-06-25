@@ -590,6 +590,7 @@ public class AllureManager {
             // This prevents crashes on absent statusDetails and normalizes package/testClass labels
             // before Allure groups results.
             patchMissingStatusDetailsInResults(getResultsPath());
+            writeAllureCategoriesIfSupported();
 
             // Write allurerc.yaml with current settings (including custom title and optional history path)
             writeAllureConfig(customReportName, allureOutPutDirectory);
@@ -716,6 +717,65 @@ public class AllureManager {
         } catch (IOException e) {
             ReportManager.logDiscrete("Could not patch Allure report styling: " + e.getMessage());
         }
+    }
+
+    private static void writeAllureCategoriesIfSupported() {
+        if (cachedIsAllure2) {
+            return;
+        }
+        String resultsPath = getResultsPath();
+        if (resultsPath == null || resultsPath.isBlank()) {
+            return;
+        }
+        ensureAllureResultsDirectoryExists(resultsPath);
+        try {
+            Files.writeString(Path.of(resultsPath).resolve("categories.json"), defaultAllureCategoriesJson(),
+                    StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            ReportManager.logDiscrete("Could not write Allure categories.json: " + e.getMessage());
+        }
+    }
+
+    private static String defaultAllureCategoriesJson() {
+        return """
+                [
+                  {
+                    "name": "Assertion / validation failure",
+                    "matchedStatuses": ["failed"],
+                    "messageRegex": ".*(Assertion|Assert|Verification|expected .* actual|expected .* but found).*"
+                  },
+                  {
+                    "name": "Locator / element interaction",
+                    "matchedStatuses": ["failed", "broken"],
+                    "traceRegex": ".*(NoSuchElementException|StaleElementReferenceException|TimeoutException|ElementClickInterceptedException|ElementNotInteractableException|locator|element).*"
+                  },
+                  {
+                    "name": "API contract or response mismatch",
+                    "matchedStatuses": ["failed", "broken"],
+                    "messageRegex": ".*(OpenAPI|Swagger|JSON|XML|schema|status code|response).*"
+                  },
+                  {
+                    "name": "Accessibility violation",
+                    "matchedStatuses": ["failed", "broken"],
+                    "messageRegex": ".*(Accessibility|axe|WCAG|violation).*"
+                  },
+                  {
+                    "name": "Performance budget violation",
+                    "matchedStatuses": ["failed", "broken"],
+                    "messageRegex": ".*(performance budget|p95|latency|duration).*"
+                  },
+                  {
+                    "name": "Provider / grid / device issue",
+                    "matchedStatuses": ["broken"],
+                    "traceRegex": ".*(SessionNotCreatedException|UnreachableBrowserException|WebDriverException|BrowserStack|LambdaTest|Appium|Selenium Grid|connection refused).*"
+                  },
+                  {
+                    "name": "Environment / configuration issue",
+                    "matchedStatuses": ["broken"],
+                    "messageRegex": ".*(configuration|property|missing|not found|permission denied|invalid).*"
+                  }
+                ]
+                """;
     }
 
     private static void executeAllureGenerateCommand(String command) {

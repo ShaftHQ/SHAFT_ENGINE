@@ -38,4 +38,22 @@ class JunitReportContextTest {
         assertTrue(ReportContext.snapshotOutput().stream().anyMatch(log -> log.contains("neutral reporter log")));
         assertTrue(sink.stream().anyMatch(log -> log.contains("neutral reporter log")));
     }
+
+    @Test
+    void reportContextShouldRecordAndClearAttachmentManifest() {
+        ReportContext.start(new TestExecutionInfo("id", "fixture.SampleTest", "sampleMethod",
+                "sample display", "sample description", null, null, false));
+
+        ReportContext.recordAttachment("Screenshot - failure", "image/png", ".png", "screenshot", 42);
+
+        List<ReportContext.AttachmentRecord> attachments = ReportContext.snapshotAttachments();
+        assertEquals(1, attachments.size());
+        assertEquals("Screenshot - failure", attachments.getFirst().description());
+        assertEquals("screenshot", attachments.getFirst().purpose());
+        assertEquals(42, attachments.getFirst().sizeBytes());
+
+        ReportContext.clear();
+
+        assertTrue(ReportContext.snapshotAttachments().isEmpty());
+    }
 }
