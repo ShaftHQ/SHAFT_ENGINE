@@ -7,6 +7,7 @@ import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightElementValidationsBuilder;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
@@ -92,9 +93,10 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions click(Locator elementLocator) {
-        elementLocator.click();
-        ReportManager.log("Clicked Playwright element.");
-        return this;
+        return timed("playwright.element.click", () -> {
+            elementLocator.click();
+            ReportManager.log("Clicked Playwright element.");
+        });
     }
 
     @Override
@@ -108,8 +110,8 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions clickUsingJavascript(Locator elementLocator) {
-        elementLocator.evaluate("element => element.click()");
-        return this;
+        return timed("playwright.element.clickUsingJavascript",
+                () -> elementLocator.evaluate("element => element.click()"));
     }
 
     @Override
@@ -123,8 +125,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions scrollToElement(Locator elementLocator) {
-        elementLocator.scrollIntoViewIfNeeded();
-        return this;
+        return timed("playwright.element.scrollToElement", elementLocator::scrollIntoViewIfNeeded);
     }
 
     @Override
@@ -138,10 +139,11 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions clickAndHold(Locator elementLocator) {
-        BoundingBox box = elementLocator.boundingBox();
-        session.page().mouse().move(box.x + box.width / 2, box.y + box.height / 2);
-        session.page().mouse().down();
-        return this;
+        return timed("playwright.element.clickAndHold", () -> {
+            BoundingBox box = elementLocator.boundingBox();
+            session.page().mouse().move(box.x + box.width / 2, box.y + box.height / 2);
+            session.page().mouse().down();
+        });
     }
 
     @Override
@@ -155,8 +157,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions doubleClick(Locator elementLocator) {
-        elementLocator.dblclick();
-        return this;
+        return timed("playwright.element.doubleClick", elementLocator::dblclick);
     }
 
     @Override
@@ -170,8 +171,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions dragAndDrop(Locator sourceElementLocator, Locator destinationElementLocator) {
-        sourceElementLocator.dragTo(destinationElementLocator);
-        return this;
+        return timed("playwright.element.dragAndDrop", () -> sourceElementLocator.dragTo(destinationElementLocator));
     }
 
     @Override
@@ -185,14 +185,15 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions dragAndDropByOffset(Locator sourceElementLocator, int xOffset, int yOffset) {
-        BoundingBox box = sourceElementLocator.boundingBox();
-        double x = box.x + box.width / 2;
-        double y = box.y + box.height / 2;
-        session.page().mouse().move(x, y);
-        session.page().mouse().down();
-        session.page().mouse().move(x + xOffset, y + yOffset);
-        session.page().mouse().up();
-        return this;
+        return timed("playwright.element.dragAndDropByOffset", () -> {
+            BoundingBox box = sourceElementLocator.boundingBox();
+            double x = box.x + box.width / 2;
+            double y = box.y + box.height / 2;
+            session.page().mouse().move(x, y);
+            session.page().mouse().down();
+            session.page().mouse().move(x + xOffset, y + yOffset);
+            session.page().mouse().up();
+        });
     }
 
     @Override
@@ -206,8 +207,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions hover(Locator elementLocator) {
-        elementLocator.hover();
-        return this;
+        return timed("playwright.element.hover", elementLocator::hover);
     }
 
     @Override
@@ -227,8 +227,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions select(Locator elementLocator, String valueOrVisibleText) {
-        elementLocator.selectOption(valueOrVisibleText);
-        return this;
+        return timed("playwright.element.select", () -> elementLocator.selectOption(valueOrVisibleText));
     }
 
     @Override
@@ -242,9 +241,9 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions setValueUsingJavaScript(Locator elementLocator, String value) {
-        elementLocator.evaluate("(element, value) => { element.value = value; element.dispatchEvent(new Event('input', {bubbles: true})); element.dispatchEvent(new Event('change', {bubbles: true})); }",
-                value);
-        return this;
+        return timed("playwright.element.setValueUsingJavaScript",
+                () -> elementLocator.evaluate("(element, value) => { element.value = value; element.dispatchEvent(new Event('input', {bubbles: true})); element.dispatchEvent(new Event('change', {bubbles: true})); }",
+                        value));
     }
 
     @Override
@@ -258,8 +257,8 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions submitFormUsingJavaScript(Locator elementLocator) {
-        elementLocator.evaluate("element => element.form ? element.form.submit() : element.submit()");
-        return this;
+        return timed("playwright.element.submitFormUsingJavaScript",
+                () -> elementLocator.evaluate("element => element.form ? element.form.submit() : element.submit()"));
     }
 
     @Override
@@ -288,8 +287,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions type(Locator elementLocator, CharSequence... text) {
-        elementLocator.fill(join(text));
-        return this;
+        return timed("playwright.element.type", () -> elementLocator.fill(join(text)));
     }
 
     @Override
@@ -303,8 +301,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions clear(Locator elementLocator) {
-        elementLocator.clear();
-        return this;
+        return timed("playwright.element.clear", elementLocator::clear);
     }
 
     @Override
@@ -318,8 +315,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions typeAppend(Locator elementLocator, CharSequence... text) {
-        elementLocator.pressSequentially(join(text));
-        return this;
+        return timed("playwright.element.typeAppend", () -> elementLocator.pressSequentially(join(text)));
     }
 
     @Override
@@ -333,8 +329,8 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions typeFileLocationForUpload(Locator elementLocator, String filePath) {
-        elementLocator.setInputFiles(Path.of(filePath));
-        return this;
+        return timed("playwright.element.typeFileLocationForUpload",
+                () -> elementLocator.setInputFiles(Path.of(filePath)));
     }
 
     @Override
@@ -348,9 +344,10 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions typeSecure(Locator elementLocator, CharSequence... text) {
-        elementLocator.fill(join(text));
-        ReportManager.log("Typed secure text into Playwright element.");
-        return this;
+        return timed("playwright.element.typeSecure", () -> {
+            elementLocator.fill(join(text));
+            ReportManager.log("Typed secure text into Playwright element.");
+        });
     }
 
     @Override
@@ -397,10 +394,11 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions captureScreenshot(Locator elementLocator) {
-        byte[] screenshot = elementLocator.screenshot();
-        ReportManagerHelper.attach("Playwright Screenshot", "element.png", new ByteArrayInputStream(screenshot));
-        ReportManager.log("Captured Playwright element screenshot.");
-        return this;
+        return timed("playwright.element.captureScreenshot", () -> {
+            byte[] screenshot = elementLocator.screenshot();
+            ReportManagerHelper.attach("Playwright Screenshot", "element.png", new ByteArrayInputStream(screenshot));
+            ReportManager.log("Captured Playwright element screenshot.");
+        });
     }
 
     private Locator resolve(By locator) {
@@ -417,6 +415,16 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
             builder.append(value);
         }
         return builder.toString();
+    }
+
+    private ElementActions timed(String actionName, Runnable action) {
+        long start = System.nanoTime();
+        try {
+            action.run();
+            return this;
+        } finally {
+            BrowserPerformanceExecutionReport.recordBrowserAction(actionName, System.nanoTime() - start);
+        }
     }
 
     private UnsupportedOperationException unsupported(String capability) {

@@ -81,6 +81,38 @@ class HealerServiceTest {
     }
 
     @Test
+    void failedPlaywrightRerunIncludesReplayEvidenceChecklistFallback(@TempDir Path tempDir) throws Exception {
+        Path repository = fakeRepository(tempDir);
+
+        McpHealerRunResult result = service(
+                tempDir, 1, "failed", "NoSuchElementException: missing login").runFailedPlaywrightTest(
+                repository.toString(),
+                List.of("mvn", "test", "-Dtest=LoginTest"),
+                tempDir.resolve("target/healer").toString(),
+                1,
+                false,
+                false,
+                List.of(),
+                false,
+                false,
+                false,
+                false,
+                "driver");
+
+        String checklist = result.codeBlocks().stream()
+                .filter(block -> block.id().equals("playwright-replay-evidence-checklist"))
+                .findFirst()
+                .map(McpCodeBlock::code)
+                .orElse("");
+        assertTrue(checklist.contains("Failed locator: unavailable in retained Doctor evidence"), checklist);
+        assertTrue(checklist.contains("playwright_browser_get_page_dom"), checklist);
+        assertTrue(checklist.contains("playwright_browser_take_screenshot"), checklist);
+        assertTrue(checklist.contains("playwright_element_is_displayed"), checklist);
+        assertTrue(checklist.contains("playwright_element_is_enabled"), checklist);
+        assertTrue(checklist.contains("playwright_replay_recording"), checklist);
+    }
+
+    @Test
     void noAllureChangesStopsAtGuardrail(@TempDir Path tempDir) throws Exception {
         Path repository = fakeRepository(tempDir);
 

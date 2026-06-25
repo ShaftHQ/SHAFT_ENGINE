@@ -11,6 +11,7 @@ import com.shaft.tools.internal.FirestoreRestClient;
 import com.shaft.tools.internal.security.GoogleTink;
 import com.shaft.tools.io.internal.AllureManager;
 import com.shaft.tools.io.internal.ApiPerformanceExecutionReport;
+import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.FailureDiagnosticsReporter;
 import com.shaft.tools.io.internal.FailureTraceReporter;
@@ -43,6 +44,7 @@ public final class ExecutionLifecycleHelper {
      */
     public static void engineSetup(ProjectStructureManager.RunType runType) {
         LocatorHealthReporter.reset();
+        BrowserPerformanceExecutionReport.reset();
         PropertiesHelper.bootstrapEngine(runType);
     }
 
@@ -146,6 +148,11 @@ public final class ExecutionLifecycleHelper {
         AssertionError openApiCoverageFailure = OpenApiCoverageReporter.reportAndGetThresholdFailure();
         AssertionError locatorHealthFailure = LocatorHealthReporter.reportAndGetFailure();
         long executionEndTime = System.currentTimeMillis();
+        Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
+        AssertionError apiPerformanceFailure = ApiPerformanceExecutionReport.generatePerformanceReportAndGetFailure(
+                performanceData, executionStartTime, executionEndTime);
+        AssertionError browserPerformanceFailure = BrowserPerformanceExecutionReport.generatePerformanceReportAndGetFailure(
+                executionStartTime, executionEndTime);
         ExecutionSummaryReport.generateExecutionSummaryReport(
                 counts.finalPassed(), counts.failed(), counts.skipped(), executionStartTime, executionEndTime);
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
@@ -153,20 +160,37 @@ public final class ExecutionLifecycleHelper {
         Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(
                 executionStartTime, executionEndTime, counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
         ReportManagerHelper.logEngineClosure();
-        Thread.ofVirtual().start(() -> {
-            Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
-            ApiPerformanceExecutionReport.generatePerformanceReport(performanceData, executionStartTime, System.currentTimeMillis());
-        });
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
         if (openApiCoverageFailure != null && locatorHealthFailure != null) {
             openApiCoverageFailure.addSuppressed(locatorHealthFailure);
         }
+        if (openApiCoverageFailure != null && apiPerformanceFailure != null) {
+            openApiCoverageFailure.addSuppressed(apiPerformanceFailure);
+        }
+        if (openApiCoverageFailure != null && browserPerformanceFailure != null) {
+            openApiCoverageFailure.addSuppressed(browserPerformanceFailure);
+        }
         if (openApiCoverageFailure != null) {
             throw openApiCoverageFailure;
         }
+        if (locatorHealthFailure != null && apiPerformanceFailure != null) {
+            locatorHealthFailure.addSuppressed(apiPerformanceFailure);
+        }
+        if (locatorHealthFailure != null && browserPerformanceFailure != null) {
+            locatorHealthFailure.addSuppressed(browserPerformanceFailure);
+        }
         if (locatorHealthFailure != null) {
             throw locatorHealthFailure;
+        }
+        if (apiPerformanceFailure != null && browserPerformanceFailure != null) {
+            apiPerformanceFailure.addSuppressed(browserPerformanceFailure);
+        }
+        if (apiPerformanceFailure != null) {
+            throw apiPerformanceFailure;
+        }
+        if (browserPerformanceFailure != null) {
+            throw browserPerformanceFailure;
         }
     }
 

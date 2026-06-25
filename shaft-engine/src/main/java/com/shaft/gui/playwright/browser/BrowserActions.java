@@ -8,8 +8,10 @@ import com.microsoft.playwright.options.LoadState;
 import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.NetworkInterceptionRequestBuilder;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightBrowserValidationsBuilder;
+import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
@@ -49,9 +51,10 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     @Override
     public BrowserActions capturePageSnapshot() {
-        ReportManagerHelper.attach("Playwright Page Snapshot", "page.html", page().content());
-        ReportManager.log("Captured Playwright page snapshot.");
-        return this;
+        return timedBrowserAction("playwright.browser.capturePageSnapshot", () -> {
+            ReportManagerHelper.attach("Playwright Page Snapshot", "page.html", page().content());
+            ReportManager.log("Captured Playwright page snapshot.");
+        });
     }
 
     @Override
@@ -96,9 +99,10 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     @Override
     public BrowserActions navigateToURL(String targetUrl) {
-        page().navigate(targetUrl);
-        ReportManager.log("Navigate to url \"" + targetUrl + "\".");
-        return this;
+        return timedPageLoad("playwright.browser.navigateToURL", targetUrl, () -> {
+            page().navigate(targetUrl);
+            ReportManager.log("Navigate to url \"" + targetUrl + "\".");
+        });
     }
 
     @Override
@@ -114,7 +118,8 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     public BrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         navigateToURL(targetUrl);
         if (targetUrlAfterRedirection != null && !targetUrlAfterRedirection.isBlank()) {
-            page().waitForURL(targetUrlAfterRedirection);
+            timedPageLoad("playwright.browser.waitForURL", targetUrlAfterRedirection,
+                    () -> page().waitForURL(targetUrlAfterRedirection));
         }
         return this;
     }
@@ -130,28 +135,32 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     @Override
     public BrowserActions navigateBack() {
-        page().goBack();
-        return this;
+        return timedBrowserAction("playwright.browser.navigateBack", () -> page().goBack());
     }
 
     @Override
     public BrowserActions navigateForward() {
-        page().goForward();
-        return this;
+        return timedBrowserAction("playwright.browser.navigateForward", () -> page().goForward());
     }
 
     @Override
     public BrowserActions refreshCurrentPage() {
-        page().reload();
-        return this;
+        return timedPageLoad("playwright.browser.refreshCurrentPage", page().url(), () -> page().reload());
     }
 
     @Override
     public void closeCurrentWindow() {
-        page().close();
-        List<Page> pages = session.browserContext().pages();
-        if (!pages.isEmpty()) {
-            session.setPage(pages.getFirst());
+        long start = System.nanoTime();
+        try {
+            page().close();
+            List<Page> pages = session.browserContext().pages();
+            if (!pages.isEmpty()) {
+                session.setPage(pages.getFirst());
+            }
+        } finally {
+            BrowserPerformanceExecutionReport.recordBrowserAction(
+                    "playwright.browser.closeCurrentWindow",
+                    System.nanoTime() - start);
         }
     }
 
@@ -162,27 +171,28 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     @Override
     public BrowserActions setWindowSize(int width, int height) {
-        page().setViewportSize(width, height);
-        return this;
+        return timedBrowserAction("playwright.browser.setWindowSize", () -> page().setViewportSize(width, height));
     }
 
     @Override
     public BrowserActions mock(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
-        throw unsupported("Selenium HttpRequest/HttpResponse mocking");
+        return internalIntercept(requestPredicate, mockedResponse, "Configured Playwright network response mock.");
     }
 
     @Override
-    public NetworkInterceptionRequestBuilder interceptRequest() {
-        throw unsupported("Selenium network interception builder");
+    public NetworkInterceptionRequestBuilder<BrowserActions> interceptRequest() {
+        return new NetworkInterceptionRequestBuilder<>(this, this::registerNetworkInterceptionRule);
     }
 
     @Override
     public BrowserActions intercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
-        throw unsupported("Selenium HttpRequest/HttpResponse interception");
+        return internalIntercept(requestPredicate, mockedResponse, "Configured Playwright network interceptor.");
     }
 
     @Override
     public BrowserActions clearNetworkInterceptors() {
+        session.networkInterceptor().clear();
+        ReportManager.log("Cleared Playwright network interceptors.");
         return this;
     }
 
@@ -276,12 +286,13 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     @Override
     public BrowserActions captureScreenshot(Screenshots type) {
-        boolean fullPage = type == Screenshots.FULL;
-        byte[] screenshot = page().screenshot(new Page.ScreenshotOptions().setFullPage(fullPage));
-        ReportManagerHelper.attach("Playwright Screenshot", type.name().toLowerCase(Locale.ROOT) + ".png",
-                new ByteArrayInputStream(screenshot));
-        ReportManager.log("Captured Playwright page screenshot.");
-        return this;
+        return timedBrowserAction("playwright.browser.captureScreenshot", () -> {
+            boolean fullPage = type == Screenshots.FULL;
+            byte[] screenshot = page().screenshot(new Page.ScreenshotOptions().setFullPage(fullPage));
+            ReportManagerHelper.attach("Playwright Screenshot", type.name().toLowerCase(Locale.ROOT) + ".png",
+                    new ByteArrayInputStream(screenshot));
+            ReportManager.log("Captured Playwright page screenshot.");
+        });
     }
 
     @Override
@@ -296,8 +307,8 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     @Override
     public BrowserActions waitForLazyLoading() {
-        page().waitForLoadState(LoadState.LOAD);
-        return this;
+        return timedPageLoad("playwright.browser.waitForLazyLoading", page().url(),
+                () -> page().waitForLoadState(LoadState.LOAD));
     }
 
     @Override
@@ -325,7 +336,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     @Override
     public AccessibilityActions accessibility() {
-        throw unsupported("Selenium axe accessibility actions");
+        return new AccessibilityActions(page(), this);
     }
 
     public BrowserContext getNativeContext() {
@@ -342,6 +353,44 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     private Page page() {
         return session.page();
+    }
+
+    private BrowserActions internalIntercept(Predicate<HttpRequest> requestPredicate,
+                                             HttpResponse mockedResponse,
+                                             String successMessage) {
+        ReportManager.logDiscrete("Configuring Playwright network interceptor for \"" + requestPredicate + "\".");
+        ReportManagerHelper.attach("HTTP Response", "Mocked HTTP Response", String.valueOf(mockedResponse));
+        return registerNetworkInterceptionRule(
+                BrowserNetworkInterceptionRule.mock(requestPredicate, request -> mockedResponse),
+                successMessage);
+    }
+
+    public BrowserActions registerNetworkInterceptionRule(BrowserNetworkInterceptionRule rule, String successMessage) {
+        session.networkInterceptor().addRule(rule);
+        ReportManager.log(successMessage);
+        return this;
+    }
+
+    private BrowserActions timedBrowserAction(String actionName, Runnable action) {
+        long start = System.nanoTime();
+        try {
+            action.run();
+            return this;
+        } finally {
+            BrowserPerformanceExecutionReport.recordBrowserAction(actionName, System.nanoTime() - start);
+        }
+    }
+
+    private BrowserActions timedPageLoad(String actionName, String pageName, Runnable action) {
+        long start = System.nanoTime();
+        try {
+            action.run();
+            return this;
+        } finally {
+            long durationNanos = System.nanoTime() - start;
+            BrowserPerformanceExecutionReport.recordBrowserAction(actionName, durationNanos);
+            BrowserPerformanceExecutionReport.recordPageLoad(pageName, durationNanos);
+        }
     }
 
     private org.openqa.selenium.Cookie toSeleniumCookie(Cookie cookie) {

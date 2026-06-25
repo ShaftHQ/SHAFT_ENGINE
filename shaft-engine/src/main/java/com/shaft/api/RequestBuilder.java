@@ -339,7 +339,8 @@ public class RequestBuilder {
                 openApiInteractionRecorded = true;
             }
             long endTime = System.currentTimeMillis();
-            if (SHAFT.Properties.performance.isEnablePerformanceReport()) {
+            if (SHAFT.Properties.performance.isEnablePerformanceReport()
+                    || !SHAFT.Properties.performance.apiEndpointPerformanceBudgets().isBlank()) {
                 double responseTime = endTime - startTime;
                 String normalizedEndpoint = normalizeEndpoint(serviceName);
                 logResponseTime(normalizedEndpoint, responseTime);

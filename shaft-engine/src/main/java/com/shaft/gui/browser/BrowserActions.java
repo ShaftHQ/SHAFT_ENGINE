@@ -700,8 +700,8 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      * @return a browser network interception request builder
      */
     @Override
-    public NetworkInterceptionRequestBuilder interceptRequest() {
-        return new NetworkInterceptionRequestBuilder(this);
+    public NetworkInterceptionRequestBuilder<BrowserActions> interceptRequest() {
+        return new NetworkInterceptionRequestBuilder<>(this, this::registerNetworkInterceptionRule);
     }
 
     /**

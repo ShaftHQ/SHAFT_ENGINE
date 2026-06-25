@@ -2,6 +2,7 @@ package com.shaft.gui.browser;
 
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
+import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.validation.Validations;
 import com.shaft.validation.internal.RestValidationsBuilder;
 import org.openqa.selenium.remote.http.Contents;
@@ -13,6 +14,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -20,13 +22,21 @@ import java.util.regex.Pattern;
 /**
  * Fluent builder for browser network request interception.
  */
-public class NetworkInterceptionRequestBuilder {
-    private final BrowserActions browserActions;
+public class NetworkInterceptionRequestBuilder<T extends BrowserActionsContract> {
+    private final BiFunction<BrowserNetworkInterceptionRule, String, T> ruleRegistrar;
     private final List<Predicate<HttpRequest>> predicates = new ArrayList<>();
     private HttpMethod method;
 
-    NetworkInterceptionRequestBuilder(BrowserActions browserActions) {
-        this.browserActions = browserActions;
+    /**
+     * Creates a request builder backed by the supplied interception rule registrar.
+     *
+     * @param browserActions owning browser actions instance
+     * @param ruleRegistrar callback that registers built rules on the owning backend
+     */
+    public NetworkInterceptionRequestBuilder(T browserActions,
+                                             BiFunction<BrowserNetworkInterceptionRule, String, T> ruleRegistrar) {
+        Objects.requireNonNull(browserActions, "browserActions");
+        this.ruleRegistrar = Objects.requireNonNull(ruleRegistrar, "ruleRegistrar");
     }
 
     /**
@@ -35,33 +45,33 @@ public class NetworkInterceptionRequestBuilder {
      * @param method HTTP method to match
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder method(HttpMethod method) {
+    public NetworkInterceptionRequestBuilder<T> method(HttpMethod method) {
         this.method = Objects.requireNonNull(method, "method");
         return this;
     }
 
     /** @return this builder configured to match GET requests */
-    public NetworkInterceptionRequestBuilder get() {
+    public NetworkInterceptionRequestBuilder<T> get() {
         return method(HttpMethod.GET);
     }
 
     /** @return this builder configured to match POST requests */
-    public NetworkInterceptionRequestBuilder post() {
+    public NetworkInterceptionRequestBuilder<T> post() {
         return method(HttpMethod.POST);
     }
 
     /** @return this builder configured to match PUT requests */
-    public NetworkInterceptionRequestBuilder put() {
+    public NetworkInterceptionRequestBuilder<T> put() {
         return method(HttpMethod.PUT);
     }
 
     /** @return this builder configured to match PATCH requests */
-    public NetworkInterceptionRequestBuilder patch() {
+    public NetworkInterceptionRequestBuilder<T> patch() {
         return method(HttpMethod.PATCH);
     }
 
     /** @return this builder configured to match DELETE requests */
-    public NetworkInterceptionRequestBuilder delete() {
+    public NetworkInterceptionRequestBuilder<T> delete() {
         return method(HttpMethod.DELETE);
     }
 
@@ -71,7 +81,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param text URL fragment
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder urlContains(String text) {
+    public NetworkInterceptionRequestBuilder<T> urlContains(String text) {
         predicates.add(request -> request.getUri().contains(text));
         return this;
     }
@@ -82,7 +92,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param regex URL regular expression
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder urlMatches(String regex) {
+    public NetworkInterceptionRequestBuilder<T> urlMatches(String regex) {
         Pattern pattern = Pattern.compile(regex);
         predicates.add(request -> pattern.matcher(request.getUri()).matches());
         return this;
@@ -94,7 +104,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param path expected URL path
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder pathEquals(String path) {
+    public NetworkInterceptionRequestBuilder<T> pathEquals(String path) {
         predicates.add(request -> path.equals(pathOf(request)));
         return this;
     }
@@ -105,7 +115,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param text path fragment
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder pathContains(String text) {
+    public NetworkInterceptionRequestBuilder<T> pathContains(String text) {
         predicates.add(request -> pathOf(request).contains(text));
         return this;
     }
@@ -117,7 +127,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param value expected value
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder queryParam(String name, String value) {
+    public NetworkInterceptionRequestBuilder<T> queryParam(String name, String value) {
         predicates.add(request -> value.equals(queryParamsOf(request).get(name)));
         return this;
     }
@@ -129,7 +139,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param value expected value
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder header(String name, String value) {
+    public NetworkInterceptionRequestBuilder<T> header(String name, String value) {
         predicates.add(request -> value.equals(request.getHeader(name)));
         return this;
     }
@@ -140,7 +150,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param text body fragment
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder bodyContains(String text) {
+    public NetworkInterceptionRequestBuilder<T> bodyContains(String text) {
         predicates.add(request -> request.contentAsString().contains(text));
         return this;
     }
@@ -151,7 +161,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param predicate predicate to apply
      * @return this builder
      */
-    public NetworkInterceptionRequestBuilder matching(Predicate<HttpRequest> predicate) {
+    public NetworkInterceptionRequestBuilder<T> matching(Predicate<HttpRequest> predicate) {
         predicates.add(Objects.requireNonNull(predicate, "predicate"));
         return this;
     }
@@ -161,8 +171,8 @@ public class NetworkInterceptionRequestBuilder {
      *
      * @return mocked response builder
      */
-    public MockedResponseBuilder respond() {
-        return new MockedResponseBuilder(this);
+    public MockedResponseBuilder<T> respond() {
+        return new MockedResponseBuilder<>(this);
     }
 
     /**
@@ -171,7 +181,7 @@ public class NetworkInterceptionRequestBuilder {
      * @param validation response validation callback
      * @return the owning browser actions object
      */
-    public BrowserActions assertResponse(Consumer<RestValidationsBuilder> validation) {
+    public T assertResponse(Consumer<RestValidationsBuilder> validation) {
         return registerValidation(response -> validation.accept(Validations.assertThat().response(response)),
                 "Configured network response assertion.");
     }
@@ -182,14 +192,14 @@ public class NetworkInterceptionRequestBuilder {
      * @param validation response validation callback
      * @return the owning browser actions object
      */
-    public BrowserActions verifyResponse(Consumer<RestValidationsBuilder> validation) {
+    public T verifyResponse(Consumer<RestValidationsBuilder> validation) {
         return registerValidation(response -> validation.accept(Validations.verifyThat().response(response)),
                 "Configured network response verification.");
     }
 
-    private BrowserActions registerValidation(Consumer<io.restassured.response.Response> validation,
-                                              String successMessage) {
-        return browserActions.registerNetworkInterceptionRule(
+    private T registerValidation(Consumer<io.restassured.response.Response> validation,
+                                 String successMessage) {
+        return ruleRegistrar.apply(
                 BrowserNetworkInterceptionRule.validate(buildPredicate(), validation), successMessage);
     }
 
@@ -241,13 +251,13 @@ public class NetworkInterceptionRequestBuilder {
     /**
      * Fluent mocked response builder.
      */
-    public static class MockedResponseBuilder {
-        private final NetworkInterceptionRequestBuilder requestBuilder;
+    public static class MockedResponseBuilder<T extends BrowserActionsContract> {
+        private final NetworkInterceptionRequestBuilder<T> requestBuilder;
         private final Map<String, String> headers = new LinkedHashMap<>();
         private int statusCode = 200;
         private byte[] body;
 
-        private MockedResponseBuilder(NetworkInterceptionRequestBuilder requestBuilder) {
+        private MockedResponseBuilder(NetworkInterceptionRequestBuilder<T> requestBuilder) {
             this.requestBuilder = requestBuilder;
         }
 
@@ -342,8 +352,8 @@ public class NetworkInterceptionRequestBuilder {
          *
          * @return the owning browser actions object
          */
-        public BrowserActions perform() {
-            return requestBuilder.browserActions.registerNetworkInterceptionRule(
+        public T perform() {
+            return requestBuilder.ruleRegistrar.apply(
                     BrowserNetworkInterceptionRule.mock(requestBuilder.buildPredicate(), request -> toResponse()),
                     "Configured network response mock.");
         }

@@ -3,12 +3,11 @@ package com.shaft.gui.internal.natural;
 import org.openqa.selenium.WebDriver;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Natural-language GUI action request supplied to planners.
  *
- * @param driver active Selenium driver
+ * @param driver active Selenium driver, or {@code null} when the backend does not expose Selenium
  * @param intent user intent
  * @param arguments user-provided action arguments
  * @param mobileNativeExecution whether the active session is a mobile native session
@@ -24,8 +23,7 @@ public record NaturalActionRequest(
      * Creates an immutable request.
      */
     public NaturalActionRequest {
-        driver = Objects.requireNonNull(driver, "driver");
-        intent = Objects.requireNonNullElse(intent, "").trim();
+        intent = java.util.Objects.requireNonNullElse(intent, "").trim();
         arguments = arguments == null ? List.of() : List.copyOf(arguments);
     }
 }

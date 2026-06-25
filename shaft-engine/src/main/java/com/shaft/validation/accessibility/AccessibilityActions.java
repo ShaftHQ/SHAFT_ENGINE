@@ -1,7 +1,10 @@
 package com.shaft.validation.accessibility;
 
+import com.microsoft.playwright.Page;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.driver.BrowserActionsContract;
+import com.shaft.validation.Validations;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openqa.selenium.WebDriver;
@@ -48,6 +51,8 @@ import static com.shaft.validation.accessibility.AccessibilityHelper.attachRepor
 public class AccessibilityActions {
     private final SHAFT.GUI.WebDriver driver;
     private final BrowserActions browserActions;
+    private final BrowserActionsContract browserActionsContract;
+    private final Page playwrightPage;
 
     /**
      * Thread-safe cache keyed by a composed string (pageName + configHash + saveReport flag).
@@ -69,6 +74,22 @@ public class AccessibilityActions {
     public AccessibilityActions(WebDriver rawDriver, BrowserActions browserActions) {
         this.driver = new SHAFT.GUI.WebDriver(rawDriver);
         this.browserActions = browserActions;
+        this.browserActionsContract = browserActions;
+        this.playwrightPage = null;
+    }
+
+    /**
+     * Constructs an {@code AccessibilityActions} instance backed by a Playwright
+     * {@link Page}.
+     *
+     * @param page           Playwright page used to run axe-core scripts
+     * @param browserActions browser action facade that created this instance
+     */
+    public AccessibilityActions(Page page, BrowserActionsContract browserActions) {
+        this.driver = null;
+        this.browserActions = null;
+        this.browserActionsContract = browserActions;
+        this.playwrightPage = java.util.Objects.requireNonNull(page, "page");
     }
 
     private static final Logger logger = LogManager.getLogger(AccessibilityActions.class);
@@ -96,7 +117,7 @@ public class AccessibilityActions {
     public AccessibilityActions analyzePage(String pageName) {
         // Always save report for explicit analysis call
         String key = buildCacheKey(pageName, null, true);
-        cacheResult(key, AccessibilityHelper.analyzePageAccessibilityAndSave(driver.getDriver(), pageName, true));
+        cacheResult(key, analyze(pageName, null, true));
         attachReportToAllure(pageName);
         return this;
     }
@@ -122,7 +143,7 @@ public class AccessibilityActions {
     public AccessibilityActions analyzePage(String pageName, AccessibilityHelper.AccessibilityConfig config) {
         // Always save report for explicit analysis call, even with custom config
         String key = buildCacheKey(pageName, config, true);
-        cacheResult(key, AccessibilityHelper.analyzePageAccessibilityAndSave(driver.getDriver(), pageName, config, true));
+        cacheResult(key, analyze(pageName, config, true));
         attachReportToAllure(pageName);
         return this;
     }
@@ -213,8 +234,7 @@ public class AccessibilityActions {
      */
     public AccessibilityHelper.AccessibilityResult analyzeAndReturn(String pageName, AccessibilityHelper.AccessibilityConfig config, boolean saveReport) {
         String key = buildCacheKey(pageName, config, saveReport);
-        return cachedResults.computeIfAbsent(key, k ->
-                AccessibilityHelper.analyzePageAccessibilityAndSave(driver.getDriver(), pageName, config, saveReport));
+        return cachedResults.computeIfAbsent(key, k -> analyze(pageName, config, saveReport));
     }
 
     /**
@@ -246,7 +266,7 @@ public class AccessibilityActions {
         List<com.deque.html.axecore.results.Rule> originalViolations = new ArrayList<>(result.getViolations());
         try {
             result.getViolations().removeIf(rule -> ignoredRuleIds.contains(rule.getId()));
-            attachFilteredReportToAllure(pageName, result, driver.getDriver());
+            attachFilteredReportToAllure(pageName, result, rawDriver());
         } finally {
             // restore original violations so cached result remains unchanged for other callers
             result.getViolations().clear();
@@ -284,11 +304,7 @@ public class AccessibilityActions {
         boolean noViolations = analyzeAndReturn(pageName, true).getViolations().stream()
                 .noneMatch(rule -> "critical".equalsIgnoreCase(rule.getImpact()));
 
-        driver.assertThat()
-                .object(noViolations)
-                .isTrue()
-                .withCustomReportMessage("Assert no critical accessibility violations found on page: " + pageName)
-                .perform();
+        assertCondition(noViolations, "Assert no critical accessibility violations found on page: " + pageName);
         return this;
     }
 
@@ -316,11 +332,7 @@ public class AccessibilityActions {
         boolean noViolations = analyzeAndReturn(pageName, true).getViolations().stream()
                 .noneMatch(rule -> "critical".equalsIgnoreCase(rule.getImpact()));
 
-        driver.verifyThat()
-                .object(noViolations)
-                .isTrue()
-                .withCustomReportMessage("Verify no critical accessibility violations found on page: " + pageName)
-                .perform();
+        verifyCondition(noViolations, "Verify no critical accessibility violations found on page: " + pageName);
         return this;
     }
 
@@ -336,12 +348,8 @@ public class AccessibilityActions {
      * @return this {@code AccessibilityActions} instance for method chaining
      */
     public AccessibilityActions assertIsAccessible() {
-        boolean accessible = AccessibilityHelper.isAccessible(driver.getDriver());
-        driver.assertThat()
-                .object(accessible)
-                .isTrue()
-                .withCustomReportMessage("Assert the page is accessible")
-                .perform();
+        boolean accessible = isAccessible();
+        assertCondition(accessible, "Assert the page is accessible");
         return this;
     }
 
@@ -359,12 +367,8 @@ public class AccessibilityActions {
      * @return this {@code AccessibilityActions} instance for method chaining
      */
     public AccessibilityActions verifyIsAccessible() {
-        boolean accessible = AccessibilityHelper.isAccessible(driver.getDriver());
-        driver.verifyThat()
-                .object(accessible)
-                .isTrue()
-                .withCustomReportMessage("Verify the page is accessible")
-                .perform();
+        boolean accessible = isAccessible();
+        verifyCondition(accessible, "Verify the page is accessible");
         return this;
     }
 
@@ -397,13 +401,9 @@ public class AccessibilityActions {
         boolean noViolations = result.getViolations().stream()
                 .noneMatch(rule -> impacts.contains(rule.getImpact().toLowerCase()));
 
-        attachFilteredReportToAllure(pageName, result, driver.getDriver());
+        attachFilteredReportToAllure(pageName, result, rawDriver());
 
-        driver.assertThat()
-                .object(noViolations)
-                .isTrue()
-                .withCustomReportMessage("No " + String.join("/", impactLevels) + " violations found on page: " + pageName)
-                .perform();
+        assertCondition(noViolations, "No " + String.join("/", impactLevels) + " violations found on page: " + pageName);
         return this;
     }
 
@@ -430,7 +430,7 @@ public class AccessibilityActions {
     public AccessibilityActions failIfViolationsExist(String pageName) {
         // saveReport=false: base analysis already done, no need to save another report
         AccessibilityHelper.AccessibilityResult result = analyzeAndReturn(pageName, false);
-        attachFilteredReportToAllure(pageName, result, driver.getDriver());
+        attachFilteredReportToAllure(pageName, result, rawDriver());
         if (!result.getViolations().isEmpty()) {
             throw new AssertionError("Accessibility violations found on page '" + pageName + "'");
         }
@@ -594,6 +594,67 @@ public class AccessibilityActions {
      */
     public BrowserActions backToBrowser() {
         return browserActions;
+    }
+
+    /**
+     * Returns the browser action contract that created this accessibility facade.
+     *
+     * @return originating browser actions facade
+     */
+    public BrowserActionsContract backToBrowserContract() {
+        return browserActionsContract;
+    }
+
+    private AccessibilityHelper.AccessibilityResult analyze(String pageName,
+                                                            AccessibilityHelper.AccessibilityConfig config,
+                                                            boolean saveReport) {
+        if (playwrightPage != null) {
+            return AccessibilityHelper.analyzePlaywrightPageAccessibilityAndSave(playwrightPage, pageName, config, saveReport);
+        }
+        return AccessibilityHelper.analyzePageAccessibilityAndSave(driver.getDriver(), pageName, config, saveReport);
+    }
+
+    private boolean isAccessible() {
+        if (playwrightPage != null) {
+            return !analyzeAndReturn("CurrentPage", false).hasViolations();
+        }
+        return AccessibilityHelper.isAccessible(driver.getDriver());
+    }
+
+    private WebDriver rawDriver() {
+        return driver == null ? null : driver.getDriver();
+    }
+
+    private void assertCondition(boolean condition, String message) {
+        if (driver != null) {
+            driver.assertThat()
+                    .object(condition)
+                    .isTrue()
+                    .withCustomReportMessage(message)
+                    .perform();
+            return;
+        }
+        Validations.assertThat()
+                .object(condition)
+                .isTrue()
+                .withCustomReportMessage(message)
+                .perform();
+    }
+
+    private void verifyCondition(boolean condition, String message) {
+        if (driver != null) {
+            driver.verifyThat()
+                    .object(condition)
+                    .isTrue()
+                    .withCustomReportMessage(message)
+                    .perform();
+            return;
+        }
+        Validations.verifyThat()
+                .object(condition)
+                .isTrue()
+                .withCustomReportMessage(message)
+                .perform();
     }
 
     private void cacheResult(String key, AccessibilityHelper.AccessibilityResult result) {

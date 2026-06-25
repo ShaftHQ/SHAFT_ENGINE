@@ -3,6 +3,8 @@ package com.shaft.validation.accessibility;
 import com.deque.html.axecore.results.Results;
 import com.deque.html.axecore.results.Rule;
 import com.deque.html.axecore.selenium.AxeBuilder;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.LoadState;
 import io.qameta.allure.Allure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,6 +19,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -574,6 +577,77 @@ public class AccessibilityHelper {
         }
     }
 
+    /**
+     * Full-control overload for Playwright pages: runs an axe scan in the current
+     * page, optionally saves reports, and returns a structured result.
+     *
+     * @param page       active Playwright page
+     * @param pageName   label for the report and Allure attachment
+     * @param config     scan configuration; a default instance is used when {@code null}
+     * @param saveReport {@code true} to write JSON/HTML reports and attach them to Allure
+     * @return an {@link AccessibilityResult} containing violation details and score
+     */
+    public static AccessibilityResult analyzePlaywrightPageAccessibilityAndSave(Page page, String pageName,
+                                                                                AccessibilityConfig config,
+                                                                                boolean saveReport) {
+        if (page == null) throw new IllegalArgumentException("Playwright page cannot be null");
+        if (pageName == null || pageName.trim().isEmpty()) throw new IllegalArgumentException("Page name cannot be empty");
+        if (config == null) config = new AccessibilityConfig();
+
+        try {
+            page.waitForLoadState(LoadState.LOAD);
+            page.addScriptTag(new Page.AddScriptTagOptions().setContent(readAxeScript()));
+            Object rawResults = page.evaluate("""
+                    async ({ context, tags, includePasses }) => {
+                      const options = {
+                        resultTypes: includePasses
+                          ? ['violations', 'incomplete', 'inapplicable', 'passes']
+                          : ['violations', 'incomplete', 'inapplicable']
+                      };
+                      if (tags && tags.length) {
+                        options.runOnly = { type: 'tag', values: tags };
+                      }
+                      return await window.axe.run(context || document, options);
+                    }
+                    """, Map.of(
+                    "context", config.getContext(),
+                    "tags", config.getTags(),
+                    "includePasses", config.isIncludePasses()));
+
+            JSONObject responseJSON = normalizePlaywrightAxeJson(rawResults);
+            int violationsCount = responseJSON.getInt("totalViolations");
+            int passesCount = responseJSON.getInt("totalPassed");
+            int totalChecks = violationsCount + passesCount;
+            double accessibilityScore = totalChecks > 0 ? ((double) passesCount / totalChecks) * 100.0 : 0.0;
+            AccessibilityResult result = new AccessibilityResult()
+                    .setPageName(pageName)
+                    .setViolations(rulesFrom(responseJSON.optJSONArray("violations")))
+                    .setPasses(rulesFrom(responseJSON.optJSONArray("passes")))
+                    .setViolationsCount(violationsCount)
+                    .setPassesCount(passesCount)
+                    .setScore(accessibilityScore)
+                    .setTimestamp(LocalDateTime.now().toString());
+
+            if (saveReport) {
+                String timestamp = DATE_FORMAT.format(ZonedDateTime.now());
+                String reportsDir = config.getReportsDir();
+                Files.createDirectories(Paths.get(reportsDir));
+                String jsonPath = reportsDir + "AccessibilityJSON_" + pageName + "_" + timestamp + ".json";
+                String htmlPath = reportsDir + "AccessibilityReport_" + pageName + "_" + timestamp + ".html";
+                writeJsonResults(jsonPath, responseJSON);
+                generateEnhancedHTMLReport(responseJSON, pageName, htmlPath, config, null);
+                try (FileInputStream fis = new FileInputStream(htmlPath)) {
+                    Allure.addAttachment("Accessibility Report - " + pageName, "text/html", fis, ".html");
+                }
+            }
+
+            logger.info("Playwright accessibility score for page '{}' is {}%.", pageName, accessibilityScore);
+            return result;
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalStateException("Accessibility analysis failed for Playwright page '" + pageName + "'.", e);
+        }
+    }
+
 
     /**
      * Value object returned by
@@ -781,6 +855,83 @@ public class AccessibilityHelper {
                     ", timestamp='" + timestamp + '\'' +
                     '}';
         }
+    }
+
+    private static String readAxeScript() throws IOException {
+        try (InputStream stream = AccessibilityHelper.class.getClassLoader().getResourceAsStream("axe.min.js")) {
+            if (stream == null) {
+                throw new IOException("axe.min.js was not found on the classpath.");
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static JSONObject normalizePlaywrightAxeJson(Object rawResults) {
+        JSONObject json = rawResults instanceof Map<?, ?> map
+                ? new JSONObject((Map<String, Object>) map)
+                : new JSONObject(String.valueOf(rawResults));
+        normalizeRuleArray(json, "violations", "Violation");
+        normalizeRuleArray(json, "incomplete", "Needs Review");
+        normalizeRuleArray(json, "inapplicable", "Not Applicable");
+        normalizeRuleArray(json, "passes", "Passed");
+        json.put("totalViolations", length(json, "violations"));
+        json.put("totalIncomplete", length(json, "incomplete"));
+        json.put("totalInapplicable", length(json, "inapplicable"));
+        json.put("totalPassed", length(json, "passes"));
+        return json;
+    }
+
+    private static void normalizeRuleArray(JSONObject json, String key, String category) {
+        JSONArray rules = json.optJSONArray(key);
+        if (rules == null) {
+            json.put(key, new JSONArray());
+            return;
+        }
+        for (int i = 0; i < rules.length(); i++) {
+            JSONObject rule = rules.getJSONObject(i);
+            rule.put("category", category);
+            rule.put("wcagModel", getWcagModelFromTags(toStringList(rule.optJSONArray("tags"))));
+            if (!rule.has("nodes")) {
+                rule.put("nodes", new JSONArray());
+            }
+        }
+    }
+
+    private static List<Rule> rulesFrom(JSONArray rules) {
+        if (rules == null) {
+            return new ArrayList<>();
+        }
+        List<Rule> converted = new ArrayList<>();
+        for (int i = 0; i < rules.length(); i++) {
+            JSONObject object = rules.getJSONObject(i);
+            Rule rule = new Rule();
+            rule.setId(object.optString("id"));
+            rule.setDescription(object.optString("description"));
+            rule.setHelp(object.optString("help"));
+            rule.setHelpUrl(object.optString("helpUrl"));
+            rule.setImpact(object.optString("impact", "none"));
+            rule.setTags(toStringList(object.optJSONArray("tags")));
+            rule.setNodes(new ArrayList<>());
+            converted.add(rule);
+        }
+        return converted;
+    }
+
+    private static List<String> toStringList(JSONArray values) {
+        if (values == null) {
+            return new ArrayList<>();
+        }
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < values.length(); i++) {
+            result.add(values.optString(i));
+        }
+        return result;
+    }
+
+    private static int length(JSONObject json, String key) {
+        JSONArray values = json.optJSONArray(key);
+        return values == null ? 0 : values.length();
     }
 
     private static JSONObject convertResultsToJSON(Results results) {

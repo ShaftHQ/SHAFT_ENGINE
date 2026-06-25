@@ -6,6 +6,7 @@ import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.pagefactory.ByAll;
 
 import java.util.Arrays;
+import java.util.List;
 
 public class SmartLocators {
 
@@ -318,12 +319,19 @@ public class SmartLocators {
         ANY_CONTAINS_TEXT_FOLLOWING_BUTTON, ANY_CONTAINS_TEXT_FOLLOWING_LINK
     }
 
-    private static class SmartLocator extends ByAll {
+    private static class SmartLocator extends ByAll implements CompositeLocator {
         private final String elementName;
+        private final List<By> alternatives;
 
         private SmartLocator(String elementName, By... bys) {
             super(bys);
             this.elementName = elementName;
+            this.alternatives = List.copyOf(Arrays.asList(bys));
+        }
+
+        @Override
+        public List<By> alternatives() {
+            return alternatives;
         }
     }
 }
