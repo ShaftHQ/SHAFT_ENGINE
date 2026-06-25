@@ -49,6 +49,29 @@ public interface API extends EngineProperties<API> {
     String swaggerValidationUrl();
 
     /**
+     * Whether SHAFT should summarize OpenAPI operation coverage at the end of execution.
+     * When enabled, API calls are matched against {@link #swaggerValidationUrl()} and grouped
+     * by tag, path, and method.
+     * <p>Property key: {@code openapi.coverage.report.enabled} - default: {@code false}
+     *
+     * @return {@code true} to enable OpenAPI coverage reporting; {@code false} to skip it
+     */
+    @Key("openapi.coverage.report.enabled")
+    @DefaultValue("false")
+    boolean openApiCoverageReportEnabled();
+
+    /**
+     * Minimum OpenAPI operation coverage percentage required for a passing run.
+     * A value of {@code 0} disables threshold enforcement.
+     * <p>Property key: {@code openapi.coverage.threshold} - default: {@code 0}
+     *
+     * @return required coverage percentage from {@code 0} to {@code 100}
+     */
+    @Key("openapi.coverage.threshold")
+    @DefaultValue("0")
+    int openApiCoverageThreshold();
+
+    /**
      * Returns a fluent {@link SetProperty} builder for programmatically overriding API properties.
      *
      * <p>Example:
@@ -100,6 +123,32 @@ public interface API extends EngineProperties<API> {
          */
         public SetProperty swaggerValidationUrl(String value) {
             setProperty("swagger.validation.url", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code openapi.coverage.report.enabled} property at runtime.
+         *
+         * @param value {@code true} to enable OpenAPI coverage reporting
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty openApiCoverageReportEnabled(boolean value) {
+            setProperty("openapi.coverage.report.enabled", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code openapi.coverage.threshold} property at runtime.
+         *
+         * @param value required coverage percentage from {@code 0} to {@code 100}; {@code 0} disables enforcement
+         * @return this {@link SetProperty} instance for chaining
+         * @throws IllegalArgumentException if {@code value} is outside {@code 0..100}
+         */
+        public SetProperty openApiCoverageThreshold(int value) {
+            if (value < 0 || value > 100) {
+                throw new IllegalArgumentException("OpenAPI coverage threshold must be between 0 and 100.");
+            }
+            setProperty("openapi.coverage.threshold", String.valueOf(value));
             return this;
         }
     }

@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import io.qameta.allure.Step;
@@ -320,13 +321,23 @@ public class RequestBuilder {
     public SHAFT.API perform() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
         RequestSpecification specs = prepareRequestSpecifications();
+        boolean openApiCoverageEnabled = SHAFT.Properties.api.openApiCoverageReportEnabled();
+        String openApiSpec = SHAFT.Properties.api.swaggerValidationUrl();
+        if (openApiCoverageEnabled) {
+            OpenApiCoverageReporter.start(openApiSpec, SHAFT.Properties.api.openApiCoverageThreshold());
+        }
 
         setupAuthentication(specs);
 
         long startTime = System.currentTimeMillis();
         Response response = null;
+        boolean openApiInteractionRecorded = false;
         try {
             response = sendRequest(request, specs);
+            if (openApiCoverageEnabled) {
+                OpenApiCoverageReporter.recordInteraction(openApiSpec, requestType, serviceName, null);
+                openApiInteractionRecorded = true;
+            }
             long endTime = System.currentTimeMillis();
             if (SHAFT.Properties.performance.isEnablePerformanceReport()) {
                 double responseTime = endTime - startTime;
@@ -336,6 +347,9 @@ public class RequestBuilder {
 
             handleResponse(response, specs);
         } catch (Exception e) {
+            if (openApiCoverageEnabled && !openApiInteractionRecorded) {
+                OpenApiCoverageReporter.recordInteraction(openApiSpec, requestType, serviceName, e);
+            }
             handleException(request, specs, response, e);
         }
 

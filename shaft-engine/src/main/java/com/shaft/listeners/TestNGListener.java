@@ -319,13 +319,39 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onExecutionFinish() {
         try {
             TestExecutionCounts counts = getDeduplicatedTestExecutionCounts();
-            ExecutionLifecycleHelper.engineTearDown(executionStartTime,
-                    new ExecutionCountsTracker.Counts(counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
-            if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishLaunch();
+            Throwable engineTearDownFailure = null;
+            try {
+                ExecutionLifecycleHelper.engineTearDown(executionStartTime,
+                        new ExecutionCountsTracker.Counts(counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
+            } catch (Throwable throwable) {
+                engineTearDownFailure = throwable;
+            }
+            try {
+                if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishLaunch();
+            } catch (Throwable throwable) {
+                if (engineTearDownFailure == null) {
+                    engineTearDownFailure = throwable;
+                } else {
+                    engineTearDownFailure.addSuppressed(throwable);
+                }
+            }
+            if (engineTearDownFailure != null) {
+                rethrow(engineTearDownFailure);
+            }
         } finally {
             resetTrackedResultState();
             resetThreadLocalLifecycleState(true);
         }
+    }
+
+    private static void rethrow(Throwable throwable) {
+        if (throwable instanceof Error error) {
+            throw error;
+        }
+        if (throwable instanceof RuntimeException runtimeException) {
+            throw runtimeException;
+        }
+        throw new IllegalStateException(throwable);
     }
 
     private static TestExecutionInfo toTestExecutionInfo(ITestResult testResult) {

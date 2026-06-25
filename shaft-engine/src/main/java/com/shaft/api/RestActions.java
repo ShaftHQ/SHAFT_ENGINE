@@ -1,6 +1,6 @@
 package com.shaft.api;
 
-import com.atlassian.oai.validator.restassured.OpenApiValidationFilter;
+import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -1276,8 +1276,7 @@ public class RestActions {
             // Ensure URL format is correct (replace Windows-style `\` with `/`)
             swaggerUrl = swaggerUrl.replace("\\", "/");
 
-            OpenApiValidationFilter openApiValidationFilter = new OpenApiValidationFilter(swaggerUrl);
-            builder.addFilter(openApiValidationFilter);
+            builder.addFilter(OpenApiCoverageReporter.validationFilter(swaggerUrl));
             ReportManager.log("Swagger Validation enabled using OpenAPI URL: " + swaggerUrl);
         }
 

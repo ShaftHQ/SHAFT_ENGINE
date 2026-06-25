@@ -3,6 +3,7 @@ package testPackage.unitTests;
 import com.epam.reportportal.listeners.ItemStatus;
 import com.epam.reportportal.testng.ITestNGService;
 import com.shaft.listeners.TestNGListener;
+import com.shaft.listeners.internal.ExecutionCountsTracker;
 import com.shaft.listeners.internal.ExecutionLifecycleHelper;
 import com.shaft.listeners.internal.JiraHelper;
 import com.shaft.listeners.internal.RetryAnalyzer;
@@ -12,6 +13,7 @@ import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.IInvokedMethod;
 import org.testng.ITestContext;
 import org.testng.ITestClass;
@@ -105,6 +107,35 @@ public class TestNGListenerCoverageUnitTest {
         } finally {
             restoreTrackedResultState(originalState);
             com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test
+    public void onExecutionFinishShouldFinishReportPortalLaunchWhenEngineTearDownFails() throws Exception {
+        TestNGListener listener = new TestNGListener();
+        ITestNGService reportPortalService = Mockito.mock(ITestNGService.class);
+        AssertionError coverageFailure = new AssertionError("OpenAPI coverage below threshold");
+        TrackedResultState originalState = captureTrackedResultState();
+        try {
+            setExecutionStartTime(System.currentTimeMillis());
+            setReportPortalService(listener, reportPortalService);
+            setReportPortalEnabled(listener, true);
+
+            try (MockedStatic<ExecutionLifecycleHelper> executionLifecycleHelperMock =
+                         Mockito.mockStatic(ExecutionLifecycleHelper.class)) {
+                executionLifecycleHelperMock.when(() -> ExecutionLifecycleHelper.engineTearDown(
+                                Mockito.anyLong(), Mockito.any(ExecutionCountsTracker.Counts.class)))
+                        .thenThrow(coverageFailure);
+
+                AssertionError thrown = Assert.expectThrows(AssertionError.class, listener::onExecutionFinish);
+
+                assertEquals(thrown, coverageFailure);
+                Mockito.verify(reportPortalService).finishLaunch();
+            }
+        } finally {
+            setReportPortalEnabled(listener, false);
+            setReportPortalEnabled(false);
+            restoreTrackedResultState(originalState);
         }
     }
 

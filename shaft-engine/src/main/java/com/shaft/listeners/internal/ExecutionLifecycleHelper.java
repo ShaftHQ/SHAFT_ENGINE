@@ -1,6 +1,7 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.api.RequestBuilder;
+import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
@@ -136,6 +137,7 @@ public final class ExecutionLifecycleHelper {
      */
     public static void engineTearDown(long executionStartTime, ExecutionCountsTracker.Counts counts) {
         ReportManagerHelper.setDiscreteLogging(true);
+        AssertionError openApiCoverageFailure = OpenApiCoverageReporter.reportAndGetThresholdFailure();
         long executionEndTime = System.currentTimeMillis();
         Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(
                 counts.finalPassed(), counts.failed(), counts.skipped(), executionStartTime, executionEndTime));
@@ -150,6 +152,9 @@ public final class ExecutionLifecycleHelper {
         });
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
+        if (openApiCoverageFailure != null) {
+            throw openApiCoverageFailure;
+        }
     }
 
     /**
