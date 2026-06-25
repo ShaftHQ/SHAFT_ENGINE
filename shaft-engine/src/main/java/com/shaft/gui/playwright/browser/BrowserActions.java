@@ -97,7 +97,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public BrowserActions navigateToURL(String targetUrl) {
         page().navigate(targetUrl);
-        ReportManager.log("Navigated Playwright page to URL: " + targetUrl);
+        ReportManager.log("Navigate to url \"" + targetUrl + "\".");
         return this;
     }
 

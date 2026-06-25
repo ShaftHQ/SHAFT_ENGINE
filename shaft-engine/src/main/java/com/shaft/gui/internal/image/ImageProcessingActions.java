@@ -51,9 +51,9 @@ public class ImageProcessingActions {
             File[] referenceFiles = referenceFolder.listFiles();
             File[] testFiles = testFolder.listFiles();
 
-            ReportManager.log("Comparing [" + Objects.requireNonNull(testFiles).length + "] image files from the testFolder ["
-                    + testFolder.getPath() + "] against [" + Objects.requireNonNull(referenceFiles).length
-                    + "] image files from the referenceFolder [" + referenceFolder.getPath() + "]");
+            ReportManager.log("Comparing \"" + Objects.requireNonNull(testFiles).length + "\" image files from the testFolder \""
+                    + testFolder.getPath() + "\" against \"" + Objects.requireNonNull(referenceFiles).length
+                    + "\" image files from the referenceFolder \"" + referenceFolder.getPath() + "\".");
 
             // sorting objects for files by fileName
             Arrays.sort(referenceFiles);
@@ -195,7 +195,7 @@ public class ImageProcessingActions {
                     .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
             // https://github.com/ShaftHQ/SHAFT_ENGINE/issues/1604
             hashedFileName = Hashing.sha256().hashString(key, StandardCharsets.UTF_8).toString();
-            ReportManager.log("Element Locator: " + locatorLogText + " was formatted to: " + key, Level.INFO);
+            ReportManager.logDiscrete("Element Locator \"" + locatorLogText + "\" was formatted to \"" + key + "\".", Level.DEBUG);
             return hashedFileName;
         });
     }
@@ -325,8 +325,8 @@ public class ImageProcessingActions {
                 List<Object> testScreenshotAttachment = Arrays.asList(
                         "Test Screenshot", relatedTestFileName, testIn);
                 ReportManagerHelper.log(
-                        "Test Screenshot [" + relatedTestFileName + "] and related Reference Image ["
-                                + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
+                        "Test Screenshot \"" + relatedTestFileName + "\" and related Reference Image \""
+                                + relatedReferenceFileName + "\" match by \"" + percentage + "\" percent.",
                         Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
             } catch (IOException ioEx) {
                 ReportManagerHelper.logDiscrete(ioEx);
@@ -345,11 +345,11 @@ public class ImageProcessingActions {
             }
         }
 
-        ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount
-                + "] images failed the threshold of [" + threshold + "%] matching.");
+        ReportManager.log("\"" + passedImagesCount + "\" images passed, and \"" + failedImagesCount
+                + "\" images failed the threshold of \"" + threshold + "%\" matching.");
         if (failedImagesCount > 0) {
-            FailureReporter.fail("[" + failedImagesCount + "] images failed the threshold of ["
-                    + threshold + "%] matching.");
+            FailureReporter.fail("\"" + failedImagesCount + "\" images failed the threshold of \""
+                    + threshold + "%\" matching.");
         }
 
     }

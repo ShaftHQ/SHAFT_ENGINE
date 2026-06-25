@@ -182,7 +182,7 @@ public class AlertActions extends FluentWebDriverAction implements com.shaft.gui
         try {
             waitForAlertToBePresent();
             var alertText = driverFactoryHelper.getDriver().switchTo().alert().getText();
-            ReportManager.logDiscrete("Alert Text is: [" + alertText + "]");
+            ReportManager.logDiscrete("Alert Text is \"" + alertText + "\".");
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             return alertText;
         } catch (Exception rootCauseException) {
@@ -209,7 +209,7 @@ public class AlertActions extends FluentWebDriverAction implements com.shaft.gui
         try {
             waitForAlertToBePresent();
             driverFactoryHelper.getDriver().switchTo().alert().sendKeys(text);
-            ReportManager.logDiscrete("Text typed into Alert is: [" + text + "]");
+            ReportManager.logDiscrete("Text typed into Alert is \"" + text + "\".");
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         } catch (Exception rootCauseException) {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);

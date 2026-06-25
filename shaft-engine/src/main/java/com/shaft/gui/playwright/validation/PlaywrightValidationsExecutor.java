@@ -20,9 +20,12 @@ import com.shaft.validation.internal.ValidationsHelper;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Parameter;
+import org.apache.logging.log4j.Level;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +33,7 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 final class PlaywrightValidationsExecutor extends ValidationsExecutor {
+    private static final String VISUAL_COMPARISON_ATTACHMENT_NAME = "Visual Comparison";
     private final ValidationEnums.ValidationCategory validationCategory;
     private final PlaywrightSession session;
     private final Locator locator;
@@ -243,25 +247,39 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         boolean expected = validationType.getValue();
         List<List<Object>> visualAttachments = new ArrayList<>();
         byte[] referenceImage = ImageProcessingActions.getReferenceImage(locatorDescription);
-        if (referenceImage != null && !Arrays.equals(new byte[0], referenceImage)) {
-            visualAttachments.add(Arrays.asList("Screenshot", "Reference Screenshot", referenceImage));
-        }
+        boolean hasReferenceImage = referenceImage != null && referenceImage.length > 0;
 
         byte[] elementScreenshot = locator.screenshot();
         Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(locatorDescription, elementScreenshot,
                 ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
-        visualAttachments.add(Arrays.asList("Screenshot", "Actual Screenshot", elementScreenshot));
 
+        byte[] shutterbugDifferencesImage = new byte[0];
         if (visualValidationEngine.equals(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG)
                 && !Boolean.TRUE.equals(actualResult)) {
-            byte[] shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(locatorDescription);
-            if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {
-                visualAttachments.add(Arrays.asList("Screenshot", "Differences", shutterbugDifferencesImage));
-            }
+            shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(locatorDescription);
         }
 
+        boolean visualComparisonAttached = hasReferenceImage
+                && attachVisualComparison(referenceImage, elementScreenshot, shutterbugDifferencesImage);
         boolean actual = Boolean.TRUE.equals(actualResult);
-        return new Outcome(expected == actual, expected, actual, commonParameters(expected, actual), visualAttachments);
+        return new Outcome(expected == actual, expected, actual, commonParameters(expected, actual),
+                visualAttachments, visualComparisonAttached);
+    }
+
+    private static boolean attachVisualComparison(byte[] expectedImage, byte[] actualImage, byte[] differenceImage) {
+        try {
+            var content = new JSONObject()
+                    .put("expected", "data:image/png;base64," + Base64.getEncoder().encodeToString(expectedImage))
+                    .put("actual", "data:image/png;base64," + Base64.getEncoder().encodeToString(actualImage));
+            if (differenceImage != null && differenceImage.length > 0) {
+                content.put("diff", "data:image/png;base64," + Base64.getEncoder().encodeToString(differenceImage));
+            }
+            Allure.addAttachment(VISUAL_COMPARISON_ATTACHMENT_NAME, "application/vnd.allure.image.diff", content.toString());
+            return true;
+        } catch (JSONException jsonException) {
+            ReportManagerHelper.logDiscrete(jsonException, Level.DEBUG);
+            return false;
+        }
     }
 
     private Object readActual() {
@@ -417,7 +435,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     private List<List<Object>> attachments(Outcome outcome) {
         List<List<Object>> attachments = new ArrayList<>(outcome.attachments());
-        if (shouldAttachScreenshot(outcome.passed())) {
+        if (!outcome.visualComparisonAttached() && shouldAttachScreenshot(outcome.passed())) {
             try {
                 byte[] screenshot = session.page().screenshot(new Page.ScreenshotOptions().setFullPage(true));
                 List<Object> screenshotAttachment = new ScreenshotManager()
@@ -459,7 +477,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                            Object expected,
                            Object actual,
                            LinkedHashMap<String, String> parameters,
-                           List<List<Object>> attachments) {
+                           List<List<Object>> attachments,
+                           boolean visualComparisonAttached) {
+        private Outcome(boolean passed, Object expected, Object actual, LinkedHashMap<String, String> parameters,
+                        List<List<Object>> attachments) {
+            this(passed, expected, actual, parameters, attachments, false);
+        }
     }
 
     private static final class SeedBuilder extends ValidationsBuilder {

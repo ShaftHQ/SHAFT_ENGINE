@@ -53,10 +53,10 @@ public class CSVFileManager {
             records = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
             RowReader = new FileReader(csvFilePath);
             RowRecords = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(RowReader);
-            ReportManager.logDiscrete("Reading CSV test data from [" + this.csvFilePath + "].", Level.DEBUG);
+            ReportManager.logDiscrete("Reading CSV test data from \"" + this.csvFilePath + "\".", Level.DEBUG);
         } catch (IOException | OutOfMemoryError e) {
-            FailureReporter.fail(this.getClass(), "Could not find the desired file. [" + this.csvFilePath + "] ", e);
-            ReportManager.logDiscrete("Could not find the desired file. [" + this.csvFilePath + "] ", Level.ERROR);
+            FailureReporter.fail(this.getClass(), "Could not find the desired file \"" + this.csvFilePath + "\".", e);
+            ReportManager.logDiscrete("Could not find the desired file \"" + this.csvFilePath + "\".", Level.ERROR);
         }
 
     }
@@ -77,7 +77,7 @@ public class CSVFileManager {
                 }
                 rows.add(row);
             }
-            ReportManager.logDiscrete("Read all CSV rows from [" + csvFilePath + "].", Level.DEBUG);
+            ReportManager.logDiscrete("Read all CSV rows from \"" + csvFilePath + "\".", Level.DEBUG);
         } catch (Exception e) {
             ReportManager.logDiscrete("Could not retrieve rows: " + e.getMessage(), Level.ERROR);
         }
@@ -92,7 +92,7 @@ public class CSVFileManager {
     public List<String> getColumns() {
         try {
             List<String> columns = new ArrayList<>(records.getHeaderNames());
-            ReportManager.logDiscrete("Read CSV column names from [" + csvFilePath + "].", Level.DEBUG);
+            ReportManager.logDiscrete("Read CSV column names from \"" + csvFilePath + "\".", Level.DEBUG);
             return columns;
         } catch (Exception e) {
             ReportManager.logDiscrete("Could not retrieve columns: " + e.getMessage(), Level.ERROR);
@@ -230,7 +230,7 @@ public class CSVFileManager {
     public String getFirstColumn() {
         try {
             List<String> columns = getColumns();
-            ReportManager.logDiscrete("Read first CSV column name from [" + csvFilePath + "].", Level.DEBUG);
+            ReportManager.logDiscrete("Read first CSV column name from \"" + csvFilePath + "\".", Level.DEBUG);
             return columns.getFirst();
         } catch (Exception e) {
             ReportManager.logDiscrete("Could not retrieve the first column: " + e.getMessage(), Level.ERROR);

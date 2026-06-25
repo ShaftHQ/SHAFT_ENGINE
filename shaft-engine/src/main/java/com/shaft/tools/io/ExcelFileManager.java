@@ -65,11 +65,11 @@ public class ExcelFileManager {
             fis = new FileInputStream(excelFilePath);
             workbook = new XSSFWorkbook(fis);
             fis.close();
-            ReportManager.logDiscrete("Reading Excel test data from [" + excelFilePath + "].", Level.DEBUG);
+            ReportManager.logDiscrete("Reading Excel test data from \"" + excelFilePath + "\".", Level.DEBUG);
         } catch (IOException | OutOfMemoryError e) {
-            FailureReporter.fail(this.getClass(), "Couldn't find the desired file. [" + excelFilePath + "].", e);
+            FailureReporter.fail(this.getClass(), "Couldn't find the desired file \"" + excelFilePath + "\".", e);
         } catch (EmptyFileException e) {
-            FailureReporter.fail(this.getClass(), "Please check the target file, as it may be corrupted. [" + excelFilePath + "].", e);
+            FailureReporter.fail(this.getClass(), "Please check the target file, as it may be corrupted. \"" + excelFilePath + "\".", e);
         }
 
         List<List<Object>> attachments = new ArrayList<>();

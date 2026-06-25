@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 public class ValidationsHelper {
+    private static final String VISUAL_COMPARISON_ATTACHMENT_NAME = "Visual Comparison";
     protected static final ThreadLocal<List<String>> verificationFailuresList = ThreadLocal.withInitial(ArrayList::new);
     protected static final ThreadLocal<AssertionError> verificationError = new ThreadLocal<>();
     private final ValidationEnums.ValidationCategory validationCategory;
@@ -499,6 +500,7 @@ public class ValidationsHelper {
         AtomicInteger elementCount = new AtomicInteger();
         AtomicReference<ValidationEnums.VisualValidationEngine> internalVisualEngine = new AtomicReference<>(visualValidationEngine);
         List<List<Object>> attachments = new ArrayList<>();
+        AtomicBoolean visualComparisonAttached = new AtomicBoolean(false);
 
         try {
             //https://github.com/assertthat/selenium-shutterbug/issues/105
@@ -510,9 +512,6 @@ public class ValidationsHelper {
             byte[] referenceImage = ImageProcessingActions.getReferenceImage(locator);
             if (referenceImage !=null && !Arrays.equals(new byte[0], referenceImage)) {
                 ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
-                List<Object> expectedValueAttachment = Arrays.asList("Screenshot", "Reference Screenshot",
-                        referenceImage);
-                attachments.add(expectedValueAttachment);
             } else {
                 ReportManagerHelper.logDiscrete("Reference image not found, attempting to capture new reference.", Level.INFO);
             }
@@ -535,12 +534,7 @@ public class ValidationsHelper {
                 }
                 actualResult = ImageProcessingActions.compareAgainstBaseline(driver, locator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
 
-                List<Object> actualValueAttachment = Arrays.asList("Screenshot", "Actual Screenshot",
-                        elementScreenshot);
-                attachments.add(actualValueAttachment);
-
                 // prepare content for allure attachment
-                var content = new JSONObject();
                 byte[] shutterbugDifferencesImage = new byte[0];
 
                 // compare actual and reference screenshots
@@ -548,28 +542,10 @@ public class ValidationsHelper {
                 if (isDifferencesImageApplicable) {
                     //if shutterbug and failed, get differences screenshot
                     shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(locator);
-                    if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {
-                        List<Object> differencesAttachment = Arrays.asList("Screenshot", "Differences",
-                                shutterbugDifferencesImage);
-                        attachments.add(differencesAttachment);
-                    }
                 }
 
                 if (referenceImage != null) {
-                    try {
-                        // prepare content for allure attachment
-                        content.put("expected", "data:image/png;base64,"
-                                + Base64.getEncoder().encodeToString(referenceImage))
-                                .put("actual", "data:image/png;base64,"
-                                + Base64.getEncoder().encodeToString(elementScreenshot));
-                        if (isDifferencesImageApplicable && !Arrays.equals(new byte[0], shutterbugDifferencesImage))
-                            content.put("diff", "data:image/png;base64,"
-                                    + Base64.getEncoder().encodeToString(shutterbugDifferencesImage));
-
-                        Allure.addAttachment("Screenshot diff", "application/vnd.allure.image.diff", content.toString());
-                    } catch (JSONException jsonException) {
-                        //failed to add differences image to allure attachment, ignore it
-                    }
+                    visualComparisonAttached.set(attachVisualComparison(referenceImage, elementScreenshot, shutterbugDifferencesImage));
                 }
 
                 // if found set value to 1, else set value to zero
@@ -592,7 +568,23 @@ public class ValidationsHelper {
         parameters.put("Actual value", String.valueOf(actual.get()));
         updateAllureParameters(parameters);
         // force take page screenshot, (rather than element highlighted screenshot)
-        reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments);
+        reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments, visualComparisonAttached.get());
+    }
+
+    private static boolean attachVisualComparison(byte[] expectedImage, byte[] actualImage, byte[] differenceImage) {
+        try {
+            var content = new JSONObject()
+                    .put("expected", "data:image/png;base64," + Base64.getEncoder().encodeToString(expectedImage))
+                    .put("actual", "data:image/png;base64," + Base64.getEncoder().encodeToString(actualImage));
+            if (differenceImage != null && differenceImage.length > 0) {
+                content.put("diff", "data:image/png;base64," + Base64.getEncoder().encodeToString(differenceImage));
+            }
+            Allure.addAttachment(VISUAL_COMPARISON_ATTACHMENT_NAME, "application/vnd.allure.image.diff", content.toString());
+            return true;
+        } catch (JSONException jsonException) {
+            ReportManagerHelper.logDiscrete(jsonException, Level.DEBUG);
+            return false;
+        }
     }
 
     private String getPageText(WebDriver driver) {
@@ -759,13 +751,17 @@ public class ValidationsHelper {
     }
 
     private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments) {
+        reportValidationState(validationState, expected, actual, driver, locator, attachments, false);
+    }
+
+    private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments, boolean skipDefaultScreenshot) {
         //initialize attachments object if no attachments were already prepared
         attachments = attachments == null ? new ArrayList<>() : attachments;
 
         // prepare WebDriver attachments
         if (driver != null) {
             // prepare screenshot with element highlighting
-            if (attachments.isEmpty())
+            if (!skipDefaultScreenshot && attachments.isEmpty())
                 attachments.add(new ScreenshotManager().takeScreenshot(driver, locator, this.validationCategoryString, validationState));
             // prepare page snapshot mhtml/html
             var whenToTakePageSourceSnapshot = SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().toLowerCase();

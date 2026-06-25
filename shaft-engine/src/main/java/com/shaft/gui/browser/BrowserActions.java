@@ -412,7 +412,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                     browserActionsHelper.checkNavigationWasSuccessful(driverFactoryHelper.getDriver(), initialURL, targetUrl, targetUrlAfterRedirection);
                 }
             }
-            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), modifiedTargetUrlForLogging);
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "navigateToUrl", modifiedTargetUrlForLogging);
         } catch (Exception rootCauseException) {
             browserActionsHelper.failAction(driverFactoryHelper.getDriver(), modifiedTargetUrlForLogging, rootCauseException);
         }

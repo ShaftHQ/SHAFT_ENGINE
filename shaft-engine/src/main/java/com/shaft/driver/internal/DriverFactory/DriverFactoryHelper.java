@@ -1031,7 +1031,7 @@ public class DriverFactoryHelper {
                 return Arrays.asList("Screenshot", "App Launch Screenshot", new ByteArrayInputStream(screenshot));
             }
         } catch (Exception e) {
-            ReportManager.logDiscrete("Could not capture launch screenshot [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
+            ReportManager.logDiscrete("Could not capture launch screenshot \"" + e.getClass().getSimpleName() + "\": " + e.getMessage());
         }
         return null;
     }

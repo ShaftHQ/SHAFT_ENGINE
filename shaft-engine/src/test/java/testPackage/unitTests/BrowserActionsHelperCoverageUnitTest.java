@@ -2,7 +2,9 @@ package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.properties.internal.Properties;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chromium.ChromiumDriver;
@@ -135,5 +137,10 @@ public class BrowserActionsHelperCoverageUnitTest {
         BrowserActionsHelper nonSilentHelper = new BrowserActionsHelper(false);
         nonSilentHelper.passAction((WebDriver) null, "customAction", "<html></html>");
         nonSilentHelper.passAction((WebDriver) null, "customAction", "short value");
+
+        try (MockedStatic<ReportManager> reportManager = Mockito.mockStatic(ReportManager.class)) {
+            nonSilentHelper.passAction((WebDriver) null, "navigateToUrl", "https://example.com/path");
+            reportManager.verify(() -> ReportManager.log("Navigate to url \"https://example.com/path\"."));
+        }
     }
 }
