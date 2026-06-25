@@ -11,8 +11,10 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -198,6 +200,123 @@ public class RequestBuilderTests {
                 .performRequest();
 
         Mockito.verify(specs.auth()).form("formUser", "formPass");
+    }
+
+    @Test
+    public void performShouldRetryRetryableStatusForIdempotentRequests() {
+        RestActions mockSession = createSessionMock();
+        RequestSpecification specs = Mockito.mock(RequestSpecification.class, Mockito.RETURNS_DEEP_STUBS);
+        Response unavailable = Mockito.mock(Response.class);
+        Response ok = Mockito.mock(Response.class);
+        SHAFT.API existingDriver = Mockito.mock(SHAFT.API.class);
+
+        Mockito.when(mockSession.prepareRequestURL("http://localhost/", null, "users")).thenReturn("http://localhost/users");
+        Mockito.when(mockSession.prepareRequestSpecs(Mockito.isNull(), Mockito.isNull(), Mockito.isNull(), Mockito.eq(ContentType.ANY), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(), Mockito.eq(true), Mockito.eq(true))).thenReturn(specs);
+        Mockito.when(mockSession.sendRequest(RestActions.RequestType.GET, "http://localhost/users", specs)).thenReturn(unavailable, ok);
+        Mockito.when(unavailable.getStatusCode()).thenReturn(503);
+        Mockito.when(ok.getStatusCode()).thenReturn(200);
+        Mockito.when(mockSession.evaluateResponseStatusCode(ok, 0)).thenReturn(true);
+        Mockito.when(mockSession.prepareReportMessage(ok, 0, RestActions.RequestType.GET, "users", ContentType.ANY, null)).thenReturn("ok");
+        Mockito.when(mockSession.getDriver()).thenReturn(existingDriver);
+
+        SHAFT.API returnedDriver = new RequestBuilder(mockSession, "users", RestActions.RequestType.GET)
+                .withRetry(RetryPolicy.statusCodes(503).maxAttempts(2).fixedBackoff(Duration.ZERO))
+                .perform();
+
+        Assert.assertSame(returnedDriver, existingDriver);
+        Mockito.verify(mockSession, Mockito.times(2)).sendRequest(RestActions.RequestType.GET, "http://localhost/users", specs);
+        Mockito.verify(mockSession, Mockito.never()).evaluateResponseStatusCode(unavailable, 0);
+        Mockito.verify(mockSession).setLastResponse(ok);
+    }
+
+    @Test
+    public void performShouldRetryTransientNetworkFailures() {
+        RestActions mockSession = createSessionMock();
+        RequestSpecification specs = Mockito.mock(RequestSpecification.class, Mockito.RETURNS_DEEP_STUBS);
+        Response ok = Mockito.mock(Response.class);
+
+        Mockito.when(mockSession.prepareRequestURL("http://localhost/", null, "users")).thenReturn("http://localhost/users");
+        Mockito.when(mockSession.prepareRequestSpecs(Mockito.isNull(), Mockito.isNull(), Mockito.isNull(), Mockito.eq(ContentType.ANY), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(), Mockito.eq(true), Mockito.eq(true))).thenReturn(specs);
+        Mockito.when(mockSession.sendRequest(RestActions.RequestType.GET, "http://localhost/users", specs))
+                .thenThrow(new RuntimeException(new SocketTimeoutException("read timed out")))
+                .thenReturn(ok);
+        Mockito.when(ok.getStatusCode()).thenReturn(200);
+        Mockito.when(mockSession.evaluateResponseStatusCode(ok, 0)).thenReturn(true);
+        Mockito.when(mockSession.prepareReportMessage(ok, 0, RestActions.RequestType.GET, "users", ContentType.ANY, null)).thenReturn("ok");
+        Mockito.when(mockSession.getDriver()).thenReturn(Mockito.mock(SHAFT.API.class));
+
+        new RequestBuilder(mockSession, "users", RestActions.RequestType.GET)
+                .withRetry(RetryPolicy.transientFailures().maxAttempts(2).fixedBackoff(Duration.ZERO))
+                .perform();
+
+        Mockito.verify(mockSession, Mockito.times(2)).sendRequest(RestActions.RequestType.GET, "http://localhost/users", specs);
+        Mockito.verify(mockSession).setLastResponse(ok);
+    }
+
+    @Test
+    public void performShouldNotRetryNonIdempotentRequestsByDefault() {
+        RestActions mockSession = createSessionMock();
+        RequestSpecification specs = Mockito.mock(RequestSpecification.class, Mockito.RETURNS_DEEP_STUBS);
+        Response unavailable = Mockito.mock(Response.class);
+
+        Mockito.when(mockSession.prepareRequestURL("http://localhost/", null, "orders")).thenReturn("http://localhost/orders");
+        Mockito.when(mockSession.prepareRequestSpecs(Mockito.isNull(), Mockito.isNull(), Mockito.isNull(), Mockito.eq(ContentType.ANY), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(), Mockito.eq(true), Mockito.eq(true))).thenReturn(specs);
+        Mockito.when(mockSession.sendRequest(RestActions.RequestType.POST, "http://localhost/orders", specs)).thenReturn(unavailable);
+        Mockito.when(unavailable.getStatusCode()).thenReturn(503);
+        Mockito.when(unavailable.timeIn(TimeUnit.MILLISECONDS)).thenReturn(25L);
+        Mockito.when(mockSession.evaluateResponseStatusCode(unavailable, 0)).thenReturn(false);
+        Mockito.when(mockSession.prepareReportMessage(unavailable, 0, RestActions.RequestType.POST, "orders", ContentType.ANY, null)).thenReturn("failed");
+
+        Assert.assertThrows(AssertionError.class, () -> new RequestBuilder(mockSession, "orders", RestActions.RequestType.POST)
+                .withRetry(RetryPolicy.statusCodes(503).maxAttempts(2).fixedBackoff(Duration.ZERO))
+                .perform());
+
+        Mockito.verify(mockSession, Mockito.times(1)).sendRequest(RestActions.RequestType.POST, "http://localhost/orders", specs);
+    }
+
+    @Test
+    public void performShouldRetryNonIdempotentRequestsAfterOptIn() {
+        RestActions mockSession = createSessionMock();
+        RequestSpecification specs = Mockito.mock(RequestSpecification.class, Mockito.RETURNS_DEEP_STUBS);
+        Response unavailable = Mockito.mock(Response.class);
+        Response ok = Mockito.mock(Response.class);
+
+        Mockito.when(mockSession.prepareRequestURL("http://localhost/", null, "orders")).thenReturn("http://localhost/orders");
+        Mockito.when(mockSession.prepareRequestSpecs(Mockito.isNull(), Mockito.isNull(), Mockito.isNull(), Mockito.eq(ContentType.ANY), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(), Mockito.eq(true), Mockito.eq(true))).thenReturn(specs);
+        Mockito.when(mockSession.sendRequest(RestActions.RequestType.POST, "http://localhost/orders", specs)).thenReturn(unavailable, ok);
+        Mockito.when(unavailable.getStatusCode()).thenReturn(503);
+        Mockito.when(ok.getStatusCode()).thenReturn(201);
+        Mockito.when(mockSession.evaluateResponseStatusCode(ok, 0)).thenReturn(true);
+        Mockito.when(mockSession.prepareReportMessage(ok, 0, RestActions.RequestType.POST, "orders", ContentType.ANY, null)).thenReturn("ok");
+        Mockito.when(mockSession.getDriver()).thenReturn(Mockito.mock(SHAFT.API.class));
+
+        new RequestBuilder(mockSession, "orders", RestActions.RequestType.POST)
+                .withRetry(RetryPolicy.statusCodes(503).maxAttempts(2).fixedBackoff(Duration.ZERO).allowNonIdempotentRequests())
+                .perform();
+
+        Mockito.verify(mockSession, Mockito.times(2)).sendRequest(RestActions.RequestType.POST, "http://localhost/orders", specs);
+        Mockito.verify(mockSession).setLastResponse(ok);
+    }
+
+    @Test
+    public void retryPolicyShouldValidateInputsAndCalculateBackoff() {
+        Assert.assertThrows(IllegalArgumentException.class, RetryPolicy::statusCodes);
+        Assert.assertThrows(IllegalArgumentException.class, () -> RetryPolicy.statusCodes(99));
+        Assert.assertThrows(IllegalArgumentException.class, () -> RetryPolicy.statusCodes(503).maxAttempts(0));
+        Assert.assertThrows(IllegalArgumentException.class, () -> RetryPolicy.statusCodes(503).fixedBackoff(Duration.ofMillis(-1)));
+        Assert.assertThrows(IllegalArgumentException.class, () -> RetryPolicy.statusCodes(503).exponentialBackoff(Duration.ofMillis(200), Duration.ofMillis(100)));
+
+        RetryPolicy fixed = RetryPolicy.statusCodes(503).fixedBackoff(Duration.ofMillis(100));
+        RetryPolicy exponential = RetryPolicy.statusCodes(503).exponentialBackoff(Duration.ofMillis(100), Duration.ofMillis(250));
+        RetryPolicy jittered = RetryPolicy.statusCodes(503).jitteredBackoff(Duration.ofMillis(100), Duration.ofMillis(250));
+
+        Assert.assertEquals(fixed.delayBeforeAttempt(4), Duration.ofMillis(100));
+        Assert.assertEquals(exponential.delayBeforeAttempt(2), Duration.ofMillis(100));
+        Assert.assertEquals(exponential.delayBeforeAttempt(3), Duration.ofMillis(200));
+        Assert.assertEquals(exponential.delayBeforeAttempt(4), Duration.ofMillis(250));
+        Assert.assertFalse(RetryPolicy.statusCodes(503).canRetry(RestActions.RequestType.POST));
+        Assert.assertTrue(RetryPolicy.statusCodes(503).allowNonIdempotentRequests().canRetry(RestActions.RequestType.POST));
+        Assert.assertTrue(jittered.delayBeforeAttempt(4).compareTo(Duration.ofMillis(250)) <= 0);
     }
 
     @Test
