@@ -142,8 +142,8 @@ public final class ExecutionLifecycleHelper {
         AssertionError openApiCoverageFailure = OpenApiCoverageReporter.reportAndGetThresholdFailure();
         AssertionError locatorHealthFailure = LocatorHealthReporter.reportAndGetFailure();
         long executionEndTime = System.currentTimeMillis();
-        Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(
-                counts.finalPassed(), counts.failed(), counts.skipped(), executionStartTime, executionEndTime));
+        ExecutionSummaryReport.generateExecutionSummaryReport(
+                counts.finalPassed(), counts.failed(), counts.skipped(), executionStartTime, executionEndTime);
         Thread.ofVirtual().start(JiraHelper::reportExecutionStatusToJira);
         Thread.ofVirtual().start(GoogleTink::encrypt);
         Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(

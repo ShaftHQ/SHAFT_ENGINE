@@ -20,7 +20,7 @@ import java.util.concurrent.Executors;
  * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
  */
 public class ProgressBarLogger implements AutoCloseable {
-    private static final String ANSI_BRIGHT_CYAN = "\u001b[36;1m";
+    private static final String ANSI_BRIGHT_GREEN = "\u001b[32;1m";
     private static final String ANSI_RESET = "\u001b[0m";
     private final ExecutorService service;
     ProgressBar pb;
@@ -45,7 +45,7 @@ public class ProgressBarLogger implements AutoCloseable {
         String leftBracket = "│";
         String rightBracket = "│";
         if (shouldUseAnsiColors()) {
-            leftBracket = ANSI_BRIGHT_CYAN + leftBracket;
+            leftBracket = ANSI_BRIGHT_GREEN + leftBracket;
             rightBracket = rightBracket + ANSI_RESET;
         }
         ProgressBarBuilder pbb = ProgressBar.builder()
@@ -102,6 +102,10 @@ public class ProgressBarLogger implements AutoCloseable {
         }
         // Enable ANSI colors only when they are not disabled by configuration and a console is present
         return !ansiDisabled && hasConsole;
+    }
+
+    static String progressAnsiColor() {
+        return ANSI_BRIGHT_GREEN;
     }
 
     /**
