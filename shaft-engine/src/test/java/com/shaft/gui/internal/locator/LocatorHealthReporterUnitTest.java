@@ -50,6 +50,24 @@ public class LocatorHealthReporterUnitTest {
         Assert.assertTrue(json.contains("\"timeoutCount\" : 1"));
     }
 
+    @Test(description = "Locator health reporter scores risky locators and explains selector smells")
+    public void locatorHealthReporterScoresRiskyLocatorsWithRecommendations() {
+        LocatorHealthReporter.recordLookup(By.xpath("/html/body/div[3]/main/div[2]/button[1]"), 150, 2, 2, false, 1);
+        LocatorHealthReporter.recordLookup(By.xpath("/html/body/div[3]/main/div[2]/button[1]"), 200, 3, 0, true, 0);
+
+        String json = LocatorHealthReporter.buildSummaryJson();
+
+        Assert.assertTrue(json.contains("\"healthScore\""));
+        Assert.assertTrue(json.contains("\"uniqueMatchRate\""));
+        Assert.assertTrue(json.contains("\"noMatchRate\""));
+        Assert.assertTrue(json.contains("\"multiMatchRate\""));
+        Assert.assertTrue(json.contains("\"staleRate\""));
+        Assert.assertTrue(json.contains("absolute XPath"));
+        Assert.assertTrue(json.contains("index-heavy XPath"));
+        Assert.assertTrue(json.contains("data-testid"));
+        Assert.assertTrue(json.contains("Avoid volatile XPath indexes"));
+    }
+
     @Test(description = "Element presence wait records locator health lookup metrics")
     public void elementPresenceWaitRecordsLocatorHealthMetrics() {
         SHAFT.Properties.reporting.set().captureElementName(false);
@@ -75,12 +93,30 @@ public class LocatorHealthReporterUnitTest {
     public void locatorHealthReporterTracksHealingMetrics() {
         LocatorHealthReporter.recordHealingAttempt(By.cssSelector(".submit"), true);
         LocatorHealthReporter.recordHealingAttempt(By.cssSelector(".submit"), false);
+        LocatorHealthReporter.recordHealingAttempt(
+                By.cssSelector(".submit"), true, By.cssSelector("[data-testid='submit']"), 0.91);
 
         String json = LocatorHealthReporter.buildSummaryJson();
 
-        Assert.assertTrue(json.contains("\"healingAttempts\" : 2"));
-        Assert.assertTrue(json.contains("\"acceptedHealings\" : 1"));
+        Assert.assertTrue(json.contains("\"healingAttempts\" : 3"));
+        Assert.assertTrue(json.contains("\"acceptedHealings\" : 2"));
         Assert.assertTrue(json.contains("\"rejectedHealings\" : 1"));
+        Assert.assertTrue(json.contains("\"lastHealedLocator\" : \"By.cssSelector: [data-testid='submit']\""));
+        Assert.assertTrue(json.contains("\"lastHealingConfidence\" : 0.91"));
+    }
+
+    @Test(description = "Locator health proposed configuration keys can be set programmatically")
+    public void locatorHealthProposedConfigurationKeysAreSupported() {
+        SHAFT.Properties.reporting.set()
+                .locatorHealthEnabled(true)
+                .locatorHealthWarnBelowScore(80)
+                .locatorHealthAttachDashboard(false)
+                .locatorHealthFailBelowScore(60);
+
+        Assert.assertTrue(SHAFT.Properties.reporting.locatorHealthEnabled());
+        Assert.assertEquals(SHAFT.Properties.reporting.locatorHealthWarnBelowScore(), 80);
+        Assert.assertFalse(SHAFT.Properties.reporting.locatorHealthAttachDashboard());
+        Assert.assertEquals(SHAFT.Properties.reporting.locatorHealthFailBelowScore(), 60);
     }
 
     @Test(description = "Locator health reporter can fail the run when warnings are configured as fatal")

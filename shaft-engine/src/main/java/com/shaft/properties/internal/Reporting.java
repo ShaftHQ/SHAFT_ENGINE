@@ -70,6 +70,22 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("false")
     boolean failOnLocatorHealthWarnings();
 
+    @Key("shaft.locatorHealth.enabled")
+    @DefaultValue("false")
+    boolean locatorHealthEnabled();
+
+    @Key("shaft.locatorHealth.warnBelowScore")
+    @DefaultValue("70")
+    int locatorHealthWarnBelowScore();
+
+    @Key("shaft.locatorHealth.attachDashboard")
+    @DefaultValue("true")
+    boolean locatorHealthAttachDashboard();
+
+    @Key("shaft.locatorHealth.failBelowScore")
+    @DefaultValue("-1")
+    int locatorHealthFailBelowScore();
+
     @Key("shaft.diagnostics.enabled")
     @DefaultValue("true")
     boolean diagnosticsBundleEnabled();
@@ -173,6 +189,26 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty failOnLocatorHealthWarnings(boolean value) {
             setProperty("failOnLocatorHealthWarnings", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty locatorHealthEnabled(boolean value) {
+            setProperty("shaft.locatorHealth.enabled", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty locatorHealthWarnBelowScore(int value) {
+            setProperty("shaft.locatorHealth.warnBelowScore", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty locatorHealthAttachDashboard(boolean value) {
+            setProperty("shaft.locatorHealth.attachDashboard", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty locatorHealthFailBelowScore(int value) {
+            setProperty("shaft.locatorHealth.failBelowScore", String.valueOf(value));
             return this;
         }
 

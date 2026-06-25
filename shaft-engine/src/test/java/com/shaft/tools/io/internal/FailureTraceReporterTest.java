@@ -1,10 +1,12 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
+import org.openqa.selenium.By;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -52,6 +54,30 @@ public class FailureTraceReporterTest {
         Assert.assertFalse(json.contains("raw-token"));
         Assert.assertFalse(json.contains("raw-cookie"));
         Assert.assertFalse(json.contains("raw-password"));
+    }
+
+    @Test(description = "Trace JSON should include locator health data when locator health is enabled")
+    public void traceJsonShouldIncludeLocatorHealthWhenEnabled() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("failure")
+                    .locatorHealthEnabled(true)
+                    .slowLocatorThresholdMillis(100);
+            LocatorHealthReporter.reset();
+            LocatorHealthReporter.recordLookup(By.xpath("/html/body/main/button[1]"), 150, 2, 0, true, 0);
+
+            String json = FailureTraceReporter.renderTraceJson(
+                    info("failingScenario", failure()), "failed to click button", List.of());
+
+            Assert.assertTrue(json.contains("\"locatorHealth\""));
+            Assert.assertTrue(json.contains("\"healthScore\""));
+            Assert.assertTrue(json.contains("absolute XPath"));
+            Assert.assertTrue(json.contains("data-testid"));
+        } finally {
+            LocatorHealthReporter.reset();
+            Properties.clearForCurrentThread();
+        }
     }
 
     @Test(description = "Trace reporting properties should have failure-safe defaults and setters")

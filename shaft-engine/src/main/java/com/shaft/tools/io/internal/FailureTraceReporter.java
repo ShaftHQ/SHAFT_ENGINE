@@ -3,6 +3,7 @@ package com.shaft.tools.io.internal;
 import com.microsoft.playwright.Page;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
@@ -102,6 +103,7 @@ public final class FailureTraceReporter {
         field(json, 2, "type", snapshot.type(), true);
         field(json, 2, "content", snapshot.content(), false);
         objectEnd(json, 1, true);
+        rawObject(json, 1, "locatorHealth", locatorHealthJson(), true);
         array(json, 1, "timeline", timeline(logText), true);
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
@@ -329,6 +331,20 @@ public final class FailureTraceReporter {
 
     private static void objectEnd(StringBuilder json, int indent, boolean comma) {
         indent(json, indent).append("}").append(comma ? "," : "").append("\n");
+    }
+
+    private static void rawObject(StringBuilder json, int indent, String key, String value, boolean comma) {
+        indent(json, indent).append("\"").append(key).append("\": ")
+                .append(value(value).isBlank() ? "{}" : value.strip())
+                .append(comma ? "," : "")
+                .append("\n");
+    }
+
+    private static String locatorHealthJson() {
+        if (!LocatorHealthReporter.isEnabled()) {
+            return "{\"enabled\": false}";
+        }
+        return LocatorHealthReporter.currentSummaryJson();
     }
 
     private static void field(StringBuilder json, int indent, String key, String value, boolean comma) {
