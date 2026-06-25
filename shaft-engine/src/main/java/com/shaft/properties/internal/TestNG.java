@@ -28,7 +28,7 @@ public interface TestNG extends EngineProperties<TestNG> {
     double threadCount();
 
     @Key("setVerbose")
-    @DefaultValue("1")
+    @DefaultValue("0")
     Integer verbose();
 
     @Key("setPreserveOrder")

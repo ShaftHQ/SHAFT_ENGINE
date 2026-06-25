@@ -73,6 +73,7 @@ public class TestNGListenerHelperCoverageUnitTest {
         setSystemProperty("setGroupByInstances", originalSetGroupByInstances);
         setSystemProperty("setVerbose", originalSetVerbose);
         setSystemProperty("setDataProviderThreadCount", originalSetDataProviderThreadCount);
+        com.shaft.properties.internal.Properties.clearForCurrentThread();
         TestNGListenerHelper.setPendingConfigFailure(null);
         TestNGListenerHelper.cleanup();
         setKillSwitch(false);
@@ -204,11 +205,26 @@ public class TestNGListenerHelperCoverageUnitTest {
 
         TestNGListenerHelper.configureTestNGProperties(List.of(suite));
         int expectedThreadCount = expectedConfiguredThreadCount();
+        Assert.assertEquals(suite.getVerbose(), 2);
         for (XmlTest expandedTest : suite.getTests()) {
             Assert.assertEquals(expandedTest.getThreadCount(), expectedThreadCount);
+            Assert.assertEquals(expandedTest.getVerbose(), 2);
             Assert.assertNotNull(expandedTest.getName());
         }
         Assert.assertTrue(suite.getDataProviderThreadCount() > 0);
+    }
+
+    @Test
+    public void configureTestNGPropertiesShouldDefaultToQuietSuiteAndTestVerbosity() {
+        System.clearProperty("setVerbose");
+        com.shaft.properties.internal.Properties.clearForCurrentThread();
+        XmlSuite suite = new XmlSuite();
+        XmlTest xmlTest = new XmlTest(suite);
+
+        TestNGListenerHelper.configureTestNGProperties(List.of(suite));
+
+        Assert.assertEquals(suite.getVerbose(), 0);
+        Assert.assertEquals(xmlTest.getVerbose(), 0);
     }
 
     private int expectedConfiguredThreadCount() {

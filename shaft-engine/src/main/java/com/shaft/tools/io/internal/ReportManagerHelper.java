@@ -815,6 +815,7 @@ public class ReportManagerHelper {
                 color +
                 createSeparator('═') +
                 addSpacing(logText.trim()) +
+                color +
                 createSeparator('═') +
                 System.lineSeparator() +
                 ANSI_RESET;

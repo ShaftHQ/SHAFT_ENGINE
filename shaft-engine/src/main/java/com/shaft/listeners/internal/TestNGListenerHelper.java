@@ -228,6 +228,7 @@ public class TestNGListenerHelper {
 
     public static void configureTestNGProperties(List<XmlSuite> suites) {
         suites.forEach(suite -> {
+            suite.setVerbose(SHAFT.Properties.testNG.verbose());
             suite.setDataProviderThreadCount(SHAFT.Properties.testNG.dataProviderThreadCount());
             suite.getTests().forEach(xmlTest -> {
                 xmlTest.setPreserveOrder(SHAFT.Properties.testNG.preserveOrder());

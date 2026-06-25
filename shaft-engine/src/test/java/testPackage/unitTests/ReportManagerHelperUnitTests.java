@@ -5,6 +5,7 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.AttachmentReporter;
 import com.shaft.tools.io.internal.IssueReporter;
+import com.shaft.tools.io.internal.ReportContext;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
 import org.mockito.Mockito;
@@ -63,6 +64,7 @@ public class ReportManagerHelperUnitTests {
         ReportManagerHelper.setListOfNewIssuesForFailedTests(Collections.synchronizedList(new ArrayList<>()));
         ReportManagerHelper.setDiscreteLogging(false);
         ReportManagerHelper.setTotalNumberOfTests(0);
+        ReportContext.clear();
     }
 
     @Test
@@ -212,6 +214,22 @@ public class ReportManagerHelperUnitTests {
 
         ReportManagerHelper.setDiscreteLogging(true);
         SHAFT.Validations.assertThat().object(ReportManagerHelper.getDiscreteLogging()).isTrue().perform();
+    }
+
+    @Test
+    public void importantReportEntryShouldReapplyWrapperColorAfterEmbeddedAnsiResets() {
+        String wrapperColor = "\033[1;36m";
+        String separator = "═".repeat(144);
+
+        ReportManagerHelper.logImportantEntry("banner text " + "\033[0m" + " still branded", Level.INFO);
+        List<String> output = ReportContext.snapshotOutput();
+        String log = output.get(output.size() - 1);
+        int bottomSeparatorIndex = log.lastIndexOf(separator);
+
+        SHAFT.Validations.assertThat().number(bottomSeparatorIndex).isGreaterThan(0).perform();
+        SHAFT.Validations.assertThat().object(log.substring(bottomSeparatorIndex - wrapperColor.length(), bottomSeparatorIndex))
+                .isEqualTo(wrapperColor)
+                .perform();
     }
 
     @Test
