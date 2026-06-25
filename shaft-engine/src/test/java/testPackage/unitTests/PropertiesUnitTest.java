@@ -84,6 +84,32 @@ public class PropertiesUnitTest {
         Assert.assertEquals(SHAFT.Properties.reporting.attachFullLog(), originalValue, "attachFullLog should be reset to original value");
     }
 
+    @Test(description = "Test Reporting properties - locator health reporting")
+    public void testReportingLocatorHealthProperties() {
+        try {
+            Assert.assertFalse(SHAFT.Properties.reporting.locatorHealthReportEnabled(),
+                    "locatorHealthReportEnabled should default to false");
+            Assert.assertEquals(SHAFT.Properties.reporting.slowLocatorThresholdMillis(), 750,
+                    "slowLocatorThresholdMillis should default to 750");
+            Assert.assertFalse(SHAFT.Properties.reporting.failOnLocatorHealthWarnings(),
+                    "failOnLocatorHealthWarnings should default to false");
+
+            SHAFT.Properties.reporting.set()
+                    .locatorHealthReportEnabled(true)
+                    .slowLocatorThresholdMillis(125)
+                    .failOnLocatorHealthWarnings(true);
+
+            Assert.assertTrue(SHAFT.Properties.reporting.locatorHealthReportEnabled(),
+                    "locatorHealthReportEnabled should be true after setting");
+            Assert.assertEquals(SHAFT.Properties.reporting.slowLocatorThresholdMillis(), 125,
+                    "slowLocatorThresholdMillis should reflect the override");
+            Assert.assertTrue(SHAFT.Properties.reporting.failOnLocatorHealthWarnings(),
+                    "failOnLocatorHealthWarnings should be true after setting");
+        } finally {
+            Properties.clearForCurrentThread();
+        }
+    }
+
     @Test(description = "Sensitive property updates should be masked in logs")
     public void testSensitivePropertySetterLogsMaskedValue() {
         try (MockedStatic<ReportManager> reportManager = Mockito.mockStatic(ReportManager.class)) {

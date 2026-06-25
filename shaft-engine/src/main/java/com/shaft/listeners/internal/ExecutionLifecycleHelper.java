@@ -3,6 +3,7 @@ package com.shaft.listeners.internal;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.PropertiesHelper;
@@ -39,6 +40,7 @@ public final class ExecutionLifecycleHelper {
      * @param runType current execution runner
      */
     public static void engineSetup(ProjectStructureManager.RunType runType) {
+        LocatorHealthReporter.reset();
         PropertiesHelper.bootstrapEngine(runType);
     }
 
@@ -138,6 +140,7 @@ public final class ExecutionLifecycleHelper {
     public static void engineTearDown(long executionStartTime, ExecutionCountsTracker.Counts counts) {
         ReportManagerHelper.setDiscreteLogging(true);
         AssertionError openApiCoverageFailure = OpenApiCoverageReporter.reportAndGetThresholdFailure();
+        AssertionError locatorHealthFailure = LocatorHealthReporter.reportAndGetFailure();
         long executionEndTime = System.currentTimeMillis();
         Thread.ofVirtual().start(() -> ExecutionSummaryReport.generateExecutionSummaryReport(
                 counts.finalPassed(), counts.failed(), counts.skipped(), executionStartTime, executionEndTime));
@@ -152,8 +155,14 @@ public final class ExecutionLifecycleHelper {
         });
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
+        if (openApiCoverageFailure != null && locatorHealthFailure != null) {
+            openApiCoverageFailure.addSuppressed(locatorHealthFailure);
+        }
         if (openApiCoverageFailure != null) {
             throw openApiCoverageFailure;
+        }
+        if (locatorHealthFailure != null) {
+            throw locatorHealthFailure;
         }
     }
 
