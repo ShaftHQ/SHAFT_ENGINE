@@ -200,6 +200,7 @@ class UpgradeToModularShaftTests(unittest.TestCase):
 
         self.assertEqual(upgrade.child_text(properties, "aspectjweaver.version"), "1.9.25.1")
         self.assertEqual(upgrade.child_text(properties, "surefire-testng.version"), "3.5.5")
+        self.assertEqual(upgrade.child_text(properties, "surefireArgLine"), upgrade.DEFAULT_SUREFIRE_ARG_LINE)
         self.assertIn((upgrade.SHAFT_GROUP, upgrade.ENGINE_ARTIFACT), dependency_artifacts)
         self.assertIn(("org.aspectj", "aspectjweaver"), dependency_artifacts)
         self.assertIn(("org.apache.maven.surefire", "surefire-testng"), dependency_artifacts)
@@ -238,6 +239,7 @@ class UpgradeToModularShaftTests(unittest.TestCase):
 
         transformed = upgrade.transform_pom_bytes(pom.encode(), "10.2.20260623", ())
         root = upgrade.parse_xml(transformed)
+        properties = upgrade.direct_child(root, "properties")
         dependencies = upgrade.direct_child(root, "dependencies")
         dependency_artifacts = [
             (
@@ -250,6 +252,7 @@ class UpgradeToModularShaftTests(unittest.TestCase):
         profile = upgrade.direct_child(upgrade.direct_child(root, "profiles"), "profile")
 
         self.assertEqual(upgrade.child_text(profile, "id"), "junit")
+        self.assertEqual(upgrade.child_text(properties, "surefireArgLine"), upgrade.DEFAULT_SUREFIRE_ARG_LINE)
         self.assertIn(("org.aspectj", "aspectjweaver"), dependency_artifacts)
         self.assertNotIn(("org.apache.maven.surefire", "surefire-testng"), dependency_artifacts)
         self.assertNotIn(("org.seleniumhq.selenium", "selenium-java"), dependency_artifacts)

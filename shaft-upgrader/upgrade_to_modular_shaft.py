@@ -59,6 +59,11 @@ ANDROID_JSON_ARTIFACT = "android-json"
 GENERATOR_ASPECTJ_VERSION = "1.9.25.1"
 GENERATOR_SUREFIRE_PLUGIN_VERSION = "3.5.5"
 GENERATOR_SUREFIRE_TESTNG_VERSION = "3.5.5"
+DEFAULT_SUREFIRE_ARG_LINE = (
+    "-XX:+IgnoreUnrecognizedVMOptions --enable-native-access=ALL-UNNAMED "
+    "--sun-misc-unsafe-memory-access=allow -Xshare:off -Dfile.encoding=UTF-8 "
+    "-Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"
+)
 MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2"
 DEFAULT_OPENAI_MODEL = "gpt-5.5"
 DEFAULT_OPENAI_KEY_ENV = "OPENAI_API_KEY"
@@ -976,7 +981,7 @@ def set_generator_properties(root: ET.Element, namespace: str, version: str, run
     if runner == "testng":
         set_text_child(properties, namespace, "surefire-testng.version", GENERATOR_SUREFIRE_TESTNG_VERSION)
     set_text_child(properties, namespace, "maven-surefire-plugin.version", GENERATOR_SUREFIRE_PLUGIN_VERSION)
-    set_text_child(properties, namespace, "surefireArgLine", "")
+    set_text_child(properties, namespace, "surefireArgLine", DEFAULT_SUREFIRE_ARG_LINE)
 
 
 def infer_runner_from_pom(root: ET.Element) -> str:

@@ -12,6 +12,11 @@ EXAMPLES = ROOT / "shaft-engine/src/main/resources/examples"
 MCP_FIXTURES = ROOT / "shaft-mcp/src/test/resources/fixtures/shaft-pilot/mcp"
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 DOCS_BASE = "https://shafthq.github.io/docs"
+EXAMPLE_SUREFIRE_ARG_LINE = (
+    "-XX:+IgnoreUnrecognizedVMOptions --enable-native-access=ALL-UNNAMED "
+    "--sun-misc-unsafe-memory-access=allow -Xshare:off -Dfile.encoding=UTF-8 "
+    "-Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"
+)
 EXPECTED_OPTIONAL = {
     "shaft-cucumber-web": "shaft-visual",
     "shaft-junit-web": "shaft-visual",
@@ -98,6 +103,8 @@ def main() -> None:
             fail(f"{pom}: use <shaft.version> only")
         if text(props, "m:shaft.version") != reactor_version:
             fail(f"{pom}: shaft.version must match reactor version {reactor_version}")
+        if text(props, "m:surefireArgLine") != EXAMPLE_SUREFIRE_ARG_LINE:
+            fail(f"{pom}: surefireArgLine must suppress Java 25 AspectJ Unsafe warnings")
         managed = {
             text(dependency, "m:artifactId")
             for dependency in root.findall(
