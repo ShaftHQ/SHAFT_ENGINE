@@ -7,6 +7,7 @@ import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
@@ -302,8 +303,23 @@ public class TestNGListenerHelper {
 
             String logText = TestNGListenerHelper.createTestLog(getReporterOutput(iTestResult));
             ReportManagerHelper.attachTestLog(iTestNGMethod.getMethodName(), logText);
+            FailureTraceReporter.attachOnFailure(toTestExecutionInfo(iTestResult), logText, attachments);
             JiraHelper.reportBugsToJIRA(attachments, logText, iTestResult, iTestNGMethod);
         }
+    }
+
+    private static TestExecutionInfo toTestExecutionInfo(ITestResult testResult) {
+        if (testResult == null || testResult.getMethod() == null) {
+            return new TestExecutionInfo("unknown", "", "", "", "", null, null, false);
+        }
+        ITestNGMethod testMethod = testResult.getMethod();
+        Method javaMethod = testMethod.getConstructorOrMethod() == null
+                ? null
+                : testMethod.getConstructorOrMethod().getMethod();
+        String className = testMethod.getTestClass() == null ? "" : testMethod.getTestClass().getName();
+        String methodName = testMethod.getMethodName();
+        return new TestExecutionInfo(className + "." + methodName, className, methodName, methodName,
+                testMethod.getDescription(), javaMethod, testResult.getThrowable(), testResult.wasRetried());
     }
 
     /**

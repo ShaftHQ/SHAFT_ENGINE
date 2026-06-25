@@ -935,8 +935,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/DriverFactoryHelper.java": {
-    "mtime": 1782370828.873481,
-    "ast_hash": "55a5625d7e0e00e72b23831fe542a3fb",
+    "mtime": 1782377571.493302,
+    "ast_hash": "b6a6700eaab6d2dd65134b25a9fe4621",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/LambdaTestHelper.java": {
@@ -1255,8 +1255,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/internal/TestNGListenerHelper.java": {
-    "mtime": 1782370828.8794856,
-    "ast_hash": "5dcf185c89a2f7f45db5a6cca5f84516",
+    "mtime": 1782377571.4973035,
+    "ast_hash": "db8b8351e67b74f98db631341139b0ae",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/internal/UpdateChecker.java": {
@@ -1385,8 +1385,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Reporting.java": {
-    "mtime": 1782366241.7304814,
-    "ast_hash": "7356915119f95d74148b9b14bcfcae86",
+    "mtime": 1782377571.4983032,
+    "ast_hash": "b4437bdec4c21f85de105fd1fd259358",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/TestNG.java": {
@@ -1500,8 +1500,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/AttachmentReporter.java": {
-    "mtime": 1781642509.8129704,
-    "ast_hash": "c3f9ed9269797a1679c4846a740a6273",
+    "mtime": 1782377571.4993029,
+    "ast_hash": "90dfc19115b429c7c97749fcd123237c",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/CheckpointCounter.java": {
@@ -2595,8 +2595,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/properties/ReportingTests.java": {
-    "mtime": 1781170595.3379407,
-    "ast_hash": "77a2d7fa3551e92f26589ee0ca156311",
+    "mtime": 1782377571.5023026,
+    "ast_hash": "71b6a4206d44143293e9854fb46f0d75",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/properties/TestNGTests.java": {
@@ -2690,8 +2690,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/AttachmentReporterUnitTest.java": {
-    "mtime": 1781642509.836815,
-    "ast_hash": "b7b45fa6a8315a75a05ad02459283c16",
+    "mtime": 1782377571.5043025,
+    "ast_hash": "229dcbca9c2a919d35a9b79e6c6e1345",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/BrowserActionsCoverageUnitTest.java": {
@@ -4925,8 +4925,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/internal/ExecutionLifecycleHelper.java": {
-    "mtime": 1782370828.8784857,
-    "ast_hash": "d849cfe30af0ab9baa229756599f19ff",
+    "mtime": 1782377571.4963036,
+    "ast_hash": "1eac1a123648683df72b8f43ec26e621",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/internal/TestExecutionInfo.java": {
@@ -5270,8 +5270,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/playwright/internal/PlaywrightTraceManager.java": {
-    "mtime": 1782033944.5496528,
-    "ast_hash": "971e323f2d97caa717c84b8b94d144e8",
+    "mtime": 1782377571.494302,
+    "ast_hash": "8edde0e8b06e9b67806e0b779051976a",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/playwright/validation/PlaywrightBrowserValidationsBuilder.java": {
@@ -5592,6 +5592,16 @@
   "shaft-engine/src/main/resources/images/shaft_report_logo.png": {
     "mtime": 1782373833.74218,
     "ast_hash": "987c93b372f4f797f601da520d349930",
+    "semantic_hash": ""
+  },
+  "shaft-engine/src/main/java/com/shaft/tools/io/internal/FailureTraceReporter.java": {
+    "mtime": 1782377571.5003035,
+    "ast_hash": "6aa99a3e255442d655077fdc648726fe",
+    "semantic_hash": ""
+  },
+  "shaft-engine/src/test/java/com/shaft/tools/io/internal/FailureTraceReporterTest.java": {
+    "mtime": 1782377571.5013034,
+    "ast_hash": "90d20a7d15d470c750f2fd426ff61ce9",
     "semantic_hash": ""
   }
 }

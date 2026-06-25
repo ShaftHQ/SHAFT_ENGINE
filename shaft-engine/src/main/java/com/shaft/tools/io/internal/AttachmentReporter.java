@@ -51,6 +51,7 @@ public class AttachmentReporter {
         attachmentHandlers.put("engine logs", AttachmentReporter::handleEngineLogs);
         attachmentHandlers.put("page snapshot", AttachmentReporter::handlePageSnapshot);
         attachmentHandlers.put("html", AttachmentReporter::handleHtml);
+        attachmentHandlers.put("zip", AttachmentReporter::handleZip);
         attachmentHandlers.put("default", AttachmentReporter::handleDefault);
 
         attachmentFormats.put("screenshot", new AttachmentFormat("image/png", ".png"));
@@ -65,6 +66,7 @@ public class AttachmentReporter {
         attachmentFormats.put("engine logs", new AttachmentFormat("text/plain", ".txt"));
         attachmentFormats.put("page snapshot", new AttachmentFormat("multipart/related", ".mhtml"));
         attachmentFormats.put("html", new AttachmentFormat("text/html", ".html"));
+        attachmentFormats.put("zip", new AttachmentFormat("application/zip", ".zip"));
         attachmentFormats.put("default", new AttachmentFormat("text/plain", ".txt"));
     }
 
@@ -118,6 +120,10 @@ public class AttachmentReporter {
 
     private static void handleHtml(String attachmentDescription, ByteArrayOutputStream content) {
         attachFileBased(attachmentDescription, "text/html", content, ".html");
+    }
+
+    private static void handleZip(String attachmentDescription, ByteArrayOutputStream content) {
+        attachFileBased(attachmentDescription, "application/zip", content, ".zip");
     }
 
     private static void handleDefault(String attachmentDescription, ByteArrayOutputStream content) {
@@ -213,7 +219,7 @@ public class AttachmentReporter {
                         return key;
                     }
                 }
-                case "csv", "json", "xml", "excel" -> {
+                case "csv", "json", "xml", "excel", "zip" -> {
                     if (attachmentType.toLowerCase().contains(key) || attachmentName.toLowerCase().contains(key)) {
                         return key;
                     }
