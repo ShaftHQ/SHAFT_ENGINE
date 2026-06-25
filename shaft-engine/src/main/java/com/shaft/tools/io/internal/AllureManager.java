@@ -699,26 +699,36 @@ public class AllureManager {
         }
         try {
             String html = Files.readString(indexPath, StandardCharsets.UTF_8);
-            String previewFix = "";
+            String headPatch = "";
             if (!html.contains("id=\"" + ALLURE_ATTACHMENT_PREVIEW_FIX_ID + "\"")) {
-                previewFix += ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE;
+                headPatch += ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE;
             }
             if (!html.contains("id=\"" + ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID + "\"")) {
-                previewFix += ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT;
+                headPatch += ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT;
             }
+            String bodyPatch = "";
             if (!html.contains("id=\"" + ALLURE_THEME_COLORS_ID + "\"")) {
-                previewFix += ALLURE_THEME_COLORS_STYLE;
+                bodyPatch += ALLURE_THEME_COLORS_STYLE;
             }
-            if (previewFix.isEmpty()) {
+            if (headPatch.isEmpty() && bodyPatch.isEmpty()) {
                 return;
             }
-            int headEnd = html.indexOf("</head>");
-            String patchedHtml = headEnd >= 0
-                    ? html.substring(0, headEnd) + previewFix + html.substring(headEnd)
-                    : previewFix + html;
+            String patchedHtml = html;
+            if (!headPatch.isEmpty()) {
+                int headEnd = patchedHtml.indexOf("</head>");
+                patchedHtml = headEnd >= 0
+                        ? patchedHtml.substring(0, headEnd) + headPatch + patchedHtml.substring(headEnd)
+                        : headPatch + patchedHtml;
+            }
+            if (!bodyPatch.isEmpty()) {
+                int bodyEnd = patchedHtml.lastIndexOf("</body>");
+                patchedHtml = bodyEnd >= 0
+                        ? patchedHtml.substring(0, bodyEnd) + bodyPatch + patchedHtml.substring(bodyEnd)
+                        : patchedHtml + bodyPatch;
+            }
             Files.writeString(indexPath, patchedHtml, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            ReportManager.logDiscrete("Could not patch Allure report image preview styling: " + e.getMessage());
+            ReportManager.logDiscrete("Could not patch Allure report styling: " + e.getMessage());
         }
     }
 

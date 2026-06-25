@@ -211,6 +211,8 @@ public class AllureManagerCoverageUnitTest {
         String html = Files.readString(index, StandardCharsets.UTF_8);
         Assert.assertEquals(html.split("id=\"shaft-allure-attachment-preview-fix\"", -1).length - 1, 1, html);
         Assert.assertEquals(html.split("id=\"shaft-allure-theme-colors\"", -1).length - 1, 1, html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-allure-attachment-preview-fix\"") < html.indexOf("</head>"), html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-allure-theme-colors\"") > html.indexOf("</head>"), html);
         Assert.assertTrue(html.contains("img[src^=\"blob:\"]"), html);
         Assert.assertTrue(html.contains("MutationObserver"), html);
         Assert.assertTrue(html.contains("shaft-allure-image-modal"), html);

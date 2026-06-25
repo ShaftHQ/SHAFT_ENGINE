@@ -76,10 +76,32 @@ runs:
             options:
               reportName: "SHAFT-powered test report"
               singleFile: true
+              theme: "auto"
         YAML
             fi
             npx --yes allure@${ALLURE3_VERSION} generate "${{ inputs.module-directory }}/allure-results" --config "$CONFIG_FILE" -o "${{ inputs.module-directory }}/allure-report" 2>/dev/null || true
             if [ -f "${{ inputs.module-directory }}/allure-report/index.html" ]; then
+              SHAFT_ALLURE_INDEX="${{ inputs.module-directory }}/allure-report/index.html" node <<'NODE'
+        const fs = require('fs');
+        const javaPath = 'shaft-engine/src/main/java/com/shaft/tools/io/internal/AllureManager.java';
+        const reportPath = process.env.SHAFT_ALLURE_INDEX;
+
+        try {
+          const html = fs.readFileSync(reportPath, 'utf8');
+          if (!html.includes('id="shaft-allure-theme-colors"')) {
+            const source = fs.readFileSync(javaPath, 'utf8');
+            const match = source.match(/ALLURE_THEME_COLORS_STYLE\s*=\s*"""\r?\n([\s\S]*?)\r?\n\s*""";/);
+            if (match) {
+              const patchedHtml = html.includes('</body>')
+                ? html.replace('</body>', `${match[1]}\n</body>`)
+                : `${html}${match[1]}`;
+              fs.writeFileSync(reportPath, patchedHtml);
+            }
+          }
+        } catch (error) {
+          console.warn(`Unable to inject SHAFT Allure 3 theme colors: ${error.message}`);
+        }
+        NODE
               mv "${{ inputs.module-directory }}/allure-report/index.html" "${{ inputs.module-directory }}/allure-report/AllureReport.html"
             fi
           fi
