@@ -3,6 +3,7 @@ package com.shaft.api;
 import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -299,6 +300,84 @@ public class RestActions {
      */
     public static String getResponseBody(Response response) {
         return response.getBody().asString();
+    }
+
+    /**
+     * Maps a JSON response body to the requested Java type using SHAFT's Jackson mapper.
+     *
+     * @param response     the REST-Assured response object
+     * @param responseType the target class, record, or POJO type
+     * @param <T>          the mapped response type
+     * @return the response body mapped to {@code responseType}
+     * @throws NullPointerException  if {@code response} or {@code responseType} is {@code null}
+     * @throws IllegalStateException if the response body is empty or the response is not JSON
+     * @throws IllegalArgumentException if the response body cannot be mapped to {@code responseType}
+     */
+    public static <T> T getResponseAs(Response response, Class<T> responseType) {
+        Objects.requireNonNull(response, "response");
+        Objects.requireNonNull(responseType, "responseType");
+
+        String body = getJsonResponseBody(response, responseType.getName());
+        try {
+            return JACKSON_MAPPER.readValue(body, responseType);
+        } catch (JsonProcessingException rootCauseException) {
+            String message = "Failed to map response body to " + responseType.getName() + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalArgumentException(message, rootCauseException);
+        }
+    }
+
+    /**
+     * Maps a JSON response body to a generic Java type using a Jackson type reference.
+     *
+     * @param response      the REST-Assured response object
+     * @param typeReference the target generic type reference
+     * @param <T>           the mapped response type
+     * @return the response body mapped to {@code typeReference}
+     * @throws NullPointerException  if {@code response} or {@code typeReference} is {@code null}
+     * @throws IllegalStateException if the response body is empty or the response is not JSON
+     * @throws IllegalArgumentException if the response body cannot be mapped to {@code typeReference}
+     */
+    public static <T> T getResponseAs(Response response, TypeReference<T> typeReference) {
+        Objects.requireNonNull(response, "response");
+        Objects.requireNonNull(typeReference, "typeReference");
+
+        String targetType = typeReference.getType().getTypeName();
+        String body = getJsonResponseBody(response, targetType);
+        try {
+            return JACKSON_MAPPER.readValue(body, typeReference);
+        } catch (JsonProcessingException rootCauseException) {
+            String message = "Failed to map response body to " + targetType + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalArgumentException(message, rootCauseException);
+        }
+    }
+
+    /**
+     * Maps a JSON array response body to a list of the requested Java type.
+     *
+     * @param response    the REST-Assured response object
+     * @param elementType the target class, record, or POJO type for each array item
+     * @param <T>         the mapped list element type
+     * @return the response body mapped to a {@link List}
+     * @throws NullPointerException  if {@code response} or {@code elementType} is {@code null}
+     * @throws IllegalStateException if the response body is empty or the response is not JSON
+     * @throws IllegalArgumentException if the response body cannot be mapped to {@code List<elementType>}
+     */
+    public static <T> List<T> getResponseAsList(Response response, Class<T> elementType) {
+        Objects.requireNonNull(response, "response");
+        Objects.requireNonNull(elementType, "elementType");
+
+        String targetType = "java.util.List<" + elementType.getName() + ">";
+        String body = getJsonResponseBody(response, targetType);
+        JavaType listType = JACKSON_MAPPER.getTypeFactory().constructCollectionType(List.class, elementType);
+        try {
+            return JACKSON_MAPPER.readValue(body, listType);
+        } catch (JsonProcessingException rootCauseException) {
+            String message = "Failed to map response body to " + targetType + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalArgumentException(message, rootCauseException);
+        }
     }
 
     /**
@@ -851,6 +930,33 @@ public class RestActions {
             // in case of an empty body
             return new ByteArrayInputStream(("").getBytes());
         }
+    }
+
+    private static String getJsonResponseBody(Response response, String targetType) {
+        String body = response.asString();
+        if (body == null || body.isBlank()) {
+            String message = "Cannot map empty response body to " + targetType + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalStateException(message);
+        }
+
+        String contentType = response.getContentType();
+        if (!isJsonContentType(contentType)) {
+            String message = "Cannot map response body to " + targetType
+                    + " because response Content-Type is not JSON: " + contentType + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalStateException(message);
+        }
+        return body;
+    }
+
+    private static boolean isJsonContentType(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
+
+        String lowerContentType = contentType.toLowerCase(Locale.ROOT);
+        return lowerContentType.contains("/json") || lowerContentType.contains("+json");
     }
 
     private static boolean compareJSONEquals(ObjectNode expectedJsonObject,
