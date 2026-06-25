@@ -18,6 +18,7 @@ import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.tools.io.internal.CheckpointType;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
@@ -34,6 +35,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,6 +46,7 @@ public class ValidationsHelper {
     private static final String VISUAL_COMPARISON_ATTACHMENT_NAME = "Visual Comparison";
     protected static final ThreadLocal<List<String>> verificationFailuresList = ThreadLocal.withInitial(ArrayList::new);
     protected static final ThreadLocal<AssertionError> verificationError = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> profiledValidationSuccessful = new ThreadLocal<>();
     private final ValidationEnums.ValidationCategory validationCategory;
     private final String validationCategoryString;
 
@@ -69,6 +72,25 @@ public class ValidationsHelper {
     public static void recordVerificationFailure(String failureMessage) {
         verificationFailuresList.get().add(failureMessage);
         verificationError.set(new AssertionError(String.join("\nAND ", verificationFailuresList.get())));
+    }
+
+    static void beginProfiledValidation() {
+        profiledValidationSuccessful.set(true);
+    }
+
+    static boolean profiledValidationSuccessful() {
+        return Boolean.TRUE.equals(profiledValidationSuccessful.get());
+    }
+
+    static void clearProfiledValidation() {
+        profiledValidationSuccessful.remove();
+    }
+
+    private static void recordProfiledValidationState(boolean validationState) {
+        Boolean currentState = profiledValidationSuccessful.get();
+        if (currentState != null) {
+            profiledValidationSuccessful.set(currentState && validationState);
+        }
     }
 
     /**
@@ -755,6 +777,7 @@ public class ValidationsHelper {
     }
 
     private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments, boolean skipDefaultScreenshot) {
+        recordProfiledValidationState(validationState);
         //initialize attachments object if no attachments were already prepared
         attachments = attachments == null ? new ArrayList<>() : attachments;
 
@@ -768,7 +791,12 @@ public class ValidationsHelper {
             if (!validationState
                     || Arrays.asList("always", "validationpointsonly").contains(whenToTakePageSourceSnapshot)) {
                 var logMessage = "";
+                long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
                 var pageSnapshot = new BrowserActionsHelper(true).capturePageSnapshot(driver);
+                if (profilerStart != 0L) {
+                    FlakeProfiler.recordEvidenceCapture("page snapshot", this.validationCategoryString,
+                            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
+                }
                 if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
                     logMessage = "page snapshot";
                 } else if (pageSnapshot.startsWith("<html")) {
@@ -790,7 +818,12 @@ public class ValidationsHelper {
             }
         }
         // add attachments
+        long profilerAttachmentStart = !attachments.isEmpty() && FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
         ReportManagerHelper.attach(attachments);
+        if (profilerAttachmentStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("report attachment", this.validationCategoryString,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerAttachmentStart));
+        }
         // determine checkpoint type
         CheckpointType checkpointType = this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)
                 ? CheckpointType.ASSERTION : CheckpointType.VERIFICATION;

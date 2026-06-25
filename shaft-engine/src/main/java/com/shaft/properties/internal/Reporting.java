@@ -126,6 +126,22 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("50")
     int traceMaxArtifactMb();
 
+    @Key("shaft.flakeProfiler.enabled")
+    @DefaultValue("false")
+    boolean flakeProfilerEnabled();
+
+    @Key("shaft.flakeProfiler.attachPerTest")
+    @DefaultValue("true")
+    boolean flakeProfilerAttachPerTest();
+
+    @Key("shaft.flakeProfiler.failOnSevereFlakeRisk")
+    @DefaultValue("false")
+    boolean flakeProfilerFailOnSevereFlakeRisk();
+
+    @Key("shaft.flakeProfiler.slowActionThresholdMs")
+    @DefaultValue("2000")
+    int flakeProfilerSlowActionThresholdMs();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -259,6 +275,26 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty traceMaxArtifactMb(int value) {
             setProperty("shaft.trace.maxArtifactMb", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty flakeProfilerEnabled(boolean value) {
+            setProperty("shaft.flakeProfiler.enabled", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty flakeProfilerAttachPerTest(boolean value) {
+            setProperty("shaft.flakeProfiler.attachPerTest", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty flakeProfilerFailOnSevereFlakeRisk(boolean value) {
+            setProperty("shaft.flakeProfiler.failOnSevereFlakeRisk", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty flakeProfilerSlowActionThresholdMs(int value) {
+            setProperty("shaft.flakeProfiler.slowActionThresholdMs", String.valueOf(value));
             return this;
         }
 

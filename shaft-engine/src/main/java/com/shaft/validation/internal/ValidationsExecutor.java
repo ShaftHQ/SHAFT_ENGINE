@@ -6,6 +6,7 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ProgressBarLogger;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Step;
@@ -14,6 +15,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 public class ValidationsExecutor {
     protected final StringBuilder reportMessageBuilder;
@@ -167,8 +169,12 @@ public class ValidationsExecutor {
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
     private void performValidation() {
+        long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        boolean successful = false;
         var validationsHelper = new ValidationsHelper(validationCategory);
-        switch (validationMethod) {
+        ValidationsHelper.beginProfiledValidation();
+        try {
+            switch (validationMethod) {
             case "forceFail" -> validationsHelper.validateFail(customReportMessage);
             case "objectsAreEqual" ->
                     validationsHelper.validateEquals(expectedValue, actualValue, validationComparisonType, validationType);
@@ -228,6 +234,18 @@ public class ValidationsExecutor {
             }
             default -> {
             }
+            }
+            successful = ValidationsHelper.profiledValidationSuccessful();
+        } finally {
+            if (profilerStart != 0L) {
+                FlakeProfiler.recordAction(FlakeProfiler.ActionSample.of(
+                        validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "assertion" : "verification",
+                        validationMethod)
+                        .target(customReportMessage)
+                        .durationMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart))
+                        .successful(successful));
+            }
+            ValidationsHelper.clearProfiledValidation();
         }
     }
 }

@@ -9,6 +9,7 @@ import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.FailureDiagnosticsReporter;
 import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
@@ -305,6 +306,7 @@ public class TestNGListenerHelper {
             String logText = TestNGListenerHelper.createTestLog(getReporterOutput(iTestResult));
             ReportManagerHelper.attachTestLog(iTestNGMethod.getMethodName(), logText);
             TestExecutionInfo info = toTestExecutionInfo(iTestResult);
+            FlakeProfiler.finishTest(info, testStatus(iTestResult));
             FailureTraceReporter.attachOnFailure(info, logText, attachments);
             FailureDiagnosticsReporter.attachOnFailure(info, logText, attachments);
             JiraHelper.reportBugsToJIRA(attachments, logText, iTestResult, iTestNGMethod);
@@ -458,6 +460,7 @@ public class TestNGListenerHelper {
 
         if (!iTestNGMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
             if (iTestNGMethod.isTest()) {
+                FlakeProfiler.startTest(toTestExecutionInfo(iTestResult));
                 className = ReportManagerHelper.getTestClassName();
                 methodName = ReportManagerHelper.getTestMethodName();
                 if (iTestNGMethod.getDescription() != null) {
@@ -498,5 +501,14 @@ public class TestNGListenerHelper {
                 ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
             }
         }
+    }
+
+    private static String testStatus(ITestResult testResult) {
+        return switch (testResult.getStatus()) {
+            case ITestResult.SUCCESS -> "Passed";
+            case ITestResult.FAILURE -> "Failed";
+            case ITestResult.SKIP -> "Skipped";
+            default -> "";
+        };
     }
 }

@@ -16,6 +16,7 @@ import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.FailureBriefReporter;
 import com.shaft.tools.io.internal.FailureDiagnosticsReporter;
 import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import com.shaft.tools.io.internal.ReportContext;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -45,6 +46,7 @@ public final class ExecutionLifecycleHelper {
      */
     public static void engineSetup(ProjectStructureManager.RunType runType) {
         LocatorHealthReporter.reset();
+        FlakeProfiler.reset();
         BrowserPerformanceExecutionReport.reset();
         PropertiesHelper.bootstrapEngine(runType);
     }
@@ -56,6 +58,7 @@ public final class ExecutionLifecycleHelper {
      */
     public static void logTestInformation(TestExecutionInfo info) {
         if (info != null) {
+            FlakeProfiler.startTest(info);
             ReportManagerHelper.logTestInformation(
                     valueOrBlank(info.className()),
                     valueOrBlank(info.methodName()),
@@ -105,6 +108,7 @@ public final class ExecutionLifecycleHelper {
 
         String logText = createTestLog(ReportContext.snapshotOutput());
         ReportManagerHelper.attachTestLog(valueOrBlank(info.methodName()), logText);
+        FlakeProfiler.finishTest(info, info.throwable() == null ? "Passed" : "Failed");
         FailureTraceReporter.attachOnFailure(info, logText, attachments);
         FailureDiagnosticsReporter.attachOnFailure(info, logText, attachments);
         FailureBriefReporter.attachOnFailure(info, logText, attachments);
@@ -149,6 +153,7 @@ public final class ExecutionLifecycleHelper {
         ReportManagerHelper.setDiscreteLogging(true);
         AssertionError openApiCoverageFailure = OpenApiCoverageReporter.reportAndGetThresholdFailure();
         AssertionError locatorHealthFailure = LocatorHealthReporter.reportAndGetFailure();
+        AssertionError flakeProfilerFailure = FlakeProfiler.reportAndGetFailure();
         long executionEndTime = System.currentTimeMillis();
         Map<String, List<Double>> performanceData = RequestBuilder.getPerformanceData();
         AssertionError apiPerformanceFailure = ApiPerformanceExecutionReport.generatePerformanceReportAndGetFailure(
@@ -164,35 +169,23 @@ public final class ExecutionLifecycleHelper {
         ReportManagerHelper.logEngineClosure();
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();
-        if (openApiCoverageFailure != null && locatorHealthFailure != null) {
-            openApiCoverageFailure.addSuppressed(locatorHealthFailure);
+        List<AssertionError> failures = new ArrayList<>();
+        AssertionError[] possibleFailures = {
+                openApiCoverageFailure,
+                locatorHealthFailure,
+                flakeProfilerFailure,
+                apiPerformanceFailure,
+                browserPerformanceFailure
+        };
+        for (AssertionError failure : possibleFailures) {
+            if (failure != null) {
+                failures.add(failure);
+            }
         }
-        if (openApiCoverageFailure != null && apiPerformanceFailure != null) {
-            openApiCoverageFailure.addSuppressed(apiPerformanceFailure);
-        }
-        if (openApiCoverageFailure != null && browserPerformanceFailure != null) {
-            openApiCoverageFailure.addSuppressed(browserPerformanceFailure);
-        }
-        if (openApiCoverageFailure != null) {
-            throw openApiCoverageFailure;
-        }
-        if (locatorHealthFailure != null && apiPerformanceFailure != null) {
-            locatorHealthFailure.addSuppressed(apiPerformanceFailure);
-        }
-        if (locatorHealthFailure != null && browserPerformanceFailure != null) {
-            locatorHealthFailure.addSuppressed(browserPerformanceFailure);
-        }
-        if (locatorHealthFailure != null) {
-            throw locatorHealthFailure;
-        }
-        if (apiPerformanceFailure != null && browserPerformanceFailure != null) {
-            apiPerformanceFailure.addSuppressed(browserPerformanceFailure);
-        }
-        if (apiPerformanceFailure != null) {
-            throw apiPerformanceFailure;
-        }
-        if (browserPerformanceFailure != null) {
-            throw browserPerformanceFailure;
+        if (!failures.isEmpty()) {
+            AssertionError firstFailure = failures.getFirst();
+            failures.stream().skip(1).forEach(firstFailure::addSuppressed);
+            throw firstFailure;
         }
     }
 

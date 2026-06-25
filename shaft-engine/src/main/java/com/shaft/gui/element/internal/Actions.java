@@ -22,6 +22,7 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
@@ -54,6 +55,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
@@ -83,6 +88,8 @@ public class Actions extends ElementActions {
     private static final DateTimeFormatter SCREENSHOT_ATTACHMENT_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
     private static final int TYPED_VALUE_STEP_TEXT_LIMIT = 120;
     private static final String MASKED_TYPED_VALUE = "********";
+    private static final ThreadLocal<AtomicLong> ACTION_EVIDENCE_NANOS = ThreadLocal.withInitial(AtomicLong::new);
+    private static final ThreadLocal<AtomicInteger> ACTION_STALE_RETRIES = ThreadLocal.withInitial(AtomicInteger::new);
 
     /**
      * Creates a new {@code Actions} instance using the driver managed by the current thread's
@@ -439,21 +446,36 @@ public class Actions extends ElementActions {
     }
 
     protected String performAction(ActionType action, By locator, Object data) {
+        long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        if (profilerStart != 0L) {
+            ACTION_EVIDENCE_NANOS.get().set(0L);
+            ACTION_STALE_RETRIES.get().set(0);
+        }
         AtomicReference<String> output = new AtomicReference<>("");
         AtomicReference<String> accessibleName = new AtomicReference<>(JavaHelper.formatLocatorToString(locator));
         AtomicReference<ActionReportContext> reportContext = new AtomicReference<>(ActionReportContext.from(action, locator, data, accessibleName.get()));
         AtomicReferenceArray<byte[]> screenshot = new AtomicReferenceArray<>(1);
         AtomicReference<List<WebElement>> foundElements = new AtomicReference<>();
+        FlakeProfileContext flakeProfile = new FlakeProfileContext(action, locator, profilerStart, foundElements);
         AtomicReference<HealingResolution> healingResolution = new AtomicReference<>();
         AtomicReference<HealingResolution> secondaryHealingResolution = new AtomicReference<>();
         AtomicReference<By> secondaryLocator = new AtomicReference<>();
 
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(true).until(d -> {
+                flakeProfile.waitLoops.incrementAndGet();
+                flakeProfile.locatorLookups.incrementAndGet();
                 // find all elements matching the target locator
+                long profilerLocateStart = profilerStart != 0L ? System.nanoTime() : 0L;
                 ElementLookup lookup = findAllElements(locator, action.name());
+                if (profilerLocateStart != 0L) {
+                    flakeProfile.locateNanos.addAndGet(System.nanoTime() - profilerLocateStart);
+                }
                 foundElements.set(lookup.elements());
                 healingResolution.set(lookup.healingResolution());
+                if (lookup.healingAttempted()) {
+                    flakeProfile.healingAttempted.set(true);
+                }
 
                 // fail fast if no elements were found
                 if (foundElements.get().isEmpty())
@@ -548,7 +570,10 @@ public class Actions extends ElementActions {
                 //wait for lazy loading
                 JavaScriptWaitManager.waitForLazyLoading(d);
                 // perform action
-                switch (action) {
+                long profilerActionStart = profilerStart != 0L ? System.nanoTime() : 0L;
+                long profilerEvidenceBeforeAction = profilerStart != 0L ? ACTION_EVIDENCE_NANOS.get().get() : 0L;
+                try {
+                    switch (action) {
                     case HOVER ->
                             (new org.openqa.selenium.interactions.Actions(d)).pause(defaultPauseDuration).moveToElement(foundElements.get().getFirst()).perform();
                     case CLICK -> {
@@ -656,11 +681,19 @@ public class Actions extends ElementActions {
 
                             By destinationLocator = (By) data;
                             currentDragAndDropSubstep = "resolve destination element";
+                            flakeProfile.locatorLookups.incrementAndGet();
+                            long profilerDestinationLocateStart = profilerStart != 0L ? System.nanoTime() : 0L;
                             ElementLookup destinationLookup = findAllElements(
                                     destinationLocator,
                                     action.name() + "_DESTINATION");
+                            if (profilerDestinationLocateStart != 0L) {
+                                flakeProfile.locateNanos.addAndGet(System.nanoTime() - profilerDestinationLocateStart);
+                            }
                             List<WebElement> destinationElements = destinationLookup.elements();
                             secondaryHealingResolution.set(destinationLookup.healingResolution());
+                            if (destinationLookup.healingAttempted()) {
+                                flakeProfile.secondaryHealingAttempted.set(true);
+                            }
                             secondaryLocator.set(destinationLocator);
                             if (destinationLookup.healingResolution() == null) {
                                 HealingManager.observe(
@@ -760,6 +793,12 @@ public class Actions extends ElementActions {
                 // take screenshot if not already taken before action
                 if (screenshot.get(0) == null)
                     screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
+                } finally {
+                    if (profilerActionStart != 0L) {
+                        long evidenceDuringAction = ACTION_EVIDENCE_NANOS.get().get() - profilerEvidenceBeforeAction;
+                        flakeProfile.actionNanos.addAndGet(Math.max(0L, System.nanoTime() - profilerActionStart - evidenceDuringAction));
+                    }
+                }
                 HealingManager.recordOutcome(
                         d,
                         healingResolution.get(),
@@ -798,12 +837,14 @@ public class Actions extends ElementActions {
                 } else {
                     screenshot.set(0, takeFailureScreenshot(foundElements.get().getFirst()));
                 }
+                recordFlakeProfile(flakeProfile, false);
                 // report broken
                 reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception);
             } catch (RuntimeException exception2) {
                 if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
                     // in case a new exception was thrown while attempting to take a screenshot
                     exception2.addSuppressed(exception);
+                    recordFlakeProfile(flakeProfile, false);
                     // report broken
                     reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception2);
                 } else {
@@ -813,8 +854,70 @@ public class Actions extends ElementActions {
             }
         }
         //report pass
+        recordFlakeProfile(flakeProfile, true);
         reportPass(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0));
         return output.get();
+    }
+
+    private static void recordFlakeProfile(FlakeProfileContext profile, boolean successful) {
+        if (profile.startNanos == 0L) {
+            return;
+        }
+        long evidenceNanos = ACTION_EVIDENCE_NANOS.get().get();
+        long waitNanos = Math.max(0L, System.nanoTime() - profile.startNanos
+                - evidenceNanos
+                - profile.locateNanos.get()
+                - profile.actionNanos.get());
+        List<WebElement> elements = profile.foundElements.get();
+        int matchCount = elements == null ? 0 : elements.size();
+        int healingAttempts = (profile.healingAttempted.get() ? 1 : 0)
+                + (profile.secondaryHealingAttempted.get() ? 1 : 0);
+        String target = JavaHelper.formatLocatorToString(profile.locator);
+        FlakeProfiler.recordAction(FlakeProfiler.ActionSample.of("locate", profile.action.name())
+                .target(target)
+                .durationMillis(TimeUnit.NANOSECONDS.toMillis(profile.locateNanos.get()))
+                .locatorLookupCount(profile.locatorLookups.get())
+                .matchCount(matchCount)
+                .staleElementRetries(ACTION_STALE_RETRIES.get().get())
+                .healingAttempts(healingAttempts)
+                .successful(successful));
+        FlakeProfiler.recordAction(FlakeProfiler.ActionSample.of("wait", profile.action.name())
+                .target(target)
+                .durationMillis(TimeUnit.NANOSECONDS.toMillis(waitNanos))
+                .waitLoopCount(profile.waitLoops.get())
+                .successful(successful));
+        FlakeProfiler.recordAction(FlakeProfiler.ActionSample.of("action", profile.action.name())
+                .target(target)
+                .durationMillis(TimeUnit.NANOSECONDS.toMillis(profile.actionNanos.get()))
+                .locatorLookupCount(profile.locatorLookups.get())
+                .matchCount(matchCount)
+                .staleElementRetries(ACTION_STALE_RETRIES.get().get())
+                .healingAttempts(healingAttempts)
+                .waitLoopCount(profile.waitLoops.get())
+                .successful(successful));
+        ACTION_EVIDENCE_NANOS.remove();
+        ACTION_STALE_RETRIES.remove();
+    }
+
+    private static final class FlakeProfileContext {
+        private final ActionType action;
+        private final By locator;
+        private final long startNanos;
+        private final AtomicReference<List<WebElement>> foundElements;
+        private final AtomicInteger waitLoops = new AtomicInteger();
+        private final AtomicInteger locatorLookups = new AtomicInteger();
+        private final AtomicLong locateNanos = new AtomicLong();
+        private final AtomicLong actionNanos = new AtomicLong();
+        private final AtomicBoolean healingAttempted = new AtomicBoolean(false);
+        private final AtomicBoolean secondaryHealingAttempted = new AtomicBoolean(false);
+
+        private FlakeProfileContext(ActionType action, By locator, long startNanos,
+                                    AtomicReference<List<WebElement>> foundElements) {
+            this.action = action;
+            this.locator = locator;
+            this.startNanos = startNanos;
+            this.foundElements = foundElements;
+        }
     }
 
     private void selectValue(WebElement targetElement, By locator, String valueOrVisibleText) {
@@ -930,12 +1033,18 @@ public class Actions extends ElementActions {
                 //normal case, just find the elements
                 foundElements = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), locator);
             }
-        } catch (NoSuchElementException | NoSuchFrameException | StaleElementReferenceException exception) {
+        } catch (StaleElementReferenceException exception) {
+            if (FlakeProfiler.isEnabled()) {
+                ACTION_STALE_RETRIES.get().incrementAndGet();
+            }
+            foundElements = List.of();
+        } catch (NoSuchElementException | NoSuchFrameException exception) {
             foundElements = List.of();
         }
         if (!foundElements.isEmpty()) {
-            return new ElementLookup(foundElements, null);
+            return new ElementLookup(foundElements, null, false);
         }
+        boolean healingAttempted = true;
         HealingResolution resolution = HealingManager.resolve(
                         driverFactoryHelper.getDriver(),
                         locator,
@@ -946,11 +1055,12 @@ public class Actions extends ElementActions {
                         cssSelector)
                 .orElse(null);
         return resolution == null
-                ? new ElementLookup(foundElements, null)
-                : new ElementLookup(resolution.elements(), resolution);
+                ? new ElementLookup(foundElements, null, healingAttempted)
+                : new ElementLookup(resolution.elements(), resolution, healingAttempted);
     }
 
-    private record ElementLookup(List<WebElement> elements, HealingResolution healingResolution) {
+    private record ElementLookup(List<WebElement> elements, HealingResolution healingResolution,
+                                 boolean healingAttempted) {
     }
 
     private byte[] takeActionScreenshot(WebElement element) {
@@ -966,24 +1076,33 @@ public class Actions extends ElementActions {
     }
 
     private byte[] captureScreenshot(WebElement element, boolean isPass) {
-        // capture screenshot
-        byte[] screenshot;
-        if (element != null && (SHAFT.Properties.visuals.screenshotParamsHighlightElements() || !isPass)) {
-            if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
-                // take screenshot, apply watermark and append it to gif before removing javascript highlighting
-                screenshot = takeJavaScriptHighlightedScreenshot(element, isPass);
+        long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        try {
+            // capture screenshot
+            byte[] screenshot;
+            if (element != null && (SHAFT.Properties.visuals.screenshotParamsHighlightElements() || !isPass)) {
+                if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
+                    // take screenshot, apply watermark and append it to gif before removing javascript highlighting
+                    screenshot = takeJavaScriptHighlightedScreenshot(element, isPass);
+                } else {
+                    screenshot = takeAIHighlightedScreenshot(element, isPass);
+                    // append screenshot to animated gif
+                    AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
+                }
             } else {
-                screenshot = takeAIHighlightedScreenshot(element, isPass);
+                screenshot = takeScreenshot(element);
                 // append screenshot to animated gif
                 AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
             }
-        } else {
-            screenshot = takeScreenshot(element);
-            // append screenshot to animated gif
-            AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
+            return screenshot;
+        } finally {
+            if (profilerStart != 0L) {
+                long evidenceNanos = System.nanoTime() - profilerStart;
+                ACTION_EVIDENCE_NANOS.get().addAndGet(evidenceNanos);
+                FlakeProfiler.recordEvidenceCapture("screenshot", isPass ? "action" : "failure",
+                        TimeUnit.NANOSECONDS.toMillis(evidenceNanos));
+            }
         }
-
-        return screenshot;
     }
 
     private byte[] appendShaftWatermark(byte[] screenshot) {
@@ -1185,8 +1304,14 @@ public class Actions extends ElementActions {
             });
 
         // attach screenshot
-        if (screenshot != null)
+        if (screenshot != null) {
+            long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
             Allure.addAttachment(SCREENSHOT_ATTACHMENT_FORMATTER.format(ZonedDateTime.now()) + "_" + JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
+            if (profilerStart != 0L) {
+                FlakeProfiler.recordEvidenceCapture("report attachment", action,
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
+            }
+        }
 
         // handle reporting based on status
         if (Status.PASSED.equals(status)) {

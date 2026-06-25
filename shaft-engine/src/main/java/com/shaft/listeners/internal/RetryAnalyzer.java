@@ -3,6 +3,7 @@ package com.shaft.listeners.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
 import org.testng.IRetryAnalyzer;
@@ -39,6 +40,8 @@ public class RetryAnalyzer implements IRetryAnalyzer {
                         + ", on thread: " + Thread.currentThread().getName();
                 ReportManagerHelper.enableDebugFileLogging();
                 ReportManager.logDiscrete(message);
+                FlakeProfiler.recordRetryAttempt(iTestResult.getMethod().getMethodName(), counter, maxRetryCount,
+                        SHAFT.Properties.flags.forceCaptureSupportingEvidenceOnRetry());
                 enableSupportingEvidenceCaptureForRetryAttempt();
                 return true;
             }

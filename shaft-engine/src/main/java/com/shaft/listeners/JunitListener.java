@@ -92,7 +92,6 @@ public class JunitListener implements LauncherSessionListener {
                     TestExecutionInfo info = toTestExecutionInfo(testIdentifier, throwable);
                     ReportContext.update(info);
                     ReportContext.setStatus(toAllureStatus(testExecutionResult));
-                    afterInvocation(info);
                     switch (testExecutionResult.getStatus()) {
                         case SUCCESSFUL -> {
                             AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
@@ -101,12 +100,17 @@ public class JunitListener implements LauncherSessionListener {
                                 TestExecutionInfo failedInfo = toTestExecutionInfo(testIdentifier, verificationError);
                                 ReportContext.update(failedInfo);
                                 ReportContext.setStatus(Status.FAILED);
+                                afterInvocation(failedInfo);
                                 onTestFailure(testIdentifier, verificationError, failedInfo);
                             } else {
+                                afterInvocation(info);
                                 onTestSuccess(testIdentifier, info);
                             }
                         }
-                        case FAILED, ABORTED -> onTestFailure(testIdentifier, throwable, info);
+                        case FAILED, ABORTED -> {
+                            afterInvocation(info);
+                            onTestFailure(testIdentifier, throwable, info);
+                        }
                     }
                     ReportContext.clear();
                 }
