@@ -7,11 +7,9 @@ which workflows to keep, merge, rename, or delete.
 
 ```mermaid
 flowchart TD
-  PR["Pull requests to main"] --> GV["General Validations"]
   PR --> SEC["Security"]
   PR --> PILOT["SHAFT Pilot Release Candidate"]
 
-  MAIN["Push to main"] --> GV
   MAIN --> SEC
   MAIN --> CD["Maven Central Continuous Delivery"]
 
@@ -40,7 +38,6 @@ updating downstream workflows will break the release chain.
 
 | File | Workflow name | Trigger | What it does | Relationships and delete impact |
 | --- | --- | --- | --- | --- |
-| `general-validations.yml` | General Validations | Scheduled daily, manual, pull requests to `main`, pushes to `main` | Detects changed areas, runs agent guidance checks, reactor/config validators, CI script tests, docs link audit, and scheduled quality scans for dependency/sample drift. | Main PR validation layer. This README change triggers its docs path. Scheduled jobs can open issues for link, dependency, or sample-version drift. |
 | `security.yml` | Security | Pull requests and pushes to `main` except Markdown-only changes, plus manual | Runs dependency review on PRs and CodeQL Java analysis. | Independent security gate. Removing it drops dependency-review and CodeQL coverage. |
 | `shaft-pilot-release.yml` | SHAFT Pilot Release Candidate | Pull requests touching release-relevant paths, plus manual | Validates release contracts, runs deterministic Pilot module tests, capture browser release tests, packaging checks, clean consumer fixtures, MCP transport checks, and container smoke tests. | PR-side release gate that mirrors large parts of `mavenCentral_cd.yml` before a real release. |
 | `mavenCentral_cd.yml` | Maven Central Continuous Delivery | Pushes to `main` that touch release-relevant paths, plus manual | Validates release state, runs Pilot tests, validates Maven publication outputs, deploys artifacts to Maven Central, verifies public coordinates, verifies the public MCP installer, creates the GitHub release, dispatches the user-guide repo, and optionally announces to Slack. | Root of the release chain. Feeds `publishJavaDocs.yml`, `publish-shaft-mcp.yml`, the GitHub `release` event consumed by `sync-sample-projects-version.yml`, and a `shaft-engine-release` dispatch to `ShaftHQ/shafthq.github.io`. |
@@ -52,7 +49,7 @@ updating downstream workflows will break the release chain.
 | `e2eLocalTests.yml` | Local E2E Tests | Nightly at 01:00 UTC, plus manual | Runs local browser E2E coverage on Windows Edge/Chrome and macOS Safari/Chrome, including a local Edge Cucumber path. | Companion to `e2eTests.yml` for local runner/browser coverage. Uses the same report and summary actions. |
 | `lambdatestTests.yml` | LambdaTest E2E Tests | Nightly at 01:00 UTC, plus manual | Uploads LambdaTest mobile apps, verifies LambdaTest credentials, and runs native Android, native iOS, web app, and desktop web suites. | Serial cloud-provider workflow: later jobs depend on earlier mobile upload jobs. Delete only if LambdaTest coverage is intentionally retired. |
 | `update-selenium-grid-versions.yml` | Update Selenium Grid Docker Versions | Weekly Monday 08:00 UTC, plus manual | Reads SeleniumHQ Docker Compose references, updates SHAFT's Selenium Grid image versions, validates Docker Compose syntax, and opens an automated PR. | Maintenance bot for `shaft-engine/src/main/resources/docker-compose/selenium4.yml`, which is used by Selenium Grid E2E jobs. |
-| `sync-sample-projects-version.yml` | Sync Sample Projects SHAFT Version | Published GitHub releases, plus manual version input | Syncs sample project POM versions and plugin/dependency versions to the released SHAFT version, then opens an automated PR. | Consumes the GitHub release created by `mavenCentral_cd.yml`. `general-validations.yml` can later report sample-version drift if this is not run or merged. |
+| `sync-sample-projects-version.yml` | Sync Sample Projects SHAFT Version | Published GitHub releases, plus manual version input | Syncs sample project POM versions and plugin/dependency versions to the released SHAFT version, then opens an automated PR. | Consumes the GitHub release created by `mavenCentral_cd.yml`. |
 | `refresh-agent-instructions.yml` | Refresh Agent Instructions | Manual only, with reason and optional `force_ai` input | Audits agent guidance, optionally runs Codex to refresh guidance surfaces, validates the final guidance, enforces an allowlist, and opens an automated PR. | Manual maintenance bot for `AGENTS.md`, `CLAUDE.md`, `.agents`, `.github/instructions`, and related guidance files. |
 | `copilot-setup-steps.yml` | Copilot Setup Steps | Manual only | Prepares the GitHub Copilot coding-agent environment by checking out the repo, installing Java 25 and Maven, and pre-resolving Maven dependencies. | Only affects Copilot coding-agent setup. No downstream workflows depend on it. |
 
