@@ -2,11 +2,14 @@ package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.internal.WebDriverListener;
+import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -82,6 +85,22 @@ public class WebDriverListenerCoverageUnitTest {
         listener.afterQuit(driver);
 
         verify(driver, atLeastOnce()).findElement(any(By.class));
+    }
+
+    @Test
+    public void navigationHooksShouldQuoteUrls() throws Exception {
+        WebDriverListener listener = new WebDriverListener();
+        WebDriver driver = mock(WebDriver.class);
+        WebDriver.Navigation navigation = mock(WebDriver.Navigation.class);
+
+        try (MockedStatic<ReportManager> reportManager = Mockito.mockStatic(ReportManager.class)) {
+            listener.afterGet(driver, "https://example.com/");
+            listener.afterTo(navigation, "https://example.com/");
+            listener.afterTo(navigation, new URL("https://example.com/"));
+
+            reportManager.verify(() -> ReportManager.log("Navigate to \"https://example.com/\"."));
+            reportManager.verify(() -> ReportManager.log("Navigate to url \"https://example.com/\"."), Mockito.times(2));
+        }
     }
 
     @Test

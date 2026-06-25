@@ -163,12 +163,30 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
 
     private ValidationsExecutor visualValidation(ValidationEnums.ValidationType validationType,
                                                  ValidationEnums.VisualValidationEngine visualValidationEngine) {
+        appendShaftElementNameIfAvailable();
         reportMessageBuilder.append(validationType.getValue() ? "matches" : "does not match")
-                .append(" the reference image \"").append(visualValidationEngine).append("\".");
+                .append(" the reference image.");
         var executor = builder("elementMatches", null, null)
                 .createVisualExecutor(validationType, visualValidationEngine);
         executor.internalPerform();
         return executor;
+    }
+
+    private void appendShaftElementNameIfAvailable() {
+        var elementName = extractSmartLocatorName();
+        if (!elementName.isBlank()) {
+            reportMessageBuilder.append("\"").append(elementName).append("\" ");
+        }
+    }
+
+    private String extractSmartLocatorName() {
+        if (locatorDescription == null) {
+            return "";
+        }
+        var prefix = "Smart Locator: \"";
+        return locatorDescription.startsWith(prefix) && locatorDescription.endsWith("\"")
+                ? locatorDescription.substring(prefix.length(), locatorDescription.length() - 1)
+                : "";
     }
 
     private ValidationsExecutor expectedState(String validationMethod, ValidationEnums.ValidationType validationType) {

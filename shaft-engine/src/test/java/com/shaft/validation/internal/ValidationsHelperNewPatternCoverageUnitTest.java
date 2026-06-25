@@ -9,6 +9,7 @@ import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
+import io.qameta.allure.Allure;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -26,6 +27,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -164,8 +166,8 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         Assert.assertFalse(elementBuilder.reportMessageBuilder.toString().contains("By.id: message"));
     }
 
-    @Test(description = "Visual validation screenshot bytes should be routed as screenshot attachments")
-    public void visualValidationImageBytesShouldUseScreenshotAttachmentType() {
+    @Test(description = "Visual validation should attach one Allure visual comparison artifact")
+    public void visualValidationImageBytesShouldUseVisualComparisonAttachmentOnly() {
         ValidationsHelper helper = new ValidationsHelper(ValidationEnums.ValidationCategory.HARD_ASSERT);
         By locator = By.id("logo");
         WebDriver driver = mock(WebDriver.class);
@@ -177,7 +179,9 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         when(element.getScreenshotAs(any())).thenReturn(actualScreenshot);
 
         try (MockedStatic<ImageProcessingActions> imageProcessingMocked = Mockito.mockStatic(ImageProcessingActions.class);
-             MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class)) {
+             MockedStatic<ReportManagerHelper> reportManagerHelperMocked = Mockito.mockStatic(ReportManagerHelper.class);
+             MockedStatic<Allure> allureMocked = Mockito.mockStatic(Allure.class)) {
+            allureMocked.when(Allure::getLifecycle).thenCallRealMethod();
             imageProcessingMocked.when(() -> ImageProcessingActions.getReferenceImage(any(By.class)))
                     .thenReturn(referenceScreenshot);
             imageProcessingMocked.when(() -> ImageProcessingActions.compareAgainstBaseline(any(), any(By.class), any(byte[].class), any()))
@@ -190,10 +194,9 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
 
             reportManagerHelperMocked.verify(() -> ReportManagerHelper.attach(attachmentsCaptor.capture()));
             List<List<Object>> attachments = attachmentsCaptor.getValue();
-            Assert.assertTrue(hasAttachment(attachments, "Screenshot", "Reference Screenshot", referenceScreenshot));
-            Assert.assertTrue(hasAttachment(attachments, "Screenshot", "Actual Screenshot", actualScreenshot));
-            Assert.assertFalse(attachments.stream().anyMatch(attachment ->
-                    "Validation Test Data".equals(attachment.get(0)) && attachment.get(1).toString().contains("Screenshot")));
+            Assert.assertTrue(attachments.isEmpty());
+            allureMocked.verify(() -> Allure.addAttachment(eq("Visual Comparison"),
+                    eq("application/vnd.allure.image.diff"), anyString()));
         }
     }
 
@@ -235,10 +238,5 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
 
         Assert.assertEquals(performValidation.invoke(helper, "a", "b", ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE), false);
         Assert.assertEquals(performValidation.invoke(helper, 3, 3, ValidationEnums.NumbersComparativeRelation.EQUALS, ValidationEnums.ValidationType.POSITIVE), true);
-    }
-
-    private boolean hasAttachment(List<List<Object>> attachments, String type, String name, byte[] content) {
-        return attachments.stream().anyMatch(attachment ->
-                type.equals(attachment.get(0)) && name.equals(attachment.get(1)) && attachment.get(2) == content);
     }
 }

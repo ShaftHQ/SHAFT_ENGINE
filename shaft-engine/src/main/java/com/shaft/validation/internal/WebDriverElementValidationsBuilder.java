@@ -1,5 +1,6 @@
 package com.shaft.validation.internal;
 
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -66,7 +67,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG;
-        reportMessageBuilder.append("matches the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG).append("\".");
+        appendVisualValidationMessage(true);
         var executor = new ValidationsExecutor(this);
         executor.internalPerform();
         return executor;
@@ -83,7 +84,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
-        reportMessageBuilder.append("matches the reference image \"").append(visualValidationEngine).append("\".");
+        appendVisualValidationMessage(true);
         var executor = new ValidationsExecutor(this);
         executor.internalPerform();
         return executor;
@@ -101,7 +102,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
-        reportMessageBuilder.append("does not match the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_OPENCV).append("\".");
+        appendVisualValidationMessage(false);
         var executor = new ValidationsExecutor(this);
         executor.internalPerform();
         return executor;
@@ -118,10 +119,33 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
-        reportMessageBuilder.append("does not match the reference image \"").append(visualValidationEngine).append("\".");
+        appendVisualValidationMessage(false);
         var executor = new ValidationsExecutor(this);
         executor.internalPerform();
         return executor;
+    }
+
+    private void appendVisualValidationMessage(boolean shouldMatch) {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append(shouldMatch ? "matches" : "does not match").append(" the reference image.");
+    }
+
+    private void appendShaftElementNameIfAvailable() {
+        var elementName = extractSmartLocatorName();
+        if (!elementName.isBlank()) {
+            reportMessageBuilder.append("\"").append(elementName).append("\" ");
+        }
+    }
+
+    private String extractSmartLocatorName() {
+        if (locator == null) {
+            return "";
+        }
+        var formattedLocator = JavaHelper.formatLocatorToString(locator);
+        var prefix = "Smart Locator: \"";
+        return formattedLocator.startsWith(prefix) && formattedLocator.endsWith("\"")
+                ? formattedLocator.substring(prefix.length(), formattedLocator.length() - 1)
+                : "";
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.shaft.validation.internal;
 
+import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.testng.Assert;
@@ -37,18 +38,38 @@ public class WebDriverElementValidationsBuilderCoverageUnitTest {
                 ValidationEnums.ValidationType.NEGATIVE, "elementExists", null, null, "does not exist.");
         assertExecutorInvocationState(newBuilder(), WebDriverElementValidationsBuilder::matchesReferenceImage,
                 ValidationEnums.ValidationType.POSITIVE, "elementMatches",
-                ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG, null, "matches the reference image");
+                ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG, null, "matches the reference image.");
         assertExecutorInvocationState(newBuilder(),
                 builder -> builder.matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV),
                 ValidationEnums.ValidationType.POSITIVE, "elementMatches",
-                ValidationEnums.VisualValidationEngine.EXACT_OPENCV, null, "matches the reference image");
+                ValidationEnums.VisualValidationEngine.EXACT_OPENCV, null, "matches the reference image.");
         assertExecutorInvocationState(newBuilder(), WebDriverElementValidationsBuilder::doesNotMatchReferenceImage,
                 ValidationEnums.ValidationType.NEGATIVE, "elementMatches",
-                ValidationEnums.VisualValidationEngine.EXACT_OPENCV, null, "does not match the reference image");
+                ValidationEnums.VisualValidationEngine.EXACT_OPENCV, null, "does not match the reference image.");
         assertExecutorInvocationState(newBuilder(),
                 builder -> builder.doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_EYES),
                 ValidationEnums.ValidationType.NEGATIVE, "elementMatches",
-                ValidationEnums.VisualValidationEngine.EXACT_EYES, null, "does not match the reference image");
+                ValidationEnums.VisualValidationEngine.EXACT_EYES, null, "does not match the reference image.");
+    }
+
+    @Test(description = "visual assertion messages should include smart locator names but not visual engines")
+    public void visualAssertionMessagesShouldUseSmartLocatorNameWithoutEngine() {
+        WebDriverElementValidationsBuilder builder = new WebDriverElementValidationsBuilder(
+                ValidationEnums.ValidationCategory.HARD_ASSERT,
+                null,
+                SmartLocators.clickableField("Login"),
+                new StringBuilder("the element "));
+
+        try {
+            builder.matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
+            Assert.fail("Expected invocation to fail without a live WebDriver session.");
+        } catch (Throwable ignored) {
+            // expected in unit context without a browser session
+        }
+
+        Assert.assertEquals(builder.reportMessageBuilder.toString(),
+                "the element \"Login\" matches the reference image.");
+        Assert.assertFalse(builder.reportMessageBuilder.toString().contains("EXACT_OPENCV"));
     }
 
     @Test(description = "boolean-like element helpers should configure selected/checked/hidden/disabled assertions")
@@ -102,6 +123,7 @@ public class WebDriverElementValidationsBuilderCoverageUnitTest {
         Assert.assertEquals(builder.visualValidationEngine, expectedVisualEngine);
         Assert.assertEquals(builder.elementAttribute, expectedElementAttribute);
         Assert.assertTrue(builder.reportMessageBuilder.toString().contains(expectedReportSnippet));
+        Assert.assertFalse(builder.reportMessageBuilder.toString().contains("EXACT_"));
     }
 
     @FunctionalInterface
