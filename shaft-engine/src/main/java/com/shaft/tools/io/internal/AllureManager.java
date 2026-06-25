@@ -161,13 +161,6 @@ public class AllureManager {
     private static final String ALLURE_THEME_COLORS_STYLE = """
             <style id="shaft-allure-theme-colors">
             :root:not([data-theme="dark"]) {
-              --color-bg-canvas: #c8d6e7;
-              --color-bg-primary: #ffffff;
-              --color-bg-secondary: #ffffff;
-              --color-bg-raised: #ffffff;
-              --color-bg-neutral: #c8d6e7;
-              --color-bg-inverse-primary: #102a31;
-              --color-bg-inverse-raised: #181f2a;
               --color-text-primary: #102a31;
               --color-text-secondary: #181f2a;
               --color-text-muted: #405765;
@@ -214,13 +207,6 @@ public class AllureManager {
               --color-tag-default-text: #102a31;
             }
             :root[data-theme="dark"] {
-              --color-bg-canvas: #07111f;
-              --color-bg-primary: #102a31;
-              --color-bg-secondary: #07111f;
-              --color-bg-raised: #181f2a;
-              --color-bg-neutral: #102a31;
-              --color-bg-inverse-primary: #07111f;
-              --color-bg-inverse-raised: #102a31;
               --color-text-primary: #f5fdff;
               --color-text-secondary: #dff5f4;
               --color-text-muted: #c8d6e7;
@@ -699,26 +685,36 @@ public class AllureManager {
         }
         try {
             String html = Files.readString(indexPath, StandardCharsets.UTF_8);
-            String previewFix = "";
+            String headPatch = "";
             if (!html.contains("id=\"" + ALLURE_ATTACHMENT_PREVIEW_FIX_ID + "\"")) {
-                previewFix += ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE;
+                headPatch += ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE;
             }
             if (!html.contains("id=\"" + ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID + "\"")) {
-                previewFix += ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT;
+                headPatch += ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT;
             }
+            String bodyPatch = "";
             if (!html.contains("id=\"" + ALLURE_THEME_COLORS_ID + "\"")) {
-                previewFix += ALLURE_THEME_COLORS_STYLE;
+                bodyPatch += ALLURE_THEME_COLORS_STYLE;
             }
-            if (previewFix.isEmpty()) {
+            if (headPatch.isEmpty() && bodyPatch.isEmpty()) {
                 return;
             }
-            int headEnd = html.indexOf("</head>");
-            String patchedHtml = headEnd >= 0
-                    ? html.substring(0, headEnd) + previewFix + html.substring(headEnd)
-                    : previewFix + html;
+            String patchedHtml = html;
+            if (!headPatch.isEmpty()) {
+                int headEnd = patchedHtml.indexOf("</head>");
+                patchedHtml = headEnd >= 0
+                        ? patchedHtml.substring(0, headEnd) + headPatch + patchedHtml.substring(headEnd)
+                        : headPatch + patchedHtml;
+            }
+            if (!bodyPatch.isEmpty()) {
+                int bodyEnd = patchedHtml.lastIndexOf("</body>");
+                patchedHtml = bodyEnd >= 0
+                        ? patchedHtml.substring(0, bodyEnd) + bodyPatch + patchedHtml.substring(bodyEnd)
+                        : patchedHtml + bodyPatch;
+            }
             Files.writeString(indexPath, patchedHtml, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            ReportManager.logDiscrete("Could not patch Allure report image preview styling: " + e.getMessage());
+            ReportManager.logDiscrete("Could not patch Allure report styling: " + e.getMessage());
         }
     }
 

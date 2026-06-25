@@ -211,12 +211,15 @@ public class AllureManagerCoverageUnitTest {
         String html = Files.readString(index, StandardCharsets.UTF_8);
         Assert.assertEquals(html.split("id=\"shaft-allure-attachment-preview-fix\"", -1).length - 1, 1, html);
         Assert.assertEquals(html.split("id=\"shaft-allure-theme-colors\"", -1).length - 1, 1, html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-allure-attachment-preview-fix\"") < html.indexOf("</head>"), html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-allure-theme-colors\"") > html.indexOf("</head>"), html);
         Assert.assertTrue(html.contains("img[src^=\"blob:\"]"), html);
         Assert.assertTrue(html.contains("MutationObserver"), html);
         Assert.assertTrue(html.contains("shaft-allure-image-modal"), html);
         Assert.assertTrue(html.contains("--color-intent-primary-bg: #006ec0"), html);
         Assert.assertTrue(html.contains(":root[data-theme=\"dark\"]"), html);
         Assert.assertTrue(html.contains("--color-intent-primary-bg: #4cc2ff"), html);
+        Assert.assertFalse(html.contains("--color-bg-"), html);
         Assert.assertTrue(html.contains("width: 100% !important"), html);
         Assert.assertTrue(html.contains("height: auto !important"), html);
     }
