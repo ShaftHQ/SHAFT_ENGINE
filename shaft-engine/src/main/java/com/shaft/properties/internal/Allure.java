@@ -80,12 +80,12 @@ public interface Allure extends EngineProperties<Allure> {
 
     /**
      * URL pointing to a custom logo image that replaces the default SHAFT logo in the Allure report.
-     * <p>Property key: {@code allure.customLogo} — default: shaft-engine white logo on GitHub
+     * <p>Property key: {@code allure.customLogo} — default: SHAFT report logo on GitHub
      *
      * @return a URL string for the custom logo image
      */
     @Key("allure.customLogo")
-    @DefaultValue("https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/shaft-engine/src/main/resources/images/shaft.png?raw=true")
+    @DefaultValue("https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/shaft-engine/src/main/resources/images/shaft_report_logo.png?raw=true")
     String customLogo();
 
     /**
@@ -97,6 +97,17 @@ public interface Allure extends EngineProperties<Allure> {
     @Key("allure.customTitle")
     @DefaultValue("SHAFT-powered test report")
     String customTitle();
+
+    /**
+     * Controls the default Allure 3 Awesome report color theme.
+     *
+     * <p>Property key: {@code allure.theme} — default: {@code auto}
+     *
+     * @return {@code auto}, {@code light}, or {@code dark}
+     */
+    @Key("allure.theme")
+    @DefaultValue("auto")
+    String theme();
 
     /**
      * Opt-in switch to enforce usage of the configured Allure 3 CLI version
@@ -170,12 +181,12 @@ public interface Allure extends EngineProperties<Allure> {
      * Controls the Allure 3 awesome plugin {@code groupBy} values written to {@code allurerc.yaml}.
      * Supply values as a comma-separated list.
      *
-     * <p>Property key: {@code allure.groupBy} — default: {@code parentSuite,suite,subSuite}
+     * <p>Property key: {@code allure.groupBy} — default: {@code package,testClass}
      *
      * @return comma-separated grouping fields used by the generated Allure 3 report
      */
     @Key("allure.groupBy")
-    @DefaultValue("parentSuite,suite,subSuite")
+    @DefaultValue("package,testClass")
     String groupBy();
 
     /**
@@ -286,6 +297,17 @@ public interface Allure extends EngineProperties<Allure> {
          */
         public SetProperty customTitle(String value) {
             setProperty("allure.customTitle", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.theme} property at runtime.
+         *
+         * @param value {@code auto}, {@code light}, or {@code dark}
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty theme(String value) {
+            setProperty("allure.theme", value);
             return this;
         }
 
