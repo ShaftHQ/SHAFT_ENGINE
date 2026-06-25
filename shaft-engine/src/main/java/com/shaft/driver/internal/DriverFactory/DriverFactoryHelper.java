@@ -66,6 +66,7 @@ public class DriverFactoryHelper {
     private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Resolving the Docker browser image and driver binary.";
     private static final String SELENIUM_WEBSOCKET_LISTENER_LOGGER = "org.openqa.selenium.remote.http.WebSocket$Listener";
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
+    private static final ThreadLocal<WebDriver> activeDriver = new ThreadLocal<>();
     private static final Object LOCAL_DRIVER_INITIALIZATION_LOCK = new Object();
     @Getter(AccessLevel.PUBLIC)
     private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
@@ -81,7 +82,6 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static volatile boolean killSwitch = false;
     private final OptionsManager optionsManager = new OptionsManager();
-    @Setter
     @Getter
     private WebDriver driver;
     private BrowserNetworkInterceptor browserNetworkInterceptor;
@@ -100,6 +100,29 @@ public class DriverFactoryHelper {
      */
     public DriverFactoryHelper(WebDriver driver) {
         setDriver(driver);
+    }
+
+    /**
+     * Returns the WebDriver currently owned by this thread, when SHAFT created or attached one.
+     *
+     * @return the active WebDriver for the current thread, or {@code null}
+     */
+    public static WebDriver getActiveDriver() {
+        return activeDriver.get();
+    }
+
+    /**
+     * Stores the helper driver and exposes it to thread-local lifecycle reporters.
+     *
+     * @param driver the current WebDriver, or {@code null} to clear the thread state
+     */
+    public void setDriver(WebDriver driver) {
+        this.driver = driver;
+        if (driver == null) {
+            activeDriver.remove();
+        } else {
+            activeDriver.set(driver);
+        }
     }
 
     /**
@@ -627,6 +650,7 @@ public class DriverFactoryHelper {
 
     private static void clearThreadLocalDriverState() {
         webDriverManager.remove();
+        activeDriver.remove();
         setTargetHubUrl(null);
     }
 

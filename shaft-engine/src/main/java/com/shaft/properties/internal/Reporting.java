@@ -70,6 +70,38 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("false")
     boolean failOnLocatorHealthWarnings();
 
+    @Key("shaft.trace.enabled")
+    @DefaultValue("true")
+    boolean traceEnabled();
+
+    @Key("shaft.trace.mode")
+    @DefaultValue("failure")
+    String traceMode();
+
+    @Key("shaft.trace.includeCodeContext")
+    @DefaultValue("true")
+    boolean traceIncludeCodeContext();
+
+    @Key("shaft.trace.includeFullPageSnapshots")
+    @DefaultValue("true")
+    boolean traceIncludeFullPageSnapshots();
+
+    @Key("shaft.trace.includeNativePageSource")
+    @DefaultValue("true")
+    boolean traceIncludeNativePageSource();
+
+    @Key("shaft.trace.includeNetwork")
+    @DefaultValue("true")
+    boolean traceIncludeNetwork();
+
+    @Key("shaft.trace.includeConsole")
+    @DefaultValue("true")
+    boolean traceIncludeConsole();
+
+    @Key("shaft.trace.maxArtifactMb")
+    @DefaultValue("50")
+    int traceMaxArtifactMb();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -133,6 +165,46 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty failOnLocatorHealthWarnings(boolean value) {
             setProperty("failOnLocatorHealthWarnings", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceEnabled(boolean value) {
+            setProperty("shaft.trace.enabled", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceMode(String value) {
+            setProperty("shaft.trace.mode", value);
+            return this;
+        }
+
+        public SetProperty traceIncludeCodeContext(boolean value) {
+            setProperty("shaft.trace.includeCodeContext", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceIncludeFullPageSnapshots(boolean value) {
+            setProperty("shaft.trace.includeFullPageSnapshots", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceIncludeNativePageSource(boolean value) {
+            setProperty("shaft.trace.includeNativePageSource", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceIncludeNetwork(boolean value) {
+            setProperty("shaft.trace.includeNetwork", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceIncludeConsole(boolean value) {
+            setProperty("shaft.trace.includeConsole", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceMaxArtifactMb(int value) {
+            setProperty("shaft.trace.maxArtifactMb", String.valueOf(value));
             return this;
         }
 
