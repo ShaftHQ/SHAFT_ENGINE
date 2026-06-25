@@ -9,6 +9,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ProgressBarLogger;
@@ -88,11 +89,15 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         validationCategoryString = validationCategory == ValidationEnums.ValidationCategory.HARD_ASSERT ? "Assert" : "Verify";
         ReportManager.logDiscrete(validationCategoryString + " that " + customReportMessage);
         String progressTaskName = validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...";
+        long start = System.nanoTime();
         try {
             try (ProgressBarLogger ignored = new ProgressBarLogger(progressTaskName)) {
                 performPlaywrightValidation();
             }
         } finally {
+            BrowserPerformanceExecutionReport.recordBrowserAction(
+                    "playwright.validation." + validationMethod,
+                    System.nanoTime() - start);
             if (generatedCustomReportMessage) {
                 customReportMessage = "";
             }

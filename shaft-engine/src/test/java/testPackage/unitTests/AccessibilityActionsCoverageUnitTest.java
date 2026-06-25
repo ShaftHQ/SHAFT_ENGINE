@@ -1,7 +1,9 @@
 package testPackage.unitTests;
 
 import com.deque.html.axecore.results.Rule;
+import com.microsoft.playwright.Page;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.properties.internal.Properties;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.accessibility.AccessibilityHelper;
@@ -65,6 +67,26 @@ public class AccessibilityActionsCoverageUnitTest {
 
             helper.verify(() -> AccessibilityHelper.attachReportToAllure("Home"), times(1));
             helper.verify(() -> AccessibilityHelper.attachReportToAllure("Custom"), times(1));
+        }
+    }
+
+    @Test
+    public void shouldDelegatePlaywrightAccessibilityAnalysisToPlaywrightHelper() {
+        Page page = Mockito.mock(Page.class);
+        BrowserActionsContract playwrightBrowser = Mockito.mock(BrowserActionsContract.class);
+        AccessibilityActions playwrightActions = new AccessibilityActions(page, playwrightBrowser);
+        AccessibilityHelper.AccessibilityResult result = resultWithViolations(List.of(), 100.0);
+
+        try (MockedStatic<AccessibilityHelper> helper = Mockito.mockStatic(AccessibilityHelper.class)) {
+            helper.when(() -> AccessibilityHelper.analyzePlaywrightPageAccessibilityAndSave(
+                            Mockito.eq(page),
+                            Mockito.eq("Playwright"),
+                            (AccessibilityHelper.AccessibilityConfig) Mockito.isNull(),
+                            Mockito.eq(true)))
+                    .thenReturn(result);
+
+            Assert.assertSame(playwrightActions.analyzeAndReturn("Playwright"), result);
+            Assert.assertSame(playwrightActions.backToBrowserContract(), playwrightBrowser);
         }
     }
 

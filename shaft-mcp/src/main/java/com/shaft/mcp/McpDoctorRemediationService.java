@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -45,6 +46,9 @@ final class McpDoctorRemediationService {
     private static final int MAX_SOURCE_BYTES = 20_000;
     private static final Pattern SECRET_LIKE = Pattern.compile(
             "(?i)(authorization\\s*[:=]|bearer\\s+[a-z0-9._\\-]{8,}|api[_-]?key\\s*[:=]|sk-[a-z0-9]{8,})");
+    private static final Pattern FAILED_LOCATOR = Pattern.compile(
+            "(?i)(By\\.(?:id|name|cssSelector|xpath|className|tagName|linkText|partialLinkText)\\s*:?\\s*[^\\r\\n,;]+"
+                    + "|locator\\([^\\r\\n]+?\\)|selector\\s*[:=]\\s*[^\\r\\n,;]+)");
 
     private final Function<AiRequest, AiResponse> executor;
 
@@ -102,7 +106,11 @@ final class McpDoctorRemediationService {
             String driverVariableName,
             CodegenBackend backend) {
         CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
-        List<McpCodeBlock> blocks = deterministicBlocks(result.diagnosis(), driverVariableName, targetBackend);
+        List<McpCodeBlock> blocks = new ArrayList<>(
+                deterministicBlocks(result.diagnosis(), driverVariableName, targetBackend));
+        if (targetBackend == CodegenBackend.PLAYWRIGHT) {
+            blocks.add(playwrightReplayEvidenceBlock(result));
+        }
         List<McpActionRecord> actions = actions(result.diagnosis(), blocks);
         ProviderBlocks providerBlocks = useAi
                 ? providerBlocks(result, repositoryRoot, allowedSourcePaths, approvalPolicy, blocks)
@@ -526,6 +534,62 @@ final class McpDoctorRemediationService {
                 true,
                 evidenceIds,
                 List.of());
+    }
+
+    private static McpCodeBlock playwrightReplayEvidenceBlock(DoctorAnalysisResult result) {
+        List<String> evidenceIds = evidenceIds(result.diagnosis());
+        String failedLocator = failedLocator(result.bundle(), evidenceIds);
+        String locatorLine = failedLocator.isBlank()
+                ? "Failed locator: unavailable in retained Doctor evidence; identify it from the failing step before changing locators."
+                : "Failed locator: " + failedLocator + ".";
+        String evidenceLine = evidenceIds.isEmpty()
+                ? "Cited evidence: unavailable in retained Doctor evidence."
+                : "Cited evidence: " + String.join(", ", evidenceIds) + ".";
+        return new McpCodeBlock(
+                "playwright-replay-evidence-checklist",
+                "Playwright replay evidence checklist",
+                McpCodeBlock.Kind.INVESTIGATION,
+                "text",
+                List.of(),
+                """
+                        Playwright replay evidence checklist:
+                        1. Use playwright_replay_recording for any retained recording that covers the failed step.
+                        2. Use playwright_browser_get_page_dom to capture the current DOM before changing the locator.
+                        3. Use playwright_browser_take_screenshot to capture visible state at the same point.
+                        4. Use playwright_element_is_displayed and playwright_element_is_enabled on the failed locator before retrying the action.
+                        5. Compare replay evidence to the cited Doctor evidence and make only the smallest supported locator, wait, assertion, or data change.
+
+                        %s
+                        %s
+                        """.formatted(locatorLine, evidenceLine),
+                "Use before editing a Playwright locator, wait, assertion, or test data dependency.",
+                true,
+                evidenceIds,
+                List.of("Do not invent replacement locators without replay evidence."));
+    }
+
+    private static String failedLocator(EvidenceBundle bundle, List<String> evidenceIds) {
+        Set<String> cited = Set.copyOf(evidenceIds);
+        return bundle.evidence().stream()
+                .filter(item -> cited.isEmpty() || cited.contains(item.id()))
+                .map(McpDoctorRemediationService::failedLocator)
+                .filter(locator -> !locator.isBlank())
+                .findFirst()
+                .orElse("");
+    }
+
+    private static String failedLocator(EvidenceItem item) {
+        List<String> texts = List.of(
+                item.attributes().getOrDefault("failureMessage", ""),
+                item.attributes().getOrDefault("traceTop", ""),
+                item.content() == null ? "" : item.content());
+        for (String text : texts) {
+            Matcher matcher = FAILED_LOCATOR.matcher(text);
+            if (matcher.find()) {
+                return matcher.group(1).replaceAll("\\s+", " ").trim();
+            }
+        }
+        return "";
     }
 
     private static List<String> evidenceIds(Diagnosis diagnosis) {

@@ -5,6 +5,7 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Dialog;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor;
 import com.shaft.tools.io.ReportManager;
 import org.apache.logging.log4j.Level;
 
@@ -22,6 +23,7 @@ public final class PlaywrightSession implements AutoCloseable {
     private final BrowserContext browserContext;
     private Page page;
     private final PlaywrightTraceManager traceManager;
+    private final PlaywrightNetworkInterceptor networkInterceptor;
     private final AtomicReference<String> lastDialogText = new AtomicReference<>();
     private final AtomicBoolean dialogSeen = new AtomicBoolean();
     private final AtomicReference<DialogAction> nextDialogAction = new AtomicReference<>();
@@ -36,6 +38,7 @@ public final class PlaywrightSession implements AutoCloseable {
         this.browserContext = browserContext;
         this.page = page;
         this.traceManager = traceManager;
+        this.networkInterceptor = new PlaywrightNetworkInterceptor(browserContext);
         registerDialogBridge(page);
     }
 
@@ -62,6 +65,10 @@ public final class PlaywrightSession implements AutoCloseable {
 
     public PlaywrightTraceManager traceManager() {
         return traceManager;
+    }
+
+    public PlaywrightNetworkInterceptor networkInterceptor() {
+        return networkInterceptor;
     }
 
     public boolean isDialogSeen() {
@@ -103,6 +110,7 @@ public final class PlaywrightSession implements AutoCloseable {
 
     @Override
     public void close() {
+        networkInterceptor.clear();
         if (traceManager != null) {
             traceManager.stopAndAttach();
         }

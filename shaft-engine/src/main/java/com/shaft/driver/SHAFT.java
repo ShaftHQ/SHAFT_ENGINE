@@ -14,6 +14,7 @@ import com.shaft.gui.element.AsyncElementActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.internal.natural.NaturalActionExecutor;
+import com.shaft.gui.internal.natural.PlaywrightNaturalActionExecutor;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.*;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -366,7 +367,8 @@ public class SHAFT {
 
             @Override
             public Playwright act(String intent, Object... args) {
-                throw new UnsupportedOperationException("Natural GUI actions currently execute through WebDriver and are not available through the Playwright backend.");
+                PlaywrightNaturalActionExecutor.perform(session, intent, args);
+                return this;
             }
 
             @Override

@@ -149,6 +149,81 @@ class DoctorServiceTest {
     }
 
     @Test
+    void playwrightDoctorIncludesReplayEvidenceChecklistWithLocatorContext(@TempDir Path temp) throws Exception {
+        Path input = Files.createDirectories(temp.resolve("playwright-allure-results"));
+        Files.writeString(input.resolve("playwright-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "playwright",
+                "historyId", "playwright",
+                "name", "playwright",
+                "fullName", "example.Playwright.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "NoSuchElementException: unable to locate element: By.cssSelector: #login-button",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+
+        var analysis = service(temp).analyzeFailedPlaywrightAllure(
+                List.of(input.toString()),
+                List.of(),
+                temp.resolve("playwright-doctor-output").toString(),
+                false,
+                false,
+                1,
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        String checklist = blockCode(analysis, "playwright-replay-evidence-checklist");
+        String evidenceId = analysis.diagnosis().findings().stream()
+                .flatMap(finding -> finding.evidenceIds().stream())
+                .findFirst()
+                .orElseThrow();
+        assertTrue(checklist.contains("By.cssSelector: #login-button"), checklist);
+        assertTrue(checklist.contains(evidenceId), checklist);
+        assertPlaywrightReplayTools(checklist);
+    }
+
+    @Test
+    void webdriverDoctorDoesNotIncludePlaywrightReplayGuidance(@TempDir Path temp) throws Exception {
+        Path input = Files.createDirectories(temp.resolve("webdriver-allure-results"));
+        Files.writeString(input.resolve("webdriver-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "webdriver",
+                "historyId", "webdriver",
+                "name", "webdriver",
+                "fullName", "example.WebDriver.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "NoSuchElementException: unable to locate element: By.cssSelector: #login-button",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+
+        var analysis = service(temp).analyzeFailedAllure(
+                List.of(input.toString()),
+                List.of(),
+                temp.resolve("webdriver-doctor-output").toString(),
+                false,
+                false,
+                1,
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        String output = analysis.codeBlocks().stream()
+                .map(block -> block.title() + "\n" + block.code() + "\n" + block.placement())
+                .reduce("", (left, right) -> left + "\n" + right);
+        assertTrue(!output.contains("playwright_browser_get_page_dom"), output);
+        assertTrue(!output.contains("playwright_replay_recording"), output);
+    }
+
+    @Test
     void documentedExternalClientsInvokeDoctorAnalyzeWithoutCredentials() throws Exception {
         Path root = repositoryRoot();
         String json = Files.readString(root.resolve(
@@ -331,6 +406,22 @@ class DoctorServiceTest {
 
     private static DoctorService service(Path root) {
         return new DoctorService(McpWorkspacePolicy.of(root), new McpDoctorRemediationService());
+    }
+
+    private static String blockCode(McpAnalysisReport analysis, String blockId) {
+        return analysis.codeBlocks().stream()
+                .filter(block -> block.id().equals(blockId))
+                .findFirst()
+                .map(McpCodeBlock::code)
+                .orElse("");
+    }
+
+    private static void assertPlaywrightReplayTools(String text) {
+        assertTrue(text.contains("playwright_browser_get_page_dom"), text);
+        assertTrue(text.contains("playwright_browser_take_screenshot"), text);
+        assertTrue(text.contains("playwright_element_is_displayed"), text);
+        assertTrue(text.contains("playwright_element_is_enabled"), text);
+        assertTrue(text.contains("playwright_replay_recording"), text);
     }
 
     private static final class DoctorSnippetProvider implements AiProvider {

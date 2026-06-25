@@ -106,7 +106,7 @@ public class PerformanceReportHTMLHelper {
 
         // Start of the performance table with pagination
         html.append("<table id='performanceTable'><thead>");
-        html.append("<tr><th>Endpoint</th><th>Requests</th><th>Max Response Time (ms)</th><th>Min Response Time (ms)</th><th>Average Response Time (ms)</th></tr>");
+        html.append("<tr><th>Endpoint</th><th>Requests</th><th>Max Response Time (ms)</th><th>Min Response Time (ms)</th><th>Average Response Time (ms)</th><th>P50 Response Time (ms)</th><th>P90 Response Time (ms)</th><th>P95 Response Time (ms)</th><th>P99 Response Time (ms)</th><th>Budget (p95 ms)</th><th>Budget Status</th></tr>");
         html.append("</thead><tbody>");
 
         // Insert the performance data rows
