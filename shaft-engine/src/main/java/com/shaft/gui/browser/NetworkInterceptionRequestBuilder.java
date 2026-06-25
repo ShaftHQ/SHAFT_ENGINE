@@ -23,7 +23,6 @@ import java.util.regex.Pattern;
  * Fluent builder for browser network request interception.
  */
 public class NetworkInterceptionRequestBuilder<T extends BrowserActionsContract> {
-    private final T browserActions;
     private final BiFunction<BrowserNetworkInterceptionRule, String, T> ruleRegistrar;
     private final List<Predicate<HttpRequest>> predicates = new ArrayList<>();
     private HttpMethod method;
@@ -36,7 +35,7 @@ public class NetworkInterceptionRequestBuilder<T extends BrowserActionsContract>
      */
     public NetworkInterceptionRequestBuilder(T browserActions,
                                              BiFunction<BrowserNetworkInterceptionRule, String, T> ruleRegistrar) {
-        this.browserActions = Objects.requireNonNull(browserActions, "browserActions");
+        Objects.requireNonNull(browserActions, "browserActions");
         this.ruleRegistrar = Objects.requireNonNull(ruleRegistrar, "ruleRegistrar");
     }
 

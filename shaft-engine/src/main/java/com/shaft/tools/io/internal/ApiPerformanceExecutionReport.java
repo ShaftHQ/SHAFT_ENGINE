@@ -33,17 +33,17 @@ import java.util.Objects;
  * API performance-tracking infrastructure.
  */
 public class ApiPerformanceExecutionReport {
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
+    private static final String BUDGET_METRIC = "p95";
+    private static final DateTimeFormatter READABLE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
+
     /**
      * Creates a new API performance execution report helper instance.
      */
     public ApiPerformanceExecutionReport() {
         super();
     }
-
-    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
-    private static final String BUDGET_METRIC = "p95";
-    private static final DateTimeFormatter READABLE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
-    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
 
     // Fetch properties from the Reporting interface
 

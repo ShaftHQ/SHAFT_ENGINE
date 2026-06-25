@@ -643,8 +643,8 @@ public class AccessibilityHelper {
 
             logger.info("Playwright accessibility score for page '{}' is {}%.", pageName, accessibilityScore);
             return result;
-        } catch (Exception e) {
-            throw new RuntimeException("Accessibility analysis failed for Playwright page '" + pageName + "'.", e);
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalStateException("Accessibility analysis failed for Playwright page '" + pageName + "'.", e);
         }
     }
 

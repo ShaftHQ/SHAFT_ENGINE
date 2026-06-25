@@ -2,7 +2,6 @@ package com.shaft.gui.internal.natural;
 
 import com.shaft.gui.internal.locator.SmartLocators;
 import org.openqa.selenium.By;
-import org.openqa.selenium.support.pagefactory.ByAll;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -92,7 +91,7 @@ public class DeterministicNaturalActionPlanner implements NaturalActionPlanner {
         List<NaturalActionStep> steps = new ArrayList<>();
         steps.add(new NaturalActionStep(
                 NaturalActionKind.ELEMENT_TYPE,
-                new ByAll(
+                new NaturalActionCompositeLocator(
                         SmartLocators.inputField("username"),
                         SmartLocators.inputField("email"),
                         SmartLocators.inputField("login")),
@@ -101,13 +100,13 @@ public class DeterministicNaturalActionPlanner implements NaturalActionPlanner {
                 "Type the first argument into the username, email, or login field."));
         steps.add(new NaturalActionStep(
                 NaturalActionKind.ELEMENT_TYPE_SECURELY,
-                new ByAll(By.cssSelector("input[type='password']"), SmartLocators.inputField("password")),
+                new NaturalActionCompositeLocator(By.cssSelector("input[type='password']"), SmartLocators.inputField("password")),
                 request.arguments().get(1),
                 HIGH_TRUST,
                 "Type the second argument into the password field securely."));
         steps.add(new NaturalActionStep(
                 NaturalActionKind.ELEMENT_CLICK,
-                new ByAll(
+                new NaturalActionCompositeLocator(
                         SmartLocators.clickableField("login"),
                         SmartLocators.clickableField("log in"),
                         SmartLocators.clickableField("sign in"),

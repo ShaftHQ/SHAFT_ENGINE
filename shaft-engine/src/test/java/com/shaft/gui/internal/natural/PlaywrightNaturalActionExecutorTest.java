@@ -22,7 +22,7 @@ public class PlaywrightNaturalActionExecutorTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
-        SHAFTProperties();
+        setShaftProperties();
         session = mock(PlaywrightSession.class);
         page = mock(Page.class);
         locator = mock(Locator.class);
@@ -62,7 +62,7 @@ public class PlaywrightNaturalActionExecutorTest {
         verify(locator, never()).click();
     }
 
-    private void SHAFTProperties() {
+    private void setShaftProperties() {
         com.shaft.driver.SHAFT.Properties.naturalActions.set()
                 .enabled(true)
                 .minimumTrustPercentage(85)

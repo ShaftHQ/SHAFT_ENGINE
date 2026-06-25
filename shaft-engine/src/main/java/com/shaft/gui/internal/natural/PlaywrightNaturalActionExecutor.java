@@ -4,6 +4,7 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.driver.ShaftLocator;
+import com.shaft.gui.internal.locator.CompositeLocator;
 import com.shaft.gui.playwright.browser.BrowserActions;
 import com.shaft.gui.playwright.element.ElementActions;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
@@ -11,9 +12,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
-import org.openqa.selenium.support.pagefactory.ByAll;
 
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -111,14 +110,8 @@ public final class PlaywrightNaturalActionExecutor {
         if (locator == null) {
             return List.of();
         }
-        if (locator instanceof ByAll byAll) {
-            try {
-                Field bys = ByAll.class.getDeclaredField("bys");
-                bys.setAccessible(true);
-                return Arrays.asList((By[]) bys.get(byAll));
-            } catch (ReflectiveOperationException e) {
-                return List.of();
-            }
+        if (locator instanceof CompositeLocator compositeLocator) {
+            return compositeLocator.alternatives();
         }
         return List.of(locator);
     }
@@ -141,6 +134,7 @@ public final class PlaywrightNaturalActionExecutor {
                 case BROWSER_REFRESH -> (browser = browser == null ? new BrowserActions(session) : browser).refreshCurrentPage();
                 case BROWSER_BACK -> (browser = browser == null ? new BrowserActions(session) : browser).navigateBack();
                 case BROWSER_FORWARD -> (browser = browser == null ? new BrowserActions(session) : browser).navigateForward();
+                default -> FailureReporter.fail("Unsupported Playwright natural action kind: " + step.kind());
             }
         }
     }
