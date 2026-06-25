@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Collects bounded local evidence through explicit allowlisted adapter boundaries.
@@ -130,6 +132,14 @@ public final class EvidenceCollector {
         String lowerName = file.getFileName().toString().toLowerCase(Locale.ROOT);
         String extension = extension(lowerName);
 
+        if (isDiagnosticsJson(lowerName)) {
+            collectDiagnosticsText(file, sourceReference, request, redactor, items, state);
+            return;
+        }
+        if (isDiagnosticsZip(lowerName, "", extension)) {
+            collectDiagnosticsZip(file, sourceReference, request, redactor, items, state);
+            return;
+        }
         if (looksLikeBundle(file, lowerName)) {
             try {
                 EvidenceBundle bundle = codec.readBundle(file);
@@ -289,6 +299,7 @@ public final class EvidenceCollector {
                 String type = attachment.path("type").asText("").toLowerCase(Locale.ROOT);
                 String extension = extension(artifact.getFileName().toString().toLowerCase(Locale.ROOT));
                 String reference = portableReference(artifact, roots);
+                String diagnosticName = name + " " + source.toLowerCase(Locale.ROOT);
                 if (type.startsWith("image/") || SCREENSHOT_EXTENSIONS.contains(extension)) {
                     if (request.includeScreenshots()) {
                         collectBinary(artifact, reference, EvidenceCategory.SCREENSHOT,
@@ -305,6 +316,8 @@ public final class EvidenceCollector {
                     } else {
                         state.omittedItems++;
                     }
+                } else if (isDiagnosticsZip(diagnosticName, type, extension)) {
+                    collectDiagnosticsZip(artifact, reference, request, redactor, items, state);
                 } else if (name.contains("log") || name.contains("action history")
                         || name.contains("shaft")) {
                     collectText(artifact, reference, EvidenceCategory.SHAFT_LOG,
@@ -318,6 +331,88 @@ public final class EvidenceCollector {
                 collectAllureAttachments(child, resultFile, roots, request, redactor, items, state);
             }
         }
+    }
+
+    private void collectDiagnosticsText(
+            Path file,
+            String sourceReference,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state) {
+        byte[] source = readBounded(file, request.maxItemBytes());
+        collectDiagnosticsBytes(sourceReference, source, FilesSize.size(file) > source.length,
+                false, request, redactor, items, state);
+    }
+
+    private void collectDiagnosticsZip(
+            Path file,
+            String sourceReference,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state) {
+        try {
+            ZipText diagnostics = readDiagnosticsEntry(file, request.maxItemBytes());
+            if (diagnostics == null) {
+                state.omittedItems++;
+                return;
+            }
+            collectDiagnosticsBytes(sourceReference + "!/diagnostics.json", diagnostics.bytes(), diagnostics.truncated(),
+                    false, request, redactor, items, state);
+        } catch (IOException exception) {
+            collectDiagnosticsBytes(sourceReference, "Malformed SHAFT diagnostics zip."
+                            .getBytes(StandardCharsets.UTF_8), false, true, request, redactor, items, state);
+        }
+    }
+
+    private void collectDiagnosticsBytes(
+            String sourceReference,
+            byte[] source,
+            boolean sourceTruncated,
+            boolean invalid,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state) {
+        String text = new String(source, StandardCharsets.UTF_8);
+        String schemaVersion = "";
+        String sanitized;
+        try {
+            JsonNode redacted = redactor.redact(mapper.readTree(text));
+            schemaVersion = redacted.path("schemaVersion").asText("");
+            sanitized = mapper.writer(printer).writeValueAsString(redacted);
+        } catch (JsonProcessingException exception) {
+            sanitized = redactor.redact(text);
+            invalid = true;
+        }
+        byte[] retained = limit(sanitized.getBytes(StandardCharsets.UTF_8), request.maxItemBytes());
+        Map<String, String> attributes = new TreeMap<>();
+        attributes.put("diagnostics", "true");
+        attributes.put("invalid", Boolean.toString(invalid));
+        if (!schemaVersion.isBlank()) {
+            attributes.put("schemaVersion", schemaVersion);
+        }
+        addTextItem(sourceReference, EvidenceCategory.SHAFT_LOG, "application/json",
+                retained,
+                sourceTruncated || retained.length < sanitized.getBytes(StandardCharsets.UTF_8).length,
+                attributes, "shaft-diagnostics-json", items, state, request.maxBundleBytes());
+    }
+
+    private static ZipText readDiagnosticsEntry(Path file, long maxBytes) throws IOException {
+        int limit = Math.toIntExact(Math.min(maxBytes, Integer.MAX_VALUE - 1));
+        try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(file))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                String name = entry.getName().replace('\\', '/');
+                if (!entry.isDirectory() && (name.equals("diagnostics.json") || name.endsWith("/diagnostics.json"))) {
+                    byte[] bytes = zip.readNBytes(limit + 1);
+                    boolean truncated = bytes.length > limit;
+                    return new ZipText(limit(bytes, limit), truncated);
+                }
+            }
+        }
+        return null;
     }
 
     private void collectBinary(
@@ -553,6 +648,16 @@ public final class EvidenceCollector {
         return prefix.contains("\"bundleId\"") && prefix.contains("\"evidence\"");
     }
 
+    private static boolean isDiagnosticsJson(String lowerName) {
+        return lowerName.equals("diagnostics.json") || lowerName.endsWith("-diagnostics.json");
+    }
+
+    private static boolean isDiagnosticsZip(String lowerName, String type, String extension) {
+        return ".zip".equals(extension)
+                && (type.isBlank() || type.contains("zip"))
+                && lowerName.contains("diagnostics");
+    }
+
     private static EvidenceCategory inferCategory(String lowerName, String extension) {
         if (isPageSnapshot(lowerName, extension)) {
             return EvidenceCategory.PAGE_SNAPSHOT;
@@ -682,5 +787,8 @@ public final class EvidenceCollector {
                 throw new IllegalArgumentException("Doctor evidence size could not be read.", exception);
             }
         }
+    }
+
+    private record ZipText(byte[] bytes, boolean truncated) {
     }
 }

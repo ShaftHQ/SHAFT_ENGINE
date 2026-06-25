@@ -7,6 +7,7 @@ import com.shaft.gui.internal.image.AnimatedGifManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.internal.FailureDiagnosticsReporter;
 import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
@@ -303,7 +304,9 @@ public class TestNGListenerHelper {
 
             String logText = TestNGListenerHelper.createTestLog(getReporterOutput(iTestResult));
             ReportManagerHelper.attachTestLog(iTestNGMethod.getMethodName(), logText);
-            FailureTraceReporter.attachOnFailure(toTestExecutionInfo(iTestResult), logText, attachments);
+            TestExecutionInfo info = toTestExecutionInfo(iTestResult);
+            FailureTraceReporter.attachOnFailure(info, logText, attachments);
+            FailureDiagnosticsReporter.attachOnFailure(info, logText, attachments);
             JiraHelper.reportBugsToJIRA(attachments, logText, iTestResult, iTestNGMethod);
         }
     }

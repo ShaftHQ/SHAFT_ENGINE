@@ -70,6 +70,14 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("false")
     boolean failOnLocatorHealthWarnings();
 
+    @Key("shaft.diagnostics.enabled")
+    @DefaultValue("true")
+    boolean diagnosticsBundleEnabled();
+
+    @Key("shaft.diagnostics.maxArtifactMb")
+    @DefaultValue("50")
+    int diagnosticsMaxArtifactMb();
+
     @Key("shaft.trace.enabled")
     @DefaultValue("true")
     boolean traceEnabled();
@@ -165,6 +173,16 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty failOnLocatorHealthWarnings(boolean value) {
             setProperty("failOnLocatorHealthWarnings", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty diagnosticsBundleEnabled(boolean value) {
+            setProperty("shaft.diagnostics.enabled", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty diagnosticsMaxArtifactMb(int value) {
+            setProperty("shaft.diagnostics.maxArtifactMb", String.valueOf(value));
             return this;
         }
 
