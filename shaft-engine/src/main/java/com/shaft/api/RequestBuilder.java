@@ -471,7 +471,7 @@ public class RequestBuilder {
             Thread.sleep(delay.toMillis());
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while waiting to retry API request.", interruptedException);
+            throw new IllegalStateException("Interrupted while waiting to retry API request.", interruptedException);
         }
     }
 
