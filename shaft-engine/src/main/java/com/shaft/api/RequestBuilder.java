@@ -3,6 +3,7 @@ package com.shaft.api;
 import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Step;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
@@ -11,7 +12,9 @@ import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import lombok.AccessLevel;
 import lombok.Getter;
+import org.apache.logging.log4j.Level;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +44,7 @@ public class RequestBuilder {
     private String authenticationPassword;
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
     private boolean urlEncodingEnabled;
+    private RetryPolicy retryPolicy;
 
     /**
      * Start building a new API request from an existing RestActions session.
@@ -313,6 +317,18 @@ public class RequestBuilder {
     }
 
     /**
+     * Applies an opt-in retry policy to this request.
+     *
+     * @param retryPolicy retry policy to apply
+     * @return a self-reference to be used to continue building your API request
+     * @throws NullPointerException if {@code retryPolicy} is null
+     */
+    public RequestBuilder withRetry(RetryPolicy retryPolicy) {
+        this.retryPolicy = Objects.requireNonNull(retryPolicy, "retryPolicy");
+        return this;
+    }
+
+    /**
      * After you finish building your request, use this method to trigger the request and get back the response object.
      *
      * @return the current {@link SHAFT.API} session for response inspection and assertions
@@ -331,9 +347,10 @@ public class RequestBuilder {
 
         long startTime = System.currentTimeMillis();
         Response response = null;
+        RetryState retryState = RetryState.forPolicy(retryPolicy);
         boolean openApiInteractionRecorded = false;
         try {
-            response = sendRequest(request, specs);
+            response = sendRequestWithRetry(request, specs, retryState);
             if (openApiCoverageEnabled) {
                 OpenApiCoverageReporter.recordInteraction(openApiSpec, requestType, serviceName, null);
                 openApiInteractionRecorded = true;
@@ -346,12 +363,12 @@ public class RequestBuilder {
                 logResponseTime(normalizedEndpoint, responseTime);
             }
 
-            handleResponse(response, specs);
+            handleResponse(response, specs, retryState);
         } catch (Exception e) {
             if (openApiCoverageEnabled && !openApiInteractionRecorded) {
                 OpenApiCoverageReporter.recordInteraction(openApiSpec, requestType, serviceName, e);
             }
-            handleException(request, specs, response, e);
+            handleException(request, specs, response, e, retryState);
         }
 
         session.setLastResponse(response);
@@ -404,11 +421,65 @@ public class RequestBuilder {
         return session.sendRequest(requestType, request, specs);
     }
 
-    private void handleResponse(Response response, RequestSpecification specs) {
+    private Response sendRequestWithRetry(String request, RequestSpecification specs, RetryState retryState) {
+        if (retryPolicy == null || !retryPolicy.canRetry(requestType)) {
+            retryState.markAttempt();
+            Response response = sendRequest(request, specs);
+            retryState.recordResponse(response);
+            return response;
+        }
+
+        for (int attempt = 1; attempt <= retryPolicy.maxAttempts(); attempt++) {
+            retryState.markAttempt();
+            try {
+                Response response = sendRequest(request, specs);
+                retryState.recordResponse(response);
+                if (shouldRetryResponse(response, attempt)) {
+                    sleepBeforeRetry(attempt + 1, retryState);
+                    continue;
+                }
+                return response;
+            } catch (RuntimeException e) {
+                retryState.recordException(e);
+                if (shouldRetryException(e, attempt)) {
+                    sleepBeforeRetry(attempt + 1, retryState);
+                    continue;
+                }
+                throw e;
+            }
+        }
+        return null;
+    }
+
+    private boolean shouldRetryResponse(Response response, int attempt) {
+        return attempt < retryPolicy.maxAttempts()
+                && response != null
+                && retryPolicy.shouldRetryStatus(response.getStatusCode());
+    }
+
+    private boolean shouldRetryException(RuntimeException exception, int attempt) {
+        return attempt < retryPolicy.maxAttempts() && retryPolicy.shouldRetry(exception);
+    }
+
+    private void sleepBeforeRetry(int nextAttempt, RetryState retryState) {
+        Duration delay = retryPolicy.delayBeforeAttempt(nextAttempt);
+        ReportManager.logDiscrete("Retrying API request. " + retryState.reportDetails(), Level.DEBUG);
+        if (delay.isZero()) {
+            return;
+        }
+        try {
+            Thread.sleep(delay.toMillis());
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting to retry API request.", interruptedException);
+        }
+    }
+
+    private void handleResponse(Response response, RequestSpecification specs, RetryState retryState) {
         boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
-        String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName, contentType, urlArguments);
+        String reportMessage = appendRetryDetails(session.prepareReportMessage(response, targetStatusCode, requestType, serviceName, contentType, urlArguments), retryState);
         if (!Boolean.TRUE.equals(responseStatus)) {
-            throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + ".");
+            throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + "." + retryState.reportSuffix());
         }
 
         if (!reportMessage.isEmpty()) {
@@ -418,11 +489,18 @@ public class RequestBuilder {
         }
     }
 
-    private void handleException(String request, RequestSpecification specs, Response response, Exception e) {
+    private String appendRetryDetails(String reportMessage, RetryState retryState) {
+        if (reportMessage == null || reportMessage.isEmpty()) {
+            return reportMessage;
+        }
+        return reportMessage + retryState.reportSuffix();
+    }
+
+    private void handleException(String request, RequestSpecification specs, Response response, Exception e, RetryState retryState) {
         if (response != null) {
-            RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs, response, e);
+            RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms" + retryState.reportSuffix(), requestBody, specs, response, e);
         } else {
-            RestActions.failAction(request, e);
+            RestActions.failAction(request + retryState.reportSuffix(), e);
         }
     }
 
@@ -439,5 +517,43 @@ public class RequestBuilder {
      */
     public enum AuthenticationType {
         BASIC, FORM, NONE
+    }
+
+    private static final class RetryState {
+        private final boolean enabled;
+        private final int maxAttempts;
+        private int attempts;
+        private String finalOutcome = "";
+
+        private RetryState(boolean enabled, int maxAttempts) {
+            this.enabled = enabled;
+            this.maxAttempts = maxAttempts;
+        }
+
+        private static RetryState forPolicy(RetryPolicy retryPolicy) {
+            return new RetryState(retryPolicy != null, retryPolicy == null ? 1 : retryPolicy.maxAttempts());
+        }
+
+        private void markAttempt() {
+            attempts++;
+        }
+
+        private void recordResponse(Response response) {
+            if (response != null) {
+                finalOutcome = "HTTP " + response.getStatusCode();
+            }
+        }
+
+        private void recordException(Exception exception) {
+            finalOutcome = exception.getClass().getSimpleName();
+        }
+
+        private String reportSuffix() {
+            return enabled ? " | Retry Attempts: " + attempts + "/" + maxAttempts + " | Final Outcome: " + finalOutcome : "";
+        }
+
+        private String reportDetails() {
+            return "Retry Attempts: " + attempts + "/" + maxAttempts + " | Last Outcome: " + finalOutcome;
+        }
     }
 }
