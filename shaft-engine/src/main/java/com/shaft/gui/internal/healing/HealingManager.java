@@ -1,5 +1,6 @@
 package com.shaft.gui.internal.healing;
 
+import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
@@ -55,6 +56,7 @@ public final class HealingManager {
             if (provider.isEmpty()) {
                 ReportManager.logDiscrete(
                         "SHAFT Heal was requested but io.github.shafthq:shaft-heal is not on the runtime classpath.");
+                LocatorHealthReporter.recordHealingAttempt(locator, false);
                 return Optional.empty();
             }
             HealingProvider healingProvider = provider.get();
@@ -62,8 +64,10 @@ public final class HealingManager {
                     driver, locator, action, visibilityRequired, frameLocator, shadowHostLocator, shadowContentLocator));
             Optional<HealingResolution> accepted = resolution.filter(value -> value.elements().size() == 1);
             accepted.ifPresent(value -> reportAcceptedRecovery(healingProvider, value, locator));
+            LocatorHealthReporter.recordHealingAttempt(locator, accepted.isPresent());
             return accepted;
         } catch (RuntimeException exception) {
+            LocatorHealthReporter.recordHealingAttempt(locator, false);
             ReportManagerHelper.logDiscrete(exception);
             ReportManager.logDiscrete("SHAFT Heal recovery failed; preserving the original locator failure.");
             return Optional.empty();

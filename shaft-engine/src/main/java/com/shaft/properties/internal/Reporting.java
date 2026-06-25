@@ -58,6 +58,18 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("false")
     boolean attachFullLog();
 
+    @Key("locatorHealthReportEnabled")
+    @DefaultValue("false")
+    boolean locatorHealthReportEnabled();
+
+    @Key("slowLocatorThresholdMillis")
+    @DefaultValue("750")
+    int slowLocatorThresholdMillis();
+
+    @Key("failOnLocatorHealthWarnings")
+    @DefaultValue("false")
+    boolean failOnLocatorHealthWarnings();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -106,6 +118,21 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty attachFullLog(boolean value) {
             setProperty("attachFullLog", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty locatorHealthReportEnabled(boolean value) {
+            setProperty("locatorHealthReportEnabled", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty slowLocatorThresholdMillis(int value) {
+            setProperty("slowLocatorThresholdMillis", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty failOnLocatorHealthWarnings(boolean value) {
+            setProperty("failOnLocatorHealthWarnings", String.valueOf(value));
             return this;
         }
 
