@@ -1490,8 +1490,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/AllureManager.java": {
-    "mtime": 1782370829.7820458,
-    "ast_hash": "f0dd691cbc35af598dc9e92ef557429f",
+    "mtime": 1782373954.6253874,
+    "ast_hash": "5f46b2348204ee74851a25d4276357f1",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/ApiPerformanceExecutionReport.java": {
@@ -1920,8 +1920,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/tools/io/internal/AllureManagerCoverageUnitTest.java": {
-    "mtime": 1782370829.7850459,
-    "ast_hash": "ee615b160281cf87a431701eea16149b",
+    "mtime": 1782374430.2577329,
+    "ast_hash": "3850400fd5bbf6efff90538f61e68c22",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/tools/io/internal/ProgressBarLoggerCoverageUnitTest.java": {
@@ -4055,8 +4055,8 @@
     "semantic_hash": ""
   },
   ".github/actions/post-test-report/action.yml": {
-    "mtime": 1782371048.4949057,
-    "ast_hash": "9bf564486cc3861391c1d52b18f3e442",
+    "mtime": 1782371414.2918622,
+    "ast_hash": "4ea3584523933c5d89eda857b3fb1539",
     "semantic_hash": ""
   },
   ".github/actions/setup-test-env/action.yml": {
@@ -4139,11 +4139,6 @@
     "ast_hash": "1951482fcb77a99eaaaf3a3f0a3acc90",
     "semantic_hash": ""
   },
-  ".github/workflows/general-validations.yml": {
-    "mtime": 1782366241.565827,
-    "ast_hash": "13ad2f42460649f6ee90432f5bb07f85",
-    "semantic_hash": ""
-  },
   ".github/workflows/mavenCentral_cd.yml": {
     "mtime": 1781844357.8656278,
     "ast_hash": "12c1819ee10a8a1bc43b26956af4b6f0",
@@ -4175,8 +4170,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/shaft-pilot-release.yml": {
-    "mtime": 1781887374.741696,
-    "ast_hash": "6cdfddcdb0047dffb1407eaa6b60ab7e",
+    "mtime": 1782372953.6519473,
+    "ast_hash": "8d01f7212ab5fcfd7d743537b89279b1",
     "semantic_hash": ""
   },
   ".github/workflows/sync-sample-projects-version.yml": {
@@ -4569,11 +4564,6 @@
     "ast_hash": "8dc62f50fbf74b5780312307bf6d5d19",
     "semantic_hash": ""
   },
-  ".memory/memory/gotchas/python-script-tests-use-python310.json": {
-    "mtime": 1781685553.5514674,
-    "ast_hash": "540ee6ff20fd15c68447824453ac4618",
-    "semantic_hash": ""
-  },
   ".memory/memory/sources/agents.json": {
     "mtime": 1781855624.0805764,
     "ast_hash": "8b0ad0f82cc956b5c4a05f5413c6bd8e",
@@ -4692,11 +4682,6 @@
   ".memory/memory/gotchas/powershell-shell-sensitive-args.md": {
     "mtime": 1781687980.9182289,
     "ast_hash": "81604c5c66f8f3f2bc96d6fb9b63e0c5",
-    "semantic_hash": ""
-  },
-  ".memory/memory/gotchas/python-script-tests-use-python310.md": {
-    "mtime": 1781685553.547468,
-    "ast_hash": "2d9e074325b05036e1e50562a080a785",
     "semantic_hash": ""
   },
   ".memory/memory/sources/agents.md": {
@@ -5510,8 +5495,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/README.md": {
-    "mtime": 1782366241.5638218,
-    "ast_hash": "d91faaff0281d6f723a4647f7e8d07b2",
+    "mtime": 1782372953.6509464,
+    "ast_hash": "c6956e8a0cc38af6f8800ff3b36ca3b5",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/resources/images/shaft_standard.png": {
@@ -5605,8 +5590,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/resources/images/shaft_report_logo.png": {
-    "mtime": 1782370829.783046,
-    "ast_hash": "7f99e39a03216e880733d107359535f9",
+    "mtime": 1782373833.74218,
+    "ast_hash": "987c93b372f4f797f601da520d349930",
     "semantic_hash": ""
   }
 }
