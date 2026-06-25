@@ -179,6 +179,13 @@ public class AttachmentReporterUnitTest {
         SHAFT.Validations.assertThat().object(mimeType).isEqualTo("text/html").perform();
     }
 
+    /** ZIP attachments must use {@code application/zip}. */
+    @Test(description = "ZIP attachment should use application/zip MIME type")
+    public void zipAttachmentShouldUseApplicationZipMimeType() {
+        String mimeType = captureAttachmentMimeType("Playwright Trace", "trace.zip");
+        SHAFT.Validations.assertThat().object(mimeType).isEqualTo("application/zip").perform();
+    }
+
     /** Engine log attachments must use {@code text/plain}. */
     @Test(description = "Engine logs attachment should use text/plain MIME type")
     public void engineLogsAttachmentShouldUseTextPlainMimeType() {
@@ -247,6 +254,8 @@ public class AttachmentReporterUnitTest {
                 .isEqualTo("xml").perform();
         SHAFT.Validations.assertThat().object(invokeGetAttachmentCase("html", "page.html"))
                 .isEqualTo("html").perform();
+        SHAFT.Validations.assertThat().object(invokeGetAttachmentCase("Playwright Trace", "trace.zip"))
+                .isEqualTo("zip").perform();
         SHAFT.Validations.assertThat().object(invokeGetAttachmentCase("engine logs", "exec.log"))
                 .isEqualTo("engine logs").perform();
         SHAFT.Validations.assertThat().object(invokeGetAttachmentCase("unknown_type", "file.bin"))

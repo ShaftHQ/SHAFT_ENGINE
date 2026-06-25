@@ -13,6 +13,14 @@ public class ReportingTests {
     boolean openExecutionSummaryReportAfterExecution;
     boolean disableLogging;
     boolean attachFullLog;
+    boolean traceEnabled;
+    String traceMode;
+    boolean traceIncludeCodeContext;
+    boolean traceIncludeFullPageSnapshots;
+    boolean traceIncludeNativePageSource;
+    boolean traceIncludeNetwork;
+    boolean traceIncludeConsole;
+    int traceMaxArtifactMb;
 
     @BeforeClass
     public void beforeClass() {
@@ -24,6 +32,14 @@ public class ReportingTests {
         openExecutionSummaryReportAfterExecution = SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution();
         disableLogging = SHAFT.Properties.reporting.disableLogging();
         attachFullLog = SHAFT.Properties.reporting.attachFullLog();
+        traceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        traceMode = SHAFT.Properties.reporting.traceMode();
+        traceIncludeCodeContext = SHAFT.Properties.reporting.traceIncludeCodeContext();
+        traceIncludeFullPageSnapshots = SHAFT.Properties.reporting.traceIncludeFullPageSnapshots();
+        traceIncludeNativePageSource = SHAFT.Properties.reporting.traceIncludeNativePageSource();
+        traceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        traceIncludeConsole = SHAFT.Properties.reporting.traceIncludeConsole();
+        traceMaxArtifactMb = SHAFT.Properties.reporting.traceMaxArtifactMb();
 
     }
 
@@ -37,5 +53,13 @@ public class ReportingTests {
         SHAFT.Properties.reporting.set().openExecutionSummaryReportAfterExecution(openExecutionSummaryReportAfterExecution);
         SHAFT.Properties.reporting.set().disableLogging(disableLogging);
         SHAFT.Properties.reporting.set().attachFullLog(attachFullLog);
+        SHAFT.Properties.reporting.set().traceEnabled(traceEnabled);
+        SHAFT.Properties.reporting.set().traceMode(traceMode);
+        SHAFT.Properties.reporting.set().traceIncludeCodeContext(traceIncludeCodeContext);
+        SHAFT.Properties.reporting.set().traceIncludeFullPageSnapshots(traceIncludeFullPageSnapshots);
+        SHAFT.Properties.reporting.set().traceIncludeNativePageSource(traceIncludeNativePageSource);
+        SHAFT.Properties.reporting.set().traceIncludeNetwork(traceIncludeNetwork);
+        SHAFT.Properties.reporting.set().traceIncludeConsole(traceIncludeConsole);
+        SHAFT.Properties.reporting.set().traceMaxArtifactMb(traceMaxArtifactMb);
     }
 }
