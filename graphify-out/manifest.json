@@ -600,8 +600,8 @@
     "semantic_hash": ""
   },
   "shaft-doctor/src/main/java/com/shaft/doctor/collect/EvidenceCollector.java": {
-    "mtime": 1782378657.7966466,
-    "ast_hash": "84dc792fdb8d315c4218a804d9f61082",
+    "mtime": 1782387338.717467,
+    "ast_hash": "3e05599d12a2c4e9999260e249e53e71",
     "semantic_hash": ""
   },
   "shaft-doctor/src/main/java/com/shaft/doctor/format/DoctorFormatException.java": {
@@ -805,8 +805,8 @@
     "semantic_hash": ""
   },
   "shaft-doctor/src/test/java/com/shaft/doctor/DoctorAnalyzerTest.java": {
-    "mtime": 1782378376.9343908,
-    "ast_hash": "93366fd3b071988e38c09281f676d26d",
+    "mtime": 1782387338.7184672,
+    "ast_hash": "1e2c4f9eaed66529617181aba1349bc0",
     "semantic_hash": ""
   },
   "shaft-doctor/src/test/java/com/shaft/doctor/ai/DoctorAiAnalysisServiceTest.java": {
@@ -1045,8 +1045,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/internal/healing/HealingManager.java": {
-    "mtime": 1782366241.703482,
-    "ast_hash": "d44965b091ef96fb285ac4996394d87d",
+    "mtime": 1782387711.7418075,
+    "ast_hash": "1ff051e7a494337aa08650d7e0eefb41",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/internal/healing/HealingObservation.java": {
@@ -1255,8 +1255,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/internal/TestNGListenerHelper.java": {
-    "mtime": 1782378626.6404614,
-    "ast_hash": "b7db73a1c5016000dc5dcdc49e95ec68",
+    "mtime": 1782387338.7204673,
+    "ast_hash": "400b1dc61b33b10c5988a794fcda7647",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/internal/UpdateChecker.java": {
@@ -1385,8 +1385,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Reporting.java": {
-    "mtime": 1782378626.6384616,
-    "ast_hash": "faaadb551ee6ab2afbf0881331e14f36",
+    "mtime": 1782387615.2501464,
+    "ast_hash": "d11252b0f2bd76c5d938d34a9d86b520",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/TestNG.java": {
@@ -2595,8 +2595,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/properties/ReportingTests.java": {
-    "mtime": 1782378626.6414616,
-    "ast_hash": "2689cf0e5c18f1d3691e33b1257f91b0",
+    "mtime": 1782387338.7244682,
+    "ast_hash": "1f1adefb9483330e293ad674101ad4a2",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/properties/TestNGTests.java": {
@@ -4925,8 +4925,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/internal/ExecutionLifecycleHelper.java": {
-    "mtime": 1782378626.639462,
-    "ast_hash": "d6e603c9c7051b06eaabc25b6b7be128",
+    "mtime": 1782387338.7194672,
+    "ast_hash": "2f8575b322aa6a689d2192d5fbdddf85",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/listeners/internal/TestExecutionInfo.java": {
@@ -5570,13 +5570,13 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/gui/internal/locator/LocatorHealthReporter.java": {
-    "mtime": 1782366241.7074833,
-    "ast_hash": "37598e808a550817dd60a3f66cdb14cc",
+    "mtime": 1782388252.291893,
+    "ast_hash": "5453e2322cc281eafdbdff39ce3002ff",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/gui/internal/locator/LocatorHealthReporterUnitTest.java": {
-    "mtime": 1782366241.7754948,
-    "ast_hash": "353293fd200e562c1a2343370835a488",
+    "mtime": 1782387538.6601994,
+    "ast_hash": "000e62d76d496630140e9844cd5ea049",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/ExecutionLifecycleHelperSourceUnitTest.java": {
@@ -5595,42 +5595,42 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/FailureTraceReporter.java": {
-    "mtime": 1782378124.4388506,
-    "ast_hash": "6aa99a3e255442d655077fdc648726fe",
+    "mtime": 1782388252.2928977,
+    "ast_hash": "c9be015fffbaa442a556ce81fc2ab32d",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/tools/io/internal/FailureTraceReporterTest.java": {
-    "mtime": 1782378124.44285,
-    "ast_hash": "90d20a7d15d470c750f2fd426ff61ce9",
-    "semantic_hash": ""
-  },
-  "shaft-doctor/allure-results/27493508-7014-4df8-b1e2-827d04f7b58a-container.json": {
-    "mtime": 1782378720.0125911,
-    "ast_hash": "90656029398986892aa9a4ddd27e9c6c",
-    "semantic_hash": ""
-  },
-  "shaft-doctor/allure-results/b596fb1b-780d-4532-8070-9dff7d7a16ab-container.json": {
-    "mtime": 1782378720.0145843,
-    "ast_hash": "218bba2da8dcdcf4d3117ccdb2df9d97",
-    "semantic_hash": ""
-  },
-  "shaft-doctor/allure-results/d9f65eba-268d-47f1-b6a8-3d69f652909d-result.json": {
-    "mtime": 1782378720.0175898,
-    "ast_hash": "eece206c20ae24da40a2c364ad82651d",
+    "mtime": 1782388194.0539734,
+    "ast_hash": "70174e37f9aeaa49cf5879aafae4c608",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/FailureDiagnosticsReporter.java": {
-    "mtime": 1782378626.6424615,
-    "ast_hash": "a55fec71cb539c7f60d6abcc3c5ccdb9",
+    "mtime": 1782387338.7224674,
+    "ast_hash": "c03fd72c578e6e54d832c39646179b0f",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/tools/io/internal/FailureDiagnosticsReporterTest.java": {
-    "mtime": 1782378376.9343908,
-    "ast_hash": "0f0afa00f3eeac4457210404e365fc86",
+    "mtime": 1782387338.7234707,
+    "ast_hash": "a36fbd554df4802d30ae12bd2e7deec0",
     "semantic_hash": ""
   },
-  "shaft-doctor/allure-results/1079b947-9f92-4113-87e6-2b4088c0ea6e-attachment.txt": {
-    "mtime": 1782378719.8405232,
+  "shaft-doctor/allure-results/59d616eb-5d00-4e7a-85ad-48c1893c90ad-container.json": {
+    "mtime": 1782379219.1838024,
+    "ast_hash": "036f646a26abc56216d5e20cd48060f4",
+    "semantic_hash": ""
+  },
+  "shaft-doctor/allure-results/b02e2aca-281b-4f86-b8a1-6de58e9b99eb-result.json": {
+    "mtime": 1782379219.1868033,
+    "ast_hash": "71dd490cbdae96deffdbca23ca1f0f2e",
+    "semantic_hash": ""
+  },
+  "shaft-doctor/allure-results/fa7c7ce1-cd25-4287-b301-053886b1a747-container.json": {
+    "mtime": 1782379219.1893117,
+    "ast_hash": "77f7c99df3ca0c8fe9e292f02c42d66a",
+    "semantic_hash": ""
+  },
+  "shaft-doctor/allure-results/0f2c181c-7932-465a-bb44-58634e8d3275-attachment.txt": {
+    "mtime": 1782379219.0352633,
     "ast_hash": "70524e41adaa390f239432c99a4d0d9b",
     "semantic_hash": ""
   }

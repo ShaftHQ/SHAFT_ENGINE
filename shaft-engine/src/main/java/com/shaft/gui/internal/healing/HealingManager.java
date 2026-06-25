@@ -63,8 +63,14 @@ public final class HealingManager {
             Optional<HealingResolution> resolution = healingProvider.resolve(new HealingRequest(
                     driver, locator, action, visibilityRequired, frameLocator, shadowHostLocator, shadowContentLocator));
             Optional<HealingResolution> accepted = resolution.filter(value -> value.elements().size() == 1);
-            accepted.ifPresent(value -> reportAcceptedRecovery(healingProvider, value, locator));
-            LocatorHealthReporter.recordHealingAttempt(locator, accepted.isPresent());
+            Optional<HealingExplanation> explanation = accepted
+                    .map(value -> reportAcceptedRecovery(healingProvider, value, locator))
+                    .orElse(Optional.empty());
+            LocatorHealthReporter.recordHealingAttempt(
+                    locator,
+                    accepted.isPresent(),
+                    accepted.map(HealingResolution::selectedLocator).orElse(null),
+                    explanation.map(HealingExplanation::confidence).orElse(-1D));
             return accepted;
         } catch (RuntimeException exception) {
             LocatorHealthReporter.recordHealingAttempt(locator, false);
@@ -201,7 +207,7 @@ public final class HealingManager {
         }
     }
 
-    private static void reportAcceptedRecovery(
+    private static Optional<HealingExplanation> reportAcceptedRecovery(
             HealingProvider provider,
             HealingResolution resolution,
             By originalLocator) {
@@ -212,6 +218,7 @@ public final class HealingManager {
                         + safe(originalLocator) + "\", healed locator: \""
                         + safe(resolution.selectedLocator()) + "\".");
         ReportManager.log(message, Level.WARN);
+        return explanation;
     }
 
     private static String formatExplanation(HealingExplanation explanation) {

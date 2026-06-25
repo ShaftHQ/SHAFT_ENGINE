@@ -14,13 +14,17 @@ import java.io.File;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 /**
@@ -34,6 +38,9 @@ public final class LocatorHealthReporter {
     private static final Pattern SECRET_ASSIGNMENT = Pattern.compile(
             "(?i)(password|passwd|secret|token|api[-_]?key|authorization|cookie)\\s*[:=]\\s*[^\\s,;]+");
     private static final Pattern LONG_TOKEN = Pattern.compile("\\b[a-zA-Z0-9_-]{32,}\\b");
+    private static final Pattern XPATH_INDEX = Pattern.compile("\\[[0-9]+]");
+    private static final Pattern GENERATED_ID = Pattern.compile(
+            "(?i)(^|.*[#:\\s_-])(react-select-\\d+|ember\\d+|[a-f0-9]{8,}|[a-z]+[_-]?\\d{4,}).*");
 
     private LocatorHealthReporter() {
         throw new IllegalStateException("Utility class");
@@ -45,7 +52,8 @@ public final class LocatorHealthReporter {
      * @return {@code true} when collection is enabled
      */
     public static boolean isEnabled() {
-        return SHAFT.Properties.reporting.locatorHealthReportEnabled();
+        return SHAFT.Properties.reporting.locatorHealthReportEnabled()
+                || SHAFT.Properties.reporting.locatorHealthEnabled();
     }
 
     /**
@@ -85,10 +93,22 @@ public final class LocatorHealthReporter {
      * @param accepted whether the recovery was accepted
      */
     public static void recordHealingAttempt(By originalLocator, boolean accepted) {
+        recordHealingAttempt(originalLocator, accepted, null, -1);
+    }
+
+    /**
+     * Records one SHAFT Heal recovery attempt for the original locator.
+     *
+     * @param originalLocator locator that needed recovery
+     * @param accepted whether the recovery was accepted
+     * @param selectedLocator accepted replacement locator
+     * @param confidence provider confidence from {@code 0.0} to {@code 1.0}, or negative when unknown
+     */
+    public static void recordHealingAttempt(By originalLocator, boolean accepted, By selectedLocator, double confidence) {
         if (!isEnabled() || originalLocator == null) {
             return;
         }
-        statsFor(originalLocator).recordHealingAttempt(accepted);
+        statsFor(originalLocator).recordHealingAttempt(accepted, selectedLocator, confidence);
     }
 
     /**
@@ -106,7 +126,9 @@ public final class LocatorHealthReporter {
         writeReports(json, html);
         ReportManager.log(buildSummaryText());
         ReportManagerHelper.attach("json", "Locator Health Report", json);
-        ReportManagerHelper.attach("html", "Locator Health Report", html);
+        if (SHAFT.Properties.reporting.locatorHealthAttachDashboard()) {
+            ReportManagerHelper.attach("html", "Locator Health Report", html);
+        }
         AssertionError failure = warningFailure();
         reset();
         return failure;
@@ -118,6 +140,15 @@ public final class LocatorHealthReporter {
         sortedStats().forEach(stats -> stats.appendJson(locators.addObject()));
         root.put("warningCount", warningCount());
         return root.toPrettyString();
+    }
+
+    /**
+     * Returns the current locator-health JSON snapshot without resetting collected data.
+     *
+     * @return current locator-health summary JSON
+     */
+    public static String currentSummaryJson() {
+        return buildSummaryJson();
     }
 
     static String buildSummaryHtml() {
@@ -141,7 +172,7 @@ public final class LocatorHealthReporter {
                   <h1>SHAFT Locator Health Report</h1>
                   <p>Warnings: <span class="warn">%d</span></p>
                   <table>
-                    <thead><tr><th>Locator</th><th>Lookups</th><th>Avg ms</th><th>P95 ms</th><th>Polls</th><th>Timeouts</th><th>Stale</th><th>Multiple</th><th>Slow</th><th>Healing</th></tr></thead>
+                    <thead><tr><th>Locator</th><th>Score</th><th>Recommendation</th><th>Lookups</th><th>Avg ms</th><th>P95 ms</th><th>Polls</th><th>Timeouts</th><th>Stale</th><th>Multiple</th><th>Slow</th><th>Healing</th></tr></thead>
                     <tbody>%s</tbody>
                   </table>
                 </body>
@@ -158,14 +189,26 @@ public final class LocatorHealthReporter {
         StringBuilder summary = new StringBuilder("Locator health summary");
         sortedStats().forEach(stats -> summary.append(System.lineSeparator())
                 .append("- ").append(stats.locator)
-                .append(": lookups=").append(stats.lookupCount.get())
+                .append(": score=").append(stats.healthScore())
+                .append(", lookups=").append(stats.lookupCount.get())
                 .append(", avgMs=").append(String.format(Locale.ROOT, "%.1f", stats.averageLookupMillis()))
                 .append(", p95Ms=").append(stats.percentileMillis(95))
-                .append(", warnings=").append(stats.warningCount()));
+                .append(", warnings=").append(stats.warningCount())
+                .append(stats.recommendations().isEmpty()
+                        ? ""
+                        : ", recommendation=" + stats.recommendations().getFirst()));
         return summary.toString();
     }
 
     private static AssertionError warningFailure() {
+        int failBelowScore = SHAFT.Properties.reporting.locatorHealthFailBelowScore();
+        if (failBelowScore >= 0) {
+            boolean failingScore = LOCATORS.values().stream()
+                    .anyMatch(stats -> stats.healthScore() < failBelowScore);
+            if (failingScore) {
+                return new AssertionError("Locator health score below configured threshold: " + failBelowScore + ".");
+            }
+        }
         int warnings = warningCount();
         if (warnings > 0 && SHAFT.Properties.reporting.failOnLocatorHealthWarnings()) {
             return new AssertionError("Locator health warnings were found: " + warnings + ".");
@@ -179,7 +222,7 @@ public final class LocatorHealthReporter {
 
     private static List<LocatorStats> sortedStats() {
         return LOCATORS.values().stream()
-                .sorted(Comparator.comparing(stats -> stats.locator))
+                .sorted(Comparator.comparingInt(LocatorStats::healthScore).thenComparing(stats -> stats.locator))
                 .toList();
     }
 
@@ -225,6 +268,8 @@ public final class LocatorHealthReporter {
         private final ConcurrentLinkedQueue<Long> lookupMillis = new ConcurrentLinkedQueue<>();
         private final AtomicInteger lookupCount = new AtomicInteger();
         private final AtomicInteger pollingAttempts = new AtomicInteger();
+        private final AtomicInteger uniqueElementMatches = new AtomicInteger();
+        private final AtomicInteger noElementMatches = new AtomicInteger();
         private final AtomicInteger timeoutCount = new AtomicInteger();
         private final AtomicInteger staleElementRetries = new AtomicInteger();
         private final AtomicInteger multipleElementMatches = new AtomicInteger();
@@ -232,6 +277,8 @@ public final class LocatorHealthReporter {
         private final AtomicInteger healingAttempts = new AtomicInteger();
         private final AtomicInteger acceptedHealings = new AtomicInteger();
         private final AtomicInteger rejectedHealings = new AtomicInteger();
+        private final AtomicReference<String> lastHealedLocator = new AtomicReference<>("");
+        private final AtomicReference<Double> lastHealingConfidence = new AtomicReference<>();
 
         private LocatorStats(String locator) {
             this.locator = locator;
@@ -247,6 +294,11 @@ public final class LocatorHealthReporter {
             lookupMillis.add(safeElapsedMillis);
             lookupCount.incrementAndGet();
             this.pollingAttempts.addAndGet(Math.max(0, pollingAttempts));
+            if (foundElementCount == 0) {
+                noElementMatches.incrementAndGet();
+            } else if (foundElementCount == 1) {
+                uniqueElementMatches.incrementAndGet();
+            }
             if (timedOut) {
                 timeoutCount.incrementAndGet();
             }
@@ -263,10 +315,16 @@ public final class LocatorHealthReporter {
             }
         }
 
-        private void recordHealingAttempt(boolean accepted) {
+        private void recordHealingAttempt(boolean accepted, By selectedLocator, double confidence) {
             healingAttempts.incrementAndGet();
             if (accepted) {
                 acceptedHealings.incrementAndGet();
+                if (selectedLocator != null) {
+                    lastHealedLocator.set(safe(selectedLocator));
+                }
+                if (confidence >= 0) {
+                    lastHealingConfidence.set(Math.max(0, Math.min(1, confidence)));
+                }
             } else {
                 rejectedHealings.incrementAndGet();
             }
@@ -290,27 +348,135 @@ public final class LocatorHealthReporter {
                     + staleElementRetries.get()
                     + multipleElementMatches.get()
                     + slowLookups.get()
-                    + rejectedHealings.get();
+                    + rejectedHealings.get()
+                    + (healthScore() < SHAFT.Properties.reporting.locatorHealthWarnBelowScore() ? 1 : 0);
+        }
+
+        private int healthScore() {
+            int score = 100;
+            score -= Math.min(35, noElementMatches.get() * 20);
+            score -= Math.min(25, multipleElementMatches.get() * 15);
+            score -= Math.min(20, staleElementRetries.get() * 10);
+            score -= Math.min(15, slowLookups.get() * 10);
+            score -= Math.min(20, rejectedHealings.get() * 10);
+            score -= Math.min(40, selectorSmells().size() * 10);
+            return Math.max(0, score);
+        }
+
+        private double rate(int value) {
+            int total = lookupCount.get();
+            return total == 0 ? 0 : (double) value / total;
+        }
+
+        private List<String> selectorSmells() {
+            List<String> smells = new ArrayList<>();
+            String normalized = locator.toLowerCase(Locale.ROOT);
+            if (normalized.startsWith("by.xpath: /")) {
+                smells.add("absolute XPath");
+            }
+            if (normalized.startsWith("by.xpath:") && XPATH_INDEX.matcher(locator).find()) {
+                smells.add("index-heavy XPath");
+            }
+            if ((normalized.startsWith("by.id:") || normalized.startsWith("by.cssselector:"))
+                    && GENERATED_ID.matcher(locator).matches()) {
+                smells.add("generated ID");
+            }
+            if (normalized.startsWith("by.xpath:")
+                    && (normalized.contains("text()") || normalized.contains("normalize-space()"))
+                    && !normalized.contains("@")) {
+                smells.add("text-only selector");
+            }
+            if (normalized.startsWith("by.cssselector:") && cssDepth() >= 5) {
+                smells.add("deep CSS chain");
+            }
+            return smells;
+        }
+
+        private int cssDepth() {
+            String css = locator.substring("By.cssSelector:".length()).trim();
+            if (css.isBlank()) {
+                return 0;
+            }
+            return css.split("\\s*>\\s*|\\s+").length;
+        }
+
+        private List<String> recommendations() {
+            Set<String> recommendations = new LinkedHashSet<>();
+            for (String smell : selectorSmells()) {
+                switch (smell) {
+                    case "absolute XPath" ->
+                            recommendations.add("Prefer role/name, stable id/name, or data-testid over absolute XPath.");
+                    case "index-heavy XPath" ->
+                            recommendations.add("Avoid volatile XPath indexes; target a stable attribute or accessible name.");
+                    case "generated ID" ->
+                            recommendations.add("Replace generated IDs with data-testid or a stable name.");
+                    case "text-only selector" ->
+                            recommendations.add("Pair text with role, data-testid, or stable container context.");
+                    case "deep CSS chain" ->
+                            recommendations.add("Simplify deep CSS chains and add data-testid to the target element.");
+                    default -> {
+                    }
+                }
+            }
+            if (noElementMatches.get() > 0) {
+                recommendations.add("Add data-testid or use a stable id/name so the locator resolves consistently.");
+            }
+            if (multipleElementMatches.get() > 0) {
+                recommendations.add("Make the locator unique with role/name, stable id/name, or data-testid.");
+            }
+            if (staleElementRetries.get() > 0) {
+                recommendations.add("Re-query dynamic elements immediately before interaction.");
+            }
+            if (slowLookups.get() > 0) {
+                recommendations.add("Simplify the selector or use a stable attribute to reduce lookup time.");
+            }
+            if (!lastHealedLocator.get().isBlank()) {
+                recommendations.add("Review the accepted healed locator: " + lastHealedLocator.get() + ".");
+            }
+            return List.copyOf(recommendations);
         }
 
         private void appendJson(ObjectNode locatorNode) {
             locatorNode.put("locator", locator);
+            locatorNode.put("healthScore", healthScore());
             locatorNode.put("lookupCount", lookupCount.get());
             locatorNode.put("averageLookupMillis", averageLookupMillis());
             locatorNode.put("p95LookupMillis", percentileMillis(95));
             locatorNode.put("pollingAttempts", pollingAttempts.get());
+            locatorNode.put("uniqueMatchRate", rate(uniqueElementMatches.get()));
+            locatorNode.put("noMatchRate", rate(noElementMatches.get()));
+            locatorNode.put("multiMatchRate", rate(multipleElementMatches.get()));
+            locatorNode.put("staleRate", rate(staleElementRetries.get()));
             locatorNode.put("timeoutCount", timeoutCount.get());
+            locatorNode.put("noMatchCount", noElementMatches.get());
             locatorNode.put("staleElementRetries", staleElementRetries.get());
             locatorNode.put("multipleElementMatches", multipleElementMatches.get());
             locatorNode.put("slowLookups", slowLookups.get());
             locatorNode.put("healingAttempts", healingAttempts.get());
             locatorNode.put("acceptedHealings", acceptedHealings.get());
             locatorNode.put("rejectedHealings", rejectedHealings.get());
+            if (!lastHealedLocator.get().isBlank()) {
+                locatorNode.put("lastHealedLocator", lastHealedLocator.get());
+            }
+            Double confidence = lastHealingConfidence.get();
+            if (confidence != null) {
+                locatorNode.put("lastHealingConfidence", confidence);
+            }
+            ArrayNode smells = locatorNode.putArray("selectorSmells");
+            selectorSmells().forEach(smells::add);
+            ArrayNode recommendationNodes = locatorNode.putArray("recommendations");
+            recommendations().forEach(recommendationNodes::add);
             locatorNode.put("warningCount", warningCount());
         }
 
         private String toHtmlRow() {
-            return "<tr><td>" + htmlEscape(locator) + "</td><td>" + lookupCount.get()
+            List<String> recommendations = recommendations();
+            String riskClass = healthScore() < SHAFT.Properties.reporting.locatorHealthWarnBelowScore()
+                    ? " class=\"warn\""
+                    : "";
+            return "<tr" + riskClass + "><td>" + htmlEscape(locator) + "</td><td>" + healthScore()
+                    + "</td><td>" + htmlEscape(recommendations.isEmpty() ? "" : recommendations.getFirst())
+                    + "</td><td>" + lookupCount.get()
                     + "</td><td>" + String.format(Locale.ROOT, "%.1f", averageLookupMillis())
                     + "</td><td>" + percentileMillis(95)
                     + "</td><td>" + pollingAttempts.get()
