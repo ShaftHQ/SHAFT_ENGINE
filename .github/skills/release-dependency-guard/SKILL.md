@@ -1,6 +1,6 @@
 ---
 name: release-dependency-guard
-description: Prepare or review a SHAFT release by checking reactor versions, metadata, examples, consumer fixtures, stable dependency updates, and Maven Central publication safeguards.
+description: Use when preparing or reviewing a SHAFT release, dependency updates, static versions, or Maven Central safeguards.
 ---
 
 # Release And Dependency Guard
@@ -22,14 +22,16 @@ Never run deployment or publication commands locally.
 3. Update `shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`
    `shaftEngineVersion`. Verify `allure3Version` against the stable npm package
    and `nodeLtsVersion` against the current LTS patch using primary sources.
+   Keep non-Maven static versions in `Internal.java`; move stray version
+   literals there.
 4. Update all example and consumer-fixture `<shaft.version>` values found by:
 
    ```bash
    rg -l "<shaft.version>" -g "pom.xml"
    ```
 
-5. Run the repository's dependency/plugin/property update checks. Accept stable
-   updates only after compatibility review; do not treat alpha, beta, RC,
+5. Check Maven dependency/plugin/property updates. Accept stable ones after
+   compatibility review; do not treat alpha, beta, RC,
    milestone, or snapshot releases as upgrades.
 6. Validate release metadata and publication rules with existing scripts,
    including Maven Central POM/JAR/classifier/signature and canonical,
