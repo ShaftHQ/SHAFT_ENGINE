@@ -9,6 +9,7 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
@@ -31,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Internal helper class for browser actions within the SHAFT framework.
@@ -206,14 +208,23 @@ public class BrowserActionsHelper {
         if (!isSilent) {
             if (driver != null && !message.equals("Capture page snapshot.")) {
                 attachments.add(new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus));
-                ReportManagerHelper.log(message, attachments);
+                logWithProfiledAttachments(actionName, message, attachments);
             } else if (!attachments.isEmpty()) {
-                ReportManagerHelper.log(message, attachments);
+                logWithProfiledAttachments(actionName, message, attachments);
             } else {
                 ReportManager.log(message);
             }
         }
         return message;
+    }
+
+    private void logWithProfiledAttachments(String actionName, String message, List<List<Object>> attachments) {
+        long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        ReportManagerHelper.log(message, attachments);
+        if (profilerStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("report attachment", actionName,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
+        }
     }
 
     /**

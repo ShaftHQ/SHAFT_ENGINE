@@ -15,6 +15,7 @@ import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
@@ -32,6 +33,7 @@ import org.openqa.selenium.remote.http.HttpResponse;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -1001,7 +1003,18 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     public BrowserActions captureScreenshot(Screenshots type) {
         var logText = "Capture " + type.name().toLowerCase() + " screenshot";
         var screenshotManager = new ScreenshotManager();
-        ReportManagerHelper.log(logText, Collections.singletonList(screenshotManager.prepareImageForReport(screenshotManager.takeScreenshot(driverFactoryHelper.getDriver(), null), "captureScreenshot")));
+        long profilerScreenshotStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        byte[] screenshot = screenshotManager.takeScreenshot(driverFactoryHelper.getDriver(), null);
+        if (profilerScreenshotStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("screenshot", logText,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerScreenshotStart));
+        }
+        long profilerAttachmentStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        ReportManagerHelper.log(logText, Collections.singletonList(screenshotManager.prepareImageForReport(screenshot, "captureScreenshot")));
+        if (profilerAttachmentStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("report attachment", logText,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerAttachmentStart));
+        }
         return this;
     }
 
@@ -1015,13 +1028,23 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public BrowserActions captureSnapshot() {
         var logMessage = "";
+        long profilerSnapshotStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
         var pageSnapshot = browserActionsHelper.capturePageSnapshot(driverFactoryHelper.getDriver());
+        if (profilerSnapshotStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("page snapshot", "Capture page snapshot",
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerSnapshotStart));
+        }
         if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
             logMessage = "Capture page snapshot";
         } else if (pageSnapshot.startsWith("<html")) {
             logMessage = "Capture page HTML";
         }
+        long profilerAttachmentStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
         ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, new ScreenshotManager().generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
+        if (profilerAttachmentStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("report attachment", logMessage,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerAttachmentStart));
+        }
         return this;
     }
 

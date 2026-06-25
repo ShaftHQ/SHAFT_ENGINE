@@ -7,6 +7,7 @@ import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.ElementInformation;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import lombok.SneakyThrows;
 import org.openqa.selenium.*;
@@ -24,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 public class ScreenshotManager {
@@ -201,10 +203,20 @@ public class ScreenshotManager {
     }
 
     private List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName, boolean shouldAttachScreenshot, boolean shouldCaptureAnimatedGifFrame, boolean isPass) {
+        long profilerStart = (shouldAttachScreenshot || shouldCaptureAnimatedGifFrame) && FlakeProfiler.isEnabled()
+                ? System.nanoTime()
+                : 0L;
         if (shouldAttachScreenshot || shouldCaptureAnimatedGifFrame) {
-            byte[] src = internalCaptureScreenshot(driver, elementLocator, isPass);
-            if (shouldAttachScreenshot) {
-                return prepareImageForReport(src, actionName);
+            try {
+                byte[] src = internalCaptureScreenshot(driver, elementLocator, isPass);
+                if (shouldAttachScreenshot) {
+                    return prepareImageForReport(src, actionName);
+                }
+            } finally {
+                if (profilerStart != 0L) {
+                    FlakeProfiler.recordEvidenceCapture("screenshot", actionName,
+                            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
+                }
             }
         }
         return new ArrayList<>();

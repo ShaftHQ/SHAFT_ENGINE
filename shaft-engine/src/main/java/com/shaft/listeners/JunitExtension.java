@@ -8,6 +8,7 @@ import com.shaft.listeners.internal.RetryAnalyzer;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.ValidationsHelper;
 import org.junit.jupiter.api.extension.AfterAllCallback;
@@ -138,6 +139,8 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
         ReportManager.logDiscrete("Retry #" + attempt + "/" + maxRetryCount
                 + " for test: " + method.getName()
                 + ", on thread: " + Thread.currentThread().getName());
+        FlakeProfiler.recordRetryAttempt(method.getName(), attempt, maxRetryCount,
+                SHAFT.Properties.flags.forceCaptureSupportingEvidenceOnRetry());
     }
 
     private static TestExecutionInfo toTestExecutionInfo(ExtensionContext context, Method method, Throwable throwable) {

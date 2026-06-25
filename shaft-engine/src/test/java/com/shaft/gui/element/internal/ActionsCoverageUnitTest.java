@@ -1,5 +1,7 @@
 package com.shaft.gui.element.internal;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
@@ -9,8 +11,10 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
@@ -62,6 +66,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class ActionsCoverageUnitTest {
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final By LOCATOR = By.id("target");
     private static final byte[] PNG = new byte[]{(byte) 0x89, 'P', 'N', 'G'};
 
@@ -79,12 +84,14 @@ public class ActionsCoverageUnitTest {
         SHAFT.Properties.mobile.set().browserName("chrome");
         LocatorBuilder.cleanup();
         ShadowLocatorBuilder.cleanup();
+        FlakeProfiler.reset();
     }
 
     @AfterMethod(alwaysRun = true)
     public void cleanupThreadLocalState() {
         LocatorBuilder.cleanup();
         ShadowLocatorBuilder.cleanup();
+        FlakeProfiler.reset();
         Properties.clearForCurrentThread();
     }
 
@@ -444,6 +451,63 @@ public class ActionsCoverageUnitTest {
             verify(element, atLeastOnce()).sendKeys(any(CharSequence[].class));
             verify((JavascriptExecutor) driver, atLeastOnce()).executeScript(anyString(), any(Object[].class));
         }
+    }
+
+    @Test
+    public void flakeProfilerShouldSeparateElementActionDurationFromScreenshotEvidence() throws Exception {
+        SHAFT.Properties.reporting.set()
+                .flakeProfilerEnabled(true)
+                .flakeProfilerAttachPerTest(false);
+        SHAFT.Properties.visuals.set()
+                .screenshotParamsWhenToTakeAScreenshot("Always")
+                .screenshotParamsScreenshotType("VIEWPORT")
+                .screenshotParamsHighlightElements(false);
+
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenAnswer(invocation -> {
+            Thread.sleep(120);
+            return PNG;
+        });
+        TestExecutionInfo info = new TestExecutionInfo(
+                "com.shaft.gui.element.internal.ActionsCoverageUnitTest.flakeProfilerShouldSeparateElementActionDurationFromScreenshotEvidence",
+                "com.shaft.gui.element.internal.ActionsCoverageUnitTest",
+                "flakeProfilerShouldSeparateElementActionDurationFromScreenshotEvidence",
+                "Element action profiler timing",
+                "Element action profiler timing",
+                null,
+                null,
+                false);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            FlakeProfiler.startTest(info);
+            new Actions(helperFor(driver)).click(LOCATOR);
+            FlakeProfiler.finishTest(info, "Passed");
+        }
+
+        JsonNode testProfile = MAPPER.readTree(profilerSummaryJson()).path("tests").get(0);
+        JsonNode locateAction = actionEvent(testProfile, "locate", "CLICK");
+        JsonNode waitAction = actionEvent(testProfile, "wait", "CLICK");
+        JsonNode clickAction = actionEvent(testProfile, "action", "CLICK");
+        JsonNode screenshotEvidence = testProfile.path("evidence").get(0);
+        boolean hasReportAttachmentTiming = false;
+        for (JsonNode evidence : testProfile.path("evidence")) {
+            hasReportAttachmentTiming |= "report attachment".equals(evidence.path("category").asText());
+        }
+
+        Assert.assertNotNull(locateAction, testProfile.toPrettyString());
+        Assert.assertNotNull(waitAction, testProfile.toPrettyString());
+        Assert.assertNotNull(clickAction, testProfile.toPrettyString());
+        Assert.assertEquals(clickAction.path("category").asText(), "action");
+        Assert.assertEquals(clickAction.path("name").asText(), "CLICK");
+        Assert.assertEquals(locateAction.path("locatorLookupCount").asInt(), 1);
+        Assert.assertEquals(waitAction.path("waitLoopCount").asInt(), 1);
+        Assert.assertEquals(screenshotEvidence.path("category").asText(), "screenshot");
+        Assert.assertTrue(hasReportAttachmentTiming, testProfile.toPrettyString());
+        Assert.assertTrue(screenshotEvidence.path("durationMillis").asLong() >= 100, testProfile.toPrettyString());
+        Assert.assertTrue(clickAction.path("durationMillis").asLong()
+                < screenshotEvidence.path("durationMillis").asLong(), testProfile.toPrettyString());
     }
 
     @Test
@@ -890,6 +954,21 @@ public class ActionsCoverageUnitTest {
         Method method = Actions.class.getDeclaredMethod(methodName, parameterTypes);
         method.setAccessible(true);
         return method.invoke(null, args);
+    }
+
+    private String profilerSummaryJson() throws Exception {
+        Method method = FlakeProfiler.class.getDeclaredMethod("buildSummaryJson");
+        method.setAccessible(true);
+        return (String) method.invoke(null);
+    }
+
+    private JsonNode actionEvent(JsonNode testProfile, String category, String name) {
+        for (JsonNode action : testProfile.path("actions")) {
+            if (category.equals(action.path("category").asText()) && name.equals(action.path("name").asText())) {
+                return action;
+            }
+        }
+        return null;
     }
 
     private static final class RecordingActions extends Actions {

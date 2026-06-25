@@ -18,6 +18,7 @@ import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
@@ -1035,7 +1036,12 @@ public class ElementActionsHelper {
 
         if (driver != null && (Boolean.FALSE.equals(passFailStatus)
                 || SHAFT.Properties.visuals.whenToTakePageSourceSnapshot().equalsIgnoreCase("always"))) {
+            long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
             var pageSnapshot = new BrowserActionsHelper(false).capturePageSnapshot(driver);
+            if (profilerStart != 0L) {
+                FlakeProfiler.recordEvidenceCapture("page snapshot", actionName,
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
+            }
             var attachmentType = "";
             if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
                 attachmentType = PAGE_SNAPSHOT_ATTACHMENT_TYPE;
@@ -1086,7 +1092,12 @@ public class ElementActionsHelper {
         }
         if (!isSilent || actionName.equals("identifyUniqueElement")) {
             if (attachments != null && !attachments.isEmpty()) {
+                long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
                 ReportManagerHelper.log(message, attachments);
+                if (profilerStart != 0L) {
+                    FlakeProfiler.recordEvidenceCapture("report attachment", actionName,
+                            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
+                }
             } else {
                 ReportManager.log(message);
             }
