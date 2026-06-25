@@ -4,33 +4,50 @@ on:
   pull_request:
     paths:
       - "pom.xml"
-      - "shaft-engine/**"
-      - "shaft-pilot-core/**"
-      - "shaft-capture/**"
-      - "shaft-doctor/**"
-      - "shaft-ai/**"
-      - "shaft-heal/**"
-      - "shaft-mcp/**"
-      - "shaft-bom/**"
-      - "report-aggregate/**"
-      - "README.md"
-      - "shaft-mcp/src/test/resources/fixtures/shaft-pilot/**"
-      - "scripts/ci/validate_documentation_boundaries.py"
-      - "scripts/ci/validate_shaft_pilot_release.py"
-      - "scripts/ci/validate_maven_publication.py"
-      - "scripts/ci/validate_reactor_versions.py"
-      - "scripts/mcp/**"
-      - "tools/modularization/consumer-fixtures/**"
-      - ".github/actions/upload-jacoco-coverage/action.yml"
       - ".github/workflows/shaft-pilot-release.yml"
-      - ".github/workflows/mavenCentral_cd.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  detect-shaft-version-change:
+    runs-on: ubuntu-22.04
+    outputs:
+      changed: ${{ steps.version-diff.outputs.changed }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Detect SHAFT version change
+        id: version-diff
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          read_version() {
+            git show "${1}:pom.xml" | python3 -c 'import sys, xml.etree.ElementTree as ET; version = ET.fromstring(sys.stdin.read()).findtext("{http://maven.apache.org/POM/4.0.0}version"); print(version.strip() if version else ""); sys.exit(0 if version else 1)'
+          }
+
+          base_version="$(read_version "${BASE_SHA}")"
+          head_version="$(read_version "${HEAD_SHA}")"
+          if [ "${base_version}" = "${head_version}" ]; then
+            echo "SHAFT version unchanged: ${head_version}"
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "SHAFT version changed: ${base_version} -> ${head_version}"
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+          fi
   release-candidate:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
