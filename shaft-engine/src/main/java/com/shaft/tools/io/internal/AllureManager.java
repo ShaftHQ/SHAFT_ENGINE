@@ -161,13 +161,6 @@ public class AllureManager {
     private static final String ALLURE_THEME_COLORS_STYLE = """
             <style id="shaft-allure-theme-colors">
             :root:not([data-theme="dark"]) {
-              --color-bg-canvas: #c8d6e7;
-              --color-bg-primary: #ffffff;
-              --color-bg-secondary: #ffffff;
-              --color-bg-raised: #ffffff;
-              --color-bg-neutral: #c8d6e7;
-              --color-bg-inverse-primary: #102a31;
-              --color-bg-inverse-raised: #181f2a;
               --color-text-primary: #102a31;
               --color-text-secondary: #181f2a;
               --color-text-muted: #405765;
@@ -214,13 +207,6 @@ public class AllureManager {
               --color-tag-default-text: #102a31;
             }
             :root[data-theme="dark"] {
-              --color-bg-canvas: #07111f;
-              --color-bg-primary: #102a31;
-              --color-bg-secondary: #07111f;
-              --color-bg-raised: #181f2a;
-              --color-bg-neutral: #102a31;
-              --color-bg-inverse-primary: #07111f;
-              --color-bg-inverse-raised: #102a31;
               --color-text-primary: #f5fdff;
               --color-text-secondary: #dff5f4;
               --color-text-muted: #c8d6e7;

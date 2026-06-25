@@ -219,6 +219,7 @@ public class AllureManagerCoverageUnitTest {
         Assert.assertTrue(html.contains("--color-intent-primary-bg: #006ec0"), html);
         Assert.assertTrue(html.contains(":root[data-theme=\"dark\"]"), html);
         Assert.assertTrue(html.contains("--color-intent-primary-bg: #4cc2ff"), html);
+        Assert.assertFalse(html.contains("--color-bg-"), html);
         Assert.assertTrue(html.contains("width: 100% !important"), html);
         Assert.assertTrue(html.contains("height: auto !important"), html);
     }
