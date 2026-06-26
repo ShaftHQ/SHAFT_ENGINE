@@ -6,6 +6,9 @@ import com.shaft.capture.CaptureFixtures;
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.ElementSnapshot;
+import com.shaft.capture.model.ExternalTestDataReference;
+import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiUsage;
 import com.shaft.pilot.ai.ApprovalPolicy;
@@ -148,6 +151,168 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("driver.element().click(USERNAME_INPUT_LOCATOR);"));
         assertFalse(source.contains("DriverFactory"));
         assertFalse(source.contains("ExpectedConditions"));
+    }
+
+    @Test
+    void deterministicReviewFlagsGeneratedCodeRisks() throws Exception {
+        ExternalTestDataReference card = new ExternalTestDataReference(
+                "data.card",
+                "card number",
+                ExternalTestDataReference.DataSource.JSON,
+                "capture-data.json",
+                "/values/data.card",
+                ExternalTestDataReference.DataClassification.SENSITIVE);
+        ElementSnapshot cardInput = new ElementSnapshot(
+                "card-input",
+                "input",
+                "textbox",
+                "Card number",
+                "Card number",
+                Map.of("name", "card"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
+                        "/html/body/div[3]/form/input[1]", 1, true, false,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.POSITIONAL))),
+                true,
+                true,
+                false);
+        ElementSnapshot payButton = new ElementSnapshot(
+                "pay-button",
+                "button",
+                "button",
+                "Pay now",
+                "",
+                Map.of("type", "submit"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
+                        "/html/body/div[3]/form/button[2]", 1, true, false,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.POSITIONAL))),
+                true,
+                true,
+                false);
+        CaptureSession reviewSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "review-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(5),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://shop.example/checkout"),
+                        new CaptureEvent.TypeEvent(CaptureFixtures.context(2), cardInput, card),
+                        new CaptureEvent.WaitEvent(CaptureFixtures.context(3),
+                                CaptureEvent.WaitCondition.FIXED_DURATION, Duration.ofSeconds(2), null, null),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(4), payButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(card),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(reviewSession);
+        ObjectNode root = JSON.createObjectNode();
+        root.put("schemaVersion", "1.0");
+        root.putObject("values").put("data.card", "test-card-value");
+        Files.writeString(temp.resolve("capture-data.json"),
+                JSON.writerWithDefaultPrettyPrinter().writeValueAsString(root), StandardCharsets.UTF_8);
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("review")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        var review = JSON.readTree(result.reviewPath().toFile());
+        List<String> categories = new java.util.ArrayList<>();
+        review.path("findings").forEach(finding -> categories.add(finding.path("category").asText()));
+        assertTrue(categories.contains("LOCATOR"), review.toString());
+        assertTrue(categories.contains("ASSERTION"), review.toString());
+        assertTrue(categories.contains("WAIT"), review.toString());
+        assertTrue(categories.contains("TEST_DATA"), review.toString());
+        assertTrue(result.report().warnings().stream().anyMatch(warning -> warning.contains("review/LOCATOR")));
+    }
+
+    @Test
+    void deterministicReviewMapsReplayFailureTraceAndNetworkDependency() throws Exception {
+        Path session = session(new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "trace-review-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://shop.example/checkout"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), CaptureFixtures.target(),
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of()));
+        GeneratedTestValidator validator = new GeneratedTestValidator() {
+            @Override
+            public CaptureGenerationReport.Validation compile(Path source, Path classesDirectory) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                        List.of(),
+                        0);
+            }
+
+            @Override
+            public CaptureGenerationReport.Validation replay(
+                    String fullyQualifiedClassName,
+                    Path classesDirectory,
+                    Path resourcesDirectory,
+                    Path workDirectory,
+                    Duration timeout) {
+                Path trace = workDirectory.resolve("target/shaft-traces/trace-review/shaft-trace.json");
+                try {
+                    Files.createDirectories(trace.getParent());
+                    Files.writeString(trace, """
+                            {
+                              "schemaVersion": "1.0",
+                              "source": {
+                                "file": "src/test/java/generated/capture/TraceReviewTest.java",
+                                "line": "31",
+                                "snippet": "driver.element().click(USERNAME_INPUT_LOCATOR);"
+                              },
+                              "actions": [
+                                {"id": "action-2", "category": "element", "name": "CLICK", "status": "failed",
+                                 "locator": "By.xpath: /html/body/div[3]/form/button[2]",
+                                 "url": "https://shop.example/checkout", "message": "Click failed",
+                                 "exception": {"type": "org.openqa.selenium.NoSuchElementException", "message": "missing"},
+                                 "attachments": [], "metadata": {}}
+                              ],
+                              "network": [
+                                {"url": "https://shop.example/api/pay", "status": 500, "method": "POST"}
+                              ]
+                            }
+                            """, StandardCharsets.UTF_8);
+                } catch (java.io.IOException exception) {
+                    throw new IllegalStateException(exception);
+                }
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("Replay produced 1 non-passing Allure result file(s)."),
+                        1);
+            }
+        };
+
+        CaptureGenerationResult result = new CaptureGenerator(
+                new CaptureJsonCodec(), new LocatorRanker(), validator, new CaptureEnrichmentService())
+                .generate(new CaptureGenerationRequest(
+                        session, temp.resolve("trace-review"), "generated.capture", "TraceReviewTest", false,
+                        true, true, Duration.ofMinutes(1),
+                        CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                        ApprovalPolicy.denyAll()));
+
+        assertFalse(result.successful());
+        var review = JSON.readTree(result.reviewPath().toFile());
+        List<String> categories = new java.util.ArrayList<>();
+        review.path("findings").forEach(finding -> categories.add(finding.path("category").asText()));
+        assertTrue(categories.contains("REPLAY_TRACE"), review.toString());
+        assertTrue(categories.contains("NETWORK_DEPENDENCY"), review.toString());
+        assertTrue(result.report().warnings().stream()
+                .anyMatch(warning -> warning.contains("trace action action-2")), result.report().warnings().toString());
+        assertTrue(result.report().warnings().stream()
+                .anyMatch(warning -> warning.contains("#3065")), result.report().warnings().toString());
     }
 
     @Test

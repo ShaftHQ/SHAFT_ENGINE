@@ -40,6 +40,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -61,6 +62,9 @@ public final class CaptureGenerator {
     private static final Pattern NAMED_SECRET = Pattern.compile(
             "(?i)(?:password|authorization|cookie|api[-_]?key|access[-_]?token)"
                     + "\\s*[:=]\\s*[\"']?[^\\s\"']{6,}");
+    private static final Pattern INDEXED_LOCATOR = Pattern.compile("\\[\\d+]|:nth-(?:child|of-type)\\(");
+    private static final Pattern EVIDENCE_ID = Pattern.compile(
+            "\\b(?:event-\\d+|checkpoint-[A-Za-z0-9._-]+|action-\\d+)\\b");
     private static final ObjectMapper JSON = new ObjectMapper()
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
     private static final DefaultPrettyPrinter PRINTER = printer();
@@ -360,8 +364,12 @@ public final class CaptureGenerator {
                         + selected.strategy() + " locator has score "
                         + target.selection().selected().score() + ".");
             }
+            brittleLocatorWarning(target).ifPresent(warnings::add);
         }
         DataPlan data = data(session, sessionPath, required, unsupported);
+        warnings.addAll(missingAssertionWarnings(session, verificationSequences));
+        warnings.addAll(waitReviewWarnings(session.events()));
+        warnings.addAll(testDataReviewWarnings(data.references()));
         if (session.status() != CaptureSession.SessionStatus.COMPLETED) {
             warnings.add("The source Capture session is incomplete.");
         }
@@ -474,6 +482,113 @@ public final class CaptureGenerator {
                 && extensionText(context, "attributeName").isBlank()) {
             unsupported.add(eventId + ": ATTRIBUTE_EQUALS requires context.extensions.attributeName.");
         }
+    }
+
+    private static Optional<String> brittleLocatorWarning(TargetPlan target) {
+        LocatorCandidate candidate = target.selection().selected().candidate();
+        String expression = candidate.expression();
+        boolean xpath = candidate.strategy() == LocatorCandidate.LocatorStrategy.XPATH;
+        boolean brittle = (xpath && isAbsoluteXpath(expression)) || INDEXED_LOCATOR.matcher(expression).find();
+        if (!brittle) {
+            return Optional.empty();
+        }
+        String evidence = String.join(",", target.eventIds());
+        String summary = "Brittle " + candidate.strategy() + " locator selected for "
+                + target.logicalElementId() + ": " + expression + ".";
+        return Optional.of(reviewWarning(
+                "LOCATOR",
+                "WARNING",
+                evidence.isBlank() ? target.logicalElementId() : evidence,
+                summary,
+                semanticLocatorRecommendation(target.target())));
+    }
+
+    private static List<String> missingAssertionWarnings(CaptureSession session, Set<Long> verificationSequences) {
+        Set<Long> assertionSequences = new HashSet<>(verificationSequences);
+        session.checkpoints().stream()
+                .filter(checkpoint -> checkpoint.kind() == Checkpoint.CheckpointKind.ASSERTION)
+                .map(Checkpoint::sequence)
+                .forEach(assertionSequences::add);
+        List<String> warnings = new ArrayList<>();
+        for (CaptureEvent event : session.events()) {
+            if (!needsPostActionAssertion(event) || hasLaterAssertion(event.context().sequence(), assertionSequences)) {
+                continue;
+            }
+            warnings.add(reviewWarning(
+                    "ASSERTION",
+                    "WARNING",
+                    eventId(event),
+                    "No assertion or ASSERTION checkpoint follows a navigation or form-submission action.",
+                    "Record a verification for the post-action page state."));
+        }
+        return warnings;
+    }
+
+    private static boolean hasLaterAssertion(long sequence, Set<Long> assertionSequences) {
+        return assertionSequences.stream().anyMatch(assertion -> assertion > sequence);
+    }
+
+    private static boolean needsPostActionAssertion(CaptureEvent event) {
+        if (event instanceof CaptureEvent.NavigationEvent) {
+            return true;
+        }
+        if (!(event instanceof CaptureEvent.ClickEvent)) {
+            return false;
+        }
+        return target(event).map(CaptureGenerator::looksLikeFormSubmission).orElse(false);
+    }
+
+    private static boolean looksLikeFormSubmission(ElementSnapshot target) {
+        String type = target.normalizedAttributes().getOrDefault("type", "");
+        String text = (target.accessibleName() + " " + target.label() + " "
+                + target.normalizedAttributes().getOrDefault("value", "")).toLowerCase(Locale.ROOT);
+        return "submit".equalsIgnoreCase(type)
+                || text.contains("submit")
+                || text.contains("pay")
+                || text.contains("checkout")
+                || text.contains("place order")
+                || text.contains("confirm")
+                || text.contains("sign in")
+                || text.contains("log in")
+                || text.contains("continue");
+    }
+
+    private static List<String> waitReviewWarnings(List<CaptureEvent> events) {
+        List<String> warnings = new ArrayList<>();
+        for (CaptureEvent event : events) {
+            if (event instanceof CaptureEvent.WaitEvent value
+                    && value.condition() == CaptureEvent.WaitCondition.FIXED_DURATION) {
+                warnings.add(reviewWarning(
+                        "WAIT",
+                        "WARNING",
+                        eventId(event),
+                        "Generated replay uses a fixed-duration wait of " + value.timeout().toMillis() + " ms.",
+                        "Replace it with a SHAFT action, wait condition, or assertion tied to page state."));
+            }
+        }
+        return warnings;
+    }
+
+    private static List<String> testDataReviewWarnings(Map<String, ExternalTestDataReference> references) {
+        List<String> warnings = new ArrayList<>();
+        for (ExternalTestDataReference reference : references.values()) {
+            if (reference.source() == ExternalTestDataReference.DataSource.JSON
+                    && isSecret(reference)) {
+                warnings.add(reviewWarning(
+                        "TEST_DATA",
+                        "WARNING",
+                        reference.id(),
+                        "Sensitive data reference " + reference.id()
+                                + " is written to generated JSON test data.",
+                        "Use an environment variable, secret provider, or masked fixture before committing."));
+            }
+        }
+        return warnings;
+    }
+
+    private static boolean isAbsoluteXpath(String value) {
+        String locator = value == null ? "" : value.trim();
+        return (locator.startsWith("/") && !locator.startsWith("//")) || locator.startsWith("(/");
     }
 
     private static DataPlan data(
@@ -1093,10 +1208,19 @@ public final class CaptureGenerator {
                 state.flaky().stream().distinct().sorted().toList(),
                 state.fallback().stream().distinct().sorted().toList(),
                 state.required().stream().distinct().sorted().toList(),
-                state.warnings().stream().distinct().sorted().toList(),
+                reportWarnings(paths, state, replay),
                 compilation,
                 replay,
                 enrichment);
+    }
+
+    private static List<String> reportWarnings(
+            ArtifactPaths paths,
+            GenerationState state,
+            CaptureGenerationReport.Validation replay) {
+        List<String> warnings = new ArrayList<>(state.warnings());
+        warnings.addAll(replayReviewWarnings(paths.root(), paths.source(), replay));
+        return warnings.stream().distinct().sorted().toList();
     }
 
     private static void validateOutputs(
@@ -1180,6 +1304,7 @@ public final class CaptureGenerator {
         risks.addAll(report.flakySteps());
         risks.addAll(report.fallbackLocators());
         risks.addAll(report.warnings());
+        List<CaptureReviewFinding> findings = reviewFindings(report.warnings());
 
         List<String> suggestions = new ArrayList<>();
         if (!report.unsupportedEvents().isEmpty()) {
@@ -1191,6 +1316,9 @@ public final class CaptureGenerator {
         if (!report.flakySteps().isEmpty() || !report.fallbackLocators().isEmpty()) {
             suggestions.add("Review weak locator and replay-risk diagnostics.");
         }
+        if (!findings.isEmpty()) {
+            suggestions.add("Resolve deterministic generated-code review findings before committing the test.");
+        }
         if (suggestions.isEmpty()) {
             suggestions.add("Generated test is ready for review.");
         }
@@ -1199,13 +1327,15 @@ public final class CaptureGenerator {
                 - blockers.size() * 25
                 - report.flakySteps().size() * 10
                 - report.fallbackLocators().size() * 5
-                - report.warnings().size() * 5;
+                - report.warnings().size() * 5
+                - findings.size() * 5;
         return new CaptureReview(
                 CaptureReview.CURRENT_SCHEMA_VERSION,
                 report.sessionId(),
                 score,
                 blockers.stream().distinct().sorted().toList(),
                 risks.stream().distinct().sorted().toList(),
+                findings,
                 suggestions,
                 report.enrichment().provider());
     }
@@ -1217,6 +1347,184 @@ public final class CaptureGenerator {
         if (validation.status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED) {
             blockers.add(label + ": " + String.join("; ", validation.diagnostics()));
         }
+    }
+
+    private static List<String> replayReviewWarnings(
+            Path outputRoot,
+            Path sourcePath,
+            CaptureGenerationReport.Validation replay) {
+        if (replay.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED) {
+            return List.of();
+        }
+        Path traceRoot = outputRoot.resolve("target/shaft-traces").toAbsolutePath().normalize();
+        if (!Files.isDirectory(traceRoot)) {
+            return List.of();
+        }
+        try (java.util.stream.Stream<Path> paths = Files.walk(traceRoot, 4)) {
+            List<String> warnings = new ArrayList<>();
+            for (Path trace : paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName() != null
+                            && "shaft-trace.json".equals(path.getFileName().toString()))
+                    .sorted(Comparator.comparing(Path::toString))
+                    .toList()) {
+                warnings.addAll(traceReviewWarnings(sourcePath, trace));
+            }
+            return warnings.stream().distinct().toList();
+        } catch (IOException exception) {
+            return List.of();
+        }
+    }
+
+    private static List<String> traceReviewWarnings(Path sourcePath, Path tracePath) {
+        try {
+            JsonNode trace = JSON.readTree(Files.readString(tracePath, StandardCharsets.UTF_8));
+            List<String> warnings = new ArrayList<>();
+            failedAction(trace.path("actions")).ifPresent(action -> warnings.add(reviewWarning(
+                    "REPLAY_TRACE",
+                    "ERROR",
+                    "trace action " + text(action.path("id")),
+                    "Replay failure maps to generated step " + sourceStep(sourcePath, trace.path("source"))
+                            + " and trace action " + text(action.path("id")) + " "
+                            + text(action.path("name")) + " using " + text(action.path("locator")) + ".",
+                    "Inspect the mapped generated step and trace action before committing the replay.")));
+            warnings.addAll(networkDependencyWarnings(trace.path("network")));
+            return warnings;
+        } catch (IOException | RuntimeException exception) {
+            return List.of();
+        }
+    }
+
+    private static Optional<JsonNode> failedAction(JsonNode actions) {
+        if (!actions.isArray()) {
+            return Optional.empty();
+        }
+        for (JsonNode action : actions) {
+            if ("failed".equalsIgnoreCase(text(action.path("status")))) {
+                return Optional.of(action);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static List<String> networkDependencyWarnings(JsonNode network) {
+        if (!network.isArray()) {
+            return List.of();
+        }
+        List<String> warnings = new ArrayList<>();
+        for (JsonNode entry : network) {
+            int status = entry.path("status").asInt(-1);
+            String failure = text(entry.path("failureReason"));
+            if (status >= 400 || status <= 0 || !failure.isBlank()) {
+                String detail = (text(entry.path("method")) + " " + status + " " + text(entry.path("url"))
+                        + (failure.isBlank() ? "" : " " + failure)).trim();
+                warnings.add(reviewWarning(
+                        "NETWORK_DEPENDENCY",
+                        "WARNING",
+                        "network",
+                        "Network/API dependency failed during replay: " + detail + ".",
+                        "Record/replay this dependency through #3065 HTTP contract replay."));
+            }
+        }
+        return warnings;
+    }
+
+    private static String sourceStep(Path sourcePath, JsonNode source) {
+        String lineText = text(source.path("line"));
+        String snippet = text(source.path("snippet"));
+        if (!lineText.isBlank() && Files.isRegularFile(sourcePath)) {
+            try {
+                int line = Integer.parseInt(lineText);
+                List<String> lines = Files.readAllLines(sourcePath, StandardCharsets.UTF_8);
+                if (line > 0 && line <= lines.size()) {
+                    snippet = lines.get(line - 1).trim();
+                }
+            } catch (IOException | NumberFormatException ignored) {
+                // Trace source snippets are best-effort.
+            }
+        }
+        return lineText.isBlank()
+                ? safeReviewText(snippet)
+                : "line " + lineText + (snippet.isBlank() ? "" : " (" + safeReviewText(snippet) + ")");
+    }
+
+    private static List<CaptureReviewFinding> reviewFindings(List<String> warnings) {
+        List<CaptureReviewFinding> findings = new ArrayList<>();
+        for (String warning : warnings) {
+            if (warning == null || !warning.startsWith("review/")) {
+                continue;
+            }
+            int space = warning.indexOf(' ');
+            if (space < 0) {
+                continue;
+            }
+            String[] header = warning.substring("review/".length(), space).split("/");
+            String category = header.length > 0 ? header[0] : "";
+            String severity = header.length > 1 ? header[1] : "WARNING";
+            String body = warning.substring(space + 1);
+            int colon = body.indexOf(':');
+            if (category.isBlank() || colon < 0) {
+                continue;
+            }
+            String evidence = body.substring(0, colon).trim();
+            String summary = body.substring(colon + 1).trim();
+            String recommendation = "";
+            int recommendationIndex = summary.indexOf(" Recommendation: ");
+            if (recommendationIndex >= 0) {
+                recommendation = summary.substring(recommendationIndex + " Recommendation: ".length()).trim();
+                summary = summary.substring(0, recommendationIndex).trim();
+            }
+            findings.add(new CaptureReviewFinding(
+                    category.toLowerCase(Locale.ROOT) + "-" + (findings.size() + 1),
+                    category,
+                    severity,
+                    summary,
+                    evidenceIds(evidence),
+                    recommendation));
+        }
+        return List.copyOf(findings);
+    }
+
+    private static List<String> evidenceIds(String evidence) {
+        List<String> ids = new ArrayList<>();
+        Matcher matcher = EVIDENCE_ID.matcher(evidence == null ? "" : evidence);
+        while (matcher.find()) {
+            ids.add(matcher.group());
+        }
+        return ids.stream().distinct().toList();
+    }
+
+    private static String semanticLocatorRecommendation(ElementSnapshot target) {
+        String semantic = target.accessibleName().isBlank() ? target.label() : target.accessibleName();
+        if (!semantic.isBlank()) {
+            return "Prefer semantic locator text \"" + safeReviewText(semantic) + "\" when unique.";
+        }
+        if (target.normalizedAttributes().containsKey("data-testid")) {
+            return "Prefer the captured data-testid locator when unique.";
+        }
+        return "Prefer role, label, test-id, or stable CSS locator evidence.";
+    }
+
+    private static String reviewWarning(
+            String category,
+            String severity,
+            String evidence,
+            String summary,
+            String recommendation) {
+        return "review/" + safeReviewText(category).toUpperCase(Locale.ROOT)
+                + "/" + safeReviewText(severity).toUpperCase(Locale.ROOT)
+                + " " + safeReviewText(evidence)
+                + ": " + safeReviewText(summary)
+                + " Recommendation: " + safeReviewText(recommendation);
+    }
+
+    private static String text(JsonNode node) {
+        return node == null || node.isMissingNode() || node.isNull() ? "" : node.asText("");
+    }
+
+    private static String safeReviewText(String value) {
+        String normalized = value == null ? "" : value.replaceAll("\\s+", " ").trim();
+        return normalized.length() <= 240 ? normalized : normalized.substring(0, 237) + "...";
     }
 
     private static List<String> privacyFindings(String content) {
