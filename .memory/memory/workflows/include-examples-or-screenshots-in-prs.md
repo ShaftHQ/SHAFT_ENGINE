@@ -1,0 +1,1 @@
+When opening PRs, include code examples for new methods or logging changes, and include screenshots for UI or reporting enhancements when applicable.

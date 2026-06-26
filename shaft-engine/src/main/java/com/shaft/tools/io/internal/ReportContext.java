@@ -31,6 +31,7 @@ public final class ReportContext {
         currentTest.set(info);
         output.get().clear();
         attachments.get().clear();
+        TraceEventRecorder.clear();
         logSink.remove();
         status.remove();
     }
@@ -158,6 +159,7 @@ public final class ReportContext {
         currentTest.remove();
         output.remove();
         attachments.remove();
+        TraceEventRecorder.clear();
         logSink.remove();
         status.remove();
     }

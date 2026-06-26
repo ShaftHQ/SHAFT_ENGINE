@@ -66,23 +66,37 @@ public final class PlaywrightTraceManager {
         }
     }
 
-    public void stopAndAttach() {
+    public Path stop() {
         if (!tracingStarted) {
-            return;
+            return null;
         }
 
         Path tracePath = artifactsDirectory.resolve("playwright-trace-" + TRACE_TIMESTAMP.format(LocalDateTime.now()) + ".zip");
         try {
             browserContext.tracing().stop(new Tracing.StopOptions().setPath(tracePath));
+            LAST_TRACE_PATH.set(tracePath);
+            ReportManager.logDiscrete("Playwright trace saved: " + tracePath, Level.INFO);
+            return tracePath;
+        } catch (RuntimeException e) {
+            ReportManager.logDiscrete("Could not stop Playwright trace: " + e.getMessage(), Level.WARN);
+            return null;
+        } finally {
+            tracingStarted = false;
+        }
+    }
+
+    public void stopAndAttach() {
+        Path tracePath = stop();
+        if (tracePath == null) {
+            return;
+        }
+        try {
             byte[] traceBytes = Files.readAllBytes(tracePath);
             ReportManagerHelper.attach("Playwright Trace", tracePath.getFileName().toString(),
                     new ByteArrayInputStream(traceBytes));
-            LAST_TRACE_PATH.set(tracePath);
             ReportManager.logDiscrete("Playwright trace attached: " + tracePath, Level.INFO);
         } catch (RuntimeException | IOException e) {
-            ReportManager.logDiscrete("Could not stop or attach Playwright trace: " + e.getMessage(), Level.WARN);
-        } finally {
-            tracingStarted = false;
+            ReportManager.logDiscrete("Could not attach Playwright trace: " + e.getMessage(), Level.WARN);
         }
     }
 }

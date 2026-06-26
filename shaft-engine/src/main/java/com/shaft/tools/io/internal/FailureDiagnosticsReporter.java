@@ -212,8 +212,6 @@ public final class FailureDiagnosticsReporter {
             }
         }
         if (FailureTraceReporter.shouldAttachTrace(info)) {
-            references.add(new ArtifactReference("trace-report", "text/html", "SHAFT Trace Report.html"));
-            references.add(new ArtifactReference("trace-json", "application/json", "shaft-trace.json"));
             references.add(new ArtifactReference("trace-zip", "application/zip", "shaft-trace.zip"));
         }
         Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();

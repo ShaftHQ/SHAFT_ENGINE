@@ -11,14 +11,24 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.ZipFile;
 
 public class FailureTraceReporterTest {
 
     @Test(description = "Failure mode should attach trace artifacts only for failed tests")
     public void failureModeShouldAttachTraceArtifactsOnlyForFailures() throws Exception {
+        TestExecutionInfo failingInfo = info("failingScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
         try {
+            deleteDirectory(traceDirectory);
             SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
             int beforePassing = attachments().size();
 
@@ -27,16 +37,28 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(attachments().size(), beforePassing,
                     "Passing tests must not attach trace artifacts in failure mode.");
 
-            FailureTraceReporter.attachOnFailure(info("failingScenario", failure()), "token=raw-secret", List.of());
+            FailureTraceReporter.attachOnFailure(failingInfo, "token=raw-secret", List.of());
 
             List<Attachment> added = attachments().subList(beforePassing, attachments().size());
-            Assert.assertTrue(added.stream().anyMatch(attachment -> "SHAFT Trace Report".equals(attachment.getName())
-                    && "text/html".equals(attachment.getType())));
-            Assert.assertTrue(added.stream().anyMatch(attachment -> "shaft-trace".equals(attachment.getName())
-                    && "application/json".equals(attachment.getType())));
-            Assert.assertTrue(added.stream().anyMatch(attachment -> "shaft-trace".equals(attachment.getName())
-                    && "application/zip".equals(attachment.getType())));
+            Assert.assertEquals(added.size(), 1, "Only the trace archive should be attached.");
+            Assert.assertEquals(added.getFirst().getName(), "shaft-trace.zip");
+            Assert.assertEquals(added.getFirst().getType(), "application/zip");
+            Assert.assertFalse(added.stream().anyMatch(attachment -> "text/html".equals(attachment.getType())));
+            Assert.assertFalse(added.stream().anyMatch(attachment -> "application/json".equals(attachment.getType())));
+            Assert.assertFalse(Files.exists(traceDirectory.resolve("SHAFT Trace Report.html")));
+            Assert.assertFalse(Files.exists(traceDirectory.resolve("shaft-trace.json")));
+            Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace.zip")));
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                Assert.assertNotNull(zip.getEntry("SHAFT Trace Report.html"));
+                Assert.assertNotNull(zip.getEntry("shaft-trace.json"));
+            }
+            String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
+            Assert.assertTrue(index.contains("\"archive\": \"target/shaft-traces/id-failingScenario/shaft-trace.zip\""), index);
+            Assert.assertTrue(index.contains("\"html\": \"SHAFT Trace Report.html\""), index);
+            Assert.assertTrue(index.contains("\"json\": \"shaft-trace.json\""), index);
         } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
             Properties.clearForCurrentThread();
         }
     }
@@ -54,6 +76,91 @@ public class FailureTraceReporterTest {
         Assert.assertFalse(json.contains("raw-token"));
         Assert.assertFalse(json.contains("raw-cookie"));
         Assert.assertFalse(json.contains("raw-password"));
+    }
+
+    @Test(description = "Trace JSON should include structured action events and clear the recorder")
+    public void traceJsonShouldIncludeActionsAndClearRecorder() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.finish(event, "failed", "Click failed token=raw-token",
+                    new RuntimeException("boom password=raw-password"),
+                    Map.of("apiToken", "raw-token", "visible", "checkout"),
+                    List.of("Screenshot token=raw-token"));
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertTrue(json.contains("\"actions\": ["), json);
+            Assert.assertTrue(json.contains("\"category\": \"element\""), json);
+            Assert.assertTrue(json.contains("\"name\": \"CLICK\""), json);
+            Assert.assertTrue(json.contains("\"status\": \"failed\""), json);
+            Assert.assertTrue(json.contains("\"locator\": \"By.id: pay\""), json);
+            Assert.assertTrue(json.contains("\"durationMs\""), json);
+            Assert.assertTrue(json.contains("\"apiToken\": \"********\""), json);
+            Assert.assertFalse(json.contains("raw-token"));
+            Assert.assertFalse(json.contains("raw-password"));
+            Assert.assertTrue(TraceEventRecorder.snapshot().isEmpty(), "renderTraceJson should drain the action recorder.");
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace recorder should ignore actions when trace reporting is disabled")
+    public void traceRecorderShouldIgnoreActionsWhenTraceIsDisabled() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(false);
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.finish(event, "passed", "Click passed", null, Map.of(), List.of());
+
+            String json = FailureTraceReporter.renderTraceJson(info("passingScenario", null), "passed", List.of());
+
+            Assert.assertTrue(TraceEventRecorder.snapshot().isEmpty());
+            Assert.assertTrue(json.contains("\"actions\": []"), json);
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace recorder should isolate action timelines by thread")
+    public void traceRecorderShouldIsolateActionsByThread() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true);
+            TraceEventRecorder.record("element", "MAIN_ACTION", "passed", "main-locator",
+                    null, "main action", null, Map.of(), List.of());
+
+            AtomicReference<String> otherThreadJson = new AtomicReference<>();
+            AtomicReference<Throwable> otherThreadFailure = new AtomicReference<>();
+            Thread otherThread = new Thread(() -> {
+                try {
+                    SHAFT.Properties.reporting.set().traceEnabled(true);
+                    TraceEventRecorder.record("browser", "OTHER_ACTION", "passed", "other-locator",
+                            null, "other action", null, Map.of(), List.of());
+                    otherThreadJson.set(FailureTraceReporter.renderTraceJson(infoUnchecked("otherScenario", failure()), "other", List.of()));
+                } catch (Throwable throwable) {
+                    otherThreadFailure.set(throwable);
+                } finally {
+                    TraceEventRecorder.clear();
+                    Properties.clearForCurrentThread();
+                }
+            });
+            otherThread.start();
+            otherThread.join();
+            if (otherThreadFailure.get() != null) {
+                throw new AssertionError("Other thread trace rendering failed.", otherThreadFailure.get());
+            }
+
+            String mainJson = FailureTraceReporter.renderTraceJson(info("mainScenario", failure()), "main", List.of());
+
+            Assert.assertTrue(mainJson.contains("MAIN_ACTION"), mainJson);
+            Assert.assertFalse(mainJson.contains("OTHER_ACTION"), mainJson);
+            Assert.assertTrue(otherThreadJson.get().contains("OTHER_ACTION"), otherThreadJson.get());
+            Assert.assertFalse(otherThreadJson.get().contains("MAIN_ACTION"), otherThreadJson.get());
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
     }
 
     @Test(description = "Trace JSON should include locator health data when locator health is enabled")
@@ -121,6 +228,14 @@ public class FailureTraceReporterTest {
                 "trace test", method, throwable, false);
     }
 
+    private static TestExecutionInfo infoUnchecked(String methodName, Throwable throwable) {
+        try {
+            return info(methodName, throwable);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private static RuntimeException failure() {
         RuntimeException throwable = new RuntimeException("boom password=raw-password");
         throwable.setStackTrace(new StackTraceElement[]{
@@ -139,5 +254,21 @@ public class FailureTraceReporterTest {
         List<Attachment> attachments = new ArrayList<>();
         Allure.getLifecycle().updateTestCase(result -> attachments.addAll(result.getAttachments()));
         return attachments;
+    }
+
+    private static void deleteDirectory(Path directory) throws Exception {
+        if (!Files.exists(directory)) {
+            return;
+        }
+        try (var paths = Files.walk(directory)) {
+            paths.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+                    });
+        }
     }
 }

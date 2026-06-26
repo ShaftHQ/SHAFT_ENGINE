@@ -20,6 +20,7 @@ import com.shaft.tools.io.internal.ExecutionSummaryReport;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Parameter;
@@ -777,6 +778,11 @@ public class ValidationsHelper {
     }
 
     private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments, boolean skipDefaultScreenshot) {
+        TraceEventRecorder.Event traceEvent = TraceEventRecorder.start(
+                "validation",
+                this.validationCategoryString,
+                locator,
+                driver);
         recordProfiledValidationState(validationState);
         //initialize attachments object if no attachments were already prepared
         attachments = attachments == null ? new ArrayList<>() : attachments;
@@ -840,6 +846,9 @@ public class ValidationsHelper {
             String finalFailureMessage = (enhancedFailureMessage != null) ? enhancedFailureMessage : failureMessage;
 
             CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.FAIL);
+            TraceEventRecorder.finish(traceEvent, "failed",
+                    this.validationCategoryString.replace("erify", "erificat") + "ion failed",
+                    assertionError, traceMetadata(checkpointType, locator), summarizeAttachments(attachments));
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(finalFailureMessage));
@@ -854,6 +863,45 @@ public class ValidationsHelper {
             CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.PASS);
             ExecutionSummaryReport.validationsIncrement(CheckpointStatus.PASS);
             Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed"));
+            TraceEventRecorder.finish(traceEvent, "passed",
+                    this.validationCategoryString.replace("erify", "erificat") + "ion passed",
+                    null, traceMetadata(checkpointType, locator), summarizeAttachments(attachments));
         }
+    }
+
+    private static Map<String, String> traceMetadata(CheckpointType checkpointType, By locator) {
+        Map<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("checkpointType", checkpointType.name().toLowerCase());
+        if (locator != null) {
+            metadata.put("locator", JavaHelper.formatLocatorToString(locator));
+        }
+        return metadata;
+    }
+
+    private static List<String> summarizeAttachments(List<List<Object>> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            return List.of();
+        }
+        List<String> summaries = new ArrayList<>();
+        for (List<Object> attachment : attachments) {
+            if (attachment == null || attachment.isEmpty()) {
+                continue;
+            }
+            String description = String.valueOf(attachment.getFirst());
+            String name = attachment.size() > 1 ? String.valueOf(attachment.get(1)) : "";
+            Object payload = attachment.size() > 2 ? attachment.get(2) : null;
+            summaries.add(description + (name.isBlank() ? "" : " - " + name) + payloadSize(payload));
+        }
+        return summaries;
+    }
+
+    private static String payloadSize(Object payload) {
+        if (payload instanceof byte[] bytes) {
+            return " (" + bytes.length + " bytes)";
+        }
+        if (payload instanceof CharSequence text) {
+            return " (" + text.length() + " chars)";
+        }
+        return "";
     }
 }
