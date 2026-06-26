@@ -45,6 +45,10 @@ class MobileServiceConfigurationTest {
         assertEquals("EDGE", result.browserName());
         assertTrue(result.active());
         assertTrue(result.warnings().isEmpty());
+        assertEquals("390x844", result.deviceProfile().get("viewport"));
+        assertEquals("3.0", result.deviceProfile().get("deviceScaleFactor"));
+        assertEquals("agent\"mobile", result.deviceProfile().get("userAgent"));
+        assertEquals("true", result.deviceProfile().get("touch"));
         String code = result.codeBlocks().getFirst().code();
         assertTrue(code.contains(".targetBrowserName(\"EDGE\")"));
         assertTrue(code.contains(".mobileEmulationIsCustomDevice(true)"));
@@ -72,6 +76,9 @@ class MobileServiceConfigurationTest {
         assertEquals("Pixel 5", result.deviceName());
         assertEquals("CHROME", result.browserName());
         assertFalse(result.warnings().isEmpty());
+        assertEquals("393x851", result.deviceProfile().get("viewport"));
+        assertEquals("2.75", result.deviceProfile().get("deviceScaleFactor"));
+        assertTrue(result.deviceProfile().get("userAgent").contains("Pixel 5"));
         assertTrue(result.codeBlocks().getFirst().code().contains(".mobileEmulationDeviceName(\"Pixel 5\")"));
         assertThrows(IllegalArgumentException.class,
                 () -> service.initializeWebEmulation("", "firefox", "", 0, 0, 0, "", false));

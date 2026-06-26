@@ -19,6 +19,7 @@ import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.AppiumBy;
@@ -1104,9 +1105,11 @@ public class ElementActionsHelper {
             }
         }
         if (!isSilent && !calledFromElementActions()) {
-            TraceEventRecorder.record(traceCategory(), actionName, Boolean.TRUE.equals(passFailStatus) ? "passed" : "failed",
+            String category = traceCategory();
+            TraceEventRecorder.record(category, actionName, Boolean.TRUE.equals(passFailStatus) ? "passed" : "failed",
                     elementLocator == null ? "" : JavaHelper.formatLocatorToString(elementLocator), driver, message,
-                    firstThrowable(rootCauseException), traceMetadata(testData, elementName), summarizeAttachments(attachments));
+                    firstThrowable(rootCauseException), traceMetadata(driver, testData, elementName, category,
+                            !Boolean.TRUE.equals(passFailStatus)), summarizeAttachments(attachments));
         }
         return message;
     }
@@ -1133,14 +1136,19 @@ public class ElementActionsHelper {
         return throwables == null || throwables.length == 0 ? null : throwables[0];
     }
 
-    private static Map<String, String> traceMetadata(String testData, String elementName) {
+    private static Map<String, String> traceMetadata(WebDriver driver, String testData, String elementName,
+                                                     String category, boolean includeNativeSource) {
         Map<String, String> metadata = new LinkedHashMap<>();
         if (testData != null && !testData.isBlank()) {
             metadata.put("testDataLength", String.valueOf(testData.length()));
+            if ("touch".equals(category)) {
+                metadata.put("gestureParameters", testData);
+            }
         }
         if (elementName != null && !elementName.isBlank()) {
             metadata.put("elementName", elementName);
         }
+        metadata.putAll(MobileTraceMetadata.mobileMetadata(driver, includeNativeSource));
         return metadata;
     }
 

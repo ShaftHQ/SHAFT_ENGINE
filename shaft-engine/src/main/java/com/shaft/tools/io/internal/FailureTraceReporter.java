@@ -32,6 +32,8 @@ public final class FailureTraceReporter {
     private static final Pattern URL_CREDENTIAL_PATTERN = Pattern.compile("(?i)(://[^:/\\s]+:)[^@/\\s]+(@)");
     private static final Pattern SECRET_ASSIGNMENT_PATTERN = Pattern.compile(
             "(?i)(password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)(\\s*[:=]\\s*)[^\\s,;&\"'<>]+");
+    private static final Pattern SECRET_ATTRIBUTE_PATTERN = Pattern.compile(
+            "(?i)((?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\\s*=\\s*[\"'])[^\"']*([\"'])");
     private static final Pattern SECRET_JSON_PATTERN = Pattern.compile(
             "(?i)(\"(?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\"\\s*:\\s*\")[^\"]*(\")");
     private static final int SNIPPET_RADIUS = 2;
@@ -475,6 +477,7 @@ public final class FailureTraceReporter {
         redacted = COOKIE_PATTERN.matcher(redacted).replaceAll("$1$2********");
         redacted = URL_CREDENTIAL_PATTERN.matcher(redacted).replaceAll("$1********$2");
         redacted = SECRET_JSON_PATTERN.matcher(redacted).replaceAll("$1********$2");
+        redacted = SECRET_ATTRIBUTE_PATTERN.matcher(redacted).replaceAll("$1********$2");
         return SECRET_ASSIGNMENT_PATTERN.matcher(redacted).replaceAll("$1$2********");
     }
 

@@ -2,6 +2,8 @@ package com.shaft.mcp;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.tools.io.internal.MobileTraceMetadata;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.remote.SupportsContextSwitching;
 import org.openqa.selenium.By;
 import org.openqa.selenium.OutputType;
@@ -129,7 +131,8 @@ public class MobileService {
                 true,
                 List.of(webEmulationSetupBlock(targetUrl, browserType, effectiveDevice, width, height, pixelRatio,
                         userAgent, headless)),
-                customDevice ? List.of() : List.of("Device names must match Chrome/Edge DevTools emulation names."));
+                customDevice ? List.of() : List.of("Device names must match Chrome/Edge DevTools emulation names."),
+                mobileDeviceProfile(browserType.name()));
     }
 
     /**
@@ -478,8 +481,16 @@ public class MobileService {
         if (!(seleniumDriver instanceof SupportsContextSwitching contextDriver)) {
             throw new IllegalStateException("The active driver is not an Appium driver.");
         }
-        contextDriver.context(contextName);
-        return getContexts(DEFAULT_SOURCE_CHARACTER_LIMIT);
+        String contextBefore = safeContext(contextDriver);
+        try {
+            contextDriver.context(contextName);
+        } catch (RuntimeException exception) {
+            recordContextSwitch(seleniumDriver, contextName, contextBefore, "", exception);
+            throw exception;
+        }
+        McpMobileContextSnapshot snapshot = getContexts(DEFAULT_SOURCE_CHARACTER_LIMIT);
+        recordContextSwitch(seleniumDriver, contextName, contextBefore, snapshot.currentContext(), null);
+        return snapshot;
     }
 
     /**
@@ -765,6 +776,34 @@ public class MobileService {
         return new McpMobileActionResult(action, recorded != null, actionBlock(action, javaCode),
                 recorded == null ? List.of("Action was not recorded; call mobile_record_start to capture it.")
                         : recorded.warnings());
+    }
+
+    private static String safeContext(SupportsContextSwitching contextDriver) {
+        try {
+            return text(contextDriver.getContext());
+        } catch (RuntimeException ignored) {
+            return "unsupported by active provider";
+        }
+    }
+
+    private static Map<String, String> mobileDeviceProfile(String browserName) {
+        try {
+            return MobileTraceMetadata.mcpDeviceProfile(getDriver().getDriver(), browserName);
+        } catch (RuntimeException exception) {
+            return MobileTraceMetadata.mcpDeviceProfile(browserName);
+        }
+    }
+
+    private static void recordContextSwitch(WebDriver driver, String requestedContext, String contextBefore,
+                                            String contextAfter, RuntimeException exception) {
+        Map<String, String> metadata = new java.util.LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(
+                driver, exception != null));
+        metadata.put("contextBefore", contextBefore);
+        metadata.put("contextAfter", text(contextAfter).isBlank() ? "unavailable" : contextAfter);
+        metadata.put("requestedContext", text(requestedContext));
+        TraceEventRecorder.record("mobile-context", "MOBILE_SWITCH_CONTEXT", exception == null ? "passed" : "failed",
+                requestedContext, driver, "Switch MCP mobile context to \"" + requestedContext + "\"",
+                exception, metadata, List.of());
     }
 
     private Path writeScreenshot(String outputPath, byte[] png) {

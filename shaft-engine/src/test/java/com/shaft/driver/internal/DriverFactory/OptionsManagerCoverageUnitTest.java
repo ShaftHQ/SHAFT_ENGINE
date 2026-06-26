@@ -4,6 +4,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
+import com.shaft.tools.io.internal.MobileTraceMetadata;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -12,7 +13,9 @@ import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerOptions;
 import org.openqa.selenium.remote.CapabilityType;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.safari.SafariOptions;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -21,6 +24,7 @@ import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 @Test(singleThreaded = true)
 public class OptionsManagerCoverageUnitTest {
@@ -130,6 +134,53 @@ public class OptionsManagerCoverageUnitTest {
         String edgeOptionsAsString = edgeOptions.toString();
         Assert.assertTrue(edgeOptionsAsString.contains("--headless"));
         Assert.assertTrue(edgeOptionsAsString.contains("inPrivate"));
+    }
+
+    @Test
+    public void mobileEmulationProfileShouldExposeResolvedCustomDeviceMetadata() {
+        SHAFT.Properties.web.set()
+                .isMobileEmulation(true)
+                .mobileEmulationIsCustomDevice(true)
+                .mobileEmulationWidth(390)
+                .mobileEmulationHeight(844)
+                .mobileEmulationPixelRatio(3.0)
+                .mobileEmulationUserAgent("custom-agent");
+
+        Map<String, String> profile = MobileTraceMetadata.seleniumMobileEmulationProfile("EDGE");
+
+        Assert.assertEquals(profile.get("deviceProfile.mode"), "custom");
+        Assert.assertEquals(profile.get("deviceProfile.viewport"), "390x844");
+        Assert.assertEquals(profile.get("deviceProfile.deviceScaleFactor"), "3.0");
+        Assert.assertEquals(profile.get("deviceProfile.userAgent"), "custom-agent");
+        Assert.assertEquals(profile.get("deviceProfile.mobile"), "true");
+        Assert.assertEquals(profile.get("deviceProfile.touch"), "true");
+    }
+
+    @Test
+    public void mobileEmulationProfileShouldPreferLiveBrowserMetadataWhenAvailable() {
+        SHAFT.Properties.web.set()
+                .isMobileEmulation(true)
+                .mobileEmulationIsCustomDevice(false)
+                .mobileEmulationDeviceName("Pixel 7");
+        RemoteWebDriver driver = Mockito.mock(RemoteWebDriver.class);
+        Mockito.when(driver.executeScript("return window.innerWidth + 'x' + window.innerHeight;"))
+                .thenReturn("412x915");
+        Mockito.when(driver.executeScript("return String(window.devicePixelRatio || 1);"))
+                .thenReturn("2.625");
+        Mockito.when(driver.executeScript("return navigator.userAgent || '';"))
+                .thenReturn("Mozilla/5.0 Pixel 7 Mobile");
+        Mockito.when(driver.executeScript("return String((navigator.maxTouchPoints || 0) > 0);"))
+                .thenReturn("true");
+        Mockito.when(driver.executeScript("return String(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent || ''));"))
+                .thenReturn("true");
+
+        Map<String, String> profile = MobileTraceMetadata.seleniumMobileEmulationProfile(driver, "CHROME");
+
+        Assert.assertEquals(profile.get("deviceProfile.viewport"), "412x915");
+        Assert.assertEquals(profile.get("deviceProfile.deviceScaleFactor"), "2.625");
+        Assert.assertEquals(profile.get("deviceProfile.userAgent"), "Mozilla/5.0 Pixel 7 Mobile");
+        Assert.assertEquals(profile.get("deviceProfile.touch"), "true");
+        Assert.assertEquals(profile.get("deviceProfile.mobile"), "true");
     }
 
     @Test

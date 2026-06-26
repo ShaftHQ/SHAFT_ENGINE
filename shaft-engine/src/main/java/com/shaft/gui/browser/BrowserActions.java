@@ -18,7 +18,9 @@ import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
@@ -1261,13 +1263,20 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public BrowserActions setContext(String context) {
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            androidDriver.context(context);
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            iosDriver.context(context);
-        } else {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), context, null);
+        String contextBefore = currentMobileContext();
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.context(context);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.context(context);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), context, null);
+            }
+        } catch (RuntimeException exception) {
+            recordMobileContextSwitch(context, contextBefore, "", exception);
+            throw exception;
         }
+        recordMobileContextSwitch(context, contextBefore, currentMobileContext(), null);
         elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
         return this;
     }
@@ -1303,6 +1312,32 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         }
         elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
+    }
+
+    private String currentMobileContext() {
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                return androidDriver.getContext();
+            }
+            if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                return iosDriver.getContext();
+            }
+            return "unsupported by active driver";
+        } catch (RuntimeException ignored) {
+            return "unsupported by active provider";
+        }
+    }
+
+    private void recordMobileContextSwitch(String requestedContext, String contextBefore, String contextAfter,
+                                           RuntimeException exception) {
+        Map<String, String> metadata = new LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(
+                driverFactoryHelper.getDriver(), exception != null));
+        metadata.put("contextBefore", contextBefore);
+        metadata.put("contextAfter", contextAfter == null || contextAfter.isBlank() ? "unavailable" : contextAfter);
+        metadata.put("requestedContext", requestedContext == null ? "" : requestedContext);
+        TraceEventRecorder.record("mobile-context", "SET_CONTEXT", exception == null ? "passed" : "failed",
+                requestedContext, driverFactoryHelper.getDriver(), "Switch mobile context to \"" + requestedContext + "\"",
+                exception, metadata, List.of());
     }
 
     /**

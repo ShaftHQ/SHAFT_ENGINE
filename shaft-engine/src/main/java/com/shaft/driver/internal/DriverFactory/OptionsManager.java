@@ -8,6 +8,8 @@ import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.MobileTraceMetadata;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,6 +32,7 @@ import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -487,6 +490,9 @@ public class OptionsManager {
                 }
             }
             options.setExperimentalOption("mobileEmulation", mobileEmulation);
+            TraceEventRecorder.record("browser", "SELENIUM_MOBILE_EMULATION_PROFILE", "passed", "",
+                    null, "Configured Selenium mobile emulation profile.", null,
+                    MobileTraceMetadata.seleniumMobileEmulationProfile(options.getBrowserName()), List.of());
         }
         // Enable BiDi
         if (SHAFT.Properties.platform.enableBiDi())

@@ -1,0 +1,1 @@
+When opening or updating SHAFT_ENGINE pull requests, include concrete code examples for any new public methods or logging changes, and include screenshots for UI elements or reporting enhancements when applicable. This durable PR-body evidence rule was explicitly requested by the user on 2026-06-26.
