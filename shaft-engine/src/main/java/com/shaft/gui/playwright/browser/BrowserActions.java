@@ -192,6 +192,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
      * @param urlContains optional URL fragments used to select recorded traffic
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions startContractRecording(String contractFilePath, String... urlContains) {
         HttpContractRecorder.startRecording(contractFilePath, urlContains);
         session.networkInterceptor().startObserving();
@@ -206,6 +207,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
      * @param urlContains optional URL fragments used to select validated traffic
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions assertContract(String contractFilePath, String... urlContains) {
         HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
         session.networkInterceptor().startObserving();
@@ -220,6 +222,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
      * @param urlContains optional URL fragments used to select validated traffic
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions verifyContract(String contractFilePath, String... urlContains) {
         HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
         session.networkInterceptor().startObserving();
@@ -239,6 +242,7 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
      * @param contractFilePath source JSON contract path
      * @return a self-reference to be used to chain actions
      */
+    @Override
     public BrowserActions replayContract(String contractFilePath) {
         HttpContractRecorder.browserReplayRules(contractFilePath)
                 .forEach(rule -> session.networkInterceptor().addRule(rule));
