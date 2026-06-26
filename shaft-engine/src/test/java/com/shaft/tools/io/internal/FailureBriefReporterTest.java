@@ -57,6 +57,8 @@ public class FailureBriefReporterTest {
 
             String html = FailureBriefReporter.renderBriefHtml(json);
             Assert.assertTrue(html.contains("SHAFT Failure Brief"), html);
+            Assert.assertTrue(html.contains("--shaft-primary"), html);
+            Assert.assertTrue(html.contains("status-chip"), html);
             Assert.assertFalse(html.contains("https://"), html);
             Assert.assertFalse(html.contains("cdn."), html);
         } finally {

@@ -7,6 +7,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
 
@@ -159,25 +160,44 @@ public final class LocatorHealthReporter {
                 <html lang="en">
                 <head>
                   <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
                   <title>SHAFT Locator Health Report</title>
                   <style>
-                    body{font-family:Arial,sans-serif;margin:24px;color:#1f2933}
-                    table{border-collapse:collapse;width:100%%}
-                    th,td{border:1px solid #d9e2ec;padding:8px;text-align:left}
-                    th{background:#f0f4f8}
-                    .warn{color:#b42318;font-weight:700}
+                """ + ReportHtmlTheme.style() + """
                   </style>
                 </head>
                 <body>
-                  <h1>SHAFT Locator Health Report</h1>
-                  <p>Warnings: <span class="warn">%d</span></p>
-                  <table>
-                    <thead><tr><th>Locator</th><th>Score</th><th>Recommendation</th><th>Lookups</th><th>Avg ms</th><th>P95 ms</th><th>Polls</th><th>Timeouts</th><th>Stale</th><th>Multiple</th><th>Slow</th><th>Healing</th></tr></thead>
-                    <tbody>%s</tbody>
-                  </table>
+                  <div class="report-shell">
+                    <header class="report-header">
+                      <div class="report-header-inner">
+                        <span class="brand-mark">S</span>
+                        <div>
+                          <h1>SHAFT Locator Health Report</h1>
+                          <p class="subtitle">Locator stability, timing, and healing signals</p>
+                        </div>
+                      </div>
+                    </header>
+                    <main class="report-main">
+                      <section class="panel">
+                        <h2>Summary</h2>
+                        <div class="metric-grid">
+                          <div class="metric-card"><div class="metric-label">Warnings</div><div class="metric-value"><span class="status-chip %s">%d</span></div></div>
+                        </div>
+                      </section>
+                      <section class="panel">
+                        <h2>Locator Details</h2>
+                        <div class="table-wrap">
+                          <table>
+                            <thead><tr><th>Locator</th><th>Score</th><th>Recommendation</th><th>Lookups</th><th>Avg ms</th><th>P95 ms</th><th>Polls</th><th>Timeouts</th><th>Stale</th><th>Multiple</th><th>Slow</th><th>Healing</th></tr></thead>
+                            <tbody>%s</tbody>
+                          </table>
+                        </div>
+                      </section>
+                    </main>
+                  </div>
                 </body>
                 </html>
-                """.formatted(warningCount(), rows);
+                """.formatted(warningCount() == 0 ? "passed" : "warn", warningCount(), rows);
     }
 
     private static LocatorStats statsFor(By locator) {

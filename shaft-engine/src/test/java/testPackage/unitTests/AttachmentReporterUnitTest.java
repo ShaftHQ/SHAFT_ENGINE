@@ -8,6 +8,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -78,9 +79,13 @@ public class AttachmentReporterUnitTest {
     }
 
     private AttachmentSnapshot captureAttachment(String attachmentType, String attachmentName) {
+        return captureAttachment(attachmentType, attachmentName, "sample content");
+    }
+
+    private AttachmentSnapshot captureAttachment(String attachmentType, String attachmentName, String attachmentContent) {
         ByteArrayOutputStream content = new ByteArrayOutputStream();
         try {
-            content.write("sample content".getBytes(StandardCharsets.UTF_8));
+            content.write(attachmentContent.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new RuntimeException("Failed to write sample content", e);
         }
@@ -102,23 +107,41 @@ public class AttachmentReporterUnitTest {
         return captured.get();
     }
 
+    private String readAttachmentContent(AttachmentSnapshot attachment) throws IOException {
+        for (Path candidate : List.of(
+                Path.of("allure-results", attachment.source()),
+                Path.of("shaft-engine", "allure-results", attachment.source()),
+                Path.of(System.getProperty("user.dir"), "allure-results", attachment.source()),
+                Path.of(System.getProperty("user.dir"), "target", "allure-results", attachment.source()))) {
+            if (Files.isRegularFile(candidate)) {
+                return Files.readString(candidate, StandardCharsets.UTF_8);
+            }
+        }
+        throw new IOException("Could not find Allure attachment source: " + attachment.source());
+    }
+
     private String captureFileBackedAttachmentMimeType(String attachmentType, String attachmentName, Path contentPath) {
+        return captureFileBackedAttachment(attachmentType, attachmentName, contentPath).type();
+    }
+
+    private AttachmentSnapshot captureFileBackedAttachment(String attachmentType, String attachmentName, Path contentPath) {
         AttachmentReporter.attachBasedOnFileType(attachmentType, attachmentName, contentPath,
                 attachmentType + " - " + attachmentName);
 
-        AtomicReference<String> capturedType = new AtomicReference<>(null);
+        AtomicReference<AttachmentSnapshot> captured = new AtomicReference<>(null);
         Allure.getLifecycle().updateTestCase(result -> {
             List<Attachment> attachments = result.getAttachments();
             if (!attachments.isEmpty()) {
-                capturedType.set(attachments.getLast().getType());
+                Attachment attachment = attachments.getLast();
+                captured.set(new AttachmentSnapshot(attachment.getType(), attachment.getSource()));
             }
         });
-        if (capturedType.get() == null) {
+        if (captured.get() == null) {
             throw new AssertionError(
                     "No file-backed attachment found in Allure test-case for type='" + attachmentType
                             + "', name='" + attachmentName + "'.");
         }
-        return capturedType.get();
+        return captured.get();
     }
 
     /**
@@ -206,6 +229,47 @@ public class AttachmentReporterUnitTest {
     public void htmlAttachmentShouldUseTextHtmlMimeType() {
         String mimeType = captureAttachmentMimeType("html", "report.html");
         SHAFT.Validations.assertThat().object(mimeType).isEqualTo("text/html").perform();
+    }
+
+    @Test(description = "HTML attachment should inject viewport-fit CSS for Allure inline rendering")
+    public void htmlAttachmentShouldInjectAllureViewportFitStyle() throws Exception {
+        AttachmentSnapshot attachment = captureAttachment("html", "wide-report.html", """
+                <!doctype html>
+                <html>
+                <head><title>Wide report</title></head>
+                <body>
+                  <table><tr><td>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</td></tr></table>
+                  <pre>bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb</pre>
+                </body>
+                </html>
+                """);
+
+        String html = readAttachmentContent(attachment);
+
+        SHAFT.Validations.assertThat().object(html).contains("shaft-allure-html-fit").perform();
+        SHAFT.Validations.assertThat().object(html).contains("overflow-x: hidden").perform();
+        SHAFT.Validations.assertThat().object(html).contains("table-layout: fixed").perform();
+        SHAFT.Validations.assertThat().object(html).contains("overflow-wrap: anywhere").perform();
+    }
+
+    @Test(description = "File-backed HTML attachment should inject viewport-fit CSS for Allure inline rendering")
+    public void fileBackedHtmlAttachmentShouldInjectAllureViewportFitStyle() throws Exception {
+        Path htmlFile = Files.createTempFile("shaft-wide-report-", ".html");
+        try {
+            Files.writeString(htmlFile, """
+                    <!doctype html>
+                    <html><body><table><tr><td>wide-wide-wide-wide-wide-wide-wide-wide-wide-wide</td></tr></table></body></html>
+                    """, StandardCharsets.UTF_8);
+
+            AttachmentSnapshot attachment = captureFileBackedAttachment("html", "wide-report.html", htmlFile);
+            String html = readAttachmentContent(attachment);
+
+            SHAFT.Validations.assertThat().object(attachment.type()).isEqualTo("text/html").perform();
+            SHAFT.Validations.assertThat().object(html).contains("shaft-allure-html-fit").perform();
+            SHAFT.Validations.assertThat().object(html).contains("table-layout: fixed").perform();
+        } finally {
+            Files.deleteIfExists(htmlFile);
+        }
     }
 
     /** ZIP attachments must use {@code application/zip}. */

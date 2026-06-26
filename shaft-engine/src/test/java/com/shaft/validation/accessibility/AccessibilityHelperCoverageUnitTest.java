@@ -124,7 +124,10 @@ public class AccessibilityHelperCoverageUnitTest {
             Files.createDirectories(filteredReport.getParent());
             AccessibilityHelper.generateFilteredHTMLReport(result, "ViolationsPage", filteredReport.toString(), mock(WebDriver.class));
             Assert.assertTrue(Files.exists(filteredReport));
-            Assert.assertTrue(Files.readString(filteredReport).contains("image-alt"));
+            String html = Files.readString(filteredReport);
+            Assert.assertTrue(html.contains("image-alt"));
+            Assert.assertTrue(html.contains("--shaft-primary"), html);
+            Assert.assertTrue(html.contains("status-chip"), html);
         }
     }
 

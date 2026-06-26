@@ -7,6 +7,7 @@ import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightSessionManager;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
 import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
 
@@ -146,72 +147,105 @@ public final class FailureTraceReporter {
                 <html lang="en">
                 <head>
                 <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>SHAFT Trace Report</title>
                 <style>
-                body{font-family:Arial,sans-serif;margin:0;background:#f7f9fb;color:#17202a}
-                header{background:#17202a;color:#fff;padding:16px 24px}
-                main{display:grid;grid-template-columns:320px 1fr;gap:14px;padding:14px}
-                section,aside{background:#fff;border:1px solid #d7dde5;border-radius:6px;min-width:0}
-                aside{padding:12px}
-                section{padding:14px}
-                h1{font-size:22px;margin:0} h2{font-size:16px;margin:0 0 10px}
-                a{color:#0b63ce}
-                .links{display:flex;gap:10px;margin:10px 0 12px;flex-wrap:wrap}
-                .action{width:100%;text-align:left;border:1px solid #d7dde5;background:#fff;border-radius:4px;margin:0 0 8px;padding:9px;cursor:pointer}
-                .action:hover,.action.selected{border-color:#0b63ce;background:#edf5ff}
-                .action.failed{border-left:4px solid #cc2936}.action.passed{border-left:4px solid #168a45}
-                .meta{color:#5b6570;font-size:12px;margin-top:4px}
+                """ + ReportHtmlTheme.style() + """
+                .trace-layout{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:16px}
+                .action{width:100%;margin:0 0 8px;text-align:left;background:var(--shaft-surface);color:var(--shaft-text)}
+                .action.selected{border-color:var(--shaft-primary);box-shadow:0 0 0 3px rgba(var(--shaft-primary-rgb),.14)}
+                .action.failed{border-left:4px solid var(--shaft-fail)}.action.passed{border-left:4px solid var(--shaft-pass)}
                 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
-                .tabs button{border:1px solid #c5ccd6;background:#fff;border-radius:4px;padding:7px 10px;cursor:pointer}
-                .tabs button.selected{background:#17202a;color:#fff;border-color:#17202a}
-                pre{white-space:pre-wrap;word-break:break-word;background:#0f1720;color:#e6edf3;padding:12px;border-radius:4px;max-height:65vh;overflow:auto}
+                .tabs button{background:var(--shaft-surface);color:var(--shaft-primary)}
+                .tabs button.selected{background:var(--shaft-primary);color:var(--shaft-on-dark)}
                 dl{display:grid;grid-template-columns:130px 1fr;gap:6px 12px}
-                dt{font-weight:bold;color:#39424e}dd{margin:0;word-break:break-word}
-                @media(max-width:800px){main{grid-template-columns:1fr}}
+                dt{font-weight:700;color:var(--shaft-text-muted)}dd{margin:0;overflow-wrap:anywhere}
+                @media(max-width:900px){.trace-layout{grid-template-columns:1fr}}
                 </style>
                 </head>
                 <body>
-                <header><h1>SHAFT Trace Report</h1></header>
-                <main>
-                <aside>
-                <h2>Actions</h2>
-                <div id="action-list"></div>
-                </aside>
-                <section>
-                <h2 id="details-title">Trace Details</h2>
-                <dl id="details"></dl>
-                <div class="tabs">
-                <button data-tab="exception" class="selected">Exception</button>
-                <button data-tab="source">Source</button>
-                <button data-tab="snapshot">Snapshot</button>
-                <button data-tab="locatorHealth">Locator Health</button>
-                <button data-tab="network">Network</button>
-                <button data-tab="console">Console</button>
-                <button data-tab="browserObservability">Observability</button>
-                <button data-tab="json">JSON</button>
+                <div class="report-shell">
+                <header class="report-header">
+                  <div class="report-header-inner">
+                    <span class="brand-mark">S</span>
+                    <div>
+                      <h1>SHAFT Trace Report</h1>
+                      <p class="subtitle" id="trace-subtitle">Failure trace viewer</p>
+                    </div>
+                  </div>
+                </header>
+                <main class="report-main">
+                <section class="panel trace-summary" id="trace-summary"></section>
+                <div class="trace-layout">
+                  <aside class="panel">
+                    <h2>Actions</h2>
+                    <div class="toolbar"><input id="action-search" type="search" placeholder="Search actions"></div>
+                    <div id="action-list"></div>
+                  </aside>
+                  <section class="panel">
+                    <div class="toolbar">
+                      <h2 id="details-title">Trace Details</h2>
+                      <button type="button" class="secondary" onclick="copyJson()">Copy JSON</button>
+                    </div>
+                    <dl id="details"></dl>
+                    <div class="tabs">
+                      <button data-tab="exception" class="selected">Exception</button>
+                      <button data-tab="source">Source</button>
+                      <button data-tab="snapshot">Snapshot</button>
+                      <button data-tab="locatorHealth">Locator Health</button>
+                      <button data-tab="network">Network</button>
+                      <button data-tab="console">Console</button>
+                      <button data-tab="browserObservability">Observability</button>
+                      <button data-tab="attachments">Attachments</button>
+                      <button data-tab="timeline">Timeline</button>
+                      <button data-tab="json">JSON</button>
+                    </div>
+                    <pre id="tab-content"></pre>
+                  </section>
                 </div>
-                <pre id="tab-content"></pre>
-                </section>
                 </main>
+                </div>
                 <pre hidden id="trace-data">""" + escapedJson + """
                 </pre>
                 <script>
                 const trace = JSON.parse(document.getElementById('trace-data').textContent);
                 const actions = Array.isArray(trace.actions) ? trace.actions : [];
                 const actionList = document.getElementById('action-list');
+                const actionSearch = document.getElementById('action-search');
                 const details = document.getElementById('details');
                 const tabContent = document.getElementById('tab-content');
                 let selected = actions.find(action => action.status !== 'passed') || actions[0] || null;
                 function esc(value){
                   return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
                 }
+                function statusClass(value){
+                  value = String(value || '').toLowerCase();
+                  if(value.includes('pass')) return 'passed';
+                  if(value.includes('fail') || value.includes('error')) return 'failed';
+                  if(value.includes('warn') || value.includes('skip')) return 'warn';
+                  return 'neutral';
+                }
+                function renderSummary(){
+                  const test = trace.test || {};
+                  const exception = trace.exception || {};
+                  document.getElementById('trace-subtitle').textContent = `${test.className || 'Unknown class'}.${test.methodName || 'unknown'} - ${trace.generatedAt || ''}`;
+                  document.getElementById('trace-summary').innerHTML = `
+                    <h2>Run Snapshot</h2>
+                    <div class="metric-grid">
+                      <div class="metric-card"><div class="metric-label">Status</div><div class="metric-value"><span class="status-chip ${statusClass(test.status)}">${esc(test.status || 'unknown')}</span></div></div>
+                      <div class="metric-card"><div class="metric-label">Actions</div><div class="metric-value">${actions.length}</div></div>
+                      <div class="metric-card"><div class="metric-label">Timeline</div><div class="metric-value">${Array.isArray(trace.timeline) ? trace.timeline.length : 0}</div></div>
+                      <div class="metric-card"><div class="metric-label">Exception</div><div class="metric-value">${esc(exception.type || 'None')}</div></div>
+                    </div>`;
+                }
                 function renderActions(){
                   actionList.innerHTML = '';
                   if(!actions.length){ actionList.textContent = 'No structured actions recorded.'; return; }
-                  actions.forEach(action => {
+                  const query = actionSearch.value.toLowerCase();
+                  actions.filter(action => !query || JSON.stringify(action).toLowerCase().includes(query)).forEach(action => {
                     const button = document.createElement('button');
                     button.className = `action ${action.status}${selected && selected.id === action.id ? ' selected' : ''}`;
-                    button.innerHTML = `<strong>${esc(action.name || 'Action')}</strong><div class="meta">${esc(action.category)} - ${esc(action.status)} - ${esc(action.durationMs || 0)}ms</div>`;
+                    button.innerHTML = `<strong>${esc(action.name || 'Action')}</strong><div class="muted">${esc(action.category)} - ${esc(action.status)} - ${esc(action.durationMs || 0)}ms</div>`;
                     button.addEventListener('click', () => { selected = action; renderActions(); renderDetails(); });
                     actionList.appendChild(button);
                   });
@@ -229,7 +263,12 @@ public final class FailureTraceReporter {
                   tabContent.textContent = typeof data === 'string' ? data : JSON.stringify(data || {}, null, 2);
                   document.querySelectorAll('.tabs button').forEach(button => button.classList.toggle('selected', button.dataset.tab === tab));
                 }
+                async function copyJson(){
+                  await navigator.clipboard.writeText(JSON.stringify(trace, null, 2));
+                }
+                actionSearch.addEventListener('input', renderActions);
                 document.querySelectorAll('.tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
+                renderSummary();
                 renderActions();
                 renderDetails();
                 </script>

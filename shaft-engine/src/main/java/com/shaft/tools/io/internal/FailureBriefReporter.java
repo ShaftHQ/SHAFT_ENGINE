@@ -3,6 +3,7 @@ package com.shaft.tools.io.internal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import io.qameta.allure.model.Status;
 import org.apache.logging.log4j.Level;
 
@@ -100,41 +101,37 @@ public final class FailureBriefReporter {
             html.append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
             html.append("<title>SHAFT Failure Brief</title>");
             html.append("<style>");
-            html.append("body{font-family:Arial,sans-serif;margin:0;background:#f7f9fb;color:#17202a}");
-            html.append("header{background:#17202a;color:#fff;padding:18px 24px}");
-            html.append("main{max-width:1100px;margin:0 auto;padding:18px;display:grid;gap:14px}");
-            html.append("section{background:#fff;border:1px solid #d7dde5;border-radius:6px;padding:14px}");
-            html.append("h1{font-size:22px;margin:0}h2{font-size:16px;margin:0 0 10px}");
+            html.append(ReportHtmlTheme.style());
             html.append(".meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}");
-            html.append(".label{color:#52616f;font-size:12px;text-transform:uppercase}.value{font-weight:700}");
-            html.append("table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid #d7dde5;padding:8px;text-align:left}");
-            html.append("code,pre{background:#0f1720;color:#e6edf3;border-radius:4px}code{padding:2px 4px}pre{padding:12px;overflow:auto}");
+            html.append(".label{color:var(--shaft-text-muted);font-size:12px;font-weight:700;text-transform:uppercase}.value{font-weight:700}");
             html.append("</style></head><body>");
-            html.append("<header><h1>SHAFT Failure Brief</h1></header><main>");
-            html.append("<section><h2>Status</h2><div class=\"meta\">");
-            meta(html, "Status", root.path("status").asText());
+            html.append("<div class=\"report-shell\"><header class=\"report-header\"><div class=\"report-header-inner\">");
+            html.append("<span class=\"brand-mark\">S</span><div><h1>SHAFT Failure Brief</h1>");
+            html.append("<p class=\"subtitle\">Prioritized failure context and artifacts</p></div></div></header><main class=\"report-main\">");
+            html.append("<section class=\"panel\"><h2>Status</h2><div class=\"meta\">");
+            statusMeta(html, root.path("status").asText());
             meta(html, "Category", root.path("failure").path("category").asText());
             meta(html, "Test", root.path("test").path("className").asText() + "."
                     + root.path("test").path("methodName").asText());
             meta(html, "Top project frame", root.path("failure").path("topProjectFrame").asText());
             html.append("</div></section>");
-            html.append("<section><h2>Failure Message</h2><pre>")
+            html.append("<section class=\"panel\"><h2>Failure Message</h2><pre>")
                     .append(escapeHtml(root.path("failure").path("message").asText()))
                     .append("</pre></section>");
-            html.append("<section><h2>Open First</h2><ol>");
+            html.append("<section class=\"panel\"><h2>Open First</h2><ol>");
             for (JsonNode item : root.path("openFirst")) {
                 html.append("<li>").append(escapeHtml(item.asText())).append("</li>");
             }
             html.append("</ol></section>");
-            html.append("<section><h2>Artifacts</h2><table><thead><tr><th>Description</th><th>Type</th><th>Purpose</th><th>Size</th></tr></thead><tbody>");
+            html.append("<section class=\"panel\"><h2>Artifacts</h2><div class=\"table-wrap\"><table><thead><tr><th>Description</th><th>Type</th><th>Purpose</th><th>Size</th></tr></thead><tbody>");
             for (JsonNode artifact : root.path("artifacts")) {
                 html.append("<tr><td>").append(escapeHtml(artifact.path("description").asText())).append("</td><td>")
                         .append(escapeHtml(artifact.path("contentType").asText())).append("</td><td>")
                         .append(escapeHtml(artifact.path("purpose").asText())).append("</td><td>")
                         .append(artifact.path("sizeBytes").asLong()).append("</td></tr>");
             }
-            html.append("</tbody></table></section>");
-            html.append("</main></body></html>");
+            html.append("</tbody></table></div></section>");
+            html.append("</main></div></body></html>");
             return html.toString();
         } catch (IOException e) {
             throw new IllegalArgumentException("Could not render failure brief HTML.", e);
@@ -393,6 +390,14 @@ public final class FailureBriefReporter {
     private static void meta(StringBuilder html, String label, String value) {
         html.append("<div><div class=\"label\">").append(escapeHtml(label)).append("</div><div class=\"value\">")
                 .append(escapeHtml(value)).append("</div></div>");
+    }
+
+    private static void statusMeta(StringBuilder html, String status) {
+        html.append("<div><div class=\"label\">Status</div><div class=\"value\"><span class=\"status-chip ")
+                .append(ReportHtmlTheme.statusClass(status))
+                .append("\">")
+                .append(escapeHtml(status))
+                .append("</span></div></div>");
     }
 
     private static StringBuilder indent(StringBuilder builder, int level) {

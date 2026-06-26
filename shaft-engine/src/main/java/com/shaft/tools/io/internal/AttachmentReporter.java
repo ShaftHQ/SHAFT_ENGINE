@@ -9,9 +9,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Calendar;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.function.BiConsumer;
 
 /**
@@ -28,6 +30,39 @@ import java.util.function.BiConsumer;
 public class AttachmentReporter {
     private static final LinkedHashMap<String, BiConsumer<String, ByteArrayOutputStream>> attachmentHandlers = new LinkedHashMap<>();
     private static final LinkedHashMap<String, AttachmentFormat> attachmentFormats = new LinkedHashMap<>();
+    private static final String ALLURE_HTML_FIT_STYLE = """
+            <style id="shaft-allure-html-fit">
+              html, body {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                overflow-x: hidden;
+              }
+              body { margin: 0; }
+              *, *::before, *::after { box-sizing: border-box; }
+              img, video, svg, canvas {
+                max-width: 100%;
+                height: auto;
+              }
+              iframe { max-width: 100%; }
+              table {
+                width: 100%;
+                max-width: 100%;
+                table-layout: fixed;
+                border-collapse: collapse;
+              }
+              th, td {
+                overflow-wrap: anywhere;
+                word-break: break-word;
+              }
+              pre, code {
+                max-width: 100%;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+              }
+            </style>
+            """;
 
     /**
      * This is a utility class and cannot be instantiated.
@@ -163,7 +198,7 @@ public class AttachmentReporter {
     }
 
     private static void handleHtml(String attachmentDescription, ByteArrayOutputStream content) {
-        attachFileBased(attachmentDescription, "text/html", content, ".html");
+        attachFileBased(attachmentDescription, "text/html", fitHtmlForAllure(content), ".html");
     }
 
     private static void handleZip(String attachmentDescription, ByteArrayOutputStream content) {
@@ -258,8 +293,43 @@ public class AttachmentReporter {
     public static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                              Path attachmentContentPath, String attachmentDescription) {
         String attachmentCase = getAttachmentCase(attachmentType, attachmentName);
+        if ("html".equals(attachmentCase)) {
+            try {
+                ByteArrayOutputStream content = new ByteArrayOutputStream();
+                java.nio.file.Files.copy(attachmentContentPath, content);
+                handleHtml(attachmentDescription, content);
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
+            }
+            return;
+        }
         AttachmentFormat attachmentFormat = attachmentFormats.getOrDefault(attachmentCase, attachmentFormats.get("default"));
         attachFileBased(attachmentDescription, attachmentFormat, attachmentContentPath);
+    }
+
+    private static ByteArrayOutputStream fitHtmlForAllure(ByteArrayOutputStream content) {
+        String html = new String(content.toByteArray(), StandardCharsets.UTF_8);
+        if (!html.contains("shaft-allure-html-fit")) {
+            html = injectAllureHtmlFitStyle(html);
+        }
+        ByteArrayOutputStream fitted = new ByteArrayOutputStream();
+        fitted.writeBytes(html.getBytes(StandardCharsets.UTF_8));
+        return fitted;
+    }
+
+    private static String injectAllureHtmlFitStyle(String html) {
+        String normalized = html.toLowerCase(Locale.ROOT);
+        int headEnd = normalized.indexOf("</head>");
+        if (headEnd >= 0) {
+            return html.substring(0, headEnd) + ALLURE_HTML_FIT_STYLE + html.substring(headEnd);
+        }
+        int bodyStart = normalized.indexOf("<body");
+        if (bodyStart >= 0) {
+            return html.substring(0, bodyStart)
+                    + "<head>\n" + ALLURE_HTML_FIT_STYLE + "</head>\n"
+                    + html.substring(bodyStart);
+        }
+        return ALLURE_HTML_FIT_STYLE + html;
     }
 
     private static String getAttachmentCase(String attachmentType, String attachmentName) {

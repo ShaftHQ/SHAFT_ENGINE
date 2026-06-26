@@ -670,6 +670,30 @@ public class AllureManagerUnitTest {
         Files.deleteIfExists(resultsDirectory.getParent().resolve("allurerc.yaml"));
     }
 
+    @Test(description = "Generated Allure index patch should expand image and HTML attachment previews")
+    public void generatedAllureIndexPatchShouldExpandAttachmentPreviews() throws Exception {
+        Method patchGeneratedAllureReportIndex = AllureManager.class
+                .getDeclaredMethod("patchGeneratedAllureReportIndex", Path.class);
+        patchGeneratedAllureReportIndex.setAccessible(true);
+        Path reportDirectory = Files.createTempDirectory("shaft-allure-index-patch");
+        Path index = reportDirectory.resolve("index.html");
+        try {
+            Files.writeString(index, "<!doctype html><html><head></head><body><main></main></body></html>",
+                    StandardCharsets.UTF_8);
+
+            patchGeneratedAllureReportIndex.invoke(null, reportDirectory);
+            String patched = Files.readString(index, StandardCharsets.UTF_8);
+
+            SHAFT.Validations.assertThat().object(patched).contains("shaft-allure-image-preview").perform();
+            SHAFT.Validations.assertThat().object(patched).contains("shaft-allure-html-preview").perform();
+            SHAFT.Validations.assertThat().object(patched).contains("iframe[src^=\"blob:\"]").perform();
+            SHAFT.Validations.assertThat().object(patched).contains("overflow-x: hidden !important").perform();
+        } finally {
+            Files.deleteIfExists(index);
+            Files.deleteIfExists(reportDirectory);
+        }
+    }
+
     @Test(description = "writeAllureCategoriesIfSupported should write valid Allure 3 failure categories")
     public void writeAllureCategoriesIfSupportedShouldWriteAllure3Categories() throws Exception {
         Method writeCategories = AllureManager.class.getDeclaredMethod("writeAllureCategoriesIfSupported");

@@ -74,6 +74,9 @@ public class ApiPerformanceExecutionReportUnitTest {
         String html = capturedContent(fileNameCaptor.getAllValues(), contentCaptor.getAllValues(), ".html").content();
         Assert.assertTrue(html.contains("<th>P50 Response Time (ms)</th>"));
         Assert.assertTrue(html.contains("<td>WARN</td>"));
+        Assert.assertTrue(html.contains("--shaft-primary"), html);
+        Assert.assertTrue(html.contains("function filterTable()"), html);
+        Assert.assertFalse(html.contains("github.com/ShaftHQ"), html);
     }
 
     @Test
