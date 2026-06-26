@@ -11,6 +11,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
@@ -214,8 +215,41 @@ public class BrowserActionsHelper {
             } else {
                 ReportManager.log(message);
             }
+            TraceEventRecorder.record("browser", actionName, Boolean.TRUE.equals(passFailStatus) ? "passed" : "failed",
+                    "", driver, message, firstThrowable(rootCauseException), Map.of(), summarizeAttachments(attachments));
         }
         return message;
+    }
+
+    private static Throwable firstThrowable(Exception[] exceptions) {
+        return exceptions == null || exceptions.length == 0 ? null : exceptions[0];
+    }
+
+    private static List<String> summarizeAttachments(List<List<Object>> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            return List.of();
+        }
+        List<String> summaries = new ArrayList<>();
+        for (List<Object> attachment : attachments) {
+            if (attachment == null || attachment.isEmpty()) {
+                continue;
+            }
+            String description = String.valueOf(attachment.getFirst());
+            String name = attachment.size() > 1 ? String.valueOf(attachment.get(1)) : "";
+            Object payload = attachment.size() > 2 ? attachment.get(2) : null;
+            summaries.add(description + (name.isBlank() ? "" : " - " + name) + payloadSize(payload));
+        }
+        return summaries;
+    }
+
+    private static String payloadSize(Object payload) {
+        if (payload instanceof byte[] bytes) {
+            return " (" + bytes.length + " bytes)";
+        }
+        if (payload instanceof CharSequence text) {
+            return " (" + text.length() + " chars)";
+        }
+        return "";
     }
 
     private void logWithProfiledAttachments(String actionName, String message, List<List<Object>> attachments) {

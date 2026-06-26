@@ -24,6 +24,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.AppiumDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
@@ -53,6 +54,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -451,6 +453,9 @@ public class Actions extends ElementActions {
             ACTION_EVIDENCE_NANOS.get().set(0L);
             ACTION_STALE_RETRIES.get().set(0);
         }
+        TraceEventRecorder.Event traceEvent = elementActionsHelper.isSilent()
+                ? null
+                : TraceEventRecorder.start("element", action.name(), locator, driverFactoryHelper.getDriver());
         AtomicReference<String> output = new AtomicReference<>("");
         AtomicReference<String> accessibleName = new AtomicReference<>(JavaHelper.formatLocatorToString(locator));
         AtomicReference<ActionReportContext> reportContext = new AtomicReference<>(ActionReportContext.from(action, locator, data, accessibleName.get()));
@@ -839,14 +844,14 @@ public class Actions extends ElementActions {
                 }
                 recordFlakeProfile(flakeProfile, false);
                 // report broken
-                reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception);
+                reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception);
             } catch (RuntimeException exception2) {
                 if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
                     // in case a new exception was thrown while attempting to take a screenshot
                     exception2.addSuppressed(exception);
                     recordFlakeProfile(flakeProfile, false);
                     // report broken
-                    reportBroken(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception2);
+                    reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception2);
                 } else {
                     // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
                     throw exception2;
@@ -855,7 +860,7 @@ public class Actions extends ElementActions {
         }
         //report pass
         recordFlakeProfile(flakeProfile, true);
-        reportPass(action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0));
+        reportPass(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0));
         return output.get();
     }
 
@@ -1252,34 +1257,52 @@ public class Actions extends ElementActions {
     }
 
     private void reportPass(String action, String elementName, byte[] screenshot) {
-        report(action, elementName, Status.PASSED, screenshot, null);
+        report(null, action, elementName, ActionReportContext.empty(), Status.PASSED, screenshot, null);
     }
 
     private void reportPass(String action, String elementName, ActionReportContext context, byte[] screenshot) {
-        report(action, elementName, context, Status.PASSED, screenshot, null);
+        report(null, action, elementName, context, Status.PASSED, screenshot, null);
+    }
+
+    private void reportPass(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context, byte[] screenshot) {
+        report(traceEvent, action, elementName, context, Status.PASSED, screenshot, null);
     }
 
     private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception) {
-        report(action, elementName, Status.BROKEN, screenshot, exception);
+        report(null, action, elementName, ActionReportContext.empty(), Status.BROKEN, screenshot, exception);
     }
 
     private void reportBroken(String action, String elementName, ActionReportContext context, byte[] screenshot, RuntimeException exception) {
-        report(action, elementName, context, Status.BROKEN, screenshot, exception);
+        report(null, action, elementName, context, Status.BROKEN, screenshot, exception);
+    }
+
+    private void reportBroken(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context, byte[] screenshot, RuntimeException exception) {
+        report(traceEvent, action, elementName, context, Status.BROKEN, screenshot, exception);
     }
 
     private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception) {
-        report(action, elementName, ActionReportContext.empty(), status, screenshot, exception);
+        report(null, action, elementName, ActionReportContext.empty(), status, screenshot, exception);
     }
 
     private void report(String action, String elementName, ActionReportContext context, Status status, byte[] screenshot, RuntimeException exception) {
+        report(null, action, elementName, context, status, screenshot, exception);
+    }
+
+    private void report(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context, Status status, byte[] screenshot, RuntimeException exception) {
+        TraceEventRecorder.Event event = traceEvent == null && !elementActionsHelper.isSilent()
+                ? TraceEventRecorder.start("element", action, context.locator(), driverFactoryHelper.getDriver())
+                : traceEvent;
         // update allure step name
         StringBuilder stepName = new StringBuilder(createStepName(action, elementName, context));
+        String traceMessage = createTraceMessage(action, elementName, context);
 
         if (!status.equals(Status.PASSED))
             stepName.append(" is ").append(status.name().toLowerCase());
 
         if (elementActionsHelper.isSilent()) {
             ReportManager.logDiscrete(stepName.toString(), Status.PASSED.equals(status) ? Level.DEBUG : Level.ERROR);
+            TraceEventRecorder.finish(event, Status.PASSED.equals(status) ? "passed" : "failed", traceMessage, exception,
+                    traceMetadata(elementName, context, status), screenshotSummary(screenshot, action));
             if (exception != null) {
                 throw new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
             }
@@ -1318,6 +1341,7 @@ public class Actions extends ElementActions {
             // if the step passed
             ReportManager.logDiscrete(stepName.toString());
         } else {
+            RuntimeException reportedException = null;
             // if the step failed
             ReportManager.logDiscrete(stepName.toString(), Level.ERROR);
 
@@ -1334,9 +1358,17 @@ public class Actions extends ElementActions {
                     details.setTrace(mergeStatusTrace(details, exception));
                     update.setStatusDetails(details);
                 });
-                throw new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
+                reportedException = new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
             }
+            TraceEventRecorder.finish(event, "failed", traceMessage, exception,
+                    traceMetadata(elementName, context, status), screenshotSummary(screenshot, action));
+            if (reportedException != null) {
+                throw reportedException;
+            }
+            return;
         }
+        TraceEventRecorder.finish(event, "passed", traceMessage, null,
+                traceMetadata(elementName, context, status), screenshotSummary(screenshot, action));
     }
 
     private static String createStepName(String action, String elementName, ActionReportContext context) {
@@ -1357,6 +1389,36 @@ public class Actions extends ElementActions {
                 || ActionType.TYPE_APPEND.name().equals(action)
                 || ActionType.TYPE_SECURELY.name().equals(action)
                 || ActionType.JAVASCRIPT_SET_VALUE.name().equals(action);
+    }
+
+    private static String createTraceMessage(String action, String elementName, ActionReportContext context) {
+        String actionName = JavaHelper.convertToSentenceCase(action).replaceAll("\\s+", " ");
+        if (shouldAppendElementNameToTypedStep(action) && context.hasStepTarget()) {
+            return actionName + " into \"" + context.elementName() + "\"";
+        }
+        if (elementName == null || elementName.isBlank()) {
+            return actionName;
+        }
+        return actionName + " \"" + elementName + "\"";
+    }
+
+    private static Map<String, String> traceMetadata(String elementName, ActionReportContext context, Status status) {
+        Map<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("allureStatus", status.name().toLowerCase());
+        if (elementName != null && !elementName.isBlank()) {
+            metadata.put("elementName", elementName);
+        }
+        if (context.hasElementName()) {
+            metadata.put("resolvedElementName", context.elementName());
+        }
+        return metadata;
+    }
+
+    private static List<String> screenshotSummary(byte[] screenshot, String action) {
+        if (screenshot == null) {
+            return List.of();
+        }
+        return List.of("screenshot - " + JavaHelper.convertToSentenceCase(action) + " (" + screenshot.length + " bytes)");
     }
 
     private static void updateActionStepMetadata(ActionReportContext context) {

@@ -29,6 +29,7 @@ import java.util.zip.ZipOutputStream;
 public final class FailureTraceReporter {
     private static final Pattern AUTHORIZATION_PATTERN = Pattern.compile("(?i)(authorization\\s*[:=]\\s*)(bearer\\s+)?[^\\s,;]+");
     private static final Pattern COOKIE_PATTERN = Pattern.compile("(?i)(cookie|set-cookie)(\\s*[:=]\\s*)[^\\n\\r]+");
+    private static final Pattern URL_CREDENTIAL_PATTERN = Pattern.compile("(?i)(://[^:/\\s]+:)[^@/\\s]+(@)");
     private static final Pattern SECRET_ASSIGNMENT_PATTERN = Pattern.compile(
             "(?i)(password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)(\\s*[:=]\\s*)[^\\s,;&\"'<>]+");
     private static final int SNIPPET_RADIUS = 2;
@@ -38,7 +39,7 @@ public final class FailureTraceReporter {
     }
 
     /**
-     * Attaches the trace HTML, JSON, and ZIP bundle when the current trace mode applies.
+     * Attaches the trace ZIP bundle when the current trace mode applies.
      *
      * @param info        current test metadata
      * @param logText     current test log
@@ -53,9 +54,8 @@ public final class FailureTraceReporter {
             String json = renderTraceJson(info, logText, attachments);
             String html = renderTraceHtml(json);
             byte[] zip = renderTraceZip(json, html);
-            attach("html", "SHAFT Trace Report.html", html.getBytes(StandardCharsets.UTF_8), "SHAFT Trace Report");
-            attach("json", "shaft-trace.json", json.getBytes(StandardCharsets.UTF_8), "shaft-trace");
-            attach("zip", "shaft-trace.zip", zip, "shaft-trace");
+            persistTraceArtifacts(info, zip);
+            attach("zip", "shaft-trace.zip", zip, "shaft-trace.zip");
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT trace report: " + e.getMessage(), Level.WARN);
         }
@@ -65,7 +65,7 @@ public final class FailureTraceReporter {
         try {
             var session = PlaywrightSessionManager.currentSession();
             if (session != null && session.traceManager() != null && session.traceManager().isTracingStarted()) {
-                session.traceManager().stopAndAttach();
+                session.traceManager().stop();
             }
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not stop Playwright tracing before SHAFT trace generation: "
@@ -76,6 +76,7 @@ public final class FailureTraceReporter {
     static String renderTraceJson(TestExecutionInfo info, String logText, List<String> attachments) {
         SourceContext source = sourceContext(info);
         Snapshot snapshot = snapshot();
+        List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
         Throwable throwable = info == null ? null : info.throwable();
         StringBuilder json = new StringBuilder();
         json.append("{\n");
@@ -104,6 +105,7 @@ public final class FailureTraceReporter {
         field(json, 2, "content", snapshot.content(), false);
         objectEnd(json, 1, true);
         rawObject(json, 1, "locatorHealth", locatorHealthJson(), true);
+        rawArray(json, 1, "actions", TraceEventRecorder.toJson(actions), true);
         array(json, 1, "timeline", timeline(logText), true);
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
@@ -132,22 +134,87 @@ public final class FailureTraceReporter {
                 <title>SHAFT Trace Report</title>
                 <style>
                 body{font-family:Arial,sans-serif;margin:0;background:#f7f9fb;color:#17202a}
-                header{background:#17202a;color:#fff;padding:18px 24px}
-                main{display:grid;grid-template-columns:280px 1fr;gap:16px;padding:16px}
-                section{background:#fff;border:1px solid #d7dde5;border-radius:6px;padding:14px;min-width:0}
-                pre{white-space:pre-wrap;word-break:break-word;background:#0f1720;color:#e6edf3;padding:12px;border-radius:4px;max-height:72vh;overflow:auto}
+                header{background:#17202a;color:#fff;padding:16px 24px}
+                main{display:grid;grid-template-columns:320px 1fr;gap:14px;padding:14px}
+                section,aside{background:#fff;border:1px solid #d7dde5;border-radius:6px;min-width:0}
+                aside{padding:12px}
+                section{padding:14px}
                 h1{font-size:22px;margin:0} h2{font-size:16px;margin:0 0 10px}
+                a{color:#0b63ce}
+                .links{display:flex;gap:10px;margin:10px 0 12px;flex-wrap:wrap}
+                .action{width:100%;text-align:left;border:1px solid #d7dde5;background:#fff;border-radius:4px;margin:0 0 8px;padding:9px;cursor:pointer}
+                .action:hover,.action.selected{border-color:#0b63ce;background:#edf5ff}
+                .action.failed{border-left:4px solid #cc2936}.action.passed{border-left:4px solid #168a45}
+                .meta{color:#5b6570;font-size:12px;margin-top:4px}
+                .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+                .tabs button{border:1px solid #c5ccd6;background:#fff;border-radius:4px;padding:7px 10px;cursor:pointer}
+                .tabs button.selected{background:#17202a;color:#fff;border-color:#17202a}
+                pre{white-space:pre-wrap;word-break:break-word;background:#0f1720;color:#e6edf3;padding:12px;border-radius:4px;max-height:65vh;overflow:auto}
+                dl{display:grid;grid-template-columns:130px 1fr;gap:6px 12px}
+                dt{font-weight:bold;color:#39424e}dd{margin:0;word-break:break-word}
                 @media(max-width:800px){main{grid-template-columns:1fr}}
                 </style>
                 </head>
                 <body>
                 <header><h1>SHAFT Trace Report</h1></header>
                 <main>
-                <section><h2>Timeline / Metadata</h2><pre id="trace-json"></pre></section>
-                <section><h2>Full Trace JSON</h2><pre>""" + escapedJson + """
-                </pre></section>
+                <aside>
+                <h2>Actions</h2>
+                <div id="action-list"></div>
+                </aside>
+                <section>
+                <h2 id="details-title">Trace Details</h2>
+                <dl id="details"></dl>
+                <div class="tabs">
+                <button data-tab="exception" class="selected">Exception</button>
+                <button data-tab="source">Source</button>
+                <button data-tab="snapshot">Snapshot</button>
+                <button data-tab="locatorHealth">Locator Health</button>
+                <button data-tab="json">JSON</button>
+                </div>
+                <pre id="tab-content"></pre>
+                </section>
                 </main>
-                <script>document.getElementById('trace-json').textContent = JSON.stringify(JSON.parse(document.querySelectorAll('pre')[1].textContent), null, 2);</script>
+                <pre hidden id="trace-data">""" + escapedJson + """
+                </pre>
+                <script>
+                const trace = JSON.parse(document.getElementById('trace-data').textContent);
+                const actions = Array.isArray(trace.actions) ? trace.actions : [];
+                const actionList = document.getElementById('action-list');
+                const details = document.getElementById('details');
+                const tabContent = document.getElementById('tab-content');
+                let selected = actions.find(action => action.status !== 'passed') || actions[0] || null;
+                function esc(value){
+                  return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+                }
+                function renderActions(){
+                  actionList.innerHTML = '';
+                  if(!actions.length){ actionList.textContent = 'No structured actions recorded.'; return; }
+                  actions.forEach(action => {
+                    const button = document.createElement('button');
+                    button.className = `action ${action.status}${selected && selected.id === action.id ? ' selected' : ''}`;
+                    button.innerHTML = `<strong>${esc(action.name || 'Action')}</strong><div class="meta">${esc(action.category)} - ${esc(action.status)} - ${esc(action.durationMs || 0)}ms</div>`;
+                    button.addEventListener('click', () => { selected = action; renderActions(); renderDetails(); });
+                    actionList.appendChild(button);
+                  });
+                }
+                function row(name, value){ return `<dt>${esc(name)}</dt><dd>${esc(value)}</dd>`; }
+                function renderDetails(){
+                  const action = selected || {};
+                  document.getElementById('details-title').textContent = action.name ? `Action: ${action.name}` : 'Trace Details';
+                  details.innerHTML = row('Status', action.status) + row('Category', action.category) + row('Locator', action.locator) + row('URL', action.url) + row('Duration', action.durationMs == null ? '' : `${action.durationMs}ms`) + row('Message', action.message);
+                  renderTab(document.querySelector('.tabs button.selected').dataset.tab);
+                }
+                function renderTab(tab){
+                  const action = selected || {};
+                  const data = tab === 'json' ? trace : tab === 'exception' && action.exception && (action.exception.type || action.exception.message) ? action.exception : trace[tab];
+                  tabContent.textContent = typeof data === 'string' ? data : JSON.stringify(data || {}, null, 2);
+                  document.querySelectorAll('.tabs button').forEach(button => button.classList.toggle('selected', button.dataset.tab === tab));
+                }
+                document.querySelectorAll('.tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
+                renderActions();
+                renderDetails();
+                </script>
                 </body>
                 </html>
                 """;
@@ -189,6 +256,57 @@ public final class FailureTraceReporter {
             throw new IllegalStateException("Could not buffer trace attachment.", e);
         }
         AttachmentReporter.attachBasedOnFileType(type, name, output, description);
+    }
+
+    private static void persistTraceArtifacts(TestExecutionInfo info, byte[] zip) {
+        try {
+            Path directory = traceDirectory(info);
+            Files.createDirectories(directory);
+            Path zipPath = directory.resolve("shaft-trace.zip");
+            Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
+            Files.deleteIfExists(directory.resolve("shaft-trace.json"));
+            Files.write(zipPath, zip);
+            Files.writeString(directory.resolve("index.json"), renderTraceIndexJson(info, zipPath),
+                    StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete("Could not persist SHAFT trace artifacts: " + e.getMessage(), Level.WARN);
+        }
+    }
+
+    static Path traceDirectory(TestExecutionInfo info) {
+        return Path.of("target", "shaft-traces", safeTestId(info));
+    }
+
+    static String safeTestId(TestExecutionInfo info) {
+        String id = info == null ? "" : value(info.stableId());
+        if (id.isBlank() && info != null) {
+            id = value(info.className()) + "." + value(info.methodName());
+        }
+        String safeId = id.replaceAll("[^A-Za-z0-9._-]+", "_");
+        while (safeId.startsWith("_")) {
+            safeId = safeId.substring(1);
+        }
+        while (safeId.endsWith("_")) {
+            safeId = safeId.substring(0, safeId.length() - 1);
+        }
+        if (safeId.isBlank()) {
+            safeId = "unknown";
+        }
+        return safeId.length() <= 120 ? safeId : safeId.substring(0, 120);
+    }
+
+    private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\n");
+        field(json, 1, "testId", safeTestId(info), true);
+        field(json, 1, "generatedAt", Instant.now().toString(), true);
+        field(json, 1, "archive", relative(zipPath), true);
+        objectStart(json, 1, "entries");
+        field(json, 2, "html", "SHAFT Trace Report.html", true);
+        field(json, 2, "json", "shaft-trace.json", false);
+        objectEnd(json, 1, false);
+        json.append("}\n");
+        return json.toString();
     }
 
     private static Snapshot snapshot() {
@@ -322,6 +440,7 @@ public final class FailureTraceReporter {
         String redacted = value(value);
         redacted = AUTHORIZATION_PATTERN.matcher(redacted).replaceAll("$1********");
         redacted = COOKIE_PATTERN.matcher(redacted).replaceAll("$1$2********");
+        redacted = URL_CREDENTIAL_PATTERN.matcher(redacted).replaceAll("$1********$2");
         return SECRET_ASSIGNMENT_PATTERN.matcher(redacted).replaceAll("$1$2********");
     }
 
@@ -336,6 +455,13 @@ public final class FailureTraceReporter {
     private static void rawObject(StringBuilder json, int indent, String key, String value, boolean comma) {
         indent(json, indent).append("\"").append(key).append("\": ")
                 .append(value(value).isBlank() ? "{}" : value.strip())
+                .append(comma ? "," : "")
+                .append("\n");
+    }
+
+    private static void rawArray(StringBuilder json, int indent, String key, String value, boolean comma) {
+        indent(json, indent).append("\"").append(key).append("\": ")
+                .append(value(value).isBlank() ? "[]" : value.strip())
                 .append(comma ? "," : "")
                 .append("\n");
     }

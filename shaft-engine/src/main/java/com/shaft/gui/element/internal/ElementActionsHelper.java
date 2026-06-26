@@ -20,6 +20,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import lombok.Getter;
@@ -1102,7 +1103,72 @@ public class ElementActionsHelper {
                 ReportManager.log(message);
             }
         }
+        if (!isSilent && !calledFromElementActions()) {
+            TraceEventRecorder.record(traceCategory(), actionName, Boolean.TRUE.equals(passFailStatus) ? "passed" : "failed",
+                    elementLocator == null ? "" : JavaHelper.formatLocatorToString(elementLocator), driver, message,
+                    firstThrowable(rootCauseException), traceMetadata(testData, elementName), summarizeAttachments(attachments));
+        }
         return message;
+    }
+
+    private static boolean calledFromElementActions() {
+        for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+            if ("com.shaft.gui.element.internal.Actions".equals(frame.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String traceCategory() {
+        for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+            if ("com.shaft.gui.element.TouchActions".equals(frame.getClassName())) {
+                return "touch";
+            }
+        }
+        return "element";
+    }
+
+    private static Throwable firstThrowable(Throwable[] throwables) {
+        return throwables == null || throwables.length == 0 ? null : throwables[0];
+    }
+
+    private static Map<String, String> traceMetadata(String testData, String elementName) {
+        Map<String, String> metadata = new LinkedHashMap<>();
+        if (testData != null && !testData.isBlank()) {
+            metadata.put("testDataLength", String.valueOf(testData.length()));
+        }
+        if (elementName != null && !elementName.isBlank()) {
+            metadata.put("elementName", elementName);
+        }
+        return metadata;
+    }
+
+    private static List<String> summarizeAttachments(List<List<Object>> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            return List.of();
+        }
+        List<String> summaries = new ArrayList<>();
+        for (List<Object> attachment : attachments) {
+            if (attachment == null || attachment.isEmpty()) {
+                continue;
+            }
+            String description = String.valueOf(attachment.getFirst());
+            String name = attachment.size() > 1 ? String.valueOf(attachment.get(1)) : "";
+            Object payload = attachment.size() > 2 ? attachment.get(2) : null;
+            summaries.add(description + (name.isBlank() ? "" : " - " + name) + payloadSize(payload));
+        }
+        return summaries;
+    }
+
+    private static String payloadSize(Object payload) {
+        if (payload instanceof byte[] bytes) {
+            return " (" + bytes.length + " bytes)";
+        }
+        if (payload instanceof CharSequence text) {
+            return " (" + text.length() + " chars)";
+        }
+        return "";
     }
 
     /**

@@ -49,6 +49,7 @@ public class FailureDiagnosticsReporterTest {
             Assert.assertTrue(json.contains("\"status\": \"failed\""), json);
             Assert.assertTrue(json.contains("\"topProjectFrame\": \"customer.LoginTest.failingScenario(LoginTest.java:27)\""), json);
             Assert.assertTrue(json.contains("\"path\": \"shaft-trace.zip\""), json);
+            Assert.assertFalse(json.contains("\"trace-report\""), json);
             Assert.assertTrue(json.contains("\"authorization-header\""), json);
             Assert.assertFalse(json.contains("raw-token"), json);
             Assert.assertFalse(json.contains("raw-cookie"), json);
