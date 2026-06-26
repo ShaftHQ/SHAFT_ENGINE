@@ -23,6 +23,7 @@ import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.AppiumDriver;
@@ -1419,7 +1420,7 @@ public class Actions extends ElementActions {
         return actionName + " \"" + elementName + "\"";
     }
 
-    private static Map<String, String> traceMetadata(String elementName, ActionReportContext context, Status status) {
+    private Map<String, String> traceMetadata(String elementName, ActionReportContext context, Status status) {
         Map<String, String> metadata = new LinkedHashMap<>();
         metadata.put("allureStatus", status.name().toLowerCase());
         if (elementName != null && !elementName.isBlank()) {
@@ -1428,6 +1429,7 @@ public class Actions extends ElementActions {
         if (context.hasElementName()) {
             metadata.put("resolvedElementName", context.elementName());
         }
+        metadata.putAll(MobileTraceMetadata.mobileMetadata(driverFactoryHelper.getDriver(), !Status.PASSED.equals(status)));
         return metadata;
     }
 

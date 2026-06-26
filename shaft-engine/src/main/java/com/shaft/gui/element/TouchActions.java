@@ -83,6 +83,7 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
+        String testData = String.valueOf(key);
         try {
             if (driverFactoryHelper.getDriver() instanceof RemoteWebDriver remoteWebDriver) {
                 new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(false).until(d -> {
@@ -92,9 +93,9 @@ public class TouchActions extends FluentWebDriverAction {
                     return isKeyboardShown;
                 });
             }
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), key.name(), null, null);
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         } catch (Exception rootCauseException) {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
         }
         return this;
     }
@@ -157,9 +158,13 @@ public class TouchActions extends FluentWebDriverAction {
             try {
                 ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
             } catch (UnsupportedCommandException exception) {
-                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, exception);
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(),
+                        "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates,
+                        null, exception);
             }
-            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(),
+                    "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates, attachments, null);
         }
         return this;
     }
@@ -208,14 +213,20 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions sendAppToBackground(int secondsToSpendInTheBackground) {
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            androidDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            iosDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
-        } else {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+        String testData = "seconds=" + secondsToSpendInTheBackground;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
         }
-        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         return this;
     }
 
@@ -235,14 +246,20 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions activateAppFromBackground(String appPackageName) {
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            androidDriver.activateApp(appPackageName);
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            iosDriver.activateApp(appPackageName);
-        } else {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+        String testData = "appId=" + appPackageName;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.activateApp(appPackageName);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.activateApp(appPackageName);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
         }
-        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
         return this;
     }
 
@@ -443,12 +460,13 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeToEndOfView(By scrollableElementLocator, SwipeDirection swipeDirection) {
+        String testData = "direction=" + swipeDirection;
         try {
             swipeToEndOfViewInternal(scrollableElementLocator, swipeDirection);
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), scrollableElementLocator,
-                    Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         } catch (Throwable throwable) {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), scrollableElementLocator, throwable);
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, scrollableElementLocator, throwable);
         }
         return this;
     }
@@ -606,13 +624,14 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions swipeElementIntoView(By scrollableElementLocator, By targetElementLocator, SwipeDirection swipeDirection) {
         // Fix issue #641 Element locator is NULL by make internalScrollableElementLocator can be null and the condition become 'OR' not 'AND'
+        String testData = "direction=" + swipeDirection;
         try {
             try {
                 if (driverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
                     // appium native application
                     boolean isElementFound = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
                     if (!isElementFound) {
-                        elementActionsHelper.failAction(appiumDriver, targetElementLocator);
+                        elementActionsHelper.failAction(appiumDriver, testData, targetElementLocator);
                     }
                 } else {
                     // regular touch screen device
@@ -622,15 +641,16 @@ public class TouchActions extends FluentWebDriverAction {
                         new Actions(driverFactoryHelper.getDriver()).scrollToElement(((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), targetElementLocator).get(1))).perform();
                     }
                 }
-                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), targetElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), targetElementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
             } catch (UnsupportedCommandException unsupportedCommandException) {
                 throw unsupportedCommandException;
             } catch (Exception e) {
-                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), targetElementLocator, e);
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, targetElementLocator, e);
             }
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), scrollableElementLocator, throwable);
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, scrollableElementLocator, throwable);
         }
         return this;
     }
@@ -642,8 +662,15 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText) {
-        ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
-                + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
+        String testData = "targetText=" + targetText + ", movement=VERTICAL";
+        try {
+            ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                    + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Throwable rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
         return this;
     }
 
@@ -655,15 +682,22 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText, SwipeMovement movement) {
-        switch (movement) {
-            case VERTICAL:
-                ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
-                        + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
-                break;
-            case HORIZONTAL:
-                ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).setAsHorizontalList().scrollIntoView("
-                        + "new UiSelector().textContains(\"" + targetText + "\"));"));
-                break;
+        String testData = "targetText=" + targetText + ", movement=" + movement;
+        try {
+            switch (movement) {
+                case VERTICAL:
+                    ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                            + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
+                    break;
+                case HORIZONTAL:
+                    ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).setAsHorizontalList().scrollIntoView("
+                            + "new UiSelector().textContains(\"" + targetText + "\"));"));
+                    break;
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Throwable rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
         }
         return this;
     }
@@ -675,12 +709,19 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions rotate(ScreenOrientation orientation) {
-        if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
-            androidDriver.rotate(orientation);
-        } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-            iosDriver.rotate(orientation);
-        } else {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+        String testData = "orientation=" + orientation;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.rotate(orientation);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.rotate(orientation);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
         }
         return this;
     }
@@ -889,15 +930,16 @@ public class TouchActions extends FluentWebDriverAction {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions pinchToZoom(ZoomDirection zoomDirection) {
+        String testData = String.valueOf(zoomDirection);
         try {
             switch (zoomDirection) {
                 case IN -> attemptPinchToZoomIn();
                 case OUT -> attemptPinchToZoomOut();
             }
         } catch (Exception rootCauseException) {
-            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
         }
-        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), zoomDirection.name(), null, null);
+        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         return this;
     }
 

@@ -1,18 +1,27 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
+import io.appium.java_client.android.AndroidDriver;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Dimension;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.NetworkInterceptor;
+import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.http.Contents;
 import org.openqa.selenium.remote.http.Filter;
 import org.openqa.selenium.remote.http.HttpMethod;
@@ -147,6 +156,74 @@ public class FailureTraceReporterTest {
             Assert.assertFalse(json.contains("raw-password"), json);
         } finally {
             TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Failed Appium touch actions should include mobile metadata and redacted native source")
+    public void touchTraceShouldIncludeMobileFailureMetadata() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("failure")
+                    .traceIncludeNativePageSource(true);
+            SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
+            SHAFT.Properties.mobile.set()
+                    .automationName("UiAutomator2")
+                    .appPackage("com.example.checkout")
+                    .appActivity(".CheckoutActivity")
+                    .bundleId("");
+            AndroidDriver driver = mockedAndroidDriver();
+            Mockito.doThrow(new WebDriverException("rotation failed"))
+                    .when(driver).rotate(ScreenOrientation.LANDSCAPE);
+
+            try {
+                new TouchActions(driver).rotate(ScreenOrientation.LANDSCAPE);
+                Assert.fail("Expected rotate to report a failed action.");
+            } catch (AssertionError expected) {
+                // expected
+            }
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertTrue(json.contains("\"category\": \"touch\""), json);
+            Assert.assertTrue(json.contains("\"name\": \"rotate\""), json);
+            Assert.assertTrue(json.contains("\"gestureParameters\": \"orientation=LANDSCAPE\""), json);
+            Assert.assertTrue(json.contains("\"platformName\": \"Android\""), json);
+            Assert.assertTrue(json.contains("\"automationName\": \"UiAutomator2\""), json);
+            Assert.assertTrue(json.contains("\"appPackage\": \"com.example.checkout\""), json);
+            Assert.assertTrue(json.contains("\"appActivity\": \".CheckoutActivity\""), json);
+            Assert.assertTrue(json.contains("\"context\": \"NATIVE_APP\""), json);
+            Assert.assertTrue(json.contains("\"orientation\": \"PORTRAIT\""), json);
+            Assert.assertTrue(json.contains("\"windowSize\": \"1080x1920\""), json);
+            Assert.assertTrue(json.contains("\"nativePageSourceExcerpt\""), json);
+            Assert.assertFalse(json.contains("raw-password"), json);
+        } finally {
+            TraceEventRecorder.clear();
+            new DriverFactoryHelper().setDriver(null);
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Mobile context switches should be recorded as dedicated trace events")
+    public void mobileContextSwitchShouldRecordTraceEvent() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
+            AndroidDriver driver = mockedAndroidDriver();
+            Mockito.when(driver.getContext()).thenReturn("NATIVE_APP", "WEBVIEW_checkout");
+
+            new BrowserActions(driver).setContext("WEBVIEW_checkout");
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertTrue(json.contains("\"category\": \"mobile-context\""), json);
+            Assert.assertTrue(json.contains("\"name\": \"SET_CONTEXT\""), json);
+            Assert.assertTrue(json.contains("\"contextBefore\": \"NATIVE_APP\""), json);
+            Assert.assertTrue(json.contains("\"contextAfter\": \"WEBVIEW_checkout\""), json);
+        } finally {
+            TraceEventRecorder.clear();
+            new DriverFactoryHelper().setDriver(null);
             Properties.clearForCurrentThread();
         }
     }
@@ -372,6 +449,26 @@ public class FailureTraceReporterTest {
     @SuppressWarnings("unused")
     private static void failingScenario() {
         throw new UnsupportedOperationException("test marker");
+    }
+
+    private static AndroidDriver mockedAndroidDriver() {
+        AndroidDriver driver = Mockito.mock(AndroidDriver.class);
+        WebDriver.Options options = Mockito.mock(WebDriver.Options.class);
+        WebDriver.Window window = Mockito.mock(WebDriver.Window.class);
+        DesiredCapabilities capabilities = new DesiredCapabilities();
+        capabilities.setPlatform(Platform.ANDROID);
+        capabilities.setCapability("appium:automationName", "UiAutomator2");
+        capabilities.setCapability("appium:appPackage", "com.example.checkout");
+        capabilities.setCapability("appium:appActivity", ".CheckoutActivity");
+
+        Mockito.when(driver.manage()).thenReturn(options);
+        Mockito.when(options.window()).thenReturn(window);
+        Mockito.when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
+        Mockito.when(driver.getContext()).thenReturn("NATIVE_APP");
+        Mockito.when(driver.getOrientation()).thenReturn(ScreenOrientation.PORTRAIT);
+        Mockito.when(driver.getPageSource()).thenReturn("<hierarchy text=\"Pay now\" password=\"raw-password\"/>");
+        return driver;
     }
 
     private static List<Attachment> attachments() {
