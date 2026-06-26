@@ -835,6 +835,10 @@ public class Actions extends ElementActions {
                     action.name() + "_DESTINATION",
                     false,
                     exception.getClass().getSimpleName());
+            Map<String, Object> actionability = traceEvent != null && traceEvent.enabled()
+                    ? ElementActionabilityDiagnostics.collect(
+                            locator, driverFactoryHelper.getDriver(), foundElements.get(), exception)
+                    : Map.of();
             try {
                 // take failure screenshot
                 if (foundElements.get() == null || foundElements.get().size() != 1) {
@@ -844,14 +848,16 @@ public class Actions extends ElementActions {
                 }
                 recordFlakeProfile(flakeProfile, false);
                 // report broken
-                reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception);
+                reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0),
+                        exception, actionability);
             } catch (RuntimeException exception2) {
                 if (exception2.getCause() == null || !exception2.getCause().equals(exception)) {
                     // in case a new exception was thrown while attempting to take a screenshot
                     exception2.addSuppressed(exception);
                     recordFlakeProfile(flakeProfile, false);
                     // report broken
-                    reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0), exception2);
+                    reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0),
+                            exception2, actionability);
                 } else {
                     // in case no new exceptions where thrown, just the one created by SHAFT for the main issue
                     throw exception2;
@@ -1277,7 +1283,12 @@ public class Actions extends ElementActions {
     }
 
     private void reportBroken(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context, byte[] screenshot, RuntimeException exception) {
-        report(traceEvent, action, elementName, context, Status.BROKEN, screenshot, exception);
+        report(traceEvent, action, elementName, context, Status.BROKEN, screenshot, exception, Map.of());
+    }
+
+    private void reportBroken(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context,
+                              byte[] screenshot, RuntimeException exception, Map<String, Object> actionability) {
+        report(traceEvent, action, elementName, context, Status.BROKEN, screenshot, exception, actionability);
     }
 
     private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception) {
@@ -1289,6 +1300,11 @@ public class Actions extends ElementActions {
     }
 
     private void report(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context, Status status, byte[] screenshot, RuntimeException exception) {
+        report(traceEvent, action, elementName, context, status, screenshot, exception, Map.of());
+    }
+
+    private void report(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context,
+                        Status status, byte[] screenshot, RuntimeException exception, Map<String, Object> actionability) {
         TraceEventRecorder.Event event = traceEvent == null && !elementActionsHelper.isSilent()
                 ? TraceEventRecorder.start("element", action, context.locator(), driverFactoryHelper.getDriver())
                 : traceEvent;
@@ -1302,7 +1318,8 @@ public class Actions extends ElementActions {
         if (elementActionsHelper.isSilent()) {
             ReportManager.logDiscrete(stepName.toString(), Status.PASSED.equals(status) ? Level.DEBUG : Level.ERROR);
             TraceEventRecorder.finish(event, Status.PASSED.equals(status) ? "passed" : "failed", traceMessage, exception,
-                    traceMetadata(elementName, context, status), screenshotSummary(screenshot, action));
+                    traceMetadata(elementName, context, status), screenshotSummary(screenshot, action),
+                    Status.PASSED.equals(status) ? Map.of() : actionability);
             if (exception != null) {
                 throw new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
             }
@@ -1361,7 +1378,7 @@ public class Actions extends ElementActions {
                 reportedException = new RuntimeException(createFailureMessageWithCausedBy(exception), exception);
             }
             TraceEventRecorder.finish(event, "failed", traceMessage, exception,
-                    traceMetadata(elementName, context, status), screenshotSummary(screenshot, action));
+                    traceMetadata(elementName, context, status), screenshotSummary(screenshot, action), actionability);
             if (reportedException != null) {
                 throw reportedException;
             }
