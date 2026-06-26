@@ -89,3 +89,4 @@
 {"actor":"agent","event":"memory.updated","id":"constraint.delegate-broadly-to-spark","timestamp":"2026-06-24T12:10:00+03:00"}
 {"actor":"agent","event":"memory.updated","id":"decision.talk-less-outside-planning","timestamp":"2026-06-24T12:19:34+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.include-examples-or-screenshots-in-prs","timestamp":"2026-06-26T13:02:36+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.include-examples-or-screenshots-in-prs","timestamp":"2026-06-26T16:17:32+03:00"}

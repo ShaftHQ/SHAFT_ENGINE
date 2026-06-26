@@ -4,11 +4,14 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.openqa.selenium.*;
+import org.openqa.selenium.devtools.Command;
+import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.http.Contents;
@@ -22,6 +25,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -176,6 +182,76 @@ public class BrowserActionsCoverageUnitTest {
                 "username",
                 "password",
                 "https://example.com/secure");
+    }
+
+    @Test
+    public void shouldSaveAndLoadBrowserStorageState() throws Exception {
+        Path storageState = Files.createTempFile("shaft-storage-state", ".json");
+        try {
+            when(driver.getCurrentUrl()).thenReturn("https://example.com/app");
+            when(((JavascriptExecutor) driver).executeScript(
+                            "return {localStorage: Object.fromEntries(Object.entries(window.localStorage)), " +
+                                    "sessionStorage: Object.fromEntries(Object.entries(window.sessionStorage))};"))
+                    .thenReturn(java.util.Map.of(
+                            "localStorage", java.util.Map.of("authToken", "storage-secret"),
+                            "sessionStorage", java.util.Map.of("tab", "checkout")));
+
+            browserActions.saveStorageState(storageState.toString());
+
+            String json = Files.readString(storageState, StandardCharsets.UTF_8);
+            Assert.assertTrue(json.contains("\"cookies\""), json);
+            Assert.assertTrue(json.contains("\"localStorage\""), json);
+            Assert.assertTrue(json.contains("\"sessionStorage\""), json);
+            Assert.assertTrue(json.contains("storage-secret"), json);
+
+            browserActions.loadStorageState(storageState.toString());
+
+            Mockito.verify(options).deleteAllCookies();
+            Mockito.verify(options, Mockito.atLeastOnce()).addCookie(any(Cookie.class));
+            Mockito.verify((JavascriptExecutor) driver).executeScript(
+                    "window.localStorage.clear(); window.sessionStorage.clear(); " +
+                            "for (const [key, value] of Object.entries(arguments[0])) { window.localStorage.setItem(key, value); } " +
+                            "for (const [key, value] of Object.entries(arguments[1])) { window.sessionStorage.setItem(key, value); }",
+                    java.util.Map.of("authToken", "storage-secret"),
+                    java.util.Map.of("tab", "checkout"));
+        } finally {
+            Files.deleteIfExists(storageState);
+        }
+    }
+
+    @Test
+    public void shouldApplyNetworkProfilesWhenDevToolsIsAvailable() {
+        WebDriver profileDriver = mock(WebDriver.class, Mockito.withSettings()
+                .extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class, HasDevTools.class));
+        DevTools devTools = mock(DevTools.class);
+        when(((TakesScreenshot) profileDriver).getScreenshotAs(OutputType.BYTES)).thenReturn("img".getBytes());
+        when(((HasDevTools) profileDriver).getDevTools()).thenReturn(devTools);
+
+        BrowserActions profileActions = new BrowserActions(profileDriver, true);
+        profileActions.goOffline()
+                .throttleNetwork(250, 64, 32)
+                .blockNetworkResources("*.png", "*.jpg")
+                .restoreNetwork();
+
+        Mockito.verify(devTools, Mockito.atLeastOnce()).createSessionIfThereIsNotOne();
+        Mockito.verify(devTools, Mockito.atLeastOnce()).send(any(Command.class));
+    }
+
+    @Test
+    public void shouldReportUnsupportedNetworkProfilesWithoutFailingTheTest() {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true);
+
+            browserActions.goOffline()
+                    .throttleNetwork(250, 64, 32)
+                    .blockNetworkResources("*.png")
+                    .restoreNetwork();
+
+            Assert.assertFalse(BrowserObservabilityRecorder.drainWarnings().isEmpty());
+        } finally {
+            BrowserObservabilityRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
     }
 
     @Test

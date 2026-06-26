@@ -1,12 +1,23 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.properties.internal.Properties;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Attachment;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.devtools.NetworkInterceptor;
+import org.openqa.selenium.remote.http.Contents;
+import org.openqa.selenium.remote.http.Filter;
+import org.openqa.selenium.remote.http.HttpMethod;
+import org.openqa.selenium.remote.http.HttpRequest;
+import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -52,11 +63,13 @@ public class FailureTraceReporterTest {
             try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
                 Assert.assertNotNull(zip.getEntry("SHAFT Trace Report.html"));
                 Assert.assertNotNull(zip.getEntry("shaft-trace.json"));
+                Assert.assertNotNull(zip.getEntry("shaft-network.har"));
             }
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"archive\": \"target/shaft-traces/id-failingScenario/shaft-trace.zip\""), index);
             Assert.assertTrue(index.contains("\"html\": \"SHAFT Trace Report.html\""), index);
             Assert.assertTrue(index.contains("\"json\": \"shaft-trace.json\""), index);
+            Assert.assertTrue(index.contains("\"network\": \"shaft-network.har\""), index);
         } finally {
             TraceEventRecorder.clear();
             deleteDirectory(traceDirectory);
@@ -134,6 +147,85 @@ public class FailureTraceReporterTest {
             Assert.assertFalse(json.contains("raw-password"), json);
         } finally {
             TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace JSON should include network, console, and unsupported observability metadata")
+    public void traceJsonShouldIncludeBrowserObservabilitySections() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("failure")
+                    .traceIncludeNetwork(true)
+                    .traceIncludeConsole(true);
+
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "POST",
+                    "https://example.com/payments?token=raw-token",
+                    500,
+                    Map.of("Authorization", "Bearer raw-token", "X-Trace", "visible"),
+                    Map.of("Set-Cookie", "session=raw-cookie", "Content-Type", "application/json"),
+                    42,
+                    18,
+                    29,
+                    "net::ERR_FAILED password=raw-password",
+                    "{\"password\":\"raw-password\"}"));
+            BrowserObservabilityRecorder.recordConsole("browser", "SEVERE",
+                    "Uncaught token=raw-token", 123L);
+            BrowserObservabilityRecorder.recordWarning("network", "Network capture is not supported by this driver.");
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+            new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+
+            Assert.assertTrue(json.contains("\"network\": ["), json);
+            Assert.assertTrue(json.contains("\"method\": \"POST\""), json);
+            Assert.assertTrue(json.contains("\"status\": 500"), json);
+            Assert.assertTrue(json.contains("\"console\": ["), json);
+            Assert.assertTrue(json.contains("\"level\": \"SEVERE\""), json);
+            Assert.assertTrue(json.contains("\"browserObservability\""), json);
+            Assert.assertTrue(json.contains("Network capture is not supported by this driver."), json);
+            Assert.assertFalse(json.contains("raw-token"), json);
+            Assert.assertFalse(json.contains("raw-cookie"), json);
+            Assert.assertFalse(json.contains("raw-password"), json);
+        } finally {
+            BrowserObservabilityRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Selenium network interception should feed trace network events")
+    public void networkInterceptorShouldFeedTraceNetworkEvents() throws Exception {
+        AtomicReference<Filter> filterReference = new AtomicReference<>();
+        WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasDevTools.class));
+        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+                (mock, context) -> filterReference.set((Filter) context.arguments().get(1)))) {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceMode("failure")
+                    .traceIncludeNetwork(true)
+                    .traceIncludeConsole(false);
+            BrowserNetworkInterceptor interceptor = new BrowserNetworkInterceptor(driver);
+            Assert.assertTrue(interceptor.startObserving());
+
+            HttpRequest request = new HttpRequest(HttpMethod.GET, "https://example.com/api?token=raw-token");
+            request.addHeader("Authorization", "Bearer raw-token");
+            HttpResponse response = new HttpResponse()
+                    .setStatus(503)
+                    .addHeader("Set-Cookie", "session=raw-cookie");
+            response.setContent(Contents.utf8String("{\"token\":\"raw-token\"}"));
+
+            filterReference.get().apply(ignoredRequest -> response).execute(request);
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertTrue(json.contains("\"network\": ["), json);
+            Assert.assertTrue(json.contains("\"method\": \"GET\""), json);
+            Assert.assertTrue(json.contains("\"status\": 503"), json);
+            Assert.assertFalse(json.contains("raw-token"), json);
+            Assert.assertFalse(json.contains("raw-cookie"), json);
+        } finally {
+            BrowserObservabilityRecorder.clear();
             Properties.clearForCurrentThread();
         }
     }

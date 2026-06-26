@@ -1,5 +1,6 @@
 package com.shaft.gui.browser.internal;
 
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
 import org.openqa.selenium.WebDriver;
@@ -15,11 +16,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Owns browser network interception rules for one WebDriver session.
  */
-public class BrowserNetworkInterceptor {
+public class BrowserNetworkInterceptor implements AutoCloseable {
     private final WebDriver driver;
     private final InterceptorFactory interceptorFactory;
     private final List<BrowserNetworkInterceptionRule> rules = new CopyOnWriteArrayList<>();
     private AutoCloseable activeInterceptor;
+    private boolean observing;
 
     /**
      * Creates a browser network interceptor backed by Selenium DevTools.
@@ -49,10 +51,55 @@ public class BrowserNetworkInterceptor {
     }
 
     /**
-     * Clears all registered rules and removes the Selenium network filter.
+     * Starts passive network observation without changing existing mock/assert/verify rules.
+     *
+     * @return {@code true} when observation started
+     */
+    public synchronized boolean startObserving() {
+        if (!(driver instanceof HasDevTools)) {
+            BrowserObservabilityRecorder.recordWarning("network",
+                    "Network capture is not supported by this driver.");
+            return false;
+        }
+        observing = true;
+        try {
+            rebuildInterceptor();
+            return true;
+        } catch (RuntimeException e) {
+            observing = false;
+            closeActiveInterceptor();
+            BrowserObservabilityRecorder.recordWarning("network",
+                    "Network capture could not start for this driver.");
+            return false;
+        }
+    }
+
+    /**
+     * Clears all registered rules. Passive trace observation remains active when it was started for the session.
      */
     public synchronized void clear() {
         rules.clear();
+        if (observing) {
+            try {
+                rebuildInterceptor();
+            } catch (RuntimeException e) {
+                observing = false;
+                closeActiveInterceptor();
+                BrowserObservabilityRecorder.recordWarning("network",
+                        "Network capture could not continue after clearing interceptors.");
+            }
+        } else {
+            closeActiveInterceptor();
+        }
+    }
+
+    /**
+     * Clears rules and removes the Selenium network filter during driver teardown.
+     */
+    @Override
+    public synchronized void close() {
+        rules.clear();
+        observing = false;
         closeActiveInterceptor();
     }
 
@@ -63,17 +110,24 @@ public class BrowserNetworkInterceptor {
 
     private Filter createFilter() {
         return next -> request -> {
+            BrowserObservabilityRecorder.NetworkExchange exchange = BrowserObservabilityRecorder.startNetwork(request);
             BrowserNetworkInterceptionRule rule = findMatchingRule(request);
-            if (rule == null) {
-                return next.execute(request);
+            try {
+                HttpResponse response;
+                if (rule == null) {
+                    response = next.execute(request);
+                } else if (rule.mocksResponse()) {
+                    response = rule.createResponse(request);
+                } else {
+                    response = next.execute(request);
+                    rule.validate(toRestAssuredResponse(response));
+                }
+                BrowserObservabilityRecorder.finishNetwork(exchange, response, "");
+                return response;
+            } catch (RuntimeException e) {
+                BrowserObservabilityRecorder.finishNetwork(exchange, null, e.getClass().getSimpleName());
+                throw e;
             }
-            if (rule.mocksResponse()) {
-                return rule.createResponse(request);
-            }
-
-            HttpResponse response = next.execute(request);
-            rule.validate(toRestAssuredResponse(response));
-            return response;
         };
     }
 

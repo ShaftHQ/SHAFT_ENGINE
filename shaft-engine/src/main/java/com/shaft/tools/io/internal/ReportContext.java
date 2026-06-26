@@ -32,6 +32,7 @@ public final class ReportContext {
         output.get().clear();
         attachments.get().clear();
         TraceEventRecorder.clear();
+        BrowserObservabilityRecorder.clear();
         logSink.remove();
         status.remove();
     }
@@ -160,6 +161,7 @@ public final class ReportContext {
         output.remove();
         attachments.remove();
         TraceEventRecorder.clear();
+        BrowserObservabilityRecorder.clear();
         logSink.remove();
         status.remove();
     }

@@ -32,7 +32,10 @@ public final class FailureTraceReporter {
     private static final Pattern URL_CREDENTIAL_PATTERN = Pattern.compile("(?i)(://[^:/\\s]+:)[^@/\\s]+(@)");
     private static final Pattern SECRET_ASSIGNMENT_PATTERN = Pattern.compile(
             "(?i)(password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)(\\s*[:=]\\s*)[^\\s,;&\"'<>]+");
+    private static final Pattern SECRET_JSON_PATTERN = Pattern.compile(
+            "(?i)(\"(?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\"\\s*:\\s*\")[^\"]*(\")");
     private static final int SNIPPET_RADIUS = 2;
+    private static final ThreadLocal<String> CURRENT_NETWORK_JSON = ThreadLocal.withInitial(() -> "[]");
 
     private FailureTraceReporter() {
         throw new IllegalStateException("Utility class");
@@ -53,11 +56,13 @@ public final class FailureTraceReporter {
             stopPlaywrightTraceIfRunning();
             String json = renderTraceJson(info, logText, attachments);
             String html = renderTraceHtml(json);
-            byte[] zip = renderTraceZip(json, html);
+            byte[] zip = renderTraceZip(json, html, CURRENT_NETWORK_JSON.get());
             persistTraceArtifacts(info, zip);
             attach("zip", "shaft-trace.zip", zip, "shaft-trace.zip");
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT trace report: " + e.getMessage(), Level.WARN);
+        } finally {
+            CURRENT_NETWORK_JSON.remove();
         }
     }
 
@@ -77,6 +82,11 @@ public final class FailureTraceReporter {
         SourceContext source = sourceContext(info);
         Snapshot snapshot = snapshot();
         List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
+        BrowserObservabilityRecorder.collectConsole(DriverFactoryHelper.getActiveDriver());
+        String observabilityJson = BrowserObservabilityRecorder.drainMetadataJson();
+        String networkJson = BrowserObservabilityRecorder.drainNetworkJson();
+        CURRENT_NETWORK_JSON.set(networkJson);
+        String consoleJson = BrowserObservabilityRecorder.drainConsoleJson();
         Throwable throwable = info == null ? null : info.throwable();
         StringBuilder json = new StringBuilder();
         json.append("{\n");
@@ -105,6 +115,9 @@ public final class FailureTraceReporter {
         field(json, 2, "content", snapshot.content(), false);
         objectEnd(json, 1, true);
         rawObject(json, 1, "locatorHealth", locatorHealthJson(), true);
+        rawObject(json, 1, "browserObservability", observabilityJson, true);
+        rawArray(json, 1, "network", networkJson, true);
+        rawArray(json, 1, "console", consoleJson, true);
         rawArray(json, 1, "actions", TraceEventRecorder.toJson(actions), true);
         array(json, 1, "timeline", timeline(logText), true);
         array(json, 1, "attachments", attachmentEntries(attachments), false);
@@ -170,6 +183,9 @@ public final class FailureTraceReporter {
                 <button data-tab="source">Source</button>
                 <button data-tab="snapshot">Snapshot</button>
                 <button data-tab="locatorHealth">Locator Health</button>
+                <button data-tab="network">Network</button>
+                <button data-tab="console">Console</button>
+                <button data-tab="browserObservability">Observability</button>
                 <button data-tab="json">JSON</button>
                 </div>
                 <pre id="tab-content"></pre>
@@ -220,11 +236,12 @@ public final class FailureTraceReporter {
                 """;
     }
 
-    private static byte[] renderTraceZip(String json, String html) {
+    private static byte[] renderTraceZip(String json, String html, String networkJson) {
         int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
         try (ByteArrayOutputStream output = new ByteArrayOutputStream();
              ZipOutputStream zip = new ZipOutputStream(output)) {
             addZipEntry(zip, "shaft-trace.json", json.getBytes(StandardCharsets.UTF_8), maxBytes);
+            addZipEntry(zip, "shaft-network.har", renderNetworkHarJson(networkJson).getBytes(StandardCharsets.UTF_8), maxBytes);
             addZipEntry(zip, "SHAFT Trace Report.html", html.getBytes(StandardCharsets.UTF_8), maxBytes);
             Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
             if (playwrightTrace != null && Files.isRegularFile(playwrightTrace)) {
@@ -246,6 +263,21 @@ public final class FailureTraceReporter {
                     .getBytes(StandardCharsets.UTF_8));
         }
         zip.closeEntry();
+    }
+
+    private static String renderNetworkHarJson(String networkJson) {
+        return """
+                {
+                  "log": {
+                    "version": "1.2",
+                    "creator": {
+                      "name": "SHAFT",
+                      "comment": "HAR-like browser network trace emitted by SHAFT observability"
+                    },
+                    "entries": %s
+                  }
+                }
+                """.formatted(networkJson == null || networkJson.isBlank() ? "[]" : networkJson);
     }
 
     private static void attach(String type, String name, byte[] bytes, String description) {
@@ -303,7 +335,8 @@ public final class FailureTraceReporter {
         field(json, 1, "archive", relative(zipPath), true);
         objectStart(json, 1, "entries");
         field(json, 2, "html", "SHAFT Trace Report.html", true);
-        field(json, 2, "json", "shaft-trace.json", false);
+        field(json, 2, "json", "shaft-trace.json", true);
+        field(json, 2, "network", "shaft-network.har", false);
         objectEnd(json, 1, false);
         json.append("}\n");
         return json.toString();
@@ -441,6 +474,7 @@ public final class FailureTraceReporter {
         redacted = AUTHORIZATION_PATTERN.matcher(redacted).replaceAll("$1********");
         redacted = COOKIE_PATTERN.matcher(redacted).replaceAll("$1$2********");
         redacted = URL_CREDENTIAL_PATTERN.matcher(redacted).replaceAll("$1********$2");
+        redacted = SECRET_JSON_PATTERN.matcher(redacted).replaceAll("$1********$2");
         return SECRET_ASSIGNMENT_PATTERN.matcher(redacted).replaceAll("$1$2********");
     }
 

@@ -100,6 +100,7 @@ public class DriverFactoryHelper {
      */
     public DriverFactoryHelper(WebDriver driver) {
         setDriver(driver);
+        startBrowserObservability();
     }
 
     /**
@@ -143,6 +144,12 @@ public class DriverFactoryHelper {
         }
     }
 
+    private void closeBrowserNetworkInterceptor() {
+        if (browserNetworkInterceptor != null) {
+            browserNetworkInterceptor.close();
+        }
+    }
+
     private BrowserNetworkInterceptor getBrowserNetworkInterceptor() {
         if (driver == null) {
             throw new IllegalStateException("Cannot configure browser network interception before creating a WebDriver session.");
@@ -151,6 +158,19 @@ public class DriverFactoryHelper {
             browserNetworkInterceptor = new BrowserNetworkInterceptor(driver);
         }
         return browserNetworkInterceptor;
+    }
+
+    private void startBrowserObservability() {
+        try {
+            if (driver != null
+                    && SHAFT.Properties.reporting != null
+                    && SHAFT.Properties.reporting.traceEnabled()
+                    && SHAFT.Properties.reporting.traceIncludeNetwork()) {
+                getBrowserNetworkInterceptor().startObserving();
+            }
+        } catch (RuntimeException e) {
+            ReportManagerHelper.logDiscrete("Could not start browser network trace capture: " + e.getMessage(), Level.WARN);
+        }
     }
 
     /**
@@ -607,7 +627,7 @@ public class DriverFactoryHelper {
             }
             try {
                 attachWebDriverLogs(driver);
-                clearBrowserNetworkInterceptors();
+                closeBrowserNetworkInterceptor();
                 //if dockerized wdm.quit the relevant one
                 if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("dockerized")) {
                     var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver);
@@ -1196,6 +1216,7 @@ public class DriverFactoryHelper {
             FailureReporter.fail(DriverFactoryHelper.class, "Unhandled exception with driver type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
         }
 
+        startBrowserObservability();
         if (HealingStrategy.current().usesHealenium()) {
             ReportManager.logDiscrete("Wrapping the session with Healenium self-healing driver.");
 //            driver =ThreadGuard.protect(SelfHealingDriver.create(driver)));
@@ -1212,5 +1233,6 @@ public class DriverFactoryHelper {
         initializeSystemProperties();
         ReportManager.log("Attached to existing WebDriver session '" + driver + "'.");
         setDriver(driver);
+        startBrowserObservability();
     }
 }

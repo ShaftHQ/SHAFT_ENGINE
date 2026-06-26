@@ -1,8 +1,13 @@
 {
   "body_path": "memory/workflows/include-examples-or-screenshots-in-prs.md",
-  "content_hash": "sha256:f44bec399dbc91ceac10500dfde91d5e3ba488a217744350ad294a1cdaf09b08",
+  "content_hash": "sha256:7c4649b7b095f5878740a8028163c2bcdbc57c6f9d14c3ccb8c1299a9fae8461",
   "created_at": "2026-06-26T13:02:36+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "2026-06-26-user-pr-evidence-rule",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "category": "workflow"
   },
@@ -18,8 +23,13 @@
     "task": "Record PR evidence expectation"
   },
   "status": "active",
-  "tags": [],
+  "tags": [
+    "github",
+    "pull-request",
+    "workflow",
+    "review-evidence"
+  ],
   "title": "Include examples or screenshots in PRs",
   "type": "workflow",
-  "updated_at": "2026-06-26T13:02:36+03:00"
+  "updated_at": "2026-06-26T16:17:32+03:00"
 }
