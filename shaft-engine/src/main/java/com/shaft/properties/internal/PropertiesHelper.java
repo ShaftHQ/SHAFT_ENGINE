@@ -197,6 +197,7 @@ public class PropertiesHelper {
         overrideScreenScalingFactorForWindows();
         overrideScreenMaximizationForRemoteExecution();
         overridePropertiesForMaximumPerformanceMode();
+        overridePropertiesForEvidenceLevel();
         setMobilePlatform();
         overrideScreenShotTypeForAnimatedGIF();
         overrideScreenshotTypeForSafariBrowser();
@@ -411,5 +412,47 @@ public class PropertiesHelper {
                 // do nothing
             }
         }
+    }
+
+    static void overridePropertiesForEvidenceLevel() {
+        switch (normalizeEvidenceLevel(SHAFT.Properties.reporting.evidenceLevel())) {
+            case "CUSTOM" -> {
+                // respect granular evidence properties
+            }
+            case "FAILURE_ONLY" -> applyEvidenceLevel("FailuresOnly", "FailuresOnly", false, false,
+                    false, false, true, true, "failure");
+            case "BALANCED" -> applyEvidenceLevel("ValidationPointsOnly", "FailuresOnly", false, false,
+                    false, false, true, true, "failure");
+            case "FAST" -> applyEvidenceLevel("Never", "Never", false, false,
+                    false, false, false, false, "failure");
+            case "FULL" -> applyEvidenceLevel("Always", "Always", true, true,
+                    true, true, true, true, "always");
+            default -> throw new IllegalArgumentException("Unsupported evidenceLevel \""
+                    + SHAFT.Properties.reporting.evidenceLevel()
+                    + "\". Supported values: CUSTOM, FAILURE_ONLY, BALANCED, FAST, FULL.");
+        }
+    }
+
+    private static String normalizeEvidenceLevel(String evidenceLevel) {
+        if (evidenceLevel == null || evidenceLevel.isBlank()) {
+            return "FAILURE_ONLY";
+        }
+        return evidenceLevel.trim().replace('-', '_').replace(' ', '_').toUpperCase();
+    }
+
+    private static void applyEvidenceLevel(String screenshots, String pageSource, boolean gif, boolean video,
+                                           boolean webDriverLogs, boolean fullLog, boolean diagnostics,
+                                           boolean trace, String traceMode) {
+        SHAFT.Properties.visuals.set()
+                .screenshotParamsWhenToTakeAScreenshot(screenshots)
+                .whenToTakePageSourceSnapshot(pageSource)
+                .createAnimatedGif(gif)
+                .videoParamsRecordVideo(video);
+        SHAFT.Properties.reporting.set()
+                .captureWebDriverLogs(webDriverLogs)
+                .attachFullLog(fullLog)
+                .diagnosticsBundleEnabled(diagnostics)
+                .traceEnabled(trace)
+                .traceMode(traceMode);
     }
 }

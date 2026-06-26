@@ -58,6 +58,10 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("false")
     boolean attachFullLog();
 
+    @Key("evidenceLevel")
+    @DefaultValue("FAILURE_ONLY")
+    String evidenceLevel();
+
     @Key("locatorHealthReportEnabled")
     @DefaultValue("false")
     boolean locatorHealthReportEnabled();
@@ -190,6 +194,12 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty attachFullLog(boolean value) {
             setProperty("attachFullLog", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty evidenceLevel(String value) {
+            setProperty("evidenceLevel", value);
+            PropertiesHelper.overridePropertiesForEvidenceLevel();
             return this;
         }
 
