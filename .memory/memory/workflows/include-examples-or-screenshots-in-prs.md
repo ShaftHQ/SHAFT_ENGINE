@@ -1,1 +1,1 @@
-When opening PRs, include code examples for new methods or logging changes, and include screenshots for UI or reporting enhancements when applicable.
+When opening PRs, include code examples for new public methods or changes to logging, and include screenshots for UI elements or reporting enhancements when applicable.

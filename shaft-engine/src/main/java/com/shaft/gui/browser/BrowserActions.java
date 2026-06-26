@@ -7,7 +7,9 @@ import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
+import com.shaft.gui.browser.internal.BrowserNetworkProfileManager;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
+import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
@@ -885,6 +887,154 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         } catch (Exception rootCauseException) {
             browserActionsHelper.failAction(driver, "Import Header To Local Storage",
                     "Could not import API header to localStorage. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Saves the current browser cookies, {@code localStorage}, and {@code sessionStorage} to a JSON file.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().saveStorageState("target/auth-state.json");
+     * }</pre>
+     *
+     * @param filePath target JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions saveStorageState(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            BrowserStorageStateManager.save(driver, filePath);
+            browserActionsHelper.passAction(driver, "Save Browser Storage State", filePath);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Save Browser Storage State",
+                    "Could not save browser storage state. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Loads browser cookies, {@code localStorage}, and {@code sessionStorage} from a JSON file.
+     *
+     * <p>Navigate to the target origin before loading storage so browser cookie domain rules can apply.
+     * Example:
+     * <pre>{@code
+     * driver.browser()
+     *       .navigateToURL("https://example.com")
+     *       .and().loadStorageState("target/auth-state.json");
+     * }</pre>
+     *
+     * @param filePath source JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions loadStorageState(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            BrowserStorageStateManager.load(driver, filePath);
+            browserActionsHelper.passAction(driver, "Load Browser Storage State", filePath);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Load Browser Storage State",
+                    "Could not load browser storage state. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Enables offline network mode for DevTools-capable browsers.
+     *
+     * <p>Unsupported drivers keep the test running and add deterministic trace metadata.
+     * Example:
+     * <pre>{@code
+     * driver.browser().goOffline();
+     * }</pre>
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions goOffline() {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            boolean applied = BrowserNetworkProfileManager.goOffline(driver);
+            browserActionsHelper.passAction(driver, "Go Offline",
+                    applied ? "Offline network profile applied." : "Offline network profile is unsupported.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Go Offline",
+                    "Could not apply offline network mode. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Restores default network mode and clears blocked URL patterns for DevTools-capable browsers.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().restoreNetwork();
+     * }</pre>
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions restoreNetwork() {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            boolean applied = BrowserNetworkProfileManager.restore(driver);
+            browserActionsHelper.passAction(driver, "Restore Network",
+                    applied ? "Network profile restored." : "Network profile restore is unsupported.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Restore Network",
+                    "Could not restore network mode. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Applies fixed latency and throughput limits for DevTools-capable browsers.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().throttleNetwork(250, 64, 32);
+     * }</pre>
+     *
+     * @param latencyMs    network latency in milliseconds
+     * @param downloadKbps download throughput in kilobits per second
+     * @param uploadKbps   upload throughput in kilobits per second
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions throttleNetwork(long latencyMs, long downloadKbps, long uploadKbps) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            boolean applied = BrowserNetworkProfileManager.throttle(driver, latencyMs, downloadKbps, uploadKbps);
+            browserActionsHelper.passAction(driver, "Throttle Network",
+                    applied ? "Latency: " + latencyMs + "ms | Download: " + downloadKbps + "kbps | Upload: " + uploadKbps + "kbps"
+                            : "Network throttling is unsupported.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Throttle Network",
+                    "Could not apply network throttling. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Blocks browser requests matching DevTools URL patterns.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().blockNetworkResources("*.png", "*.jpg");
+     * }</pre>
+     *
+     * @param urlPatterns DevTools URL patterns to block
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions blockNetworkResources(String... urlPatterns) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            boolean applied = BrowserNetworkProfileManager.blockResources(driver, urlPatterns);
+            browserActionsHelper.passAction(driver, "Block Network Resources",
+                    applied ? "Blocked URL patterns: " + String.join(", ", urlPatterns == null ? new String[0] : urlPatterns)
+                            : "Network resource blocking is unsupported.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Block Network Resources",
+                    "Could not block network resources. Cause: " + rootCauseException.getClass().getSimpleName());
         }
         return this;
     }
