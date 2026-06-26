@@ -10,6 +10,7 @@ import java.util.List;
  * @param readinessScore bounded readiness score from 0 to 100
  * @param blockers generation blockers that must be fixed first
  * @param risks replay or locator risks worth reviewing
+ * @param findings deterministic generated-code review findings
  * @param suggestions deterministic next actions
  * @param provider provider identifier, or {@code none} for deterministic review
  */
@@ -19,6 +20,7 @@ public record CaptureReview(
         int readinessScore,
         List<String> blockers,
         List<String> risks,
+        List<CaptureReviewFinding> findings,
         List<String> suggestions,
         String provider) {
     public static final String CURRENT_SCHEMA_VERSION = "1.0";
@@ -32,6 +34,7 @@ public record CaptureReview(
         readinessScore = Math.max(0, Math.min(100, readinessScore));
         blockers = blockers == null ? List.of() : List.copyOf(blockers);
         risks = risks == null ? List.of() : List.copyOf(risks);
+        findings = findings == null ? List.of() : List.copyOf(findings);
         suggestions = suggestions == null ? List.of() : List.copyOf(suggestions);
         provider = provider == null || provider.isBlank() ? "none" : provider;
     }

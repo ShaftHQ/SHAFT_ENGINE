@@ -1,5 +1,14 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.model.BrowserMetadata;
+import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.ElementSnapshot;
+import com.shaft.capture.model.EventContext;
+import com.shaft.capture.model.LocatorCandidate;
+import com.shaft.capture.model.PageContext;
+import com.shaft.capture.model.RedactionSummary;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStatus;
 import org.junit.jupiter.api.Test;
@@ -7,6 +16,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -83,6 +96,32 @@ class CaptureServiceTest {
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.id().equals("capture-pom-manual-mapping-warning")
                         && block.warnings().stream().anyMatch(message -> message.contains("manual mapping"))));
+    }
+
+    @Test
+    void codeBlocksToolReturnsDeterministicReviewWarnings() throws Exception {
+        Path session = temp.resolve("capture-review.json");
+        new CaptureJsonCodec().write(session, reviewWarningSession());
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.codeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-review").toString(),
+                    "generated.capture",
+                    "ReviewWarningTest",
+                    false,
+                    "driver");
+        } finally {
+            service.close();
+        }
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("review/LOCATOR")),
+                result.warnings().toString());
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("review/ASSERTION")),
+                result.warnings().toString());
     }
 
     @Test
@@ -251,6 +290,45 @@ class CaptureServiceTest {
             current = current.getParent();
         }
         throw new IllegalStateException("Repository root could not be resolved.");
+    }
+
+    private static CaptureSession reviewWarningSession() {
+        Instant started = Instant.parse("2026-01-02T03:04:05Z");
+        BrowserMetadata browser = new BrowserMetadata("chrome", "137", "Windows 11", "browser-1", Map.of());
+        PageContext page = new PageContext("https://shop.example/checkout", "Checkout", "window-1",
+                List.of(), 1280, 720);
+        ElementSnapshot pay = new ElementSnapshot(
+                "pay-button",
+                "button",
+                "button",
+                "Pay now",
+                "",
+                Map.of("type", "submit"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
+                        "/html/body/div[3]/form/button[2]", 1, true, false,
+                        Set.of(LocatorCandidate.LocatorSignal.POSITIONAL))),
+                true,
+                true,
+                false);
+        EventContext navigation = new EventContext(1, started.plusSeconds(1), page,
+                EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
+        EventContext click = new EventContext(2, started.plusSeconds(2), page,
+                EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "mcp-review-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                started,
+                started.plusSeconds(3),
+                browser,
+                List.of(
+                        new CaptureEvent.NavigationEvent(navigation,
+                                CaptureEvent.NavigationAction.OPEN, "https://shop.example/checkout"),
+                        new CaptureEvent.ClickEvent(click, pay, CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                RedactionSummary.empty(),
+                Map.of());
     }
 
 }
