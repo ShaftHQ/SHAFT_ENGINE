@@ -33,6 +33,7 @@ class TestAutomationServiceTest {
         assertTrue(ids.contains("web-playwright-pom-fluent-test"));
         assertTrue(ids.contains("web-playwright-record-replay"));
         assertTrue(ids.contains("mobile-native-appium"));
+        assertTrue(ids.contains("failure-trace-first-analysis"));
         assertTrue(ids.contains("failure-doctor-analysis"));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("Thread.sleep")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("absolute XPath")));

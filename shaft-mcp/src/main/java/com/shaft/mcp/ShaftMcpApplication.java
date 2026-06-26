@@ -60,6 +60,7 @@ public class ShaftMcpApplication {
             MobileService mobileService,
             CaptureService captureService,
             DoctorService doctorService,
+            TraceService traceService,
             HealerService healerService,
             GuideService guideService,
             TestAutomationService testAutomationService) {
@@ -71,6 +72,7 @@ public class ShaftMcpApplication {
         var mobileServiceList = List.of(ToolCallbacks.from(mobileService));
         var captureServiceList = List.of(ToolCallbacks.from(captureService));
         var doctorServiceList = List.of(ToolCallbacks.from(doctorService));
+        var traceServiceList = List.of(ToolCallbacks.from(traceService));
         var healerServiceList = List.of(ToolCallbacks.from(healerService));
         var guideServiceList = List.of(ToolCallbacks.from(guideService));
         var testAutomationServiceList = List.of(ToolCallbacks.from(testAutomationService));
@@ -84,6 +86,7 @@ public class ShaftMcpApplication {
         serviceList.addAll(mobileServiceList);
         serviceList.addAll(captureServiceList);
         serviceList.addAll(doctorServiceList);
+        serviceList.addAll(traceServiceList);
         serviceList.addAll(healerServiceList);
         serviceList.addAll(guideServiceList);
         serviceList.addAll(testAutomationServiceList);
