@@ -144,6 +144,15 @@ public class DriverFactoryHelper {
         }
     }
 
+    /**
+     * Starts passive browser network observation for trace or contract capture.
+     *
+     * @return {@code true} when observation started
+     */
+    public boolean startBrowserNetworkObservation() {
+        return getBrowserNetworkInterceptor().startObserving();
+    }
+
     private void closeBrowserNetworkInterceptor() {
         if (browserNetworkInterceptor != null) {
             browserNetworkInterceptor.close();

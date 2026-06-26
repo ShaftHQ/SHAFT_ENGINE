@@ -18,6 +18,7 @@ import com.shaft.performance.internal.LightHouseGenerateReport;
 import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
@@ -708,6 +709,74 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public NetworkInterceptionRequestBuilder<BrowserActions> interceptRequest() {
         return new NetworkInterceptionRequestBuilder<>(this, this::registerNetworkInterceptionRule);
+    }
+
+    /**
+     * Starts recording selected browser traffic into an HTTP contract.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().startContractRecording("src/test/resources/contracts/checkout.json", "/api/checkout");
+     * driver.browser().navigateToURL("https://shop.example/checkout");
+     * SHAFT.Contracts.stopRecording();
+     * }</pre>
+     *
+     * @param contractFilePath destination JSON contract path
+     * @param urlContains optional URL fragments used to select recorded traffic
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions startContractRecording(String contractFilePath, String... urlContains) {
+        HttpContractRecorder.startRecording(contractFilePath, urlContains);
+        driverFactoryHelper.startBrowserNetworkObservation();
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract recording.");
+        return this;
+    }
+
+    /**
+     * Starts hard-assert validation of live browser responses against an HTTP contract.
+     *
+     * @param contractFilePath source JSON contract path
+     * @param urlContains optional URL fragments used to select validated traffic
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions assertContract(String contractFilePath, String... urlContains) {
+        HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
+        driverFactoryHelper.startBrowserNetworkObservation();
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract assertion mode.");
+        return this;
+    }
+
+    /**
+     * Starts soft-verify validation of live browser responses against an HTTP contract.
+     *
+     * @param contractFilePath source JSON contract path
+     * @param urlContains optional URL fragments used to select validated traffic
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions verifyContract(String contractFilePath, String... urlContains) {
+        HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
+        driverFactoryHelper.startBrowserNetworkObservation();
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract verification mode.");
+        return this;
+    }
+
+    /**
+     * Replays recorded contract responses through the browser network interceptor.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().replayContract("src/test/resources/contracts/checkout.json");
+     * driver.browser().navigateToURL("https://shop.example/checkout");
+     * }</pre>
+     *
+     * @param contractFilePath source JSON contract path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions replayContract(String contractFilePath) {
+        HttpContractRecorder.browserReplayRules(contractFilePath)
+                .forEach(rule -> driverFactoryHelper.registerBrowserNetworkInterceptionRule(rule));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Loaded HTTP contract replay rules.");
+        return this;
     }
 
     /**

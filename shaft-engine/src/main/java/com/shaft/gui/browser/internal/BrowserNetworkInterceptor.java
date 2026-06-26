@@ -1,6 +1,7 @@
 package com.shaft.gui.browser.internal;
 
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
+import com.shaft.tools.io.internal.HttpContractRecorder;
 import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
 import org.openqa.selenium.WebDriver;
@@ -123,9 +124,11 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
                     rule.validate(toRestAssuredResponse(response));
                 }
                 BrowserObservabilityRecorder.finishNetwork(exchange, response, "");
+                HttpContractRecorder.handleBrowserExchange(request, response, "");
                 return response;
             } catch (RuntimeException e) {
                 BrowserObservabilityRecorder.finishNetwork(exchange, null, e.getClass().getSimpleName());
+                HttpContractRecorder.handleBrowserExchange(request, null, e.getClass().getSimpleName());
                 throw e;
             }
         };
