@@ -78,8 +78,28 @@ public final class TraceEventRecorder {
     public static void record(String category, String name, String status, String locator, WebDriver driver,
                               String message, Throwable exception, Map<String, String> metadata,
                               List<String> attachmentSummaries) {
+        record(category, name, status, locator, driver, message, exception, metadata, attachmentSummaries, Map.of());
+    }
+
+    /**
+     * Records a finished action with actionability diagnostics without measuring an enclosing block.
+     *
+     * @param category   action category
+     * @param name       action name
+     * @param status     action status
+     * @param locator    action locator text
+     * @param driver     active WebDriver, or {@code null}
+     * @param message    action message
+     * @param exception  failure exception, or {@code null}
+     * @param metadata   action metadata
+     * @param attachmentSummaries attachment summaries
+     * @param actionability actionability diagnostics
+     */
+    public static void record(String category, String name, String status, String locator, WebDriver driver,
+                              String message, Throwable exception, Map<String, String> metadata,
+                              List<String> attachmentSummaries, Map<String, Object> actionability) {
         Event event = start(category, name, locator, driver);
-        finish(event, status, message, exception, metadata, attachmentSummaries);
+        finish(event, status, message, exception, metadata, attachmentSummaries, actionability);
     }
 
     /**
@@ -94,6 +114,23 @@ public final class TraceEventRecorder {
      */
     public static void finish(Event event, String status, String message, Throwable exception,
                               Map<String, String> metadata, List<String> attachmentSummaries) {
+        finish(event, status, message, exception, metadata, attachmentSummaries, Map.of());
+    }
+
+    /**
+     * Finishes a timed trace action with actionability diagnostics.
+     *
+     * @param event      event handle returned from {@link #start(String, String, By, WebDriver)}
+     * @param status     action status
+     * @param message    action message
+     * @param exception  failure exception, or {@code null}
+     * @param metadata   action metadata
+     * @param attachmentSummaries attachment summaries
+     * @param actionability actionability diagnostics
+     */
+    public static void finish(Event event, String status, String message, Throwable exception,
+                              Map<String, String> metadata, List<String> attachmentSummaries,
+                              Map<String, Object> actionability) {
         if (event == null || !event.enabled()) {
             return;
         }
@@ -110,7 +147,8 @@ public final class TraceEventRecorder {
                 exceptionType(exception),
                 exceptionMessage(exception),
                 attachmentSummaries == null ? List.of() : new ArrayList<>(attachmentSummaries),
-                metadata == null ? Map.of() : new LinkedHashMap<>(metadata)));
+                metadata == null ? Map.of() : new LinkedHashMap<>(metadata),
+                actionability == null ? Map.of() : new LinkedHashMap<>(actionability)));
     }
 
     /**
@@ -164,7 +202,11 @@ public final class TraceEventRecorder {
             field(json, 4, "message", event.exceptionMessage(), false);
             objectEnd(json, 3, true);
             stringArray(json, 3, "attachments", event.attachments(), true);
-            map(json, 3, "metadata", event.metadata(), false);
+            boolean hasActionability = !event.actionability().isEmpty();
+            map(json, 3, "metadata", event.metadata(), hasActionability);
+            if (hasActionability) {
+                objectMap(json, 3, "actionability", event.actionability(), false);
+            }
             indent(json, 2).append("}");
         }
         if (!events.isEmpty()) {
@@ -261,6 +303,62 @@ public final class TraceEventRecorder {
         json.append("}").append(comma ? "," : "").append("\n");
     }
 
+    private static void objectMap(StringBuilder json, int indent, String key, Map<String, Object> values, boolean comma) {
+        indent(json, indent).append("\"").append(key).append("\": ");
+        writeObject(json, indent, values);
+        json.append(comma ? "," : "").append("\n");
+    }
+
+    private static void writeObject(StringBuilder json, int indent, Map<?, ?> values) {
+        json.append("{");
+        int index = 0;
+        for (Map.Entry<?, ?> entry : values.entrySet()) {
+            if (index++ > 0) {
+                json.append(",");
+            }
+            json.append("\n");
+            String key = value(String.valueOf(entry.getKey()));
+            indent(json, indent + 1)
+                    .append("\"")
+                    .append(escapeJson(FailureTraceReporter.redact(key)))
+                    .append("\": ");
+            writeValue(json, indent + 1, key, entry.getValue());
+        }
+        if (!values.isEmpty()) {
+            json.append("\n");
+            indent(json, indent);
+        }
+        json.append("}");
+    }
+
+    private static void writeArray(StringBuilder json, int indent, Iterable<?> values) {
+        json.append("[");
+        int index = 0;
+        for (Object item : values) {
+            if (index++ > 0) {
+                json.append(", ");
+            }
+            writeValue(json, indent, "", item);
+        }
+        json.append("]");
+    }
+
+    private static void writeValue(StringBuilder json, int indent, String key, Object item) {
+        if (isSensitiveKey(key)) {
+            json.append("\"********\"");
+        } else if (item instanceof Number || item instanceof Boolean) {
+            json.append(item);
+        } else if (item instanceof Map<?, ?> nestedMap) {
+            writeObject(json, indent, nestedMap);
+        } else if (item instanceof Iterable<?> nestedList) {
+            writeArray(json, indent, nestedList);
+        } else {
+            json.append("\"")
+                    .append(escapeJson(FailureTraceReporter.redact(value(item == null ? "" : String.valueOf(item)))))
+                    .append("\"");
+        }
+    }
+
     private static boolean isSensitiveKey(String key) {
         String normalized = value(key).toLowerCase(Locale.ROOT);
         return normalized.contains("password")
@@ -313,6 +411,6 @@ public final class TraceEventRecorder {
 
     record ActionEvent(String id, String category, String name, String status, String startTime, long durationMs,
                        String locator, String url, String message, String exceptionType, String exceptionMessage,
-                       List<String> attachments, Map<String, String> metadata) {
+                       List<String> attachments, Map<String, String> metadata, Map<String, Object> actionability) {
     }
 }

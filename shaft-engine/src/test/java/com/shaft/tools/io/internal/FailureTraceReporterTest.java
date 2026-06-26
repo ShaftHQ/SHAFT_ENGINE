@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -100,6 +101,37 @@ public class FailureTraceReporterTest {
             Assert.assertFalse(json.contains("raw-token"));
             Assert.assertFalse(json.contains("raw-password"));
             Assert.assertTrue(TraceEventRecorder.snapshot().isEmpty(), "renderTraceJson should drain the action recorder.");
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace JSON should include actionability diagnostics as a redacted action object")
+    public void traceJsonShouldIncludeActionabilityDiagnostics() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            Map<String, Object> actionability = new LinkedHashMap<>();
+            actionability.put("locator", "By.id: pay");
+            actionability.put("matchCount", 1);
+            actionability.put("displayed", true);
+            actionability.put("enabled", false);
+            actionability.put("textPreview", "password=raw-password");
+            actionability.put("css", Map.of("pointerEvents", "auto"));
+            actionability.put("obscuringElement", Map.of("selector", ".modal-backdrop"));
+
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("click intercepted"), Map.of(), List.of(), actionability);
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertTrue(json.contains("\"actionability\": {"), json);
+            Assert.assertTrue(json.contains("\"matchCount\": 1"), json);
+            Assert.assertTrue(json.contains("\"displayed\": true"), json);
+            Assert.assertTrue(json.contains("\"pointerEvents\": \"auto\""), json);
+            Assert.assertTrue(json.contains("\"selector\": \".modal-backdrop\""), json);
+            Assert.assertFalse(json.contains("raw-password"), json);
         } finally {
             TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
