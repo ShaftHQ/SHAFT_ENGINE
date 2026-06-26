@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.lang.reflect.Method;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -151,6 +153,27 @@ class McpMobileInspectorRecordingServiceTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.start("missing", "", false));
+    }
+
+    @Test
+    void appiumInspectorWrapperUsesShaftUiTheme() throws Exception {
+        McpMobileRecordingService recorder = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        McpAppiumCommandRecorder commandRecorder = new McpAppiumCommandRecorder(recorder, () -> false);
+        McpAppiumInspectorProxy proxy = new McpAppiumInspectorProxy(
+                URI.create("http://127.0.0.1:4723/"),
+                commandRecorder,
+                (action, checkpoint) -> new McpMobileInspectorRecordingStatus(
+                        true, false, "Android", "", "", false, temp.resolve("recording.json"),
+                        "http://127.0.0.1:3000", "http://127.0.0.1:4723", 3, List.of(), List.of()),
+                "{\"platformName\":\"Android\"}");
+        Method wrapperHtml = McpAppiumInspectorProxy.class.getDeclaredMethod("wrapperHtml");
+        wrapperHtml.setAccessible(true);
+
+        String html = (String) wrapperHtml.invoke(proxy);
+
+        assertTrue(html.contains("--shaft-primary"), html);
+        assertTrue(html.contains("status-chip"), html);
+        assertTrue(html.contains("Recorder ready"), html);
     }
 
     private McpMobileInspectorRecordingService service() {

@@ -276,6 +276,20 @@
     style.id = "shaft-capture-ui-style";
     style.textContent = `
       #shaft-capture-ui {
+        --shaft-primary: #006ec0;
+        --shaft-primary-rgb: 0, 110, 192;
+        --shaft-deep: #102a31;
+        --shaft-deep-alt: #181f2a;
+        --shaft-muted: #c8d6e7;
+        --shaft-on-dark: #ffffff;
+        --shaft-bg: #f7f9fb;
+        --shaft-surface: #ffffff;
+        --shaft-text: #17202a;
+        --shaft-text-muted: #5f6f81;
+        --shaft-border: #d9e2ec;
+        --shaft-pass: #14804a;
+        --shaft-warn: #b7791f;
+        --shaft-fail: #c53030;
         position: fixed;
         right: 16px;
         bottom: 16px;
@@ -285,11 +299,12 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        border: 1px solid #0f172a;
+        overflow-x: hidden;
+        border: 1px solid rgba(var(--shaft-primary-rgb), .36);
         border-radius: 8px;
-        background: #ffffff;
-        color: #111827;
-        box-shadow: 0 12px 32px rgba(15, 23, 42, .28);
+        background: var(--shaft-surface);
+        color: var(--shaft-text);
+        box-shadow: 0 18px 45px rgba(24, 31, 42, .22);
         font: 13px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
       #shaft-capture-ui * { box-sizing: border-box; font: inherit; letter-spacing: 0; }
@@ -298,30 +313,55 @@
         align-items: center;
         gap: 8px;
         padding: 8px 10px;
-        background: #0f172a;
-        color: #ffffff;
+        background: linear-gradient(135deg, var(--shaft-deep), var(--shaft-deep-alt));
+        color: var(--shaft-on-dark);
       }
-      #shaft-capture-ui strong { flex: 1; font-weight: 700; }
+      #shaft-capture-ui .brand-mark {
+        width: 28px;
+        height: 28px;
+        display: inline-grid;
+        place-items: center;
+        flex: 0 0 auto;
+        border: 1px solid rgba(var(--shaft-primary-rgb), .42);
+        border-radius: 8px;
+        background: rgba(var(--shaft-primary-rgb), .18);
+        color: var(--shaft-on-dark);
+        font-weight: 700;
+      }
+      #shaft-capture-ui strong { flex: 1; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
       #shaft-capture-ui button {
         min-width: 28px;
         height: 28px;
-        border: 1px solid #cbd5e1;
+        border: 1px solid var(--shaft-border);
         border-radius: 6px;
-        background: #f8fafc;
-        color: #0f172a;
+        background: var(--shaft-surface);
+        color: var(--shaft-primary);
         cursor: pointer;
         font-weight: 700;
       }
-      #shaft-capture-ui button:hover { background: #e0f2fe; }
+      #shaft-capture-ui button:hover { background: rgba(var(--shaft-primary-rgb), .08); }
       #shaft-capture-ui button:disabled { cursor: default; opacity: .5; }
+      #shaft-capture-ui .status-chip {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        min-height: 26px;
+        margin: 8px 10px 0;
+        padding: 4px 9px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 999px;
+        background: rgba(var(--shaft-primary-rgb), .08);
+        color: var(--shaft-text);
+        font-size: 12px;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
       #shaft-capture-status {
-        padding: 6px 10px;
-        border-bottom: 1px solid #e5e7eb;
-        color: #334155;
-        background: #f8fafc;
+        color: var(--shaft-text);
       }
       #shaft-capture-actions {
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
         padding: 8px 10px 10px;
       }
       #shaft-capture-actions ol {
@@ -395,12 +435,13 @@
     panel.setAttribute("data-shaft-capture-control", "true");
     panel.innerHTML = `
       <header>
+        <span class="brand-mark" aria-hidden="true">S</span>
         <strong>SHAFT Capture</strong>
         <button id="shaft-capture-pause" type="button"></button>
         <button id="shaft-capture-checkpoint" type="button" title="Add checkpoint">+</button>
         <button id="shaft-capture-stop" type="button" title="Stop recording">x</button>
       </header>
-      <div id="shaft-capture-status"></div>
+      <div id="shaft-capture-status" class="status-chip"></div>
       <div id="shaft-capture-actions"><ol id="shaft-capture-action-list"></ol></div>
     `;
     document.body.appendChild(panel);

@@ -5,6 +5,7 @@ import com.deque.html.axecore.results.Rule;
 import com.deque.html.axecore.selenium.AxeBuilder;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.LoadState;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import io.qameta.allure.Allure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -1182,73 +1183,60 @@ public class AccessibilityHelper {
         html.append("<meta name='viewport' content='width=device-width, initial-scale=1'>");
         html.append("<title>Accessibility Report - ").append(escapeHtml(pageName)).append("</title>");
         html.append("<style>");
-        html.append("body{background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;padding:20px;color:#111827;}");
-        html.append(".container{max-width:1180px;margin:0 auto;}.text-center{text-align:center}.text-muted{color:#6b7280}.small{font-size:.85rem}");
-        html.append(".mb-4{margin-bottom:1.5rem}.mb-3{margin-bottom:1rem}.mt-2{margin-top:.5rem}.mt-4{margin-top:1.5rem}");
-        html.append(".card{background:#fff;border:1px solid #dbe3ef;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.06)}.p-3{padding:1rem}");
-        html.append(".row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.col{padding:8px}.fw-bold{font-weight:700}.h4{font-size:1.5rem;font-weight:700;margin-top:.35rem}");
-        html.append("h2{font-weight:600;margin-bottom:10px;}");
+        html.append(ReportHtmlTheme.style());
         html.append(".score-wrap{position:relative;width:200px;height:200px;margin:20px auto;}");
         html.append(".score-gauge{width:200px;height:200px;border-radius:50%;background:conic-gradient(var(--score-color) var(--score),#e9ecef 0);}");
-        html.append(".score-gauge:after{content:'';position:absolute;inset:30px;background:#fff;border-radius:50%;box-shadow:inset 0 0 0 1px #e5e7eb;}");
-        html.append(".score-text{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:2.5rem;font-weight:700;color:#111;}");
-        html.append(".summary-boxes{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;margin-top:25px;}");
-        html.append(".summary-item{min-width:120px;text-align:center;padding:15px 20px;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}");
-        html.append(".summary-item .label{font-weight:600;margin-bottom:6px;}");
-        html.append(".summary-item .value{font-size:1.5rem;font-weight:700;}");
-        html.append(".text-danger{color:#dc3545!important;}");
-        html.append(".text-warning{color:#ffc107!important;}");
-        html.append(".text-success{color:#198754!important;}");
-        html.append(".text-secondary{color:#6c757d!important;}");
-        html.append(".accordion-item{background:#fff;border:1px solid #dbe3ef;border-radius:8px;margin-bottom:10px;overflow:hidden}");
-        html.append(".accordion-button{display:block;width:100%;cursor:pointer;text-transform:capitalize;font-weight:600;padding:12px 14px;background:#f9fafb;}");
-        html.append(".accordion-body{padding:14px}.table-responsive{overflow:auto}");
-        html.append("table{font-size:0.9rem;border-collapse:collapse;width:100%;background:#fff}th,td{border:1px solid #dbe3ef;padding:8px;vertical-align:middle!important;}");
+        html.append(".score-gauge:after{content:'';position:absolute;inset:30px;background:var(--shaft-surface);border-radius:50%;box-shadow:inset 0 0 0 1px var(--shaft-border);}");
+        html.append(".score-text{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:2.5rem;font-weight:700;color:var(--shaft-text);}");
+        html.append(".accordion-item{margin-bottom:10px;overflow:hidden}");
+        html.append(".accordion-button{display:block;width:100%;cursor:pointer;text-transform:capitalize;font-weight:700;}");
+        html.append(".accordion-body{padding:14px}.table-responsive{max-width:100%;overflow-x:hidden;overflow-y:visible}");
         html.append(".filter-select{width:100%;font-size:0.85rem;}");
-        html.append("</style></head><body><div class='container'>");
+        html.append(".text-danger{color:var(--shaft-fail)!important}.text-warning{color:var(--shaft-warn)!important}.text-success{color:var(--shaft-pass)!important}.text-secondary{color:var(--shaft-text-muted)!important}");
+        html.append("</style></head><body><div class='report-shell'>");
 
-        html.append("<div class='text-center mb-4'>");
-        html.append("<h2>Accessibility Report</h2>");
-        html.append("<div class='text-muted'>").append(escapeHtml(pageName)).append(" • ").append(dateTime).append("</div>");
-        html.append("</div>");
+        html.append("<header class='report-header'><div class='report-header-inner'>");
+        html.append("<span class='brand-mark'>S</span><div><h1>Accessibility Report</h1>");
+        html.append("<p class='subtitle'>").append(escapeHtml(pageName)).append(" · ").append(dateTime).append("</p>");
+        html.append("</div></div></header><main class='report-main'>");
 
-        html.append("<div style='margin-top:8px; font-size:14px; color:#555;'>")
-                .append("<strong>Browser:</strong> ").append(browserInfo)
-                .append(" ").append(browserVersion)
-                .append(" | <strong>Platform:</strong> ").append(platform)
-                .append(" | <strong>Generated:</strong> ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
-                .append("</div>");
-        html.append("</div>");
+        html.append("<section class='panel'><h2>Environment</h2><div class='metric-grid'>");
+        html.append("<div class='metric-card'><div class='metric-label'>Browser</div><div class='metric-value'>")
+                .append(escapeHtml(browserInfo)).append(" ").append(escapeHtml(browserVersion)).append("</div></div>");
+        html.append("<div class='metric-card'><div class='metric-label'>Platform</div><div class='metric-value'>")
+                .append(escapeHtml(platform)).append("</div></div>");
+        html.append("<div class='metric-card'><div class='metric-label'>Generated</div><div class='metric-value'>")
+                .append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("</div></div>");
+        html.append("</div></section>");
 
-        html.append("<div class='mb-4'>");
-        html.append("<div class='card p-3 text-center mb-3'><div class='score-wrap'>");
+        html.append("<section class='panel'><h2>Score</h2><div class='score-wrap'>");
         html.append("<div class='score-gauge' style='--score:").append(formattedScore)
                 .append("%;--score-color:").append(scoreColor(score)).append("'></div>");
         html.append("<div class='score-text'>").append(formattedScore).append("%</div>");
-        html.append("</div><div class='text-muted small mt-2'>Overall Accessibility Score</div></div>");
-        html.append("<div class='card p-3'><div class='row text-center'>");
-        html.append("<div class='col'><div class='text-danger fw-bold'>❌ Violations</div><div class='h4'>").append(totalViolations).append("</div></div>");
-        html.append("<div class='col'><div class='text-warning fw-bold'>⚠️ Needs Review</div><div class='h4'>").append(totalIncomplete).append("</div></div>");
-        html.append("<div class='col'><div class='text-success fw-bold'>✅ Passed</div><div class='h4'>").append(totalPassed).append("</div></div>");
-        html.append("<div class='col'><div class='text-secondary fw-bold'>🚫 Inapplicable</div><div class='h4'>").append(totalInapplicable).append("</div></div>");
-        html.append("</div></div></div>");
+        html.append("</div><p class='muted'>Overall Accessibility Score</p>");
+        html.append("<div class='metric-grid'>");
+        html.append("<div class='metric-card'><span class='status-chip failed'>Violations</span><div class='metric-value'>").append(totalViolations).append("</div></div>");
+        html.append("<div class='metric-card'><span class='status-chip warn'>Needs Review</span><div class='metric-value'>").append(totalIncomplete).append("</div></div>");
+        html.append("<div class='metric-card'><span class='status-chip passed'>Passed</span><div class='metric-value'>").append(totalPassed).append("</div></div>");
+        html.append("<div class='metric-card'><span class='status-chip neutral'>Inapplicable</span><div class='metric-value'>").append(totalInapplicable).append("</div></div>");
+        html.append("</div></section>");
 
-        html.append("<div class='accordion' id='accessibilityAccordion'>");
+        html.append("<section class='panel'><h2>Rule Details</h2><div class='accordion' id='accessibilityAccordion'>");
         html.append(buildAccordionSection("Violations", json.optJSONArray("violations"), "danger", 1));
         html.append(buildAccordionSection("Needs Review", json.optJSONArray("incomplete"), "warning", 2));
         if (config.isIncludePasses())
             html.append(buildAccordionSection("Passed Rules", json.optJSONArray("passes"), "success", 3));
         html.append(buildAccordionSection("Inapplicable", json.optJSONArray("inapplicable"), "secondary", 4));
-        html.append("</div>");
+        html.append("</div></section>");
 
-        html.append("<div class='text-muted small mt-2'>");
+        html.append("<p class='muted'>");
         html.append("Overall Accessibility Score (ignoring incomplete checks): ").append(formattedScore).append("%");
         if (totalIncomplete > 0) {
-            html.append(" • ⚠️ ").append(totalIncomplete).append(" check(s) incomplete — manual review may be needed");
+            html.append(" · ").append(totalIncomplete).append(" check(s) incomplete - manual review may be needed");
         }
-        html.append("</div>");
-        html.append("<div class='text-center text-muted small mt-4'>Generated ").append(dateTime)
-                .append(" by SHAFT ENGINE AccessibilityHelper</div>");
+        html.append("</p>");
+        html.append("<p class='muted'>Generated ").append(dateTime)
+                .append(" by SHAFT ENGINE AccessibilityHelper</p>");
 
         html.append("<script>");
         html.append("document.querySelectorAll('.filter-select').forEach(sel=>{sel.addEventListener('change',()=>{\n");
@@ -1260,7 +1248,7 @@ public class AccessibilityHelper {
         html.append("row.style.display=(val===''||txt.includes(val))?'':'none';});});});");
         html.append("</script>");
 
-        html.append("</div></body></html>");
+        html.append("</main></div></body></html>");
         Files.writeString(Paths.get(reportPath), html.toString(), StandardCharsets.UTF_8);
     }
 

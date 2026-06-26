@@ -1,0 +1,135 @@
+{
+  "generatedAt": "2026-06-26T19:48:42.870Z",
+  "galleryPath": "C:\\Users\\Mohab\\AppData\\Local\\Temp\\shaft-ui-revamp-evidence\\ui-revamp-gallery-composed.html",
+  "screenshots": [
+    "C:\\Users\\Mohab\\IdeaProjects\\SHAFT_ENGINE_codex_ui_revamp\\.github\\pr-evidence\\ui-revamp\\shaft-ui-revamp-side-by-side.png",
+    "C:\\Users\\Mohab\\IdeaProjects\\SHAFT_ENGINE_codex_ui_revamp\\.github\\pr-evidence\\ui-revamp\\shaft-ui-revamp-mobile.png"
+  ],
+  "afterChecks": [
+    {
+      "surface": "Execution Summary",
+      "title": "Execution Summary Report",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "API Performance Report",
+      "title": "Performance Report",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "Failure Trace Report",
+      "title": "SHAFT Trace Report",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "Failure Brief",
+      "title": "SHAFT Failure Brief",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "Accessibility Report",
+      "title": "Accessibility Report - SuccessfulPage",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "Flake Profile",
+      "title": "SHAFT Flake Profile",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "Capture Workbench",
+      "title": "SHAFT Capture Workbench",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "Browser Recorder Overlay",
+      "title": "SHAFT Capture Overlay",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "MCP Appium Inspector Recorder",
+      "title": "SHAFT Appium Inspector Recorder",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    },
+    {
+      "surface": "Allure HTML Attachment Fit",
+      "title": "",
+      "clientWidth": 717,
+      "scrollWidth": 717,
+      "bodyScrollWidth": 717,
+      "ok": true
+    }
+  ],
+  "consoleMessages": [],
+  "browserPath": "C:/Program Files/Google/Chrome/Application/chrome.exe via Playwright",
+  "rows": [
+    {
+      "title": "Execution Summary",
+      "note": "Actual new generated report; baseline representative of the former table-heavy template."
+    },
+    {
+      "title": "API Performance Report",
+      "note": "Actual old and new generated files from the focused test run."
+    },
+    {
+      "title": "Failure Trace Report",
+      "note": "Current branch representative of the new trace viewer structure."
+    },
+    {
+      "title": "Failure Brief",
+      "note": "Actual new generated failure brief."
+    },
+    {
+      "title": "Accessibility Report",
+      "note": "Actual new generated accessibility report."
+    },
+    {
+      "title": "Flake Profile",
+      "note": "Actual new generated flake profile attachment."
+    },
+    {
+      "title": "Capture Workbench",
+      "note": "Representative old/new workbench view."
+    },
+    {
+      "title": "Browser Recorder Overlay",
+      "note": "Representative injected browser recorder overlay."
+    },
+    {
+      "title": "MCP Appium Inspector Recorder",
+      "note": "Representative MCP inspector wrapper."
+    },
+    {
+      "title": "Allure HTML Attachment Fit",
+      "note": "Central attachment injection plus generated Allure index iframe expansion."
+    }
+  ],
+  "captureMode": "per-surface screenshots composed into side-by-side gallery"
+}

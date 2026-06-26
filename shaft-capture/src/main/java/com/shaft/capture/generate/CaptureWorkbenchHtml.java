@@ -51,24 +51,39 @@ final class CaptureWorkbenchHtml {
                   <meta name="viewport" content="width=device-width, initial-scale=1">
                   <title>SHAFT Capture Workbench</title>
                   <style>
-                    body { font-family: system-ui, sans-serif; margin: 0; color: #1f2933; background: #f7f9fb; }
-                    header, main { max-width: 1180px; margin: 0 auto; padding: 20px; }
-                    header { background: #102a43; color: white; max-width: none; }
-                    section { margin: 16px 0; padding: 16px; background: white; border: 1px solid #d9e2ec; border-radius: 8px; }
-                    label { display: block; margin: 8px 0 4px; font-weight: 600; }
-                    input, select, textarea { width: 100%%; box-sizing: border-box; padding: 8px; border: 1px solid #bcccdc; border-radius: 4px; font: inherit; }
+                    :root { color-scheme: light dark; --shaft-primary:#006ec0; --shaft-primary-rgb:0,110,192; --shaft-deep:#102a31; --shaft-deep-alt:#181f2a; --shaft-muted:#c8d6e7; --shaft-on-dark:#ffffff; --shaft-bg:#f7f9fb; --shaft-surface:#ffffff; --shaft-text:#17202a; --shaft-text-muted:#5f6f81; --shaft-border:#d9e2ec; --shaft-shadow:0 18px 45px rgba(24,31,42,.12); }
+                    @media (prefers-color-scheme: dark) { :root { --shaft-primary:#4cc2ff; --shaft-primary-rgb:76,194,255; --shaft-deep:#07111f; --shaft-deep-alt:#102a31; --shaft-muted:#dff5f4; --shaft-on-dark:#f5fdff; --shaft-bg:#07111f; --shaft-surface:#102a31; --shaft-text:#f5fdff; --shaft-text-muted:#c8d6e7; --shaft-border:rgba(223,245,244,.24); --shaft-shadow:0 18px 45px rgba(0,0,0,.34); } }
+                    * { box-sizing: border-box; }
+                    html, body { width: 100%%; min-width: 0; overflow-x: hidden; }
+                    body { font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; color: var(--shaft-text); background: var(--shaft-bg); font-size: 14px; line-height: 1.5; }
+                    header { background: linear-gradient(135deg, var(--shaft-deep), var(--shaft-deep-alt)); color: var(--shaft-on-dark); }
+                    header > div, main { width: 100%%; max-width: 1180px; min-width: 0; margin: 0 auto; padding: 22px 24px; }
+                    header > div { display: flex; align-items: center; gap: 14px; }
+                    .brand-mark { width: 44px; height: 44px; display: inline-grid; place-items: center; border: 1px solid rgba(var(--shaft-primary-rgb), .42); border-radius: 8px; background: rgba(var(--shaft-primary-rgb), .18); font-weight: 700; }
+                    h1, h2 { margin: 0; line-height: 1.2; }
+                    h1 { font-size: 24px; }
+                    h2 { font-size: 17px; }
+                    .subtitle { margin: 5px 0 0; color: var(--shaft-muted); }
+                    section { margin: 16px 0; padding: 16px; background: var(--shaft-surface); border: 1px solid var(--shaft-border); border-radius: 8px; box-shadow: var(--shaft-shadow); }
+                    label { display: block; margin: 8px 0 4px; color: var(--shaft-text-muted); font-weight: 600; }
+                    input, select, textarea { width: 100%%; box-sizing: border-box; min-height: 38px; padding: 8px 10px; border: 1px solid var(--shaft-border); border-radius: 8px; background: var(--shaft-surface); color: var(--shaft-text); font: inherit; }
                     textarea { min-height: 420px; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
-                    button { margin-top: 10px; padding: 8px 12px; border: 0; border-radius: 4px; background: #0b69a3; color: white; font-weight: 700; cursor: pointer; }
-                    pre { white-space: pre-wrap; padding: 10px; background: #102a43; color: #f0f4f8; border-radius: 4px; }
-                    table { width: 100%%; border-collapse: collapse; font-size: 14px; }
-                    th, td { border-bottom: 1px solid #d9e2ec; padding: 8px; text-align: left; vertical-align: top; }
+                    button { margin-top: 10px; min-height: 38px; padding: 8px 12px; border: 1px solid var(--shaft-primary); border-radius: 8px; background: var(--shaft-primary); color: var(--shaft-on-dark); font-weight: 700; cursor: pointer; }
+                    pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: var(--shaft-deep); color: var(--shaft-on-dark); border-radius: 8px; }
+                    table { width: 100%%; max-width: 100%%; table-layout: fixed; border-collapse: collapse; font-size: 14px; }
+                    th, td { border-bottom: 1px solid var(--shaft-border); padding: 10px 12px; text-align: left; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; }
+                    th { background: rgba(var(--shaft-primary-rgb), .08); font-size: 12px; text-transform: uppercase; }
+                    .status-chip { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 9px; border: 1px solid var(--shaft-border); border-radius: 999px; background: rgba(var(--shaft-primary-rgb), .08); color: var(--shaft-on-dark); font-size: 12px; font-weight: 700; }
+                    .table-wrap { max-width: 100%%; overflow-x: hidden; overflow-y: visible; border: 1px solid var(--shaft-border); border-radius: 8px; }
                     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
                   </style>
                 </head>
                 <body>
                   <header>
-                    <h1>SHAFT Capture Workbench</h1>
-                    <p>Session %s | review score %d | status %s</p>
+                    <div><span class="brand-mark">S</span><div>
+                      <h1>SHAFT Capture Workbench</h1>
+                      <p class="subtitle">Session %s · <span class="status-chip">review score %d</span> <span class="status-chip">%s</span></p>
+                    </div></div>
                   </header>
                   <main>
                     <section>
@@ -103,12 +118,14 @@ final class CaptureWorkbenchHtml {
                     </section>
                     <section>
                       <h2>Playwright Codegen Feature Map</h2>
+                      <div class="table-wrap">
                       <table>
                         <thead><tr><th>Category</th><th>Feature</th><th>Playwright</th><th>SHAFT</th><th>Notes</th></tr></thead>
                         <tbody>
                         %s
                         </tbody>
                       </table>
+                      </div>
                     </section>
                   </main>
                   <script>

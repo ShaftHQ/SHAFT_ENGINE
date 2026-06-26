@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.apache.logging.log4j.Level;
 
 import java.time.Instant;
@@ -233,29 +234,36 @@ public final class BrowserPerformanceExecutionReport {
     private static String buildHtmlReport(String formattedStartTime, String formattedEndTime,
                                           String formattedExecutionTime, List<MetricStats> actionStats,
                                           List<MetricStats> pageLoadStats) {
-        return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>SHAFT Browser Performance Report</title>"
-                + "<style>body{font-family:Arial,sans-serif;margin:24px;color:#1f2933}"
-                + "table{border-collapse:collapse;width:100%;margin:16px 0 32px}"
-                + "th,td{border:1px solid #d5d9e0;padding:8px;text-align:left}"
-                + "th{background:#eef2f7}</style></head><body>"
-                + "<h1>SHAFT Browser Performance Report</h1>"
-                + "<p><strong>Start:</strong> " + htmlEscape(formattedStartTime)
-                + " <strong>End:</strong> " + htmlEscape(formattedEndTime)
-                + " <strong>Duration:</strong> " + htmlEscape(formattedExecutionTime) + "</p>"
+        return "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+                + "<title>SHAFT Browser Performance Report</title><style>"
+                + ReportHtmlTheme.style()
+                + "</style></head><body><div class=\"report-shell\">"
+                + "<header class=\"report-header\"><div class=\"report-header-inner\">"
+                + "<span class=\"brand-mark\">S</span><div><h1>SHAFT Browser Performance Report</h1>"
+                + "<p class=\"subtitle\">" + htmlEscape(formattedStartTime) + " - "
+                + htmlEscape(formattedEndTime) + " · " + htmlEscape(formattedExecutionTime)
+                + "</p></div></div></header><main class=\"report-main\">"
+                + "<section class=\"panel\"><h2>Summary</h2><div class=\"metric-grid\">"
+                + "<div class=\"metric-card\"><div class=\"metric-label\">Browser Actions</div><div class=\"metric-value\">"
+                + actionStats.size() + "</div></div>"
+                + "<div class=\"metric-card\"><div class=\"metric-label\">Page Loads</div><div class=\"metric-value\">"
+                + pageLoadStats.size() + "</div></div>"
+                + "</div></section>"
                 + table("Browser Actions", actionStats)
                 + table("Page Loads", pageLoadStats)
-                + "</body></html>";
+                + "</main></div></body></html>";
     }
 
     private static String table(String title, List<MetricStats> stats) {
         StringBuilder rows = new StringBuilder();
         stats.forEach(metricStats -> rows.append(metricStats.toHtmlRow()));
-        return "<h2>" + htmlEscape(title) + "</h2><table><thead><tr>"
+        return "<section class=\"panel\"><h2>" + htmlEscape(title) + "</h2><div class=\"table-wrap\"><table><thead><tr>"
                 + "<th>Metric</th><th>Samples</th><th>Max (ms)</th><th>Min (ms)</th><th>Average (ms)</th>"
                 + "<th>P50 (ms)</th><th>P90 (ms)</th><th>P95 (ms)</th><th>P99 (ms)</th>"
                 + "<th>Budget (ms)</th><th>Budget Status</th></tr></thead><tbody>"
                 + rows
-                + "</tbody></table>";
+                + "</tbody></table></div></section>";
     }
 
     private static String formatTimestamp(long timestamp) {
@@ -347,7 +355,8 @@ public final class BrowserPerformanceExecutionReport {
                     + "<td>" + formatMillis(p95Millis) + "</td>"
                     + "<td>" + formatMillis(p99Millis) + "</td>"
                     + "<td>" + (budgetMillis == null ? "" : formatMillis(budgetMillis)) + "</td>"
-                    + "<td>" + budgetStatus + "</td></tr>";
+                    + "<td><span class=\"status-chip " + ReportHtmlTheme.statusClass(budgetStatus.name()) + "\">"
+                    + budgetStatus + "</span></td></tr>";
         }
 
         private void appendJson(ObjectNode node) {

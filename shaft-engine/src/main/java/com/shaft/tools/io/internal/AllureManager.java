@@ -102,12 +102,32 @@ public class AllureManager {
               max-height: none !important;
               object-fit: contain !important;
             }
+            .shaft-allure-html-modal {
+              overflow-y: auto !important;
+              overflow-x: hidden !important;
+            }
+            .shaft-allure-html-preview-wrapper {
+              display: block !important;
+              overflow: hidden !important;
+              width: 100% !important;
+              height: min(78vh, 1000px) !important;
+              max-width: 100% !important;
+            }
+            .shaft-allure-html-preview {
+              display: block !important;
+              width: 100% !important;
+              min-width: 0 !important;
+              height: 100% !important;
+              border: 0 !important;
+              background: #fff !important;
+            }
             </style>
             """;
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT = """
             <script id="shaft-allure-attachment-preview-script">
             (() => {
               const imageSelector = 'img[src^="blob:"], img[src^="data:image/"], img[src*="/attachments/"]';
+              const htmlSelector = 'iframe[src^="blob:"], iframe[src*="/attachments/"]';
               const isModalRoot = (element) => {
                 const style = window.getComputedStyle(element);
                 const rect = element.getBoundingClientRect();
@@ -128,6 +148,20 @@ public class AllureManager {
                 }
                 return null;
               };
+              const markAncestors = (element, modalRoot, className) => {
+                for (let node = element.parentElement, depth = 0; node && depth < 16; node = node.parentElement, depth += 1) {
+                  const style = window.getComputedStyle(node);
+                  const scrollableOverflow = ['auto', 'scroll'].includes(style.overflow)
+                    || ['auto', 'scroll'].includes(style.overflowY);
+                  const clippedOverflow = style.overflow === 'hidden' || style.overflowY === 'hidden';
+                  if (node === modalRoot || scrollableOverflow || clippedOverflow) {
+                    node.classList.add(className);
+                  }
+                  if (node === modalRoot) {
+                    break;
+                  }
+                }
+              };
               const patch = () => {
                 document.querySelectorAll(imageSelector).forEach((img) => {
                   const modalRoot = findModalRoot(img);
@@ -138,18 +172,18 @@ public class AllureManager {
                   if (img.parentElement) {
                     img.parentElement.classList.add('shaft-allure-image-preview-wrapper');
                   }
-                  for (let node = img.parentElement, depth = 0; node && depth < 16; node = node.parentElement, depth += 1) {
-                    const style = window.getComputedStyle(node);
-                    const scrollableOverflow = ['auto', 'scroll'].includes(style.overflow)
-                      || ['auto', 'scroll'].includes(style.overflowY);
-                    const clippedOverflow = style.overflow === 'hidden' || style.overflowY === 'hidden';
-                    if (node === modalRoot || scrollableOverflow || clippedOverflow) {
-                      node.classList.add('shaft-allure-image-modal');
-                    }
-                    if (node === modalRoot) {
-                      break;
-                    }
+                  markAncestors(img, modalRoot, 'shaft-allure-image-modal');
+                });
+                document.querySelectorAll(htmlSelector).forEach((frame) => {
+                  const modalRoot = findModalRoot(frame);
+                  if (!modalRoot) {
+                    return;
                   }
+                  frame.classList.add('shaft-allure-html-preview');
+                  if (frame.parentElement) {
+                    frame.parentElement.classList.add('shaft-allure-html-preview-wrapper');
+                  }
+                  markAncestors(frame, modalRoot, 'shaft-allure-html-modal');
                 });
               };
               new MutationObserver(patch).observe(document.documentElement, { childList: true, subtree: true });

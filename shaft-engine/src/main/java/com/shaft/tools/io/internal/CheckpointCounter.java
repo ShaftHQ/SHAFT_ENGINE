@@ -1,6 +1,7 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.tools.internal.support.HTMLHelper;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,7 +58,13 @@ public class CheckpointCounter {
             return;
         }
         StringBuilder detailsBuilder = new StringBuilder();
-        checkpoints.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2))));
+        checkpoints.forEach((key, value) -> detailsBuilder.append(String.format(
+                HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
+                key,
+                value.get(0),
+                value.get(1),
+                ReportHtmlTheme.statusClass(String.valueOf(value.get(2))),
+                value.get(2))));
 
         ReportManagerHelper.attach("HTML",
                 "Checkpoints Report",

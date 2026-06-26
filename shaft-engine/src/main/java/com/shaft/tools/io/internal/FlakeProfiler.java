@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shaft.driver.SHAFT;
 import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import com.shaft.tools.io.ReportManager;
 import org.apache.logging.log4j.Level;
 
@@ -200,7 +201,7 @@ public final class FlakeProfiler {
                 + ", severeRiskActions=" + severeRiskCount() + ".";
     }
 
-    private static String buildSummaryHtml() {
+    static String buildSummaryHtml() {
         StringBuilder rows = new StringBuilder();
         TESTS.forEach(profile -> rows.append("<tr><td>")
                 .append(htmlEscape(profile.test.get()))
@@ -213,19 +214,28 @@ public final class FlakeProfiler {
                 .append("</td><td>")
                 .append(profile.severeRiskCount())
                 .append("</td></tr>"));
-        return """
-                <!doctype html>
-                <html lang="en">
-                <head><meta charset="utf-8"><title>SHAFT Flake Profile</title></head>
-                <body>
-                <h1>SHAFT Flake Profile</h1>
-                <table>
-                <thead><tr><th>Test</th><th>Actions</th><th>Retries</th><th>Evidence ms</th><th>Severe risk</th></tr></thead>
-                <tbody>%s</tbody>
-                </table>
-                </body>
-                </html>
-                """.formatted(rows);
+        return reportDocument("SHAFT Flake Profile", "Suite-level wait, retry, locator, and evidence-cost signals", """
+                <section class="panel">
+                  <div class="metric-grid">
+                    <div class="metric-card"><div class="metric-label">Tests</div><div class="metric-value">""" + TESTS.size() + """
+                    </div></div>
+                    <div class="metric-card"><div class="metric-label">Actions</div><div class="metric-value">""" + TESTS.stream().mapToInt(TestProfile::actionCount).sum() + """
+                    </div></div>
+                    <div class="metric-card"><div class="metric-label">Retries</div><div class="metric-value">""" + TESTS.stream().mapToInt(TestProfile::retryCount).sum() + """
+                    </div></div>
+                    <div class="metric-card"><div class="metric-label">Severe Risk</div><div class="metric-value"><span class="status-chip """ + (severeRiskCount() == 0 ? "passed" : "failed") + """
+                    ">""" + severeRiskCount() + """
+                    </span></div></div>
+                  </div>
+                  <div class="table-wrap">
+                    <table>
+                      <thead><tr><th>Test</th><th>Actions</th><th>Retries</th><th>Evidence ms</th><th>Severe risk</th></tr></thead>
+                      <tbody>""" + rows + """
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+                """);
     }
 
     private static int severeRiskCount() {
@@ -284,6 +294,41 @@ public final class FlakeProfiler {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    private static String reportDocument(String title, String subtitle, String body) {
+        return """
+                <!doctype html>
+                <html lang="en">
+                <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
+                  <title>""" + htmlEscape(title) + """
+                  </title>
+                  <style>
+                """ + ReportHtmlTheme.style() + """
+                  </style>
+                </head>
+                <body>
+                  <div class="report-shell">
+                    <header class="report-header">
+                      <div class="report-header-inner">
+                        <span class="brand-mark">S</span>
+                        <div>
+                          <h1>""" + htmlEscape(title) + """
+                          </h1>
+                          <p class="subtitle">""" + htmlEscape(subtitle) + """
+                          </p>
+                        </div>
+                      </div>
+                    </header>
+                    <main class="report-main">
+                """ + body + """
+                    </main>
+                  </div>
+                </body>
+                </html>
+                """;
     }
 
     private static void runSafely(Runnable runnable) {
@@ -378,13 +423,13 @@ public final class FlakeProfiler {
         }
 
         private String toHtml() {
-            return """
-                    <!doctype html>
-                    <html lang="en">
-                    <head><meta charset="utf-8"><title>SHAFT Flake Profile</title></head>
-                    <body><h1>SHAFT Flake Profile</h1><pre>%s</pre></body>
-                    </html>
-                    """.formatted(htmlEscape(toJson().toPrettyString()));
+            return reportDocument("SHAFT Flake Profile", test.get(), """
+                    <section class="panel">
+                      <h2>Profile JSON</h2>
+                      <pre>""" + htmlEscape(toJson().toPrettyString()) + """
+                      </pre>
+                    </section>
+                    """);
         }
     }
 

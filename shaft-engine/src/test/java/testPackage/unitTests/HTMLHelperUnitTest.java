@@ -71,6 +71,19 @@ public class HTMLHelperUnitTest {
                 "EXECUTION_SUMMARY should contain html tag");
     }
 
+    @Test(description = "Generated report templates should use the SHAFT UI theme without remote UI dependencies")
+    public void reportTemplatesShouldUseShaftThemeWithoutRemoteUiDependencies() {
+        String checkpoint = HTMLHelper.CHECKPOINT_COUNTER.getValue();
+        String summary = HTMLHelper.EXECUTION_SUMMARY.getValue();
+
+        Assert.assertTrue(checkpoint.contains("--shaft-primary"), checkpoint);
+        Assert.assertTrue(summary.contains("--shaft-primary"), summary);
+        Assert.assertFalse(checkpoint.contains("colorlib.com"), checkpoint);
+        Assert.assertFalse(summary.contains("colorlib.com"), summary);
+        Assert.assertFalse(summary.contains("ajax.googleapis.com"), summary);
+        Assert.assertTrue(summary.contains("function filterCases()"), summary);
+    }
+
     @Test(description = "EXECUTION_SUMMARY_DETAILS_FORMAT should have non-null, non-empty value")
     public void executionSummaryDetailsFormatShouldBeNonEmpty() {
         String value = HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue();

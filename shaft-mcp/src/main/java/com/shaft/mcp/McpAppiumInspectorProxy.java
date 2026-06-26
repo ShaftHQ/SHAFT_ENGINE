@@ -197,31 +197,124 @@ final class McpAppiumInspectorProxy implements AutoCloseable {
                   <meta name="viewport" content="width=device-width, initial-scale=1">
                   <title>SHAFT Appium Inspector Recorder</title>
                   <style>
-                    :root { color-scheme: light dark; font-family: Inter, Segoe UI, Arial, sans-serif; }
-                    body { margin: 0; height: 100vh; display: grid; grid-template-rows: auto 1fr; background: #101418; color: #f7f7f2; }
-                    header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #1b2026; border-bottom: 1px solid #303840; }
-                    button { min-width: 34px; height: 32px; border: 1px solid #55606b; border-radius: 6px; background: #252c33; color: #f7f7f2; cursor: pointer; }
-                    button:hover { background: #303944; }
+                    :root {
+                      color-scheme: light dark;
+                      --shaft-primary: #006ec0;
+                      --shaft-primary-rgb: 0, 110, 192;
+                      --shaft-deep: #102a31;
+                      --shaft-deep-alt: #181f2a;
+                      --shaft-muted: #c8d6e7;
+                      --shaft-on-dark: #ffffff;
+                      --shaft-bg: #f7f9fb;
+                      --shaft-surface: #ffffff;
+                      --shaft-text: #17202a;
+                      --shaft-text-muted: #5f6f81;
+                      --shaft-border: #d9e2ec;
+                    }
+                    * { box-sizing: border-box; }
+                    html, body {
+                      width: 100%;
+                      min-width: 0;
+                      height: 100%;
+                      margin: 0;
+                      overflow: hidden;
+                      background: var(--shaft-bg);
+                      color: var(--shaft-text);
+                      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+                      font-size: 13px;
+                    }
+                    body { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+                    header {
+                      display: flex;
+                      flex-wrap: wrap;
+                      align-items: center;
+                      gap: 8px;
+                      min-width: 0;
+                      padding: 8px 10px;
+                      background: linear-gradient(135deg, var(--shaft-deep), var(--shaft-deep-alt));
+                      color: var(--shaft-on-dark);
+                      border-bottom: 1px solid rgba(var(--shaft-primary-rgb), .36);
+                    }
+                    .brand-mark {
+                      width: 32px;
+                      height: 32px;
+                      display: inline-grid;
+                      place-items: center;
+                      flex: 0 0 auto;
+                      border: 1px solid rgba(var(--shaft-primary-rgb), .42);
+                      border-radius: 8px;
+                      background: rgba(var(--shaft-primary-rgb), .18);
+                      color: var(--shaft-on-dark);
+                      font-weight: 700;
+                    }
+                    button {
+                      min-width: 34px;
+                      height: 32px;
+                      border: 1px solid var(--shaft-border);
+                      border-radius: 6px;
+                      background: var(--shaft-surface);
+                      color: var(--shaft-primary);
+                      cursor: pointer;
+                      font-weight: 700;
+                    }
+                    button:hover { background: rgba(var(--shaft-primary-rgb), .08); }
                     .spacer { flex: 1; }
-                    .status { font-size: 12px; color: #cbd2d9; }
-                    details { max-width: min(680px, 45vw); font-size: 12px; }
-                    summary { cursor: pointer; color: #cbd2d9; }
-                    pre { max-height: 120px; overflow: auto; margin: 4px 0 0; padding: 8px; background: #0b0e11; border: 1px solid #303840; border-radius: 6px; }
-                    iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+                    .status-chip {
+                      display: inline-flex;
+                      align-items: center;
+                      max-width: 100%;
+                      min-height: 26px;
+                      padding: 4px 9px;
+                      border: 1px solid rgba(var(--shaft-primary-rgb), .36);
+                      border-radius: 999px;
+                      background: rgba(var(--shaft-primary-rgb), .16);
+                      color: var(--shaft-on-dark);
+                      font-size: 12px;
+                      font-weight: 700;
+                      overflow-wrap: anywhere;
+                    }
+                    details {
+                      max-width: min(680px, 100%);
+                      min-width: 0;
+                      font-size: 12px;
+                    }
+                    summary { cursor: pointer; color: var(--shaft-muted); }
+                    pre {
+                      max-width: 100%;
+                      max-height: 120px;
+                      overflow-y: auto;
+                      overflow-x: hidden;
+                      margin: 4px 0 0;
+                      padding: 8px;
+                      border: 1px solid rgba(var(--shaft-primary-rgb), .24);
+                      border-radius: 8px;
+                      background: rgba(0, 0, 0, .32);
+                      color: var(--shaft-on-dark);
+                      white-space: pre-wrap;
+                      overflow-wrap: anywhere;
+                    }
+                    iframe {
+                      width: 100%;
+                      min-width: 0;
+                      height: 100%;
+                      border: 0;
+                      background: #fff;
+                    }
                   </style>
                 </head>
                 <body>
                   <header>
+                    <span class="brand-mark" aria-hidden="true">S</span>
                     <button id="pause" title="Pause recording" aria-label="Pause recording">||</button>
                     <button id="resume" title="Resume recording" aria-label="Resume recording">&gt;</button>
                     <button id="checkpoint" title="Add checkpoint" aria-label="Add checkpoint">*</button>
                     <button id="stop" title="Stop recording" aria-label="Stop recording">[]</button>
                     <button id="discard" title="Discard recording" aria-label="Discard recording">x</button>
-                    <span class="status" id="status">Recorder ready</span>
+                    <span class="status-chip" id="status">Recorder ready</span>
                     <span class="spacer"></span>
                     <details>
                       <summary>Capabilities</summary>
-                      <pre>%s</pre>
+                      <pre>${CAPABILITIES}</pre>
                     </details>
                   </header>
                   <iframe src="/inspector" title="Appium Inspector"></iframe>
@@ -253,7 +346,7 @@ final class McpAppiumInspectorProxy implements AutoCloseable {
                   </script>
                 </body>
                 </html>
-                """.formatted(escapedCapabilities);
+                """.replace("${CAPABILITIES}", escapedCapabilities);
     }
 
     @Override

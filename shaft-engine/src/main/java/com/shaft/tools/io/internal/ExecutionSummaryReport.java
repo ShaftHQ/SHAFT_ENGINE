@@ -3,6 +3,7 @@ package com.shaft.tools.io.internal;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.HTMLHelper;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import lombok.Getter;
 
 import java.text.DecimalFormat;
@@ -16,7 +17,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ExecutionSummaryReport {
     private static final ConcurrentHashMap<Integer, ArrayList<?>> casesDetails = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Integer, ArrayList<?>> validations = new ConcurrentHashMap<>();
-    private static final String SHAFT_LOGO_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/raw/main/shaft-engine/src/main/resources/images/shaft.png";
     private static final AtomicInteger passedValidations = new AtomicInteger(0);
     private static final AtomicInteger failedValidations = new AtomicInteger(0);
     private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
@@ -53,7 +53,16 @@ public class ExecutionSummaryReport {
         int total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
-        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.getFirst(), value.get(1), value.get(2), value.get(3), value.get(4), value.get(5))));
+        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(
+                HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(),
+                key,
+                value.getFirst(),
+                value.get(1),
+                value.get(2),
+                value.get(3),
+                ReportHtmlTheme.statusClass(String.valueOf(value.get(4))),
+                value.get(4),
+                value.get(5))));
 
         var fileActionsSession = FileActions.getInstance(true);
 
@@ -69,7 +78,6 @@ public class ExecutionSummaryReport {
     private static String createReportMessage(int passed, int failed, int skipped, long startTime, long endTime, StringBuilder detailsBuilder) {
         float total = passed + failed + skipped;
         var report = HTMLHelper.EXECUTION_SUMMARY.getValue()
-                .replace("${LOGO_URL}", SHAFT_LOGO_URL)
                 .replace("${DATE}", DATE_FORMATTER.format(Instant.ofEpochMilli(endTime)))
                 .replace("${START_TIME}", TIME_FORMATTER.format(Instant.ofEpochMilli(startTime)))
                 .replace("${END_TIME}", TIME_FORMATTER.format(Instant.ofEpochMilli(endTime)))

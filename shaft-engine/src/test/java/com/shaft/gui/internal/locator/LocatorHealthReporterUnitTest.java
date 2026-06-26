@@ -38,6 +38,7 @@ public class LocatorHealthReporterUnitTest {
         LocatorHealthReporter.recordLookup(By.cssSelector(".missing"), 200, 4, 0, true, 0);
 
         String json = LocatorHealthReporter.buildSummaryJson();
+        String html = LocatorHealthReporter.buildSummaryHtml();
 
         Assert.assertTrue(json.contains("\"locator\" : \"By.id: login\""));
         Assert.assertTrue(json.contains("\"lookupCount\" : 2"));
@@ -48,6 +49,8 @@ public class LocatorHealthReporterUnitTest {
         Assert.assertTrue(json.contains("\"staleElementRetries\" : 1"));
         Assert.assertTrue(json.contains("\"slowLookups\" : 1"));
         Assert.assertTrue(json.contains("\"timeoutCount\" : 1"));
+        Assert.assertTrue(html.contains("--shaft-primary"), html);
+        Assert.assertTrue(html.contains("status-chip"), html);
     }
 
     @Test(description = "Locator health reporter scores risky locators and explains selector smells")

@@ -68,6 +68,8 @@ public class BrowserPerformanceExecutionReportUnitTest {
         String html = capturedContent(fileNameCaptor.getAllValues(), contentCaptor.getAllValues(), ".html").content();
         Assert.assertTrue(html.contains("Browser Actions"));
         Assert.assertTrue(html.contains("Page Loads"));
+        Assert.assertTrue(html.contains("--shaft-primary"), html);
+        Assert.assertTrue(html.contains("status-chip"), html);
     }
 
     @Test

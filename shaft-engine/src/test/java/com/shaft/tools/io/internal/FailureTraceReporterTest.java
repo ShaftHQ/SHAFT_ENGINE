@@ -73,6 +73,10 @@ public class FailureTraceReporterTest {
                 Assert.assertNotNull(zip.getEntry("SHAFT Trace Report.html"));
                 Assert.assertNotNull(zip.getEntry("shaft-trace.json"));
                 Assert.assertNotNull(zip.getEntry("shaft-network.har"));
+                String html = readZipEntry(zip, "SHAFT Trace Report.html");
+                Assert.assertTrue(html.contains("--shaft-primary"), html);
+                Assert.assertTrue(html.contains("trace-summary"), html);
+                Assert.assertTrue(html.contains("copyJson()"), html);
             }
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"archive\": \"target/shaft-traces/id-failingScenario/shaft-trace.zip\""), index);
@@ -490,6 +494,12 @@ public class FailureTraceReporterTest {
                             throw new IllegalStateException(e);
                         }
                     });
+        }
+    }
+
+    private static String readZipEntry(ZipFile zip, String entryName) throws Exception {
+        try (var input = zip.getInputStream(zip.getEntry(entryName))) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 }

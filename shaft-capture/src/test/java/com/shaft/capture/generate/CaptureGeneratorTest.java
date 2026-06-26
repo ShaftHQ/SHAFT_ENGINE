@@ -12,6 +12,7 @@ import com.shaft.pilot.ai.ApprovalPolicy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,7 +76,22 @@ class CaptureGeneratorTest {
         assertTrue(workbench.contains("Build record command"));
         assertTrue(workbench.contains("Playwright Codegen Feature Map"));
         assertTrue(workbench.contains("capture checkpoint"));
+        assertTrue(workbench.contains("--shaft-primary"));
+        assertTrue(workbench.contains("status-chip"));
 
+    }
+
+    @Test
+    void recorderOverlayResourceUsesShaftUiTheme() throws Exception {
+        try (InputStream stream = CaptureGeneratorTest.class
+                .getResourceAsStream("/browser/shaft-capture-recorder.js")) {
+            assertTrue(stream != null, "Recorder resource should be available on the test classpath.");
+            String recorder = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertTrue(recorder.contains("--shaft-primary"));
+            assertTrue(recorder.contains("status-chip"));
+            assertTrue(recorder.contains("overflow-x: hidden"));
+        }
     }
 
     @Test

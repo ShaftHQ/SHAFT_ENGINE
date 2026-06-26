@@ -56,6 +56,7 @@ public class FlakeProfilerUnitTest {
         FlakeProfiler.finishTest(TEST_INFO, "Failed");
 
         String json = FlakeProfiler.buildSummaryJson();
+        String html = FlakeProfiler.buildSummaryHtml();
 
         Assert.assertTrue(json.contains("\"test\" : \"example.FlakeProfilerUnitTest.shouldProfile\""));
         Assert.assertTrue(json.contains("\"topSlowActions\""));
@@ -71,6 +72,9 @@ public class FlakeProfilerUnitTest {
         Assert.assertTrue(json.contains("\"evidenceCaptureMillis\" : 80"));
         Assert.assertTrue(json.contains("\"retryAttempts\" : 1"));
         Assert.assertTrue(json.contains("\"supportingEvidenceEnabled\" : true"));
+        Assert.assertTrue(html.contains("--shaft-primary"), html);
+        Assert.assertTrue(html.contains("status-chip"), html);
+        Assert.assertTrue(html.contains("table-wrap"), html);
     }
 
     @Test(description = "Flake profiler stays off by default and ignores events while disabled")
