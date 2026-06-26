@@ -173,6 +173,16 @@ public final class TraceEventRecorder {
     }
 
     /**
+     * Returns the latest finished action id for linking follow-up artifacts.
+     *
+     * @return latest action id, or blank when no action is recorded
+     */
+    public static String latestActionId() {
+        List<ActionEvent> events = EVENTS.get();
+        return events.isEmpty() ? "" : events.getLast().id();
+    }
+
+    /**
      * Clears current thread action events.
      */
     public static void clear() {

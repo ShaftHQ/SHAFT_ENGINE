@@ -12,6 +12,7 @@ import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightBrowserValidationsBuilder;
 import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
+import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.ValidationEnums;
@@ -182,6 +183,67 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     @Override
     public NetworkInterceptionRequestBuilder<BrowserActions> interceptRequest() {
         return new NetworkInterceptionRequestBuilder<>(this, this::registerNetworkInterceptionRule);
+    }
+
+    /**
+     * Starts recording selected Playwright browser traffic into an HTTP contract.
+     *
+     * @param contractFilePath destination JSON contract path
+     * @param urlContains optional URL fragments used to select recorded traffic
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions startContractRecording(String contractFilePath, String... urlContains) {
+        HttpContractRecorder.startRecording(contractFilePath, urlContains);
+        session.networkInterceptor().startObserving();
+        ReportManager.log("Started HTTP contract recording.");
+        return this;
+    }
+
+    /**
+     * Starts hard-assert validation of live Playwright responses against an HTTP contract.
+     *
+     * @param contractFilePath source JSON contract path
+     * @param urlContains optional URL fragments used to select validated traffic
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions assertContract(String contractFilePath, String... urlContains) {
+        HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
+        session.networkInterceptor().startObserving();
+        ReportManager.log("Started HTTP contract assertion mode.");
+        return this;
+    }
+
+    /**
+     * Starts soft-verify validation of live Playwright responses against an HTTP contract.
+     *
+     * @param contractFilePath source JSON contract path
+     * @param urlContains optional URL fragments used to select validated traffic
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions verifyContract(String contractFilePath, String... urlContains) {
+        HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
+        session.networkInterceptor().startObserving();
+        ReportManager.log("Started HTTP contract verification mode.");
+        return this;
+    }
+
+    /**
+     * Replays recorded contract responses through the Playwright network interceptor.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().replayContract("src/test/resources/contracts/checkout.json");
+     * driver.browser().navigateToURL("https://shop.example/checkout");
+     * }</pre>
+     *
+     * @param contractFilePath source JSON contract path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions replayContract(String contractFilePath) {
+        HttpContractRecorder.browserReplayRules(contractFilePath)
+                .forEach(rule -> session.networkInterceptor().addRule(rule));
+        ReportManager.log("Loaded HTTP contract replay rules.");
+        return this;
     }
 
     @Override

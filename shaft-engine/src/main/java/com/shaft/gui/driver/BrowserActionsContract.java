@@ -70,6 +70,14 @@ public interface BrowserActionsContract {
 
     BrowserActionsContract clearNetworkInterceptors();
 
+    BrowserActionsContract startContractRecording(String contractFilePath, String... urlContains);
+
+    BrowserActionsContract assertContract(String contractFilePath, String... urlContains);
+
+    BrowserActionsContract verifyContract(String contractFilePath, String... urlContains);
+
+    BrowserActionsContract replayContract(String contractFilePath);
+
     BrowserActionsContract fullScreenWindow();
 
     BrowserActionsContract switchToWindow(String nameOrHandle);

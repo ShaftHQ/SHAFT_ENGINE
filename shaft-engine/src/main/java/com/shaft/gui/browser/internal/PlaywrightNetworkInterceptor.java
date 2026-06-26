@@ -4,6 +4,7 @@ import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Request;
 import com.microsoft.playwright.Route;
+import com.shaft.tools.io.internal.HttpContractRecorder;
 import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
 import org.openqa.selenium.remote.http.Contents;
@@ -25,6 +26,7 @@ public class PlaywrightNetworkInterceptor {
     private final BrowserContext browserContext;
     private final List<BrowserNetworkInterceptionRule> rules = new CopyOnWriteArrayList<>();
     private AutoCloseable activeRoute;
+    private boolean observing;
 
     /**
      * Creates a Playwright network interceptor backed by BrowserContext routing.
@@ -48,28 +50,51 @@ public class PlaywrightNetworkInterceptor {
     }
 
     /**
+     * Starts passive network observation for contract recording or validation.
+     */
+    public synchronized void startObserving() {
+        observing = true;
+        if (activeRoute == null) {
+            activeRoute = browserContext.route(ALL_REQUESTS, this::handle);
+        }
+    }
+
+    /**
      * Clears all registered rules and removes the Playwright route handler.
      */
     public synchronized void clear() {
         rules.clear();
-        closeActiveRoute();
+        if (!observing) {
+            closeActiveRoute();
+        }
     }
 
     private void handle(Route route) {
         HttpRequest request = toSeleniumRequest(route.request());
         BrowserNetworkInterceptionRule rule = findMatchingRule(request);
-        if (rule == null) {
+        boolean contractMode = HttpContractRecorder.isBrowserContractModeActive();
+        if (rule == null && !contractMode) {
             route.resume();
             return;
         }
-        if (rule.mocksResponse()) {
-            route.fulfill(toFulfillOptions(rule.createResponse(request)));
+        if (rule != null && rule.mocksResponse()) {
+            HttpResponse mockedResponse = rule.createResponse(request);
+            HttpContractRecorder.handleBrowserExchange(request, mockedResponse, "");
+            route.fulfill(toFulfillOptions(mockedResponse));
             return;
         }
 
-        APIResponse response = route.fetch();
-        rule.validate(toRestAssuredResponse(response));
-        route.fulfill(new Route.FulfillOptions().setResponse(response));
+        try {
+            APIResponse response = route.fetch();
+            if (rule != null) {
+                rule.validate(toRestAssuredResponse(response));
+            }
+            HttpContractRecorder.handleBrowserExchange(request, toSeleniumResponse(response), "");
+            route.fulfill(new Route.FulfillOptions().setResponse(response));
+        } catch (RuntimeException e) {
+            HttpContractRecorder.handleBrowserExchange(request, null, e.getClass().getSimpleName());
+            throw e;
+        }
     }
 
     private BrowserNetworkInterceptionRule findMatchingRule(HttpRequest request) {
@@ -126,6 +151,13 @@ public class PlaywrightNetworkInterceptor {
             builder.setContentType(contentType);
         }
         return builder.build();
+    }
+
+    private HttpResponse toSeleniumResponse(APIResponse response) {
+        HttpResponse converted = new HttpResponse().setStatus(response.status());
+        response.headers().forEach(converted::addHeader);
+        converted.setContent(Contents.bytes(response.body()));
+        return converted;
     }
 
     private void closeActiveRoute() {
