@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.internal.ReportContext;
 import io.qameta.allure.Allure;
 import io.restassured.filter.Filter;
@@ -82,6 +83,7 @@ public class ShaftRestAssuredFilter implements Filter {
         attachRequest(requestSpec);
         Response response = filterContext.next(requestSpec, responseSpec);
         attachResponse(response, labels(requestSpec));
+        HttpContractRecorder.handleApiExchange(requestSpec, response);
         return response;
     }
 

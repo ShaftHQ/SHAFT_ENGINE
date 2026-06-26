@@ -72,6 +72,26 @@ public interface API extends EngineProperties<API> {
     int openApiCoverageThreshold();
 
     /**
+     * Comma-separated request, response, header, query, or JSON body keys redacted in HTTP contracts.
+     * <p>Property key: {@code shaft.contract.sensitiveKeys}
+     *
+     * @return configured sensitive key fragments
+     */
+    @Key("shaft.contract.sensitiveKeys")
+    @DefaultValue("authorization,cookie,set-cookie,password,passwd,secret,token,api-key,apikey,access-key,accesskey")
+    String contractSensitiveKeys();
+
+    /**
+     * Comma-separated request, response, header, query, or JSON body keys normalized in HTTP contracts.
+     * <p>Property key: {@code shaft.contract.volatileKeys}
+     *
+     * @return configured volatile key names
+     */
+    @Key("shaft.contract.volatileKeys")
+    @DefaultValue("requestId,traceId,spanId,sessionId,nonce,timestamp,createdAt,updatedAt,expiresAt,date,etag")
+    String contractVolatileKeys();
+
+    /**
      * Returns a fluent {@link SetProperty} builder for programmatically overriding API properties.
      *
      * <p>Example:
@@ -149,6 +169,28 @@ public interface API extends EngineProperties<API> {
                 throw new IllegalArgumentException("OpenAPI coverage threshold must be between 0 and 100.");
             }
             setProperty("openapi.coverage.threshold", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the HTTP contract sensitive key list.
+         *
+         * @param value comma-separated key fragments to redact
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty contractSensitiveKeys(String value) {
+            setProperty("shaft.contract.sensitiveKeys", value);
+            return this;
+        }
+
+        /**
+         * Overrides the HTTP contract volatile key list.
+         *
+         * @param value comma-separated key names to normalize
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty contractVolatileKeys(String value) {
+            setProperty("shaft.contract.volatileKeys", value);
             return this;
         }
     }

@@ -18,6 +18,7 @@ import com.shaft.gui.internal.natural.NaturalActionExecutor;
 import com.shaft.gui.internal.natural.PlaywrightNaturalActionExecutor;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.*;
+import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.AppiumDriver;
@@ -758,6 +759,70 @@ public class SHAFT {
          */
         public List<Object> getResponseXMLValueAsList(String xmlPath) {
             return RestActions.getResponseXMLValueAsList(session.getResponse(), xmlPath);
+        }
+    }
+
+    /**
+     * Controls current-thread HTTP contract recording and validation for browser and API traffic.
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * SHAFT.Contracts.startRecording("src/test/resources/contracts/checkout.json", "/api/checkout");
+     * api.post("/api/checkout").setRequestBody(order).perform();
+     * SHAFT.Contracts.stopRecording();
+     *
+     * SHAFT.Contracts.startAssertMode("src/test/resources/contracts/checkout.json");
+     * api.post("/api/checkout").setRequestBody(order).perform();
+     * SHAFT.Contracts.stopValidation();
+     * }</pre>
+     */
+    public static class Contracts {
+        private Contracts() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        /**
+         * Starts recording selected browser and SHAFT API HTTP traffic for the current thread.
+         *
+         * @param contractFilePath destination JSON contract path
+         * @param urlContains optional URL fragments used to select recorded traffic
+         */
+        public static void startRecording(String contractFilePath, String... urlContains) {
+            HttpContractRecorder.startRecording(contractFilePath, urlContains);
+        }
+
+        /**
+         * Writes the recorded HTTP contract and clears recording mode for the current thread.
+         */
+        public static void stopRecording() {
+            HttpContractRecorder.stopRecording();
+        }
+
+        /**
+         * Starts hard-assert validation against a recorded HTTP contract for the current thread.
+         *
+         * @param contractFilePath source JSON contract path
+         * @param urlContains optional URL fragments used to select validated traffic
+         */
+        public static void startAssertMode(String contractFilePath, String... urlContains) {
+            HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
+        }
+
+        /**
+         * Starts soft-verify validation against a recorded HTTP contract for the current thread.
+         *
+         * @param contractFilePath source JSON contract path
+         * @param urlContains optional URL fragments used to select validated traffic
+         */
+        public static void startVerifyMode(String contractFilePath, String... urlContains) {
+            HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
+        }
+
+        /**
+         * Clears HTTP contract validation mode for the current thread.
+         */
+        public static void stopValidation() {
+            HttpContractRecorder.stopValidation();
         }
     }
 
