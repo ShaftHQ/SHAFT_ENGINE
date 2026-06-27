@@ -214,7 +214,8 @@ public final class CaptureCli {
                 enrichmentMode,
                 preview,
                 options.flag("approve-enrichment"),
-                approval));
+                approval,
+                options.flag("enable-fallback-locators")));
         print(result);
         return result.successful() ? 0 : 1;
     }
@@ -415,6 +416,7 @@ public final class CaptureCli {
                 + "checkpoint --description <text> [--kind USER_MARKER|ASSERTION|PAGE_TRANSITION|RECOVERY] | "
                 + "generate --session <capture.json> [--output-dir <path>] [--package <name>] "
                 + "[--class-name <name>] [--overwrite] [--skip-compile] [--replay] "
+                + "[--enable-fallback-locators] "
                 + "[--replay-timeout-seconds <seconds>] [--ai-preview --allow-local-ai|--allow-remote-ai] "
                 + "[--enrichment-preview <path>] "
                 + "[--apply-enrichment <path> --approve-enrichment] | features";
@@ -477,6 +479,7 @@ public final class CaptureCli {
                         "overwrite",
                         "skip-compile",
                         "replay",
+                        "enable-fallback-locators",
                         "ai-preview",
                         "approve-enrichment",
                         "allow-local-ai",

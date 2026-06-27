@@ -195,6 +195,28 @@ class CaptureGeneratorTest {
     }
 
     @Test
+    void fallbackLocatorReplayOptionGeneratesSharedHelperAndRankedCandidates() throws Exception {
+        Path session = session(CaptureFixtures.representativeSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                session, temp.resolve("fallback-replay"), "generated.capture", "", false,
+                true, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll(), true));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("private static final By[] USERNAME_INPUT_LOCATOR_FALLBACKS"));
+        assertTrue(source.contains("USERNAME_INPUT_LOCATOR,"));
+        assertTrue(source.contains("By.cssSelector(\"form input:nth-child(1)\")"));
+        assertTrue(source.contains("captureReplayLocator(\"username-input\", USERNAME_INPUT_LOCATOR"));
+        assertTrue(source.contains("SHAFT.Report.log(\"Capture fallback locator used for \" + logicalElementId"));
+        assertTrue(source.contains(", true, \"input\", \"Username\")"));
+        assertTrue(source.contains("matchesCaptureTarget(candidate, expectedTagName, expectedAccessibleName"));
+    }
+
+    @Test
     void deterministicReviewFlagsGeneratedCodeRisks() throws Exception {
         ExternalTestDataReference card = new ExternalTestDataReference(
                 "data.card",
