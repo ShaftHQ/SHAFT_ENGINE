@@ -732,27 +732,36 @@ public final class CaptureGenerator {
         line(source, "    @Test");
         line(source, "    public void " + methodName + "() throws Exception {");
         Map<Long, List<Checkpoint>> checkpoints = checkpoints(session.checkpoints());
+        List<FlowSegment> flows = flowSegments(session.checkpoints(), session.events(), methodName);
+        Map<Long, FlowSegment> flowsByFirstSequence = flowsByFirstSequence(flows);
+        Set<Long> flowEventSequences = flowEventSequences(flows);
         Map<Long, List<CaptureEnrichmentPreview.AssertionSuggestion>> assertions =
                 extraAssertions(extraAssertions);
         Map<Long, CaptureEvent> eventsBySequence = new HashMap<>();
         session.events().forEach(event -> eventsBySequence.put(event.context().sequence(), event));
         for (CaptureEvent event : session.events()) {
-            renderEvent(source, event, targets, elementNames, data, backend, fallbackReplay);
-            for (Checkpoint checkpoint : checkpoints.getOrDefault(event.context().sequence(), List.of())) {
-                String description = checkpoint.description().isBlank()
-                        ? ""
-                        : " " + safeComment(checkpoint.description());
-                line(source, "        // Recorded checkpoint " + safeComment(checkpoint.id())
-                        + " (" + checkpoint.kind() + ")." + description);
+            FlowSegment flow = flowsByFirstSequence.get(event.context().sequence());
+            if (flow != null) {
+                line(source, "        " + flow.methodName() + "();");
+                continue;
             }
-            for (CaptureEnrichmentPreview.AssertionSuggestion assertion :
-                    assertions.getOrDefault(event.context().sequence(), List.of())) {
-                renderSuggestedAssertion(source, eventsBySequence.get(assertion.eventSequence()),
-                        assertion, targets, elementNames, backend, fallbackReplay);
+            if (flowEventSequences.contains(event.context().sequence())) {
+                continue;
             }
+            renderEventWithAnnotations(source, event, targets, elementNames, data, backend, fallbackReplay,
+                    checkpoints, assertions, eventsBySequence);
         }
         line(source, "    }");
         line(source, "");
+        for (FlowSegment flow : flows) {
+            line(source, "    private void " + flow.methodName() + "() throws Exception {");
+            for (CaptureEvent event : flow.events()) {
+                renderEventWithAnnotations(source, event, targets, elementNames, data, backend, fallbackReplay,
+                        checkpoints, assertions, eventsBySequence);
+            }
+            line(source, "    }");
+            line(source, "");
+        }
         if (fallbackReplay) {
             renderFallbackHelper(source);
         }
@@ -780,6 +789,35 @@ public final class CaptureGenerator {
         line(source, "    }");
         line(source, "}");
         return source.toString();
+    }
+
+    private static void renderEventWithAnnotations(
+            StringBuilder source,
+            CaptureEvent event,
+            List<TargetPlan> targets,
+            Map<String, String> elementNames,
+            DataPlan data,
+            CodegenBackend backend,
+            boolean fallbackReplay,
+            Map<Long, List<Checkpoint>> checkpoints,
+            Map<Long, List<CaptureEnrichmentPreview.AssertionSuggestion>> assertions,
+            Map<Long, CaptureEvent> eventsBySequence) {
+        renderEvent(source, event, targets, elementNames, data, backend, fallbackReplay);
+        for (Checkpoint checkpoint : checkpoints.getOrDefault(event.context().sequence(), List.of())) {
+            if (flowBoundary(checkpoint)) {
+                continue;
+            }
+            String description = checkpoint.description().isBlank()
+                    ? ""
+                    : " " + safeComment(checkpoint.description());
+            line(source, "        // Recorded checkpoint " + safeComment(checkpoint.id())
+                    + " (" + checkpoint.kind() + ")." + description);
+        }
+        for (CaptureEnrichmentPreview.AssertionSuggestion assertion :
+                assertions.getOrDefault(event.context().sequence(), List.of())) {
+            renderSuggestedAssertion(source, eventsBySequence.get(assertion.eventSequence()),
+                    assertion, targets, elementNames, backend, fallbackReplay);
+        }
     }
 
     private static void renderEvent(
@@ -1899,6 +1937,72 @@ public final class CaptureGenerator {
         return result;
     }
 
+    private static List<FlowSegment> flowSegments(
+            List<Checkpoint> checkpoints,
+            List<CaptureEvent> events,
+            String testMethodName) {
+        List<FlowSegment> flows = new ArrayList<>();
+        Set<String> usedNames = new HashSet<>(Set.of(
+                testMethodName,
+                "setUp",
+                "tearDown",
+                "requiredData",
+                "requiredEnvironment",
+                "captureReplayLocator",
+                "matchesCaptureTarget"));
+        Checkpoint open = null;
+        for (Checkpoint checkpoint : checkpoints) {
+            if (checkpoint.kind() == Checkpoint.CheckpointKind.FLOW_START) {
+                open = checkpoint;
+            } else if (checkpoint.kind() == Checkpoint.CheckpointKind.FLOW_END && open != null) {
+                Checkpoint start = open;
+                List<CaptureEvent> flowEvents = events.stream()
+                        .filter(event -> event.context().sequence() > start.sequence())
+                        .filter(event -> event.context().sequence() <= checkpoint.sequence())
+                        .toList();
+                if (!flowEvents.isEmpty()) {
+                    String name = flowName(open);
+                    flows.add(new FlowSegment(
+                            uniqueFlowMethodName(name, usedNames),
+                            flowEvents));
+                }
+                open = null;
+            }
+        }
+        return List.copyOf(flows);
+    }
+
+    private static Map<Long, FlowSegment> flowsByFirstSequence(List<FlowSegment> flows) {
+        Map<Long, FlowSegment> result = new HashMap<>();
+        flows.forEach(flow -> result.put(flow.events().getFirst().context().sequence(), flow));
+        return result;
+    }
+
+    private static Set<Long> flowEventSequences(List<FlowSegment> flows) {
+        Set<Long> result = new HashSet<>();
+        flows.forEach(flow -> flow.events().forEach(event -> result.add(event.context().sequence())));
+        return result;
+    }
+
+    private static boolean flowBoundary(Checkpoint checkpoint) {
+        return checkpoint.kind() == Checkpoint.CheckpointKind.FLOW_START
+                || checkpoint.kind() == Checkpoint.CheckpointKind.FLOW_END;
+    }
+
+    private static String flowName(Checkpoint checkpoint) {
+        return checkpoint.description().isBlank() ? "captured flow" : checkpoint.description();
+    }
+
+    private static String uniqueFlowMethodName(String name, Set<String> used) {
+        String base = javaMethodName(name);
+        String candidate = base;
+        int suffix = 2;
+        while (!used.add(candidate)) {
+            candidate = base + suffix++;
+        }
+        return candidate;
+    }
+
     private static Map<Long, List<CaptureEnrichmentPreview.AssertionSuggestion>> extraAssertions(
             List<CaptureEnrichmentPreview.AssertionSuggestion> assertions) {
         Map<Long, List<CaptureEnrichmentPreview.AssertionSuggestion>> result = new TreeMap<>();
@@ -1927,6 +2031,11 @@ public final class CaptureGenerator {
             result.insert(0, "Capture");
         }
         return result.toString();
+    }
+
+    private static String javaMethodName(String value) {
+        String className = javaClassName(value);
+        return Character.toLowerCase(className.charAt(0)) + className.substring(1);
     }
 
     private static String constantName(String value) {
@@ -2115,6 +2224,11 @@ public final class CaptureGenerator {
             EventContext context,
             LocatorRanker.LocatorSelection selection,
             List<String> eventIds) {
+    }
+
+    private record FlowSegment(
+            String methodName,
+            List<CaptureEvent> events) {
     }
 
     private static final class MutableTargetPlan {

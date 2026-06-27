@@ -24,7 +24,9 @@ public record Checkpoint(
         USER_MARKER,
         ASSERTION,
         PAGE_TRANSITION,
-        RECOVERY
+        RECOVERY,
+        FLOW_START,
+        FLOW_END
     }
 
     /**

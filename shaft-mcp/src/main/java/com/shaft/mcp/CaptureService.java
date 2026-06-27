@@ -198,7 +198,8 @@ public class CaptureService {
      * @return safe recorder status
      */
     @Tool(name = "capture_checkpoint",
-            description = "records a USER_MARKER, ASSERTION, PAGE_TRANSITION, or RECOVERY checkpoint")
+            description = "records a USER_MARKER, ASSERTION, PAGE_TRANSITION, RECOVERY, "
+                    + "FLOW_START, or FLOW_END checkpoint")
     public CaptureStatus checkpoint(String description, String kind) {
         Checkpoint.CheckpointKind checkpointKind = kind == null || kind.isBlank()
                 ? Checkpoint.CheckpointKind.USER_MARKER

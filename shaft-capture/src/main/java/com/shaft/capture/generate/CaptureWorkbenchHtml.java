@@ -101,7 +101,7 @@ final class CaptureWorkbenchHtml {
                       <h2>Checkpoint</h2>
                       <div class="grid">
                         <div><label for="checkpointText">Description</label><input id="checkpointText" value="assert the current page state"></div>
-                        <div><label for="checkpointKind">Kind</label><select id="checkpointKind"><option>USER_MARKER</option><option>ASSERTION</option><option>PAGE_TRANSITION</option><option>RECOVERY</option></select></div>
+                        <div><label for="checkpointKind">Kind</label><select id="checkpointKind"><option>USER_MARKER</option><option>ASSERTION</option><option>PAGE_TRANSITION</option><option>RECOVERY</option><option>FLOW_START</option><option>FLOW_END</option></select></div>
                       </div>
                       <button type="button" onclick="checkpointCommand()">Build checkpoint command</button>
                       <pre id="checkpointOut">capture checkpoint --description "assert the current page state" --kind USER_MARKER</pre>
