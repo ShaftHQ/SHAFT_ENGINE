@@ -282,6 +282,23 @@ public class AllureManagerUnitTest {
         }
     }
 
+    @Test(description = "openAllureReport should skip the OS opener when automatic opening is disabled")
+    public void openAllureReportShouldRespectAutomaticOpenToggle() throws Exception {
+        Method openAllureReport = AllureManager.class.getDeclaredMethod("openAllureReport", String.class);
+        openAllureReport.setAccessible(true);
+
+        String originalAutomaticallyOpen = String.valueOf(SHAFT.Properties.allure.automaticallyOpen());
+        try {
+            SHAFT.Properties.allure.set().automaticallyOpen(false);
+
+            Object openRequested = openAllureReport.invoke(null, "missing-AllureReport.html");
+
+            SHAFT.Validations.assertThat().object(openRequested).isEqualTo(false).perform();
+        } finally {
+            SHAFT.Properties.allure.set().automaticallyOpen(Boolean.parseBoolean(originalAutomaticallyOpen));
+        }
+    }
+
     @Test(description = "extractSemVerFromText should parse SemVer-like versions and return null when absent")
     public void extractSemVerFromTextShouldParseExpectedPatterns() throws Exception {
         Method extractorMethod = AllureManager.class.getDeclaredMethod("extractSemVerFromText", String.class);
