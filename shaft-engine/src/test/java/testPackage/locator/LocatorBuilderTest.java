@@ -148,7 +148,7 @@ public class LocatorBuilderTest {
     }
 
     @Test
-    public void containsClass_insideShadowDom() {
+    public void containsClassInsideShadowDom() {
         By shadowHost = By.id("shadow-host");
         By locator = Locator.hasTagName("span")
                 .containsClass("wrapper")
@@ -158,7 +158,7 @@ public class LocatorBuilderTest {
     }
 
     @Test
-    public void containsAttribute_insideShadowDom() {
+    public void containsAttributeInsideShadowDom() {
         By shadowHost = By.id("shadow-host");
         By locator = Locator.hasTagName("input")
                 .containsAttribute("name", "shadow")
