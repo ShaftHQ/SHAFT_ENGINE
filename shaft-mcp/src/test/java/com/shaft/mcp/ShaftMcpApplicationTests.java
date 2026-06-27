@@ -56,6 +56,7 @@ class ShaftMcpApplicationTests {
         assertTrue(toolNames.contains("capture_generate_replay"));
         assertTrue(toolNames.contains("capture_checkpoint"));
         assertTrue(toolNames.contains("browser_get_page_dom"));
+        assertTrue(toolNames.contains("browser_open_intent"));
         assertTrue(toolNames.contains("browser_take_screenshot"));
         assertTrue(toolNames.contains("playwright_initialize"));
         assertTrue(toolNames.contains("playwright_browser_get_page_dom"));

@@ -149,6 +149,46 @@ class McpServiceHelperTest {
     }
 
     @Test
+    void browserIntentHelperRanksLocatorCandidatesFromDomIntent() {
+        String dom = """
+                <html>
+                  <body>
+                    <form aria-label="Login">
+                      <label for="email">Email</label>
+                      <input id="email" name="email" placeholder="Email address">
+                      <button id="submit-login" aria-label="Sign in">Sign in</button>
+                      <a href="/help">Help</a>
+                    </form>
+                  </body>
+                </html>
+                """;
+
+        Map<String, Object> result = BrowserService.orientPage(
+                "https://example.test/login",
+                "Login",
+                dom,
+                "click sign in",
+                5_000,
+                5);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> candidate = ((List<Map<String, Object>>) result.get("elements")).getFirst();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> bestLocator = (Map<String, Object>) candidate.get("bestLocator");
+
+        assertEquals("click sign in", result.get("userIntent"));
+        assertEquals("button", candidate.get("tagName"));
+        assertEquals("Sign in", candidate.get("accessibleName"));
+        assertEquals("ROLE", bestLocator.get("strategy"));
+        assertTrue(String.valueOf(candidate.get("shaftLocatorCode"))
+                .contains("SHAFT.GUI.Locator.clickableField(\"Sign in\")"));
+        @SuppressWarnings("unchecked")
+        List<String> nextTools = (List<String>) result.get("nextTools");
+        assertTrue(nextTools.contains("element_click"));
+        assertTrue(nextTools.contains("natural_act"));
+    }
+
+    @Test
     void elementHelperMethodsHandleNullAndMixedTextValues() throws Exception {
         assertEquals(0, invokeStatic(
                 ElementService.class,
