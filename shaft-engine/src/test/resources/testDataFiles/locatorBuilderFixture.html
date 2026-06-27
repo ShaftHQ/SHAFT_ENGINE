@@ -47,6 +47,18 @@
     </section>
 
     <p>Ready to transform your test automation?</p>
+
+    <section>
+        <div id="shadow-host"></div>
+        <script>
+            const host = document.getElementById('shadow-host');
+            const shadow = host.attachShadow({ mode: 'open' });
+            shadow.innerHTML = `
+                <span class="wrapper">Shadow content</span>
+                <input type="text" name="shadow-input" value="shadow-value" />
+            `;
+        </script>
+    </section>
 </main>
 </body>
 </html>

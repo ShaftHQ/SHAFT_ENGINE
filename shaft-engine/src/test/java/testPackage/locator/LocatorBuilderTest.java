@@ -146,4 +146,24 @@ public class LocatorBuilderTest {
         By locator = Locator.hasRole(Role.TEXTBOX).and().byRelation().toRightOf(Locator.hasTagName("label").containsText("# Tests to be automated:").build());
         driver.get().assertThat().element(locator).attribute("value").isEqualTo("100").perform();
     }
+
+    @Test
+    public void containsClassInsideShadowDom() {
+        By shadowHost = By.id("shadow-host");
+        By locator = Locator.hasTagName("span")
+                .containsClass("wrapper")
+                .insideShadowDom(shadowHost)
+                .build();
+        driver.get().assertThat().element(locator).text().contains("Shadow content").perform();
+    }
+
+    @Test
+    public void containsAttributeInsideShadowDom() {
+        By shadowHost = By.id("shadow-host");
+        By locator = Locator.hasTagName("input")
+                .containsAttribute("name", "shadow")
+                .insideShadowDom(shadowHost)
+                .build();
+        driver.get().assertThat().element(locator).attribute("value").isEqualTo("shadow-value").perform();
+    }
 }
