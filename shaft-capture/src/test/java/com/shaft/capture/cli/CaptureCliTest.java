@@ -31,7 +31,8 @@ class CaptureCliTest {
                         "--runtime-dir", temp.toString(),
                         "--session", "capture.json",
                         "--headless",
-                        "--replay"
+                        "--replay",
+                        "--enable-fallback-locators"
                 });
 
         assertEquals(temp.toString(), invoke(
@@ -61,6 +62,11 @@ class CaptureCliTest {
                 "flag",
                 new Class<?>[] {String.class},
                 "headless"));
+        assertEquals(true, invoke(
+                options,
+                "flag",
+                new Class<?>[] {String.class},
+                "enable-fallback-locators"));
 
         InvocationTargetException missingValue = assertThrows(InvocationTargetException.class,
                 () -> invokeStatic(
@@ -127,6 +133,7 @@ class CaptureCliTest {
         assertFalse(token.contains("="));
         assertTrue(usage.contains("capture start"));
         assertTrue(usage.contains("features"));
+        assertTrue(usage.contains("--enable-fallback-locators"));
         assertEquals("operation failed.", fallbackMessage);
         assertTrue(running);
         assertEquals(12L, parsed);

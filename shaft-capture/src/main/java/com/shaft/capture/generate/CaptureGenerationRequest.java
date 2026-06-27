@@ -20,6 +20,7 @@ import java.time.Duration;
  * @param enrichmentPreviewPath preview path to write or apply
  * @param enrichmentApproved whether a reviewed preview may be applied
  * @param aiApprovalPolicy explicit evidence and processing-location approval for preview generation
+ * @param fallbackLocators whether generated WebDriver replay should try captured fallback locators
  */
 public record CaptureGenerationRequest(
         Path sessionPath,
@@ -33,7 +34,8 @@ public record CaptureGenerationRequest(
         EnrichmentMode enrichmentMode,
         Path enrichmentPreviewPath,
         boolean enrichmentApproved,
-        ApprovalPolicy aiApprovalPolicy) {
+        ApprovalPolicy aiApprovalPolicy,
+        boolean fallbackLocators) {
     /**
      * AI enrichment lifecycle.
      */
@@ -71,6 +73,39 @@ public record CaptureGenerationRequest(
     }
 
     /**
+     * Compatibility constructor with fallback locator replay disabled.
+     *
+     * @param sessionPath persisted Capture session
+     * @param outputDirectory generated project root
+     * @param packageName generated Java package
+     * @param className optional generated class name
+     * @param overwrite whether existing generated artifacts may be replaced
+     * @param compile whether to compile the generated source
+     * @param replay whether to execute the compiled TestNG test
+     * @param replayTimeout maximum replay duration
+     * @param enrichmentMode optional AI enrichment phase
+     * @param enrichmentPreviewPath preview path to write or apply
+     * @param enrichmentApproved whether a reviewed preview may be applied
+     * @param aiApprovalPolicy explicit evidence and processing-location approval for preview generation
+     */
+    public CaptureGenerationRequest(
+            Path sessionPath,
+            Path outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            boolean compile,
+            boolean replay,
+            Duration replayTimeout,
+            EnrichmentMode enrichmentMode,
+            Path enrichmentPreviewPath,
+            boolean enrichmentApproved,
+            ApprovalPolicy aiApprovalPolicy) {
+        this(sessionPath, outputDirectory, packageName, className, overwrite, compile, replay, replayTimeout,
+                enrichmentMode, enrichmentPreviewPath, enrichmentApproved, aiApprovalPolicy, false);
+    }
+
+    /**
      * Creates deterministic defaults for one session.
      *
      * @param sessionPath persisted session
@@ -89,6 +124,7 @@ public record CaptureGenerationRequest(
                 EnrichmentMode.NONE,
                 null,
                 false,
-                ApprovalPolicy.denyAll());
+                ApprovalPolicy.denyAll(),
+                false);
     }
 }

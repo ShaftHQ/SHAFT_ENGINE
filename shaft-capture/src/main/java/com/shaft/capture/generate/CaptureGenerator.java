@@ -141,7 +141,8 @@ public final class CaptureGenerator {
             GenerationState state = analyze(session, sessionPath, targetBackend);
             Map<String, String> elementNames = defaultElementNames(state.targets());
             String deterministicSource = renderSource(session, request.packageName(), deterministicClassName,
-                    deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend);
+                    deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend,
+                    request.fallbackLocators());
             String fingerprint = fingerprint(codec.write(session), deterministicSource);
 
             CaptureGenerationReport.Enrichment enrichment = CaptureGenerationReport.Enrichment.notRequested();
@@ -202,7 +203,8 @@ public final class CaptureGenerator {
                 paths = artifactPaths(outputRoot, request.packageName(), className);
             }
             String source = renderSource(session, request.packageName(), className, methodName,
-                    state.targets(), state.data(), finalElementNames, appliedProposal.assertions(), targetBackend);
+                    state.targets(), state.data(), finalElementNames, appliedProposal.assertions(), targetBackend,
+                    request.fallbackLocators());
             String dataJson = writeJson(state.data().root());
 
             List<String> privacy = new ArrayList<>();
@@ -660,7 +662,9 @@ public final class CaptureGenerator {
             DataPlan data,
             Map<String, String> elementNames,
             List<CaptureEnrichmentPreview.AssertionSuggestion> extraAssertions,
-            CodegenBackend backend) {
+            CodegenBackend backend,
+            boolean fallbackLocators) {
+        boolean fallbackReplay = fallbackLocators && backend == CodegenBackend.WEBDRIVER;
         StringBuilder source = new StringBuilder();
         line(source, "package " + packageName + ";");
         line(source, "");
@@ -674,6 +678,9 @@ public final class CaptureGenerator {
         line(source, "import com.shaft.gui.internal.locator.Role;");
         line(source, "import org.openqa.selenium.By;");
         line(source, "import org.openqa.selenium.Keys;");
+        if (fallbackReplay) {
+            line(source, "import org.openqa.selenium.WebElement;");
+        }
         line(source, "import org.openqa.selenium.WindowType;");
         if (backend == CodegenBackend.WEBDRIVER) {
             line(source, "import org.openqa.selenium.support.ui.ExpectedConditions;");
@@ -684,12 +691,18 @@ public final class CaptureGenerator {
         line(source, "");
         line(source, "import java.nio.file.Path;");
         line(source, "import java.util.HashMap;");
+        if (fallbackReplay) {
+            line(source, "import java.util.List;");
+        }
         line(source, "import java.util.Map;");
         line(source, "");
         line(source, "public class " + className + " {");
         for (TargetPlan target : targets) {
             line(source, "    private static final By " + elementNames.get(target.logicalElementId()) + " = "
                     + locatorExpression(target) + ";");
+            if (fallbackReplay) {
+                renderFallbackCandidates(source, target, elementNames.get(target.logicalElementId()));
+            }
         }
         if (!targets.isEmpty()) {
             line(source, "");
@@ -724,7 +737,7 @@ public final class CaptureGenerator {
         Map<Long, CaptureEvent> eventsBySequence = new HashMap<>();
         session.events().forEach(event -> eventsBySequence.put(event.context().sequence(), event));
         for (CaptureEvent event : session.events()) {
-            renderEvent(source, event, targets, elementNames, data, backend);
+            renderEvent(source, event, targets, elementNames, data, backend, fallbackReplay);
             for (Checkpoint checkpoint : checkpoints.getOrDefault(event.context().sequence(), List.of())) {
                 String description = checkpoint.description().isBlank()
                         ? ""
@@ -735,11 +748,14 @@ public final class CaptureGenerator {
             for (CaptureEnrichmentPreview.AssertionSuggestion assertion :
                     assertions.getOrDefault(event.context().sequence(), List.of())) {
                 renderSuggestedAssertion(source, eventsBySequence.get(assertion.eventSequence()),
-                        assertion, targets, elementNames, backend);
+                        assertion, targets, elementNames, backend, fallbackReplay);
             }
         }
         line(source, "    }");
         line(source, "");
+        if (fallbackReplay) {
+            renderFallbackHelper(source);
+        }
         line(source, "    private String requiredData(String key) {");
         line(source, "        String value = testData.getTestData(\"values.\" + key);");
         line(source, "        if (value == null) {");
@@ -772,10 +788,11 @@ public final class CaptureGenerator {
             List<TargetPlan> targets,
             Map<String, String> elementNames,
             DataPlan data,
-            CodegenBackend backend) {
+            CodegenBackend backend,
+            boolean fallbackReplay) {
         String locator = target(event)
-                .map(ElementSnapshot::logicalElementId)
-                .map(elementNames::get)
+                .map(target -> locatorReference(target, elementNames, fallbackReplay,
+                        fallbackReplayApplies(event), fallbackActionable(event)))
                 .orElse("");
         if (event instanceof CaptureEvent.NavigationEvent value) {
             String statement = switch (value.action()) {
@@ -989,21 +1006,25 @@ public final class CaptureGenerator {
             CaptureEnrichmentPreview.AssertionSuggestion suggestion,
             List<TargetPlan> targets,
             Map<String, String> elementNames,
-            CodegenBackend backend) {
+            CodegenBackend backend,
+            boolean fallbackReplay) {
         Optional<ElementSnapshot> target = target(event);
         if (target.isEmpty()) {
             return;
         }
-        String locator = elementNames.get(target.get().logicalElementId());
         CaptureEvent.VerificationKind verification =
                 CaptureEvent.VerificationKind.valueOf(suggestion.verification());
+        String locator = locatorReference(target.get(), elementNames, fallbackReplay, !suggestion.negated(), false);
         renderVerification(source, verification, target.get(), null, suggestion.negated(),
                 event.context(), locator, null, backend);
     }
 
     private static String locatorExpression(TargetPlan plan) {
         LocatorCandidate candidate = plan.selection().selected().candidate();
-        ElementSnapshot target = plan.target();
+        return locatorExpression(plan.target(), candidate);
+    }
+
+    private static String locatorExpression(ElementSnapshot target, LocatorCandidate candidate) {
         String name = !target.accessibleName().isBlank() ? target.accessibleName() : target.label();
         return switch (candidate.strategy()) {
             case ROLE, ACCESSIBLE_NAME, LABEL -> semanticLocator(target, name, candidate);
@@ -1014,6 +1035,99 @@ public final class CaptureGenerator {
                     + javaString(candidate.expression()) + "\").build()";
             case XPATH -> "By.xpath(\"" + javaString(candidate.expression()) + "\")";
         };
+    }
+
+    private static void renderFallbackCandidates(StringBuilder source, TargetPlan target, String locatorName) {
+        List<LocatorCandidate> candidates = fallbackCandidates(target);
+        line(source, "    private static final By[] " + locatorName + "_FALLBACKS = {");
+        for (int index = 0; index < candidates.size(); index++) {
+            String expression = index == 0
+                    ? locatorName
+                    : locatorExpression(target.target(), candidates.get(index));
+            line(source, "            " + expression + (index + 1 == candidates.size() ? "" : ","));
+        }
+        line(source, "    };");
+    }
+
+    private static List<LocatorCandidate> fallbackCandidates(TargetPlan target) {
+        List<LocatorCandidate> candidates = new ArrayList<>();
+        candidates.add(target.selection().selected().candidate());
+        target.selection().alternatives().stream()
+                .map(LocatorRanker.ScoredLocator::candidate)
+                .filter(candidate -> candidate.uniquenessCount() == 1)
+                .filter(candidate -> !candidates.contains(candidate))
+                .forEach(candidates::add);
+        return candidates;
+    }
+
+    private static String locatorReference(
+            ElementSnapshot target,
+            Map<String, String> elementNames,
+            boolean fallbackReplay,
+            boolean useFallback,
+            boolean actionable) {
+        String locator = elementNames.get(target.logicalElementId());
+        if (!fallbackReplay || !useFallback) {
+            return locator;
+        }
+        String name = !target.accessibleName().isBlank() ? target.accessibleName() : target.label();
+        return "captureReplayLocator(\"" + javaString(target.logicalElementId()) + "\", "
+                + locator + ", " + locator + "_FALLBACKS, " + actionable + ", \""
+                + javaString(target.tagName()) + "\", \"" + javaString(name) + "\")";
+    }
+
+    private static boolean fallbackReplayApplies(CaptureEvent event) {
+        if (event instanceof CaptureEvent.WaitEvent value
+                && value.condition() == CaptureEvent.WaitCondition.ELEMENT_ABSENT) {
+            return false;
+        }
+        return !(event instanceof CaptureEvent.VerificationEvent value && value.negated());
+    }
+
+    private static boolean fallbackActionable(CaptureEvent event) {
+        if (interaction(event)) {
+            return true;
+        }
+        return event instanceof CaptureEvent.WaitEvent value
+                && value.condition() == CaptureEvent.WaitCondition.ELEMENT_CLICKABLE;
+    }
+
+    private static void renderFallbackHelper(StringBuilder source) {
+        line(source, "    private By captureReplayLocator(String logicalElementId, By selected, By[] candidates,");
+        line(source, "            boolean actionable, String expectedTagName, String expectedAccessibleName) {");
+        line(source, "        for (By candidate : candidates) {");
+        line(source, "            if (matchesCaptureTarget(candidate, expectedTagName, expectedAccessibleName, actionable)) {");
+        line(source, "                if (!candidate.equals(selected)) {");
+        line(source, "                    SHAFT.Report.log(\"Capture fallback locator used for \" + logicalElementId");
+        line(source, "                            + \": \" + selected + \" -> \" + candidate);");
+        line(source, "                }");
+        line(source, "                return candidate;");
+        line(source, "            }");
+        line(source, "        }");
+        line(source, "        return selected;");
+        line(source, "    }");
+        line(source, "");
+        line(source, "    private boolean matchesCaptureTarget(By candidate, String expectedTagName,");
+        line(source, "            String expectedAccessibleName, boolean actionable) {");
+        line(source, "        try {");
+        line(source, "            List<WebElement> matches = driver.getDriver().findElements(candidate);");
+        line(source, "            if (matches.size() != 1) {");
+        line(source, "                return false;");
+        line(source, "            }");
+        line(source, "            WebElement element = matches.getFirst();");
+        line(source, "            if (!expectedTagName.isBlank() && !expectedTagName.equalsIgnoreCase(element.getTagName())) {");
+        line(source, "                return false;");
+        line(source, "            }");
+        line(source, "            if (!expectedAccessibleName.isBlank()");
+        line(source, "                    && !expectedAccessibleName.equals(element.getAccessibleName())) {");
+        line(source, "                return false;");
+        line(source, "            }");
+        line(source, "            return !actionable || (element.isDisplayed() && element.isEnabled());");
+        line(source, "        } catch (RuntimeException exception) {");
+        line(source, "            return false;");
+        line(source, "        }");
+        line(source, "    }");
+        line(source, "");
     }
 
     private static String semanticLocator(
