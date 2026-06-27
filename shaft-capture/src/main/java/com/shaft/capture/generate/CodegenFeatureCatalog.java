@@ -16,7 +16,7 @@ public final class CodegenFeatureCatalog {
             feature("Recording UI", "Edit captured actions and add checkpoints", "Inspector toolbar",
                     "SUPPORTED", "The live browser overlay records edited action notes and checkpoints into generated code."),
             feature("Recording UI", "Pick locator and refine locator", "Pick Locator",
-                    "SUPPORTED", "Captured locator candidates are ranked and returned in generation reports."),
+                    "SUPPORTED", "The live overlay probes, ranks, and pins locator candidates for code generation."),
             feature("Recording UI", "Assertions: visibility, text, value", "Assert toolbar",
                     "SUPPORTED", "The overlay records point-and-click verification events plus generated review guidance."),
             feature("Recording", "Actions: click and fill/type", "browser interaction",

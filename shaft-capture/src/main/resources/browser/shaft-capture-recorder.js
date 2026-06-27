@@ -29,6 +29,8 @@
     paused: false,
     stopped: false,
     assertionMode: false,
+    locatorMode: false,
+    locatorPreferences: {},
     actions: [],
     nextId: 1,
     lastUrl: String(location.href || ""),
@@ -37,6 +39,10 @@
   uiState.actions = Array.isArray(uiState.actions) ? uiState.actions.slice(-80) : [];
   uiState.nextId = Number(uiState.nextId || uiState.actions.length + 1);
   uiState.assertionMode = Boolean(uiState.assertionMode);
+  uiState.locatorMode = Boolean(uiState.locatorMode);
+  uiState.locatorPreferences = uiState.locatorPreferences && typeof uiState.locatorPreferences === "object"
+    ? uiState.locatorPreferences
+    : {};
   globalThis.__shaftCaptureUiState = uiState;
   const topLevel = (() => {
     try {
@@ -51,6 +57,8 @@
         paused: uiState.paused,
         stopped: uiState.stopped,
         assertionMode: uiState.assertionMode,
+        locatorMode: uiState.locatorMode,
+        locatorPreferences: uiState.locatorPreferences,
         actions: uiState.actions.slice(-80),
         nextId: uiState.nextId,
         lastUrl: uiState.lastUrl
@@ -137,9 +145,11 @@
     pause: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14"></path><path d="M16 5v14"></path></svg>`,
     play: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>`,
     assert: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12.5 2.5 2.5 4.5-6"></path></svg>`,
+    locator: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="M2 12h4"></path><path d="M18 12h4"></path></svg>`,
     checkpoint: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>`,
     stop: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"></path></svg>`,
-    edit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`
+    edit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`,
+    pin: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5"></path><path d="M5 17h14"></path><path d="m8 4 8 8"></path><path d="M7 5l5-3 5 5-3 5Z"></path></svg>`
   })[name] || "";
   const describe = (kind, target, data) => {
     const name = targetName(target);
@@ -175,6 +185,8 @@
       return 0;
     }
   };
+  const isControlElement = element =>
+    Boolean(element && element.closest && element.closest("[data-shaft-capture-control]"));
   const cssPath = element => {
     const parts = [];
     let current = element;
@@ -234,6 +246,114 @@
     add("CSS", generated, generated, false, ["GENERATED", "POSITIONAL"]);
     return result;
   };
+  const locatorStrategyScores = {
+    ROLE: 100,
+    ACCESSIBLE_NAME: 95,
+    LABEL: 90,
+    TEST_ID: 85,
+    ID: 80,
+    NAME: 70,
+    CSS: 50,
+    XPATH: 25
+  };
+  const locatorSignalWeights = {
+    USER_PROVIDED: 500,
+    ACCESSIBLE: 15,
+    LABEL_ASSOCIATED: 12,
+    TEST_ATTRIBUTE: 10,
+    STABLE_ATTRIBUTE: 8,
+    GENERATED: -5,
+    POSITIONAL: -15,
+    DYNAMIC_VALUE: -25
+  };
+  const signed = value => value > 0 ? "+" + value : String(value);
+  const locatorScore = candidate => {
+    const uniqueness = candidate.uniquenessCount === 1
+      ? 30
+      : candidate.uniquenessCount === 0 ? -20 : -10;
+    return (locatorStrategyScores[candidate.strategy] || 0)
+      + uniqueness
+      + (candidate.visible ? 10 : -10)
+      + (candidate.stable ? 10 : -10)
+      + (candidate.signals || []).reduce((total, signal) =>
+        total + (locatorSignalWeights[signal] || 0), 0);
+  };
+  const locatorRationale = candidate => [
+    "strategy " + signed(locatorStrategyScores[candidate.strategy] || 0),
+    "matches " + signed(candidate.uniquenessCount === 1 ? 30 : candidate.uniquenessCount === 0 ? -20 : -10),
+    candidate.visible ? "visible +10" : "hidden -10",
+    candidate.stable ? "stable +10" : "volatile -10",
+    "signals " + signed((candidate.signals || []).reduce((total, signal) =>
+      total + (locatorSignalWeights[signal] || 0), 0))
+  ].join(" | ");
+  const allPageElements = () =>
+    Array.from(document.querySelectorAll("body *")).filter(element => !isControlElement(element));
+  const queryAll = selector => {
+    try {
+      return Array.from(document.querySelectorAll(selector));
+    } catch (ignored) {
+      return null;
+    }
+  };
+  const xpathAll = expression => {
+    try {
+      const result = document.evaluate(expression, document, null,
+        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+      return Array.from({length: result.snapshotLength}, (_, index) => result.snapshotItem(index))
+        .filter(element => element && element.nodeType === Node.ELEMENT_NODE);
+    } catch (ignored) {
+      return null;
+    }
+  };
+  const locatorProbe = candidate => {
+    const expression = candidate.expression;
+    let matches = [];
+    if (candidate.strategy === "CSS" || candidate.strategy === "TEST_ID") {
+      matches = queryAll(expression);
+    } else if (candidate.strategy === "ID") {
+      matches = queryAll("#" + cssEscape(expression));
+    } else if (candidate.strategy === "NAME") {
+      matches = queryAll(`[name="${cssEscape(expression)}"]`);
+    } else if (candidate.strategy === "ROLE") {
+      const separator = expression.indexOf(":");
+      const role = separator < 0 ? expression : expression.slice(0, separator);
+      const name = separator < 0 ? "" : expression.slice(separator + 1);
+      matches = allPageElements().filter(element =>
+        inferredRole(element) === role && (!name || accessibleName(element) === name));
+    } else if (candidate.strategy === "LABEL") {
+      matches = allPageElements().filter(element => label(element) === expression);
+    } else if (candidate.strategy === "ACCESSIBLE_NAME") {
+      matches = allPageElements().filter(element => accessibleName(element) === expression);
+    } else if (candidate.strategy === "XPATH") {
+      matches = xpathAll(expression);
+    }
+    if (matches == null) return {status: "failed", count: 0};
+    const matchingElements = matches.filter(element => !isControlElement(element));
+    if (matchingElements.length === 1) return {status: "unique", count: 1};
+    if (matchingElements.length === 0) return {status: "no match", count: 0};
+    return {status: "multi-match", count: matchingElements.length};
+  };
+  const isPreferredLocator = (logicalElementId, candidate) => {
+    const preference = uiState.locatorPreferences[logicalElementId];
+    return Boolean(preference
+      && preference.strategy === candidate.strategy
+      && preference.expression === candidate.expression);
+  };
+  const withUserProvidedSignal = candidate => ({
+    ...candidate,
+    signals: Array.from(new Set([...(candidate.signals || []), "USER_PROVIDED"]))
+  });
+  const applyLocatorPreference = (logicalElementId, candidates) =>
+    candidates.map(candidate => isPreferredLocator(logicalElementId, candidate)
+      ? withUserProvidedSignal(candidate)
+      : candidate);
+  const withLocatorPreference = (target, candidate) => ({
+    ...target,
+    locators: (target.locators || []).map(item =>
+      item.strategy === candidate.strategy && item.expression === candidate.expression
+        ? withUserProvidedSignal(item)
+        : item)
+  });
   const eventElement = event => {
     const path = event.composedPath ? event.composedPath() : [];
     return path.find(item => item && item.nodeType === Node.ELEMENT_NODE) || event.target;
@@ -241,7 +361,7 @@
   const snapshot = event => {
     const element = eventElement(event);
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
-    if (element.closest && element.closest("[data-shaft-capture-control]")) return null;
+    if (isControlElement(element)) return null;
     const attributes = {};
     ["id", "name", "type", "placeholder", "autocomplete", "data-testid",
       "data-test", "data-qa", "aria-label", "role"].forEach(name => {
@@ -258,6 +378,7 @@
       )
     ) || `${String(element.localName || "element")}-${Math.abs(cssPath(element).split("")
       .reduce((hash, character) => ((hash << 5) - hash) + character.charCodeAt(0), 0))}`;
+    const locatorCandidates = applyLocatorPreference(logical, locators(element));
     return {
       logicalElementId: logical,
       tagName: String(element.localName || "").toLowerCase(),
@@ -265,14 +386,14 @@
       accessibleName: accessibleName(element),
       label: label(element),
       attributes,
-      locators: locators(element),
+      locators: locatorCandidates,
       visible: Boolean(element.getClientRects && element.getClientRects().length),
       enabled: !Boolean(element.disabled),
       selected: Boolean(element.checked || element.selected)
     };
   };
   const emit = (kind, event, data) => {
-    if (uiState.paused || uiState.stopped) return;
+    if (uiState.paused || uiState.stopped || uiState.locatorMode) return;
     const target = snapshot(event);
     if (target) {
       const action = data || {};
@@ -337,9 +458,9 @@
     return text(element && (element.innerText || element.textContent));
   };
   const captureAssertion = event => {
-    if (!uiState.assertionMode || uiState.stopped || uiState.paused) return false;
+    if (!uiState.assertionMode || uiState.locatorMode || uiState.stopped || uiState.paused) return false;
     const element = eventElement(event);
-    if (element && element.closest && element.closest("[data-shaft-capture-control]")) return false;
+    if (isControlElement(element)) return false;
     event.preventDefault();
     event.stopImmediatePropagation();
     const target = snapshot(event);
@@ -507,6 +628,59 @@
         min-width: 0;
         overflow-wrap: anywhere;
       }
+      #shaft-capture-locator-panel {
+        border-top: 1px solid var(--shaft-border);
+        padding: 8px 10px 10px;
+        background: var(--shaft-bg);
+      }
+      #shaft-capture-locator-panel[hidden] { display: none; }
+      #shaft-capture-locator-panel h2 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        line-height: 1.25;
+      }
+      #shaft-capture-locator-panel ol {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      #shaft-capture-locator-panel li {
+        display: grid;
+        grid-template-columns: 1fr 32px;
+        gap: 8px;
+        align-items: start;
+        padding: 7px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 6px;
+        background: var(--shaft-surface);
+      }
+      #shaft-capture-locator-panel li[data-pinned="true"] {
+        border-color: var(--shaft-primary);
+        box-shadow: inset 3px 0 0 var(--shaft-primary);
+      }
+      #shaft-capture-locator-panel .locator-expression,
+      #shaft-capture-locator-panel .locator-meta {
+        display: block;
+        overflow-wrap: anywhere;
+      }
+      #shaft-capture-locator-panel .locator-expression {
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 12px;
+      }
+      #shaft-capture-locator-panel .locator-meta {
+        color: var(--shaft-text-muted);
+        font-size: 12px;
+      }
+      #shaft-capture-locator-highlight {
+        position: fixed;
+        z-index: 2147483646;
+        pointer-events: none;
+        border: 2px solid #006ec0;
+        border-radius: 6px;
+        box-shadow: 0 0 0 3px rgba(0, 110, 192, .2);
+      }
     `;
     (document.head || document.documentElement).appendChild(style);
   };
@@ -514,20 +688,31 @@
     const status = document.getElementById("shaft-capture-status");
     const pause = document.getElementById("shaft-capture-pause");
     const assert = document.getElementById("shaft-capture-assert");
+    const pick = document.getElementById("shaft-capture-pick");
     const stop = document.getElementById("shaft-capture-stop");
-    if (!status || !pause || !assert || !stop) return;
+    if (!status || !pause || !assert || !pick || !stop) return;
+    if ((uiState.stopped || uiState.paused) && uiState.locatorMode) {
+      uiState.locatorMode = false;
+      clearLocatorHighlight();
+      renderLocatorPanel(null);
+      persist();
+    }
     status.textContent = uiState.stopped
       ? "Stopped. Waiting for SHAFT to close the browser."
       : uiState.paused
         ? "Paused. Browser actions are not being captured."
-        : uiState.assertionMode
-          ? "Assertion mode. Click an element to capture a verification."
-          : "Recording browser actions.";
+        : uiState.locatorMode
+          ? "Locator picker active."
+          : uiState.assertionMode
+            ? "Assertion mode. Click an element to capture a verification."
+            : "Recording browser actions.";
     pause.innerHTML = icon(uiState.paused ? "play" : "pause");
     pause.title = uiState.paused ? "Resume recording" : "Pause recording";
     pause.setAttribute("aria-label", pause.title);
     assert.setAttribute("aria-pressed", String(uiState.assertionMode));
-    assert.disabled = uiState.stopped || uiState.paused;
+    assert.disabled = uiState.stopped || uiState.paused || uiState.locatorMode;
+    pick.setAttribute("aria-pressed", String(uiState.locatorMode));
+    pick.disabled = uiState.stopped || uiState.paused;
     stop.disabled = uiState.stopped;
   };
   const editAction = item => {
@@ -559,6 +744,110 @@
     });
     setStatus();
   }
+  const renderLocatorPanel = target => {
+    const panel = document.getElementById("shaft-capture-locator-panel");
+    if (!panel) return;
+    panel.textContent = "";
+    if (!target) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    const heading = document.createElement("h2");
+    heading.textContent = targetName(target);
+    const list = document.createElement("ol");
+    (target.locators || [])
+      .map(candidate => ({
+        candidate,
+        score: locatorScore(candidate),
+        probe: locatorProbe(candidate)
+      }))
+      .sort((left, right) => right.score - left.score
+        || left.candidate.strategy.localeCompare(right.candidate.strategy)
+        || left.candidate.expression.localeCompare(right.candidate.expression))
+      .forEach(item => {
+        const row = document.createElement("li");
+        const pinned = isPreferredLocator(target.logicalElementId, item.candidate);
+        row.dataset.pinned = String(pinned);
+        const body = document.createElement("div");
+        const expression = document.createElement("span");
+        expression.className = "locator-expression";
+        expression.textContent = item.candidate.strategy + " " + item.candidate.expression;
+        const meta = document.createElement("span");
+        meta.className = "locator-meta";
+        meta.textContent = "score " + item.score
+          + " | " + item.probe.status + " (" + item.probe.count + ")"
+          + " | stable " + (item.candidate.stable ? "yes" : "no")
+          + " | " + locatorRationale(item.candidate);
+        body.append(expression, meta);
+        const pin = document.createElement("button");
+        pin.type = "button";
+        pin.innerHTML = icon("pin");
+        pin.title = pinned ? "Pinned locator" : "Pin locator";
+        pin.setAttribute("aria-label", pin.title);
+        pin.disabled = pinned;
+        pin.addEventListener("click", () => pinLocator(target, item.candidate));
+        row.append(body, pin);
+        list.appendChild(row);
+      });
+    panel.append(heading, list);
+  };
+  const clearLocatorHighlight = () => {
+    const highlight = document.getElementById("shaft-capture-locator-highlight");
+    if (highlight) highlight.remove();
+  };
+  const updateLocatorHighlight = element => {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE || isControlElement(element)) {
+      clearLocatorHighlight();
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      clearLocatorHighlight();
+      return;
+    }
+    let highlight = document.getElementById("shaft-capture-locator-highlight");
+    if (!highlight) {
+      highlight = document.createElement("div");
+      highlight.id = "shaft-capture-locator-highlight";
+      highlight.setAttribute("data-shaft-capture-control", "true");
+      document.documentElement.appendChild(highlight);
+    }
+    highlight.style.left = Math.max(0, rect.left) + "px";
+    highlight.style.top = Math.max(0, rect.top) + "px";
+    highlight.style.width = rect.width + "px";
+    highlight.style.height = rect.height + "px";
+  };
+  const pinLocator = (target, candidate) => {
+    uiState.locatorPreferences[target.logicalElementId] = {
+      strategy: candidate.strategy,
+      expression: candidate.expression
+    };
+    const updatedTarget = withLocatorPreference(target, candidate);
+    persist();
+    announce("Pin " + candidate.strategy + " locator for " + targetName(target));
+    send({
+      kind: "locator_preference",
+      page: page(),
+      target: updatedTarget,
+      data: {
+        logicalElementId: target.logicalElementId,
+        strategy: candidate.strategy,
+        expression: candidate.expression
+      }
+    });
+    renderLocatorPanel(updatedTarget);
+  };
+  const captureLocatorPick = event => {
+    if (!uiState.locatorMode || uiState.stopped || uiState.paused) return false;
+    const element = eventElement(event);
+    if (isControlElement(element)) return false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const target = snapshot(event);
+    if (target) renderLocatorPanel(target);
+    return true;
+  };
   const renderPanel = () => {
     if (!document.body || document.getElementById("shaft-capture-ui")) return;
     styles();
@@ -571,16 +860,23 @@
         <strong>SHAFT Capture</strong>
         <button id="shaft-capture-pause" type="button"></button>
         <button id="shaft-capture-assert" type="button" title="Toggle assertion mode" aria-label="Toggle assertion mode" aria-pressed="false">${icon("assert")}</button>
+        <button id="shaft-capture-pick" type="button" title="Toggle locator picker" aria-label="Toggle locator picker" aria-pressed="false">${icon("locator")}</button>
         <button id="shaft-capture-checkpoint" type="button" title="Add checkpoint" aria-label="Add checkpoint">${icon("checkpoint")}</button>
         <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
       </header>
       <div id="shaft-capture-status" class="status-chip"></div>
+      <div id="shaft-capture-locator-panel" hidden></div>
       <div id="shaft-capture-actions"><ol id="shaft-capture-action-list"></ol></div>
     `;
     document.body.appendChild(panel);
     document.getElementById("shaft-capture-pause").addEventListener("click", () => {
       if (uiState.stopped) return;
       uiState.paused = !uiState.paused;
+      if (uiState.paused) {
+        uiState.locatorMode = false;
+        clearLocatorHighlight();
+        renderLocatorPanel(null);
+      }
       persist();
       sendControl(uiState.paused ? "PAUSE" : "RESUME");
       setStatus();
@@ -588,6 +884,23 @@
     document.getElementById("shaft-capture-assert").addEventListener("click", () => {
       if (uiState.stopped || uiState.paused) return;
       uiState.assertionMode = !uiState.assertionMode;
+      if (uiState.assertionMode) {
+        uiState.locatorMode = false;
+        clearLocatorHighlight();
+        renderLocatorPanel(null);
+      }
+      persist();
+      setStatus();
+    });
+    document.getElementById("shaft-capture-pick").addEventListener("click", () => {
+      if (uiState.stopped || uiState.paused) return;
+      uiState.locatorMode = !uiState.locatorMode;
+      if (uiState.locatorMode) {
+        uiState.assertionMode = false;
+      } else {
+        clearLocatorHighlight();
+        renderLocatorPanel(null);
+      }
       persist();
       setStatus();
     });
@@ -615,7 +928,12 @@
     }
   };
 
+  addEventListener("mousemove", event => {
+    if (!uiState.locatorMode || uiState.stopped || uiState.paused) return;
+    updateLocatorHighlight(eventElement(event));
+  }, true);
   addEventListener("click", event => {
+    if (captureLocatorPick(event)) return;
     if (captureAssertion(event)) return;
     const element = event.composedPath ? event.composedPath()[0] : event.target;
     const type = String(element && element.type || "").toLowerCase();
@@ -626,10 +944,13 @@
       clickCount: Number(event.detail || 1)
     });
   }, true);
-  addEventListener("dblclick", event => emit("click", event, {
+  addEventListener("dblclick", event => {
+    if (captureLocatorPick(event)) return;
+    emit("click", event, {
     button: Number(event.button || 0),
     clickCount: 2
-  }), true);
+    });
+  }, true);
   addEventListener("input", event => {
     if (!isTextInput(event.target)) return;
     emit("input", event, {value: String(event.target.value || "")});

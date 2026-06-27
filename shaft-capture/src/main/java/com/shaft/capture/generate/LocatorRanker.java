@@ -102,7 +102,7 @@ public final class LocatorRanker {
         int score = candidate.stable() ? 100 : -80;
         for (LocatorCandidate.LocatorSignal signal : candidate.signals()) {
             score += switch (signal) {
-                case USER_PROVIDED -> 260;
+                case USER_PROVIDED -> 1_000;
                 case ACCESSIBLE -> 50;
                 case LABEL_ASSOCIATED -> 40;
                 case TEST_ATTRIBUTE -> 50;

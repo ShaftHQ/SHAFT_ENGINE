@@ -44,7 +44,7 @@ public record LocatorCandidate(
      * Deterministic evidence signals.
      */
     public enum LocatorSignal {
-        USER_PROVIDED(25),
+        USER_PROVIDED(500),
         ACCESSIBLE(15),
         LABEL_ASSOCIATED(12),
         TEST_ATTRIBUTE(10),
