@@ -68,6 +68,50 @@ class CaptureServiceTest {
     }
 
     @Test
+    void recordAtTargetCodeBlocksReturnFocusedInsertionBlocksInsideWorkspace() throws Exception {
+        Path session = temp.resolve("capture.json");
+        new CaptureJsonCodec().write(session, reviewWarningSession());
+        Path target = temp.resolve("CheckoutTest.java");
+        Files.writeString(target, """
+                package tests;
+
+                import com.shaft.driver.SHAFT;
+
+                public class CheckoutTest {
+                    private SHAFT.GUI.WebDriver browser;
+
+                    public void replayCheckout() {
+                        browser.browser().navigateToURL("https://example.test");
+                    }
+                }
+                """);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.recordAtTargetCodeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-target").toString(),
+                    "generated.capture",
+                    "GoldenSessionTest",
+                    false,
+                    target.toString(),
+                    "replayCheckout",
+                    "browser");
+        } finally {
+            service.close();
+        }
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("capture-target-insertion-guide")
+                        && block.code().contains("record-at-target")));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("capture-target-action-snippet")
+                        && block.placement().contains("after replayCheckout")));
+    }
+
+    @Test
     void playwrightCodeBlocksToolGeneratesPlaywrightPomGuidanceInsideWorkspace() throws Exception {
         Path session = temp.resolve("capture.json");
         Files.copy(repositoryRoot().resolve(

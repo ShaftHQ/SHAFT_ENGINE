@@ -332,6 +332,50 @@ public class CaptureService {
     }
 
     /**
+     * Generates focused record-at-target code blocks for an existing Java source anchor.
+     *
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param outputDirectory generated project root inside the MCP workspace
+     * @param packageName generated Java package
+     * @param className optional generated class name
+     * @param overwrite whether existing artifacts may be replaced
+     * @param targetSourcePath existing Java source path inside the MCP workspace
+     * @param insertAfter method name or textual anchor to insert after
+     * @param driverVariableName Java driver variable name used in extracted snippets
+     * @return generated snippets and report
+     */
+    @Tool(name = "capture_record_at_target_code_blocks",
+            description = "generates focused Capture snippets for insertion at an existing Java source anchor")
+    public McpCaptureReplayResult recordAtTargetCodeBlocks(
+            String sessionPath,
+            String outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            String targetSourcePath,
+            String insertAfter,
+            String driverVariableName) {
+        CaptureGenerationResult result = generateInternal(
+                sessionPath,
+                outputDirectory,
+                packageName,
+                className,
+                overwrite,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                CodegenBackend.WEBDRIVER);
+        return replayResult(
+                result,
+                driverVariableName,
+                workspacePolicy.existing(targetSourcePath, "Capture target source path"),
+                insertAfter);
+    }
+
+    /**
      * Generates deterministic copy-paste SHAFT Playwright code blocks from a persisted Capture session.
      *
      * @param sessionPath persisted Capture JSON path inside the MCP workspace
@@ -468,8 +512,17 @@ public class CaptureService {
     }
 
     private McpCaptureReplayResult replayResult(CaptureGenerationResult result, String driverVariableName) {
+        return replayResult(result, driverVariableName, null, "");
+    }
+
+    private McpCaptureReplayResult replayResult(
+            CaptureGenerationResult result,
+            String driverVariableName,
+            Path targetSource,
+            String insertAfter) {
         var blocks = result.successful() && result.sourcePath() != null
-                ? codeBlocks.fromGeneratedSource(result.sourcePath(), driverVariableName, result.report())
+                ? codeBlocks.fromGeneratedSource(
+                        result.sourcePath(), driverVariableName, result.report(), targetSource, insertAfter)
                 : java.util.List.<McpCodeBlock>of();
         return new McpCaptureReplayResult(
                 result.sourcePath(),

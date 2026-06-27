@@ -9,6 +9,8 @@ import com.shaft.capture.control.CaptureControlServer;
 import com.shaft.capture.generate.CaptureGenerationRequest;
 import com.shaft.capture.generate.CaptureGenerationResult;
 import com.shaft.capture.generate.CaptureGenerator;
+import com.shaft.capture.generate.CaptureTargetInsertionPlan;
+import com.shaft.capture.generate.CaptureTargetInsertionPlanner;
 import com.shaft.capture.generate.CodegenFeatureCatalog;
 import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.Checkpoint;
@@ -216,7 +218,23 @@ public final class CaptureCli {
                 options.flag("approve-enrichment"),
                 approval,
                 options.flag("enable-fallback-locators")));
-        print(result);
+        if (options.values().containsKey("target-source") || options.values().containsKey("insert-after")) {
+            if (!options.values().containsKey("target-source") || !options.values().containsKey("insert-after")) {
+                throw new IllegalArgumentException(
+                        "Capture record-at-target requires both --target-source and --insert-after.");
+            }
+            CaptureTargetInsertionPlan insertion = result.successful()
+                    ? new CaptureTargetInsertionPlanner().plan(
+                            result.sourcePath(),
+                            options.pathRequired("target-source"),
+                            options.required("insert-after"),
+                            options.value("driver-variable", "driver"))
+                    : null;
+            printJson(new CaptureGenerateAtTargetResult(result, insertion),
+                    "Capture record-at-target result could not be serialized.");
+        } else {
+            print(result);
+        }
         return result.successful() ? 0 : 1;
     }
 
@@ -417,6 +435,7 @@ public final class CaptureCli {
                 + "generate --session <capture.json> [--output-dir <path>] [--package <name>] "
                 + "[--class-name <name>] [--overwrite] [--skip-compile] [--replay] "
                 + "[--enable-fallback-locators] "
+                + "[--target-source <path> --insert-after <anchor> [--driver-variable <name>]] "
                 + "[--replay-timeout-seconds <seconds>] [--ai-preview --allow-local-ai|--allow-remote-ai] "
                 + "[--enrichment-preview <path>] "
                 + "[--apply-enrichment <path> --approve-enrichment] | features";
@@ -522,5 +541,10 @@ public final class CaptureCli {
         private boolean flag(String name) {
             return flags.contains(name);
         }
+    }
+
+    private record CaptureGenerateAtTargetResult(
+            CaptureGenerationResult generation,
+            CaptureTargetInsertionPlan insertion) {
     }
 }

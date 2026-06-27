@@ -1,6 +1,8 @@
 package com.shaft.mcp;
 
 import com.shaft.capture.generate.CaptureGenerationReport;
+import com.shaft.capture.generate.CaptureTargetInsertionPlan;
+import com.shaft.capture.generate.CaptureTargetInsertionPlanner;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -54,6 +56,25 @@ final class McpCaptureCodeBlockService {
             Path sourcePath,
             String driverVariableName,
             CaptureGenerationReport report) {
+        return fromGeneratedSource(sourcePath, driverVariableName, report, null, "");
+    }
+
+    /**
+     * Extracts generated code blocks plus focused record-at-target snippets.
+     *
+     * @param sourcePath generated Java source
+     * @param driverVariableName desired driver variable name for method snippets
+     * @param report optional structured generation report
+     * @param targetSource existing Java source selected by the user
+     * @param insertAfter method name or textual anchor to insert after
+     * @return MCP code blocks
+     */
+    List<McpCodeBlock> fromGeneratedSource(
+            Path sourcePath,
+            String driverVariableName,
+            CaptureGenerationReport report,
+            Path targetSource,
+            String insertAfter) {
         try {
             String source = Files.readString(sourcePath, StandardCharsets.UTF_8);
             List<String> imports = imports(source);
@@ -97,11 +118,70 @@ final class McpCaptureCodeBlockService {
             } else {
                 blocks.add(manualMappingWarningBlock());
             }
+            if (targetSource != null || (insertAfter != null && !insertAfter.isBlank())) {
+                blocks.addAll(targetInsertionBlocks(sourcePath, targetSource, insertAfter, driver));
+            }
             blocks.add(agentIntegrationBlock());
             return List.copyOf(blocks);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Generated Capture source could not be read.", exception);
         }
+    }
+
+    private static List<McpCodeBlock> targetInsertionBlocks(
+            Path sourcePath,
+            Path targetSource,
+            String insertAfter,
+            String driver) {
+        CaptureTargetInsertionPlan plan = new CaptureTargetInsertionPlanner()
+                .plan(sourcePath, targetSource, insertAfter, driver);
+        List<McpCodeBlock> blocks = new ArrayList<>();
+        if (!plan.locatorFields().isBlank()) {
+            blocks.add(new McpCodeBlock(
+                    "capture-target-locator-fields",
+                    "Record-at-target locator fields",
+                    McpCodeBlock.Kind.LOCATOR,
+                    "java",
+                    plan.imports(),
+                    plan.locatorFields(),
+                    "Paste into " + plan.targetSource().getFileName()
+                            + " near the existing locator fields before adding the action snippet.",
+                    plan.anchorFound(),
+                    List.of(),
+                    plan.warnings()));
+        }
+        if (!plan.actionSnippet().isBlank()) {
+            blocks.add(new McpCodeBlock(
+                    "capture-target-action-snippet",
+                    "Record-at-target action snippet",
+                    McpCodeBlock.Kind.ACTION,
+                    "java",
+                    List.of(),
+                    plan.actionSnippet(),
+                    plan.placement(),
+                    plan.anchorFound(),
+                    List.of(),
+                    plan.warnings()));
+        }
+        blocks.add(new McpCodeBlock(
+                "capture-target-insertion-guide",
+                "Record-at-target insertion guide",
+                McpCodeBlock.Kind.PROVIDER_ADVISORY,
+                "text",
+                List.of(),
+                """
+                        record-at-target insertion map
+                        Target source: %s
+                        Insert after: %s
+                        Add imports and locator fields from capture-target-locator-fields when the target class does not already define them.
+                        Paste capture-target-action-snippet at the anchor, then adapt helper/data calls to local suite conventions.
+                        No source file was edited by this workflow.
+                        """.formatted(plan.targetSource(), plan.insertAfter()),
+                "Use these blocks as an approved edit plan for the selected source target.",
+                plan.anchorFound(),
+                List.of(),
+                plan.warnings()));
+        return blocks;
     }
 
     private static McpCodeBlock agentIntegrationBlock() {
