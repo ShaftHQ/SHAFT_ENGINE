@@ -32,7 +32,9 @@ class CaptureCliTest {
                         "--session", "capture.json",
                         "--headless",
                         "--replay",
-                        "--enable-fallback-locators"
+                        "--enable-fallback-locators",
+                        "--control-flow-preview",
+                        "--apply-control-flow-preview", "approved-preview.json"
                 });
 
         assertEquals(temp.toString(), invoke(
@@ -67,6 +69,16 @@ class CaptureCliTest {
                 "flag",
                 new Class<?>[] {String.class},
                 "enable-fallback-locators"));
+        assertEquals(true, invoke(
+                options,
+                "flag",
+                new Class<?>[] {String.class},
+                "control-flow-preview"));
+        assertEquals(Path.of("approved-preview.json"), invoke(
+                options,
+                "pathRequired",
+                new Class<?>[] {String.class},
+                "apply-control-flow-preview"));
 
         InvocationTargetException missingValue = assertThrows(InvocationTargetException.class,
                 () -> invokeStatic(
@@ -136,6 +148,8 @@ class CaptureCliTest {
         assertTrue(usage.contains("--enable-fallback-locators"));
         assertTrue(usage.contains("--target-source"));
         assertTrue(usage.contains("--insert-after"));
+        assertTrue(usage.contains("--control-flow-preview"));
+        assertTrue(usage.contains("--apply-control-flow-preview"));
         assertTrue(usage.contains("FLOW_START"));
         assertEquals("operation failed.", fallbackMessage);
         assertTrue(running);

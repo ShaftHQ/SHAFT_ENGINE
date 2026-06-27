@@ -21,6 +21,8 @@ import java.time.Duration;
  * @param enrichmentApproved whether a reviewed preview may be applied
  * @param aiApprovalPolicy explicit evidence and processing-location approval for preview generation
  * @param fallbackLocators whether generated WebDriver replay should try captured fallback locators
+ * @param controlFlowMode deterministic control-flow suggestion lifecycle
+ * @param controlFlowPreviewPath control-flow preview path to write or apply
  */
 public record CaptureGenerationRequest(
         Path sessionPath,
@@ -35,11 +37,22 @@ public record CaptureGenerationRequest(
         Path enrichmentPreviewPath,
         boolean enrichmentApproved,
         ApprovalPolicy aiApprovalPolicy,
-        boolean fallbackLocators) {
+        boolean fallbackLocators,
+        ControlFlowMode controlFlowMode,
+        Path controlFlowPreviewPath) {
     /**
      * AI enrichment lifecycle.
      */
     public enum EnrichmentMode {
+        NONE,
+        PREVIEW,
+        APPLY
+    }
+
+    /**
+     * Deterministic control-flow suggestion lifecycle.
+     */
+    public enum ControlFlowMode {
         NONE,
         PREVIEW,
         APPLY
@@ -67,9 +80,49 @@ public record CaptureGenerationRequest(
                 ? outputDirectory.resolve("target/shaft-capture/enrichment-preview.json")
                 : enrichmentPreviewPath;
         aiApprovalPolicy = aiApprovalPolicy == null ? ApprovalPolicy.denyAll() : aiApprovalPolicy;
+        controlFlowMode = controlFlowMode == null ? ControlFlowMode.NONE : controlFlowMode;
+        controlFlowPreviewPath = controlFlowPreviewPath == null
+                ? outputDirectory.resolve("target/shaft-capture/control-flow-preview.json")
+                : controlFlowPreviewPath;
         if (enrichmentMode == EnrichmentMode.APPLY && !enrichmentApproved) {
             throw new IllegalArgumentException("Applying AI enrichment requires explicit approval.");
         }
+    }
+
+    /**
+     * Compatibility constructor with control-flow suggestions disabled.
+     *
+     * @param sessionPath persisted Capture session
+     * @param outputDirectory generated project root
+     * @param packageName generated Java package
+     * @param className optional generated class name
+     * @param overwrite whether existing generated artifacts may be replaced
+     * @param compile whether to compile the generated source
+     * @param replay whether to execute the compiled TestNG test
+     * @param replayTimeout maximum replay duration
+     * @param enrichmentMode optional AI enrichment phase
+     * @param enrichmentPreviewPath preview path to write or apply
+     * @param enrichmentApproved whether a reviewed preview may be applied
+     * @param aiApprovalPolicy explicit evidence and processing-location approval for preview generation
+     * @param fallbackLocators whether generated WebDriver replay should try captured fallback locators
+     */
+    public CaptureGenerationRequest(
+            Path sessionPath,
+            Path outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            boolean compile,
+            boolean replay,
+            Duration replayTimeout,
+            EnrichmentMode enrichmentMode,
+            Path enrichmentPreviewPath,
+            boolean enrichmentApproved,
+            ApprovalPolicy aiApprovalPolicy,
+            boolean fallbackLocators) {
+        this(sessionPath, outputDirectory, packageName, className, overwrite, compile, replay, replayTimeout,
+                enrichmentMode, enrichmentPreviewPath, enrichmentApproved, aiApprovalPolicy, fallbackLocators,
+                ControlFlowMode.NONE, null);
     }
 
     /**
@@ -102,7 +155,8 @@ public record CaptureGenerationRequest(
             boolean enrichmentApproved,
             ApprovalPolicy aiApprovalPolicy) {
         this(sessionPath, outputDirectory, packageName, className, overwrite, compile, replay, replayTimeout,
-                enrichmentMode, enrichmentPreviewPath, enrichmentApproved, aiApprovalPolicy, false);
+                enrichmentMode, enrichmentPreviewPath, enrichmentApproved, aiApprovalPolicy, false,
+                ControlFlowMode.NONE, null);
     }
 
     /**
@@ -125,6 +179,8 @@ public record CaptureGenerationRequest(
                 null,
                 false,
                 ApprovalPolicy.denyAll(),
-                false);
+                false,
+                ControlFlowMode.NONE,
+                null);
     }
 }

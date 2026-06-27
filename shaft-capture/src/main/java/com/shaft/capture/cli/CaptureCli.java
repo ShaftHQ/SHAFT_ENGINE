@@ -197,6 +197,15 @@ public final class CaptureCli {
                 ? options.pathRequired("apply-enrichment")
                 : options.path("enrichment-preview",
                 output.resolve("target/shaft-capture/enrichment-preview.json"));
+        CaptureGenerationRequest.ControlFlowMode controlFlowMode =
+                options.values().containsKey("apply-control-flow-preview")
+                        ? CaptureGenerationRequest.ControlFlowMode.APPLY
+                        : options.flag("control-flow-preview")
+                        ? CaptureGenerationRequest.ControlFlowMode.PREVIEW
+                        : CaptureGenerationRequest.ControlFlowMode.NONE;
+        Path controlFlowPreview = controlFlowMode == CaptureGenerationRequest.ControlFlowMode.APPLY
+                ? options.pathRequired("apply-control-flow-preview")
+                : output.resolve("target/shaft-capture/control-flow-preview.json");
         ApprovalPolicy approval = new ApprovalPolicy(
                 options.flag("allow-local-ai"),
                 options.flag("allow-remote-ai"),
@@ -217,7 +226,9 @@ public final class CaptureCli {
                 preview,
                 options.flag("approve-enrichment"),
                 approval,
-                options.flag("enable-fallback-locators")));
+                options.flag("enable-fallback-locators"),
+                controlFlowMode,
+                controlFlowPreview));
         if (options.values().containsKey("target-source") || options.values().containsKey("insert-after")) {
             if (!options.values().containsKey("target-source") || !options.values().containsKey("insert-after")) {
                 throw new IllegalArgumentException(
@@ -436,6 +447,7 @@ public final class CaptureCli {
                 + "generate --session <capture.json> [--output-dir <path>] [--package <name>] "
                 + "[--class-name <name>] [--overwrite] [--skip-compile] [--replay] "
                 + "[--enable-fallback-locators] "
+                + "[--control-flow-preview] [--apply-control-flow-preview <path>] "
                 + "[--target-source <path> --insert-after <anchor> [--driver-variable <name>]] "
                 + "[--replay-timeout-seconds <seconds>] [--ai-preview --allow-local-ai|--allow-remote-ai] "
                 + "[--enrichment-preview <path>] "
@@ -500,6 +512,7 @@ public final class CaptureCli {
                         "skip-compile",
                         "replay",
                         "enable-fallback-locators",
+                        "control-flow-preview",
                         "ai-preview",
                         "approve-enrichment",
                         "allow-local-ai",

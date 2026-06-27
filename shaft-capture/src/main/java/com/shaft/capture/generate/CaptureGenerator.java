@@ -142,8 +142,29 @@ public final class CaptureGenerator {
             Map<String, String> elementNames = defaultElementNames(state.targets());
             String deterministicSource = renderSource(session, request.packageName(), deterministicClassName,
                     deterministicMethodName, state.targets(), state.data(), elementNames, List.of(), targetBackend,
-                    request.fallbackLocators());
+                    request.fallbackLocators(), Set.of());
             String fingerprint = fingerprint(codec.write(session), deterministicSource);
+            Set<Long> appliedControlFlowGuards = Set.of();
+            if (request.controlFlowMode() == CaptureGenerationRequest.ControlFlowMode.PREVIEW) {
+                writeControlFlowPreview(
+                        request.controlFlowPreviewPath().toAbsolutePath().normalize(),
+                        new CaptureControlFlowPreview(
+                                CaptureControlFlowPreview.CURRENT_SCHEMA_VERSION,
+                                session.sessionId(),
+                                fingerprint,
+                                state.controlFlow()),
+                        request.overwrite());
+            } else if (request.controlFlowMode() == CaptureGenerationRequest.ControlFlowMode.APPLY) {
+                CaptureControlFlowPreview preview = readControlFlowPreview(request.controlFlowPreviewPath());
+                List<String> controlFlowErrors = validateControlFlowPreview(preview, session.sessionId(), fingerprint,
+                        state.controlFlow());
+                if (!controlFlowErrors.isEmpty()) {
+                    state.unsupported().addAll(controlFlowErrors);
+                } else {
+                    appliedControlFlowGuards = approvedOptionalGuardSequences(preview);
+                    state = state.withControlFlow(appliedControlFlow(state.controlFlow(), appliedControlFlowGuards));
+                }
+            }
 
             CaptureGenerationReport.Enrichment enrichment = CaptureGenerationReport.Enrichment.notRequested();
             CaptureEnrichmentPreview.Proposal appliedProposal = CaptureEnrichmentPreview.Proposal.empty();
@@ -204,7 +225,7 @@ public final class CaptureGenerator {
             }
             String source = renderSource(session, request.packageName(), className, methodName,
                     state.targets(), state.data(), finalElementNames, appliedProposal.assertions(), targetBackend,
-                    request.fallbackLocators());
+                    request.fallbackLocators(), appliedControlFlowGuards);
             String dataJson = writeJson(state.data().root());
 
             List<String> privacy = new ArrayList<>();
@@ -376,6 +397,8 @@ public final class CaptureGenerator {
         warnings.addAll(missingAssertionWarnings(session, verificationSequences));
         warnings.addAll(waitReviewWarnings(session.events()));
         warnings.addAll(testDataReviewWarnings(data.references()));
+        List<CaptureGenerationReport.ControlFlowSuggestion> controlFlow =
+                controlFlowSuggestions(session.events(), session.checkpoints());
         if (session.status() != CaptureSession.SessionStatus.COMPLETED) {
             warnings.add("The source Capture session is incomplete.");
         }
@@ -389,6 +412,7 @@ public final class CaptureGenerator {
                 unsupported,
                 flaky,
                 fallback,
+                controlFlow,
                 required,
                 warnings);
     }
@@ -593,6 +617,148 @@ public final class CaptureGenerator {
         return warnings;
     }
 
+    private static List<CaptureGenerationReport.ControlFlowSuggestion> controlFlowSuggestions(
+            List<CaptureEvent> events,
+            List<Checkpoint> checkpoints) {
+        Map<String, CaptureGenerationReport.ControlFlowSuggestion> suggestions = new LinkedHashMap<>();
+        repeatedGroupSuggestion(events).ifPresent(suggestion -> suggestions.put(suggestion.id(), suggestion));
+        for (CaptureEvent event : events) {
+            if (optionalCloseClick(event)) {
+                CaptureGenerationReport.ControlFlowSuggestion suggestion = suggestion(
+                        "control-flow-optional-guard-" + event.context().sequence(),
+                        CaptureGenerationReport.ControlFlowKind.OPTIONAL_GUARD,
+                        List.of(eventId(event)),
+                        "Optional modal or banner close action can be guarded without changing the default replay.",
+                        "Review the preview, then apply it to wrap this close action in an if-displayed guard.");
+                suggestions.put(suggestion.id(), suggestion);
+            }
+        }
+        for (int index = 0; index + 1 < events.size(); index++) {
+            CaptureEvent event = events.get(index);
+            if (event.context().replayStatus() == EventContext.ReplayStatus.FAILED
+                    || event.context().replayStatus() == EventContext.ReplayStatus.SKIPPED) {
+                CaptureGenerationReport.ControlFlowSuggestion suggestion = suggestion(
+                        "control-flow-recovery-" + event.context().sequence(),
+                        CaptureGenerationReport.ControlFlowKind.RECOVERY_REVIEW,
+                        List.of(eventId(event), eventId(events.get(index + 1))),
+                        "A recorded failed or skipped action is followed by another step that may be recovery logic.",
+                        "Review the follow-up step manually before turning it into generated control flow.");
+                suggestions.put(suggestion.id(), suggestion);
+            }
+        }
+        for (Checkpoint checkpoint : checkpoints) {
+            if (checkpoint.kind() == Checkpoint.CheckpointKind.RECOVERY) {
+                CaptureGenerationReport.ControlFlowSuggestion suggestion = suggestion(
+                        "control-flow-recovery-checkpoint-" + checkpoint.id(),
+                        CaptureGenerationReport.ControlFlowKind.RECOVERY_REVIEW,
+                        List.of("checkpoint-" + checkpoint.id()),
+                        "A RECOVERY checkpoint marks this section as manual-review control flow.",
+                        "Review the marked recovery path before adding generated branching.");
+                suggestions.put(suggestion.id(), suggestion);
+            }
+        }
+        return List.copyOf(suggestions.values());
+    }
+
+    private static Optional<CaptureGenerationReport.ControlFlowSuggestion> repeatedGroupSuggestion(
+            List<CaptureEvent> events) {
+        int maxLength = Math.min(5, events.size() / 2);
+        for (int length = maxLength; length >= 2; length--) {
+            for (int start = 0; start + length * 2 <= events.size(); start++) {
+                List<String> first = eventSignatures(events.subList(start, start + length));
+                List<String> second = eventSignatures(events.subList(start + length, start + length * 2));
+                if (first.equals(second)) {
+                    List<String> evidence = events.subList(start, start + length * 2).stream()
+                            .map(CaptureGenerator::eventId)
+                            .toList();
+                    return Optional.of(suggestion(
+                            "control-flow-repeat-" + events.get(start).context().sequence() + "-" + length,
+                            CaptureGenerationReport.ControlFlowKind.REPEATED_GROUP,
+                            evidence,
+                            "Repeated " + length + "-step action group detected with identical recorded steps.",
+                            "Approve only if this should become a helper method or loop; otherwise keep replay linear."));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static List<String> eventSignatures(List<CaptureEvent> events) {
+        return events.stream().map(CaptureGenerator::eventSignature).toList();
+    }
+
+    private static String eventSignature(CaptureEvent event) {
+        String target = target(event).map(ElementSnapshot::logicalElementId).orElse("");
+        if (event instanceof CaptureEvent.ClickEvent value) {
+            return "click:" + target + ":" + value.button() + ":" + value.clickCount();
+        }
+        if (event instanceof CaptureEvent.TypeEvent value) {
+            return "type:" + target + ":" + value.value().id();
+        }
+        if (event instanceof CaptureEvent.ClearEvent) {
+            return "clear:" + target;
+        }
+        if (event instanceof CaptureEvent.SelectEvent value) {
+            return "select:" + target + ":" + value.mode() + ":" + value.value().id();
+        }
+        if (event instanceof CaptureEvent.ToggleEvent value) {
+            return "toggle:" + target + ":" + value.checked();
+        }
+        if (event instanceof CaptureEvent.UploadEvent value) {
+            return "upload:" + target + ":" + value.file().id();
+        }
+        if (event instanceof CaptureEvent.KeyboardEvent value) {
+            return "keyboard:" + target + ":" + String.join("+", value.keys());
+        }
+        if (event instanceof CaptureEvent.NavigationEvent value) {
+            return "navigation:" + value.action() + ":" + value.targetUrl();
+        }
+        if (event instanceof CaptureEvent.WaitEvent value) {
+            return "wait:" + target + ":" + value.condition();
+        }
+        if (event instanceof CaptureEvent.VerificationEvent value) {
+            return "verification:" + target + ":" + value.verification() + ":" + value.negated();
+        }
+        return event.getClass().getSimpleName() + ":" + target;
+    }
+
+    private static boolean optionalCloseClick(CaptureEvent event) {
+        return event instanceof CaptureEvent.ClickEvent value
+                && value.button() == CaptureEvent.MouseButton.PRIMARY
+                && value.clickCount() == 1
+                && looksLikeOptionalClose(value.target());
+    }
+
+    private static boolean looksLikeOptionalClose(ElementSnapshot target) {
+        String text = (target.logicalElementId() + " " + target.accessibleName() + " " + target.label() + " "
+                + String.join(" ", target.normalizedAttributes().values())).toLowerCase(Locale.ROOT);
+        boolean closeAction = text.contains("close")
+                || text.contains("dismiss")
+                || text.contains("accept cookie")
+                || text.contains("accept all")
+                || text.contains("got it")
+                || text.contains("no thanks");
+        boolean optionalSurface = text.contains("cookie")
+                || text.contains("banner")
+                || text.contains("modal")
+                || text.contains("dialog")
+                || text.contains("overlay")
+                || text.contains("popup")
+                || text.contains("toast")
+                || text.contains("consent");
+        return closeAction && (optionalSurface || "button".equals(target.role()));
+    }
+
+    private static CaptureGenerationReport.ControlFlowSuggestion suggestion(
+            String id,
+            CaptureGenerationReport.ControlFlowKind kind,
+            List<String> evidenceIds,
+            String summary,
+            String recommendation) {
+        return new CaptureGenerationReport.ControlFlowSuggestion(
+                id, kind, evidenceIds, summary, recommendation, false);
+    }
+
     private static boolean isAbsoluteXpath(String value) {
         String locator = value == null ? "" : value.trim();
         return (locator.startsWith("/") && !locator.startsWith("//")) || locator.startsWith("(/");
@@ -663,7 +829,8 @@ public final class CaptureGenerator {
             Map<String, String> elementNames,
             List<CaptureEnrichmentPreview.AssertionSuggestion> extraAssertions,
             CodegenBackend backend,
-            boolean fallbackLocators) {
+            boolean fallbackLocators,
+            Set<Long> optionalGuardSequences) {
         boolean fallbackReplay = fallbackLocators && backend == CodegenBackend.WEBDRIVER;
         StringBuilder source = new StringBuilder();
         line(source, "package " + packageName + ";");
@@ -749,7 +916,7 @@ public final class CaptureGenerator {
                 continue;
             }
             renderEventWithAnnotations(source, event, targets, elementNames, data, backend, fallbackReplay,
-                    checkpoints, assertions, eventsBySequence);
+                    optionalGuardSequences, checkpoints, assertions, eventsBySequence);
         }
         line(source, "    }");
         line(source, "");
@@ -757,13 +924,16 @@ public final class CaptureGenerator {
             line(source, "    private void " + flow.methodName() + "() throws Exception {");
             for (CaptureEvent event : flow.events()) {
                 renderEventWithAnnotations(source, event, targets, elementNames, data, backend, fallbackReplay,
-                        checkpoints, assertions, eventsBySequence);
+                        optionalGuardSequences, checkpoints, assertions, eventsBySequence);
             }
             line(source, "    }");
             line(source, "");
         }
         if (fallbackReplay) {
             renderFallbackHelper(source);
+        }
+        if (!optionalGuardSequences.isEmpty()) {
+            renderOptionalGuardHelper(source, backend);
         }
         line(source, "    private String requiredData(String key) {");
         line(source, "        String value = testData.getTestData(\"values.\" + key);");
@@ -799,10 +969,16 @@ public final class CaptureGenerator {
             DataPlan data,
             CodegenBackend backend,
             boolean fallbackReplay,
+            Set<Long> optionalGuardSequences,
             Map<Long, List<Checkpoint>> checkpoints,
             Map<Long, List<CaptureEnrichmentPreview.AssertionSuggestion>> assertions,
             Map<Long, CaptureEvent> eventsBySequence) {
-        renderEvent(source, event, targets, elementNames, data, backend, fallbackReplay);
+        if (optionalGuardSequences.contains(event.context().sequence())
+                && event instanceof CaptureEvent.ClickEvent value) {
+            renderOptionalGuardedClick(source, value, elementNames, fallbackReplay);
+        } else {
+            renderEvent(source, event, targets, elementNames, data, backend, fallbackReplay);
+        }
         for (Checkpoint checkpoint : checkpoints.getOrDefault(event.context().sequence(), List.of())) {
             if (flowBoundary(checkpoint)) {
                 continue;
@@ -888,6 +1064,19 @@ public final class CaptureGenerator {
             renderVerification(source, value.verification(), value.target(), value.expected(),
                     value.negated(), value.context(), locator, data, backend);
         }
+    }
+
+    private static void renderOptionalGuardedClick(
+            StringBuilder source,
+            CaptureEvent.ClickEvent value,
+            Map<String, String> elementNames,
+            boolean fallbackReplay) {
+        String locator = locatorReference(value.target(), elementNames, fallbackReplay, true, true);
+        line(source, "        if (isCaptureElementDisplayed(" + locator + ")) {");
+        line(source, "            driver.element()."
+                + (value.clickCount() == 2 ? "doubleClick" : "click")
+                + "(" + locator + ");");
+        line(source, "        }");
     }
 
     private static void renderWindow(StringBuilder source, CaptureEvent.WindowEvent value, CodegenBackend backend) {
@@ -1168,6 +1357,22 @@ public final class CaptureGenerator {
         line(source, "");
     }
 
+    private static void renderOptionalGuardHelper(StringBuilder source, CodegenBackend backend) {
+        line(source, "    private boolean isCaptureElementDisplayed(By locator) {");
+        line(source, "        try {");
+        if (backend == CodegenBackend.WEBDRIVER) {
+            line(source, "            return driver.getDriver().findElements(locator).stream()");
+            line(source, "                    .anyMatch(org.openqa.selenium.WebElement::isDisplayed);");
+        } else {
+            line(source, "            return ShaftLocator.from(locator).toPlaywrightLocator(driver.getDriver()).isVisible();");
+        }
+        line(source, "        } catch (RuntimeException exception) {");
+        line(source, "            return false;");
+        line(source, "        }");
+        line(source, "    }");
+        line(source, "");
+    }
+
     private static String semanticLocator(
             ElementSnapshot target,
             String name,
@@ -1321,6 +1526,81 @@ public final class CaptureGenerator {
         }
     }
 
+    private static void writeControlFlowPreview(
+            Path path,
+            CaptureControlFlowPreview preview,
+            boolean overwrite) {
+        ensureWritable(path, overwrite);
+        atomicWrite(path, writeJson(preview));
+    }
+
+    private static CaptureControlFlowPreview readControlFlowPreview(Path path) {
+        try {
+            return JSON.readValue(Files.readString(path, StandardCharsets.UTF_8),
+                    CaptureControlFlowPreview.class);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Control-flow preview could not be read.", exception);
+        }
+    }
+
+    private static List<String> validateControlFlowPreview(
+            CaptureControlFlowPreview preview,
+            String sessionId,
+            String fingerprint,
+            List<CaptureGenerationReport.ControlFlowSuggestion> current) {
+        List<String> errors = new ArrayList<>();
+        if (!CaptureControlFlowPreview.CURRENT_SCHEMA_VERSION.equals(preview.schemaVersion())) {
+            errors.add("Control-flow preview uses an unsupported schema version.");
+        }
+        if (!sessionId.equals(preview.sessionId())) {
+            errors.add("Control-flow preview does not match the Capture session.");
+        }
+        if (!fingerprint.equals(preview.deterministicFingerprint())) {
+            errors.add("Control-flow preview does not match the deterministic source.");
+        }
+        Set<String> currentIds = current.stream()
+                .map(CaptureGenerationReport.ControlFlowSuggestion::id)
+                .collect(java.util.stream.Collectors.toSet());
+        for (CaptureGenerationReport.ControlFlowSuggestion suggestion : preview.suggestions()) {
+            if (!currentIds.contains(suggestion.id())) {
+                errors.add("Control-flow preview references unknown suggestion " + suggestion.id() + ".");
+            }
+        }
+        return List.copyOf(errors);
+    }
+
+    private static Set<Long> approvedOptionalGuardSequences(CaptureControlFlowPreview preview) {
+        Set<Long> sequences = new HashSet<>();
+        for (CaptureGenerationReport.ControlFlowSuggestion suggestion : preview.suggestions()) {
+            if (suggestion.kind() == CaptureGenerationReport.ControlFlowKind.OPTIONAL_GUARD) {
+                suggestion.evidenceIds().stream()
+                        .filter(id -> id.startsWith("event-"))
+                        .map(id -> id.substring("event-".length()))
+                        .map(Long::parseLong)
+                        .forEach(sequences::add);
+            }
+        }
+        return Set.copyOf(sequences);
+    }
+
+    private static List<CaptureGenerationReport.ControlFlowSuggestion> appliedControlFlow(
+            List<CaptureGenerationReport.ControlFlowSuggestion> suggestions,
+            Set<Long> appliedSequences) {
+        List<CaptureGenerationReport.ControlFlowSuggestion> result = new ArrayList<>();
+        for (CaptureGenerationReport.ControlFlowSuggestion suggestion : suggestions) {
+            boolean applied = suggestion.kind() == CaptureGenerationReport.ControlFlowKind.OPTIONAL_GUARD
+                    && suggestion.evidenceIds().stream()
+                    .filter(id -> id.startsWith("event-"))
+                    .map(id -> id.substring("event-".length()))
+                    .map(Long::parseLong)
+                    .anyMatch(appliedSequences::contains);
+            result.add(new CaptureGenerationReport.ControlFlowSuggestion(
+                    suggestion.id(), suggestion.kind(), suggestion.evidenceIds(),
+                    suggestion.summary(), suggestion.recommendation(), applied));
+        }
+        return List.copyOf(result);
+    }
+
     private static CaptureGenerationReport report(
             CaptureSession session,
             ArtifactPaths paths,
@@ -1367,6 +1647,9 @@ public final class CaptureGenerator {
                 state.unsupported().stream().distinct().sorted().toList(),
                 state.flaky().stream().distinct().sorted().toList(),
                 state.fallback().stream().distinct().sorted().toList(),
+                state.controlFlow().stream()
+                        .sorted(Comparator.comparing(CaptureGenerationReport.ControlFlowSuggestion::id))
+                        .toList(),
                 state.required().stream().distinct().sorted().toList(),
                 reportWarnings(paths, state, replay),
                 compilation,
@@ -1379,8 +1662,26 @@ public final class CaptureGenerator {
             GenerationState state,
             CaptureGenerationReport.Validation replay) {
         List<String> warnings = new ArrayList<>(state.warnings());
+        warnings.addAll(controlFlowReviewWarnings(state.controlFlow()));
         warnings.addAll(replayReviewWarnings(paths.root(), paths.source(), replay));
         return warnings.stream().distinct().sorted().toList();
+    }
+
+    private static List<String> controlFlowReviewWarnings(
+            List<CaptureGenerationReport.ControlFlowSuggestion> suggestions) {
+        List<String> warnings = new ArrayList<>();
+        for (CaptureGenerationReport.ControlFlowSuggestion suggestion : suggestions) {
+            String severity = suggestion.kind() == CaptureGenerationReport.ControlFlowKind.RECOVERY_REVIEW
+                    ? "WARNING"
+                    : "INFO";
+            warnings.add(reviewWarning(
+                    "CONTROL_FLOW",
+                    severity,
+                    String.join(",", suggestion.evidenceIds()),
+                    suggestion.summary(),
+                    suggestion.recommendation()));
+        }
+        return warnings;
     }
 
     private static CaptureReadiness reportReadiness(GenerationState state) {
@@ -1491,6 +1792,9 @@ public final class CaptureGenerator {
         if (!report.flakySteps().isEmpty() || !report.fallbackLocators().isEmpty()) {
             suggestions.add("Review weak locator and replay-risk diagnostics.");
         }
+        if (!report.controlFlowSuggestions().isEmpty()) {
+            suggestions.add("Review deterministic control-flow suggestions before applying optional guards.");
+        }
         if (!findings.isEmpty()) {
             suggestions.add("Resolve deterministic generated-code review findings before committing the test.");
         }
@@ -1502,6 +1806,7 @@ public final class CaptureGenerator {
                 - blockers.size() * 25
                 - report.flakySteps().size() * 10
                 - report.fallbackLocators().size() * 5
+                - report.controlFlowSuggestions().size() * 3
                 - report.warnings().size() * 5
                 - findings.size() * 5;
         return new CaptureReview(
@@ -2258,6 +2563,7 @@ public final class CaptureGenerator {
             List<String> unsupported,
             List<String> flaky,
             List<String> fallback,
+            List<CaptureGenerationReport.ControlFlowSuggestion> controlFlow,
             List<String> required,
             List<String> warnings) {
         private static GenerationState failure(String message) {
@@ -2272,13 +2578,21 @@ public final class CaptureGenerator {
                     new ArrayList<>(),
                     new ArrayList<>(),
                     new ArrayList<>(),
+                    new ArrayList<>(),
                     new ArrayList<>());
         }
 
         private GenerationState withUnsupported(List<String> additional) {
             List<String> merged = new ArrayList<>(unsupported);
             merged.addAll(additional);
-            return new GenerationState(targets, data, readiness, merged, flaky, fallback, required, warnings);
+            return new GenerationState(targets, data, readiness, merged, flaky, fallback, controlFlow,
+                    required, warnings);
+        }
+
+        private GenerationState withControlFlow(
+                List<CaptureGenerationReport.ControlFlowSuggestion> suggestions) {
+            return new GenerationState(targets, data, readiness, unsupported, flaky, fallback, suggestions,
+                    required, warnings);
         }
     }
 }
