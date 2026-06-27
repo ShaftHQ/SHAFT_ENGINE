@@ -638,7 +638,7 @@ public class Actions extends ElementActions {
                                 ((JavascriptExecutor) d).executeScript("arguments[0].click();", targetElement);
                                 ReportManager.logDiscrete("Performed Click using JavaScript; If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
                             } else {
-                                // InvalidElementStateException is normally retryable for visibility-aware waits;
+                                // These exceptions are normally retryable for visibility-aware waits;
                                 // when JavaScript fallback is disabled, report the native click failure immediately
                                 // so the original Selenium exception is not replaced by a FluentWait timeout.
                                 throw exception;
@@ -687,14 +687,37 @@ public class Actions extends ElementActions {
                         }
                     }
                     case TYPE, TYPE_SECURELY -> {
-                        executeClearBasedOnClearMode(foundElements.get().getFirst(), SHAFT.Properties.flags.clearBeforeTypingMode());
-                        foundElements.get().getFirst().sendKeys((CharSequence[]) data);
+                        WebElement targetElement = foundElements.get().getFirst();
+                        CharSequence[] text = (CharSequence[]) data;
+                        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+                        String typedText = stringifyTypedValue(text);
+                        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+                        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                                ? readElementValueForTyping(targetElement) + typedText
+                                : typedText;
+                        if (SHAFT.Properties.flags.attemptToClickBeforeTyping() && !"native".equals(clearMode)) {
+                            targetElement.click();
+                        }
+                        executeClearBasedOnClearMode(targetElement, clearMode);
+                        targetElement.sendKeys(text);
+                        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
                     }
                     case TYPE_APPEND -> {
-                        foundElements.get().getFirst().sendKeys((CharSequence[]) data);
+                        WebElement targetElement = foundElements.get().getFirst();
+                        CharSequence[] text = (CharSequence[]) data;
+                        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+                        String expectedText = shouldValidateTypedText
+                                ? readElementValueForTyping(targetElement) + stringifyTypedValue(text)
+                                : "";
+                        targetElement.sendKeys(text);
+                        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
                     }
                     case JAVASCRIPT_SET_VALUE ->
-                            ((JavascriptExecutor) d).executeScript("arguments[0].value = arguments[1];", foundElements.get().getFirst(), data);
+                            ((JavascriptExecutor) d).executeScript("""
+                                    arguments[0].value = arguments[1];
+                                    arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
+                                    arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                                    """, foundElements.get().getFirst(), data);
                     case CLEAR -> {
                         executeClearBasedOnClearMode(foundElements.get().getFirst(), "native");
                         if (!"".equals(foundElements.get().getFirst().getDomProperty("value")))
@@ -1059,6 +1082,49 @@ public class Actions extends ElementActions {
             return text;
         text = element.getDomProperty("innerHTML");
         if (text != null && !text.isEmpty() && !text.contains("<"))
+            return text;
+        return "";
+    }
+
+    private void validateTypedTextIfConfigured(WebElement element, ActionType action, String expectedText, boolean shouldValidateTypedText) {
+        if (!SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly() || !shouldValidateTypedText) {
+            return;
+        }
+        String actualText = readElementValueForTyping(element);
+        if (!expectedText.equals(actualText)) {
+            boolean secure = ActionType.TYPE_SECURELY.equals(action);
+            throw new IllegalStateException("Expected typed text \""
+                    + (secure ? MASKED_TYPED_VALUE : expectedText)
+                    + "\" but found \""
+                    + (secure ? MASKED_TYPED_VALUE : actualText)
+                    + "\".");
+        }
+    }
+
+    private static boolean shouldValidateTypedText(CharSequence[] text) {
+        return !stringifyTypedValue(text).chars().anyMatch(character -> character >= 0xE000 && character <= 0xF8FF);
+    }
+
+    private static String stringifyTypedValue(CharSequence[] text) {
+        if (text == null) {
+            return "";
+        }
+        StringBuilder value = new StringBuilder();
+        for (CharSequence sequence : text) {
+            value.append(sequence == null ? "" : sequence);
+        }
+        return value.toString();
+    }
+
+    private String readElementValueForTyping(WebElement element) {
+        String text = element.getDomProperty("value");
+        if (text != null && !text.isEmpty())
+            return text;
+        text = element.getDomProperty("textContent");
+        if (text != null && !text.isEmpty())
+            return text;
+        text = element.getText();
+        if (text != null && !text.isEmpty())
             return text;
         return "";
     }

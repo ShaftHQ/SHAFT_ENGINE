@@ -24,8 +24,10 @@ import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.By;
+import org.openqa.selenium.ElementClickInterceptedException;
 import org.openqa.selenium.InvalidElementStateException;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Rectangle;
@@ -38,6 +40,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebElement;
 import org.openqa.selenium.support.ui.FluentWait;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.testng.Assert;
@@ -77,6 +80,8 @@ public class ActionsCoverageUnitTest {
         SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
         SHAFT.Properties.flags.set().scrollingMode("legacy");
         SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
+        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
+        SHAFT.Properties.flags.set().attemptToClickBeforeTyping(false);
         SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
         SHAFT.Properties.visuals.set().createAnimatedGif(false);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
@@ -332,6 +337,120 @@ public class ActionsCoverageUnitTest {
     }
 
     @Test
+    public void typingShouldClickBeforeTypingWhenConfigured() {
+        SHAFT.Properties.flags.set()
+                .attemptToClickBeforeTyping(true)
+                .clearBeforeTypingMode("off");
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "typed");
+
+            verify(element).click();
+        }
+    }
+
+    @Test
+    public void typingShouldFailWhenConfiguredTypedTextDoesNotMatchElementValue() {
+        SHAFT.Properties.flags.set()
+                .forceCheckTextWasTypedCorrectly(true)
+                .clearBeforeTypingMode("off");
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty("value")).thenReturn("wrong value");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helperFor(driver)).type(LOCATOR, "expected value"));
+
+            Assert.assertTrue(exception.getMessage().contains("Expected typed text"));
+            Assert.assertTrue(exception.getMessage().contains("expected value"));
+        }
+    }
+
+    @Test
+    public void appendTypingShouldValidateFinalElementValueWhenConfigured() {
+        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty("value")).thenReturn("prefix", "prefix-suffix");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).typeAppend(LOCATOR, "-suffix");
+
+            verify(element).sendKeys(new CharSequence[]{"-suffix"});
+        }
+    }
+
+    @Test
+    public void secureTypingShouldMaskFailedTypedTextVerification() {
+        SHAFT.Properties.flags.set()
+                .forceCheckTextWasTypedCorrectly(true)
+                .clearBeforeTypingMode("off");
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty("value")).thenReturn("wrong value");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helperFor(driver)).typeSecure(LOCATOR, "secret-value"));
+
+            Assert.assertTrue(exception.getMessage().contains("********"));
+            Assert.assertFalse(exception.getMessage().contains("secret-value"));
+        }
+    }
+
+    @Test
+    public void typingValidationShouldSkipSpecialKeys() {
+        SHAFT.Properties.flags.set()
+                .forceCheckTextWasTypedCorrectly(true)
+                .clearBeforeTypingMode("off");
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty("value")).thenReturn("unchanged");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, Keys.ENTER);
+
+            verify(element).sendKeys(new CharSequence[]{Keys.ENTER});
+        }
+    }
+
+    @Test
+    public void setValueUsingJavascriptShouldDispatchInputAndChangeEvents() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+        ArgumentCaptor<String> scripts = ArgumentCaptor.forClass(String.class);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).setValueUsingJavaScript(LOCATOR, "js value");
+
+            verify((JavascriptExecutor) driver, atLeastOnce()).executeScript(scripts.capture(), any(Object[].class));
+            String setValueScript = scripts.getAllValues().stream()
+                    .filter(script -> script.contains("arguments[0].value"))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("Missing JavaScript value assignment"));
+            Assert.assertTrue(setValueScript.contains("dispatchEvent(new Event('input'"));
+            Assert.assertTrue(setValueScript.contains("dispatchEvent(new Event('change'"));
+        }
+    }
+
+    @Test
     public void smartLocatorWrappersShouldDelegateToSmartLocators() {
         WebDriver driver = mock(WebDriver.class);
         try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
@@ -573,6 +692,23 @@ public class ActionsCoverageUnitTest {
         WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
         WebElement element = standardElement();
         doThrow(new InvalidElementStateException("native click blocked")).when(element).click();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).click(LOCATOR);
+            verify((JavascriptExecutor) driver).executeScript(eq("arguments[0].click();"), eq(element));
+        }
+    }
+
+    @Test
+    public void performActionShouldFallbackToJavascriptClickWhenWebDriverClickIsIntercepted() {
+        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        doThrow(new ElementClickInterceptedException("native click intercepted")).when(element).click();
         when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
         when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
         DriverFactoryHelper helper = helperFor(driver);

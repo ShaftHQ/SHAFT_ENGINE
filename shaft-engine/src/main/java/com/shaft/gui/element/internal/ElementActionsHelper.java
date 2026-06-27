@@ -562,24 +562,16 @@ public class ElementActionsHelper {
      * @return {@code true} when the element is clickable; otherwise {@code false}
      */
     public boolean waitForElementToBeClickable(WebDriver driver, By elementLocator, String actionToExecute) {
-        SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails();
-
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                new SynchronizationManager(driver).fluentWait(false)
-                        .until(f -> {
-                            WebElement targetElement = safeFindElement(driver, elementLocator);
-                            return targetElement.isDisplayed() && targetElement.isEnabled();
-                        });
-
                 return new SynchronizationManager(driver).fluentWait(true)
                         .until(f -> {
-                            if (!actionToExecute.isEmpty()) {
-                                if (actionToExecute.equalsIgnoreCase("ClickAndHold")) {
-                                    (new Actions(driver)).clickAndHold(((WebElement) this.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
-                                }
+                            WebElement targetElement = safeFindElement(driver, elementLocator);
+                            boolean clickable = targetElement.isDisplayed() && targetElement.isEnabled();
+                            if (clickable && "ClickAndHold".equalsIgnoreCase(actionToExecute)) {
+                                (new Actions(driver)).clickAndHold(targetElement).build().perform();
                             }
-                            return true;
+                            return clickable;
                         });
             } catch (org.openqa.selenium.TimeoutException e) {
                 ReportManagerHelper.logDiscrete(e);
