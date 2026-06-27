@@ -218,7 +218,7 @@ public class LocatorBuilder {
         StringBuilder cssExpression = new StringBuilder();
         tagName = tagName.equals("*") ? "" : tagName;
         cssExpression.append(tagName);
-        parameters.forEach(parameter -> cssExpression.append(parameter.replace("@", "")));
+        parameters.forEach(parameter -> cssExpression.append(convertXpathParameterToCss(parameter)));
         if (!order.isEmpty()) {
             if (order.matches("[0-9]+")) {
                 order = ":nth-child(" + order + ")";
@@ -234,5 +234,36 @@ public class LocatorBuilder {
     public ShadowLocatorBuilder insideShadowDom(By shadowDomLocator) {
         mode.set(Locators.CSS);
         return new ShadowLocatorBuilder(shadowDomLocator, By.cssSelector(buildSelectorExpression()));
+    }
+
+    /**
+     * Converts an XPath predicate parameter into its CSS selector equivalent.
+     * Needed because insideShadowDom() forces CSS mode, but all builder methods
+     * (containsClass, containsAttribute, etc.) store parameters as XPath predicates.
+     */
+    private String convertXpathParameterToCss(String parameter) {
+        // contains(@class,"value")  →  .value
+        java.util.regex.Matcher containsClass = java.util.regex.Pattern
+                .compile("\\[contains\\(@class,\"([^\"]+)\"\\)]")
+                .matcher(parameter);
+        if (containsClass.matches()) {
+            return "." + containsClass.group(1);
+        }
+
+        // contains(@anyAttr,"value")  →  [anyAttr*="value"]
+        java.util.regex.Matcher containsAttr = java.util.regex.Pattern
+                .compile("\\[contains\\(@([^,]+),\"([^\"]+)\"\\)]")
+                .matcher(parameter);
+        if (containsAttr.matches()) {
+            return "[" + containsAttr.group(1) + "*=\"" + containsAttr.group(2) + "\"]";
+        }
+
+        // contains(.,"text") or [.="text"]  →  no CSS equivalent, skip
+        if (parameter.contains("contains(.,") || parameter.startsWith("[.=")) {
+            return "";
+        }
+
+        // [@attr="value"]  →  [attr="value"]  (simple case, existing behavior)
+        return parameter.replace("@", "");
     }
 }
