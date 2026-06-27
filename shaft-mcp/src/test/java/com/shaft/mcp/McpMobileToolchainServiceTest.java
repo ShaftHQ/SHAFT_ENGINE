@@ -27,8 +27,8 @@ class McpMobileToolchainServiceTest {
         create(sdk.resolve("emulator"), "emulator.exe");
         create(sdk.resolve("cmdline-tools/latest/bin"), "sdkmanager.bat");
         create(sdk.resolve("cmdline-tools/latest/bin"), "avdmanager.bat");
-        create(toolRoot.resolve("node/node-v24.17.0-win-x64"), "node.exe");
-        create(toolRoot.resolve("node/node-v24.17.0-win-x64"), "npm.cmd");
+        create(toolRoot.resolve("node/node-v24.18.0-win-x64"), "node.exe");
+        create(toolRoot.resolve("node/node-v24.18.0-win-x64"), "npm.cmd");
         create(toolRoot.resolve("appium/node_modules/.bin"), "appium.cmd");
         Files.createDirectories(avdHome.resolve("Cached_Pixel.avd"));
 
@@ -129,7 +129,7 @@ class McpMobileToolchainServiceTest {
     @Test
     void ensureAppiumInstallsPinnedPackagesWithCurrentCliSyntax() throws Exception {
         Path toolRoot = Files.createDirectories(temp.resolve("tools"));
-        create(toolRoot.resolve("node/node-v24.17.0-win-x64"), "npm.cmd");
+        create(toolRoot.resolve("node/node-v24.18.0-win-x64"), "npm.cmd");
         create(toolRoot.resolve("appium/node_modules/.bin"), "appium.cmd");
         FakeRunner runner = new FakeRunner();
         McpMobileToolchainService service = new McpMobileToolchainService(runner,
@@ -143,7 +143,7 @@ class McpMobileToolchainServiceTest {
                 "driver",
                 "install",
                 "--source=npm",
-                "appium-uiautomator2-driver@7.6.2"))));
+                "appium-uiautomator2-driver@8.0.0"))));
         assertTrue(runner.commands.stream().anyMatch(command -> command.equals(List.of(
                 toolRoot.resolve("appium/node_modules/.bin/appium.cmd").toString(),
                 "plugin",
