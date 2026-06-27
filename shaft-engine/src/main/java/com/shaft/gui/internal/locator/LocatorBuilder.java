@@ -225,7 +225,7 @@ public class LocatorBuilder {
             } else if (order.equals("last()")) {
                 order = ":last-child";
             }
-            return "(" + cssExpression + ")" + this.order;
+            return cssExpression + this.order;
         } else {
             return cssExpression.toString();
         }
