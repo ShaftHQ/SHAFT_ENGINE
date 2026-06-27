@@ -20,6 +20,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CaptureEventPipelineTest {
@@ -102,6 +103,49 @@ class CaptureEventPipelineTest {
                 assertInstanceOf(CaptureEvent.AlertEvent.class, events.get(4)).action());
         assertEquals(CaptureEvent.AlertAction.ACCEPT,
                 assertInstanceOf(CaptureEvent.AlertEvent.class, events.get(5)).action());
+    }
+
+    @Test
+    void recordsVerificationEventsAndClassifiesExpectedValues(@TempDir Path temp) throws Exception {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("verification", START, usernameTarget(),
+                Map.of("verification", "TEXT_EQUALS", "expected", "Welcome alice"), Map.of()));
+        pipeline.accept(signal("verification", START.plusMillis(1), passwordTarget(),
+                Map.of("verification", "ATTRIBUTE_EQUALS", "attributeName", "data-secret",
+                        "expected", SECRET_CANARY), Map.of()));
+        pipeline.accept(signal("verification", START.plusMillis(2), Map.of(),
+                Map.of("verification", "URL_CONTAINS", "expected", "/form"), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(3, events.size());
+        CaptureEvent.VerificationEvent text = assertInstanceOf(
+                CaptureEvent.VerificationEvent.class, events.get(0));
+        assertEquals(CaptureEvent.VerificationKind.TEXT_EQUALS, text.verification());
+        assertEquals(ExternalTestDataReference.DataClassification.ORDINARY,
+                text.expected().classification());
+        CaptureEvent.VerificationEvent attribute = assertInstanceOf(
+                CaptureEvent.VerificationEvent.class, events.get(1));
+        assertEquals("data-secret", attribute.context().extensions().get("attributeName").asText());
+        assertEquals(ExternalTestDataReference.DataClassification.SECRET,
+                attribute.expected().classification());
+        CaptureEvent.VerificationEvent url = assertInstanceOf(
+                CaptureEvent.VerificationEvent.class, events.get(2));
+        assertEquals(CaptureEvent.VerificationKind.URL_CONTAINS, url.verification());
+        assertNull(url.target());
+
+        String sessionJson = Files.readString(output, StandardCharsets.UTF_8);
+        String dataJson = Files.readString(output.getParent().resolve("capture-data.json"),
+                StandardCharsets.UTF_8);
+        assertTrue(dataJson.contains("Welcome alice"));
+        assertFalse(sessionJson.contains(SECRET_CANARY));
+        assertFalse(dataJson.contains(SECRET_CANARY));
     }
 
     private static CaptureSessionStore startedStore(Path output) {
