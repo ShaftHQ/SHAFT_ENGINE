@@ -181,6 +181,8 @@ public class ScreenshotHelperCoverageUnitTest {
             Assert.assertEquals(fullImage.getWidth(), 100);
             Assert.assertEquals(fullImage.getHeight(), 120);
         }
+        Mockito.verify((JavascriptExecutor) manualDriver, Mockito.atLeastOnce())
+                .executeScript("window.scrollTo(0, arguments[0]);", 0);
     }
 
     private static void setStaticField(String fieldName, Object value) throws Exception {

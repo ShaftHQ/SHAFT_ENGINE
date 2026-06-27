@@ -62,6 +62,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -450,6 +451,62 @@ public class ActionsCoverageUnitTest {
             verify(element).clear();
             verify(element, atLeastOnce()).sendKeys(any(CharSequence[].class));
             verify((JavascriptExecutor) driver, atLeastOnce()).executeScript(anyString(), any(Object[].class));
+        }
+    }
+
+    @Test
+    public void performActionShouldRefreshElementAfterLazyLoadingBeforeNativeClick() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement originallyLocatedElement = standardElement();
+        WebElement refreshedElement = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(originallyLocatedElement), List.of(refreshedElement));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(true);
+            new Actions(helper).click(LOCATOR);
+
+            verify(originallyLocatedElement, never()).click();
+            verify(refreshedElement).click();
+        }
+    }
+
+    @Test
+    public void performActionShouldNotRefreshElementWhenLazyLoadingObservedNoActivity() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(false);
+            new Actions(helper).click(LOCATOR);
+
+            verify(driver).findElements(LOCATOR);
+            verify(element).click();
+        }
+    }
+
+    @Test
+    public void performActionShouldUseRefreshedActionableElementBeforeTyping() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement hiddenOriginalElement = standardElement();
+        WebElement refreshedElement = standardElement();
+        when(hiddenOriginalElement.isDisplayed()).thenReturn(false);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(hiddenOriginalElement), List.of(refreshedElement));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(true);
+            new Actions(helper).type(LOCATOR, "ready");
+
+            verify(hiddenOriginalElement, never()).sendKeys(any(CharSequence[].class));
+            verify(refreshedElement).sendKeys(any(CharSequence[].class));
         }
     }
 

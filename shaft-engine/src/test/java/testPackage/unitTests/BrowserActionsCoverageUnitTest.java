@@ -220,6 +220,20 @@ public class BrowserActionsCoverageUnitTest {
     }
 
     @Test
+    public void navigateWithBasicAuthenticationShouldEmbedCredentialsForRemoteExecution() {
+        SHAFT.Properties.platform.set().executionAddress("remote-grid");
+        when(driver.getCurrentUrl()).thenReturn("https://example.com/start");
+
+        browserActions.navigateToURLWithBasicAuthentication(
+                "https://example.com/secure",
+                "user",
+                "pass",
+                "https://example.com/secure");
+
+        Mockito.verify(navigation).to("https://user:pass@example.com/secure");
+    }
+
+    @Test
     public void shouldApplyNetworkProfilesWhenDevToolsIsAvailable() {
         WebDriver profileDriver = mock(WebDriver.class, Mockito.withSettings()
                 .extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class, HasDevTools.class));

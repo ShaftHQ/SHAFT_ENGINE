@@ -10,13 +10,12 @@ import org.openqa.selenium.WebDriver;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class JavaScriptWaitManager {
     private static final List<String> COMPLETE_READY_STATES = List.of("loaded", "complete");
     private static final Duration ACTIVE_REQUEST_POLLING_INTERVAL = Duration.ofMillis(200);
-    // Short initial observation window that lets deferred XHR/fetch startup appear before declaring no-activity idle.
-    private static final Duration INITIAL_IDLE_OBSERVATION_WINDOW = ACTIVE_REQUEST_POLLING_INTERVAL;
-    private static final Duration MINIMUM_IDLE_WINDOW = Duration.ofMillis(500);
     private static final long IDLE_WINDOW_NOT_STARTED = -1L;
 
     private JavaScriptWaitManager() {
@@ -27,25 +26,62 @@ public class JavaScriptWaitManager {
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading(WebDriver driver) {
+        waitForLazyLoadingAndDetectActivity(driver);
+    }
+
+    /**
+     * Waits for browser lazy-loading signals and reports whether any page activity was observed.
+     *
+     * @param driver the target {@link WebDriver} instance
+     * @return {@code true} when document, framework, or network activity was observed during the wait
+     */
+    public static boolean waitForLazyLoadingAndDetectActivity(WebDriver driver) {
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                waitForDocumentReadyState(driver);
+                return waitForBrowserReadiness(driver);
             } catch (Exception ignored) {
-            }
-            try {
-                waitUntilNoActiveNetworkRequests(driver);
-            } catch (Exception ignored) {
-            }
-            try {
-                waitForJQuery(driver);
-            } catch (Exception ignored) {
-            }
-            try {
-                waitForAngular(driver);
-            } catch (Exception ignored) {
+                return true;
             }
         }
+        return false;
+    }
+
+    private static boolean waitForBrowserReadiness(WebDriver driver) {
+        final long[] idleSinceMillis = {IDLE_WINDOW_NOT_STARTED};
+        final String[] lastNetworkActivityMarker = {null};
+        final boolean[] networkActivityObserved = {false};
+        final boolean[] pageActivityObserved = {false};
+        new SynchronizationManager(driver)
+                .fluentWait(Duration.ofSeconds(Math.max(1, SHAFT.Properties.timeouts.waitForLazyLoadingTimeout())))
+                .pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL)
+                .until(f -> {
+                    if (f instanceof JavascriptExecutor javascriptExecutor) {
+                        try {
+                            BrowserReadinessState readiness = BrowserReadinessState.from(
+                                    javascriptExecutor.executeScript(JavaScriptHelper.BROWSER_READINESS_STATE.getValue()));
+                            if (!readiness.documentReady() || readiness.jqueryActive() > 0L || readiness.angularActive() > 0L) {
+                                pageActivityObserved[0] = true;
+                            }
+                            boolean networkIdle = hasMetMinimumIdleWindow(
+                                    readiness.activeRequests(),
+                                    readiness.networkActivityMarker(),
+                                    idleSinceMillis,
+                                    lastNetworkActivityMarker,
+                                    networkActivityObserved,
+                                    System.currentTimeMillis());
+                            return readiness.documentReady()
+                                    && readiness.jqueryActive() == 0L
+                                    && readiness.angularActive() == 0L
+                                    && networkIdle;
+                        } catch (Exception exception) {
+                            ReportManagerHelper.logDiscrete(exception);
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+        return pageActivityObserved[0] || networkActivityObserved[0];
     }
 
     private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
@@ -102,8 +138,44 @@ public class JavaScriptWaitManager {
             return false;
         }
 
-        var requiredIdleWindow = networkActivityObserved[0] ? MINIMUM_IDLE_WINDOW : INITIAL_IDLE_OBSERVATION_WINDOW;
+        var requiredIdleWindow = networkActivityObserved[0] ? minimumIdleWindow() : initialIdleObservationWindow();
         return (nowMillis - idleSinceMillis[0]) >= requiredIdleWindow.toMillis();
+    }
+
+    private static boolean hasMetMinimumIdleWindow(long activeRequests, String networkActivityMarker,
+                                                   long[] idleSinceMillis, String[] lastNetworkActivityMarker,
+                                                   boolean[] networkActivityObserved, long nowMillis) {
+        if (activeRequests > 0) {
+            networkActivityObserved[0] = true;
+            idleSinceMillis[0] = IDLE_WINDOW_NOT_STARTED;
+            lastNetworkActivityMarker[0] = networkActivityMarker;
+            return false;
+        }
+
+        if (lastNetworkActivityMarker[0] == null) {
+            lastNetworkActivityMarker[0] = networkActivityMarker;
+        } else if (!Objects.equals(lastNetworkActivityMarker[0], networkActivityMarker)) {
+            networkActivityObserved[0] = true;
+            idleSinceMillis[0] = nowMillis;
+            lastNetworkActivityMarker[0] = networkActivityMarker;
+            return false;
+        }
+
+        if (idleSinceMillis[0] == IDLE_WINDOW_NOT_STARTED) {
+            idleSinceMillis[0] = nowMillis;
+            return false;
+        }
+
+        var requiredIdleWindow = networkActivityObserved[0] ? minimumIdleWindow() : initialIdleObservationWindow();
+        return (nowMillis - idleSinceMillis[0]) >= requiredIdleWindow.toMillis();
+    }
+
+    private static Duration initialIdleObservationWindow() {
+        return Duration.ofMillis(Math.max(0, SHAFT.Properties.timeouts.lazyLoadingNetworkIdleInitialObservationMillis()));
+    }
+
+    private static Duration minimumIdleWindow() {
+        return Duration.ofMillis(Math.max(0, SHAFT.Properties.timeouts.lazyLoadingNetworkIdleQuietWindowMillis()));
     }
 
     private static void waitForDocumentReadyState(WebDriver driver) {
@@ -155,5 +227,34 @@ public class JavaScriptWaitManager {
             }
             return true;
         });
+    }
+
+    private record BrowserReadinessState(boolean documentReady, long activeRequests, String networkActivityMarker,
+                                         long jqueryActive, long angularActive) {
+        private static BrowserReadinessState from(Object returnedValue) {
+            if (returnedValue instanceof Map<?, ?> state) {
+                return new BrowserReadinessState(
+                        Boolean.parseBoolean(String.valueOf(state.get("documentReady"))),
+                        parseLong(state.get("activeRequests")),
+                        String.valueOf(Objects.requireNonNullElse(state.get("networkActivityMarker"), "")),
+                        parseLong(state.get("jqueryActive")),
+                        parseLong(state.get("angularActive")));
+            }
+            return new BrowserReadinessState(true, parseLong(returnedValue), "", 0L, 0L);
+        }
+
+        private static long parseLong(Object value) {
+            if (value instanceof Number numberValue) {
+                return numberValue.longValue();
+            }
+            if (value == null) {
+                return 0L;
+            }
+            try {
+                return Long.parseLong(value.toString());
+            } catch (NumberFormatException exception) {
+                return 0L;
+            }
+        }
     }
 }

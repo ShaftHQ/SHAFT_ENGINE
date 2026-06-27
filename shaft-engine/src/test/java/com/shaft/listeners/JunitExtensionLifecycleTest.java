@@ -158,6 +158,7 @@ class JunitExtensionLifecycleTest {
 
         LauncherFactory.create(LauncherConfig.builder()
                 .enableLauncherSessionListenerAutoRegistration(false)
+                .enableTestExecutionListenerAutoRegistration(false)
                 .build()).execute(request, summaryListener);
 
         return summaryListener.getSummary();

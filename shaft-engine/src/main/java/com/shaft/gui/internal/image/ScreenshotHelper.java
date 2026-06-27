@@ -258,7 +258,7 @@ public class ScreenshotHelper {
     }
 
     private static void scrollVerticallyTo(WebDriver driver, int scroll) {
-        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, \"arguments[0]\");", scroll);
+        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, arguments[0]);", scroll);
         try {
             waitUntilItIsScrolledToPosition(driver, scroll);
         } catch (Exception e) {

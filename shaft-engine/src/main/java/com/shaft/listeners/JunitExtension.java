@@ -224,6 +224,7 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
                 SummaryGeneratingListener summaryListener = new SummaryGeneratingListener();
                 LauncherFactory.create(LauncherConfig.builder()
                         .enableLauncherSessionListenerAutoRegistration(false)
+                        .enableTestExecutionListenerAutoRegistration(false)
                         .build()).execute(request, summaryListener);
                 return summaryListener.getSummary();
             }).get();

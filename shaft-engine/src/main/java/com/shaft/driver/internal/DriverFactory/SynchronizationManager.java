@@ -61,6 +61,16 @@ public class SynchronizationManager {
     }
 
     /**
+     * Creates a fluent wait using default expected exceptions and a custom timeout.
+     *
+     * @param timeout maximum wait duration
+     * @return a configured {@link FluentWait} instance
+     */
+    public FluentWait<WebDriver> fluentWait(Duration timeout) {
+        return fluentWait(false, timeout);
+    }
+
+    /**
      * Creates a fluent wait and optionally includes visibility-related exceptions.
      *
      * @param isValidToCheckForVisibility {@code true} to include visibility exceptions,
@@ -68,8 +78,22 @@ public class SynchronizationManager {
      * @return a configured {@link FluentWait} instance
      */
     public FluentWait<WebDriver> fluentWait(boolean isValidToCheckForVisibility) {
+        return fluentWait(
+                isValidToCheckForVisibility,
+                Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout())));
+    }
+
+    /**
+     * Creates a fluent wait and optionally includes visibility-related exceptions.
+     *
+     * @param isValidToCheckForVisibility {@code true} to include visibility exceptions,
+     *                                    {@code false} otherwise
+     * @param timeout maximum wait duration
+     * @return a configured {@link FluentWait} instance
+     */
+    public FluentWait<WebDriver> fluentWait(boolean isValidToCheckForVisibility, Duration timeout) {
         return new FluentWait<>(driver)
-                .withTimeout(Duration.ofSeconds((long) (SHAFT.Properties.timeouts.defaultElementIdentificationTimeout())))
+                .withTimeout(timeout)
                 .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                 .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility));
     }

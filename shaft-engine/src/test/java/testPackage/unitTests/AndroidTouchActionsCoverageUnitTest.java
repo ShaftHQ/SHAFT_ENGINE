@@ -165,7 +165,10 @@ public class AndroidTouchActionsCoverageUnitTest {
                 .hideNativeKeyboard()
                 .rotate(ScreenOrientation.PORTRAIT);
 
-        verify(remoteElementActionsHelper, times(7)).failAction(eq(remoteWebDriver), isNull(By.class));
+        verify(remoteElementActionsHelper, times(4)).failAction(eq(remoteWebDriver), isNull(By.class));
+        verify(remoteElementActionsHelper).failAction(eq(remoteWebDriver), eq("seconds=1"), isNull(By.class));
+        verify(remoteElementActionsHelper).failAction(eq(remoteWebDriver), eq("appId=unsupported.app"), isNull(By.class));
+        verify(remoteElementActionsHelper).failAction(eq(remoteWebDriver), eq("orientation=PORTRAIT"), isNull(By.class));
         verify(remoteWebDriver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
         SHAFT.Validations.assertThat().object(Files.exists(unsupportedPulledPath)).isFalse().perform();
     }
@@ -259,7 +262,9 @@ public class AndroidTouchActionsCoverageUnitTest {
         touchActions.tap("tap-present.png")
                 .pinchToZoom(TouchActions.ZoomDirection.IN);
 
-        verify(elementActionsHelper, times(2)).failAction(eq(performFailureDriver), isNull(By.class), any(Throwable.class));
+        verify(elementActionsHelper).failAction(eq(performFailureDriver),
+                eq("referenceImage=tap-present.png, coordinates=[10, 20]"), isNull(By.class), any(Throwable.class));
+        verify(elementActionsHelper).failAction(eq(performFailureDriver), eq("IN"), isNull(By.class), any(Throwable.class));
     }
 
     @Test

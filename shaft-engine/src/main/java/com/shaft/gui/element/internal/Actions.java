@@ -574,7 +574,34 @@ public class Actions extends ElementActions {
                 }
 
                 //wait for lazy loading
-                JavaScriptWaitManager.waitForLazyLoading(d);
+                boolean lazyLoadingActivityObserved = JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(d);
+                if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldRefreshElementAfterLazyLoading(action, locator)) {
+                    flakeProfile.locatorLookups.incrementAndGet();
+                    long profilerRefreshLocateStart = profilerStart != 0L ? System.nanoTime() : 0L;
+                    ElementLookup refreshedLookup = findAllElements(locator, action.name() + "_READY");
+                    if (profilerRefreshLocateStart != 0L) {
+                        flakeProfile.locateNanos.addAndGet(System.nanoTime() - profilerRefreshLocateStart);
+                    }
+                    foundElements.set(refreshedLookup.elements());
+                    if (refreshedLookup.healingResolution() != null) {
+                        healingResolution.set(refreshedLookup.healingResolution());
+                    }
+                    if (refreshedLookup.healingAttempted()) {
+                        flakeProfile.healingAttempted.set(true);
+                    }
+                    if (foundElements.get().isEmpty()) {
+                        throw new NoSuchElementException("Cannot locate an element using " + JavaHelper.formatLocatorToString(locator));
+                    }
+                    if (foundElements.get().size() > 1
+                            && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique()
+                            && !(locator instanceof RelativeLocator.RelativeBy)
+                            && !(locator instanceof ByAll)) {
+                        throw new MultipleElementsFoundException();
+                    }
+                }
+                if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldCheckNativeActionability(action, locator)) {
+                    ensureNativeActionTargetIsReady(foundElements.get().getFirst(), action);
+                }
                 // perform action
                 long profilerActionStart = profilerStart != 0L ? System.nanoTime() : 0L;
                 long profilerEvidenceBeforeAction = profilerStart != 0L ? ACTION_EVIDENCE_NANOS.get().get() : 0L;
@@ -722,6 +749,9 @@ public class Actions extends ElementActions {
                                 executeMobileDragAndDrop(appiumDriver, sourceElement, destinationElement);
                             } else {
                                 currentDragAndDropSubstep = "execute selenium drag and drop";
+                                if (lazyLoadingActivityObserved) {
+                                    ensureNativeActionTargetIsReady(destinationElement, action);
+                                }
                                 logDragAndDropTrace("substep=executeSeleniumDragAndDrop");
                                 new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                             .dragAndDrop(sourceElement, destinationElement).perform();
@@ -1014,6 +1044,36 @@ public class Actions extends ElementActions {
         if (text != null && !text.isEmpty() && !text.contains("<"))
             return text;
         return "";
+    }
+
+    private static boolean shouldRefreshElementAfterLazyLoading(ActionType action, By locator) {
+        return locator != null && !locator.equals(By.tagName("html")) && shouldCheckNativeActionability(action, locator);
+    }
+
+    private static boolean shouldCheckNativeActionability(ActionType action, By locator) {
+        if (isFileInputLocator(locator)) {
+            return false;
+        }
+        return switch (action) {
+            case HOVER, CLICK, CLICK_AND_HOLD, DOUBLE_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, CLEAR, SELECT,
+                 DRAG_AND_DROP, DRAG_AND_DROP_BY_OFFSET, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT,
+                 CLIPBOARD_PASTE -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isFileInputLocator(By locator) {
+        if (locator == null) {
+            return false;
+        }
+        var locatorString = JavaHelper.formatLocatorToString(locator).toLowerCase();
+        return locatorString.contains("type='file'") || locatorString.contains("type=\"file\"");
+    }
+
+    private static void ensureNativeActionTargetIsReady(WebElement targetElement, ActionType action) {
+        if (!targetElement.isDisplayed() || !targetElement.isEnabled()) {
+            throw new ElementNotInteractableException(action.name() + " target is not displayed and enabled yet.");
+        }
     }
 
     private List<WebElement> findAllElements(By locator) {
