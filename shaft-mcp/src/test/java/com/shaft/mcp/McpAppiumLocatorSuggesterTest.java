@@ -3,6 +3,7 @@ package com.shaft.mcp;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class McpAppiumLocatorSuggesterTest {
 
@@ -68,6 +69,15 @@ class McpAppiumLocatorSuggesterTest {
 
         assertEquals(locatorStrategy.XPATH, suggestion.strategy());
         assertEquals("/hierarchy/node[1]", suggestion.value());
+    }
+
+    @Test
+    void ignoresBoundsThatOverflowIntegers() {
+        assertTrue(suggester("""
+                <hierarchy>
+                  <node bounds="[0,0][999999999999,50]"/>
+                </hierarchy>
+                """).locatorAt(20, 20).isEmpty());
     }
 
     private static McpAppiumLocatorSuggester suggester(String sourceXml) {

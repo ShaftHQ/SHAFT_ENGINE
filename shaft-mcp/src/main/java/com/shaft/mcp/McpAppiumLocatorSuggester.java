@@ -190,11 +190,15 @@ final class McpAppiumLocatorSuggester {
     private Optional<Rectangle> bounds(Element element) {
         Matcher matcher = BOUNDS.matcher(attribute(element, "bounds"));
         if (matcher.matches()) {
-            return Optional.of(new Rectangle(
-                    Integer.parseInt(matcher.group(1)),
-                    Integer.parseInt(matcher.group(2)),
-                    Integer.parseInt(matcher.group(3)),
-                    Integer.parseInt(matcher.group(4))));
+            try {
+                return Optional.of(new Rectangle(
+                        Integer.parseInt(matcher.group(1)),
+                        Integer.parseInt(matcher.group(2)),
+                        Integer.parseInt(matcher.group(3)),
+                        Integer.parseInt(matcher.group(4))));
+            } catch (NumberFormatException exception) {
+                return Optional.empty();
+            }
         }
         String x = attribute(element, "x");
         String y = attribute(element, "y");

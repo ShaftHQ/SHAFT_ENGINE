@@ -1,14 +1,16 @@
 # SHAFT Modular-Era Feature Catalog
 
 Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
-Catalog source: current `origin/main` at `1a46183035db474e872efb5f340c863f668cfafd`
+Catalog source: current `origin/main` at `f50f4230bfd4058f01bd43f99b71553bd9fe846f`
 Fresh evidence captured: `2026-06-27`
 
 ## Runtime Screenshots
 
 ![Web recorder running from current shaft-capture recorder overlay](shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png)
 
-![Android emulator recorder run through current shaft-mcp mobile tools](shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png)
+![Android recorder resolving Inspector gestures to accessibility id and resource id locators](shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png)
+
+![Mobile Inspector locator-first recording details and fallback warning](shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png)
 
 ![Android/Appium toolchain status after fresh install and emulator connection](shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png)
 
@@ -84,6 +86,8 @@ flowchart TB
 | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="220"> | Current `shaft-mcp` tool manifest and runtime tool families. |
 | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="220"> | Current `CodegenFeatureCatalog.java` with 40 capture/codegen capabilities. |
 | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" width="220"> | Current Playwright facade and MCP tool surface. |
+| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="220"> | Current Android recorder evidence showing `tap` and `swipeByOffset` recorded with locators. |
+| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png" width="220"> | Current Appium Inspector locator order and coordinate fallback warning. |
 | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" width="220"> | Current Doctor, Heal, and Trace tools. |
 | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="220"> | Current API, contract, reporting, and observability APIs. |
 
@@ -101,10 +105,10 @@ flowchart TB
 | MCP WebDriver | Browser and element tools for Selenium/Appium WebDriver sessions. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `driver_initialize -> browser_navigate -> element_click -> browser_take_screenshot -> driver_quit` |
 | MCP Playwright | Playwright tools for browser, element, recording, replay, and screenshots. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" width="140"> | `playwright_initialize -> playwright_browser_navigate -> playwright_record_start -> playwright_recording_code_blocks` |
 | MCP semantic/natural | Semantic Playwright element tools, guide search, scenario catalog, guardrail checks, and `natural_act`. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
-| MCP mobile | Native Appium, mobile web emulation, contexts, accessibility tree, screenshots, gestures, rotation, keyboard, app backgrounding. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="140"> | `mobile_initialize_native -> mobile_get_contexts -> mobile_take_screenshot -> mobile_tap_coordinates` |
+| MCP mobile | Native Appium, mobile web emulation, contexts, accessibility tree, screenshots, locator-first gestures, rotation, keyboard, app backgrounding. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="140"> | `mobile_initialize_native -> mobile_get_accessibility_tree -> mobile_tap(ACCESSIBILITY_ID, "login")` |
 | MCP mobile | Toolchain diagnostics for Appium, Inspector plugin, adb, emulator, sdkmanager, avdmanager, and iOS/macOS readiness. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png" width="140"> | `mobile_toolchain_status` |
-| MCP mobile | Wrapped Appium Inspector recording plan/start/status/control/stop tools. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png" width="140"> | `mobile_inspector_record_prepare -> mobile_inspector_record_start -> mobile_inspector_record_stop` |
-| MCP mobile | Fresh Android emulator recording through current mobile MCP tools. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="140"> | `mobile_record_start -> mobile_tap_coordinates -> mobile_swipe_coordinates -> mobile_recording_code_blocks` |
+| MCP mobile | Wrapped Appium Inspector recording plan/start/status/control/stop tools. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png" width="140"> | `mobile_inspector_record_prepare -> mobile_inspector_record_start -> mobile_inspector_record_stop` |
+| MCP mobile | Fresh Android recording resolves Inspector pointer gestures through the accessibility source before coordinates. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="140"> | `GET /source -> tap ACCESSIBILITY_ID login -> swipeByOffset ID com.example:id/list -> mobile_recording_code_blocks` |
 | Android setup | SHAFT-managed Android command-line tools, SDK packages, AVD, Appium 3.5.2, UiAutomator2 7.6.2, Inspector plugin 2026.5.1. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png" width="140"> | `sdkmanager.bat --sdk_root=C:\Users\Mohab\android-tools 'platform-tools' 'emulator' 'platforms;android-36' 'system-images;android-36;google_apis;x86_64'` |
 | Capture | Deterministic capture session model, JSON codec, storage, privacy, checkpoints, incomplete-session recovery. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="140"> | `capture_start -> capture_checkpoint -> capture_status -> capture_stop` |
 | Capture | Managed browser recorder overlay with pause, assert/verify modes, copy, clear, edit, locator picker, and readiness score. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png" width="140"> | `capture_start --url https://example.com --browser chrome --output target/capture/session.json` |
@@ -161,20 +165,25 @@ appium-inspector-plugin@2026.5.1
 ```
 
 ```text
-# Fresh Android recorder path used for android-recorder-working.png.
+# Fresh Android recorder path used for android-recorder-working.png and android-recorder-locator-details.png.
 mobile_initialize_native(appiumServerUrl="http://127.0.0.1:4723", platformName="Android", deviceName="emulator-5554")
-mobile_record_start(outputPath="target/shaft-evidence/mobile-mcp-android-updated.json")
-mobile_tap_coordinates(x=540, y=360)
-mobile_swipe_coordinates(startX=540, startY=1900, endX=540, endY=700, durationMillis=700)
-mobile_tap_coordinates(x=500, y=1450)
-mobile_take_screenshot(outputPath="shaft-engine/src/main/resources/modular-era-feature-catalog/android-emulator-device.png")
-mobile_record_status() -> actionCount=3
-mobile_recording_code_blocks(recordingPath="target/shaft-evidence/mobile-mcp-android-updated.json")
+mobile_inspector_record_start(...)
+GET /session/{id}/source -> current Appium accessibility XML
+POST /session/{id}/actions -> pointer tap inside content-desc="login"
+POST /session/{id}/actions -> pointer swipe inside resource-id="com.example:id/list"
+mobile_record_status() -> actionCount=2
+mobile_recording_code_blocks(recordingPath="target/shaft-evidence/mobile-inspector-locators.json")
+
+Recorded action evidence:
+tap -> locatorStrategy=ACCESSIBILITY_ID, locatorValue=login
+swipeByOffset -> locatorStrategy=ID, locatorValue=com.example:id/list, xOffset=0, yOffset=200
 
 SHAFT fluent replay excerpt from the recorded actions:
-driver.element().touch().tapByCoordinates(540, 360);
-driver.element().touch().swipeByCoordinates(540, 1900, 540, 700, 700);
-driver.element().touch().tapByCoordinates(500, 1450);
+driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId("login"));
+driver.element().touch().swipeByOffset(SHAFT.GUI.Locator.id("com.example:id/list"), 0, 200);
+
+Coordinate fallback remains warning-only when no locator can be resolved:
+"Coordinate fallback used because no stable locator could be resolved from the accessibility tree; this will probably fail when executed on a different device, screen size, orientation, or app state."
 ```
 
 ```text
