@@ -1,0 +1,1 @@
+Before opening a SHAFT_ENGINE PR, fetch/prune and verify the branch is based on the latest origin/main. If origin/main moved, rebase or merge locally, resolve all conflicts in the local checkout, rerun the relevant validation after conflict resolution, then push/open the PR. Do not rely on GitHub to surface or resolve merge conflicts after the PR is opened.

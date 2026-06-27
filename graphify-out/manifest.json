@@ -130,8 +130,8 @@
     "semantic_hash": ""
   },
   "scripts/ci/agent_guidance_budget.json": {
-    "mtime": 1782366241.6733525,
-    "ast_hash": "d52de49ceeebd519a79a94e140ceee41",
+    "mtime": 1782541150.940583,
+    "ast_hash": "7888f39a7d89d850aaeaf0a1903e23f7",
     "semantic_hash": ""
   },
   "scripts/ci/assemble_javadocs.py": {
@@ -1490,8 +1490,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/AllureManager.java": {
-    "mtime": 1782537256.774028,
-    "ast_hash": "970a0897b74378c45d27fdecad4f20c3",
+    "mtime": 1782541150.9425836,
+    "ast_hash": "c2bc00c1a17c5a90da645af4ce12e30b",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/ApiPerformanceExecutionReport.java": {
@@ -2670,8 +2670,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/AllureManagerUnitTest.java": {
-    "mtime": 1782537256.7960289,
-    "ast_hash": "06483dcd28a8f6ea0b365c0d6c22e7e4",
+    "mtime": 1782541150.9425836,
+    "ast_hash": "ee2cfc8fd615309bb030afd1567e47a8",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/testPackage/unitTests/AndroidApkBadgingReaderUnitTest.java": {
@@ -4075,8 +4075,8 @@
     "semantic_hash": ""
   },
   ".github/copilot-instructions.md": {
-    "mtime": 1781532476.8914695,
-    "ast_hash": "c263ef522586d77af53f2fea7fdbb9ce",
+    "mtime": 1782541150.8540418,
+    "ast_hash": "747adf26a2c30504bab5946ccb300b29",
     "semantic_hash": ""
   },
   ".github/dependabot.yml": {
@@ -4105,8 +4105,8 @@
     "semantic_hash": ""
   },
   ".github/skills/README.md": {
-    "mtime": 1782366241.5618224,
-    "ast_hash": "d0a0719e4039d1faae74c98994763c5f",
+    "mtime": 1782541150.8545563,
+    "ast_hash": "86c50b54b4d19507dac7bbb2dca49520",
     "semantic_hash": ""
   },
   ".github/skills/ci-failure-investigator/SKILL.md": {
@@ -5804,6 +5804,31 @@
     "ast_hash": "2fc1b0513d9f92525f078bc5334d4234",
     "semantic_hash": ""
   },
+  ".agents/skills/shaft-ui-design/SKILL.md": {
+    "mtime": 1782541150.8515291,
+    "ast_hash": "91ba4a711d0c6e19266c47917004d6ea",
+    "semantic_hash": ""
+  },
+  ".agents/skills/shaft-ui-design/agents/openai.yaml": {
+    "mtime": 1782541150.8525336,
+    "ast_hash": "0d5fac998ee4334388e44059555e5944",
+    "semantic_hash": ""
+  },
+  ".github/skills/shaft-ui-design/SKILL.md": {
+    "mtime": 1782541150.8555615,
+    "ast_hash": "5cf87b9e921c89a948ebd3e9e4d8f60e",
+    "semantic_hash": ""
+  },
+  ".github/skills/shaft-ui-design/references/standards.txt": {
+    "mtime": 1782541150.8555615,
+    "ast_hash": "e0696ad726a96614da58310ecc161295",
+    "semantic_hash": ""
+  },
+  ".memory/memory/workflows/resolve-pr-base-conflicts-before-opening-prs.json": {
+    "mtime": 1782541150.857565,
+    "ast_hash": "ca67bdb82518d945c9db42278176c397",
+    "semantic_hash": ""
+  },
   "shaft-capture/allure-results/36d9a826-90d9-4ef0-bf2a-7a81a277f0db-result.json": {
     "mtime": 1782540173.2460706,
     "ast_hash": "1be397dfacc124b61eb2c97bb077180f",
@@ -5817,6 +5842,11 @@
   "shaft-capture/allure-results/96b25676-a690-4af9-9970-c40d2596744a-container.json": {
     "mtime": 1782540173.261831,
     "ast_hash": "7af5b05c1af6f55e0d67c562c818081a",
+    "semantic_hash": ""
+  },
+  ".memory/memory/workflows/resolve-pr-base-conflicts-before-opening-prs.md": {
+    "mtime": 1782541150.8613508,
+    "ast_hash": "cd547a135f4ff806efd8abae0b79cbdf",
     "semantic_hash": ""
   },
   "shaft-capture/allure-results/8c15a17e-157a-4579-93e9-8bdc802b62b8-attachment.txt": {

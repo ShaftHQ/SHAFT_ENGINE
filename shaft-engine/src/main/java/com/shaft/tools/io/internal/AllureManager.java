@@ -393,7 +393,11 @@ public class AllureManager {
         return newFileName;
     }
 
-    private static void openAllureReport(String newFileName) {
+    private static boolean openAllureReport(String newFileName) {
+        if (!SHAFT.Properties.allure.automaticallyOpen()) {
+            ReportManager.logDiscrete("Allure report automatic opening is disabled.");
+            return false;
+        }
         String reportPath = reportDirectoryPath().resolve(newFileName).toFile().getAbsolutePath();
         if (SystemUtils.IS_OS_WINDOWS) {
             reportPath = reportPath.replace("'", "''");
@@ -405,6 +409,7 @@ public class AllureManager {
         } else {
             internalTerminalSession.performTerminalCommand("xdg-open \"" + reportPath + "\"");
         }
+        return true;
     }
 
     /**
