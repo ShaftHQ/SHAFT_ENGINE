@@ -1,6 +1,14 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.generate.LocatorRanker;
+import com.shaft.capture.model.ElementSnapshot;
+import com.shaft.capture.model.EventContext;
+import com.shaft.capture.model.LocatorCandidate;
+import com.shaft.capture.model.PageContext;
 import com.shaft.driver.SHAFT;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
@@ -12,14 +20,25 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 import static com.shaft.mcp.EngineService.getDriver;
 
 @Service
 public class BrowserService {
     private static final int DEFAULT_DOM_CHARACTER_LIMIT = 200_000;
+    private static final int DEFAULT_ELEMENT_LIMIT = 10;
+    private static final int MAX_ELEMENT_LIMIT = 25;
     private static final Logger logger = LoggerFactory.getLogger(BrowserService.class);
 
     private final McpWorkspacePolicy workspacePolicy;
@@ -37,7 +56,7 @@ public class BrowserService {
      *
      * @param targetUrl The URL to navigate to.
      */
-    @Tool(name = "browser_navigate", description = "navigates to a URL")
+    @Tool(name = "browser_navigate", description = "opens a URL in the active SHAFT WebDriver browser session")
     public void navigate(String targetUrl) {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
@@ -288,7 +307,8 @@ public class BrowserService {
      * @param maxCharacters maximum DOM characters to return; uses a safe default when unset or non-positive
      * @return page DOM snapshot and browser context metadata
      */
-    @Tool(name = "browser_get_page_dom", description = "gets the current page DOM/page source for browser automation inspection")
+    @Tool(name = "browser_get_page_dom",
+            description = "returns bounded current-page DOM for locator inspection before element_* or natural_act")
     public McpPageDomSnapshot getPageDom(int maxCharacters) {
         try {
             SHAFT.GUI.WebDriver driver = getDriver();
@@ -311,6 +331,33 @@ public class BrowserService {
             logger.error("Failed to retrieve page DOM.", e);
             throw e;
         }
+    }
+
+    /**
+     * Opens a URL and returns bounded DOM plus capture-ranked locator candidates for the user's intent.
+     *
+     * @param targetUrl URL to open in the active WebDriver session
+     * @param userIntent natural-language action goal, such as click sign in or type email
+     * @param maxCharacters maximum DOM characters to return
+     * @param maxElements maximum element candidates to return
+     * @return JSON-shaped DOM orientation and locator candidates
+     */
+    @Tool(name = "browser_open_intent",
+            description = "opens a URL and returns bounded DOM plus capture-ranked locator candidates for the user intent")
+    public Map<String, Object> openForIntent(
+            String targetUrl,
+            String userIntent,
+            int maxCharacters,
+            int maxElements) {
+        navigate(targetUrl);
+        WebDriver seleniumDriver = getDriver().getDriver();
+        return orientPage(
+                seleniumDriver.getCurrentUrl(),
+                seleniumDriver.getTitle(),
+                seleniumDriver.getPageSource(),
+                userIntent,
+                maxCharacters,
+                maxElements);
     }
 
     /**
@@ -358,5 +405,407 @@ public class BrowserService {
         } catch (IOException exception) {
             throw new IllegalArgumentException("Screenshot output path cannot be written inside the MCP workspace.", exception);
         }
+    }
+
+    static Map<String, Object> orientPage(
+            String currentUrl,
+            String title,
+            String dom,
+            String userIntent,
+            int maxCharacters,
+            int maxElements) {
+        String safeDom = dom == null ? "" : dom;
+        int characterLimit = maxCharacters <= 0 ? DEFAULT_DOM_CHARACTER_LIMIT : maxCharacters;
+        int elementLimit = maxElements <= 0 ? DEFAULT_ELEMENT_LIMIT : Math.min(maxElements, MAX_ELEMENT_LIMIT);
+        boolean truncated = safeDom.length() > characterLimit;
+        List<Map<String, Object>> elements = elements(currentUrl, title, safeDom, userIntent, elementLimit);
+        List<String> warnings = new ArrayList<>();
+        if (truncated) {
+            warnings.add("DOM was truncated; increase maxCharacters for more context.");
+        }
+        if (elements.isEmpty()) {
+            warnings.add("No actionable element candidates matched the DOM and intent.");
+        }
+        return Map.of(
+                "schemaVersion", "1.0",
+                "currentUrl", text(currentUrl),
+                "title", text(title),
+                "userIntent", text(userIntent),
+                "dom", truncated ? safeDom.substring(0, characterLimit) : safeDom,
+                "characterCount", safeDom.length(),
+                "truncated", truncated,
+                "elements", elements,
+                "nextTools", nextTools(userIntent),
+                "warnings", warnings);
+    }
+
+    private static List<Map<String, Object>> elements(
+            String currentUrl,
+            String title,
+            String dom,
+            String userIntent,
+            int maxElements) {
+        Document document = Jsoup.parse(dom, currentUrl == null ? "" : currentUrl);
+        Set<String> tokens = tokens(userIntent);
+        LocatorRanker ranker = new LocatorRanker();
+        EventContext context = new EventContext(
+                1,
+                Instant.EPOCH,
+                new PageContext(currentUrl, title, "window-1", List.of(), 0, 0),
+                EventContext.ReplayStatus.NOT_REPLAYED,
+                List.of(),
+                Map.of());
+        List<ScoredElement> scored = new ArrayList<>();
+        for (Element element : document.select("button, a[href], input, textarea, select, [role], [aria-label],"
+                + " [data-testid], [data-test], [data-qa]")) {
+            ElementSnapshot snapshot = snapshot(document, element);
+            if (snapshot.locatorCandidates().isEmpty()) {
+                continue;
+            }
+            int intentScore = intentScore(tokens, snapshot, element);
+            if (!tokens.isEmpty() && intentScore == 0) {
+                continue;
+            }
+            scored.add(new ScoredElement(
+                    snapshot,
+                    trimTo(element.text(), 120),
+                    intentScore,
+                    ranker.select(snapshot, context, true)));
+        }
+        return scored.stream()
+                .sorted(Comparator.comparingInt(ScoredElement::intentScore).reversed()
+                        .thenComparing(item -> item.selection().selected().score(), Comparator.reverseOrder()))
+                .limit(maxElements)
+                .map(BrowserService::elementCandidate)
+                .toList();
+    }
+
+    private static ElementSnapshot snapshot(Document document, Element element) {
+        String tag = element.tagName().toLowerCase(Locale.ROOT);
+        String role = role(element);
+        String label = label(document, element);
+        String accessibleName = firstText(
+                element.attr("aria-label"), element.attr("title"), element.attr("alt"),
+                label, element.attr("placeholder"), element.text());
+        Map<String, String> attributes = attributes(element);
+        List<LocatorCandidate> locators = locators(document, element, tag, role, accessibleName, label);
+        return new ElementSnapshot(
+                logicalId(tag, accessibleName, attributes),
+                tag,
+                role,
+                accessibleName,
+                label,
+                attributes,
+                locators,
+                true,
+                !element.hasAttr("disabled"),
+                element.hasAttr("selected") || element.hasAttr("checked"));
+    }
+
+    private static List<LocatorCandidate> locators(
+            Document document,
+            Element element,
+            String tag,
+            String role,
+            String accessibleName,
+            String label) {
+        List<LocatorCandidate> candidates = new ArrayList<>();
+        if (!role.isBlank() && !accessibleName.isBlank()) {
+            candidates.add(locator(LocatorCandidate.LocatorStrategy.ROLE, role + ":" + accessibleName,
+                    countName(document, role, accessibleName), true, LocatorCandidate.LocatorSignal.ACCESSIBLE));
+        }
+        if (!accessibleName.isBlank()) {
+            candidates.add(locator(LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME, accessibleName,
+                    countAccessibleName(document, accessibleName), true, LocatorCandidate.LocatorSignal.ACCESSIBLE));
+        }
+        if (!label.isBlank()) {
+            candidates.add(locator(LocatorCandidate.LocatorStrategy.LABEL, label,
+                    countLabel(document, label), true, LocatorCandidate.LocatorSignal.LABEL_ASSOCIATED));
+        }
+        for (String attribute : List.of("data-testid", "data-test", "data-qa")) {
+            String value = element.attr(attribute);
+            if (!value.isBlank()) {
+                candidates.add(locator(LocatorCandidate.LocatorStrategy.TEST_ID, cssAttribute(attribute, value),
+                        count(document, cssAttribute(attribute, value)), true,
+                        LocatorCandidate.LocatorSignal.TEST_ATTRIBUTE));
+                break;
+            }
+        }
+        if (!element.id().isBlank()) {
+            candidates.add(locator(LocatorCandidate.LocatorStrategy.ID, element.id(),
+                    count(document, cssAttribute("id", element.id())), !dynamic(element.id()),
+                    LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE));
+        }
+        if (!element.attr("name").isBlank()) {
+            candidates.add(locator(LocatorCandidate.LocatorStrategy.NAME, element.attr("name"),
+                    count(document, cssAttribute("name", element.attr("name"))), !dynamic(element.attr("name")),
+                    LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE));
+        }
+        if (!accessibleName.isBlank()) {
+            candidates.add(locator(LocatorCandidate.LocatorStrategy.XPATH,
+                    "//" + tag + "[normalize-space(.)=" + xpathLiteral(accessibleName)
+                            + " or @aria-label=" + xpathLiteral(accessibleName) + "]",
+                    1, false, LocatorCandidate.LocatorSignal.GENERATED));
+        }
+        return candidates;
+    }
+
+    private static LocatorCandidate locator(
+            LocatorCandidate.LocatorStrategy strategy,
+            String expression,
+            int uniquenessCount,
+            boolean stable,
+            LocatorCandidate.LocatorSignal signal) {
+        EnumSet<LocatorCandidate.LocatorSignal> signals = EnumSet.of(signal);
+        if (!stable) {
+            signals.add(LocatorCandidate.LocatorSignal.DYNAMIC_VALUE);
+        }
+        return new LocatorCandidate(strategy, expression, uniquenessCount, true, stable, signals);
+    }
+
+    private static Map<String, Object> elementCandidate(ScoredElement item) {
+        ElementSnapshot snapshot = item.snapshot();
+        Map<String, Object> best = locatorCandidate(item.selection().selected(), snapshot);
+        return Map.of(
+                "tagName", snapshot.tagName(),
+                "role", snapshot.role(),
+                "accessibleName", snapshot.accessibleName(),
+                "label", snapshot.label(),
+                "text", item.text(),
+                "intentScore", item.intentScore(),
+                "bestLocator", best,
+                "alternativeLocators", item.selection().alternatives().stream()
+                        .map(alternative -> locatorCandidate(alternative, snapshot))
+                        .toList(),
+                "shaftLocatorCode", best.get("shaftLocatorCode"));
+    }
+
+    private static Map<String, Object> locatorCandidate(LocatorRanker.ScoredLocator scored, ElementSnapshot target) {
+        LocatorCandidate locator = scored.candidate();
+        return Map.of(
+                "strategy", locator.strategy().name(),
+                "expression", locator.expression(),
+                "score", scored.score(),
+                "scoreBreakdown", scored.breakdown(),
+                "shaftLocatorCode", locatorCode(locator, target));
+    }
+
+    private static String locatorCode(LocatorCandidate candidate, ElementSnapshot target) {
+        String expression = candidate.expression();
+        return switch (candidate.strategy()) {
+            case ROLE, ACCESSIBLE_NAME, LABEL -> {
+                String method = inputLike(target) ? "inputField" : "clickableField";
+                String name = target.accessibleName().isBlank() ? expression : target.accessibleName();
+                yield "SHAFT.GUI.Locator." + method + "(\"" + javaString(name) + "\")";
+            }
+            case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(expression) + "\")";
+            case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(expression) + "\")";
+            case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(expression) + "\")";
+            case XPATH -> "SHAFT.GUI.Locator.xpath(\"" + javaString(expression) + "\")";
+        };
+    }
+
+    private static boolean inputLike(ElementSnapshot target) {
+        return switch (target.tagName()) {
+            case "input", "textarea", "select" -> true;
+            default -> target.role().equals("textbox") || target.role().equals("combobox")
+                    || target.role().equals("searchbox");
+        };
+    }
+
+    private static int intentScore(Set<String> tokens, ElementSnapshot snapshot, Element element) {
+        if (tokens.isEmpty()) {
+            return 1;
+        }
+        String searchable = String.join(" ", snapshot.tagName(), snapshot.role(), snapshot.accessibleName(),
+                snapshot.label(), element.text(), String.join(" ", snapshot.normalizedAttributes().values()))
+                .toLowerCase(Locale.ROOT);
+        int score = 0;
+        for (String token : tokens) {
+            if (searchable.contains(token)) {
+                score++;
+            }
+        }
+        return score;
+    }
+
+    private static List<String> nextTools(String userIntent) {
+        LinkedHashSet<String> tools = new LinkedHashSet<>();
+        String intent = text(userIntent).toLowerCase(Locale.ROOT);
+        tools.add("browser_get_page_dom");
+        tools.add("browser_take_screenshot");
+        tools.add("shaft_guide_search");
+        if (intent.contains("type") || intent.contains("enter") || intent.contains("fill")) {
+            tools.add("element_type");
+        }
+        if (intent.isBlank() || intent.contains("click") || intent.contains("tap") || intent.contains("press")
+                || intent.contains("open") || intent.contains("select")) {
+            tools.add("element_click");
+        }
+        tools.add("natural_act");
+        tools.add("capture_start");
+        tools.add("capture_code_blocks");
+        tools.add("test_code_guardrails_check");
+        return List.copyOf(tools);
+    }
+
+    private static Set<String> tokens(String value) {
+        LinkedHashSet<String> tokens = new LinkedHashSet<>();
+        for (String token : text(value).toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
+            if (token.length() > 2) {
+                tokens.add(token);
+            }
+        }
+        return tokens;
+    }
+
+    private static Map<String, String> attributes(Element element) {
+        Map<String, String> values = new LinkedHashMap<>();
+        for (String name : List.of("id", "name", "type", "role", "aria-label", "title",
+                "placeholder", "data-testid", "data-test", "data-qa")) {
+            String value = element.attr(name);
+            if (!value.isBlank()) {
+                values.put(name, value.trim());
+            }
+        }
+        return values;
+    }
+
+    private static String role(Element element) {
+        String explicit = element.attr("role").trim();
+        if (!explicit.isBlank()) {
+            return explicit.toLowerCase(Locale.ROOT);
+        }
+        return switch (element.tagName().toLowerCase(Locale.ROOT)) {
+            case "button" -> "button";
+            case "a" -> element.hasAttr("href") ? "link" : "";
+            case "textarea" -> "textbox";
+            case "select" -> "combobox";
+            case "input" -> inputRole(element.attr("type"));
+            default -> "";
+        };
+    }
+
+    private static String inputRole(String type) {
+        return switch (type == null ? "" : type.toLowerCase(Locale.ROOT)) {
+            case "button", "submit", "reset", "image" -> "button";
+            case "checkbox" -> "checkbox";
+            case "radio" -> "radio";
+            case "search" -> "searchbox";
+            default -> "textbox";
+        };
+    }
+
+    private static String label(Document document, Element element) {
+        String id = element.id();
+        if (!id.isBlank()) {
+            for (Element label : document.select("label[for]")) {
+                if (id.equals(label.attr("for"))) {
+                    return label.text().trim();
+                }
+            }
+        }
+        Element parentLabel = element.closest("label");
+        return parentLabel == null ? "" : parentLabel.text().trim();
+    }
+
+    private static int count(Document document, String cssSelector) {
+        try {
+            return document.select(cssSelector).size();
+        } catch (RuntimeException exception) {
+            return 0;
+        }
+    }
+
+    private static int countName(Document document, String role, String accessibleName) {
+        int count = 0;
+        for (Element element : document.select("button, a[href], input, textarea, select, [role], [aria-label]")) {
+            if (role(element).equals(role) && firstText(element.attr("aria-label"), element.attr("title"),
+                    element.attr("alt"), label(document, element), element.attr("placeholder"), element.text())
+                    .equals(accessibleName)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int countAccessibleName(Document document, String accessibleName) {
+        int count = 0;
+        for (Element element : document.select("button, a[href], input, textarea, select, [role], [aria-label]")) {
+            if (firstText(element.attr("aria-label"), element.attr("title"), element.attr("alt"),
+                    label(document, element), element.attr("placeholder"), element.text()).equals(accessibleName)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static int countLabel(Document document, String label) {
+        int count = 0;
+        for (Element element : document.select("input, textarea, select")) {
+            if (label(document, element).equals(label)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static boolean dynamic(String value) {
+        String text = text(value).toLowerCase(Locale.ROOT);
+        return text.matches(".*[0-9a-f]{8,}.*") || text.matches(".*\\d{5,}.*");
+    }
+
+    private static String logicalId(String tag, String accessibleName, Map<String, String> attributes) {
+        String seed = firstText(attributes.get("id"), attributes.get("name"), accessibleName, tag);
+        return seed.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
+    }
+
+    private static String firstText(String... values) {
+        for (String value : values) {
+            String text = text(value);
+            if (!text.isBlank()) {
+                return text;
+            }
+        }
+        return "";
+    }
+
+    private static String trimTo(String value, int maxLength) {
+        String text = text(value);
+        return text.length() <= maxLength ? text : text.substring(0, maxLength);
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static String cssAttribute(String name, String value) {
+        return "[" + name + "=\"" + text(value).replace("\\", "\\\\").replace("\"", "\\\"") + "\"]";
+    }
+
+    private static String javaString(String value) {
+        return text(value).replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+    }
+
+    private static String xpathLiteral(String value) {
+        String text = text(value);
+        if (!text.contains("'")) {
+            return "'" + text + "'";
+        }
+        if (!text.contains("\"")) {
+            return "\"" + text + "\"";
+        }
+        return "concat('" + text.replace("'", "',\"'\",'") + "')";
+    }
+
+    private record ScoredElement(
+            ElementSnapshot snapshot,
+            String text,
+            int intentScore,
+            LocatorRanker.LocatorSelection selection) {
     }
 }
