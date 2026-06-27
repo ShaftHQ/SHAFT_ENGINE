@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.model.ElementSnapshot;
@@ -382,6 +383,7 @@ public final class CaptureGenerator {
         return new GenerationState(
                 immutableTargets,
                 data,
+                CaptureReadiness.from(session),
                 unsupported,
                 flaky,
                 fallback,
@@ -1200,12 +1202,15 @@ public final class CaptureGenerator {
                                         + item.candidate().expression() + " (score " + item.score() + ")")
                                 .toList()))
                 .toList();
+        CaptureReadiness readiness = reportReadiness(state);
         return new CaptureGenerationReport(
                 CaptureGenerationReport.CURRENT_SCHEMA_VERSION,
                 sessionId,
                 status,
                 relative(paths.root(), paths.source()),
                 relative(paths.root(), paths.data()),
+                readiness.state(),
+                readiness.warnings(),
                 decisions,
                 state.unsupported().stream().distinct().sorted().toList(),
                 state.flaky().stream().distinct().sorted().toList(),
@@ -1224,6 +1229,21 @@ public final class CaptureGenerator {
         List<String> warnings = new ArrayList<>(state.warnings());
         warnings.addAll(replayReviewWarnings(paths.root(), paths.source(), replay));
         return warnings.stream().distinct().sorted().toList();
+    }
+
+    private static CaptureReadiness reportReadiness(GenerationState state) {
+        List<String> warnings = new ArrayList<>(state.readiness().warnings());
+        warnings.addAll(state.unsupported());
+        warnings.addAll(state.required());
+        warnings.addAll(state.flaky());
+        warnings.addAll(state.fallback());
+        CaptureReadiness.State stateValue = state.unsupported().isEmpty() && state.required().isEmpty()
+                ? state.readiness().state()
+                : CaptureReadiness.State.BLOCKED;
+        if (stateValue == CaptureReadiness.State.READY && !warnings.isEmpty()) {
+            stateValue = CaptureReadiness.State.RISKY;
+        }
+        return new CaptureReadiness(stateValue, warnings.stream().distinct().sorted().toList());
     }
 
     private static void validateOutputs(
@@ -2006,6 +2026,7 @@ public final class CaptureGenerator {
     private record GenerationState(
             List<TargetPlan> targets,
             DataPlan data,
+            CaptureReadiness readiness,
             List<String> unsupported,
             List<String> flaky,
             List<String> fallback,
@@ -2018,6 +2039,7 @@ public final class CaptureGenerator {
             return new GenerationState(
                     List.of(),
                     new DataPlan(root, Map.of(), Map.of(), Map.of()),
+                    CaptureReadiness.ready(),
                     new ArrayList<>(List.of(message)),
                     new ArrayList<>(),
                     new ArrayList<>(),
@@ -2028,7 +2050,7 @@ public final class CaptureGenerator {
         private GenerationState withUnsupported(List<String> additional) {
             List<String> merged = new ArrayList<>(unsupported);
             merged.addAll(additional);
-            return new GenerationState(targets, data, merged, flaky, fallback, required, warnings);
+            return new GenerationState(targets, data, readiness, merged, flaky, fallback, required, warnings);
         }
     }
 }

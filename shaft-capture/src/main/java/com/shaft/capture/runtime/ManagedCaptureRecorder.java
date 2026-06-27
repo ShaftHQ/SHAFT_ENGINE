@@ -8,6 +8,7 @@ import com.shaft.capture.collector.PollingBrowserEventCollector;
 import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.privacy.CapturePrivacyClassifier;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
@@ -128,17 +129,32 @@ class ManagedCaptureRecorder {
     }
 
     synchronized CaptureStatus status() {
+        CaptureReadiness readiness = readiness();
         return new CaptureStatus(
                 state,
                 sessionId,
                 request.browser().name().toLowerCase(),
                 currentUrl,
                 pipeline == null ? 0 : pipeline.eventCount(),
-                warnings,
+                readiness.state(),
+                readiness.warnings().isEmpty() ? warnings : readiness.warnings(),
                 request.outputPath().toString(),
                 false,
                 ProcessHandle.current().pid(),
                 startedAt);
+    }
+
+    private CaptureReadiness readiness() {
+        if (store == null) {
+            return new CaptureReadiness(
+                    warnings.isEmpty() ? CaptureReadiness.State.READY : CaptureReadiness.State.RISKY,
+                    warnings);
+        }
+        try {
+            return CaptureReadiness.from(store.read(), warnings);
+        } catch (RuntimeException exception) {
+            return new CaptureReadiness(CaptureReadiness.State.RISKY, warnings);
+        }
     }
 
     synchronized void checkpoint(String description, Checkpoint.CheckpointKind kind) {

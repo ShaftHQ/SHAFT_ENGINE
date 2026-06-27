@@ -79,6 +79,18 @@ public interface Allure extends EngineProperties<Allure> {
     boolean generateArchive(); //generateArchive (used to be: generateAllureReportArchive)
 
     /**
+     * Whether SHAFT should generate the Allure HTML report after the test run.
+     * Disable this for local or CI runs that only need raw {@code allure-results}
+     * and must avoid generated report files.
+     * <p>Property key: {@code allure.generateReport} — default: {@code true}
+     *
+     * @return {@code true} to generate the report; {@code false} to skip report generation
+     */
+    @Key("allure.generateReport")
+    @DefaultValue("true")
+    boolean generateReport();
+
+    /**
      * URL pointing to a custom logo image that replaces the default SHAFT logo in the Allure report.
      * <p>Property key: {@code allure.customLogo} — default: SHAFT report logo on GitHub
      *
@@ -275,6 +287,17 @@ public interface Allure extends EngineProperties<Allure> {
          */
         public SetProperty generateArchive(boolean value) {
             setProperty("allure.generateArchive", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.generateReport} property at runtime.
+         *
+         * @param value {@code true} to generate the Allure HTML report after execution
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty generateReport(boolean value) {
+            setProperty("allure.generateReport", String.valueOf(value));
             return this;
         }
 

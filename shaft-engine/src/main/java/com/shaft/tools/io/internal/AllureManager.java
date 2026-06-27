@@ -336,12 +336,16 @@ public class AllureManager {
          */
         ThreadLocalPropertiesManager.setGlobalProperty("org.uncommons.reportng.escape-output", "false");
         allureResultsFolderPath = SHAFT.Properties.paths.allureResults();
-        // Resolve the Allure CLI now so cachedIsAllure2 is set before we generate the helper scripts.
-        resolveAllureCommandPrefix();
         cleanAllureReportDirectory();
         cleanAllureResultsDirectory();
-        writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
+        if (!SHAFT.Properties.allure.generateReport()) {
+            ReportManager.logDiscrete("Allure report generation is disabled.");
+            return;
+        }
+        // Resolve the Allure CLI now so cachedIsAllure2 is set before we generate the helper scripts.
+        resolveAllureCommandPrefix();
+        writeGenerateReportShellFilesToProjectDirectory();
         startRealtimeMonitoringIfEligible();
     }
 
@@ -359,6 +363,10 @@ public class AllureManager {
      */
     public static void openAllureReportAfterExecution() {
         stopRealtimeMonitoring();
+        if (!SHAFT.Properties.allure.generateReport()) {
+            ReportManager.logDiscrete("Allure report generation is disabled.");
+            return;
+        }
         writeAllureReport();
         copyAndOpenAllure();
     }
@@ -426,6 +434,10 @@ public class AllureManager {
      * }</pre>
      */
     public static void generateAllureReportArchive() {
+        if (!SHAFT.Properties.allure.generateReport()) {
+            ReportManager.logDiscrete("Allure report generation is disabled.");
+            return;
+        }
         if (SHAFT.Properties.allure.generateArchive()) {
             ReportManager.logDiscrete("Generating Allure report archive.");
             ReportHelper.disableLogging();

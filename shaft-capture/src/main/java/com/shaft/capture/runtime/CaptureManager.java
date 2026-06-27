@@ -233,6 +233,7 @@ public final class CaptureManager implements AutoCloseable {
                 status.browser(),
                 status.currentUrl(),
                 status.eventCount(),
+                status.readiness(),
                 status.warnings(),
                 status.outputPath(),
                 status.aiEnabled(),

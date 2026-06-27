@@ -1,5 +1,7 @@
 package com.shaft.capture.generate;
 
+import com.shaft.capture.model.CaptureReadiness;
+
 import java.util.List;
 
 /**
@@ -10,6 +12,8 @@ import java.util.List;
  * @param status generation status
  * @param sourcePath output-root-relative source path
  * @param testDataPath output-root-relative test-data path
+ * @param readiness live capture readiness state
+ * @param readinessWarnings live capture readiness warnings
  * @param locatorDecisions selected locator rationale
  * @param unsupportedEvents unsupported event diagnostics
  * @param flakySteps replay-risk diagnostics
@@ -26,6 +30,8 @@ public record CaptureGenerationReport(
         Status status,
         String sourcePath,
         String testDataPath,
+        CaptureReadiness.State readiness,
+        List<String> readinessWarnings,
         List<LocatorDecision> locatorDecisions,
         List<String> unsupportedEvents,
         List<String> flakySteps,
@@ -139,6 +145,8 @@ public record CaptureGenerationReport(
         status = status == null ? Status.FAILED : status;
         sourcePath = sourcePath == null ? "" : sourcePath;
         testDataPath = testDataPath == null ? "" : testDataPath;
+        readiness = readiness == null ? CaptureReadiness.State.READY : readiness;
+        readinessWarnings = readinessWarnings == null ? List.of() : List.copyOf(readinessWarnings);
         locatorDecisions = locatorDecisions == null ? List.of() : List.copyOf(locatorDecisions);
         unsupportedEvents = unsupportedEvents == null ? List.of() : List.copyOf(unsupportedEvents);
         flakySteps = flakySteps == null ? List.of() : List.copyOf(flakySteps);
@@ -148,5 +156,43 @@ public record CaptureGenerationReport(
         compilation = compilation == null ? Validation.skipped("Compilation was not requested.") : compilation;
         replay = replay == null ? Validation.skipped("Replay was not requested.") : replay;
         enrichment = enrichment == null ? Enrichment.notRequested() : enrichment;
+    }
+
+    /**
+     * Compatibility constructor for callers compiled before readiness was added.
+     *
+     * @param schemaVersion report schema version
+     * @param sessionId source Capture session
+     * @param status generation status
+     * @param sourcePath output-root-relative source path
+     * @param testDataPath output-root-relative test-data path
+     * @param locatorDecisions selected locator rationale
+     * @param unsupportedEvents unsupported event diagnostics
+     * @param flakySteps replay-risk diagnostics
+     * @param fallbackLocators available fallback locator diagnostics
+     * @param requiredUserInputs unresolved external inputs
+     * @param warnings safe warnings
+     * @param compilation compilation result
+     * @param replay replay result
+     * @param enrichment enrichment result
+     */
+    public CaptureGenerationReport(
+            String schemaVersion,
+            String sessionId,
+            Status status,
+            String sourcePath,
+            String testDataPath,
+            List<LocatorDecision> locatorDecisions,
+            List<String> unsupportedEvents,
+            List<String> flakySteps,
+            List<String> fallbackLocators,
+            List<String> requiredUserInputs,
+            List<String> warnings,
+            Validation compilation,
+            Validation replay,
+            Enrichment enrichment) {
+        this(schemaVersion, sessionId, status, sourcePath, testDataPath, CaptureReadiness.State.READY,
+                List.of(), locatorDecisions, unsupportedEvents, flakySteps, fallbackLocators,
+                requiredUserInputs, warnings, compilation, replay, enrichment);
     }
 }

@@ -10,6 +10,7 @@ import com.shaft.capture.generate.CaptureGenerationRequest;
 import com.shaft.capture.generate.CaptureGenerationResult;
 import com.shaft.capture.generate.CaptureGenerator;
 import com.shaft.capture.generate.CodegenFeatureCatalog;
+import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.privacy.CapturePrivacyClassifier;
 import com.shaft.capture.runtime.CaptureBrowser;
@@ -268,6 +269,7 @@ public final class CaptureCli {
                     request.browser().name().toLowerCase(),
                     new CapturePrivacyClassifier().sanitizeUrl(request.targetUrl()).value(),
                     manager.status().eventCount(),
+                    CaptureReadiness.State.BLOCKED,
                     List.of("Managed browser startup failed."),
                     request.outputPath().toString(),
                     false,
@@ -339,6 +341,7 @@ public final class CaptureCli {
                 "",
                 "",
                 0,
+                CaptureReadiness.State.BLOCKED,
                 List.of("Managed browser startup timed out."),
                 "",
                 false,
