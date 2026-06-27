@@ -124,29 +124,15 @@ public record CaptureStartOptions(
     public List<String> warnings() {
         List<String> warnings = new ArrayList<>();
         if (!targetLanguage.isBlank() && !Set.of("java", "java-testng", "shaft-java").contains(normalize(targetLanguage))) {
-            warnings.add("Codegen target " + targetLanguage + " is recorded as metadata; SHAFT generates Java TestNG.");
+            warnings.add("Codegen target " + targetLanguage + " is accepted for compatibility; SHAFT generates Java TestNG.");
         }
         addIfSet(warnings, channel, "Chromium channel selection is mapped through SHAFT browser selection.");
-        addIfSet(warnings, deviceName, "Device emulation is recorded as metadata; set viewport and user agent for replay.");
-        addIfSet(warnings, colorScheme, "Color-scheme emulation is recorded as metadata.");
-        addIfSet(warnings, geolocation, "Geolocation emulation is recorded as metadata.");
-        addIfTrue(warnings, blockServiceWorkers, "Service-worker blocking is recorded as metadata.");
-        addIfSet(warnings, loadStoragePath, "Storage-state loading is recorded as metadata; use user-data-dir for browser state reuse.");
-        addIfSet(warnings, saveStoragePath, "Storage-state saving is recorded as metadata; use user-data-dir for browser state reuse.");
-        addIfSet(warnings, timezone, "Timezone emulation is recorded as metadata.");
-        addIfSet(warnings, saveHarPath, "HAR capture is recorded as metadata; SHAFT Capture does not write HAR files.");
-        addIfSet(warnings, saveHarGlob, "HAR filtering is recorded as metadata; SHAFT Capture does not write HAR files.");
+        addIfSet(warnings, saveHarGlob, "HAR glob filtering is not yet supported; SHAFT Capture writes all observed network entries.");
         return List.copyOf(warnings);
     }
 
     private static void addIfSet(List<String> warnings, String value, String warning) {
         if (value != null && !value.isBlank()) {
-            warnings.add(warning);
-        }
-    }
-
-    private static void addIfTrue(List<String> warnings, boolean value, String warning) {
-        if (value) {
             warnings.add(warning);
         }
     }

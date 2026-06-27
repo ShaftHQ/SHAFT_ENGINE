@@ -108,6 +108,37 @@ class ManagedCaptureRecorderControlTest {
         assertNotNull(edge.getCapability("unhandledPromptBehavior"));
     }
 
+    @Test
+    void browserOptionsApplyDevicePresetAsChromiumMobileEmulationWithoutLaunchingBrowser() {
+        CaptureStartOptions options = new CaptureStartOptions(
+                "",
+                "",
+                "",
+                "Pixel 7",
+                "",
+                "",
+                "",
+                false,
+                false,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                Duration.ZERO,
+                "",
+                temp.resolve("profile"));
+
+        MutableCapabilities chrome = new ManagedCaptureRecorder(request(CaptureBrowser.CHROME, options)).browserOptions();
+        MutableCapabilities edge = new ManagedCaptureRecorder(request(CaptureBrowser.EDGE, options)).browserOptions();
+
+        assertMobileEmulation(chrome.getCapability("goog:chromeOptions"));
+        assertMobileEmulation(edge.getCapability("ms:edgeOptions"));
+    }
+
     private CaptureStartRequest request(CaptureBrowser browser, CaptureStartOptions options) {
         return new CaptureStartRequest(
                 "https://example.test",
@@ -128,5 +159,18 @@ class ManagedCaptureRecorderControlTest {
         assertTrue(arguments.contains("--lang=en-GB"));
         assertTrue(arguments.contains("--proxy-server=http://proxy.example:8080"));
         assertTrue(arguments.contains("--proxy-bypass-list=localhost"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertMobileEmulation(Object capability) {
+        assertTrue(capability instanceof Map<?, ?>);
+        Map<String, Object> mobileEmulation = (Map<String, Object>) ((Map<?, ?>) capability).get("mobileEmulation");
+        Map<String, Object> deviceMetrics = (Map<String, Object>) mobileEmulation.get("deviceMetrics");
+        assertEquals(412, deviceMetrics.get("width"));
+        assertEquals(915, deviceMetrics.get("height"));
+        assertEquals(2.625, deviceMetrics.get("pixelRatio"));
+        assertEquals(true, deviceMetrics.get("touch"));
+        assertEquals(true, deviceMetrics.get("mobile"));
+        assertTrue(String.valueOf(mobileEmulation.get("userAgent")).contains("Pixel 7"));
     }
 }

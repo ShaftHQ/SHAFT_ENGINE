@@ -1,27 +1,27 @@
 {
   "shaft-mcp/src/main/java/com/shaft/mcp/McpMobileReplayResult.java": {
-    "mtime": 1782559148.002368,
-    "ast_hash": "6987a960bd73794a4a93959daba68a50",
+    "mtime": 1782561725.0252526,
+    "ast_hash": "f43510f55bfd0e4300b68c5efc74c8e2",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/McpPlaywrightRecordingService.java": {
-    "mtime": 1782559227.4941938,
-    "ast_hash": "87c752eb0156607bb699e9fcf3fa6937",
+    "mtime": 1782561725.0262518,
+    "ast_hash": "33f405c3b6db4a11f2223238413ead60",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/PlaywrightService.java": {
-    "mtime": 1782559233.4627106,
-    "ast_hash": "048287ba596b7a13639473c7bb0455b2",
+    "mtime": 1782561725.0272527,
+    "ast_hash": "cc7e4f64f022a70f9d3bb5167bda7604",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/PlaywrightServiceTest.java": {
-    "mtime": 1782560389.074052,
-    "ast_hash": "0d1fdc252b2cf71bed9d87479e27888c",
+    "mtime": 1782561725.0272527,
+    "ast_hash": "4f9fdafd9f24a03a68d47cdde35eda8f",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/McpPlaywrightCaptureAdapter.java": {
-    "mtime": 1782560139.5865119,
-    "ast_hash": "c80803e51cb1e04a70236555b3f447dc",
+    "mtime": 1782561725.0252526,
+    "ast_hash": "b35cef18e33827b92f5c3f124c4d261e",
     "semantic_hash": ""
   },
   ".github/pr-evidence/ui-revamp/evidence-manifest.json": {
@@ -529,199 +529,9 @@
     "ast_hash": "1b4f4b227bd1f4fa0f362a15c970a8d5",
     "semantic_hash": ""
   },
-  "shaft-capture/allure-results/02530305-c42a-4c89-a0fe-cbcf49cf426a-container.json": {
-    "mtime": 1782557531.2544806,
-    "ast_hash": "4ece09727bf6cce36ed093becb879ca0",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/03ebd41f-1e26-4a38-98f1-1a732b7cc2b0-container.json": {
-    "mtime": 1782557531.259496,
-    "ast_hash": "110a056bcd351404bd83ff6421cf9d9f",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/0638a8dc-314a-4c7b-928d-d2824b2b2333-result.json": {
-    "mtime": 1782557531.2635238,
-    "ast_hash": "728c2ccb5086ed18972e24a57fc4cf0c",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/0bf8e4c5-76a5-4fa2-989e-f6543adb174a-container.json": {
-    "mtime": 1782557531.2640772,
-    "ast_hash": "db5709583443c0d033a2e770eaffa0cb",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/11e7a0d3-9114-41dc-9b03-1e1d217d757e-result.json": {
-    "mtime": 1782557531.2666304,
-    "ast_hash": "1d39af15c7c0487b957294857845bb06",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/1d57a142-aac7-43b0-80da-f0760e91eaa6-result.json": {
-    "mtime": 1782557531.2676299,
-    "ast_hash": "66ee677e59147e8bc3c8e789623fd852",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/1f75d8b0-e45c-4481-92f4-361fca1fef01-container.json": {
-    "mtime": 1782557531.2696292,
-    "ast_hash": "d7a3c1cbf66ec0244616ad5897e225c4",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/2db95537-e26f-4d37-a69d-ec5bfa1211d7-result.json": {
-    "mtime": 1782557531.274184,
-    "ast_hash": "11027b0b97ce3eab708cd9e8a66db0b8",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/2de9e1a9-91cd-466e-a1ff-deff7cb73072-container.json": {
-    "mtime": 1782557531.2767181,
-    "ast_hash": "ee1ee462f93521a505cd443a80c73132",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/2f5d9e4d-2464-4c0a-9d90-28886df99e1c-result.json": {
-    "mtime": 1782557531.279717,
-    "ast_hash": "2543a93351c12f6cbc56fbc33da5c1ac",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/4580609c-c52d-439d-8afc-51495a0cd5b7-result.json": {
-    "mtime": 1782557531.2807198,
-    "ast_hash": "1e55ab0a1492a704603bfb3f50510268",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/4cf50303-3aa6-4adb-ac53-e953643d676d-result.json": {
-    "mtime": 1782557531.2829587,
-    "ast_hash": "d1e2e9137e9330071ee603b138c80791",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/4d0c0325-4af2-448d-b770-6b4363ba04c6-container.json": {
-    "mtime": 1782557531.2842493,
-    "ast_hash": "86b9cb1024a58fa261688a369ad7da0f",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/5d7858ba-6758-448c-96c3-fd68c0efb23a-result.json": {
-    "mtime": 1782557531.2857585,
-    "ast_hash": "d9d8f71bc2a51b260c431e2a7069a659",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/61e12a57-1561-4ce2-ad40-ecf12a936ac1-container.json": {
-    "mtime": 1782557531.2877746,
-    "ast_hash": "0da42f922c03abb7b57361fd1d0d6572",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/633eba28-d952-42dd-9f04-d235c857883f-container.json": {
-    "mtime": 1782557531.289774,
-    "ast_hash": "b0541db597c6d3f9502a3d63e4ba9cea",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/663f46c5-64ab-49d1-99bc-5493198d0e4b-result.json": {
-    "mtime": 1782557531.2907743,
-    "ast_hash": "0cef71aa58657a4a47df70eb670d0ddb",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/6a66e2ac-d5b6-44a7-ade9-14f9052e5d78-container.json": {
-    "mtime": 1782557531.2922845,
-    "ast_hash": "b3878f69ab52c3b55cf926f6493fb0cb",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/79a23942-ffe5-4430-8687-6fe07ce1d9d2-result.json": {
-    "mtime": 1782557531.2942934,
-    "ast_hash": "b2edec52b92c35a72c74b52d0dd78de0",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/7f7ee280-b22c-41e2-9309-fbbfb2f8edc4-result.json": {
-    "mtime": 1782557531.295804,
-    "ast_hash": "41c06d82d2d7344304c5d1ab3d6cc5c0",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/8036610a-135c-4bde-9a56-3abb54583aef-container.json": {
-    "mtime": 1782557531.2978265,
-    "ast_hash": "c934d4d6bf65ff4862e9b0159e2e5459",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/844738d3-3da9-468c-a918-fdf6c7a366cf-result.json": {
-    "mtime": 1782557531.2988224,
-    "ast_hash": "a1e58e6d37049204fe93b11071adb60b",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/8f74ed00-9c2b-4200-8146-e41256df68a9-container.json": {
-    "mtime": 1782557531.3008237,
-    "ast_hash": "ae7d68121bd31b892b8f3592a6114b8f",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/9e705fd3-08cd-43af-a2e3-38e5bc48ede5-container.json": {
-    "mtime": 1782557531.3043518,
-    "ast_hash": "069a33358952cc13c4244aec3db11069",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/a3b369b0-0031-4a92-9146-6209adc928db-container.json": {
-    "mtime": 1782557531.3058667,
-    "ast_hash": "9aca6500eee0288160d3abb7ee96c9cf",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/b13df953-0ac1-4af8-8e27-28dd529748d0-result.json": {
-    "mtime": 1782557531.309929,
-    "ast_hash": "123a4d0e1e5ff92833c0edd31356d757",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/b23f9fa0-ccac-4f80-90da-580b79ab8899-container.json": {
-    "mtime": 1782557531.3135748,
-    "ast_hash": "527f55fece72f0068669071c5faa7baa",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/c657ce85-e95a-4413-9400-aacd03b81e8a-container.json": {
-    "mtime": 1782557531.3165896,
-    "ast_hash": "7f08cb12daed3f8f21191aacf4752820",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/cf36ea6e-877d-4892-9246-c6e1b5627909-container.json": {
-    "mtime": 1782557531.3185842,
-    "ast_hash": "3370a0dd3045aa60ce872d56b2cd4b01",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/d942eb73-c15c-40c3-95cc-0e40931cdc5c-result.json": {
-    "mtime": 1782557531.3195891,
-    "ast_hash": "f746139245bb155c8cecd24c710511b5",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/ddc3c9b2-ebd1-40c9-8429-a0541959700d-result.json": {
-    "mtime": 1782557531.3226118,
-    "ast_hash": "18f6898a60dc951a2b8b38d03172ff1b",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/e81f1c1a-a7da-4f53-b66e-641f335b3db7-container.json": {
-    "mtime": 1782557531.3242056,
-    "ast_hash": "bfef5db54c91c5a8e6d598d4ae8d92bd",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/ebc92717-6932-49c5-99ca-584b4666a6e3-result.json": {
-    "mtime": 1782557531.333492,
-    "ast_hash": "954c8aa1c315b542dc105d240c597b38",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/ed108ed5-1cf8-4bae-a711-976002b00aab-container.json": {
-    "mtime": 1782557531.339553,
-    "ast_hash": "7aa3145588a4bb97584bbd38204ff985",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/f142d92f-4ce6-41e2-b4d5-137ed2303987-result.json": {
-    "mtime": 1782557531.3444486,
-    "ast_hash": "351c7dd4d64d426b40b49f0b861e89be",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/f1d07403-14c6-465d-8f90-d479b87c5523-container.json": {
-    "mtime": 1782557531.348,
-    "ast_hash": "15c7c8e0fd11d8fc97966a177c157db7",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/fbf33b37-b56a-4b08-88f6-5a21e7839879-container.json": {
-    "mtime": 1782557531.3530738,
-    "ast_hash": "99b0c9b6cbf80e32f08715c6fcb61a7f",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/ff2c7fa9-c4ec-419a-bb67-9ddea260d957-result.json": {
-    "mtime": 1782557531.3555968,
-    "ast_hash": "cae831864d5b56b4396532b22fa604df",
-    "semantic_hash": ""
-  },
   "shaft-capture/src/main/java/com/shaft/capture/cli/CaptureCli.java": {
-    "mtime": 1782558711.3168807,
-    "ast_hash": "efeba2d88160e98fabdbf15fd4d122b3",
+    "mtime": 1782562214.991685,
+    "ast_hash": "9655c48af19a6946a838d5a700aa157d",
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/collector/BidiBrowserEventCollector.java": {
@@ -845,8 +655,8 @@
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/generate/CodegenFeatureCatalog.java": {
-    "mtime": 1782556810.4098644,
-    "ast_hash": "0e7b0b21a25b9b7476eb675396390325",
+    "mtime": 1782562207.159442,
+    "ast_hash": "30e0d85ea6e0586584769e8d00c02807",
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/generate/GeneratedTestValidator.java": {
@@ -960,8 +770,8 @@
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureStartOptions.java": {
-    "mtime": 1781887374.8086941,
-    "ast_hash": "08bdd33c70c75a9c693eae92d4e613af",
+    "mtime": 1782562286.0363357,
+    "ast_hash": "3eb24c8fa1e39f9194f6513eef299c13",
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureStartRequest.java": {
@@ -975,8 +785,8 @@
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/runtime/ManagedCaptureRecorder.java": {
-    "mtime": 1782550171.3490345,
-    "ast_hash": "2e79a75e19cad0250c766a61fe8d15b4",
+    "mtime": 1782562178.429091,
+    "ast_hash": "83a3669d7344bacc1979fcb46a52b0ec",
     "semantic_hash": ""
   },
   "shaft-capture/src/main/java/com/shaft/capture/storage/CaptureSessionStore.java": {
@@ -1070,8 +880,8 @@
     "semantic_hash": ""
   },
   "shaft-capture/src/test/java/com/shaft/capture/runtime/CaptureRuntimePortabilityTest.java": {
-    "mtime": 1781887374.8132043,
-    "ast_hash": "b4774a5bc9b7d84591360de0f8482164",
+    "mtime": 1782562195.1779764,
+    "ast_hash": "f97f39d0722ad713b255e22d029043bd",
     "semantic_hash": ""
   },
   "shaft-capture/src/test/java/com/shaft/capture/runtime/CaptureStatusTest.java": {
@@ -1085,8 +895,8 @@
     "semantic_hash": ""
   },
   "shaft-capture/src/test/java/com/shaft/capture/runtime/ManagedCaptureRecorderControlTest.java": {
-    "mtime": 1781887374.8142037,
-    "ast_hash": "93adf57550a29b8c7f4ed7e4f1d1c1a6",
+    "mtime": 1782562187.0511658,
+    "ast_hash": "c68fc6791b86b7e87c25648066847d7e",
     "semantic_hash": ""
   },
   "shaft-capture/src/test/java/com/shaft/capture/storage/CaptureSessionStoreTest.java": {
@@ -2285,8 +2095,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/BrowserObservabilityRecorder.java": {
-    "mtime": 1782537256.776028,
-    "ast_hash": "50aa9558461b188e595e4b1d07e3fcd4",
+    "mtime": 1782562058.2871215,
+    "ast_hash": "6bb6a4cc7a39b51b43414f9e3e03d3e9",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/BrowserPerformanceExecutionReport.java": {
@@ -2330,8 +2140,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/FailureTraceReporter.java": {
-    "mtime": 1782537256.7790277,
-    "ast_hash": "2561ad0c47ea32be88544bf53fc962f1",
+    "mtime": 1782562064.8589432,
+    "ast_hash": "c89bd6c304e52e496ab28757512a18f9",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/tools/io/internal/FlakeProfiler.java": {
@@ -2860,8 +2670,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/tools/io/internal/FailureTraceReporterTest.java": {
-    "mtime": 1782537256.794028,
-    "ast_hash": "8757e6f869d616e2924133d4638d00e2",
+    "mtime": 1782561959.349053,
+    "ast_hash": "bc7cf2c2bdb9523d8c3f5d9598376c2a",
     "semantic_hash": ""
   },
   "shaft-engine/src/test/java/com/shaft/tools/io/internal/FlakeProfilerUnitTest.java": {
@@ -5904,96 +5714,6 @@
     "ast_hash": "852f4c51596f80a6f39c336083b743bd",
     "semantic_hash": ""
   },
-  "shaft-capture/allure-results/17439a5c-0c0e-4a9c-8103-2374fdba12d3-attachment.txt": {
-    "mtime": 1782557510.5924084,
-    "ast_hash": "051c61f9de47383852b6a8a30e449dc5",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/17fd2eb2-2bf7-4d31-8374-97211792ccea-attachment.txt": {
-    "mtime": 1782557507.8611047,
-    "ast_hash": "912397a6470041fea2174c87162e10df",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/1aed89d0-9d03-4e7e-ae09-e2a04c816f91-attachment.txt": {
-    "mtime": 1782557524.0588174,
-    "ast_hash": "fa537bfd054b7a31e4c8f994a1508ed4",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/22e6db85-27be-4ee7-8531-e0afa466f989-attachment.txt": {
-    "mtime": 1782557508.6720264,
-    "ast_hash": "d4de1449578d0640d2125993cfdc223f",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/29dd1b93-8d80-40c9-974a-04b565055039-attachment.txt": {
-    "mtime": 1782557523.85059,
-    "ast_hash": "ad279ed6fe4e2646cc1d9b719c272ea3",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/33ddf2be-cecc-4c4c-be89-cb87fd42f36c-attachment.txt": {
-    "mtime": 1782557528.3655953,
-    "ast_hash": "594528ac0067a3cd32b8a809155e1f64",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/3cb9513e-373b-4bf2-bdb2-00deed9b082b-attachment.txt": {
-    "mtime": 1782557526.7923026,
-    "ast_hash": "9f54b7242a7b47c3ce32ff99b3b121f1",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/524da34a-bb2f-4ee5-b71f-626235a6e913-attachment.txt": {
-    "mtime": 1782557517.0193708,
-    "ast_hash": "76a33a5c99c5f5a4c32d53628ff07391",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/57932ec6-5ae2-4eab-b508-7f227ff58f44-attachment.txt": {
-    "mtime": 1782557521.9253266,
-    "ast_hash": "5d1a8130bde0c473793e432b1cb410a2",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/5d596a9e-6e29-4a2d-9611-086cb434ad12-attachment.txt": {
-    "mtime": 1782557515.310745,
-    "ast_hash": "c978b0d42cb332c2a1b186739ee51e57",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/851004bc-9a29-4897-94a5-f6a423d217a0-attachment.txt": {
-    "mtime": 1782557528.3515759,
-    "ast_hash": "6ec475b3fda208e38e4e9e731e0a6fc5",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/96093db0-7d61-4e52-a7cc-784f9bd2e433-attachment.txt": {
-    "mtime": 1782557508.6385279,
-    "ast_hash": "cfea204bfa85b388f3ca657559b653ca",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/c6c8d3b8-928b-457f-b03d-a5a6455a6dcf-attachment.txt": {
-    "mtime": 1782557530.8748727,
-    "ast_hash": "5a5d1e4176f0f16dbcfd777390484a06",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/cfe29339-3aaa-4dd6-8828-09c683268a1f-attachment.txt": {
-    "mtime": 1782557520.1563797,
-    "ast_hash": "349f8adc40a9b15f98914e7c77cdd54b",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/e12e4db8-ee65-42d1-9ea7-a8de22de661b-attachment.txt": {
-    "mtime": 1782557531.2101526,
-    "ast_hash": "1f34c6a98250785b6a842d095f3d5a74",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/e95bd9ff-1751-4ff8-ad24-3aa0301d140c-attachment.txt": {
-    "mtime": 1782557520.2543893,
-    "ast_hash": "267af65dbc213ae3d3b866e3cb8967ae",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/ecaafdcc-d760-4b72-819a-1b8e6b46e484-attachment.txt": {
-    "mtime": 1782557531.0166028,
-    "ast_hash": "b4521f1a885db72e487b999b01122ee6",
-    "semantic_hash": ""
-  },
-  "shaft-capture/allure-results/f84f9eec-9b96-4986-8945-faa40a8916ee-attachment.txt": {
-    "mtime": 1782557531.225761,
-    "ast_hash": "6be159c2b31eb77a2265cb3df2ea2396",
-    "semantic_hash": ""
-  },
   "shaft-doctor/src/test/resources/fixtures/golden/doctor-report.md": {
     "mtime": 1781879693.7722971,
     "ast_hash": "9fd151800fee4024eeb0463f36890866",
@@ -6387,6 +6107,191 @@
   "shaft-mcp/allure-results/aa1e4c9f-0a3c-4077-9a43-c3dfc5f4bc82-attachment.mp4": {
     "mtime": 1782560430.0579553,
     "ast_hash": "83b6f5bd93b4fbb60af1d3cce2dc20f6",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/02ec8bff-edaf-4d05-bfb6-60da07714891-container.json": {
+    "mtime": 1782562328.7029166,
+    "ast_hash": "200a75b27f12b835821056858566b8ed",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/06f6eaa0-a026-4063-808a-b6f7bb8c3177-result.json": {
+    "mtime": 1782562328.7059183,
+    "ast_hash": "39ee3f4400f01343f931f9347860562e",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/0ccebe32-8d7f-4dbd-bc73-533915a3d58e-container.json": {
+    "mtime": 1782562328.7069192,
+    "ast_hash": "e131e3ca75e6e628ec2ced5226f9c522",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/23995f87-cd4e-4813-8e90-8898d2440f0b-result.json": {
+    "mtime": 1782562328.7089152,
+    "ast_hash": "1d38fadae3f3299107575e172d635049",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/2bf9b107-d6c4-45c2-b624-35251d9755e8-container.json": {
+    "mtime": 1782562328.7109168,
+    "ast_hash": "c3ebb4850fd1f29c013eae3669a66c1f",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/3271ebfc-14cb-46c6-b3c1-32475eba83b2-container.json": {
+    "mtime": 1782562328.7119145,
+    "ast_hash": "94b8eab5ea0fe3f95b5677f64cfe560a",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/345f9f59-9e61-4864-bc49-61325751d51c-result.json": {
+    "mtime": 1782562328.7149196,
+    "ast_hash": "a441ae470d98be0c740996cc55b2fd0b",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/35d63dda-5bfb-4348-a513-7316c77bec12-container.json": {
+    "mtime": 1782562328.7159157,
+    "ast_hash": "3a6948b186ec11c938c6a98fded2035a",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/4b1643f6-b41d-4004-be94-a354f23c26f0-result.json": {
+    "mtime": 1782562328.7179172,
+    "ast_hash": "9c0e8b9790cc4b328a2b8249999fc75a",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/55117f46-0d35-44d1-b82c-b806ace80084-container.json": {
+    "mtime": 1782562328.7199175,
+    "ast_hash": "43b895581bc208f527b024193e30b76a",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/65a312aa-414a-4c49-9b8a-2d9734e62d8a-result.json": {
+    "mtime": 1782562328.7219157,
+    "ast_hash": "9b536079e11141a37244f5dd04306fa8",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/6b6e4a05-3f02-47fd-b50d-fdd52ca7b61a-result.json": {
+    "mtime": 1782562328.7239158,
+    "ast_hash": "3a9483e44dae5d8148f4393de7425b95",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/7c88460d-fb3b-4bc1-a54c-15b64fc09b53-result.json": {
+    "mtime": 1782562328.724915,
+    "ast_hash": "632c16e82e3fc65a6090674d28f14491",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/8308c315-0ce8-46fd-bdc1-ca9a4ffd514a-result.json": {
+    "mtime": 1782562328.7269163,
+    "ast_hash": "087c845f613754fb83f4779a3ef6aa49",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/8390f7a0-c822-4e9e-be0e-f3a2f4cec9b0-result.json": {
+    "mtime": 1782562328.7289166,
+    "ast_hash": "03b586077ba82758e628246bea4cf514",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/885d7a7f-816c-440f-981a-533e37ea4834-result.json": {
+    "mtime": 1782562328.7309155,
+    "ast_hash": "cd00dbb3162af028718738f397cd0f4b",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/a6cb74ee-2a39-475e-858e-4ba01061ce5f-container.json": {
+    "mtime": 1782562328.732919,
+    "ast_hash": "fe4e3be4a6c4da78442be144d2f9f073",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/b2ea8083-d8a4-4a8c-9e44-96fce22b8f11-container.json": {
+    "mtime": 1782562328.7349212,
+    "ast_hash": "26e0cc4aa532cccdc2286be73f46ca57",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/c0916840-734f-4076-94dc-fc1e426b02b5-container.json": {
+    "mtime": 1782562328.735915,
+    "ast_hash": "92fd814acaa6e11b0d9d723382175bd6",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/c36da3e3-3cdf-4a77-89ef-d2cf1ab475d6-container.json": {
+    "mtime": 1782562328.7379153,
+    "ast_hash": "296d036c876aca5dbd1096c9827fc9f3",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/c79a4440-fa9f-4118-99af-5c5bad9c7397-container.json": {
+    "mtime": 1782562328.7389152,
+    "ast_hash": "2b360231be7b11a7133e363c104466ad",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/categories.json": {
+    "mtime": 1782562328.744918,
+    "ast_hash": "bbc6f20af79864d58750116e43d3d312",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/e02d2b0d-173d-4931-8ed9-1fe5999bbbf1-container.json": {
+    "mtime": 1782562328.7399144,
+    "ast_hash": "41b9657554085b50525d51ef3ca68564",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/edb18adc-d0cd-4eae-bdf3-b2718dffa7c5-container.json": {
+    "mtime": 1782562328.7409148,
+    "ast_hash": "1cd97ed8253fc70dbe717e0bae80192f",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/f758fbd2-7042-4302-bea1-47b238c34508-container.json": {
+    "mtime": 1782562328.7429197,
+    "ast_hash": "d4671d14442240ecb1f670cdcf185463",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/fc3df6d8-93cb-4700-9178-cbc2e9525d34-result.json": {
+    "mtime": 1782562328.743917,
+    "ast_hash": "00175348de52e26bcca1b167460cab3f",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/0a2bc024-74db-4bdd-b66d-227f3247124e-attachment.txt": {
+    "mtime": 1782562327.93613,
+    "ast_hash": "6304e367ac3c0634d016685ff60c2063",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/2701f7f2-3e08-4c40-911a-763c9a0d2399-attachment.txt": {
+    "mtime": 1782562328.640398,
+    "ast_hash": "15c8e5a7a91596839a118fe6db283012",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/48f2d98e-00dd-4682-8471-4f3cedf9ab6c-attachment.txt": {
+    "mtime": 1782562327.916131,
+    "ast_hash": "93c89df65d1e1cf7ba024d876c1820df",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/4ba0c73c-2f5f-487f-898c-68078658dcf8-attachment.txt": {
+    "mtime": 1782562328.323781,
+    "ast_hash": "2a1aca5303cd3e1166d4c7c8cb9642cc",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/52a80c60-2e00-438b-8668-0d7aaeab963b-attachment.txt": {
+    "mtime": 1782562327.860596,
+    "ast_hash": "5c1e402af3eb732bd7b3bd8e3c836d15",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/679c911a-9157-4694-9d80-1d26e88d65a8-attachment.txt": {
+    "mtime": 1782562328.342789,
+    "ast_hash": "ebc5cf3e259ee778ea35c0d715025831",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/8a6e1613-da29-4c86-8cd2-5897b765855a-attachment.txt": {
+    "mtime": 1782562327.7050705,
+    "ast_hash": "ba6bca1370f6b5a75cba7447cdf0e9b3",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/9e135107-0763-49ef-b5fa-3cd41509f5ff-attachment.txt": {
+    "mtime": 1782562327.8991315,
+    "ast_hash": "081c1451f8c03e7afd4f3c922b0d3438",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/d41876d4-bd7b-410f-85e5-9fc316f1e73c-attachment.txt": {
+    "mtime": 1782562328.2722573,
+    "ast_hash": "213dc98a84efd34f3c2f240d90092f9f",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/da485c1a-fc4d-4b53-9971-ca6f576e0920-attachment.txt": {
+    "mtime": 1782562327.8455942,
+    "ast_hash": "18232d6a26cdf2d01580bcc728354116",
+    "semantic_hash": ""
+  },
+  "shaft-capture/allure-results/e17e5a58-f16d-45e7-be62-b2decc1ada66-attachment.txt": {
+    "mtime": 1782562327.9471295,
+    "ast_hash": "75f4432a9e41ca4b3d09e66208fb6af2",
     "semantic_hash": ""
   }
 }

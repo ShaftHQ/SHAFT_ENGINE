@@ -103,8 +103,7 @@ class CaptureRuntimePortabilityTest {
         assertEquals(temp.resolve("profile").toAbsolutePath().normalize(), options.userDataDirectory());
         assertEquals(List.of("data-pw", "data-testid", "data-test", "data-qa"), options.testIdAttributes());
         assertTrue(options.warnings().stream().anyMatch(warning -> warning.contains("SHAFT generates Java TestNG")));
-        assertTrue(options.warnings().stream().anyMatch(warning -> warning.contains("HAR capture")));
-        assertTrue(options.warnings().stream().anyMatch(warning -> warning.contains("Service-worker")));
+        assertTrue(options.warnings().stream().noneMatch(warning -> warning.contains("recorded as metadata")));
 
         assertNull(CaptureStartOptions.defaults().viewport());
         assertThrows(IllegalArgumentException.class, () -> new CaptureStartOptions(
@@ -113,5 +112,32 @@ class CaptureRuntimePortabilityTest {
         assertThrows(IllegalArgumentException.class, () -> new CaptureStartOptions(
                 "", "", "", "", "", "", "", false, false,
                 "", "", "", "", "", "", "", "", Duration.ofMillis(-1), "", null));
+    }
+
+    @Test
+    void nativeCaptureOptionsDoNotReportMetadataOnlyWarnings(@TempDir Path temp) {
+        CaptureStartOptions options = new CaptureStartOptions(
+                "java",
+                "",
+                "",
+                "Pixel 7",
+                "",
+                "dark",
+                "30.0444,31.2357",
+                false,
+                true,
+                temp.resolve("state.json").toString(),
+                temp.resolve("state-out.json").toString(),
+                "",
+                "Africa/Cairo",
+                "",
+                "",
+                temp.resolve("capture.har").toString(),
+                "",
+                Duration.ZERO,
+                "",
+                null);
+
+        assertTrue(options.warnings().isEmpty(), options.warnings().toString());
     }
 }
