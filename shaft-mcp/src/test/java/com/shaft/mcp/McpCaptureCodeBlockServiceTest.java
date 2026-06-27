@@ -75,6 +75,62 @@ class McpCaptureCodeBlockServiceTest {
     }
 
     @Test
+    void fromGeneratedSourceAddsRecordAtTargetBlocksWhenTargetIsProvided() throws Exception {
+        Path source = writeSource("""
+                package generated.capture;
+
+                import com.shaft.driver.SHAFT;
+                import org.openqa.selenium.By;
+                import org.testng.annotations.Test;
+
+                public class LoginReplayTest {
+                    private static final By USERNAME_INPUT_LOCATOR = SHAFT.GUI.Locator.inputField("Username");
+
+                    private SHAFT.GUI.WebDriver driver;
+
+                    @Test
+                    public void replayLogin() {
+                        driver.element().click(USERNAME_INPUT_LOCATOR);
+                        driver.element().type(USERNAME_INPUT_LOCATOR, requiredData("username"));
+                    }
+                }
+                """);
+        Path target = temp.resolve("CheckoutTest.java");
+        Files.writeString(target, """
+                package tests;
+
+                import com.shaft.driver.SHAFT;
+
+                public class CheckoutTest {
+                    private SHAFT.GUI.WebDriver browser;
+
+                    public void replayCheckout() {
+                        browser.browser().navigateToURL("https://example.test");
+                    }
+                }
+                """);
+
+        List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
+                .fromGeneratedSource(source, "browser", null, target, "replayCheckout");
+
+        McpCodeBlock locators = block(blocks, "capture-target-locator-fields");
+        assertEquals(McpCodeBlock.Kind.LOCATOR, locators.kind());
+        assertTrue(locators.code().contains("private static final By USERNAME_INPUT_LOCATOR"));
+        assertTrue(locators.placement().contains("CheckoutTest.java"));
+
+        McpCodeBlock actions = block(blocks, "capture-target-action-snippet");
+        assertEquals(McpCodeBlock.Kind.ACTION, actions.kind());
+        assertTrue(actions.code().contains("browser.element().click(USERNAME_INPUT_LOCATOR);"));
+        assertTrue(actions.code().contains("browser.element().type(USERNAME_INPUT_LOCATOR, requiredData(\"username\"));"));
+        assertTrue(actions.placement().contains("after replayCheckout"));
+        assertTrue(actions.warnings().isEmpty(), actions.warnings().toString());
+
+        McpCodeBlock guide = block(blocks, "capture-target-insertion-guide");
+        assertTrue(guide.code().contains("record-at-target"));
+        assertTrue(guide.code().contains("CheckoutTest.java"));
+    }
+
+    @Test
     void fromGeneratedSourceUsesPlaywrightDriverTypeInPomGuidance() throws Exception {
         Path source = writeSource("""
                 package generated.capture;
