@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -622,9 +623,10 @@ public class MobileService {
     }
 
     /**
-     * Taps screen coordinates using W3C touch actions.
+     * Last-resort fallback that taps screen coordinates using W3C touch actions.
      */
-    @Tool(name = "mobile_tap_coordinates", description = "taps viewport coordinates on the active mobile session")
+    @Tool(name = "mobile_tap_coordinates",
+            description = "fallback-only: taps viewport coordinates only after locator-based mobile_tap cannot be used")
     public McpMobileActionResult tapCoordinates(int x, int y) {
         performTapCoordinates(x, y);
         String code = tapCoordinatesCode(x, y);
@@ -633,9 +635,10 @@ public class MobileService {
     }
 
     /**
-     * Swipes between screen coordinates using W3C touch actions.
+     * Last-resort fallback that swipes between screen coordinates using W3C touch actions.
      */
-    @Tool(name = "mobile_swipe_coordinates", description = "swipes between viewport coordinates on the active mobile session")
+    @Tool(name = "mobile_swipe_coordinates",
+            description = "fallback-only: swipes viewport coordinates only after locator-based mobile_swipe_by_offset cannot be used")
     public McpMobileActionResult swipeCoordinates(int startX, int startY, int endX, int endY, int durationMillis) {
         performSwipeCoordinates(startX, startY, endX, endY, durationMillis);
         String code = swipeCoordinatesCode(startX, startY, endX, endY, durationMillis);
@@ -773,9 +776,27 @@ public class MobileService {
                 javaCode,
                 redactedJavaCode,
                 sensitive);
+        List<String> warnings = actionWarnings(action, locatorStrategy, recorded,
+                "Action was not recorded; call mobile_record_start to capture it.");
         return new McpMobileActionResult(action, recorded != null, actionBlock(action, javaCode),
-                recorded == null ? List.of("Action was not recorded; call mobile_record_start to capture it.")
-                        : recorded.warnings());
+                warnings);
+    }
+
+    private static List<String> actionWarnings(
+            String action,
+            locatorStrategy locatorStrategy,
+            McpMobileRecordedAction recorded,
+            String notRecordedWarning) {
+        LinkedHashSet<String> warnings = new LinkedHashSet<>();
+        if (McpAppiumLocatorSuggester.isCoordinateFallback(action, locatorStrategy)) {
+            warnings.add(McpAppiumLocatorSuggester.COORDINATE_FALLBACK_WARNING);
+        }
+        if (recorded == null) {
+            warnings.add(notRecordedWarning);
+        } else {
+            warnings.addAll(recorded.warnings());
+        }
+        return List.copyOf(warnings);
     }
 
     private static String safeContext(SupportsContextSwitching contextDriver) {

@@ -88,7 +88,7 @@ public class EngineService {
      */
     static By getLocator(locatorStrategy locatorStrategy, String locatorValue) {
         return switch (locatorStrategy) {
-            case ID -> SHAFT.GUI.Locator.hasAnyTagName().hasId(locatorValue).build();
+            case ID -> By.id(locatorValue);
             case CSSSELECTOR, CSS, SELECTOR -> By.cssSelector(locatorValue);
             case XPATH -> By.xpath(locatorValue);
             case NAME -> SHAFT.GUI.Locator.hasAnyTagName().hasAttribute("name", locatorValue).build();
