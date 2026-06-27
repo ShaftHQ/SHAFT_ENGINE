@@ -172,6 +172,15 @@ public final class BrowserObservabilityRecorder {
         return json;
     }
 
+    /**
+     * Returns and clears current-thread network observations as a HAR-like JSON document.
+     *
+     * @return HAR-like network JSON
+     */
+    public static String drainNetworkHarJson() {
+        return networkHarJson(drainNetworkJson());
+    }
+
     static String drainConsoleJson() {
         String json = consoleJson(CONSOLE.get());
         CONSOLE.get().clear();
@@ -259,6 +268,21 @@ public final class BrowserObservabilityRecorder {
         json.append("]\n");
         indent(json, 1).append("}");
         return json.toString();
+    }
+
+    static String networkHarJson(String networkJson) {
+        return """
+                {
+                  "log": {
+                    "version": "1.2",
+                    "creator": {
+                      "name": "SHAFT",
+                      "comment": "HAR-like browser network trace emitted by SHAFT observability"
+                    },
+                    "entries": %s
+                  }
+                }
+                """.formatted(networkJson == null || networkJson.isBlank() ? "[]" : networkJson);
     }
 
     private static boolean isNetworkEnabled() {

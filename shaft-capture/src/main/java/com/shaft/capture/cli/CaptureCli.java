@@ -439,6 +439,9 @@ public final class CaptureCli {
     private static String usage() {
         return "Usage: capture start --url <url> [--browser chrome|chromium|edge] [--output <path>] "
                 + "[--runtime-dir <path>] [--headless] [--viewport-size <width,height>] "
+                + "[--device <name>] [--color-scheme dark|light|no-preference] "
+                + "[--geolocation <lat,lon>] [--timezone <id>] [--block-service-workers] "
+                + "[--load-storage <path>] [--save-storage <path>] [--save-har <path>] "
                 + "[--test-id-attribute <name>] [--user-agent <value>] [--user-data-dir <path>] "
                 + "[--lang <locale>] [--proxy-server <url>] [--proxy-bypass <list>] "
                 + "[--ignore-https-errors] | status | stop [--discard] | "

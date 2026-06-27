@@ -275,6 +275,38 @@ public class FailureTraceReporterTest {
         }
     }
 
+    @Test(description = "Browser observability should expose a HAR-like JSON envelope for Capture")
+    public void browserObservabilityShouldDrainHarEnvelope() {
+        try {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceIncludeNetwork(true);
+
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET",
+                    "https://example.com/api",
+                    200,
+                    Map.of(),
+                    Map.of("Content-Type", "application/json"),
+                    12,
+                    0,
+                    2,
+                    "",
+                    "{}"));
+
+            String har = BrowserObservabilityRecorder.drainNetworkHarJson();
+
+            Assert.assertTrue(har.contains("\"version\": \"1.2\""), har);
+            Assert.assertTrue(har.contains("\"entries\": ["), har);
+            Assert.assertTrue(har.contains("\"method\": \"GET\""), har);
+            String drainedAgain = BrowserObservabilityRecorder.drainNetworkHarJson();
+            Assert.assertFalse(drainedAgain.contains("\"method\": \"GET\""), drainedAgain);
+        } finally {
+            BrowserObservabilityRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
     @Test(description = "Selenium network interception should feed trace network events")
     public void networkInterceptorShouldFeedTraceNetworkEvents() throws Exception {
         AtomicReference<Filter> filterReference = new AtomicReference<>();

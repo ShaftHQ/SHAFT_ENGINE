@@ -13,7 +13,9 @@ import com.shaft.capture.privacy.CapturePrivacyClassifier;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.listeners.TestNGListener;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Dimension;
@@ -25,9 +27,15 @@ import org.openqa.selenium.UnhandledAlertException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.chromium.ChromiumOptions;
+import org.openqa.selenium.devtools.Command;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.edge.EdgeOptions;
 
 import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -44,6 +52,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 class ManagedCaptureRecorder {
     private static final Object SHAFT_INITIALIZATION_LOCK = new Object();
+    private static final Map<String, DeviceProfile> DEVICE_PROFILES = Map.of(
+            "pixel 5", new DeviceProfile(393, 851, 2.75,
+                    "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 "
+                            + "(KHTML, like Gecko) Chrome/91.0.4472.77 Mobile Safari/537.36"),
+            "pixel 7", new DeviceProfile(412, 915, 2.625,
+                    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
+                            + "(KHTML, like Gecko) Chrome/109.0.0.0 Mobile Safari/537.36"));
 
     private final CaptureStartRequest request;
     private final CapturePrivacyPolicy privacyPolicy;
@@ -167,6 +182,7 @@ class ManagedCaptureRecorder {
             return status();
         }
         state = CaptureStatus.State.STOPPING;
+        saveRuntimeArtifacts();
         closeCollectorAndPipeline();
         closeBrowser();
         if (store != null) {
@@ -236,6 +252,11 @@ class ManagedCaptureRecorder {
                 .targetBrowserName(request.browser().name().toLowerCase())
                 .headlessExecution(request.headless())
                 .incognitoMode(false);
+        if (!request.options().saveHarPath().isBlank()) {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(true)
+                    .traceIncludeNetwork(true);
+        }
     }
 
     private static void initializeShaftRuntime() throws IOException {
@@ -272,12 +293,14 @@ class ManagedCaptureRecorder {
         if (request.browser() == CaptureBrowser.EDGE) {
             EdgeOptions options = new EdgeOptions();
             options.addArguments(arguments);
+            applyDeviceProfile(options);
             options.setAcceptInsecureCerts(request.options().ignoreHttpsErrors());
             options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
             return options;
         }
         ChromeOptions options = new ChromeOptions();
         options.addArguments(arguments);
+        applyDeviceProfile(options);
         options.setAcceptInsecureCerts(request.options().ignoreHttpsErrors());
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.IGNORE);
         return options;
@@ -298,6 +321,223 @@ class ManagedCaptureRecorder {
             } catch (WebDriverException exception) {
                 warn("Requested capture timeout could not be applied.");
             }
+        }
+        applyProtocolRuntimeOptions();
+        loadStorageState();
+    }
+
+    private void applyDeviceProfile(ChromiumOptions<?> options) {
+        DeviceProfile profile = deviceProfile();
+        if (profile == null) {
+            return;
+        }
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("width", profile.width());
+        metrics.put("height", profile.height());
+        metrics.put("pixelRatio", profile.pixelRatio());
+        metrics.put("touch", true);
+        metrics.put("mobile", true);
+        Map<String, Object> mobileEmulation = new LinkedHashMap<>();
+        mobileEmulation.put("deviceMetrics", metrics);
+        mobileEmulation.put("userAgent", request.options().userAgent().isBlank()
+                ? profile.userAgent()
+                : request.options().userAgent());
+        options.setExperimentalOption("mobileEmulation", mobileEmulation);
+    }
+
+    private DeviceProfile deviceProfile() {
+        if (request.options().deviceName().isBlank()) {
+            return null;
+        }
+        DeviceProfile profile = DEVICE_PROFILES.get(request.options().deviceName().toLowerCase(Locale.ROOT));
+        if (profile == null) {
+            warn("Capture device preset `" + request.options().deviceName()
+                    + "` is not bundled; set viewport and user agent instead.");
+        }
+        return profile;
+    }
+
+    private void applyProtocolRuntimeOptions() {
+        if (!needsProtocolRuntimeOptions()) {
+            return;
+        }
+        DevTools devTools = devTools();
+        if (devTools == null) {
+            return;
+        }
+        applyColorScheme(devTools);
+        applyGeolocation(devTools);
+        applyTimezone(devTools);
+        applyServiceWorkerBlocking(devTools);
+    }
+
+    private boolean needsProtocolRuntimeOptions() {
+        return !request.options().colorScheme().isBlank()
+                || !request.options().geolocation().isBlank()
+                || !request.options().timezone().isBlank()
+                || request.options().blockServiceWorkers();
+    }
+
+    private DevTools devTools() {
+        if (!(driver instanceof HasDevTools hasDevTools)) {
+            warn("Capture browser protocol emulation is not supported by this driver.");
+            return null;
+        }
+        try {
+            DevTools devTools = hasDevTools.getDevTools();
+            devTools.createSessionIfThereIsNotOne();
+            return devTools;
+        } catch (RuntimeException exception) {
+            warn("Capture browser protocol emulation could not be initialized.");
+            return null;
+        }
+    }
+
+    private void applyColorScheme(DevTools devTools) {
+        String colorScheme = request.options().colorScheme().toLowerCase(Locale.ROOT);
+        if (colorScheme.isBlank()) {
+            return;
+        }
+        if (!List.of("dark", "light", "no-preference").contains(colorScheme)) {
+            warn("Requested capture color scheme is unsupported; use dark, light, or no-preference.");
+            return;
+        }
+        send(devTools, "Emulation.setEmulatedMedia", Map.of(
+                        "features", List.of(Map.of("name", "prefers-color-scheme", "value", colorScheme))),
+                "Requested capture color scheme could not be applied.");
+    }
+
+    private void applyGeolocation(DevTools devTools) {
+        if (request.options().geolocation().isBlank()) {
+            return;
+        }
+        double[] point = geolocation();
+        if (point.length == 0) {
+            warn("Requested capture geolocation must be latitude,longitude.");
+            return;
+        }
+        String origin = targetOrigin();
+        if (!origin.isBlank()) {
+            send(devTools, "Browser.grantPermissions", Map.of(
+                            "origin", origin,
+                            "permissions", List.of("geolocation")),
+                    "Requested capture geolocation permission could not be granted.");
+        }
+        send(devTools, "Emulation.setGeolocationOverride", Map.of(
+                        "latitude", point[0],
+                        "longitude", point[1],
+                        "accuracy", 100),
+                "Requested capture geolocation could not be applied.");
+    }
+
+    private double[] geolocation() {
+        String[] parts = request.options().geolocation().split("\\s*,\\s*");
+        if (parts.length != 2) {
+            return new double[0];
+        }
+        try {
+            double latitude = Double.parseDouble(parts[0]);
+            double longitude = Double.parseDouble(parts[1]);
+            if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+                return new double[0];
+            }
+            return new double[] {latitude, longitude};
+        } catch (NumberFormatException exception) {
+            return new double[0];
+        }
+    }
+
+    private void applyTimezone(DevTools devTools) {
+        if (request.options().timezone().isBlank()) {
+            return;
+        }
+        send(devTools, "Emulation.setTimezoneOverride", Map.of("timezoneId", request.options().timezone()),
+                "Requested capture timezone could not be applied.");
+    }
+
+    private void applyServiceWorkerBlocking(DevTools devTools) {
+        if (!request.options().blockServiceWorkers()) {
+            return;
+        }
+        send(devTools, "Network.enable", Map.of(),
+                "Requested capture service-worker blocking could not initialize network emulation.");
+        send(devTools, "Network.setBypassServiceWorker", Map.of("bypass", true),
+                "Requested capture service-worker blocking could not be applied.");
+    }
+
+    private void send(DevTools devTools, String command, Map<String, Object> parameters, String warning) {
+        try {
+            devTools.send(new Command<>(command, parameters));
+        } catch (RuntimeException exception) {
+            warn(warning);
+        }
+    }
+
+    private void loadStorageState() {
+        if (request.options().loadStoragePath().isBlank()) {
+            return;
+        }
+        try {
+            String origin = targetOrigin();
+            if (!origin.isBlank()) {
+                driver.navigate().to(origin);
+            }
+            BrowserStorageStateManager.load(driver, request.options().loadStoragePath());
+        } catch (RuntimeException exception) {
+            warn("Requested capture storage state could not be loaded.");
+        }
+    }
+
+    private void saveRuntimeArtifacts() {
+        saveStorageState();
+        saveHar();
+    }
+
+    private void saveStorageState() {
+        if (driver == null || request.options().saveStoragePath().isBlank()) {
+            return;
+        }
+        try {
+            BrowserStorageStateManager.save(driver, request.options().saveStoragePath());
+        } catch (RuntimeException exception) {
+            warn("Requested capture storage state could not be saved.");
+        }
+    }
+
+    private void saveHar() {
+        if (request.options().saveHarPath().isBlank()) {
+            return;
+        }
+        if (!request.options().saveHarGlob().isBlank()) {
+            warn("Capture HAR glob filtering is not yet supported; writing all observed network entries.");
+        }
+        try {
+            Path path = Path.of(request.options().saveHarPath()).toAbsolutePath().normalize();
+            if (path.getParent() != null) {
+                Files.createDirectories(path.getParent());
+            }
+            Files.writeString(path, BrowserObservabilityRecorder.drainNetworkHarJson(), StandardCharsets.UTF_8);
+        } catch (IOException | RuntimeException exception) {
+            warn("Requested capture HAR file could not be written.");
+        }
+    }
+
+    private String targetOrigin() {
+        try {
+            URI uri = URI.create(request.targetUrl());
+            String scheme = uri.getScheme();
+            String authority = uri.getRawAuthority();
+            if (scheme == null || authority == null
+                    || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
+                return "";
+            }
+            int credentials = authority.lastIndexOf('@');
+            if (credentials >= 0) {
+                authority = authority.substring(credentials + 1);
+            }
+            return scheme + "://" + authority;
+        } catch (RuntimeException exception) {
+            return "";
         }
     }
 
@@ -501,5 +741,8 @@ class ManagedCaptureRecorder {
         private ProfileCleanupException(IOException cause) {
             super(cause);
         }
+    }
+
+    private record DeviceProfile(int width, int height, double pixelRatio, String userAgent) {
     }
 }

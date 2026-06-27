@@ -282,7 +282,8 @@ public final class FailureTraceReporter {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream();
              ZipOutputStream zip = new ZipOutputStream(output)) {
             addZipEntry(zip, "shaft-trace.json", json.getBytes(StandardCharsets.UTF_8), maxBytes);
-            addZipEntry(zip, "shaft-network.har", renderNetworkHarJson(networkJson).getBytes(StandardCharsets.UTF_8), maxBytes);
+            addZipEntry(zip, "shaft-network.har", BrowserObservabilityRecorder.networkHarJson(networkJson)
+                    .getBytes(StandardCharsets.UTF_8), maxBytes);
             addZipEntry(zip, "SHAFT Trace Report.html", html.getBytes(StandardCharsets.UTF_8), maxBytes);
             Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
             if (playwrightTrace != null && Files.isRegularFile(playwrightTrace)) {
@@ -304,21 +305,6 @@ public final class FailureTraceReporter {
                     .getBytes(StandardCharsets.UTF_8));
         }
         zip.closeEntry();
-    }
-
-    private static String renderNetworkHarJson(String networkJson) {
-        return """
-                {
-                  "log": {
-                    "version": "1.2",
-                    "creator": {
-                      "name": "SHAFT",
-                      "comment": "HAR-like browser network trace emitted by SHAFT observability"
-                    },
-                    "entries": %s
-                  }
-                }
-                """.formatted(networkJson == null || networkJson.isBlank() ? "[]" : networkJson);
     }
 
     private static void attach(String type, String name, byte[] bytes, String description) {
