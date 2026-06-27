@@ -121,6 +121,28 @@ class PlaywrightServiceTest {
         assertFalse(code.contains("super-secret"));
     }
 
+    @Test
+    void coordinateFallbackRecordingCarriesReplayWarning() {
+        McpPlaywrightRecordingService recorder = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("recordings/playwright-coordinates.json");
+
+        recorder.start(recording.toString(), "playwright", true);
+        recorder.record(
+                "clickCoordinates",
+                null,
+                "",
+                Map.of("x", "10", "y", "20"),
+                "driver.mouse().click(10, 20);",
+                "driver.mouse().click(10, 20);",
+                false);
+        recorder.stop(false);
+
+        McpMobileReplayResult result = recorder.codeBlocks(recording.toString(), "page");
+
+        assertTrue(result.codeBlocks().getFirst().code().contains("probably fail"));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("probably fail")));
+    }
+
     private static void assertArtifactDoesNotContain(Path path, String rawValue) throws Exception {
         assertFalse(Files.readString(path).contains(rawValue));
     }

@@ -20,6 +20,7 @@ final class McpAppiumCommandRecorder {
     private static final Pattern FIND_ELEMENTS = Pattern.compile(".*/session/[^/]+/elements$");
     private static final Pattern ELEMENT_COMMAND = Pattern.compile(".*/session/[^/]+/element/([^/]+)/([^/]+)$");
     private static final Pattern ACTIONS = Pattern.compile(".*/session/[^/]+/actions$");
+    private static final Pattern SOURCE = Pattern.compile(".*/session/[^/]+/source$");
     private static final Pattern ORIENTATION = Pattern.compile(".*/session/[^/]+/orientation$");
     private static final Pattern HIDE_KEYBOARD = Pattern.compile(".*/session/[^/]+/appium/device/hide_keyboard$");
     private static final Pattern BACKGROUND_APP = Pattern.compile(".*/session/[^/]+/appium/app/background$");
@@ -29,6 +30,7 @@ final class McpAppiumCommandRecorder {
     private final McpMobileRecordingService recorder;
     private final BooleanSupplier paused;
     private final Map<String, LocatorRef> elementLocators = new ConcurrentHashMap<>();
+    private volatile McpAppiumLocatorSuggester sourceLocators;
 
     McpAppiumCommandRecorder(McpMobileRecordingService recorder, BooleanSupplier paused) {
         this.recorder = recorder;
@@ -36,10 +38,17 @@ final class McpAppiumCommandRecorder {
     }
 
     void capture(String method, String path, String requestBody, int responseStatus, String responseBody) {
-        if (!"POST".equalsIgnoreCase(method) || paused.getAsBoolean() || responseStatus / 100 != 2) {
+        if (responseStatus / 100 != 2) {
             return;
         }
         try {
+            if ("GET".equalsIgnoreCase(method) && SOURCE.matcher(path).matches()) {
+                captureSource(responseBody);
+                return;
+            }
+            if (!"POST".equalsIgnoreCase(method) || paused.getAsBoolean()) {
+                return;
+            }
             if (FIND_ELEMENT.matcher(path).matches()) {
                 captureFoundElement(requestBody, responseBody, false);
                 return;
@@ -78,6 +87,11 @@ final class McpAppiumCommandRecorder {
         } catch (Exception exception) {
             recorder.recordWarning("Inspector command was not recorded: " + exception.getMessage());
         }
+    }
+
+    private void captureSource(String responseBody) throws Exception {
+        String source = mapper.readTree(blankJson(responseBody)).path("value").asText("");
+        sourceLocators = McpAppiumLocatorSuggester.parse(source).orElse(null);
     }
 
     private void captureFoundElement(String requestBody, String responseBody, boolean multiple) throws Exception {
@@ -150,6 +164,27 @@ final class McpAppiumCommandRecorder {
     }
 
     private void recordGesture(PointerGesture gesture) {
+        Optional<LocatorRef> locator = locatorAt(gesture.startX(), gesture.startY());
+        if (locator.isPresent()) {
+            String locatorCode = McpMobileCode.locatorCode(locator.get().strategy(), locator.get().value());
+            if (gesture.swipe()) {
+                int xOffset = gesture.endX() - gesture.startX();
+                int yOffset = gesture.endY() - gesture.startY();
+                String code = "driver.element().touch().swipeByOffset(" + locatorCode
+                        + ", " + xOffset + ", " + yOffset + ");";
+                record("swipeByOffset", locator.get().strategy(), locator.get().value(),
+                        Map.of("xOffset", String.valueOf(xOffset), "yOffset", String.valueOf(yOffset)),
+                        code,
+                        code,
+                        false);
+            } else {
+                record("tap", locator.get().strategy(), locator.get().value(), Map.of(),
+                        "driver.element().touch().tap(" + locatorCode + ");",
+                        "driver.element().touch().tap(" + locatorCode + ");",
+                        false);
+            }
+            return;
+        }
         if (gesture.swipe()) {
             int duration = Math.max(gesture.durationMillis(), 100);
             Map<String, String> params = Map.of(
@@ -168,6 +203,14 @@ final class McpAppiumCommandRecorder {
             String code = McpMobileCode.tapCoordinatesCode(gesture.startX(), gesture.startY());
             record("tapCoordinates", null, "", params, code, code, false);
         }
+    }
+
+    private Optional<LocatorRef> locatorAt(int x, int y) {
+        McpAppiumLocatorSuggester locators = sourceLocators;
+        if (locators == null) {
+            return Optional.empty();
+        }
+        return locators.locatorAt(x, y).map(locator -> new LocatorRef(locator.strategy(), locator.value()));
     }
 
     private void captureOrientation(String requestBody) throws Exception {

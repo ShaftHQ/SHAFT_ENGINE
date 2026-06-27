@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -104,6 +105,9 @@ final class McpPlaywrightRecordingService {
         }
         Map<String, String> safeParameters = parameters == null ? Map.of() : parameters;
         List<String> warnings = new ArrayList<>();
+        if (McpAppiumLocatorSuggester.isCoordinateFallback(action, locatorStrategy)) {
+            warnings.add(McpAppiumLocatorSuggester.COORDINATE_FALLBACK_WARNING);
+        }
         boolean sensitiveStored = !sensitive || recording.includeSensitiveValues();
         if (sensitive && !recording.includeSensitiveValues()) {
             safeParameters = Map.of("value", "<redacted>");
@@ -214,7 +218,10 @@ final class McpPlaywrightRecordingService {
     }
 
     private static List<String> replayWarnings(McpMobileRecording stored) {
-        List<String> warnings = new ArrayList<>(stored.warnings());
+        LinkedHashSet<String> warnings = new LinkedHashSet<>(stored.warnings());
+        stored.actions().stream()
+                .flatMap(action -> action.warnings().stream())
+                .forEach(warnings::add);
         boolean redacted = stored.actions().stream().anyMatch(action -> !action.sensitiveValueStored());
         if (redacted) {
             warnings.add("One or more sensitive values were redacted; replace placeholders before replay.");
@@ -234,4 +241,5 @@ final class McpPlaywrightRecordingService {
         }
         return candidate;
     }
+
 }

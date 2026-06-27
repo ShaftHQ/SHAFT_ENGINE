@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -647,9 +648,25 @@ public class PlaywrightService {
                 javaCode,
                 redactedJavaCode,
                 sensitive);
+        List<String> warnings = actionWarnings(action, locatorStrategy, recorded);
         return new McpMobileActionResult(action, recorded != null, actionBlock(action, javaCode),
-                recorded == null ? List.of("Action was not recorded; call playwright_record_start to capture it.")
-                        : recorded.warnings());
+                warnings);
+    }
+
+    private static List<String> actionWarnings(
+            String action,
+            locatorStrategy locatorStrategy,
+            McpMobileRecordedAction recorded) {
+        LinkedHashSet<String> warnings = new LinkedHashSet<>();
+        if (McpAppiumLocatorSuggester.isCoordinateFallback(action, locatorStrategy)) {
+            warnings.add(McpAppiumLocatorSuggester.COORDINATE_FALLBACK_WARNING);
+        }
+        if (recorded == null) {
+            warnings.add("Action was not recorded; call playwright_record_start to capture it.");
+        } else {
+            warnings.addAll(recorded.warnings());
+        }
+        return List.copyOf(warnings);
     }
 
     private McpCodeBlock actionBlock(String action, String javaCode) {
