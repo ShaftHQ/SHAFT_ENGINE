@@ -1895,8 +1895,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java": {
-    "mtime": 1782366241.7274811,
-    "ast_hash": "0dcc9d873618f00473caca1408d915b1",
+    "mtime": 1782595797.202267,
+    "ast_hash": "f45fe12445fd1a8e26ef0d23a74b58c4",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Jira.java": {
@@ -4210,8 +4210,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/BrowserService.java": {
-    "mtime": 1782590273.11448,
-    "ast_hash": "fefee9a59e112341967bd24927401142",
+    "mtime": 1782595446.1574996,
+    "ast_hash": "df386156a735f404a206b247523bbb28",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/BrowserType.java": {
@@ -4465,8 +4465,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/TestAutomationService.java": {
-    "mtime": 1782590579.087544,
-    "ast_hash": "3f123af92682dacd727ecc441ae99523",
+    "mtime": 1782595446.1583102,
+    "ast_hash": "c8c98123f632e5afc7c8177dcfeae67c",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/TraceService.java": {
@@ -4545,8 +4545,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/McpServiceHelperTest.java": {
-    "mtime": 1782590285.7932153,
-    "ast_hash": "8bc9710ebd0bb282b64e6c19077f7f00",
+    "mtime": 1782595446.1583102,
+    "ast_hash": "6bf3291c428d5c3461f7e6bdc9211637",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/MobileRecordingServiceTest.java": {
@@ -4560,8 +4560,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java": {
-    "mtime": 1782590298.7891097,
-    "ast_hash": "7a3d729439b3c2630b877bbb97e918c6",
+    "mtime": 1782595446.1600597,
+    "ast_hash": "4aba6bac344a1e1e936f582f931574d2",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/TestAutomationServiceTest.java": {
@@ -4575,8 +4575,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json": {
-    "mtime": 1782590293.9965563,
-    "ast_hash": "448a370b148120569d890d130715f641",
+    "mtime": 1782595446.1600597,
+    "ast_hash": "4723f0c44d89032b2c1253ed88fd750f",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/resources/fixtures/shaft-pilot/doctor/repair-input.json": {
@@ -5875,8 +5875,8 @@
     "semantic_hash": ""
   },
   "modular-era-feature-catalog.md": {
-    "mtime": 1782591096.2091823,
-    "ast_hash": "93ba31689e77ad4ec4cc808edd1ae71d",
+    "mtime": 1782595446.154753,
+    "ast_hash": "6e431ba1938694788999234084a8624b",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/resources/modular-era-feature-catalog/android-emulator-device.png": {
@@ -5910,7 +5910,7 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png": {
-    "mtime": 1782590777.7228117,
+    "mtime": 1782595446.156752,
     "ast_hash": "5510ed556a6e4a97036bc0d64ed49342",
     "semantic_hash": ""
   },
