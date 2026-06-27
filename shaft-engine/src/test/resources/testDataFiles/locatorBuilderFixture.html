@@ -46,6 +46,51 @@
         <input id="test-count" type="text" value="100">
     </section>
 
+    <section id="locator-method-targets">
+        <article data-locator-case="tag-name">Tag name target</article>
+        <div data-locator-case="any-tag" data-any-tag="true">Any tag target</div>
+        <div data-locator-case="has-attribute" data-present>Has attribute target</div>
+        <div data-locator-case="has-attribute-value" data-exact="exact-value">Exact attribute target</div>
+        <div data-locator-case="contains-attribute" data-partial="prefix-needle-suffix">Partial attribute target</div>
+        <div id="exact-id-target" data-locator-case="has-id">Exact id target</div>
+        <div id="prefix-partial-id-suffix" data-locator-case="contains-id">Partial id target</div>
+        <div class="exact-class" data-locator-case="has-class">Exact class target</div>
+        <div class="alpha partial-class omega" data-locator-case="contains-class">Partial class target</div>
+        <div data-locator-case="has-text">Exact text target</div>
+        <div data-locator-case="contains-text">This contains partial text target</div>
+        <div data-locator-case="and-method" data-and-target="true">And target</div>
+        <mark data-locator-case="first-index">First indexed target</mark>
+        <mark data-locator-case="second-index">Second indexed target</mark>
+        <mark data-locator-case="last-index">Last indexed target</mark>
+    </section>
+
+    <section id="role-targets">
+        <button data-role-case="button">Role button</button>
+        <a href="#role-link" data-role-case="link">Role link</a>
+        <textarea data-role-case="textbox"></textarea>
+        <input type="checkbox" data-role-case="checkbox">
+        <input type="radio" data-role-case="radio">
+        <select data-role-case="combobox">
+            <option>One</option>
+        </select>
+        <img data-role-case="image" alt="role image" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+        <ul data-role-case="list">
+            <li data-role-case="listitem">Role list item</li>
+        </ul>
+        <table data-role-case="table">
+            <thead>
+            <tr data-role-case="table-row">
+                <th data-role-case="table-columnheader">Column</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td data-role-case="table-cell">Cell</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
     <p>Ready to transform your test automation?</p>
 
     <section>
@@ -54,8 +99,25 @@
             const host = document.getElementById('shadow-host');
             const shadow = host.attachShadow({ mode: 'open' });
             shadow.innerHTML = `
+                <mark data-css-case="first-index">CSS first indexed target</mark>
+                <mark data-css-case="second-index">CSS second indexed target</mark>
+                <div id="shadow-method-targets">
                 <span class="wrapper">Shadow content</span>
                 <input type="text" name="shadow-input" value="shadow-value" />
+                <section data-css-case="tag-name">CSS tag name target</section>
+                <div data-css-case="any-tag" data-any-tag-shadow="true">CSS any tag target</div>
+                <div data-css-case="has-attribute" data-present-shadow>CSS has attribute target</div>
+                <div data-css-case="has-attribute-value" data-exact-shadow="exact-value">CSS exact attribute target</div>
+                <div data-css-case="contains-attribute" data-partial-shadow="prefix-needle-suffix">CSS partial attribute target</div>
+                <div id="shadow-exact-id-target" data-css-case="has-id">CSS exact id target</div>
+                <div id="shadow-prefix-partial-id-suffix" data-css-case="contains-id">CSS partial id target</div>
+                <div class="shadow-exact-class" data-css-case="has-class">CSS exact class target</div>
+                <div class="alpha shadow-partial-class omega" data-css-case="contains-class">CSS partial class target</div>
+                <strong data-css-case="has-text">Exact shadow text target</strong>
+                <em data-css-case="contains-text">This contains shadow partial text target</em>
+                <u data-css-case="and-method" data-and-shadow="true">CSS and target</u>
+                </div>
+                <mark data-css-case="last-index">CSS last indexed target</mark>
             `;
         </script>
     </section>
