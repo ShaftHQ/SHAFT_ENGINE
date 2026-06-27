@@ -9,6 +9,7 @@ import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.model.ElementSnapshot;
+import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.ExternalTestDataReference;
 import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.pilot.ai.AiResponse;
@@ -251,6 +252,63 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("SHAFT.Report.log(\"Capture fallback locator used for \" + logicalElementId"));
         assertTrue(source.contains(", true, \"input\", \"Username\")"));
         assertTrue(source.contains("matchesCaptureTarget(candidate, expectedTagName, expectedAccessibleName"));
+    }
+
+    @Test
+    void controlFlowPreviewReportsSuggestionsWithoutChangingLinearReplay() throws Exception {
+        Path preview = temp.resolve("control-flow-preview.json");
+        Path session = session(controlFlowSession());
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                session, temp.resolve("control-flow-preview"), "generated.capture", "", false,
+                true, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll(), false,
+                CaptureGenerationRequest.ControlFlowMode.PREVIEW, preview));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        assertTrue(Files.isRegularFile(preview));
+        List<CaptureGenerationReport.ControlFlowKind> kinds = result.report().controlFlowSuggestions().stream()
+                .map(CaptureGenerationReport.ControlFlowSuggestion::kind)
+                .toList();
+        assertTrue(kinds.contains(CaptureGenerationReport.ControlFlowKind.REPEATED_GROUP), kinds.toString());
+        assertTrue(kinds.contains(CaptureGenerationReport.ControlFlowKind.OPTIONAL_GUARD), kinds.toString());
+        assertTrue(kinds.contains(CaptureGenerationReport.ControlFlowKind.RECOVERY_REVIEW), kinds.toString());
+        assertTrue(result.report().warnings().stream()
+                .anyMatch(warning -> warning.contains("review/CONTROL_FLOW")), result.report().warnings().toString());
+
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("driver.element().click(COOKIE_CLOSE_BUTTON_LOCATOR);"));
+        assertFalse(source.contains("if (isCaptureElementDisplayed(COOKIE_CLOSE_BUTTON_LOCATOR))"));
+    }
+
+    @Test
+    void approvedControlFlowPreviewGeneratesOptionalGuard() throws Exception {
+        Path preview = temp.resolve("approved-control-flow-preview.json");
+        Path session = session(controlFlowSession());
+        writeCaptureData("alice");
+        new CaptureGenerator().generate(new CaptureGenerationRequest(
+                session, temp.resolve("control-flow-approval"), "generated.capture", "", false,
+                true, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll(), false,
+                CaptureGenerationRequest.ControlFlowMode.PREVIEW, preview));
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                session, temp.resolve("control-flow-applied"), "generated.capture", "", false,
+                true, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll(), false,
+                CaptureGenerationRequest.ControlFlowMode.APPLY, preview));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("if (isCaptureElementDisplayed(COOKIE_CLOSE_BUTTON_LOCATOR))"));
+        assertTrue(source.contains("private boolean isCaptureElementDisplayed(By locator)"));
+        assertTrue(result.report().controlFlowSuggestions().stream()
+                .anyMatch(suggestion -> suggestion.kind() == CaptureGenerationReport.ControlFlowKind.OPTIONAL_GUARD
+                        && suggestion.applied()));
     }
 
     @Test
@@ -563,5 +621,74 @@ class CaptureGeneratorTest {
         root.putObject("values").put("data.username", username);
         Files.writeString(temp.resolve("capture-data.json"),
                 JSON.writerWithDefaultPrettyPrinter().writeValueAsString(root), StandardCharsets.UTF_8);
+    }
+
+    private static CaptureSession controlFlowSession() {
+        ElementSnapshot close = new ElementSnapshot(
+                "cookie-close-button",
+                "button",
+                "button",
+                "Close cookie banner",
+                "Close",
+                Map.of("aria-label", "Close cookie banner", "class", "cookie-banner-close"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
+                        "[aria-label='Close cookie banner']", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                true,
+                true,
+                false);
+        ElementSnapshot submit = new ElementSnapshot(
+                "submit-button",
+                "button",
+                "button",
+                "Submit",
+                "",
+                Map.of("type", "submit"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
+                        "button[type='submit']", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                true,
+                true,
+                false);
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "control-flow-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(8),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), close,
+                                CaptureEvent.MouseButton.PRIMARY, 1),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(3), CaptureFixtures.target(),
+                                CaptureEvent.MouseButton.PRIMARY, 1),
+                        new CaptureEvent.TypeEvent(CaptureFixtures.context(4), CaptureFixtures.target(),
+                                CaptureFixtures.ordinary()),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(5), CaptureFixtures.target(),
+                                CaptureEvent.MouseButton.PRIMARY, 1),
+                        new CaptureEvent.TypeEvent(CaptureFixtures.context(6), CaptureFixtures.target(),
+                                CaptureFixtures.ordinary()),
+                        new CaptureEvent.ClickEvent(context(7, EventContext.ReplayStatus.FAILED), submit,
+                                CaptureEvent.MouseButton.PRIMARY, 1),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(8), close,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(CaptureFixtures.ordinary()),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+    }
+
+    private static com.shaft.capture.model.EventContext context(
+            long sequence,
+            com.shaft.capture.model.EventContext.ReplayStatus status) {
+        return new com.shaft.capture.model.EventContext(
+                sequence,
+                CaptureFixtures.STARTED.plusSeconds(sequence),
+                CaptureFixtures.page(),
+                status,
+                List.of(),
+                Map.of());
     }
 }

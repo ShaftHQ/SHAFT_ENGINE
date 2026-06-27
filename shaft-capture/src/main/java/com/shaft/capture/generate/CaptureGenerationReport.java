@@ -18,6 +18,7 @@ import java.util.List;
  * @param unsupportedEvents unsupported event diagnostics
  * @param flakySteps replay-risk diagnostics
  * @param fallbackLocators available fallback locator diagnostics
+ * @param controlFlowSuggestions deterministic control-flow suggestions
  * @param requiredUserInputs unresolved external inputs
  * @param warnings safe warnings
  * @param compilation compilation result
@@ -36,6 +37,7 @@ public record CaptureGenerationReport(
         List<String> unsupportedEvents,
         List<String> flakySteps,
         List<String> fallbackLocators,
+        List<ControlFlowSuggestion> controlFlowSuggestions,
         List<String> requiredUserInputs,
         List<String> warnings,
         Validation compilation,
@@ -49,6 +51,48 @@ public record CaptureGenerationReport(
     public enum Status {
         SUCCESS,
         FAILED
+    }
+
+    /**
+     * Deterministic control-flow suggestion kind.
+     */
+    public enum ControlFlowKind {
+        REPEATED_GROUP,
+        OPTIONAL_GUARD,
+        RECOVERY_REVIEW
+    }
+
+    /**
+     * One deterministic control-flow suggestion.
+     *
+     * @param id stable suggestion identifier
+     * @param kind suggestion kind
+     * @param evidenceIds related capture events or checkpoints
+     * @param summary safe suggestion summary
+     * @param recommendation deterministic remediation
+     * @param applied whether generation applied this suggestion
+     */
+    public record ControlFlowSuggestion(
+            String id,
+            ControlFlowKind kind,
+            List<String> evidenceIds,
+            String summary,
+            String recommendation,
+            boolean applied) {
+        /**
+         * Creates an immutable suggestion.
+         */
+        public ControlFlowSuggestion {
+            id = text(id);
+            kind = kind == null ? ControlFlowKind.RECOVERY_REVIEW : kind;
+            evidenceIds = evidenceIds == null ? List.of() : List.copyOf(evidenceIds);
+            summary = text(summary);
+            recommendation = text(recommendation);
+        }
+
+        private static String text(String value) {
+            return value == null ? "" : value.trim();
+        }
     }
 
     /**
@@ -151,11 +195,54 @@ public record CaptureGenerationReport(
         unsupportedEvents = unsupportedEvents == null ? List.of() : List.copyOf(unsupportedEvents);
         flakySteps = flakySteps == null ? List.of() : List.copyOf(flakySteps);
         fallbackLocators = fallbackLocators == null ? List.of() : List.copyOf(fallbackLocators);
+        controlFlowSuggestions = controlFlowSuggestions == null ? List.of() : List.copyOf(controlFlowSuggestions);
         requiredUserInputs = requiredUserInputs == null ? List.of() : List.copyOf(requiredUserInputs);
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
         compilation = compilation == null ? Validation.skipped("Compilation was not requested.") : compilation;
         replay = replay == null ? Validation.skipped("Replay was not requested.") : replay;
         enrichment = enrichment == null ? Enrichment.notRequested() : enrichment;
+    }
+
+    /**
+     * Compatibility constructor for callers compiled before control-flow suggestions were added.
+     *
+     * @param schemaVersion report schema version
+     * @param sessionId source Capture session
+     * @param status generation status
+     * @param sourcePath output-root-relative source path
+     * @param testDataPath output-root-relative test-data path
+     * @param readiness live capture readiness state
+     * @param readinessWarnings live capture readiness warnings
+     * @param locatorDecisions selected locator rationale
+     * @param unsupportedEvents unsupported event diagnostics
+     * @param flakySteps replay-risk diagnostics
+     * @param fallbackLocators available fallback locator diagnostics
+     * @param requiredUserInputs unresolved external inputs
+     * @param warnings safe warnings
+     * @param compilation compilation result
+     * @param replay replay result
+     * @param enrichment enrichment result
+     */
+    public CaptureGenerationReport(
+            String schemaVersion,
+            String sessionId,
+            Status status,
+            String sourcePath,
+            String testDataPath,
+            CaptureReadiness.State readiness,
+            List<String> readinessWarnings,
+            List<LocatorDecision> locatorDecisions,
+            List<String> unsupportedEvents,
+            List<String> flakySteps,
+            List<String> fallbackLocators,
+            List<String> requiredUserInputs,
+            List<String> warnings,
+            Validation compilation,
+            Validation replay,
+            Enrichment enrichment) {
+        this(schemaVersion, sessionId, status, sourcePath, testDataPath, readiness, readinessWarnings,
+                locatorDecisions, unsupportedEvents, flakySteps, fallbackLocators, List.of(),
+                requiredUserInputs, warnings, compilation, replay, enrichment);
     }
 
     /**
@@ -193,6 +280,6 @@ public record CaptureGenerationReport(
             Enrichment enrichment) {
         this(schemaVersion, sessionId, status, sourcePath, testDataPath, CaptureReadiness.State.READY,
                 List.of(), locatorDecisions, unsupportedEvents, flakySteps, fallbackLocators,
-                requiredUserInputs, warnings, compilation, replay, enrichment);
+                List.of(), requiredUserInputs, warnings, compilation, replay, enrichment);
     }
 }
