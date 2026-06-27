@@ -1,5 +1,7 @@
 package com.shaft.gui.driver;
 
+import com.google.common.annotations.Beta;
+import com.shaft.gui.internal.locator.SmartLocators;
 import org.openqa.selenium.By;
 
 import java.util.List;
@@ -33,6 +35,17 @@ public interface ElementActionsContract {
     ElementActionsContract executeNativeMobileCommand(String command, Map<String, String> parameters);
 
     ElementActionsContract click(By elementLocator);
+
+    /**
+     * Clicks a clickable element resolved by visible text, label, or accessible name.
+     *
+     * @param elementName the visible text, label, or accessible name of the target element
+     * @return a self-reference to be used to chain actions
+     */
+    @Beta
+    default ElementActionsContract click(String elementName) {
+        return click(SmartLocators.clickableField(elementName));
+    }
 
     default ElementActionsContract click(ShaftLocator elementLocator) {
         return click(elementLocator.toBy());
@@ -120,6 +133,18 @@ public interface ElementActionsContract {
     String getCurrentFrame();
 
     ElementActionsContract type(By elementLocator, CharSequence... text);
+
+    /**
+     * Types into an input resolved by visible label, placeholder, or accessible name.
+     *
+     * @param elementName the visible label, placeholder, or accessible name of the target input
+     * @param text        one or more character sequences to type
+     * @return a self-reference to be used to chain actions
+     */
+    @Beta
+    default ElementActionsContract type(String elementName, CharSequence... text) {
+        return type(SmartLocators.inputField(elementName), text);
+    }
 
     default ElementActionsContract type(ShaftLocator elementLocator, CharSequence... text) {
         return type(elementLocator.toBy(), text);

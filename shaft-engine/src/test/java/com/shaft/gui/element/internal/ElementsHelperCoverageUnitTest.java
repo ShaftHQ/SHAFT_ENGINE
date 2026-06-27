@@ -205,6 +205,18 @@ public class ElementsHelperCoverageUnitTest {
     }
 
     @Test
+    public void waitForElementToBeClickableShouldUseOneWaitCycle() {
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class);
+             MockedConstruction<SynchronizationManager> synchronizationManagers = mockSynchronizationManagerApplyingCondition()) {
+            driverFactoryHelper.when(DriverFactoryHelper::isMobileNativeExecution).thenReturn(false);
+
+            Assert.assertTrue(helper.waitForElementToBeClickable(driver, locator, ""));
+
+            Assert.assertEquals(synchronizationManagers.constructed().size(), 1);
+        }
+    }
+
+    @Test
     public void waitForElementToBeClickableShouldReturnFalseOnTimeout() {
         try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class);
              MockedConstruction<SynchronizationManager> ignored = mockSynchronizationManagerThrowing(new TimeoutException("not clickable"))) {

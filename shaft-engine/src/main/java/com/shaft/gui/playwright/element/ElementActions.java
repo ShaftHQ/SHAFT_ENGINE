@@ -2,8 +2,11 @@ package com.shaft.gui.playwright.element;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.options.BoundingBox;
+import com.google.common.annotations.Beta;
 import com.shaft.gui.driver.ElementAssertions;
 import com.shaft.gui.driver.ShaftLocator;
+import com.shaft.gui.internal.locator.CompositeLocator;
+import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightElementValidationsBuilder;
 import com.shaft.tools.io.ReportManager;
@@ -90,6 +93,18 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     @Override
     public ElementActions click(ShaftLocator elementLocator) {
         return click(resolve(elementLocator));
+    }
+
+    /**
+     * Clicks a clickable element resolved by visible text, label, or accessible name.
+     *
+     * @param elementName the visible text, label, or accessible name of the target element
+     * @return a self-reference to be used to chain actions
+     */
+    @Beta
+    @Override
+    public ElementActions click(String elementName) {
+        return click(SmartLocators.clickableField(elementName));
     }
 
     public ElementActions click(Locator elementLocator) {
@@ -296,6 +311,19 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
         return type(resolve(elementLocator), text);
     }
 
+    /**
+     * Types into an input resolved by visible label, placeholder, or accessible name.
+     *
+     * @param elementName the visible label, placeholder, or accessible name of the target input
+     * @param text        one or more character sequences to type
+     * @return a self-reference to be used to chain actions
+     */
+    @Beta
+    @Override
+    public ElementActions type(String elementName, CharSequence... text) {
+        return type(SmartLocators.inputField(elementName), text);
+    }
+
     public ElementActions type(Locator elementLocator, CharSequence... text) {
         return timed("playwright.element.type", () -> elementLocator.fill(join(text)));
     }
@@ -325,7 +353,8 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     public ElementActions typeAppend(Locator elementLocator, CharSequence... text) {
-        return timed("playwright.element.typeAppend", () -> elementLocator.pressSequentially(join(text)));
+        return timed("playwright.element.typeAppend",
+                () -> elementLocator.fill(readTextForAppend(elementLocator) + join(text)));
     }
 
     @Override
@@ -412,11 +441,41 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
     }
 
     private Locator resolve(By locator) {
+        if (locator instanceof CompositeLocator compositeLocator) {
+            return resolve(compositeLocator, locator);
+        }
         return ShaftLocator.from(locator).toPlaywrightLocator(session.page());
+    }
+
+    private Locator resolve(CompositeLocator compositeLocator, By originalLocator) {
+        for (By alternative : compositeLocator.alternatives()) {
+            try {
+                Locator candidate = ShaftLocator.from(alternative).toPlaywrightLocator(session.page());
+                if (candidate.count() == 1) {
+                    return candidate;
+                }
+            } catch (RuntimeException ignored) {
+                // Unsupported or non-unique alternatives do not make later portable candidates invalid.
+            }
+        }
+        throw new IllegalArgumentException("No unique Playwright element matched locator: " + originalLocator);
     }
 
     private Locator resolve(ShaftLocator locator) {
         return locator.toPlaywrightLocator(session.page());
+    }
+
+    private String readTextForAppend(Locator locator) {
+        try {
+            String value = locator.inputValue();
+            if (value != null) {
+                return value;
+            }
+        } catch (RuntimeException ignored) {
+            // Non-input elements do not expose inputValue; append to text content instead.
+        }
+        String text = locator.textContent();
+        return text == null ? "" : text;
     }
 
     private String join(CharSequence... text) {
