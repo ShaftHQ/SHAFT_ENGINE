@@ -129,12 +129,14 @@ public final class ThreadLocalPropertiesManager {
         copyAliasIfCanonicalIsMissing(properties, properties, "targetOperatingSystem", "targetPlatform");
         copyAliasIfCanonicalIsMissing(properties, properties, "browserStack.userName", "browserStack.user");
         copyAliasIfCanonicalIsMissing(properties, properties, "browserStack.accessKey", "browserStack.key");
+        copyAliasIfCanonicalIsMissing(properties, properties, "waitForLazyLoadingTimeout", "lazyLoadingTimeout");
     }
 
     private static void applyCompatibilityAliasesFromSource(java.util.Properties target, java.util.Properties source) {
         copyAliasIfCanonicalIsMissing(target, source, "targetOperatingSystem", "targetPlatform");
         copyAliasIfCanonicalIsMissing(target, source, "browserStack.userName", "browserStack.user");
         copyAliasIfCanonicalIsMissing(target, source, "browserStack.accessKey", "browserStack.key");
+        copyAliasIfCanonicalIsMissing(target, source, "waitForLazyLoadingTimeout", "lazyLoadingTimeout");
     }
 
     private static void copyAliasIfCanonicalIsMissing(java.util.Properties target, java.util.Properties source, String canonicalKey, String aliasKey) {

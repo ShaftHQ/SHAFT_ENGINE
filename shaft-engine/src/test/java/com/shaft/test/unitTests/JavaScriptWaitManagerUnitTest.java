@@ -26,9 +26,24 @@ public class JavaScriptWaitManagerUnitTest {
         return method;
     }
 
+    private static Method getHasMetMinimumIdleWindowWithMarkerMethod() throws Exception {
+        Method method = Class.forName("com.shaft.gui.browser.internal.JavaScriptWaitManager")
+                .getDeclaredMethod("hasMetMinimumIdleWindow", long.class, String.class, long[].class, String[].class,
+                        boolean[].class, long.class);
+        method.setAccessible(true);
+        return method;
+    }
+
     private static boolean hasMetMinimumIdleWindow(Method method, long activeRequests, long[] idleSinceMillis,
                                                   boolean[] networkActivityObserved, long nowMillis) throws Exception {
         return (boolean) method.invoke(null, activeRequests, idleSinceMillis, networkActivityObserved, nowMillis);
+    }
+
+    private static boolean hasMetMinimumIdleWindow(Method method, long activeRequests, String networkActivityMarker,
+                                                  long[] idleSinceMillis, String[] lastNetworkActivityMarker,
+                                                  boolean[] networkActivityObserved, long nowMillis) throws Exception {
+        return (boolean) method.invoke(null, activeRequests, networkActivityMarker, idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, nowMillis);
     }
 
     @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script is defined and non-empty")
@@ -61,13 +76,33 @@ public class JavaScriptWaitManagerUnitTest {
                 "Script should use Math.max(0, ...) to prevent the counter from going negative");
     }
 
-    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script patches XMLHttpRequest.prototype.open")
-    public void testActiveNetworkRequestsCountScriptPatchesXHROpen() {
+    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script patches XMLHttpRequest.prototype.send")
+    public void testActiveNetworkRequestsCountScriptPatchesXHRSend() {
         String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
-        Assert.assertTrue(script.contains("XMLHttpRequest.prototype.open"),
-                "Script should patch XMLHttpRequest.prototype.open to intercept XHR calls");
+        Assert.assertTrue(script.contains("XMLHttpRequest.prototype.send"),
+                "Script should count XHR when requests are actually sent");
         Assert.assertTrue(script.contains("loadend"),
                 "Script should listen for loadend to finalize XHR tracking");
+    }
+
+    @Test(description = "Verify ACTIVE_NETWORK_REQUESTS_COUNT script always decrements fetch counters")
+    public void testActiveNetworkRequestsCountScriptFinalizesFetchOnAllPaths() {
+        String script = JavaScriptHelper.ACTIVE_NETWORK_REQUESTS_COUNT.getValue();
+        Assert.assertTrue(script.contains("finally"),
+                "Fetch tracking should decrement counters after success or rejection");
+        Assert.assertTrue(script.contains("catch"),
+                "Fetch tracking should decrement counters when the original fetch throws synchronously");
+    }
+
+    @Test(description = "Verify browser readiness script observes resource timing")
+    public void testBrowserReadinessStateScriptUsesResourceTiming() {
+        String script = JavaScriptHelper.BROWSER_READINESS_STATE.getValue();
+        Assert.assertTrue(script.contains("performance.getEntriesByType('resource')"),
+                "Readiness state should observe completed resources that started before SHAFT instrumentation");
+        Assert.assertTrue(script.contains("networkActivityMarker"),
+                "Readiness state should expose a network activity marker for quiet-window resets");
+        Assert.assertTrue(script.contains("angularActive === 0 && window.getAllAngularTestabilities"),
+                "Readiness state should check Angular 2+ testabilities even when AngularJS is absent");
     }
 
     @Test(description = "Verify ANGULAR2_READY_STATE script is defined and checks Angular 2+ testabilities")
@@ -162,5 +197,30 @@ public class JavaScriptWaitManagerUnitTest {
         Assert.assertFalse(firstIdlePoll, "First idle poll after network activity should start the quiet window");
         Assert.assertFalse(beforeQuietWindowEnds, "Should wait until the full quiet window elapses");
         Assert.assertTrue(afterQuietWindowEnds, "Should pass once the quiet window has elapsed");
+    }
+
+    @Test(description = "Verify resource timing marker changes reset the network quiet window")
+    public void testNetworkActivityMarkerChangesResetQuietWindow() throws Exception {
+        Method method = getHasMetMinimumIdleWindowWithMarkerMethod();
+        long[] idleSinceMillis = {getIdleWindowNotStartedMarker()};
+        String[] lastNetworkActivityMarker = {null};
+        boolean[] networkActivityObserved = {false};
+
+        boolean firstIdlePoll = hasMetMinimumIdleWindow(method, 0L, "0:1:100", idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1000L);
+        boolean initialObservationPassed = hasMetMinimumIdleWindow(method, 0L, "0:1:100", idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1200L);
+        boolean markerChanged = hasMetMinimumIdleWindow(method, 0L, "0:2:300", idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1300L);
+        boolean beforeQuietWindowEnds = hasMetMinimumIdleWindow(method, 0L, "0:2:300", idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1700L);
+        boolean afterQuietWindowEnds = hasMetMinimumIdleWindow(method, 0L, "0:2:300", idleSinceMillis,
+                lastNetworkActivityMarker, networkActivityObserved, 1800L);
+
+        Assert.assertFalse(firstIdlePoll, "First zero-request poll should start the initial observation window");
+        Assert.assertTrue(initialObservationPassed, "Stable marker should pass the initial observation window");
+        Assert.assertFalse(markerChanged, "Resource timing changes should reset the quiet window");
+        Assert.assertFalse(beforeQuietWindowEnds, "Observed resource activity should wait for the full quiet window");
+        Assert.assertTrue(afterQuietWindowEnds, "Stable marker should pass after the full quiet window");
     }
 }

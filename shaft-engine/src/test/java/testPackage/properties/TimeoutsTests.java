@@ -9,6 +9,9 @@ public class TimeoutsTests {
     int browserNavigationTimeout;
     int pageLoadTimeout;
     int scriptExecutionTimeout;
+    int waitForLazyLoadingTimeout;
+    int lazyLoadingNetworkIdleInitialObservationMillis;
+    int lazyLoadingNetworkIdleQuietWindowMillis;
     double defaultElementIdentificationTimeout;
     int waitForUiStateTimeout;
     int apiSocketTimeout;
@@ -31,6 +34,9 @@ public class TimeoutsTests {
         browserNavigationTimeout = SHAFT.Properties.timeouts.browserNavigationTimeout();
         pageLoadTimeout = SHAFT.Properties.timeouts.pageLoadTimeout();
         scriptExecutionTimeout = SHAFT.Properties.timeouts.scriptExecutionTimeout();
+        waitForLazyLoadingTimeout = SHAFT.Properties.timeouts.waitForLazyLoadingTimeout();
+        lazyLoadingNetworkIdleInitialObservationMillis = SHAFT.Properties.timeouts.lazyLoadingNetworkIdleInitialObservationMillis();
+        lazyLoadingNetworkIdleQuietWindowMillis = SHAFT.Properties.timeouts.lazyLoadingNetworkIdleQuietWindowMillis();
         defaultElementIdentificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
         waitForUiStateTimeout = SHAFT.Properties.timeouts.waitForUiStateTimeout();
         apiSocketTimeout = SHAFT.Properties.timeouts.apiSocketTimeout();
@@ -54,6 +60,11 @@ public class TimeoutsTests {
         SHAFT.Properties.timeouts.set().browserNavigationTimeout(browserNavigationTimeout);
         SHAFT.Properties.timeouts.set().pageLoadTimeout(pageLoadTimeout);
         SHAFT.Properties.timeouts.set().scriptExecutionTimeout(scriptExecutionTimeout);
+        SHAFT.Properties.timeouts.set().waitForLazyLoadingTimeout(waitForLazyLoadingTimeout);
+        SHAFT.Properties.timeouts.set().lazyLoadingNetworkIdleInitialObservationMillis(lazyLoadingNetworkIdleInitialObservationMillis);
+        SHAFT.Properties.timeouts.set().lazyLoadingNetworkIdleQuietWindowMillis(lazyLoadingNetworkIdleQuietWindowMillis);
+        SHAFT.Properties.timeouts.set().lazyLoadingTimeout(waitForLazyLoadingTimeout + 1);
+        SHAFT.Validations.assertThat().object(SHAFT.Properties.timeouts.waitForLazyLoadingTimeout()).isEqualTo(waitForLazyLoadingTimeout + 1).perform();
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(defaultElementIdentificationTimeout);
         SHAFT.Properties.timeouts.set().waitForUiStateTimeout(waitForUiStateTimeout);
         SHAFT.Properties.timeouts.set().apiConnectionTimeout(apiConnectionTimeout);

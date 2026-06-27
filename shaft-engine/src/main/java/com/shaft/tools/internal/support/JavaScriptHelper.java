@@ -304,26 +304,116 @@ public enum JavaScriptHelper {
             if (!window._shaftNetworkTracker) {
               window._shaftNetworkTracker = true;
               window._shaftNetworkRequests = 0;
-              var origOpen = window.XMLHttpRequest.prototype.open;
-              window.XMLHttpRequest.prototype.open = function() {
+              window._shaftNetworkActivitySequence = 0;
+              var markActivity = function() {
+                window._shaftNetworkActivitySequence = (window._shaftNetworkActivitySequence || 0) + 1;
+              };
+              var finishRequest = function() {
+                window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1);
+                markActivity();
+              };
+              var origSend = window.XMLHttpRequest.prototype.send;
+              window.XMLHttpRequest.prototype.send = function() {
                 window._shaftNetworkRequests++;
-                this.addEventListener('loadend', function() {
-                  window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1);
-                });
-                return origOpen.apply(this, arguments);
+                markActivity();
+                this.addEventListener('loadend', finishRequest, { once: true });
+                try {
+                  return origSend.apply(this, arguments);
+                } catch (e) {
+                  finishRequest();
+                  throw e;
+                }
               };
               if (window.fetch) {
                 var origFetch = window.fetch;
                 window.fetch = function() {
                   window._shaftNetworkRequests++;
-                  return origFetch.apply(this, arguments).then(
-                    function(r) { window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1); return r; },
-                    function(e) { window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1); throw e; }
-                  );
+                  markActivity();
+                  try {
+                    return origFetch.apply(this, arguments).finally(finishRequest);
+                  } catch (e) {
+                    finishRequest();
+                    throw e;
+                  }
                 };
               }
             }
             return window._shaftNetworkRequests || 0;"""),
+    BROWSER_READINESS_STATE("""
+            (function() {
+              if (!window._shaftNetworkTracker) {
+                window._shaftNetworkTracker = true;
+                window._shaftNetworkRequests = 0;
+                window._shaftNetworkActivitySequence = 0;
+                var markActivity = function() {
+                  window._shaftNetworkActivitySequence = (window._shaftNetworkActivitySequence || 0) + 1;
+                };
+                var finishRequest = function() {
+                  window._shaftNetworkRequests = Math.max(0, window._shaftNetworkRequests - 1);
+                  markActivity();
+                };
+                var origSend = window.XMLHttpRequest.prototype.send;
+                window.XMLHttpRequest.prototype.send = function() {
+                  window._shaftNetworkRequests++;
+                  markActivity();
+                  this.addEventListener('loadend', finishRequest, { once: true });
+                  try {
+                    return origSend.apply(this, arguments);
+                  } catch (e) {
+                    finishRequest();
+                    throw e;
+                  }
+                };
+                if (window.fetch) {
+                  var origFetch = window.fetch;
+                  window.fetch = function() {
+                    window._shaftNetworkRequests++;
+                    markActivity();
+                    try {
+                      return origFetch.apply(this, arguments).finally(finishRequest);
+                    } catch (e) {
+                      finishRequest();
+                      throw e;
+                    }
+                  };
+                }
+              }
+              var resourceCount = 0;
+              var latestResourceEnd = 0;
+              try {
+                if (window.performance && window.performance.getEntriesByType) {
+                  var resources = window.performance.getEntriesByType('resource');
+                  resourceCount = resources.length;
+                  for (var index = 0; index < resourceCount; index++) {
+                    latestResourceEnd = Math.max(latestResourceEnd, Math.floor(resources[index].responseEnd || 0));
+                  }
+                }
+              } catch (e) {}
+              var jqueryActive = 0;
+              try {
+                if (window.jQuery) {
+                  jqueryActive = window.jQuery.active || 0;
+                }
+              } catch (e) {}
+              var angularActive = 0;
+              try {
+                if (window.angular && window.angular.element) {
+                  angularActive = window.angular.element(document).injector().get('$http').pendingRequests.length || 0;
+                }
+              } catch (e) {}
+              try {
+                if (angularActive === 0 && window.getAllAngularTestabilities) {
+                  angularActive = window.getAllAngularTestabilities().some(function(t) { return !t.isStable(); }) ? 1 : 0;
+                }
+              } catch (ignored) {}
+              return {
+                documentReady: document.readyState === 'loaded' || document.readyState === 'complete',
+                activeRequests: window._shaftNetworkRequests || 0,
+                networkActivityMarker: (window._shaftNetworkActivitySequence || 0) + ':' + resourceCount + ':' + latestResourceEnd,
+                jqueryActive: jqueryActive,
+                angularActive: angularActive
+              };
+            })();"""),
     INJECT_INPUT_TO_UPLOAD_FILE_VIA_DROP_ACTION("""
             for (var b = arguments[0], k = arguments[1], l = arguments[2], c = b.ownerDocument, m = 0;;) {
                 var e = b.getBoundingClientRect(),

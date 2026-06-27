@@ -39,6 +39,27 @@ public interface Timeouts extends EngineProperties<Timeouts> {
     @DefaultValue("30")
     int scriptExecutionTimeout();
 
+    /**
+     * Timeout in seconds for SHAFT's browser lazy-loading synchronization.
+     */
+    @Key("waitForLazyLoadingTimeout")
+    @DefaultValue("30")
+    int waitForLazyLoadingTimeout();
+
+    /**
+     * Initial network observation window in milliseconds when no requests were seen.
+     */
+    @Key("lazyLoadingNetworkIdleInitialObservationMillis")
+    @DefaultValue("200")
+    int lazyLoadingNetworkIdleInitialObservationMillis();
+
+    /**
+     * Required network quiet window in milliseconds after observed activity.
+     */
+    @Key("lazyLoadingNetworkIdleQuietWindowMillis")
+    @DefaultValue("500")
+    int lazyLoadingNetworkIdleQuietWindowMillis();
+
     @Key("defaultElementIdentificationTimeout")
     @DefaultValue("10")
     double defaultElementIdentificationTimeout();
@@ -116,8 +137,13 @@ public interface Timeouts extends EngineProperties<Timeouts> {
             return this;
         }
 
+        /**
+         * @deprecated Use {@link #waitForLazyLoadingTimeout(int)}.
+         */
+        @Deprecated(since = "10.2.20260627")
         public SetProperty lazyLoadingTimeout(int value) {
             setProperty("lazyLoadingTimeout", String.valueOf(value));
+            setProperty("waitForLazyLoadingTimeout", String.valueOf(value));
             return this;
         }
 
@@ -133,6 +159,21 @@ public interface Timeouts extends EngineProperties<Timeouts> {
 
         public SetProperty scriptExecutionTimeout(int value) {
             setProperty("scriptExecutionTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty waitForLazyLoadingTimeout(int value) {
+            setProperty("waitForLazyLoadingTimeout", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty lazyLoadingNetworkIdleInitialObservationMillis(int value) {
+            setProperty("lazyLoadingNetworkIdleInitialObservationMillis", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty lazyLoadingNetworkIdleQuietWindowMillis(int value) {
+            setProperty("lazyLoadingNetworkIdleQuietWindowMillis", String.valueOf(value));
             return this;
         }
 

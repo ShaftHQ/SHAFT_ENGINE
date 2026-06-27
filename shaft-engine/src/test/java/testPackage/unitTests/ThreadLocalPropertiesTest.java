@@ -91,9 +91,15 @@ public class ThreadLocalPropertiesTest {
         Assert.assertEquals(aliasOnlyProperties.getProperty("browserStack.accessKey"), "legacyKey",
                 "browserStack.key should populate browserStack.accessKey when canonical key is absent");
 
+        ThreadLocalPropertiesManager.setProperty("lazyLoadingTimeout", "9");
+        java.util.Properties timeoutAliasProperties = ThreadLocalPropertiesManager.getEffectiveProperties();
+        Assert.assertEquals(timeoutAliasProperties.getProperty("waitForLazyLoadingTimeout"), "9",
+                "lazyLoadingTimeout should populate waitForLazyLoadingTimeout when canonical key is absent");
+
         ThreadLocalPropertiesManager.setProperty("targetOperatingSystem", "IOS");
         ThreadLocalPropertiesManager.setProperty("browserStack.userName", "canonicalUser");
         ThreadLocalPropertiesManager.setProperty("browserStack.accessKey", "canonicalKey");
+        ThreadLocalPropertiesManager.setProperty("waitForLazyLoadingTimeout", "12");
 
         java.util.Properties canonicalProperties = ThreadLocalPropertiesManager.getEffectiveProperties();
 
@@ -103,6 +109,8 @@ public class ThreadLocalPropertiesTest {
                 "Canonical browserStack.userName should take precedence over browserStack.user");
         Assert.assertEquals(canonicalProperties.getProperty("browserStack.accessKey"), "canonicalKey",
                 "Canonical browserStack.accessKey should take precedence over browserStack.key");
+        Assert.assertEquals(canonicalProperties.getProperty("waitForLazyLoadingTimeout"), "12",
+                "Canonical waitForLazyLoadingTimeout should take precedence over lazyLoadingTimeout");
     }
 
     @Test(description = "getAppiumDesiredCapabilities picks up thread-local mobile_ properties")

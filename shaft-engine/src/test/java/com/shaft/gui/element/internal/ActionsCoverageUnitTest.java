@@ -62,6 +62,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -454,6 +455,41 @@ public class ActionsCoverageUnitTest {
     }
 
     @Test
+    public void performActionShouldRefreshElementAfterLazyLoadingBeforeNativeClick() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement originallyLocatedElement = standardElement();
+        WebElement refreshedElement = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(originallyLocatedElement), List.of(refreshedElement));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).click(LOCATOR);
+
+            verify(originallyLocatedElement, never()).click();
+            verify(refreshedElement).click();
+        }
+    }
+
+    @Test
+    public void performActionShouldUseRefreshedActionableElementBeforeTyping() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement hiddenOriginalElement = standardElement();
+        WebElement refreshedElement = standardElement();
+        when(hiddenOriginalElement.isDisplayed()).thenReturn(false);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(hiddenOriginalElement), List.of(refreshedElement));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).type(LOCATOR, "ready");
+
+            verify(hiddenOriginalElement, never()).sendKeys(any(CharSequence[].class));
+            verify(refreshedElement).sendKeys(any(CharSequence[].class));
+        }
+    }
+
+    @Test
     public void flakeProfilerShouldSeparateElementActionDurationFromScreenshotEvidence() throws Exception {
         SHAFT.Properties.reporting.set()
                 .flakeProfilerEnabled(true)
@@ -501,7 +537,7 @@ public class ActionsCoverageUnitTest {
         Assert.assertNotNull(clickAction, testProfile.toPrettyString());
         Assert.assertEquals(clickAction.path("category").asText(), "action");
         Assert.assertEquals(clickAction.path("name").asText(), "CLICK");
-        Assert.assertEquals(locateAction.path("locatorLookupCount").asInt(), 1);
+        Assert.assertEquals(locateAction.path("locatorLookupCount").asInt(), 2);
         Assert.assertEquals(waitAction.path("waitLoopCount").asInt(), 1);
         Assert.assertEquals(screenshotEvidence.path("category").asText(), "screenshot");
         Assert.assertTrue(hasReportAttachmentTiming, testProfile.toPrettyString());
