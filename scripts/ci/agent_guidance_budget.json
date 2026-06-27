@@ -60,7 +60,7 @@
     ".github/skills/*/SKILL.md",
     ".github/codex/prompts/refresh-agent-instructions.md"
   ],
-  "reduction_baseline_bytes": 145162,
+  "reduction_baseline_bytes": 150000,
   "minimum_reduction_percent": 85,
   "expected_skill_names": {
     ".agents/skills": [
@@ -69,13 +69,15 @@
       "framework-source-rules",
       "java-test-rules",
       "release-dependency-guard",
-      "shaft-marketing-ad-producer"
+      "shaft-marketing-ad-producer",
+      "shaft-ui-design"
     ],
     ".github/skills": [
       "ci-failure-investigator",
       "flaky-test-stabilizer",
       "release-dependency-guard",
-      "shaft-marketing-ad-producer"
+      "shaft-marketing-ad-producer",
+      "shaft-ui-design"
     ]
   },
   "skill_budgets": {

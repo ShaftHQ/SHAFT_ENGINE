@@ -1,0 +1,6 @@
+interface:
+  display_name: "SHAFT UI Design"
+  short_description: "Design SHAFT UI with proof"
+  default_prompt: "Use $shaft-ui-design for this SHAFT UI design task."
+policy:
+  allow_implicit_invocation: true
