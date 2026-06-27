@@ -464,10 +464,29 @@ public class ActionsCoverageUnitTest {
         DriverFactoryHelper helper = helperFor(driver);
 
         try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(true);
             new Actions(helper).click(LOCATOR);
 
             verify(originallyLocatedElement, never()).click();
             verify(refreshedElement).click();
+        }
+    }
+
+    @Test
+    public void performActionShouldNotRefreshElementWhenLazyLoadingObservedNoActivity() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(false);
+            new Actions(helper).click(LOCATOR);
+
+            verify(driver).findElements(LOCATOR);
+            verify(element).click();
         }
     }
 
@@ -482,6 +501,8 @@ public class ActionsCoverageUnitTest {
         DriverFactoryHelper helper = helperFor(driver);
 
         try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(true);
             new Actions(helper).type(LOCATOR, "ready");
 
             verify(hiddenOriginalElement, never()).sendKeys(any(CharSequence[].class));
@@ -537,7 +558,7 @@ public class ActionsCoverageUnitTest {
         Assert.assertNotNull(clickAction, testProfile.toPrettyString());
         Assert.assertEquals(clickAction.path("category").asText(), "action");
         Assert.assertEquals(clickAction.path("name").asText(), "CLICK");
-        Assert.assertEquals(locateAction.path("locatorLookupCount").asInt(), 2);
+        Assert.assertEquals(locateAction.path("locatorLookupCount").asInt(), 1);
         Assert.assertEquals(waitAction.path("waitLoopCount").asInt(), 1);
         Assert.assertEquals(screenshotEvidence.path("category").asText(), "screenshot");
         Assert.assertTrue(hasReportAttachmentTiming, testProfile.toPrettyString());

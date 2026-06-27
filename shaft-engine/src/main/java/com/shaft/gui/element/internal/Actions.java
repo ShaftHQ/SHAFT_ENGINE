@@ -574,8 +574,8 @@ public class Actions extends ElementActions {
                 }
 
                 //wait for lazy loading
-                JavaScriptWaitManager.waitForLazyLoading(d);
-                if (!isMobileNativeExecution && shouldRefreshElementAfterLazyLoading(action, locator)) {
+                boolean lazyLoadingActivityObserved = JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(d);
+                if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldRefreshElementAfterLazyLoading(action, locator)) {
                     flakeProfile.locatorLookups.incrementAndGet();
                     long profilerRefreshLocateStart = profilerStart != 0L ? System.nanoTime() : 0L;
                     ElementLookup refreshedLookup = findAllElements(locator, action.name() + "_READY");
@@ -599,7 +599,7 @@ public class Actions extends ElementActions {
                         throw new MultipleElementsFoundException();
                     }
                 }
-                if (!isMobileNativeExecution && shouldCheckNativeActionability(action, locator)) {
+                if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldCheckNativeActionability(action, locator)) {
                     ensureNativeActionTargetIsReady(foundElements.get().getFirst(), action);
                 }
                 // perform action
@@ -749,7 +749,9 @@ public class Actions extends ElementActions {
                                 executeMobileDragAndDrop(appiumDriver, sourceElement, destinationElement);
                             } else {
                                 currentDragAndDropSubstep = "execute selenium drag and drop";
-                                ensureNativeActionTargetIsReady(destinationElement, action);
+                                if (lazyLoadingActivityObserved) {
+                                    ensureNativeActionTargetIsReady(destinationElement, action);
+                                }
                                 logDragAndDropTrace("substep=executeSeleniumDragAndDrop");
                                 new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
                                             .dragAndDrop(sourceElement, destinationElement).perform();

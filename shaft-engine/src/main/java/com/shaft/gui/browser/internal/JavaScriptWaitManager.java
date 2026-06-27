@@ -26,19 +26,32 @@ public class JavaScriptWaitManager {
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading(WebDriver driver) {
+        waitForLazyLoadingAndDetectActivity(driver);
+    }
+
+    /**
+     * Waits for browser lazy-loading signals and reports whether any page activity was observed.
+     *
+     * @param driver the target {@link WebDriver} instance
+     * @return {@code true} when document, framework, or network activity was observed during the wait
+     */
+    public static boolean waitForLazyLoadingAndDetectActivity(WebDriver driver) {
         if (SHAFT.Properties.timeouts.waitForLazyLoading()
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                waitForBrowserReadiness(driver);
+                return waitForBrowserReadiness(driver);
             } catch (Exception ignored) {
+                return true;
             }
         }
+        return false;
     }
 
-    private static void waitForBrowserReadiness(WebDriver driver) {
+    private static boolean waitForBrowserReadiness(WebDriver driver) {
         final long[] idleSinceMillis = {IDLE_WINDOW_NOT_STARTED};
         final String[] lastNetworkActivityMarker = {null};
         final boolean[] networkActivityObserved = {false};
+        final boolean[] pageActivityObserved = {false};
         new SynchronizationManager(driver)
                 .fluentWait(Duration.ofSeconds(Math.max(1, SHAFT.Properties.timeouts.waitForLazyLoadingTimeout())))
                 .pollingEvery(ACTIVE_REQUEST_POLLING_INTERVAL)
@@ -47,6 +60,9 @@ public class JavaScriptWaitManager {
                         try {
                             BrowserReadinessState readiness = BrowserReadinessState.from(
                                     javascriptExecutor.executeScript(JavaScriptHelper.BROWSER_READINESS_STATE.getValue()));
+                            if (!readiness.documentReady() || readiness.jqueryActive() > 0L || readiness.angularActive() > 0L) {
+                                pageActivityObserved[0] = true;
+                            }
                             boolean networkIdle = hasMetMinimumIdleWindow(
                                     readiness.activeRequests(),
                                     readiness.networkActivityMarker(),
@@ -65,6 +81,7 @@ public class JavaScriptWaitManager {
                     }
                     return true;
                 });
+        return pageActivityObserved[0] || networkActivityObserved[0];
     }
 
     private static void waitUntilNoActiveNetworkRequests(WebDriver driver) {
