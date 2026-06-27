@@ -51,6 +51,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     private final Map<String, BrowserSignal> pendingInputs = new LinkedHashMap<>();
     private final Map<String, BrowserSignal> pendingClicks = new LinkedHashMap<>();
     private final Map<String, String> logicalWindows = new LinkedHashMap<>();
+    private final Map<String, LocatorPreference> locatorPreferences = new LinkedHashMap<>();
     private final Map<String, Instant> recentSignals = new LinkedHashMap<>();
     private final ScheduledExecutorService debounceExecutor;
     private long sequence;
@@ -203,6 +204,7 @@ final class CaptureEventPipeline implements AutoCloseable {
                     context(signal), target(signal).snapshot(), signal.dataStrings("keys")),
                     target(signal).summary(), List.of());
             case "verification" -> emitVerification(signal);
+            case "locator_preference" -> rememberLocatorPreference(signal);
             case "window_open" -> append(new CaptureEvent.WindowEvent(
                     context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(signal.browsingContextId())),
                     RedactionSummary.empty(), List.of());
@@ -480,6 +482,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         String targetId = logicalId.value().isBlank()
                 ? "element-" + (sequence + 1)
                 : logicalId.value();
+        locators = applyLocatorPreference(targetId, locators);
         ElementSnapshot snapshot = new ElementSnapshot(
                 targetId,
                 string(signal.target().get("tagName")),
@@ -492,6 +495,46 @@ final class CaptureEventPipeline implements AutoCloseable {
                 bool(signal.target().get("enabled")),
                 bool(signal.target().get("selected")));
         return new SafeTarget(snapshot, summary);
+    }
+
+    private void rememberLocatorPreference(BrowserSignal signal) {
+        String logicalElementId = privacy.sanitizeText(signal.dataString("logicalElementId")).value();
+        String expression = privacy.sanitizeText(signal.dataString("expression")).value();
+        LocatorCandidate.LocatorStrategy strategy = enumValue(
+                LocatorCandidate.LocatorStrategy.class,
+                signal.dataString("strategy"),
+                null);
+        if (logicalElementId.isBlank() || expression.isBlank() || strategy == null) {
+            warningConsumer.accept("A browser locator preference was ignored because it was incomplete.");
+            return;
+        }
+        locatorPreferences.put(logicalElementId, new LocatorPreference(strategy, expression));
+    }
+
+    private List<LocatorCandidate> applyLocatorPreference(
+            String logicalElementId,
+            List<LocatorCandidate> locators) {
+        LocatorPreference preference = locatorPreferences.get(logicalElementId);
+        if (preference == null || locators.isEmpty()) {
+            return locators;
+        }
+        return locators.stream()
+                .map(candidate -> preference.matches(candidate) ? userProvided(candidate) : candidate)
+                .toList();
+    }
+
+    private static LocatorCandidate userProvided(LocatorCandidate candidate) {
+        EnumSet<LocatorCandidate.LocatorSignal> signals = candidate.signals().isEmpty()
+                ? EnumSet.noneOf(LocatorCandidate.LocatorSignal.class)
+                : EnumSet.copyOf(candidate.signals());
+        signals.add(LocatorCandidate.LocatorSignal.USER_PROVIDED);
+        return new LocatorCandidate(
+                candidate.strategy(),
+                candidate.expression(),
+                candidate.uniquenessCount(),
+                candidate.visible(),
+                candidate.stable(),
+                signals);
     }
 
     private void append(
@@ -625,5 +668,11 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private record SafeTarget(ElementSnapshot snapshot, RedactionSummary summary) {
+    }
+
+    private record LocatorPreference(LocatorCandidate.LocatorStrategy strategy, String expression) {
+        private boolean matches(LocatorCandidate candidate) {
+            return candidate.strategy() == strategy && candidate.expression().equals(expression);
+        }
     }
 }

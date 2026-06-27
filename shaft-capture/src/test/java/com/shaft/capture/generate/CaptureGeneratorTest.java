@@ -95,8 +95,11 @@ class CaptureGeneratorTest {
             assertTrue(recorder.contains("--shaft-primary"));
             assertTrue(recorder.contains("status-chip"));
             assertTrue(recorder.contains("shaft-capture-assert"));
+            assertTrue(recorder.contains("shaft-capture-pick"));
+            assertTrue(recorder.contains("locator_preference"));
             assertTrue(recorder.contains("viewBox=\"0 0 24 24\""));
             assertTrue(recorder.contains("aria-label=\"Toggle assertion mode\""));
+            assertTrue(recorder.contains("aria-label=\"Toggle locator picker\""));
             assertTrue(recorder.contains("kind: \"verification\""));
             assertTrue(recorder.contains("overflow-x: hidden"));
         }

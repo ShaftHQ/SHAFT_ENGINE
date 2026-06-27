@@ -5,6 +5,7 @@ import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.ExternalTestDataReference;
+import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
 import org.junit.jupiter.api.Test;
@@ -148,6 +149,43 @@ class CaptureEventPipelineTest {
         assertFalse(dataJson.contains(SECRET_CANARY));
     }
 
+    @Test
+    void locatorPreferenceMarksPreferredCandidateInNextCapturedTarget(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+        Map<String, Object> target = target("submit", "button", "button", Map.of("id", "submit"), List.of(
+                Map.of(
+                        "strategy", "ID",
+                        "expression", "submit",
+                        "uniquenessCount", 1,
+                        "visible", true,
+                        "stable", true,
+                        "signals", List.of("STABLE_ATTRIBUTE")),
+                Map.of(
+                        "strategy", "CSS",
+                        "expression", "form > button",
+                        "uniquenessCount", 1,
+                        "visible", true,
+                        "stable", true,
+                        "signals", List.of("GENERATED"))));
+
+        pipeline.accept(signal("locator_preference", START, target,
+                Map.of("logicalElementId", "submit", "strategy", "CSS", "expression", "form > button"), Map.of()));
+        pipeline.accept(signal("click", START.plusMillis(1), target,
+                Map.of("button", 0, "clickCount", 1), Map.of()));
+        pipeline.close();
+
+        CaptureEvent.ClickEvent click = assertInstanceOf(
+                CaptureEvent.ClickEvent.class, store.read().events().getFirst());
+        LocatorCandidate preferred = click.target().locatorCandidates().getFirst();
+        assertEquals(LocatorCandidate.LocatorStrategy.CSS, preferred.strategy());
+        assertTrue(preferred.signals().contains(LocatorCandidate.LocatorSignal.USER_PROVIDED));
+    }
+
     private static CaptureSessionStore startedStore(Path output) {
         CaptureSessionStore store = new CaptureSessionStore(output);
         store.start(CaptureSession.start(
@@ -204,6 +242,21 @@ class CaptureEventPipelineTest {
             String tag,
             String role,
             Map<String, String> attributes) {
+        return target(id, tag, role, attributes, List.of(Map.of(
+                "strategy", "ID",
+                "expression", id,
+                "uniquenessCount", 1,
+                "visible", true,
+                "stable", true,
+                "signals", List.of("STABLE_ATTRIBUTE"))));
+    }
+
+    private static Map<String, Object> target(
+            String id,
+            String tag,
+            String role,
+            Map<String, String> attributes,
+            List<Map<String, Object>> locators) {
         return Map.of(
                 "logicalElementId", id,
                 "tagName", tag,
@@ -211,13 +264,7 @@ class CaptureEventPipelineTest {
                 "accessibleName", id,
                 "label", id,
                 "attributes", attributes,
-                "locators", List.of(Map.of(
-                        "strategy", "ID",
-                        "expression", id,
-                        "uniquenessCount", 1,
-                        "visible", true,
-                        "stable", true,
-                        "signals", List.of("STABLE_ATTRIBUTE"))),
+                "locators", locators,
                 "visible", true,
                 "enabled", true,
                 "selected", false);

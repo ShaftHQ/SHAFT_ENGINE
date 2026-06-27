@@ -52,6 +52,21 @@ class LocatorRankerTest {
     }
 
     @Test
+    void pinnedLocatorOutranksDeterministicDefault() {
+        ElementSnapshot target = target(List.of(
+                candidate(LocatorCandidate.LocatorStrategy.ID, "submit", 1, true, true,
+                        LocatorCandidate.LocatorSignal.STABLE_ATTRIBUTE),
+                candidate(LocatorCandidate.LocatorStrategy.CSS, "form > button", 1, true, true,
+                        LocatorCandidate.LocatorSignal.USER_PROVIDED,
+                        LocatorCandidate.LocatorSignal.GENERATED)));
+
+        LocatorRanker.LocatorSelection selection =
+                new LocatorRanker().select(target, CaptureFixtures.context(1), true);
+
+        assertEquals(LocatorCandidate.LocatorStrategy.CSS, selection.selected().candidate().strategy());
+    }
+
+    @Test
     void replayAndShadowContextAffectRankingDeterministically() {
         var extensions = Map.<String, com.fasterxml.jackson.databind.JsonNode>of(
                 "shadowHosts", JSON.valueToTree(List.of("#host")),
