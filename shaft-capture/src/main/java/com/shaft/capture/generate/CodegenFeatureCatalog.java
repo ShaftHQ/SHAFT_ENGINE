@@ -18,7 +18,7 @@ public final class CodegenFeatureCatalog {
             feature("Recording UI", "Pick locator and refine locator", "Pick Locator",
                     "SUPPORTED", "Captured locator candidates are ranked and returned in generation reports."),
             feature("Recording UI", "Assertions: visibility, text, value", "Assert toolbar",
-                    "SUPPORTED", "Use verification events or ASSERTION checkpoints plus generated review guidance."),
+                    "SUPPORTED", "The overlay records point-and-click verification events plus generated review guidance."),
             feature("Recording", "Actions: click and fill/type", "browser interaction",
                     "SUPPORTED", "Captured as click, type, clear, keyboard, select, toggle, and upload events."),
             feature("Recording", "Navigation, tabs/windows, frames, alerts, waits", "browser interaction",

@@ -1,5 +1,7 @@
 package com.shaft.capture.runtime;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.shaft.capture.collector.BrowserSignal;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.Checkpoint;
@@ -200,6 +202,7 @@ final class CaptureEventPipeline implements AutoCloseable {
             case "keyboard" -> append(new CaptureEvent.KeyboardEvent(
                     context(signal), target(signal).snapshot(), signal.dataStrings("keys")),
                     target(signal).summary(), List.of());
+            case "verification" -> emitVerification(signal);
             case "window_open" -> append(new CaptureEvent.WindowEvent(
                     context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(signal.browsingContextId())),
                     RedactionSummary.empty(), List.of());
@@ -315,11 +318,58 @@ final class CaptureEventPipeline implements AutoCloseable {
                 RedactionSummary.empty(), List.of());
     }
 
+    private void emitVerification(BrowserSignal signal) {
+        CaptureEvent.VerificationKind kind = enumValue(
+                CaptureEvent.VerificationKind.class,
+                signal.dataString("verification"),
+                null);
+        if (kind == null) {
+            warningConsumer.accept("An unsupported browser assertion was ignored.");
+            return;
+        }
+        boolean targetRequired = switch (kind) {
+            case URL_EQUALS, URL_CONTAINS, TITLE_EQUALS -> false;
+            default -> true;
+        };
+        boolean expectedRequired = switch (kind) {
+            case TEXT_EQUALS, TEXT_CONTAINS, ATTRIBUTE_EQUALS, URL_EQUALS, URL_CONTAINS, TITLE_EQUALS -> true;
+            default -> false;
+        };
+        SafeTarget safeTarget = targetRequired ? target(signal) : null;
+        RedactionSummary summary = safeTarget == null ? RedactionSummary.empty() : safeTarget.summary();
+        List<ExternalTestDataReference> references = List.of();
+        ExternalTestDataReference expected = null;
+        if (expectedRequired) {
+            ClassifiedValue classified = privacy.classifyValue(
+                    expectedValueName(kind, safeTarget, sequence + 1),
+                    signal.dataString("expected"),
+                    safeTarget == null ? "" : bestSelector(safeTarget.snapshot()),
+                    safeTarget == null ? Map.of() : safeTarget.snapshot().normalizedAttributes());
+            classifiedValues.add(classified);
+            dataWriter.write(dataPath, classifiedValues);
+            expected = classified.reference();
+            summary = summary.merge(classified.summary());
+            references = List.of(expected);
+        }
+        append(new CaptureEvent.VerificationEvent(
+                context(signal, page(signal), verificationExtensions(signal)),
+                kind,
+                safeTarget == null ? null : safeTarget.snapshot(),
+                expected,
+                signal.dataBoolean("negated")),
+                summary,
+                references);
+    }
+
     private EventContext context(BrowserSignal signal) {
         return context(signal, page(signal));
     }
 
     private EventContext context(BrowserSignal signal, SafePage page) {
+        return context(signal, page, Map.of());
+    }
+
+    private EventContext context(BrowserSignal signal, SafePage page, Map<String, JsonNode> extensions) {
         emitContextTransitions(signal, page);
         return new EventContext(
                 ++sequence,
@@ -327,7 +377,7 @@ final class CaptureEventPipeline implements AutoCloseable {
                 page.context(),
                 EventContext.ReplayStatus.NOT_REPLAYED,
                 List.of(),
-                Map.of());
+                extensions);
     }
 
     private void emitContextTransitions(BrowserSignal signal, SafePage page) {
@@ -481,6 +531,15 @@ final class CaptureEventPipeline implements AutoCloseable {
         return target.logicalElementId() + "-" + eventSequence;
     }
 
+    private static String expectedValueName(
+            CaptureEvent.VerificationKind kind,
+            SafeTarget target,
+            long eventSequence) {
+        return (target == null ? "page" : target.snapshot().logicalElementId())
+                + "-" + kind.name().toLowerCase(Locale.ROOT).replace('_', '-')
+                + "-" + eventSequence;
+    }
+
     private static String bestSelector(ElementSnapshot target) {
         return target.locatorCandidates().isEmpty()
                 ? ""
@@ -549,6 +608,11 @@ final class CaptureEventPipeline implements AutoCloseable {
         } catch (IllegalArgumentException exception) {
             return fallback;
         }
+    }
+
+    private Map<String, JsonNode> verificationExtensions(BrowserSignal signal) {
+        String attribute = privacy.sanitizeText(signal.dataString("attributeName")).value();
+        return attribute.isBlank() ? Map.of() : Map.of("attributeName", TextNode.valueOf(attribute));
     }
 
     private void ensureOpen() {

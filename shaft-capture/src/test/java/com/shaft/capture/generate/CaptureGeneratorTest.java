@@ -6,6 +6,7 @@ import com.shaft.capture.CaptureFixtures;
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.model.ElementSnapshot;
 import com.shaft.capture.model.ExternalTestDataReference;
 import com.shaft.capture.model.LocatorCandidate;
@@ -93,6 +94,10 @@ class CaptureGeneratorTest {
 
             assertTrue(recorder.contains("--shaft-primary"));
             assertTrue(recorder.contains("status-chip"));
+            assertTrue(recorder.contains("shaft-capture-assert"));
+            assertTrue(recorder.contains("viewBox=\"0 0 24 24\""));
+            assertTrue(recorder.contains("aria-label=\"Toggle assertion mode\""));
+            assertTrue(recorder.contains("kind: \"verification\""));
             assertTrue(recorder.contains("overflow-x: hidden"));
         }
     }
@@ -118,6 +123,36 @@ class CaptureGeneratorTest {
         assertTrue(result.report().unsupportedEvents().stream()
                 .anyMatch(message -> message.contains("event-2") && message.contains("primary-button")));
         assertFalse(Files.exists(result.sourcePath()));
+    }
+
+    @Test
+    void unsupportedAssertionCheckpointKeepsRecorderDescriptionInReport() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        CaptureSession unsupported = new CaptureSession(
+                base.schemaVersion(),
+                "unsupported-assertion-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(base.events().getFirst()),
+                List.of(new Checkpoint(
+                        "unsupported-assertion",
+                        1,
+                        CaptureFixtures.STARTED.plusSeconds(1),
+                        Checkpoint.CheckpointKind.ASSERTION,
+                        "Unsupported assertion type: CSS matches")),
+                List.of(),
+                base.redactionSummary(),
+                base.extensions());
+        Path session = session(unsupported);
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("unsupported-assertion")));
+
+        assertFalse(result.successful());
+        assertTrue(result.report().unsupportedEvents().stream()
+                .anyMatch(message -> message.contains("Unsupported assertion type: CSS matches")));
     }
 
     @Test
