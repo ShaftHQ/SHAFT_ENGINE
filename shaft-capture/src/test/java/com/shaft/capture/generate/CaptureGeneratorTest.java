@@ -162,6 +162,43 @@ class CaptureGeneratorTest {
     }
 
     @Test
+    void flowBoundaryCheckpointsGenerateReusableMethods() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        List<Checkpoint> checkpoints = new java.util.ArrayList<>(base.checkpoints());
+        checkpoints.add(new Checkpoint("login-flow-start", 1, CaptureFixtures.STARTED.plusSeconds(1),
+                Checkpoint.CheckpointKind.FLOW_START, "login as admin"));
+        checkpoints.add(new Checkpoint("login-flow-end", 3, CaptureFixtures.STARTED.plusSeconds(3),
+                Checkpoint.CheckpointKind.FLOW_END, "login as admin"));
+        CaptureSession segmented = new CaptureSession(
+                base.schemaVersion(),
+                "segmented-session",
+                base.status(),
+                base.startedAt(),
+                base.endedAt(),
+                base.browser(),
+                base.events(),
+                checkpoints,
+                base.dataReferences(),
+                base.redactionSummary(),
+                base.extensions());
+        Path session = session(segmented);
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("segmented")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("        loginAsAdmin();"));
+        assertTrue(source.contains("    private void loginAsAdmin() throws Exception {"));
+        assertEquals(1, count(source, "driver.element().type(USERNAME_INPUT_LOCATOR"));
+        assertTrue(source.indexOf("        loginAsAdmin();")
+                < source.indexOf("    private void loginAsAdmin() throws Exception {"));
+        assertFalse(source.contains("FLOW_START"));
+        assertFalse(source.contains("FLOW_END"));
+    }
+
+    @Test
     void playwrightBackendGeneratesCompilableShaftPlaywrightSource() throws Exception {
         CaptureSession base = CaptureFixtures.representativeSession();
         CaptureSession simple = new CaptureSession(
@@ -514,6 +551,10 @@ class CaptureGeneratorTest {
 
     private static String normalizeLineEndings(String value) {
         return value.replace("\r\n", "\n").replace('\r', '\n');
+    }
+
+    private static long count(String value, String needle) {
+        return value.split(java.util.regex.Pattern.quote(needle), -1).length - 1L;
     }
 
     private void writeCaptureData(String username) throws Exception {

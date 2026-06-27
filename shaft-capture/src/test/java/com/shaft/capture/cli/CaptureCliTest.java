@@ -136,6 +136,7 @@ class CaptureCliTest {
         assertTrue(usage.contains("--enable-fallback-locators"));
         assertTrue(usage.contains("--target-source"));
         assertTrue(usage.contains("--insert-after"));
+        assertTrue(usage.contains("FLOW_START"));
         assertEquals("operation failed.", fallbackMessage);
         assertTrue(running);
         assertEquals(12L, parsed);

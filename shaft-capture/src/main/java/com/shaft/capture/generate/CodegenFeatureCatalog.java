@@ -15,6 +15,8 @@ public final class CodegenFeatureCatalog {
                     "SUPPORTED", "The live browser overlay lists captured steps and exposes pause/resume/stop controls."),
             feature("Recording UI", "Edit captured actions and add checkpoints", "Inspector toolbar",
                     "SUPPORTED", "The live browser overlay records edited action notes and checkpoints into generated code."),
+            feature("Recording UI", "Reusable flow segmentation", "checkpoint FLOW_START/FLOW_END",
+                    "SUPPORTED", "Marked Capture flow boundaries generate reusable Java helper methods."),
             feature("Recording UI", "Pick locator and refine locator", "Pick Locator",
                     "SUPPORTED", "The live overlay probes, ranks, and pins locator candidates for code generation."),
             feature("Recording UI", "Assertions: visibility, text, value", "Assert toolbar",
