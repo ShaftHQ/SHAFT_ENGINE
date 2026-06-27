@@ -179,8 +179,18 @@ public class PlaywrightService {
             replayed++;
         }
         McpMobileReplayResult blocks = recorder.codeBlocks(recordingPath, driverVariableName);
-        return new McpMobileReplayResult(blocks.recordingPath(), true, replayed,
-                blocks.codeBlocks(), blocks.warnings());
+        return new McpMobileReplayResult(
+                blocks.recordingPath(),
+                true,
+                replayed,
+                blocks.codeBlocks(),
+                blocks.warnings(),
+                blocks.captureSessionPath(),
+                blocks.sourcePath(),
+                blocks.testDataPath(),
+                blocks.reportPath(),
+                blocks.reviewPath(),
+                blocks.report());
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shaft.capture.generate.CaptureGenerationResult;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,6 +16,8 @@ import java.util.Map;
  */
 final class McpPlaywrightRecordingService {
     private final ObjectMapper mapper = new ObjectMapper();
+    private final McpCaptureCodeBlockService captureCodeBlocks = new McpCaptureCodeBlockService();
+    private final McpPlaywrightCaptureAdapter captureAdapter = new McpPlaywrightCaptureAdapter();
     private final McpWorkspacePolicy workspacePolicy;
     private Path outputPath;
     private McpMobileRecording recording;
@@ -133,8 +136,31 @@ final class McpPlaywrightRecordingService {
     McpMobileReplayResult codeBlocks(String recordingPath, String driverVariableName) {
         Path path = workspacePolicy.existing(recordingPath, "Playwright recording path");
         McpMobileRecording stored = read(path);
-        return new McpMobileReplayResult(path, true, 0, List.of(replayBlock(stored, driverVariableName)),
-                replayWarnings(stored));
+        McpPlaywrightCaptureAdapter.CaptureAdapterResult capture = captureAdapter.generate(path, stored);
+        CaptureGenerationResult generation = capture.generation();
+        List<McpCodeBlock> blocks = new ArrayList<>();
+        blocks.add(replayBlock(stored, driverVariableName));
+        if (Files.isRegularFile(generation.sourcePath())) {
+            blocks.addAll(captureCodeBlocks.fromGeneratedSource(
+                    generation.sourcePath(), driverVariableName, generation.report()));
+        }
+        List<String> warnings = new ArrayList<>(replayWarnings(stored));
+        warnings.addAll(capture.warnings());
+        if (generation.report() != null) {
+            warnings.addAll(generation.report().warnings());
+        }
+        return new McpMobileReplayResult(
+                path,
+                generation.successful(),
+                0,
+                blocks,
+                warnings,
+                capture.captureSessionPath(),
+                generation.sourcePath(),
+                generation.testDataPath(),
+                generation.reportPath(),
+                generation.reviewPath(),
+                generation.report());
     }
 
     McpMobileRecording readRecording(String recordingPath) {
