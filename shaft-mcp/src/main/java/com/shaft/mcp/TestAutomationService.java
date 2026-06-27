@@ -41,7 +41,7 @@ public class TestAutomationService {
     private static final Pattern STRING_LITERAL = Pattern.compile("\"(?:\\\\.|[^\"\\\\])*\"");
     private static final String NO_SLEEP = "Do not generate Thread.sleep; use SHAFT waits/actions/assertions.";
     private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer smart locators,"
-            + " SHAFT.GUI.Locator builders, or stable By/AppiumBy locators.";
+            + " SHAFT.GUI.Locator builders.";
     private static final String NO_IMPLICIT_WAIT = "Avoid Selenium implicit waits; use SHAFT waits/actions/assertions.";
     private static final String NO_RAW_FIND_ELEMENT = "Avoid direct driver.findElement/findElements calls in generated"
             + " SHAFT tests; route actions through SHAFT facades or page objects.";
@@ -445,7 +445,7 @@ public class TestAutomationService {
                         t("Inspect contexts and accessibility tree", "Prefer accessibility ids and stable Appium locators",
                                 "Create mobile page objects and TestNG tests"),
                         t("Mobile page objects under src/main/java; tests under src/test/java"),
-                        t(NO_SLEEP, "Use AppiumBy.accessibilityId before XPath"),
+                        t(NO_SLEEP, "Use SHAFT.GUI.Locator.accessibilityId before XPath"),
                         t("Native mobile test compiles; real-device/cloud run is reported if unavailable")),
                 s("mobile-record-replay", "Record and replay mobile actions", a("mobile", "capture"),
                         "Record this mobile journey and turn it into reusable SHAFT test code.",

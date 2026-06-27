@@ -271,6 +271,16 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
         return this;
     }
 
+    /**
+     * Switches focus from the current iframe to its parent frame.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public ElementActions switchToParentFrame() {
+        return this;
+    }
+
     @Override
     public String getCurrentFrame() {
         return "PLAYWRIGHT_PAGE";

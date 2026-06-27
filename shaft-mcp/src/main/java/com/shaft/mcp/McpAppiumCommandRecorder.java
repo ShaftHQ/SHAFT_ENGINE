@@ -63,8 +63,8 @@ final class McpAppiumCommandRecorder {
             }
             if (HIDE_KEYBOARD.matcher(path).matches()) {
                 record("hideKeyboard", null, "", Map.of(),
-                        "driver.touch().hideNativeKeyboard();",
-                        "driver.touch().hideNativeKeyboard();",
+                        "driver.element().touch().hideNativeKeyboard();",
+                        "driver.element().touch().hideNativeKeyboard();",
                         false);
                 return;
             }
@@ -108,8 +108,8 @@ final class McpAppiumCommandRecorder {
         String locatorCode = McpMobileCode.locatorCode(locator.strategy(), locator.value());
         switch (command) {
             case "click" -> record("tap", locator.strategy(), locator.value(), Map.of(),
-                    "driver.touch().tap(" + locatorCode + ");",
-                    "driver.touch().tap(" + locatorCode + ");",
+                    "driver.element().touch().tap(" + locatorCode + ");",
+                    "driver.element().touch().tap(" + locatorCode + ");",
                     false);
             case "clear" -> record("clear", locator.strategy(), locator.value(), Map.of(),
                     "driver.element().clear(" + locatorCode + ");",
@@ -173,14 +173,14 @@ final class McpAppiumCommandRecorder {
     private void captureOrientation(String requestBody) throws Exception {
         String orientation = mapper.readTree(blankJson(requestBody)).path("orientation").asText("PORTRAIT")
                 .toUpperCase(java.util.Locale.ROOT);
-        String code = "driver.touch().rotate(ScreenOrientation." + orientation + ");";
+        String code = "driver.element().touch().rotate(\"" + orientation + "\");";
         record("rotate", null, "", Map.of("orientation", orientation), code, code, false);
     }
 
     private void captureBackgroundApp(String requestBody) throws Exception {
         JsonNode request = mapper.readTree(blankJson(requestBody));
         int seconds = request.has("seconds") ? request.path("seconds").asInt() : request.path("duration").asInt(1);
-        String code = "driver.touch().sendAppToBackground(" + seconds + ");";
+        String code = "driver.element().touch().sendAppToBackground(" + seconds + ");";
         record("backgroundApp", null, "", Map.of("seconds", String.valueOf(seconds)), code, code, false);
     }
 
@@ -191,7 +191,7 @@ final class McpAppiumCommandRecorder {
             recorder.recordWarning("Inspector activate app command did not include appId or bundleId.");
             return;
         }
-        String code = "driver.touch().activateAppFromBackground(" + McpMobileCode.java(appId) + ");";
+        String code = "driver.element().touch().activateAppFromBackground(" + McpMobileCode.java(appId) + ");";
         record("activateApp", null, "", Map.of("appId", appId), code, code, false);
     }
 

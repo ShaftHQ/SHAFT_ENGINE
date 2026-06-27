@@ -2,11 +2,6 @@ package generated.capture;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.internal.locator.Role;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.WindowType;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -16,8 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Session1Test {
-    private static final By USERNAME_INPUT_LOCATOR = SHAFT.GUI.Locator.inputField("Username");
-
     private SHAFT.GUI.WebDriver driver;
     private SHAFT.TestData.JSON testData;
     private final Map<String, String> windows = new HashMap<>();
@@ -26,30 +19,26 @@ public class Session1Test {
     public void setUp() {
         driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType.CHROME);
         testData = new SHAFT.TestData.JSON("session1-test.json");
-        windows.put("window-1", driver.getDriver().getWindowHandle());
+        windows.put("window-1", driver.browser().getWindowHandle());
     }
 
     @Test
     public void replaySession1() throws Exception {
         driver.browser().navigateToURL("https://example.test/form");
-        driver.element().click(USERNAME_INPUT_LOCATOR);
-        driver.element().type(USERNAME_INPUT_LOCATOR, requiredData("username"));
-        driver.element().clear(USERNAME_INPUT_LOCATOR);
-        driver.element().select(USERNAME_INPUT_LOCATOR, requiredData("username"));
-        if (driver.getDriver().findElement(USERNAME_INPUT_LOCATOR).isSelected() != true) {
-            driver.element().click(USERNAME_INPUT_LOCATOR);
-        }
-        if (driver.getDriver().findElement(USERNAME_INPUT_LOCATOR).isSelected() != false) {
-            driver.element().click(USERNAME_INPUT_LOCATOR);
-        }
-        driver.element().typeFileLocationForUpload(USERNAME_INPUT_LOCATOR, Path.of("src/test/resources/test-data/uploads/avatar.png").toString());
-        driver.element().typeAppend(USERNAME_INPUT_LOCATOR, Keys.chord(Keys.CONTROL, "A"));
-        driver.getDriver().switchTo().newWindow(WindowType.TAB);
-        windows.put("window-2", driver.getDriver().getWindowHandle());
-        driver.element().switchToIframe(USERNAME_INPUT_LOCATOR);
-        driver.alert().typeIntoPromptAlert(requiredData("username"));
-        driver.element().waitUntil(ExpectedConditions.visibilityOfElementLocated(USERNAME_INPUT_LOCATOR), java.time.Duration.ofSeconds(10));
-        driver.assertThat().element(USERNAME_INPUT_LOCATOR).text().isEqualTo(requiredData("username")).perform();
+        driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+        driver.element().type(SHAFT.GUI.Locator.inputField("Username"), requiredData("username"));
+        driver.element().clear(SHAFT.GUI.Locator.inputField("Username"));
+        driver.element().select(SHAFT.GUI.Locator.inputField("Username"), requiredData("username"));
+        driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+        driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+        driver.element().typeFileLocationForUpload(SHAFT.GUI.Locator.inputField("Username"), Path.of("src/test/resources/test-data/uploads/avatar.png").toString());
+        // Targeted keyboard shortcut omitted by SHAFT-only codegen.
+        driver.browser().openNewTab("about:blank");
+        windows.put("window-2", driver.browser().getWindowHandle());
+        driver.element().switchToIframe(SHAFT.GUI.Locator.inputField("Username"));
+        driver.browser().typeIntoPromptAlert(requiredData("username"));
+        driver.element().assertThat(SHAFT.GUI.Locator.inputField("Username")).isVisible().perform();
+        driver.element().assertThat(SHAFT.GUI.Locator.inputField("Username")).text().isEqualTo(requiredData("username")).perform();
         // Recorded checkpoint checkpoint-1 (ASSERTION). Form completed
     }
 

@@ -409,12 +409,10 @@ final class McpDoctorRemediationService {
                 "Review and replace the failing locator",
                 McpCodeBlock.Kind.LOCATOR,
                 "java",
-                List.of("org.openqa.selenium.By", "com.shaft.driver.SHAFT"),
+                List.of("com.shaft.driver.SHAFT"),
                 """
                         // Replace the placeholder with evidence-backed attributes from the current page.
-                        private static final By TARGET_ELEMENT = SHAFT.GUI.Locator.hasAnyTagName()
-                                .containsText("REPLACE_WITH_STABLE_VISIBLE_TEXT")
-                                .build();
+                        private static final String TARGET_ELEMENT_TEXT = "REPLACE_WITH_STABLE_VISIBLE_TEXT";
                         """,
                 "Paste as a field in the page object or test class, then replace the placeholder.",
                 false,
@@ -433,10 +431,10 @@ final class McpDoctorRemediationService {
                     "Use Playwright auto-waiting with a state assertion",
                     McpCodeBlock.Kind.WAIT,
                     "java",
-                    List.of("org.openqa.selenium.By"),
-                    """
-                            By target = TARGET_ELEMENT;
-                            %s.assertThat().element(target).isVisible().perform();
+                List.of("com.shaft.driver.SHAFT"),
+                """
+                            var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
+                            %s.element().assertThat(target).isVisible().perform();
                             %s.element().click(target);
                             """.formatted(driver, driver),
                     "Paste inside the Playwright test method before or at the failing interaction.",
@@ -449,11 +447,12 @@ final class McpDoctorRemediationService {
                 "Add an evidence-backed explicit wait",
                 McpCodeBlock.Kind.WAIT,
                 "java",
-                List.of("org.openqa.selenium.By", "org.openqa.selenium.support.ui.ExpectedConditions"),
+                List.of("com.shaft.driver.SHAFT"),
                 """
-                        By target = TARGET_ELEMENT;
-                        %s.element().waitUntil(ExpectedConditions.elementToBeClickable(target), true);
-                        """.formatted(driver),
+                        var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
+                        %s.element().assertThat(target).isVisible().perform();
+                        %s.element().assertThat(target).isEnabled().perform();
+                        """.formatted(driver, driver),
                 "Paste inside the test method before interacting with the target element.",
                 ready,
                 evidenceIds,
@@ -466,10 +465,10 @@ final class McpDoctorRemediationService {
                 "Assert the expected state before continuing",
                 McpCodeBlock.Kind.ASSERTION,
                 "java",
-                List.of("org.openqa.selenium.By"),
+                List.of("com.shaft.driver.SHAFT"),
                 """
-                        By target = TARGET_ELEMENT;
-                        %s.assertThat().element(target).isVisible().perform();
+                        var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
+                        %s.element().assertThat(target).isVisible().perform();
                         """.formatted(driver),
                 "Paste inside the test method near the failing step.",
                 ready,

@@ -58,18 +58,7 @@ final class McpMobileCode {
                 "Mobile action snippet",
                 McpCodeBlock.Kind.ACTION,
                 "java",
-                List.of(
-                        "com.shaft.driver.SHAFT",
-                        "com.shaft.gui.element.TouchActions",
-                        "io.appium.java_client.AppiumBy",
-                        "org.openqa.selenium.By",
-                        "org.openqa.selenium.ScreenOrientation",
-                        "org.openqa.selenium.interactions.Pause",
-                        "org.openqa.selenium.interactions.PointerInput",
-                        "org.openqa.selenium.interactions.Sequence",
-                        "org.openqa.selenium.remote.RemoteWebDriver",
-                        "java.time.Duration",
-                        "java.util.List"),
+                List.of("com.shaft.driver.SHAFT"),
                 javaCode + System.lineSeparator(),
                 "Paste inside a method that already owns a SHAFT.GUI.WebDriver named driver.",
                 true,
@@ -80,43 +69,29 @@ final class McpMobileCode {
     static String locatorCode(locatorStrategy strategy, String value) {
         String literal = java(value);
         if (strategy == null) {
-            return "By.xpath(" + literal + ")";
+            return "SHAFT.GUI.Locator.xpath(" + literal + ")";
         }
         return switch (strategy) {
-            case ID -> "SHAFT.GUI.Locator.hasAnyTagName().hasId(" + literal + ").build()";
-            case CSSSELECTOR, CSS, SELECTOR -> "By.cssSelector(" + literal + ")";
-            case XPATH -> "By.xpath(" + literal + ")";
-            case NAME -> "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"name\", " + literal + ").build()";
-            case TAGNAME -> "SHAFT.GUI.Locator.hasTagName(" + literal + ").build()";
-            case CLASSNAME -> "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"class\", " + literal + ").build()";
-            case ACCESSIBILITY_ID -> "AppiumBy.accessibilityId(" + literal + ")";
-            case ANDROID_UIAUTOMATOR -> "AppiumBy.androidUIAutomator(" + literal + ")";
-            case IOS_PREDICATE -> "AppiumBy.iOSNsPredicateString(" + literal + ")";
-            case IOS_CLASS_CHAIN -> "AppiumBy.iOSClassChain(" + literal + ")";
+            case ID -> "SHAFT.GUI.Locator.id(" + literal + ")";
+            case CSSSELECTOR, CSS, SELECTOR -> "SHAFT.GUI.Locator.cssSelector(" + literal + ")";
+            case XPATH -> "SHAFT.GUI.Locator.xpath(" + literal + ")";
+            case NAME -> "SHAFT.GUI.Locator.name(" + literal + ")";
+            case TAGNAME -> "SHAFT.GUI.Locator.tagName(" + literal + ")";
+            case CLASSNAME -> "SHAFT.GUI.Locator.className(" + literal + ")";
+            case ACCESSIBILITY_ID -> "SHAFT.GUI.Locator.accessibilityId(" + literal + ")";
+            case ANDROID_UIAUTOMATOR -> "SHAFT.GUI.Locator.androidUiAutomator(" + literal + ")";
+            case IOS_PREDICATE -> "SHAFT.GUI.Locator.iosPredicateString(" + literal + ")";
+            case IOS_CLASS_CHAIN -> "SHAFT.GUI.Locator.iosClassChain(" + literal + ")";
         };
     }
 
     static String tapCoordinatesCode(int x, int y) {
-        return """
-                PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
-                Sequence tap = new Sequence(finger, 0);
-                tap.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), %d, %d));
-                tap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-                tap.addAction(new Pause(finger, Duration.ofMillis(100)));
-                tap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-                ((RemoteWebDriver) driver.getDriver()).perform(List.of(tap));""".formatted(x, y);
+        return "driver.element().touch().tapByCoordinates(%d, %d);".formatted(x, y);
     }
 
     static String swipeCoordinatesCode(int startX, int startY, int endX, int endY, int durationMillis) {
-        return """
-                PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
-                Sequence swipe = new Sequence(finger, 0);
-                swipe.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), %d, %d));
-                swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-                swipe.addAction(finger.createPointerMove(Duration.ofMillis(%d), PointerInput.Origin.viewport(), %d, %d));
-                swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-                ((RemoteWebDriver) driver.getDriver()).perform(List.of(swipe));"""
-                .formatted(startX, startY, Math.max(durationMillis, 100), endX, endY);
+        return "driver.element().touch().swipeByCoordinates(%d, %d, %d, %d, %d);"
+                .formatted(startX, startY, endX, endY, Math.max(durationMillis, 100));
     }
 
     static List<String> nativeWarnings(String platform, String app, String appPackage, String appActivity,

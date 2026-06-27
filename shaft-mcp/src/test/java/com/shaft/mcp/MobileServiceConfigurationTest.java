@@ -144,8 +144,8 @@ class MobileServiceConfigurationTest {
                 locatorStrategy.ACCESSIBILITY_ID,
                 "login",
                 Map.of(),
-                "driver.touch().tap(AppiumBy.accessibilityId(\"login\"));",
-                "driver.touch().tap(AppiumBy.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
                 false);
         McpMobileRecordingStatus active = service.recordStatus();
         McpMobileRecordingStatus stopped = service.recordStop(false);
@@ -157,7 +157,7 @@ class MobileServiceConfigurationTest {
         assertFalse(stopped.active());
         assertEquals(1, stopped.actionCount());
         assertTrue(blocks.codeBlocks().getFirst().code()
-                .contains("mobileDriver.touch().tap(AppiumBy.accessibilityId(\"login\"));"));
+                .contains("mobileDriver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));"));
     }
 
     @Test

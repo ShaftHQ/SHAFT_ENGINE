@@ -108,6 +108,15 @@ public interface ElementActionsContract {
 
     ElementActionsContract switchToDefaultContent();
 
+    /**
+     * Switches focus from the current iframe to its parent frame.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    default ElementActionsContract switchToParentFrame() {
+        throw new UnsupportedOperationException("switchToParentFrame is not supported by this element actions implementation.");
+    }
+
     String getCurrentFrame();
 
     ElementActionsContract type(By elementLocator, CharSequence... text);
