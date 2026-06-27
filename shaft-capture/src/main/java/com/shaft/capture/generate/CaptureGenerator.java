@@ -341,7 +341,10 @@ public final class CaptureGenerator {
         for (Checkpoint checkpoint : session.checkpoints()) {
             if (checkpoint.kind() == Checkpoint.CheckpointKind.ASSERTION
                     && !verificationSequences.contains(checkpoint.sequence())) {
-                unsupported.add("checkpoint-" + checkpoint.id() + ": assertion checkpoints require a "
+                String description = checkpoint.description().isBlank()
+                        ? ""
+                        : " (" + checkpoint.description() + ")";
+                unsupported.add("checkpoint-" + checkpoint.id() + description + ": assertion checkpoints require a "
                         + "VerificationEvent at sequence " + checkpoint.sequence()
                         + ". Record the expected target and value explicitly.");
             }

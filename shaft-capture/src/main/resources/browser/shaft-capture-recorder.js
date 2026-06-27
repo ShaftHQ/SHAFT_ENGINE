@@ -8,6 +8,7 @@
   const testIdAttributes = ["data-testid", "data-test", "data-qa"];
   const STORAGE_KEY = "shaft.capture.recorder.ui";
   const text = value => String(value || "").replace(/\s+/g, " ").trim().slice(0, 500);
+  const valueText = value => String(value == null ? "" : value).slice(0, 1000);
   const dynamic = value =>
     /[0-9]{8,}/.test(value || "") ||
     /[a-f0-9]{8}-[a-f0-9-]{27,}/i.test(value || "");
@@ -27,6 +28,7 @@
   const uiState = {
     paused: false,
     stopped: false,
+    assertionMode: false,
     actions: [],
     nextId: 1,
     lastUrl: String(location.href || ""),
@@ -34,6 +36,7 @@
   };
   uiState.actions = Array.isArray(uiState.actions) ? uiState.actions.slice(-80) : [];
   uiState.nextId = Number(uiState.nextId || uiState.actions.length + 1);
+  uiState.assertionMode = Boolean(uiState.assertionMode);
   globalThis.__shaftCaptureUiState = uiState;
   const topLevel = (() => {
     try {
@@ -47,6 +50,7 @@
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
         paused: uiState.paused,
         stopped: uiState.stopped,
+        assertionMode: uiState.assertionMode,
         actions: uiState.actions.slice(-80),
         nextId: uiState.nextId,
         lastUrl: uiState.lastUrl
@@ -95,6 +99,8 @@
         kind: kind || "USER_MARKER"
       }
     });
+  const sendVerification = (target, data) =>
+    send({kind: "verification", page: page(), target, data});
   const inferredRole = element => {
     const explicit = text(element.getAttribute("role")).toLowerCase();
     if (explicit) return explicit;
@@ -127,6 +133,14 @@
       target.logicalElementId ||
       target.tagName
     )) || "element";
+  const icon = name => ({
+    pause: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14"></path><path d="M16 5v14"></path></svg>`,
+    play: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>`,
+    assert: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12.5 2.5 2.5 4.5-6"></path></svg>`,
+    checkpoint: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>`,
+    stop: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"></path></svg>`,
+    edit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`
+  })[name] || "";
   const describe = (kind, target, data) => {
     const name = targetName(target);
     switch (kind) {
@@ -220,9 +234,12 @@
     add("CSS", generated, generated, false, ["GENERATED", "POSITIONAL"]);
     return result;
   };
-  const snapshot = event => {
+  const eventElement = event => {
     const path = event.composedPath ? event.composedPath() : [];
-    const element = path.find(item => item && item.nodeType === Node.ELEMENT_NODE) || event.target;
+    return path.find(item => item && item.nodeType === Node.ELEMENT_NODE) || event.target;
+  };
+  const snapshot = event => {
+    const element = eventElement(event);
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
     if (element.closest && element.closest("[data-shaft-capture-control]")) return null;
     const attributes = {};
@@ -268,6 +285,98 @@
     const type = String(element && element.type || "text").toLowerCase();
     return tag === "textarea" || (tag === "input" &&
       !["button", "submit", "reset", "checkbox", "radio", "file", "hidden"].includes(type));
+  };
+  const assertionKind = value => {
+    const normalized = text(value).toLowerCase().replace(/[_-]+/g, " ");
+    switch (normalized) {
+      case "visible":
+      case "element visible":
+        return "ELEMENT_VISIBLE";
+      case "enabled":
+      case "element enabled":
+        return "ELEMENT_ENABLED";
+      case "selected":
+      case "element selected":
+        return "ELEMENT_SELECTED";
+      case "text equals":
+      case "text equal":
+      case "value equals":
+      case "value equal":
+        return "TEXT_EQUALS";
+      case "text contains":
+      case "value contains":
+        return "TEXT_CONTAINS";
+      case "attribute equals":
+      case "attribute equal":
+        return "ATTRIBUTE_EQUALS";
+      case "url equals":
+      case "url equal":
+        return "URL_EQUALS";
+      case "url contains":
+        return "URL_CONTAINS";
+      case "title equals":
+      case "title equal":
+        return "TITLE_EQUALS";
+      default:
+        return "";
+    }
+  };
+  const assertionLabel = kind => kind.toLowerCase().replace(/_/g, " ");
+  const expectsValue = kind =>
+    ["TEXT_EQUALS", "TEXT_CONTAINS", "ATTRIBUTE_EQUALS", "URL_EQUALS", "URL_CONTAINS", "TITLE_EQUALS"]
+      .includes(kind);
+  const pageAssertion = kind => ["URL_EQUALS", "URL_CONTAINS", "TITLE_EQUALS"].includes(kind);
+  const defaultAttribute = element =>
+    ["value", "aria-label", "title", "href", "id", "name"]
+      .find(name => element && element.hasAttribute && element.hasAttribute(name)) || "value";
+  const currentValue = (kind, element, attributeName) => {
+    if (kind === "URL_EQUALS" || kind === "URL_CONTAINS") return valueText(location.href);
+    if (kind === "TITLE_EQUALS") return valueText(document.title);
+    if (kind === "ATTRIBUTE_EQUALS") return valueText(element && element.getAttribute(attributeName));
+    if (isTextInput(element)) return valueText(element.value);
+    return text(element && (element.innerText || element.textContent));
+  };
+  const captureAssertion = event => {
+    if (!uiState.assertionMode || uiState.stopped || uiState.paused) return false;
+    const element = eventElement(event);
+    if (element && element.closest && element.closest("[data-shaft-capture-control]")) return false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const target = snapshot(event);
+    if (!target) return true;
+    const selected = prompt(
+      "Assertion type",
+      "visible, enabled, selected, text equals, text contains, attribute equals, url equals, url contains, title equals");
+    const kind = assertionKind(selected);
+    if (!kind) {
+      const unsupported = text(selected);
+      if (unsupported) {
+        uiState.assertionMode = false;
+        persist();
+        announce("Unsupported assertion: " + unsupported);
+        sendCheckpoint("Unsupported assertion type: " + unsupported, "ASSERTION");
+        setStatus();
+      }
+      return true;
+    }
+    const data = {verification: kind};
+    let attributeName = "";
+    if (kind === "ATTRIBUTE_EQUALS") {
+      attributeName = text(prompt("Attribute name", defaultAttribute(element)));
+      if (!attributeName) return true;
+      data.attributeName = attributeName;
+    }
+    if (expectsValue(kind)) {
+      const expected = prompt("Expected value", currentValue(kind, element, attributeName));
+      if (expected === null) return true;
+      data.expected = valueText(expected);
+    }
+    uiState.assertionMode = false;
+    persist();
+    announce("Assert " + assertionLabel(kind) + " on " + (pageAssertion(kind) ? "page" : targetName(target)));
+    sendVerification(pageAssertion(kind) ? null : target, data);
+    setStatus();
+    return true;
   };
 
   const styles = () => {
@@ -332,15 +441,31 @@
       #shaft-capture-ui button {
         min-width: 28px;
         height: 28px;
+        display: inline-grid;
+        place-items: center;
         border: 1px solid var(--shaft-border);
         border-radius: 6px;
         background: var(--shaft-surface);
         color: var(--shaft-primary);
         cursor: pointer;
-        font-weight: 700;
+        line-height: 0;
+        padding: 0;
       }
       #shaft-capture-ui button:hover { background: rgba(var(--shaft-primary-rgb), .08); }
       #shaft-capture-ui button:disabled { cursor: default; opacity: .5; }
+      #shaft-capture-ui button[aria-pressed="true"] {
+        background: var(--shaft-primary);
+        color: var(--shaft-on-dark);
+      }
+      #shaft-capture-ui button svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
       #shaft-capture-ui .status-chip {
         display: inline-flex;
         align-items: center;
@@ -388,15 +513,21 @@
   const setStatus = () => {
     const status = document.getElementById("shaft-capture-status");
     const pause = document.getElementById("shaft-capture-pause");
+    const assert = document.getElementById("shaft-capture-assert");
     const stop = document.getElementById("shaft-capture-stop");
-    if (!status || !pause || !stop) return;
+    if (!status || !pause || !assert || !stop) return;
     status.textContent = uiState.stopped
       ? "Stopped. Waiting for SHAFT to close the browser."
       : uiState.paused
         ? "Paused. Browser actions are not being captured."
-        : "Recording browser actions.";
-    pause.textContent = uiState.paused ? ">" : "||";
+        : uiState.assertionMode
+          ? "Assertion mode. Click an element to capture a verification."
+          : "Recording browser actions.";
+    pause.innerHTML = icon(uiState.paused ? "play" : "pause");
     pause.title = uiState.paused ? "Resume recording" : "Pause recording";
+    pause.setAttribute("aria-label", pause.title);
+    assert.setAttribute("aria-pressed", String(uiState.assertionMode));
+    assert.disabled = uiState.stopped || uiState.paused;
     stop.disabled = uiState.stopped;
   };
   const editAction = item => {
@@ -418,8 +549,9 @@
       labelNode.textContent = item.text;
       const edit = document.createElement("button");
       edit.type = "button";
-      edit.textContent = "edit";
+      edit.innerHTML = icon("edit");
       edit.title = "Edit captured action";
+      edit.setAttribute("aria-label", "Edit captured action");
       edit.addEventListener("click", () => editAction(item));
       body.append(labelNode, edit);
       row.append(body);
@@ -438,8 +570,9 @@
         <span class="brand-mark" aria-hidden="true">S</span>
         <strong>SHAFT Capture</strong>
         <button id="shaft-capture-pause" type="button"></button>
-        <button id="shaft-capture-checkpoint" type="button" title="Add checkpoint">+</button>
-        <button id="shaft-capture-stop" type="button" title="Stop recording">x</button>
+        <button id="shaft-capture-assert" type="button" title="Toggle assertion mode" aria-label="Toggle assertion mode" aria-pressed="false">${icon("assert")}</button>
+        <button id="shaft-capture-checkpoint" type="button" title="Add checkpoint" aria-label="Add checkpoint">${icon("checkpoint")}</button>
+        <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
       </header>
       <div id="shaft-capture-status" class="status-chip"></div>
       <div id="shaft-capture-actions"><ol id="shaft-capture-action-list"></ol></div>
@@ -450,6 +583,12 @@
       uiState.paused = !uiState.paused;
       persist();
       sendControl(uiState.paused ? "PAUSE" : "RESUME");
+      setStatus();
+    });
+    document.getElementById("shaft-capture-assert").addEventListener("click", () => {
+      if (uiState.stopped || uiState.paused) return;
+      uiState.assertionMode = !uiState.assertionMode;
+      persist();
       setStatus();
     });
     document.getElementById("shaft-capture-checkpoint").addEventListener("click", () => {
@@ -477,6 +616,7 @@
   };
 
   addEventListener("click", event => {
+    if (captureAssertion(event)) return;
     const element = event.composedPath ? event.composedPath()[0] : event.target;
     const type = String(element && element.type || "").toLowerCase();
     const tag = String(element && element.localName || "").toLowerCase();
