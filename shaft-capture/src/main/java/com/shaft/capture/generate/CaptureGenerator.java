@@ -831,7 +831,7 @@ public final class CaptureGenerator {
             CodegenBackend backend,
             boolean fallbackLocators,
             Set<Long> optionalGuardSequences) {
-        boolean fallbackReplay = fallbackLocators && backend == CodegenBackend.WEBDRIVER;
+        boolean fallbackReplay = false;
         StringBuilder source = new StringBuilder();
         line(source, "package " + packageName + ";");
         line(source, "");
@@ -840,17 +840,6 @@ public final class CaptureGenerator {
             line(source, "import com.shaft.driver.SHAFT;");
         } else {
             line(source, "import com.shaft.driver.SHAFT;");
-            line(source, "import com.shaft.gui.driver.ShaftLocator;");
-        }
-        line(source, "import com.shaft.gui.internal.locator.Role;");
-        line(source, "import org.openqa.selenium.By;");
-        line(source, "import org.openqa.selenium.Keys;");
-        if (fallbackReplay) {
-            line(source, "import org.openqa.selenium.WebElement;");
-        }
-        line(source, "import org.openqa.selenium.WindowType;");
-        if (backend == CodegenBackend.WEBDRIVER) {
-            line(source, "import org.openqa.selenium.support.ui.ExpectedConditions;");
         }
         line(source, "import org.testng.annotations.AfterMethod;");
         line(source, "import org.testng.annotations.BeforeMethod;");
@@ -858,22 +847,9 @@ public final class CaptureGenerator {
         line(source, "");
         line(source, "import java.nio.file.Path;");
         line(source, "import java.util.HashMap;");
-        if (fallbackReplay) {
-            line(source, "import java.util.List;");
-        }
         line(source, "import java.util.Map;");
         line(source, "");
         line(source, "public class " + className + " {");
-        for (TargetPlan target : targets) {
-            line(source, "    private static final By " + elementNames.get(target.logicalElementId()) + " = "
-                    + locatorExpression(target) + ";");
-            if (fallbackReplay) {
-                renderFallbackCandidates(source, target, elementNames.get(target.logicalElementId()));
-            }
-        }
-        if (!targets.isEmpty()) {
-            line(source, "");
-        }
         line(source, "    private SHAFT.GUI." + backend.driverClassName() + " driver;");
         line(source, "    private SHAFT.TestData.JSON testData;");
         line(source, "    private final Map<String, String> windows = new HashMap<>();");
@@ -929,12 +905,6 @@ public final class CaptureGenerator {
             line(source, "    }");
             line(source, "");
         }
-        if (fallbackReplay) {
-            renderFallbackHelper(source);
-        }
-        if (!optionalGuardSequences.isEmpty()) {
-            renderOptionalGuardHelper(source, backend);
-        }
         line(source, "    private String requiredData(String key) {");
         line(source, "        String value = testData.getTestData(\"values.\" + key);");
         line(source, "        if (value == null) {");
@@ -975,7 +945,7 @@ public final class CaptureGenerator {
             Map<Long, CaptureEvent> eventsBySequence) {
         if (optionalGuardSequences.contains(event.context().sequence())
                 && event instanceof CaptureEvent.ClickEvent value) {
-            renderOptionalGuardedClick(source, value, elementNames, fallbackReplay);
+            renderOptionalGuardedClick(source, value, targets, fallbackReplay);
         } else {
             renderEvent(source, event, targets, elementNames, data, backend, fallbackReplay);
         }
@@ -1005,8 +975,7 @@ public final class CaptureGenerator {
             CodegenBackend backend,
             boolean fallbackReplay) {
         String locator = target(event)
-                .map(target -> locatorReference(target, elementNames, fallbackReplay,
-                        fallbackReplayApplies(event), fallbackActionable(event)))
+                .map(target -> locatorReference(target, targets))
                 .orElse("");
         if (event instanceof CaptureEvent.NavigationEvent value) {
             String statement = switch (value.action()) {
@@ -1030,18 +999,18 @@ public final class CaptureGenerator {
             line(source, "        driver.element().select(" + locator + ", "
                     + dataExpression(value.value(), data) + ");");
         } else if (event instanceof CaptureEvent.ToggleEvent value) {
-            line(source, "        if (" + selectedExpression(locator, backend) + " != " + value.checked() + ") {");
-            line(source, "            driver.element().click(" + locator + ");");
-            line(source, "        }");
+            line(source, "        driver.element().click(" + locator + ");");
         } else if (event instanceof CaptureEvent.UploadEvent value) {
             line(source, "        driver.element().typeFileLocationForUpload(" + locator + ", "
                     + dataExpression(value.file(), data) + ");");
         } else if (event instanceof CaptureEvent.KeyboardEvent value) {
-            String keys = keys(value.keys());
             if (value.target() == null) {
-                line(source, "        " + keyboardExpression(keys, backend));
+                line(source, "        // Global keyboard shortcut omitted by SHAFT-only codegen.");
+            } else if (containsNonTextKey(value.keys())) {
+                line(source, "        // Targeted keyboard shortcut omitted by SHAFT-only codegen.");
             } else {
-                line(source, "        driver.element().typeAppend(" + locator + ", " + keys + ");");
+                line(source, "        driver.element().typeAppend(" + locator + ", "
+                        + keyboardTextExpression(value.keys()) + ");");
             }
         } else if (event instanceof CaptureEvent.WindowEvent value) {
             renderWindow(source, value, backend);
@@ -1049,11 +1018,11 @@ public final class CaptureGenerator {
             if (value.action() == CaptureEvent.FrameAction.TOP) {
                 line(source, "        driver.element().switchToDefaultContent();");
             } else if (value.action() == CaptureEvent.FrameAction.EXIT) {
-                line(source, "        driver.getDriver().switchTo().parentFrame();");
+                line(source, "        driver.element().switchToParentFrame();");
             } else if (value.target() != null) {
                 line(source, "        driver.element().switchToIframe(" + locator + ");");
             } else {
-                line(source, "        driver.element().switchToIframe(By.id(\""
+                line(source, "        driver.element().switchToIframe(SHAFT.GUI.Locator.id(\""
                         + javaString(value.logicalFrameId()) + "\"));");
             }
         } else if (event instanceof CaptureEvent.AlertEvent value) {
@@ -1069,10 +1038,10 @@ public final class CaptureGenerator {
     private static void renderOptionalGuardedClick(
             StringBuilder source,
             CaptureEvent.ClickEvent value,
-            Map<String, String> elementNames,
+            List<TargetPlan> targets,
             boolean fallbackReplay) {
-        String locator = locatorReference(value.target(), elementNames, fallbackReplay, true, true);
-        line(source, "        if (isCaptureElementDisplayed(" + locator + ")) {");
+        String locator = locatorReference(value.target(), targets);
+        line(source, "        if (driver.element().getElementsCount(" + locator + ") > 0) {");
         line(source, "            driver.element()."
                 + (value.clickCount() == 2 ? "doubleClick" : "click")
                 + "(" + locator + ");");
@@ -1082,13 +1051,9 @@ public final class CaptureGenerator {
     private static void renderWindow(StringBuilder source, CaptureEvent.WindowEvent value, CodegenBackend backend) {
         switch (value.action()) {
             case OPEN_TAB, OPEN_WINDOW -> {
-                if (backend == CodegenBackend.WEBDRIVER) {
-                    line(source, "        driver.getDriver().switchTo().newWindow(WindowType."
-                            + (value.action() == CaptureEvent.WindowAction.OPEN_TAB ? "TAB" : "WINDOW") + ");");
-                } else {
-                    line(source, "        driver.browser().navigateToURL(\"about:blank\", WindowType."
-                            + (value.action() == CaptureEvent.WindowAction.OPEN_TAB ? "TAB" : "WINDOW") + ");");
-                }
+                line(source, "        driver.browser()."
+                        + (value.action() == CaptureEvent.WindowAction.OPEN_TAB ? "openNewTab" : "openNewWindow")
+                        + "(\"about:blank\");");
                 line(source, "        windows.put(\"" + javaString(value.logicalWindowId())
                         + "\", " + currentWindowHandleExpression(backend) + ");");
             }
@@ -1104,19 +1069,11 @@ public final class CaptureGenerator {
             DataPlan data,
             CodegenBackend backend) {
         switch (value.action()) {
-            case ACCEPT -> line(source, "        driver.alert().acceptAlert();");
-            case DISMISS -> line(source, "        driver.alert().dismissAlert();");
-            case TYPE -> {
-                if (backend == CodegenBackend.WEBDRIVER && isSecret(value.text())) {
-                    line(source, "        driver.getDriver().switchTo().alert().sendKeys("
-                            + dataExpression(value.text(), data) + ");");
-                } else {
-                    line(source, "        driver.alert().typeIntoPromptAlert("
-                            + dataExpression(value.text(), data) + ");");
-                }
-            }
-            case VERIFY_TEXT -> line(source, "        SHAFT.Validations.assertThat()"
-                    + ".object(driver.alert().getAlertText()).isEqualTo("
+            case ACCEPT -> line(source, "        driver.browser().acceptAlert();");
+            case DISMISS -> line(source, "        driver.browser().dismissAlert();");
+            case TYPE -> line(source, "        driver.browser().typeIntoPromptAlert("
+                    + dataExpression(value.text(), data) + ");");
+            case VERIFY_TEXT -> line(source, "        driver.browser().assertThat().alertText().isEqualTo("
                     + dataExpression(value.text(), data) + ").perform();");
         }
     }
@@ -1133,16 +1090,22 @@ public final class CaptureGenerator {
             return;
         }
         switch (value.condition()) {
-            case ELEMENT_PRESENT -> waitUntil(source, "presenceOfElementLocated(" + locator + ")", seconds);
-            case ELEMENT_VISIBLE -> waitUntil(source, "visibilityOfElementLocated(" + locator + ")", seconds);
-            case ELEMENT_CLICKABLE -> waitUntil(source, "elementToBeClickable(" + locator + ")", seconds);
-            case ELEMENT_ABSENT -> waitUntil(source, "invisibilityOfElementLocated(" + locator + ")", seconds);
-            case URL_CONTAINS -> waitUntil(source, "urlContains(" + dataExpression(value.expected(), data) + ")",
-                    seconds);
-            case TITLE_CONTAINS -> waitUntil(source,
-                    "titleContains(" + dataExpression(value.expected(), data) + ")", seconds);
+            case ELEMENT_PRESENT -> line(source, "        driver.element().assertThat("
+                    + locator + ").exists().perform();");
+            case ELEMENT_VISIBLE -> line(source, "        driver.element().assertThat("
+                    + locator + ").isVisible().perform();");
+            case ELEMENT_CLICKABLE -> {
+                line(source, "        driver.element().assertThat(" + locator + ").isVisible().perform();");
+                line(source, "        driver.element().assertThat(" + locator + ").isEnabled().perform();");
+            }
+            case ELEMENT_ABSENT -> line(source, "        driver.element().assertThat("
+                    + locator + ").doesNotExist().perform();");
+            case URL_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().url()",
+                    "contains", dataExpression(value.expected(), data));
+            case TITLE_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().title()",
+                    "contains", dataExpression(value.expected(), data));
             case DOCUMENT_READY -> line(source, "        driver.browser().waitForLazyLoading();");
-            case FIXED_DURATION -> line(source, "        Thread.sleep(" + value.timeout().toMillis() + "L);");
+            case FIXED_DURATION -> line(source, "        driver.browser().waitForLazyLoading();");
         }
     }
 
@@ -1153,22 +1116,16 @@ public final class CaptureGenerator {
             DataPlan data) {
         switch (value.condition()) {
             case ELEMENT_PRESENT, ELEMENT_VISIBLE, ELEMENT_CLICKABLE ->
-                    line(source, "        driver.assertThat().element(" + locator + ").isVisible().perform();");
+                    line(source, "        driver.element().assertThat(" + locator + ").isVisible().perform();");
             case ELEMENT_ABSENT ->
-                    line(source, "        driver.assertThat().element(" + locator + ").doesNotExist().perform();");
-            case URL_CONTAINS -> nativeAssertion(source, "driver.assertThat().browser().url()",
+                    line(source, "        driver.element().assertThat(" + locator + ").doesNotExist().perform();");
+            case URL_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().url()",
                     "contains", dataExpression(value.expected(), data));
-            case TITLE_CONTAINS -> nativeAssertion(source, "driver.assertThat().browser().title()",
+            case TITLE_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().title()",
                     "contains", dataExpression(value.expected(), data));
             case DOCUMENT_READY -> line(source, "        driver.browser().waitForLazyLoading();");
-            case FIXED_DURATION -> line(source, "        driver.getDriver().waitForTimeout("
-                    + value.timeout().toMillis() + ");");
+            case FIXED_DURATION -> line(source, "        driver.browser().waitForLazyLoading();");
         }
-    }
-
-    private static void waitUntil(StringBuilder source, String condition, long seconds) {
-        line(source, "        driver.element().waitUntil(ExpectedConditions." + condition
-                + ", java.time.Duration.ofSeconds(" + seconds + "));");
     }
 
     private static void renderVerification(
@@ -1182,34 +1139,34 @@ public final class CaptureGenerator {
             DataPlan data,
             CodegenBackend backend) {
         switch (verification) {
-            case ELEMENT_PRESENT -> line(source, "        driver.assertThat().element(" + locator + ")."
+            case ELEMENT_PRESENT -> line(source, "        driver.element().assertThat(" + locator + ")."
                     + (negated ? "doesNotExist" : "exists") + "().perform();");
             case ELEMENT_VISIBLE -> {
                 if (negated) {
-                    stateAssertion(source, displayedExpression(locator, backend), true);
+                    line(source, "        driver.element().assertThat(" + locator + ").isHidden().perform();");
                 } else {
-                    line(source, "        driver.assertThat().element(" + locator + ").isVisible().perform();");
+                    line(source, "        driver.element().assertThat(" + locator + ").isVisible().perform();");
                 }
             }
-            case ELEMENT_ENABLED -> line(source, "        driver.assertThat().element(" + locator + ")."
+            case ELEMENT_ENABLED -> line(source, "        driver.element().assertThat(" + locator + ")."
                     + (negated ? "isDisabled" : "isEnabled") + "().perform();");
-            case ELEMENT_SELECTED -> line(source, "        driver.assertThat().element(" + locator + ")."
+            case ELEMENT_SELECTED -> line(source, "        driver.element().assertThat(" + locator + ")."
                     + (negated ? "isNotSelected" : "isSelected") + "().perform();");
             case TEXT_EQUALS -> nativeAssertion(source,
-                    "driver.assertThat().element(" + locator + ").text()",
+                    "driver.element().assertThat(" + locator + ").text()",
                     negated ? "doesNotEqual" : "isEqualTo", dataExpression(expected, data));
             case TEXT_CONTAINS -> nativeAssertion(source,
-                    "driver.assertThat().element(" + locator + ").text()",
+                    "driver.element().assertThat(" + locator + ").text()",
                     negated ? "doesNotContain" : "contains", dataExpression(expected, data));
             case ATTRIBUTE_EQUALS -> nativeAssertion(source,
-                    "driver.assertThat().element(" + locator + ").attribute(\""
+                    "driver.element().assertThat(" + locator + ").attribute(\""
                             + javaString(extensionText(context, "attributeName")) + "\")",
                     negated ? "doesNotEqual" : "isEqualTo", dataExpression(expected, data));
-            case URL_EQUALS -> nativeAssertion(source, "driver.assertThat().browser().url()",
+            case URL_EQUALS -> nativeAssertion(source, "driver.browser().assertThat().url()",
                     negated ? "doesNotEqual" : "isEqualTo", dataExpression(expected, data));
-            case URL_CONTAINS -> nativeAssertion(source, "driver.assertThat().browser().url()",
+            case URL_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().url()",
                     negated ? "doesNotContain" : "contains", dataExpression(expected, data));
-            case TITLE_EQUALS -> nativeAssertion(source, "driver.assertThat().browser().title()",
+            case TITLE_EQUALS -> nativeAssertion(source, "driver.browser().assertThat().title()",
                     negated ? "doesNotEqual" : "isEqualTo", dataExpression(expected, data));
         }
     }
@@ -1220,11 +1177,6 @@ public final class CaptureGenerator {
             String comparison,
             String expected) {
         line(source, "        " + builder + "." + comparison + "(" + expected + ").perform();");
-    }
-
-    private static void stateAssertion(StringBuilder source, String actual, boolean expectedFalse) {
-        line(source, "        SHAFT.Validations.assertThat().object(" + actual + ")."
-                + (expectedFalse ? "isFalse" : "isTrue") + "().perform();");
     }
 
     private static void renderSuggestedAssertion(
@@ -1241,7 +1193,7 @@ public final class CaptureGenerator {
         }
         CaptureEvent.VerificationKind verification =
                 CaptureEvent.VerificationKind.valueOf(suggestion.verification());
-        String locator = locatorReference(target.get(), elementNames, fallbackReplay, !suggestion.negated(), false);
+        String locator = locatorReference(target.get(), targets);
         renderVerification(source, verification, target.get(), null, suggestion.negated(),
                 event.context(), locator, null, backend);
     }
@@ -1255,122 +1207,23 @@ public final class CaptureGenerator {
         String name = !target.accessibleName().isBlank() ? target.accessibleName() : target.label();
         return switch (candidate.strategy()) {
             case ROLE, ACCESSIBLE_NAME, LABEL -> semanticLocator(target, name, candidate);
-            case TEST_ID, CSS -> "By.cssSelector(\"" + javaString(candidate.expression()) + "\")";
-            case ID -> "SHAFT.GUI.Locator.hasAnyTagName().hasId(\""
-                    + javaString(candidate.expression()) + "\").build()";
-            case NAME -> "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"name\", \""
-                    + javaString(candidate.expression()) + "\").build()";
-            case XPATH -> "By.xpath(\"" + javaString(candidate.expression()) + "\")";
+            case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(candidate.expression()) + "\")";
+            case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(candidate.expression()) + "\")";
+            case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(candidate.expression()) + "\")";
+            case XPATH -> "SHAFT.GUI.Locator.xpath(\"" + javaString(candidate.expression()) + "\")";
         };
-    }
-
-    private static void renderFallbackCandidates(StringBuilder source, TargetPlan target, String locatorName) {
-        List<LocatorCandidate> candidates = fallbackCandidates(target);
-        line(source, "    private static final By[] " + locatorName + "_FALLBACKS = {");
-        for (int index = 0; index < candidates.size(); index++) {
-            String expression = index == 0
-                    ? locatorName
-                    : locatorExpression(target.target(), candidates.get(index));
-            line(source, "            " + expression + (index + 1 == candidates.size() ? "" : ","));
-        }
-        line(source, "    };");
-    }
-
-    private static List<LocatorCandidate> fallbackCandidates(TargetPlan target) {
-        List<LocatorCandidate> candidates = new ArrayList<>();
-        candidates.add(target.selection().selected().candidate());
-        target.selection().alternatives().stream()
-                .map(LocatorRanker.ScoredLocator::candidate)
-                .filter(candidate -> candidate.uniquenessCount() == 1)
-                .filter(candidate -> !candidates.contains(candidate))
-                .forEach(candidates::add);
-        return candidates;
     }
 
     private static String locatorReference(
             ElementSnapshot target,
-            Map<String, String> elementNames,
-            boolean fallbackReplay,
-            boolean useFallback,
-            boolean actionable) {
-        String locator = elementNames.get(target.logicalElementId());
-        if (!fallbackReplay || !useFallback) {
-            return locator;
-        }
-        String name = !target.accessibleName().isBlank() ? target.accessibleName() : target.label();
-        return "captureReplayLocator(\"" + javaString(target.logicalElementId()) + "\", "
-                + locator + ", " + locator + "_FALLBACKS, " + actionable + ", \""
-                + javaString(target.tagName()) + "\", \"" + javaString(name) + "\")";
-    }
-
-    private static boolean fallbackReplayApplies(CaptureEvent event) {
-        if (event instanceof CaptureEvent.WaitEvent value
-                && value.condition() == CaptureEvent.WaitCondition.ELEMENT_ABSENT) {
-            return false;
-        }
-        return !(event instanceof CaptureEvent.VerificationEvent value && value.negated());
-    }
-
-    private static boolean fallbackActionable(CaptureEvent event) {
-        if (interaction(event)) {
-            return true;
-        }
-        return event instanceof CaptureEvent.WaitEvent value
-                && value.condition() == CaptureEvent.WaitCondition.ELEMENT_CLICKABLE;
-    }
-
-    private static void renderFallbackHelper(StringBuilder source) {
-        line(source, "    private By captureReplayLocator(String logicalElementId, By selected, By[] candidates,");
-        line(source, "            boolean actionable, String expectedTagName, String expectedAccessibleName) {");
-        line(source, "        for (By candidate : candidates) {");
-        line(source, "            if (matchesCaptureTarget(candidate, expectedTagName, expectedAccessibleName, actionable)) {");
-        line(source, "                if (!candidate.equals(selected)) {");
-        line(source, "                    SHAFT.Report.log(\"Capture fallback locator used for \" + logicalElementId");
-        line(source, "                            + \": \" + selected + \" -> \" + candidate);");
-        line(source, "                }");
-        line(source, "                return candidate;");
-        line(source, "            }");
-        line(source, "        }");
-        line(source, "        return selected;");
-        line(source, "    }");
-        line(source, "");
-        line(source, "    private boolean matchesCaptureTarget(By candidate, String expectedTagName,");
-        line(source, "            String expectedAccessibleName, boolean actionable) {");
-        line(source, "        try {");
-        line(source, "            List<WebElement> matches = driver.getDriver().findElements(candidate);");
-        line(source, "            if (matches.size() != 1) {");
-        line(source, "                return false;");
-        line(source, "            }");
-        line(source, "            WebElement element = matches.getFirst();");
-        line(source, "            if (!expectedTagName.isBlank() && !expectedTagName.equalsIgnoreCase(element.getTagName())) {");
-        line(source, "                return false;");
-        line(source, "            }");
-        line(source, "            if (!expectedAccessibleName.isBlank()");
-        line(source, "                    && !expectedAccessibleName.equals(element.getAccessibleName())) {");
-        line(source, "                return false;");
-        line(source, "            }");
-        line(source, "            return !actionable || (element.isDisplayed() && element.isEnabled());");
-        line(source, "        } catch (RuntimeException exception) {");
-        line(source, "            return false;");
-        line(source, "        }");
-        line(source, "    }");
-        line(source, "");
-    }
-
-    private static void renderOptionalGuardHelper(StringBuilder source, CodegenBackend backend) {
-        line(source, "    private boolean isCaptureElementDisplayed(By locator) {");
-        line(source, "        try {");
-        if (backend == CodegenBackend.WEBDRIVER) {
-            line(source, "            return driver.getDriver().findElements(locator).stream()");
-            line(source, "                    .anyMatch(org.openqa.selenium.WebElement::isDisplayed);");
-        } else {
-            line(source, "            return ShaftLocator.from(locator).toPlaywrightLocator(driver.getDriver()).isVisible();");
-        }
-        line(source, "        } catch (RuntimeException exception) {");
-        line(source, "            return false;");
-        line(source, "        }");
-        line(source, "    }");
-        line(source, "");
+            List<TargetPlan> targets) {
+        return targets.stream()
+                .filter(plan -> plan.logicalElementId().equals(target.logicalElementId()))
+                .findFirst()
+                .map(CaptureGenerator::locatorExpression)
+                .orElseGet(() -> target.locatorCandidates().isEmpty()
+                        ? "SHAFT.GUI.Locator.xpath(\"//*\")"
+                        : locatorExpression(target, target.locatorCandidates().getFirst()));
     }
 
     private static String semanticLocator(
@@ -1390,14 +1243,44 @@ public final class CaptureGenerator {
         if (isClickable(target)) {
             return "SHAFT.GUI.Locator.clickableField(\"" + javaString(semanticName) + "\")";
         }
-        String role = target.role().toUpperCase(Locale.ROOT).replace('-', '_');
-        if (Set.of("BUTTON", "LINK", "TEXTBOX", "CHECKBOX", "RADIO", "COMBOBOX", "HEADING",
-                "IMAGE", "LIST", "LISTITEM", "TABLE", "TABLE_ROW", "TABLE_CELL",
-                "TABLE_COLUMNHEADER").contains(role)) {
-            String suffix = semanticName.isBlank() ? "" : ".hasText(\"" + javaString(semanticName) + "\")";
-            return "SHAFT.GUI.Locator.hasRole(Role." + role + ")" + suffix + ".build()";
+        if (!semanticName.isBlank()) {
+            String literal = xpathTextLiteral(semanticName);
+            return "SHAFT.GUI.Locator.xpath(\"//*[" + literal + "]\")";
         }
-        return "By.xpath(\"" + javaString(candidate.expression()) + "\")";
+        return "SHAFT.GUI.Locator.xpath(\"" + javaString(candidate.expression()) + "\")";
+    }
+
+    private static String xpathTextLiteral(String value) {
+        String literal = xpathStringLiteral(value);
+        return "normalize-space(.)=" + literal + " or @aria-label=" + literal
+                + " or @title=" + literal + " or @placeholder=" + literal;
+    }
+
+    private static String xpathStringLiteral(String value) {
+        if (!value.contains("'")) {
+            return "'" + javaString(value) + "'";
+        }
+        if (!value.contains("\"")) {
+            return "\\\"" + javaString(value) + "\\\"";
+        }
+        List<String> parts = new ArrayList<>();
+        StringBuilder buffer = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char character = value.charAt(i);
+            if (character == '\'' || character == '"') {
+                if (!buffer.isEmpty()) {
+                    parts.add("'" + javaString(buffer.toString()) + "'");
+                    buffer.setLength(0);
+                }
+                parts.add(character == '\'' ? "\\\"'\\\"" : "'\\\"'");
+            } else {
+                buffer.append(character);
+            }
+        }
+        if (!buffer.isEmpty()) {
+            parts.add("'" + javaString(buffer.toString()) + "'");
+        }
+        return "concat(" + String.join(", ", parts) + ")";
     }
 
     private static String dataExpression(ExternalTestDataReference reference, DataPlan data) {
@@ -1413,26 +1296,37 @@ public final class CaptureGenerator {
         };
     }
 
-    private static String keys(List<String> values) {
-        List<String> rendered = values.stream().map(CaptureGenerator::key).toList();
-        return rendered.size() == 1
-                ? rendered.getFirst()
-                : "Keys.chord(" + String.join(", ", rendered) + ")";
+    private static String keyboardTextExpression(List<String> values) {
+        StringBuilder text = new StringBuilder();
+        for (String value : values) {
+            text.append(keyboardText(value));
+        }
+        return "\"" + javaString(text.toString()) + "\"";
     }
 
-    private static String key(String value) {
+    private static boolean containsNonTextKey(List<String> values) {
+        return values.stream().anyMatch(CaptureGenerator::nonTextKey);
+    }
+
+    private static boolean nonTextKey(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if (Set.of("NULL", "CANCEL", "HELP", "BACK_SPACE", "TAB", "CLEAR", "RETURN", "ENTER",
-                "SHIFT", "CONTROL", "ALT", "PAUSE", "ESCAPE", "SPACE", "PAGE_UP", "PAGE_DOWN",
-                "END", "HOME", "ARROW_LEFT", "LEFT", "ARROW_UP", "UP", "ARROW_RIGHT", "RIGHT",
-                "ARROW_DOWN", "DOWN", "INSERT", "DELETE", "SEMICOLON", "EQUALS", "NUMPAD0",
-                "NUMPAD1", "NUMPAD2", "NUMPAD3", "NUMPAD4", "NUMPAD5", "NUMPAD6", "NUMPAD7",
-                "NUMPAD8", "NUMPAD9", "MULTIPLY", "ADD", "SEPARATOR", "SUBTRACT", "DECIMAL",
-                "DIVIDE", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10",
-                "F11", "F12", "META", "COMMAND", "ZENKAKU_HANKAKU").contains(normalized)) {
-            return "Keys." + normalized;
-        }
-        return "\"" + javaString(value) + "\"";
+        return Set.of("NULL", "CANCEL", "HELP", "BACK_SPACE", "CLEAR", "SHIFT", "CONTROL", "ALT",
+                "PAUSE", "ESCAPE", "PAGE_UP", "PAGE_DOWN", "END", "HOME", "ARROW_LEFT", "LEFT",
+                "ARROW_UP", "UP", "ARROW_RIGHT", "RIGHT", "ARROW_DOWN", "DOWN", "INSERT", "DELETE",
+                "NUMPAD0", "NUMPAD1", "NUMPAD2", "NUMPAD3", "NUMPAD4", "NUMPAD5", "NUMPAD6",
+                "NUMPAD7", "NUMPAD8", "NUMPAD9", "F1", "F2", "F3", "F4", "F5", "F6", "F7",
+                "F8", "F9", "F10", "F11", "F12", "META", "COMMAND", "ZENKAKU_HANKAKU")
+                .contains(normalized);
+    }
+
+    private static String keyboardText(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "ENTER", "RETURN" -> "\n";
+            case "TAB" -> "\t";
+            case "SPACE" -> " ";
+            default -> value == null ? "" : value;
+        };
     }
 
     private static Map<String, String> defaultElementNames(List<TargetPlan> targets) {
@@ -2394,27 +2288,7 @@ public final class CaptureGenerator {
     }
 
     private static String currentWindowHandleExpression(CodegenBackend backend) {
-        return backend == CodegenBackend.WEBDRIVER
-                ? "driver.getDriver().getWindowHandle()"
-                : "driver.browser().getWindowHandle()";
-    }
-
-    private static String selectedExpression(String locator, CodegenBackend backend) {
-        return backend == CodegenBackend.WEBDRIVER
-                ? "driver.getDriver().findElement(" + locator + ").isSelected()"
-                : "ShaftLocator.from(" + locator + ").toPlaywrightLocator(driver.getDriver()).isChecked()";
-    }
-
-    private static String displayedExpression(String locator, CodegenBackend backend) {
-        return backend == CodegenBackend.WEBDRIVER
-                ? "driver.getDriver().findElement(" + locator + ").isDisplayed()"
-                : "ShaftLocator.from(" + locator + ").toPlaywrightLocator(driver.getDriver()).isVisible()";
-    }
-
-    private static String keyboardExpression(String keys, CodegenBackend backend) {
-        return backend == CodegenBackend.WEBDRIVER
-                ? "new org.openqa.selenium.interactions.Actions(driver.getDriver()).sendKeys(" + keys + ").perform();"
-                : "driver.getDriver().keyboard().type(String.valueOf(" + keys + "));";
+        return "driver.browser().getWindowHandle()";
     }
 
     private static List<String> splitWords(String value) {

@@ -12,5 +12,14 @@ public interface BrowserAssertions {
 
     NativeValidationsBuilder title();
 
+    /**
+     * Starts an assertion against the current browser alert, confirm, or prompt dialog text.
+     *
+     * @return a native validation builder for alert text comparisons
+     */
+    default NativeValidationsBuilder alertText() {
+        throw new UnsupportedOperationException("alertText is not supported by this browser assertions implementation.");
+    }
+
     NativeValidationsBuilder text();
 }

@@ -49,7 +49,7 @@ public class GuideService {
     private static final List<String> GUIDANCE_RULES = List.of(
             "Call shaft_guide_search before writing SHAFT code and cite the returned official guide URLs.",
             "Use SHAFT facade and method names exactly as shown in the guide examples; do not invent APIs.",
-            "For GUI tests, prefer SHAFT.GUI.WebDriver with driver.browser(), driver.element(), driver.touch(), and driver.assertThat() patterns from the guide.",
+            "For GUI tests, prefer SHAFT.GUI.WebDriver with driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator patterns from the guide.",
             "Use Page Object Model for reusable UI flows; keep driver lifecycle in tests or a thin base class.",
             "Use Selenium By objects and SHAFT.GUI.Locator for locators; avoid @FindBy and PageFactory.",
             "Generated code must not contain Thread.sleep or absolute XPath locators.",

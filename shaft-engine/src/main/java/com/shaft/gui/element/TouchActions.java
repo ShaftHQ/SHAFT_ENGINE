@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.asList;
@@ -98,6 +99,17 @@ public class TouchActions extends FluentWebDriverAction {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
         }
         return this;
+    }
+
+    /**
+     * Sends a key-press via the device soft keyboard.
+     *
+     * @param key the key name that should be pressed
+     * @return a self-reference to be used to chain actions
+     * @throws IllegalArgumentException when the key name is blank or unsupported
+     */
+    public TouchActions nativeKeyboardKeyPress(String key) {
+        return nativeKeyboardKeyPress(enumValue(KeyboardKeys.class, key, "key"));
     }
 
     /**
@@ -178,6 +190,31 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions tap(By elementLocator) {
         new com.shaft.gui.element.internal.Actions(driverFactoryHelper).click(elementLocator);
+        return this;
+    }
+
+    /**
+     * Taps viewport coordinates once on a touch-enabled screen.
+     *
+     * @param x viewport x coordinate
+     * @param y viewport y coordinate
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions tapByCoordinates(int x, int y) {
+        String testData = "x=" + x + ", y=" + y;
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        Sequence tap = new Sequence(finger, 0);
+        tap.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), x, y));
+        tap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        tap.addAction(new Pause(finger, Duration.ofMillis(100)));
+        tap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        try {
+            ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
         return this;
     }
 
@@ -431,6 +468,36 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     /**
+     * Swipes between viewport coordinates on a touch-enabled screen.
+     *
+     * @param startX starting viewport x coordinate
+     * @param startY starting viewport y coordinate
+     * @param endX ending viewport x coordinate
+     * @param endY ending viewport y coordinate
+     * @param durationMillis swipe duration in milliseconds
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeByCoordinates(int startX, int startY, int endX, int endY, int durationMillis) {
+        String testData = "startX=" + startX + ", startY=" + startY + ", endX=" + endX
+                + ", endY=" + endY + ", durationMillis=" + Math.max(durationMillis, 100);
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        Sequence swipe = new Sequence(finger, 0);
+        swipe.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), startX, startY));
+        swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        swipe.addAction(finger.createPointerMove(Duration.ofMillis(Math.max(durationMillis, 100)),
+                PointerInput.Origin.viewport(), endX, endY));
+        swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        try {
+            ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(swipe));
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
      * Attempts to scroll the element into view in case of native mobile elements.
      *
      * @param targetElementLocator the locator of the webElement under test (By xpath, id,
@@ -440,6 +507,19 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection) {
         return swipeElementIntoView(null, targetElementLocator, swipeDirection);
+    }
+
+    /**
+     * Attempts to scroll the element into view in case of native mobile elements.
+     *
+     * @param targetElementLocator the locator of the target element
+     * @param swipeDirection       swipe direction name: DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     * @throws IllegalArgumentException when the swipe direction is blank or unsupported
+     */
+    public TouchActions swipeElementIntoView(By targetElementLocator, String swipeDirection) {
+        return swipeElementIntoView(targetElementLocator,
+                enumValue(SwipeDirection.class, swipeDirection, "swipeDirection"));
     }
 
     /**
@@ -703,6 +783,18 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     /**
+     * Attempts to scroll Android text into view using androidUIAutomator.
+     *
+     * @param targetText target text to be used to swipe it into view
+     * @param movement   swipe movement name: VERTICAL or HORIZONTAL
+     * @return a self-reference to be used to chain actions
+     * @throws IllegalArgumentException when the movement is blank or unsupported
+     */
+    public TouchActions swipeElementIntoView(String targetText, String movement) {
+        return swipeElementIntoView(targetText, enumValue(SwipeMovement.class, movement, "movement"));
+    }
+
+    /**
      * Rotate between portrait and landscape modes
      *
      * @param orientation ScreenOrientation.LANDSCAPE or PORTRAIT
@@ -724,6 +816,28 @@ public class TouchActions extends FluentWebDriverAction {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
         }
         return this;
+    }
+
+    /**
+     * Rotate between portrait and landscape modes.
+     *
+     * @param orientation orientation name: PORTRAIT or LANDSCAPE
+     * @return a self-reference to be used to chain actions
+     * @throws IllegalArgumentException when the orientation is blank or unsupported
+     */
+    public TouchActions rotate(String orientation) {
+        return rotate(enumValue(ScreenOrientation.class, orientation, "orientation"));
+    }
+
+    private static <T extends Enum<T>> T enumValue(Class<T> enumType, String value, String parameterName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(parameterName + " must not be blank.");
+        }
+        try {
+            return Enum.valueOf(enumType, value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Unsupported " + parameterName + ": " + value, exception);
+        }
     }
 
     @SuppressWarnings("unchecked")

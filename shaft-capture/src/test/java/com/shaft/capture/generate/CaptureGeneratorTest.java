@@ -74,7 +74,7 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("@AfterMethod(alwaysRun = true)"));
         assertTrue(source.contains("driver.quit();"));
         assertTrue(source.contains("SHAFT.GUI.Locator.inputField(\"Username\")"));
-        assertTrue(source.contains("driver.assertThat().element(USERNAME_INPUT_LOCATOR).text()"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).text()"));
         assertFalse(source.contains("alice"));
         assertTrue(data.contains("\"username\" : \"alice\""));
         assertFalse(data.toLowerCase().contains("password"));
@@ -192,7 +192,7 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("        loginAsAdmin();"));
         assertTrue(source.contains("    private void loginAsAdmin() throws Exception {"));
-        assertEquals(1, count(source, "driver.element().type(USERNAME_INPUT_LOCATOR"));
+        assertEquals(1, count(source, "driver.element().type(SHAFT.GUI.Locator.inputField(\"Username\")"));
         assertTrue(source.indexOf("        loginAsAdmin();")
                 < source.indexOf("    private void loginAsAdmin() throws Exception {"));
         assertFalse(source.contains("FLOW_START"));
@@ -227,13 +227,13 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains("private SHAFT.GUI.Playwright driver;"));
         assertTrue(source.contains("driver = new SHAFT.GUI.Playwright();"));
-        assertTrue(source.contains("driver.element().click(USERNAME_INPUT_LOCATOR);"));
+        assertTrue(source.contains("driver.element().click(SHAFT.GUI.Locator.inputField(\"Username\"));"));
         assertFalse(source.contains("DriverFactory"));
         assertFalse(source.contains("ExpectedConditions"));
     }
 
     @Test
-    void fallbackLocatorReplayOptionGeneratesSharedHelperAndRankedCandidates() throws Exception {
+    void fallbackLocatorReplayOptionReportsRankedCandidatesWithoutRawHelper() throws Exception {
         Path session = session(CaptureFixtures.representativeSession());
         writeCaptureData("alice");
 
@@ -245,13 +245,11 @@ class CaptureGeneratorTest {
 
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("private static final By[] USERNAME_INPUT_LOCATOR_FALLBACKS"));
-        assertTrue(source.contains("USERNAME_INPUT_LOCATOR,"));
-        assertTrue(source.contains("By.cssSelector(\"form input:nth-child(1)\")"));
-        assertTrue(source.contains("captureReplayLocator(\"username-input\", USERNAME_INPUT_LOCATOR"));
-        assertTrue(source.contains("SHAFT.Report.log(\"Capture fallback locator used for \" + logicalElementId"));
-        assertTrue(source.contains(", true, \"input\", \"Username\")"));
-        assertTrue(source.contains("matchesCaptureTarget(candidate, expectedTagName, expectedAccessibleName"));
+        assertFalse(source.contains("private static final By[]"));
+        assertFalse(source.contains("captureReplayLocator("));
+        assertFalse(source.contains("By.cssSelector("));
+        assertTrue(result.report().fallbackLocators().stream()
+                .anyMatch(fallback -> fallback.contains("username-input")));
     }
 
     @Test
@@ -279,8 +277,8 @@ class CaptureGeneratorTest {
                 .anyMatch(warning -> warning.contains("review/CONTROL_FLOW")), result.report().warnings().toString());
 
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("driver.element().click(COOKIE_CLOSE_BUTTON_LOCATOR);"));
-        assertFalse(source.contains("if (isCaptureElementDisplayed(COOKIE_CLOSE_BUTTON_LOCATOR))"));
+        assertTrue(source.contains("driver.element().click(SHAFT.GUI.Locator.cssSelector(\"[aria-label='Close cookie banner']\"));"));
+        assertFalse(source.contains("if (driver.element().getElementsCount(SHAFT.GUI.Locator.cssSelector(\"[aria-label='Close cookie banner']\")) > 0)"));
     }
 
     @Test
@@ -304,8 +302,8 @@ class CaptureGeneratorTest {
 
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("if (isCaptureElementDisplayed(COOKIE_CLOSE_BUTTON_LOCATOR))"));
-        assertTrue(source.contains("private boolean isCaptureElementDisplayed(By locator)"));
+        assertTrue(source.contains("if (driver.element().getElementsCount(SHAFT.GUI.Locator.cssSelector(\"[aria-label='Close cookie banner']\")) > 0)"));
+        assertFalse(source.contains("private boolean isCaptureElementDisplayed(By locator)"));
         assertTrue(result.report().controlFlowSuggestions().stream()
                 .anyMatch(suggestion -> suggestion.kind() == CaptureGenerationReport.ControlFlowKind.OPTIONAL_GUARD
                         && suggestion.applied()));
@@ -531,8 +529,8 @@ class CaptureGeneratorTest {
         String source = Files.readString(applied.sourcePath());
         assertTrue(source.contains("public class EnrichedJourneyTest"));
         assertTrue(source.contains("public void completeCheckout()"));
-        assertTrue(source.contains("private static final By USERNAME_FIELD"));
-        assertTrue(source.contains("driver.assertThat().element(USERNAME_FIELD).isVisible().perform();"));
+        assertFalse(source.contains("private static final By USERNAME_FIELD"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).isVisible().perform();"));
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 applied.report().compilation().status());
     }

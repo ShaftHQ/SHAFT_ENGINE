@@ -59,6 +59,19 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
     }
 
     /**
+     * Use this to check against the current browser alert text.
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public NativeValidationsBuilder alertText() {
+        this.validationMethod = "browserAttributeEquals";
+        this.browserAttribute = "alerttext";
+        reportMessageBuilder.append("alert text ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
      * Use this to check against the current page text content.
      *
      * @return a NativeValidationsBuilder object to continue building your validation

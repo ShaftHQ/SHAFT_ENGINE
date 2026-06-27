@@ -4,7 +4,6 @@ import com.microsoft.playwright.Page;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.driver.ShaftLocator;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WindowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
@@ -267,11 +266,16 @@ public class PlaywrightService {
      */
     @Tool(name = "playwright_browser_new_window", description = "opens a new SHAFT Playwright tab or window")
     public McpMobileActionResult newWindow(String targetUrl, String windowType) {
-        WindowType type = "WINDOW".equalsIgnoreCase(windowType) ? WindowType.WINDOW : WindowType.TAB;
+        boolean openWindow = "WINDOW".equalsIgnoreCase(windowType);
         String url = targetUrl == null || targetUrl.isBlank() ? "about:blank" : targetUrl;
-        getDriver().browser().navigateToURL(url, type);
-        return record("new_window", null, "", Map.of("url", url, "windowType", type.name()),
-                "driver.browser().navigateToURL(\"" + javaString(url) + "\", WindowType." + type.name() + ");",
+        if (openWindow) {
+            getDriver().browser().openNewWindow(url);
+        } else {
+            getDriver().browser().openNewTab(url);
+        }
+        String method = openWindow ? "openNewWindow" : "openNewTab";
+        return record("new_window", null, "", Map.of("url", url, "windowType", openWindow ? "WINDOW" : "TAB"),
+                "driver.browser()." + method + "(\"" + javaString(url) + "\");",
                 false);
     }
 
@@ -542,9 +546,13 @@ public class PlaywrightService {
             case "set_window_size" -> getDriver().browser().setWindowSize(
                     Integer.parseInt(parameters.get("width")),
                     Integer.parseInt(parameters.get("height")));
-            case "new_window" -> getDriver().browser().navigateToURL(
-                    parameters.get("url"),
-                    "WINDOW".equals(parameters.get("windowType")) ? WindowType.WINDOW : WindowType.TAB);
+            case "new_window" -> {
+                if ("WINDOW".equals(parameters.get("windowType"))) {
+                    getDriver().browser().openNewWindow(parameters.get("url"));
+                } else {
+                    getDriver().browser().openNewTab(parameters.get("url"));
+                }
+            }
             case "click" -> getDriver().element().click(getLocator(strategy, locatorValue));
             case "click_js" -> getDriver().element().clickUsingJavascript(getLocator(strategy, locatorValue));
             case "double_click" -> getDriver().element().doubleClick(getLocator(strategy, locatorValue));
@@ -650,8 +658,7 @@ public class PlaywrightService {
                 "SHAFT Playwright action",
                 McpCodeBlock.Kind.TEST_METHOD,
                 "java",
-                List.of("com.shaft.driver.SHAFT", "com.shaft.gui.driver.ShaftLocator",
-                        "org.openqa.selenium.By", "org.openqa.selenium.WindowType"),
+                List.of("com.shaft.driver.SHAFT"),
                 javaCode,
                 "Paste inside a method that owns an initialized SHAFT.GUI.Playwright named driver.",
                 true,
@@ -669,12 +676,12 @@ public class PlaywrightService {
         return ShaftLocator.from(getLocator(locatorStrategy, locatorValue)).toPlaywrightLocator(getDriver().getDriver());
     }
 
-    private static ShaftLocator semanticClickableLocator(String elementName) {
-        return ShaftLocator.xpath(semanticXpath(elementName, CLICKABLE_SEMANTIC_XPATH_TEMPLATES));
+    private static By semanticClickableLocator(String elementName) {
+        return SHAFT.GUI.Locator.xpath(semanticXpath(elementName, CLICKABLE_SEMANTIC_XPATH_TEMPLATES));
     }
 
-    private static ShaftLocator semanticInputLocator(String elementName) {
-        return ShaftLocator.xpath(semanticXpath(elementName, INPUT_SEMANTIC_XPATH_TEMPLATES));
+    private static By semanticInputLocator(String elementName) {
+        return SHAFT.GUI.Locator.xpath(semanticXpath(elementName, INPUT_SEMANTIC_XPATH_TEMPLATES));
     }
 
     private static String semanticClickCode(String elementName) {
@@ -687,13 +694,13 @@ public class PlaywrightService {
     }
 
     private static String semanticClickableLocatorCode(String elementName) {
-        return "ShaftLocator.xpath(\"" + javaString(semanticXpath(elementName, CLICKABLE_SEMANTIC_XPATH_TEMPLATES))
-                + "\")";
+        return "SHAFT.GUI.Locator.xpath(\""
+                + javaString(semanticXpath(elementName, CLICKABLE_SEMANTIC_XPATH_TEMPLATES)) + "\")";
     }
 
     private static String semanticInputLocatorCode(String elementName) {
-        return "ShaftLocator.xpath(\"" + javaString(semanticXpath(elementName, INPUT_SEMANTIC_XPATH_TEMPLATES))
-                + "\")";
+        return "SHAFT.GUI.Locator.xpath(\""
+                + javaString(semanticXpath(elementName, INPUT_SEMANTIC_XPATH_TEMPLATES)) + "\")";
     }
 
     private static String semanticXpath(String elementName, List<String> templates) {
@@ -749,15 +756,16 @@ public class PlaywrightService {
     }
 
     private static String locatorCode(locatorStrategy strategy, String value) {
+        if (strategy == null) {
+            return "SHAFT.GUI.Locator.xpath(\"" + javaString(value) + "\")";
+        }
         return switch (strategy) {
-            case ID -> "SHAFT.GUI.Locator.hasAnyTagName().hasId(\"" + javaString(value) + "\").build()";
-            case CSS, CSSSELECTOR, SELECTOR -> "By.cssSelector(\"" + javaString(value) + "\")";
-            case XPATH -> "By.xpath(\"" + javaString(value) + "\")";
-            case NAME -> "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"name\", \""
-                    + javaString(value) + "\").build()";
-            case TAGNAME -> "SHAFT.GUI.Locator.hasTagName(\"" + javaString(value) + "\").build()";
-            case CLASSNAME -> "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"class\", \""
-                    + javaString(value) + "\").build()";
+            case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(value) + "\")";
+            case CSS, CSSSELECTOR, SELECTOR -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(value) + "\")";
+            case XPATH -> "SHAFT.GUI.Locator.xpath(\"" + javaString(value) + "\")";
+            case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(value) + "\")";
+            case TAGNAME -> "SHAFT.GUI.Locator.tagName(\"" + javaString(value) + "\")";
+            case CLASSNAME -> "SHAFT.GUI.Locator.className(\"" + javaString(value) + "\")";
             default -> throw new IllegalArgumentException("Locator strategy is not supported by Playwright tools: " + strategy);
         };
     }

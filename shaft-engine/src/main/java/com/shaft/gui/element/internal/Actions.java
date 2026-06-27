@@ -448,6 +448,23 @@ public class Actions extends ElementActions {
         return this;
     }
 
+    /**
+     * Switches focus from the current iframe to its parent frame.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public Actions switchToParentFrame() {
+        try {
+            driverFactoryHelper.getDriver().switchTo().parentFrame();
+            LocatorBuilder.getIFrameLocator().remove();
+            reportPass(ActionType.SWITCH_TO_PARENT_FRAME.name(), "parent frame", (byte[]) null);
+        } catch (RuntimeException exception) {
+            reportBroken(ActionType.SWITCH_TO_PARENT_FRAME.name(), "parent frame", takeFailureScreenshot(null), exception);
+        }
+        return this;
+    }
+
     protected String performAction(ActionType action, By locator, Object data) {
         long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
         if (profilerStart != 0L) {
@@ -1717,7 +1734,7 @@ public class Actions extends ElementActions {
         return (rootCause + System.lineSeparator() + causedBySection).trim();
     }
 
-    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, SCROLL_TO_ELEMENT, SELECT, SUBMIT_FORM_USING_JAVASCRIPT, SWITCH_TO_IFRAME, SWITCH_TO_DEFAULT_CONTENT, TYPE_FILE_LOCATION_FOR_UPLOAD, CAPTURE_SCREENSHOT, EXECUTE_NATIVE_MOBILE_COMMAND, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT, CLIPBOARD_PASTE, DROP_FILE_TO_UPLOAD}
+    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, SCROLL_TO_ELEMENT, SELECT, SUBMIT_FORM_USING_JAVASCRIPT, SWITCH_TO_IFRAME, SWITCH_TO_DEFAULT_CONTENT, SWITCH_TO_PARENT_FRAME, TYPE_FILE_LOCATION_FOR_UPLOAD, CAPTURE_SCREENSHOT, EXECUTE_NATIVE_MOBILE_COMMAND, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT, CLIPBOARD_PASTE, DROP_FILE_TO_UPLOAD}
 
     /**
      * Provides read-only accessors for querying properties, attributes, and state of a

@@ -45,6 +45,26 @@ public interface BrowserActionsContract {
 
     BrowserActionsContract navigateToURL(String targetUrl, WindowType windowType);
 
+    /**
+     * Opens the target URL in a new browser tab and switches focus to it.
+     *
+     * @param targetUrl target URL to open
+     * @return a self-reference to be used to chain actions
+     */
+    default BrowserActionsContract openNewTab(String targetUrl) {
+        throw new UnsupportedOperationException("openNewTab is not supported by this browser actions implementation.");
+    }
+
+    /**
+     * Opens the target URL in a new browser window and switches focus to it.
+     *
+     * @param targetUrl target URL to open
+     * @return a self-reference to be used to chain actions
+     */
+    default BrowserActionsContract openNewWindow(String targetUrl) {
+        throw new UnsupportedOperationException("openNewWindow is not supported by this browser actions implementation.");
+    }
+
     BrowserActionsContract navigateToURL(String targetUrl, String targetUrlAfterRedirection);
 
     BrowserActionsContract navigateToURLWithBasicAuthentication(String targetUrl, String username, String password,
@@ -81,6 +101,52 @@ public interface BrowserActionsContract {
     BrowserActionsContract fullScreenWindow();
 
     BrowserActionsContract switchToWindow(String nameOrHandle);
+
+    /**
+     * Checks whether a browser alert, confirm, or prompt dialog is currently present.
+     *
+     * @return {@code true} when an alert is present; otherwise {@code false}
+     */
+    default boolean isAlertPresent() {
+        throw new UnsupportedOperationException("isAlertPresent is not supported by this browser actions implementation.");
+    }
+
+    /**
+     * Accepts the current browser alert, confirm, or prompt dialog.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    default BrowserActionsContract acceptAlert() {
+        throw new UnsupportedOperationException("acceptAlert is not supported by this browser actions implementation.");
+    }
+
+    /**
+     * Dismisses the current browser alert, confirm, or prompt dialog.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    default BrowserActionsContract dismissAlert() {
+        throw new UnsupportedOperationException("dismissAlert is not supported by this browser actions implementation.");
+    }
+
+    /**
+     * Gets the current browser alert, confirm, or prompt dialog text.
+     *
+     * @return the alert text
+     */
+    default String getAlertText() {
+        throw new UnsupportedOperationException("getAlertText is not supported by this browser actions implementation.");
+    }
+
+    /**
+     * Types text into the current browser prompt dialog.
+     *
+     * @param text text to type into the prompt
+     * @return a self-reference to be used to chain actions
+     */
+    default BrowserActionsContract typeIntoPromptAlert(String text) {
+        throw new UnsupportedOperationException("typeIntoPromptAlert is not supported by this browser actions implementation.");
+    }
 
     BrowserActionsContract addCookie(String key, String value);
 

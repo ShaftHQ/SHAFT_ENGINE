@@ -500,7 +500,7 @@ public class MobileService {
     public McpMobileActionResult tap(locatorStrategy locatorStrategy, String locatorValue) {
         return locatorAction("tap", locatorStrategy, locatorValue,
                 locator -> getDriver().touch().tap(locator),
-                "driver.touch().tap(" + locatorCode(locatorStrategy, locatorValue) + ");",
+                "driver.element().touch().tap(" + locatorCode(locatorStrategy, locatorValue) + ");",
                 false);
     }
 
@@ -511,7 +511,7 @@ public class MobileService {
     public McpMobileActionResult doubleTap(locatorStrategy locatorStrategy, String locatorValue) {
         return locatorAction("doubleTap", locatorStrategy, locatorValue,
                 locator -> getDriver().touch().doubleTap(locator),
-                "driver.touch().doubleTap(" + locatorCode(locatorStrategy, locatorValue) + ");",
+                "driver.element().touch().doubleTap(" + locatorCode(locatorStrategy, locatorValue) + ");",
                 false);
     }
 
@@ -522,7 +522,7 @@ public class MobileService {
     public McpMobileActionResult longTap(locatorStrategy locatorStrategy, String locatorValue) {
         return locatorAction("longTap", locatorStrategy, locatorValue,
                 locator -> getDriver().touch().longTap(locator),
-                "driver.touch().longTap(" + locatorCode(locatorStrategy, locatorValue) + ");",
+                "driver.element().touch().longTap(" + locatorCode(locatorStrategy, locatorValue) + ");",
                 false);
     }
 
@@ -565,7 +565,7 @@ public class MobileService {
             String locatorValue,
             int xOffset,
             int yOffset) {
-        String code = "driver.touch().swipeByOffset(" + locatorCode(locatorStrategy, locatorValue)
+        String code = "driver.element().touch().swipeByOffset(" + locatorCode(locatorStrategy, locatorValue)
                 + ", " + xOffset + ", " + yOffset + ");";
         try {
             getDriver().touch().swipeByOffset(getLocator(locatorStrategy, locatorValue), xOffset, yOffset);
@@ -588,8 +588,8 @@ public class MobileService {
             String direction) {
         TouchActions.SwipeDirection swipeDirection = enumValue(TouchActions.SwipeDirection.class, direction,
                 TouchActions.SwipeDirection.DOWN);
-        String code = "driver.touch().swipeElementIntoView(" + locatorCode(locatorStrategy, locatorValue)
-                + ", TouchActions.SwipeDirection." + swipeDirection.name() + ");";
+        String code = "driver.element().touch().swipeElementIntoView(" + locatorCode(locatorStrategy, locatorValue)
+                + ", \"" + swipeDirection.name() + "\");";
         try {
             getDriver().touch().swipeElementIntoView(getLocator(locatorStrategy, locatorValue), swipeDirection);
             return actionResult("swipeElementIntoView", locatorStrategy, locatorValue,
@@ -608,8 +608,8 @@ public class MobileService {
     public McpMobileActionResult swipeTextIntoView(String targetText, String movement) {
         TouchActions.SwipeMovement swipeMovement = enumValue(TouchActions.SwipeMovement.class, movement,
                 TouchActions.SwipeMovement.VERTICAL);
-        String code = "driver.touch().swipeElementIntoView(" + java(targetText)
-                + ", TouchActions.SwipeMovement." + swipeMovement.name() + ");";
+        String code = "driver.element().touch().swipeElementIntoView(" + java(targetText)
+                + ", \"" + swipeMovement.name() + "\");";
         try {
             getDriver().touch().swipeElementIntoView(targetText, swipeMovement);
             return actionResult("swipeTextIntoView", null, "", Map.of(
@@ -655,7 +655,7 @@ public class MobileService {
     public McpMobileActionResult rotate(String orientation) {
         ScreenOrientation target = enumValue(ScreenOrientation.class, orientation, ScreenOrientation.PORTRAIT);
         getDriver().touch().rotate(target);
-        String code = "driver.touch().rotate(ScreenOrientation." + target.name() + ");";
+        String code = "driver.element().touch().rotate(\"" + target.name() + "\");";
         return actionResult("rotate", null, "", Map.of("orientation", target.name()), code, code, false);
     }
 
@@ -665,7 +665,7 @@ public class MobileService {
     @Tool(name = "mobile_hide_keyboard", description = "hides the native mobile keyboard")
     public McpMobileActionResult hideKeyboard() {
         getDriver().touch().hideNativeKeyboard();
-        String code = "driver.touch().hideNativeKeyboard();";
+        String code = "driver.element().touch().hideNativeKeyboard();";
         return actionResult("hideKeyboard", null, "", Map.of(), code, code, false);
     }
 
@@ -678,7 +678,7 @@ public class MobileService {
         TouchActions.KeyboardKeys keyboardKey = enumValue(TouchActions.KeyboardKeys.class, key,
                 TouchActions.KeyboardKeys.DONE);
         getDriver().touch().nativeKeyboardKeyPress(keyboardKey);
-        String code = "driver.touch().nativeKeyboardKeyPress(TouchActions.KeyboardKeys." + keyboardKey.name() + ");";
+        String code = "driver.element().touch().nativeKeyboardKeyPress(\"" + keyboardKey.name() + "\");";
         return actionResult("keyboardKey", null, "", Map.of("key", keyboardKey.name()), code, code, false);
     }
 
@@ -688,7 +688,7 @@ public class MobileService {
     @Tool(name = "mobile_background_app", description = "sends the active mobile app to the background")
     public McpMobileActionResult backgroundApp(int seconds) {
         getDriver().touch().sendAppToBackground(seconds);
-        String code = "driver.touch().sendAppToBackground(" + seconds + ");";
+        String code = "driver.element().touch().sendAppToBackground(" + seconds + ");";
         return actionResult("backgroundApp", null, "", Map.of("seconds", String.valueOf(seconds)), code, code, false);
     }
 
@@ -698,7 +698,7 @@ public class MobileService {
     @Tool(name = "mobile_activate_app", description = "activates an installed app by Android package or iOS bundle id")
     public McpMobileActionResult activateApp(String appId) {
         getDriver().touch().activateAppFromBackground(appId);
-        String code = "driver.touch().activateAppFromBackground(" + java(appId) + ");";
+        String code = "driver.element().touch().activateAppFromBackground(" + java(appId) + ");";
         return actionResult("activateApp", null, "", Map.of("appId", text(appId)), code, code, false);
     }
 
@@ -854,17 +854,7 @@ public class MobileService {
                 McpCodeBlock.Kind.ACTION,
                 "java",
                 List.of(
-                        "com.shaft.driver.SHAFT",
-                        "com.shaft.gui.element.TouchActions",
-                        "io.appium.java_client.AppiumBy",
-                        "org.openqa.selenium.By",
-                        "org.openqa.selenium.ScreenOrientation",
-                        "org.openqa.selenium.interactions.Pause",
-                        "org.openqa.selenium.interactions.PointerInput",
-                        "org.openqa.selenium.interactions.Sequence",
-                        "org.openqa.selenium.remote.RemoteWebDriver",
-                        "java.time.Duration",
-                        "java.util.List"),
+                        "com.shaft.driver.SHAFT"),
                 javaCode + System.lineSeparator(),
                 "Paste inside a method that already owns a SHAFT.GUI.WebDriver named driver.",
                 true,
@@ -957,42 +947,15 @@ public class MobileService {
     }
 
     private static String locatorCode(locatorStrategy strategy, String value) {
-        String literal = java(value);
-        return switch (strategy) {
-            case ID -> "SHAFT.GUI.Locator.hasAnyTagName().hasId(" + literal + ").build()";
-            case CSSSELECTOR, CSS, SELECTOR -> "By.cssSelector(" + literal + ")";
-            case XPATH -> "By.xpath(" + literal + ")";
-            case NAME -> "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"name\", " + literal + ").build()";
-            case TAGNAME -> "SHAFT.GUI.Locator.hasTagName(" + literal + ").build()";
-            case CLASSNAME -> "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"class\", " + literal + ").build()";
-            case ACCESSIBILITY_ID -> "AppiumBy.accessibilityId(" + literal + ")";
-            case ANDROID_UIAUTOMATOR -> "AppiumBy.androidUIAutomator(" + literal + ")";
-            case IOS_PREDICATE -> "AppiumBy.iOSNsPredicateString(" + literal + ")";
-            case IOS_CLASS_CHAIN -> "AppiumBy.iOSClassChain(" + literal + ")";
-        };
+        return McpMobileCode.locatorCode(strategy, value);
     }
 
     private static String tapCoordinatesCode(int x, int y) {
-        return """
-                PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
-                Sequence tap = new Sequence(finger, 0);
-                tap.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), %d, %d));
-                tap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-                tap.addAction(new Pause(finger, Duration.ofMillis(100)));
-                tap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-                ((RemoteWebDriver) driver.getDriver()).perform(List.of(tap));""".formatted(x, y);
+        return McpMobileCode.tapCoordinatesCode(x, y);
     }
 
     private static String swipeCoordinatesCode(int startX, int startY, int endX, int endY, int durationMillis) {
-        return """
-                PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
-                Sequence swipe = new Sequence(finger, 0);
-                swipe.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), %d, %d));
-                swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-                swipe.addAction(finger.createPointerMove(Duration.ofMillis(%d), PointerInput.Origin.viewport(), %d, %d));
-                swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-                ((RemoteWebDriver) driver.getDriver()).perform(List.of(swipe));"""
-                .formatted(startX, startY, Math.max(durationMillis, 100), endX, endY);
+        return McpMobileCode.swipeCoordinatesCode(startX, startY, endX, endY, durationMillis);
     }
 
     private static List<String> nativeWarnings(

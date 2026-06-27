@@ -323,6 +323,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "currenturl", "pageurl", "windowurl", "url" -> page.url();
             case "pagesource", "windowsource", "source" -> page.content();
             case "title", "windowtitle", "pagetitle" -> page.title();
+            case "alerttext", "alert", "dialogtext" -> session.lastDialogText();
             case "text", "pagetext", "windowtext" ->
                     page.evaluate("() => document.body ? document.body.innerText : ''");
             case "useragent", "user-agent", "navigator.useragent" -> page.evaluate("() => navigator.userAgent");

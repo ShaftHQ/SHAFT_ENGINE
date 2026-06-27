@@ -33,6 +33,17 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
         return builder("title");
     }
 
+    /**
+     * Use this to check against the current browser alert text.
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public NativeValidationsBuilder alertText() {
+        reportMessageBuilder.append("alert text ");
+        return builder("alerttext");
+    }
+
     @Override
     public NativeValidationsBuilder text() {
         reportMessageBuilder.append("text ");

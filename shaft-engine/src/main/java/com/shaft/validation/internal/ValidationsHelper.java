@@ -335,6 +335,7 @@ public class ValidationsHelper {
                     case "pagesource", "windowsource", "source" -> new BrowserActions(driver, true).getPageSource();
                     case "title", "windowtitle", "pagetitle" ->
                             new BrowserActions(driver, true).getCurrentWindowTitle();
+                    case "alerttext", "alert", "dialogtext" -> new BrowserActions(driver, true).getAlertText();
                     case "text", "pagetext", "windowtext" -> getPageText(driver);
                     case "textdirection", "pagedirection", "windowdirection" -> getPageTextDirection(driver);
                     case "textalignment", "pagealignment", "windowalignment" -> getPageTextAlignmentDirection(driver);

@@ -214,11 +214,11 @@ final class McpCaptureCodeBlockService {
             if (!locator.description().isBlank()) {
                 code.append("// ").append(locator.description()).append('\n');
             }
-            code.append("private final By ")
+            code.append("// ")
                     .append(locator.suggestedFieldName())
-                    .append(" = ")
+                    .append(" -> ")
                     .append(locator.expression())
-                    .append(";\n");
+                    .append('\n');
         }
         return new McpCodeBlock(
                 "capture-pom-locator-inventory",
@@ -227,7 +227,7 @@ final class McpCaptureCodeBlockService {
                 "java",
                 locatorImports(imports, code.toString()),
                 code.toString(),
-                "Paste these candidates as fields in the matching page class, then align names with local conventions.",
+                "Use these SHAFT locator expressions when extracting inline actions into page methods.",
                 false,
                 evidenceIds(locators),
                 List.of());
@@ -406,8 +406,7 @@ final class McpCaptureCodeBlockService {
         int index = 0;
         while (index < line.length()) {
             int shaft = line.indexOf("SHAFT.GUI.Locator.", index);
-            int by = line.indexOf("By.", index);
-            int start = nextStart(shaft, by);
+            int start = shaft;
             if (start < 0) {
                 break;
             }
@@ -579,9 +578,6 @@ final class McpCaptureCodeBlockService {
 
     private static List<String> locatorImports(List<String> imports, String code) {
         List<String> result = new ArrayList<>(imports);
-        if (result.stream().noneMatch(importName -> importName.equals("org.openqa.selenium.By"))) {
-            result.add("org.openqa.selenium.By");
-        }
         if (code.contains("SHAFT.GUI.") && result.stream()
                 .noneMatch(importName -> importName.equals("com.shaft.driver.SHAFT"))) {
             result.add("com.shaft.driver.SHAFT");
@@ -594,19 +590,20 @@ final class McpCaptureCodeBlockService {
         String strategy = decision.strategy() == null ? "" : decision.strategy().toUpperCase(Locale.ROOT);
         if (DIRECT_BY_STRATEGIES.contains(strategy)) {
             return switch (strategy) {
-                case "CSS", "TEST_ID" -> "By.cssSelector(\"" + expression + "\")";
-                case "XPATH" -> "By.xpath(\"" + expression + "\")";
-                case "ID" -> "SHAFT.GUI.Locator.hasAnyTagName().hasId(\"" + expression + "\").build()";
-                case "NAME" -> "SHAFT.GUI.Locator.hasAnyTagName().hasAttribute(\"name\", \""
-                        + expression + "\").build()";
-                case "CLASS_NAME" -> "By.className(\"" + expression + "\")";
-                case "TAG_NAME" -> "By.tagName(\"" + expression + "\")";
-                case "LINK_TEXT" -> "By.linkText(\"" + expression + "\")";
-                case "PARTIAL_LINK_TEXT" -> "By.partialLinkText(\"" + expression + "\")";
-                default -> "By.cssSelector(\"" + expression + "\")";
+                case "CSS", "TEST_ID" -> "SHAFT.GUI.Locator.cssSelector(\"" + expression + "\")";
+                case "XPATH" -> "SHAFT.GUI.Locator.xpath(\"" + expression + "\")";
+                case "ID" -> "SHAFT.GUI.Locator.id(\"" + expression + "\")";
+                case "NAME" -> "SHAFT.GUI.Locator.name(\"" + expression + "\")";
+                case "CLASS_NAME" -> "SHAFT.GUI.Locator.className(\"" + expression + "\")";
+                case "TAG_NAME" -> "SHAFT.GUI.Locator.tagName(\"" + expression + "\")";
+                case "LINK_TEXT" -> "SHAFT.GUI.Locator.xpath(\"//a[normalize-space(.)='"
+                        + expression + "']\")";
+                case "PARTIAL_LINK_TEXT" -> "SHAFT.GUI.Locator.xpath(\"//a[contains(normalize-space(.), '"
+                        + expression + "')]\")";
+                default -> "SHAFT.GUI.Locator.cssSelector(\"" + expression + "\")";
             };
         }
-        return "SHAFT.GUI.Locator.hasAnyTagName().hasText(\"" + expression + "\").build()";
+        return "SHAFT.GUI.Locator.xpath(\"//*[normalize-space(.)='" + expression + "']\")";
     }
 
     private static String stripTrailingSemicolon(String value) {

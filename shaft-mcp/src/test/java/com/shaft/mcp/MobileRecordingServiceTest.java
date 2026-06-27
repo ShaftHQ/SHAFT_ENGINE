@@ -27,16 +27,16 @@ class MobileRecordingServiceTest {
                 locatorStrategy.ACCESSIBILITY_ID,
                 "login",
                 Map.of(),
-                "driver.touch().tap(AppiumBy.accessibilityId(\"login\"));",
-                "driver.touch().tap(AppiumBy.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
                 false);
         service.record(
                 "type",
                 locatorStrategy.ACCESSIBILITY_ID,
                 "username",
                 Map.of("value", "secret"),
-                "driver.element().type(AppiumBy.accessibilityId(\"username\"), \"secret\");",
-                "driver.element().type(AppiumBy.accessibilityId(\"username\"), \"<redacted>\");",
+                "driver.element().type(SHAFT.GUI.Locator.accessibilityId(\"username\"), \"secret\");",
+                "driver.element().type(SHAFT.GUI.Locator.accessibilityId(\"username\"), \"<redacted>\");",
                 true);
 
         McpMobileRecordingStatus stopped = service.stop(false);
@@ -45,8 +45,8 @@ class MobileRecordingServiceTest {
 
         assertEquals(2, stopped.actionCount());
         assertTrue(Files.isRegularFile(recording));
-        assertTrue(code.contains("mobileDriver.touch().tap(AppiumBy.accessibilityId(\"login\"));"));
-        assertTrue(code.contains("mobileDriver.element().type(AppiumBy.accessibilityId(\"username\"), \"<redacted>\");"));
+        assertTrue(code.contains("mobileDriver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));"));
+        assertTrue(code.contains("mobileDriver.element().type(SHAFT.GUI.Locator.accessibilityId(\"username\"), \"<redacted>\");"));
         assertFalse(code.contains("\"secret\""));
         assertFalse(result.codeBlocks().getFirst().copyPasteReady());
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("redacted")));

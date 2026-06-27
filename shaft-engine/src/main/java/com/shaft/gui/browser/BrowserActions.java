@@ -336,6 +336,28 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     }
 
     /**
+     * Opens the target URL in a new browser tab and switches focus to it.
+     *
+     * @param targetUrl target URL to open
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions openNewTab(String targetUrl) {
+        return navigateToURL(targetUrl, WindowType.TAB);
+    }
+
+    /**
+     * Opens the target URL in a new browser window and switches focus to it.
+     *
+     * @param targetUrl target URL to open
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions openNewWindow(String targetUrl) {
+        return navigateToURL(targetUrl, WindowType.WINDOW);
+    }
+
+    /**
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page. Waits for successfully navigating to the final url after
      * redirection.
@@ -860,6 +882,60 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         } else {
             browserActionsHelper.failAction(driverFactoryHelper.getDriver(), nameOrHandle);
         }
+        return this;
+    }
+
+    /**
+     * Checks whether a browser alert, confirm, or prompt dialog is currently present.
+     *
+     * @return {@code true} when an alert is present; otherwise {@code false}
+     */
+    @Override
+    public boolean isAlertPresent() {
+        return new com.shaft.gui.element.AlertActions(driverFactoryHelper).isAlertPresent();
+    }
+
+    /**
+     * Accepts the current browser alert, confirm, or prompt dialog.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions acceptAlert() {
+        new com.shaft.gui.element.AlertActions(driverFactoryHelper).acceptAlert();
+        return this;
+    }
+
+    /**
+     * Dismisses the current browser alert, confirm, or prompt dialog.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions dismissAlert() {
+        new com.shaft.gui.element.AlertActions(driverFactoryHelper).dismissAlert();
+        return this;
+    }
+
+    /**
+     * Gets the current browser alert, confirm, or prompt dialog text.
+     *
+     * @return the alert text
+     */
+    @Override
+    public String getAlertText() {
+        return new com.shaft.gui.element.AlertActions(driverFactoryHelper).getAlertText();
+    }
+
+    /**
+     * Types text into the current browser prompt dialog.
+     *
+     * @param text text to type into the prompt
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions typeIntoPromptAlert(String text) {
+        new com.shaft.gui.element.AlertActions(driverFactoryHelper).typeIntoPromptAlert(text);
         return this;
     }
 

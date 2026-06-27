@@ -35,8 +35,8 @@ class McpAppiumCommandRecorderTest {
         String code = replay.codeBlocks().getFirst().code();
 
         assertEquals(2, stopped.actionCount());
-        assertTrue(code.contains("mobileDriver.touch().tap(AppiumBy.accessibilityId(\"login\"));"));
-        assertTrue(code.contains("mobileDriver.element().type(AppiumBy.accessibilityId(\"login\"), \"<redacted>\");"));
+        assertTrue(code.contains("mobileDriver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));"));
+        assertTrue(code.contains("mobileDriver.element().type(SHAFT.GUI.Locator.accessibilityId(\"login\"), \"<redacted>\");"));
         assertFalse(code.contains("secret"));
         assertTrue(replay.warnings().stream().anyMatch(warning -> warning.contains("redacted")));
     }

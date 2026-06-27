@@ -323,6 +323,16 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
     }
 
     /**
+     * Switches focus from the current iframe to its parent frame.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public Actions switchToParentFrame() {
+        return new Actions(driverFactoryHelper).switchToParentFrame();
+    }
+
+    /**
      * gets the current frame
      *
      * @return currentFrame the current frame name

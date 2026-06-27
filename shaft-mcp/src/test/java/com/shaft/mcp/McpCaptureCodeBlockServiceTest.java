@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class McpCaptureCodeBlockServiceTest {
@@ -21,21 +22,17 @@ class McpCaptureCodeBlockServiceTest {
                 package generated.capture;
 
                 import com.shaft.driver.SHAFT;
-                import org.openqa.selenium.By;
                 import org.testng.annotations.Test;
 
                 public class LoginReplayTest {
-                    private static final By USERNAME_INPUT_LOCATOR = SHAFT.GUI.Locator.inputField("Username");
-                    private static final By SIGN_IN_BUTTON_LOCATOR = SHAFT.GUI.Locator.clickableField("Sign In");
-
                     private SHAFT.GUI.WebDriver driver;
 
                     @Test
                     public void replayLogin() {
-                        driver.element().click(USERNAME_INPUT_LOCATOR);
-                        driver.element().type(USERNAME_INPUT_LOCATOR, requiredData("username"));
+                        driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+                        driver.element().type(SHAFT.GUI.Locator.inputField("Username"), requiredData("username"));
                         // Recorded checkpoint checkpoint-1 (ASSERTION). Login verified
-                        driver.assertThat().element(SIGN_IN_BUTTON_LOCATOR).isVisible().perform();
+                        driver.element().assertThat(SHAFT.GUI.Locator.clickableField("Sign In")).isVisible().perform();
                     }
                 }
                 """);
@@ -54,15 +51,15 @@ class McpCaptureCodeBlockServiceTest {
         McpCodeBlock locators = block(blocks, "capture-pom-locator-inventory");
         assertEquals(McpCodeBlock.Kind.LOCATOR, locators.kind());
         assertTrue(locators.code().contains(
-                "private final By usernameInputLocator = SHAFT.GUI.Locator.inputField(\"Username\");"));
+                "// usernameLocator -> SHAFT.GUI.Locator.inputField(\"Username\")"));
         assertTrue(locators.code().contains(
-                "private final By signInButtonLocator = SHAFT.GUI.Locator.clickableField(\"Sign In\");"));
-        assertTrue(locators.placement().contains("page class"));
+                "// signInLocator -> SHAFT.GUI.Locator.clickableField(\"Sign In\")"));
+        assertTrue(locators.placement().contains("SHAFT locator expressions"));
 
         McpCodeBlock actions = block(blocks, "capture-pom-action-sequence");
         assertEquals(McpCodeBlock.Kind.ACTION, actions.kind());
         assertTrue(actions.code().contains("// Flow: replayLogin"));
-        assertTrue(actions.code().contains("browser.element().click(USERNAME_INPUT_LOCATOR);"));
+        assertTrue(actions.code().contains("browser.element().click(SHAFT.GUI.Locator.inputField(\"Username\"));"));
         assertTrue(actions.code().contains("// Checkpoint: checkpoint-1 (ASSERTION). Login verified"));
         assertTrue(actions.placement().contains("page methods"));
 
@@ -80,18 +77,15 @@ class McpCaptureCodeBlockServiceTest {
                 package generated.capture;
 
                 import com.shaft.driver.SHAFT;
-                import org.openqa.selenium.By;
                 import org.testng.annotations.Test;
 
                 public class LoginReplayTest {
-                    private static final By USERNAME_INPUT_LOCATOR = SHAFT.GUI.Locator.inputField("Username");
-
                     private SHAFT.GUI.WebDriver driver;
 
                     @Test
                     public void replayLogin() {
-                        driver.element().click(USERNAME_INPUT_LOCATOR);
-                        driver.element().type(USERNAME_INPUT_LOCATOR, requiredData("username"));
+                        driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+                        driver.element().type(SHAFT.GUI.Locator.inputField("Username"), requiredData("username"));
                     }
                 }
                 """);
@@ -113,15 +107,12 @@ class McpCaptureCodeBlockServiceTest {
         List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
                 .fromGeneratedSource(source, "browser", null, target, "replayCheckout");
 
-        McpCodeBlock locators = block(blocks, "capture-target-locator-fields");
-        assertEquals(McpCodeBlock.Kind.LOCATOR, locators.kind());
-        assertTrue(locators.code().contains("private static final By USERNAME_INPUT_LOCATOR"));
-        assertTrue(locators.placement().contains("CheckoutTest.java"));
+        assertFalse(blocks.stream().anyMatch(block -> block.id().equals("capture-target-locator-fields")));
 
         McpCodeBlock actions = block(blocks, "capture-target-action-snippet");
         assertEquals(McpCodeBlock.Kind.ACTION, actions.kind());
-        assertTrue(actions.code().contains("browser.element().click(USERNAME_INPUT_LOCATOR);"));
-        assertTrue(actions.code().contains("browser.element().type(USERNAME_INPUT_LOCATOR, requiredData(\"username\"));"));
+        assertTrue(actions.code().contains("browser.element().click(SHAFT.GUI.Locator.inputField(\"Username\"));"));
+        assertTrue(actions.code().contains("browser.element().type(SHAFT.GUI.Locator.inputField(\"Username\"), requiredData(\"username\"));"));
         assertTrue(actions.placement().contains("after replayCheckout"));
         assertTrue(actions.warnings().isEmpty(), actions.warnings().toString());
 
@@ -136,17 +127,14 @@ class McpCaptureCodeBlockServiceTest {
                 package generated.capture;
 
                 import com.shaft.driver.SHAFT;
-                import org.openqa.selenium.By;
                 import org.testng.annotations.Test;
 
                 public class PlaywrightReplayTest {
-                    private static final By SEARCH_FIELD_LOCATOR = SHAFT.GUI.Locator.inputField("Search");
-
                     private SHAFT.GUI.Playwright driver;
 
                     @Test
                     public void replaySearch() {
-                        driver.element().click(SEARCH_FIELD_LOCATOR);
+                        driver.element().click(SHAFT.GUI.Locator.inputField("Search"));
                     }
                 }
                 """);

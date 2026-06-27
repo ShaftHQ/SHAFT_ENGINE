@@ -36,8 +36,8 @@ class PlaywrightServiceTest {
                 locatorStrategy.ID,
                 "email",
                 Map.of("value", "alice@example.test"),
-                "driver.element().type(SHAFT.GUI.Locator.hasAnyTagName().hasId(\"email\").build(), \"alice@example.test\");",
-                "driver.element().type(SHAFT.GUI.Locator.hasAnyTagName().hasId(\"email\").build(), \"<redacted>\");",
+                "driver.element().type(SHAFT.GUI.Locator.id(\"email\"), \"alice@example.test\");",
+                "driver.element().type(SHAFT.GUI.Locator.id(\"email\"), \"<redacted>\");",
                 true);
         recorder.stop(false);
 
@@ -70,8 +70,8 @@ class PlaywrightServiceTest {
                 locatorStrategy.ID,
                 "email",
                 Map.of("value", "alice@example.test"),
-                "driver.element().type(SHAFT.GUI.Locator.hasAnyTagName().hasId(\"email\").build(), \"alice@example.test\");",
-                "driver.element().type(SHAFT.GUI.Locator.hasAnyTagName().hasId(\"email\").build(), \"<redacted>\");",
+                "driver.element().type(SHAFT.GUI.Locator.id(\"email\"), \"alice@example.test\");",
+                "driver.element().type(SHAFT.GUI.Locator.id(\"email\"), \"<redacted>\");",
                 true);
         recorder.stop(false);
 
@@ -113,8 +113,8 @@ class PlaywrightServiceTest {
         McpMobileReplayResult result = recorder.codeBlocks(recording.toString(), "page");
 
         String code = result.codeBlocks().getFirst().code();
-        assertTrue(result.codeBlocks().getFirst().imports().contains("com.shaft.gui.driver.ShaftLocator"));
-        assertTrue(code.contains("ShaftLocator.xpath("));
+        assertFalse(result.codeBlocks().getFirst().imports().contains("com.shaft.gui.driver.ShaftLocator"));
+        assertTrue(code.contains("SHAFT.GUI.Locator.xpath("));
         assertTrue(code.contains("Password"));
         assertTrue(code.contains("<redacted>"));
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("redacted")));

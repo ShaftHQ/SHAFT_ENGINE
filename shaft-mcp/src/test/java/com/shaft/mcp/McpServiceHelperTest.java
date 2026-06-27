@@ -53,13 +53,13 @@ class McpServiceHelperTest {
                 locatorStrategy.ID,
                 "submit",
                 Map.of("key", "value"),
-                "driver.touch().tap(By.id(\"submit\"));",
-                "driver.touch().tap(By.id(\"submit\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.id(\"submit\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.id(\"submit\"));",
                 false);
 
         assertEquals("custom", result.action());
         assertTrue(result.recorded());
-        assertTrue(result.codeBlock().code().contains("driver.touch().tap"));
+        assertTrue(result.codeBlock().code().contains("driver.element().touch().tap"));
         assertTrue(service.recordStop(false).actionCount() > 0);
     }
 
@@ -98,7 +98,7 @@ class McpServiceHelperTest {
 
         assertArrayEquals(png, Files.readAllBytes(written));
         assertTrue(tapCode.contains("10, 20"));
-        assertTrue(swipeCode.contains("Duration.ofMillis(100)"));
+        assertTrue(swipeCode.contains("swipeByCoordinates(1, 2, 3, 4, 100)"));
         assertEquals(125, parsed);
     }
 
@@ -111,7 +111,7 @@ class McpServiceHelperTest {
                 "ID",
                 "username",
                 Map.of("value", "<redacted>"),
-                "driver.element().type(By.id(\"username\"), \"<redacted>\");",
+                "driver.element().type(SHAFT.GUI.Locator.id(\"username\"), \"<redacted>\");",
                 false,
                 null);
 

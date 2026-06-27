@@ -115,6 +115,28 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
         return navigateToURL(targetUrl);
     }
 
+    /**
+     * Opens the target URL in a new browser tab and switches focus to it.
+     *
+     * @param targetUrl target URL to open
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions openNewTab(String targetUrl) {
+        return navigateToURL(targetUrl, WindowType.TAB);
+    }
+
+    /**
+     * Opens the target URL in a new browser window and switches focus to it.
+     *
+     * @param targetUrl target URL to open
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions openNewWindow(String targetUrl) {
+        return navigateToURL(targetUrl, WindowType.WINDOW);
+    }
+
     @Override
     public BrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         navigateToURL(targetUrl);
@@ -290,6 +312,60 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("No Playwright page matches handle, URL, title, or index: " + nameOrHandle, e);
         }
+        return this;
+    }
+
+    /**
+     * Checks whether a browser alert, confirm, or prompt dialog is currently present.
+     *
+     * @return {@code true} when an alert is present; otherwise {@code false}
+     */
+    @Override
+    public boolean isAlertPresent() {
+        return session.isDialogSeen();
+    }
+
+    /**
+     * Accepts the current browser alert, confirm, or prompt dialog.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions acceptAlert() {
+        session.acceptNextDialog();
+        return this;
+    }
+
+    /**
+     * Dismisses the current browser alert, confirm, or prompt dialog.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions dismissAlert() {
+        session.dismissNextDialog();
+        return this;
+    }
+
+    /**
+     * Gets the current browser alert, confirm, or prompt dialog text.
+     *
+     * @return the alert text
+     */
+    @Override
+    public String getAlertText() {
+        return session.lastDialogText();
+    }
+
+    /**
+     * Types text into the current browser prompt dialog.
+     *
+     * @param text text to type into the prompt
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions typeIntoPromptAlert(String text) {
+        session.typeIntoNextPrompt(text);
         return this;
     }
 
