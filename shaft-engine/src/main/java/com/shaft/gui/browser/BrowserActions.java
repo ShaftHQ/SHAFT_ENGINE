@@ -29,9 +29,6 @@ import io.appium.java_client.ios.IOSDriver;
 import io.qameta.allure.Step;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
-import org.openqa.selenium.devtools.DevTools;
-import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 
@@ -39,7 +36,6 @@ import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -474,21 +470,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) driverFactoryHelper.getDriver()).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
-                AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
-                driverFactoryHelper.setDriver(new Augmenter().addDriverAugmentation("chrome",
-                        HasAuthentication.class,
-                        (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
-                            devToolsAtomicReference.get()
-                                    .createSessionIfThereIsNotOne();
-                            devToolsAtomicReference.get().getDomains()
-                                    .network()
-                                    .addAuthHandler(whenThisMatches,
-                                            useTheseCredentials);
-                        }).augment(driverFactoryHelper.getDriver()));
-                DevTools devTools = ((HasDevTools) driverFactoryHelper.getDriver()).getDevTools();
-                devTools.createSession();
-                devToolsAtomicReference.set(devTools);
-                ((HasAuthentication) driverFactoryHelper.getDriver()).register(UsernameAndPassword.of(username, password));
+                targetUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
