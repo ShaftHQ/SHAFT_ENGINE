@@ -11,6 +11,7 @@ DOCS_BASE = "https://shafthq.github.io/docs/"
 
 ALLOWED_EXACT = {
     "README.md",
+    "modular-era-feature-catalog.md",
     "AGENTS.md",
     "CLAUDE.md",
     "CODE_OF_CONDUCT.md",
