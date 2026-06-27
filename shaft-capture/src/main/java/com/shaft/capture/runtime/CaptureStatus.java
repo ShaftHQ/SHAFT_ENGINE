@@ -1,5 +1,7 @@
 package com.shaft.capture.runtime;
 
+import com.shaft.capture.model.CaptureReadiness;
+
 import java.time.Instant;
 import java.util.List;
 
@@ -11,6 +13,7 @@ import java.util.List;
  * @param browser browser family
  * @param currentUrl sanitized current URL
  * @param eventCount persisted semantic event count
+ * @param readiness deterministic readiness state
  * @param warnings safe recorder warnings
  * @param outputPath capture JSON output path
  * @param aiEnabled always false for deterministic recording
@@ -23,6 +26,7 @@ public record CaptureStatus(
         String browser,
         String currentUrl,
         int eventCount,
+        CaptureReadiness.State readiness,
         List<String> warnings,
         String outputPath,
         boolean aiEnabled,
@@ -50,6 +54,7 @@ public record CaptureStatus(
         sessionId = text(sessionId);
         browser = text(browser);
         currentUrl = text(currentUrl);
+        readiness = readiness == null ? CaptureReadiness.State.READY : readiness;
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
         outputPath = text(outputPath);
         if (eventCount < 0) {
@@ -58,12 +63,41 @@ public record CaptureStatus(
     }
 
     /**
+     * Compatibility constructor for callers compiled before readiness was added.
+     *
+     * @param state recorder lifecycle state
+     * @param sessionId logical capture session identifier
+     * @param browser browser family
+     * @param currentUrl sanitized current URL
+     * @param eventCount persisted semantic event count
+     * @param warnings safe recorder warnings
+     * @param outputPath capture JSON output path
+     * @param aiEnabled always false for deterministic recording
+     * @param processId owning process ID
+     * @param startedAt session start time
+     */
+    public CaptureStatus(
+            State state,
+            String sessionId,
+            String browser,
+            String currentUrl,
+            int eventCount,
+            List<String> warnings,
+            String outputPath,
+            boolean aiEnabled,
+            long processId,
+            Instant startedAt) {
+        this(state, sessionId, browser, currentUrl, eventCount, CaptureReadiness.State.READY, warnings,
+                outputPath, aiEnabled, processId, startedAt);
+    }
+
+    /**
      * Returns a safe status for an idle runtime.
      *
      * @return not-running status
      */
     public static CaptureStatus notRunning() {
-        return new CaptureStatus(State.NOT_RUNNING, "", "", "", 0, List.of(),
+        return new CaptureStatus(State.NOT_RUNNING, "", "", "", 0, CaptureReadiness.State.READY, List.of(),
                 "", false, ProcessHandle.current().pid(), null);
     }
 

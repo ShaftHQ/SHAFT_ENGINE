@@ -39,6 +39,7 @@ public class AllureManagerCoverageUnitTest {
                 .cleanResultsDirectory(true)
                 .forceConfiguredCliVersion(true)
                 .generateArchive(false)
+                .generateReport(true)
                 .realtimeMonitoring(false)
                 .theme("auto")
                 .singleFile(true)
@@ -106,6 +107,24 @@ public class AllureManagerCoverageUnitTest {
         invoke("ensureAllureResultsDirectoryExists", new Class[]{String.class}, "");
 
         Assert.assertFalse(Files.exists(missingDirectory));
+    }
+
+    @Test
+    public void reportGenerationShouldSkipSetupAndTeardownWhenDisabled() {
+        SHAFT.Properties.allure.set()
+                .generateReport(false)
+                .generateArchive(true)
+                .realtimeMonitoring(true);
+
+        AllureManager.initializeAllureReportingEnvironment();
+        AllureManager.openAllureReportAfterExecution();
+        AllureManager.generateAllureReportArchive();
+
+        Assert.assertFalse(Files.exists(Path.of("allurerc.yaml")));
+        Assert.assertFalse(Files.exists(Path.of("generate_allure_report.bat")));
+        Assert.assertFalse(Files.exists(Path.of("generate_allure_report.sh")));
+        Assert.assertFalse(Files.exists(Path.of("allure-report")));
+        Assert.assertFalse(Files.exists(Path.of("target", "allure-report")));
     }
 
     @Test

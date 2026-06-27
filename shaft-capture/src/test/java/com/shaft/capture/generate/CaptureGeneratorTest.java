@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shaft.capture.CaptureFixtures;
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.model.ElementSnapshot;
@@ -97,6 +98,8 @@ class CaptureGeneratorTest {
             assertTrue(recorder.contains("shaft-capture-assert"));
             assertTrue(recorder.contains("shaft-capture-pick"));
             assertTrue(recorder.contains("locator_preference"));
+            assertTrue(recorder.contains("shaft-capture-readiness"));
+            assertTrue(recorder.contains("readinessState"));
             assertTrue(recorder.contains("viewBox=\"0 0 24 24\""));
             assertTrue(recorder.contains("aria-label=\"Toggle assertion mode\""));
             assertTrue(recorder.contains("aria-label=\"Toggle locator picker\""));
@@ -264,6 +267,9 @@ class CaptureGeneratorTest {
         assertTrue(categories.contains("WAIT"), review.toString());
         assertTrue(categories.contains("TEST_DATA"), review.toString());
         assertTrue(result.report().warnings().stream().anyMatch(warning -> warning.contains("review/LOCATOR")));
+        assertEquals(CaptureReadiness.State.RISKY, result.report().readiness());
+        assertTrue(result.report().readinessWarnings().stream()
+                .anyMatch(warning -> warning.contains("positional XPATH")));
     }
 
     @Test

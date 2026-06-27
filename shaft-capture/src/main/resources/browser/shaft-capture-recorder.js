@@ -31,6 +31,8 @@
     assertionMode: false,
     locatorMode: false,
     locatorPreferences: {},
+    readinessState: "READY",
+    readinessWarnings: [],
     actions: [],
     nextId: 1,
     lastUrl: String(location.href || ""),
@@ -43,6 +45,12 @@
   uiState.locatorPreferences = uiState.locatorPreferences && typeof uiState.locatorPreferences === "object"
     ? uiState.locatorPreferences
     : {};
+  uiState.readinessState = ["READY", "RISKY", "BLOCKED"].includes(uiState.readinessState)
+    ? uiState.readinessState
+    : "READY";
+  uiState.readinessWarnings = Array.isArray(uiState.readinessWarnings)
+    ? uiState.readinessWarnings.slice(-20)
+    : [];
   globalThis.__shaftCaptureUiState = uiState;
   const topLevel = (() => {
     try {
@@ -59,6 +67,8 @@
         assertionMode: uiState.assertionMode,
         locatorMode: uiState.locatorMode,
         locatorPreferences: uiState.locatorPreferences,
+        readinessState: uiState.readinessState,
+        readinessWarnings: uiState.readinessWarnings.slice(-20),
         actions: uiState.actions.slice(-80),
         nextId: uiState.nextId,
         lastUrl: uiState.lastUrl
@@ -286,6 +296,69 @@
     "signals " + signed((candidate.signals || []).reduce((total, signal) =>
       total + (locatorSignalWeights[signal] || 0), 0))
   ].join(" | ");
+  const readinessRank = state => ({READY: 0, RISKY: 1, BLOCKED: 2})[state] || 0;
+  const setReadiness = (state, warning) => {
+    if (readinessRank(state) > readinessRank(uiState.readinessState)) {
+      uiState.readinessState = state;
+    }
+    if (warning) {
+      uiState.readinessWarnings.push(text(warning));
+      uiState.readinessWarnings = Array.from(new Set(uiState.readinessWarnings)).slice(-20);
+    }
+    persist();
+    setStatus();
+  };
+  const positionalLocator = candidate =>
+    ["CSS", "XPATH"].includes(candidate.strategy)
+    && ((candidate.signals || []).includes("POSITIONAL")
+      || /\[\d+]|:nth-(?:child|of-type)\(/.test(candidate.expression || ""));
+  const sensitiveTarget = target => {
+    const attributes = target.attributes || {};
+    const value = [
+      target.logicalElementId,
+      target.accessibleName,
+      target.label,
+      attributes.type,
+      attributes.name,
+      attributes.id,
+      attributes.autocomplete
+    ].join(" ").toLowerCase();
+    return value.includes("password") || value.includes("token") || value.includes("secret");
+  };
+  const submitTarget = target => {
+    const attributes = target.attributes || {};
+    const value = [target.accessibleName, target.label, attributes.value, attributes.type]
+      .join(" ").toLowerCase();
+    return attributes.type === "submit"
+      || ["submit", "pay", "checkout", "place order", "confirm", "sign in", "log in", "continue"]
+        .some(item => value.includes(item));
+  };
+  const readinessFor = (kind, target) => {
+    const locators = (target.locators || []).slice()
+      .sort((left, right) => locatorScore(right) - locatorScore(left));
+    if (!locators.length) {
+      return {state: "BLOCKED", warning: "Step " + uiState.nextId + " has no locator evidence."};
+    }
+    const best = locators[0];
+    if (best.uniquenessCount === 0) {
+      return {state: "BLOCKED", warning: "Step " + uiState.nextId + " locator has no current match."};
+    }
+    if (kind === "input" && sensitiveTarget(target)) {
+      return {state: "BLOCKED", warning: "Step " + uiState.nextId + " uses redacted required input."};
+    }
+    if (best.uniquenessCount > 1) {
+      return {state: "RISKY", warning: "Step " + uiState.nextId + " locator has multiple matches."};
+    }
+    if (positionalLocator(best)) {
+      return {state: "RISKY", warning: "Step " + uiState.nextId + " uses generated positional "
+        + best.strategy + "."};
+    }
+    if (kind === "click" && submitTarget(target)) {
+      return {state: "RISKY", warning: "Step " + uiState.nextId
+        + " needs a follow-up assertion after form submission."};
+    }
+    return null;
+  };
   const allPageElements = () =>
     Array.from(document.querySelectorAll("body *")).filter(element => !isControlElement(element));
   const queryAll = selector => {
@@ -397,6 +470,8 @@
     const target = snapshot(event);
     if (target) {
       const action = data || {};
+      const readiness = readinessFor(kind, target);
+      if (readiness) setReadiness(readiness.state, readiness.warning);
       announce(describe(kind, target, action));
       send({kind, page: page(), target, data: action});
     }
@@ -605,6 +680,14 @@
       #shaft-capture-status {
         color: var(--shaft-text);
       }
+      #shaft-capture-status[data-readiness="RISKY"] {
+        border-color: var(--shaft-warn);
+        background: rgba(183, 121, 31, .12);
+      }
+      #shaft-capture-status[data-readiness="BLOCKED"] {
+        border-color: var(--shaft-fail);
+        background: rgba(197, 48, 48, .12);
+      }
       #shaft-capture-actions {
         overflow-y: auto;
         overflow-x: hidden;
@@ -697,7 +780,9 @@
       renderLocatorPanel(null);
       persist();
     }
-    status.textContent = uiState.stopped
+    const latestWarning = uiState.readinessWarnings[uiState.readinessWarnings.length - 1] || "";
+    const base = uiState.readinessState + " | " + uiState.actions.length + " events";
+    const mode = uiState.stopped
       ? "Stopped. Waiting for SHAFT to close the browser."
       : uiState.paused
         ? "Paused. Browser actions are not being captured."
@@ -706,6 +791,8 @@
           : uiState.assertionMode
             ? "Assertion mode. Click an element to capture a verification."
             : "Recording browser actions.";
+    status.dataset.readiness = uiState.readinessState;
+    status.textContent = latestWarning ? base + " | " + latestWarning : base + " | " + mode;
     pause.innerHTML = icon(uiState.paused ? "play" : "pause");
     pause.title = uiState.paused ? "Resume recording" : "Pause recording";
     pause.setAttribute("aria-label", pause.title);
@@ -864,7 +951,7 @@
         <button id="shaft-capture-checkpoint" type="button" title="Add checkpoint" aria-label="Add checkpoint">${icon("checkpoint")}</button>
         <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
       </header>
-      <div id="shaft-capture-status" class="status-chip"></div>
+      <div id="shaft-capture-status" class="status-chip shaft-capture-readiness"></div>
       <div id="shaft-capture-locator-panel" hidden></div>
       <div id="shaft-capture-actions"><ol id="shaft-capture-action-list"></ol></div>
     `;
@@ -927,6 +1014,14 @@
       setTimeout(schedulePanel, 50);
     }
   };
+  setInterval(() => {
+    const current = String(location.href || "");
+    if (uiState.stopped || uiState.paused || current === uiState.lastUrl) return;
+    setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
+    uiState.lastUrl = current;
+    announce("Navigate to " + visibleLocation());
+    persist();
+  }, 500);
 
   addEventListener("mousemove", event => {
     if (!uiState.locatorMode || uiState.stopped || uiState.paused) return;
