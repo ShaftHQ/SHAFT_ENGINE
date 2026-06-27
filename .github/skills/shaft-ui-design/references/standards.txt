@@ -1,0 +1,53 @@
+# SHAFT UI Design Standards
+
+## Sources Of Truth
+
+- Current repo rules win: `AGENTS.md`, `CLAUDE.md`, matching skills, Memory, and the target repo's `AGENTS.md`.
+- Read existing tokens, CSS, theme files, components, and representative pages before designing. Reuse what works.
+- For guide work, preserve Docusaurus behavior, dark mode, reduced motion, semantic HTML, copyable fenced code, search exclusions, archive `noindex`, redirects, AutoBot HTTP contracts, and source-backed claims.
+- Do not add dependencies, systems, or generated artifacts unless the current task needs them.
+
+## Workflow
+
+1. Define the surface: core report/tool/workbench, docs/user guide, homepage/marketing, or app-like product UI.
+2. Inspect the current design language and one representative rendered state. For revamps, capture a before screenshot first.
+3. Make a short design plan: audience, one job, 4-6 color roles, type roles, layout idea, and one memorable SHAFT-specific signature element.
+4. Build the smallest complete change. Prefer existing components, tokens, CSS, and native browser features over new abstractions.
+5. Validate in a browser at desktop and mobile widths. Check contrast, focus, keyboard use, reduced motion, dark mode when supported, loading/empty/error states, and text overflow.
+6. Share screenshots every time: before/after for revamps, after-only for new UI. If capture is blocked, report the exact blocker.
+
+## Design Direction
+
+- Make the interface feel like SHAFT: precise, evidence-first, automation-native, confident, and readable under real debugging pressure.
+- Ground visual choices in the subject: test evidence, reports, traces, locators, flows, timelines, browser/device surfaces, or docs learning paths.
+- Use one bold idea, not many decorations. A signature visualization or interaction should explain the product better than a generic hero/card pattern.
+- For operational/report UI, prioritize dense scanning, stable layout, clear status, comparison, filtering, and repeat use. For guide/marketing pages, let the brand voice carry more personality while keeping claims verifiable.
+- UI copy is part of design: plain verbs, sentence case, consistent action names, specific errors, useful empty states, no vague apology copy, no unsupported superlatives.
+
+## Quality Floor
+
+- Contrast: body and placeholder text at least 4.5:1; large text at least 3:1.
+- Layout: no incoherent overlap, no clipping, no text overflow, no layout shift from hover or dynamic content, stable dimensions for grids/boards/toolbars/cards.
+- Typography: readable line lengths, clear hierarchy, no viewport-scaled font sizes, no negative letter spacing, headings balanced when supported.
+- Components: icon buttons use existing icon libraries when available; familiar controls beat custom widgets.
+- Motion: purposeful and sparse; never gate visibility on animations; avoid layout-property animation; always respect `prefers-reduced-motion`.
+- Assets: prefer real product/report/docs imagery or deterministic screenshots. Do not use generated images for exact UI text, code, logos, or claims.
+
+## Unslop Rules
+
+Reject and rewrite these unless the brief explicitly requires them and the choice is justified:
+
+- Generic SaaS hero metrics, endless equal card grids, decorative glassmorphism, gradient text, bokeh/orbs, diagonal stripe backgrounds, sketchy SVG scenes, side-stripe accents, and dark blurred stock imagery.
+- Tiny uppercase eyebrows or `01 / 02 / 03` markers as section scaffolding. Numbers only when order matters.
+- One-note palettes: default cream/sand, purple-blue gradients, dark navy/slate, brown/espresso, or a single hue ramp. Existing SHAFT brand tokens can stay.
+- Ghost cards: decorative `1px` border plus wide soft shadow. Pick a border or a restrained shadow.
+- Over-rounded cards/sections/inputs. Keep cards at 8px radius or less unless an existing design system already requires otherwise.
+- Hover transforms on images that are not action targets. Animate the card state, border, shadow, or content affordance instead.
+- Text in visible UI that explains the feature instead of letting the feature work.
+
+## SHAFT-Specific Checks
+
+- Core generated reports and workbenches must keep evidence readable: status chips, tables, wrapping, trace/code panels, screenshots, and diagnostics must remain inspectable.
+- User guide pages must keep one canonical page per concept and verify commands, APIs, properties, dependencies, and compatibility against engine source.
+- Public docs changes that alter behavior need the matching docs PR; pure agent-guidance changes do not.
+- PR evidence must include the smallest useful validation plus screenshot links/paths for any UI or reporting enhancement.
