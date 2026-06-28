@@ -1,0 +1,6 @@
+interface:
+  display_name: "Public Behavior Docs Synchronizer"
+  short_description: "Keep public behavior and docs aligned"
+  default_prompt: "Use $public-behavior-docs-synchronizer to plan the docs sync for this public behavior change."
+policy:
+  allow_implicit_invocation: true

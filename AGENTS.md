@@ -8,21 +8,19 @@ Start from goal/files; prefer `rg`, excerpts, parsers.
 
 ## Routing
 
-Load only matching `.agents/skills/`: src/main Java
-`framework-source-rules`; src/test Java `java-test-rules`; CI/Allure
-`ci-failure-investigator`; flaky `flaky-test-stabilizer`; release/deps
-`release-dependency-guard`; mapping `graphify`; UI
-`shaft-ui-design`; ads `shaft-marketing-ad-producer`.
-Bridge skills point to `.github/` or docs; do not preload.
+Load one matching `.agents/skills/` bridge only: main Java
+`framework-source-rules`; tests `java-test-rules`; CI `ci-failure-investigator`;
+flaky `flaky-test-stabilizer`; release/deps `release-dependency-guard`;
+graph `graphify`; UI `shaft-ui-design`; ads `shaft-marketing-ad-producer`;
+docs `public-behavior-docs-synchronizer`; MCP `mcp-transport-contract-auditor`;
+modules `modular-boundary-auditor`; reports `allure-extent-report-operator`;
+guidance `agent-guidance-boundary-guard`. Bridges point to `.github/` or docs.
 
 ## New Task Flow
 
-For file edits:
-
-1. Delete only clean unused merged/closed Codex worktrees/branches; preserve user work.
-2. Fetch/prune; fast-forward `main` from `origin/main`; branch fresh `codex/*`.
-3. Before PR: fetch remote default; merge/rebase, resolve conflicts, rerun checks.
-4. Commit, push, open ready PR; draft only when blocked/incomplete/requested; share link.
+For file edits: preserve user work; fetch/prune; branch fresh `codex/*` from
+`origin/main`; before PR, sync with remote default, resolve conflicts, rerun
+checks; commit, push, open ready PR. Draft only when blocked/incomplete/requested.
 
 ## Working Rules
 
