@@ -58,6 +58,9 @@ rebases, or dependency changes.
 - Localized code: affected tests, then one compile/package pass.
 - Shared API/concurrency/build/release: targeted, then full compile/package.
 - Visual: relevant test plus image/browser evidence.
+- UI/reporting PRs must include real screenshot evidence in the PR body or a PR
+  comment: before/after for revamps, after-only for new UI. If capture is
+  blocked, keep the PR draft or explicitly report the blocker.
 - External/cloud E2E: only with required infra.
 
 PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, and args with `{}`, `@`,

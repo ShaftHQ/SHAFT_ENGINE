@@ -10,6 +10,18 @@ final class ToolTemplates {
         throw new IllegalStateException("Utility class");
     }
 
+    static List<ToolCategory> categories() {
+        return List.of(
+                new ToolCategory("Recorder", recorder()),
+                new ToolCategory("Playback", playback()),
+                new ToolCategory("Doctor", doctor()),
+                new ToolCategory("Healer", healer()),
+                new ToolCategory("Inspector", inspector()),
+                new ToolCategory("Projects", projects()),
+                new ToolCategory("MCP", mcp()),
+                new ToolCategory("Guide", guide()));
+    }
+
     static List<ToolTemplate> recorder() {
         return List.of(
                 template("Start WebDriver Recording", "capture_start",
@@ -234,7 +246,7 @@ final class ToolTemplates {
                           "code": ""
                         }
                         """),
-                template("Autobot Clients", "autobot_local_agent_clients", "{}"));
+                template("Assistant Clients", "autobot_local_agent_clients", "{}"));
     }
 
     static List<ToolTemplate> guide() {

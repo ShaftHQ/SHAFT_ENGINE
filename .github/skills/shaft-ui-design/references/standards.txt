@@ -14,7 +14,7 @@
 3. Make a short design plan: audience, one job, 4-6 color roles, type roles, layout idea, and one memorable SHAFT-specific signature element.
 4. Build the smallest complete change. Prefer existing components, tokens, CSS, and native browser features over new abstractions.
 5. Validate in a browser at desktop and mobile widths. Check contrast, focus, keyboard use, reduced motion, dark mode when supported, loading/empty/error states, and text overflow.
-6. Share screenshots every time: before/after for revamps, after-only for new UI. If capture is blocked, report the exact blocker.
+6. Share real screenshots every time: before/after for revamps, after-only for new UI. PRs that touch visible UI or reporting must include those links/paths in the PR body or a PR comment. If capture is blocked, keep the PR draft or report the exact blocker.
 
 ## Design Direction
 
@@ -50,4 +50,4 @@ Reject and rewrite these unless the brief explicitly requires them and the choic
 - Core generated reports and workbenches must keep evidence readable: status chips, tables, wrapping, trace/code panels, screenshots, and diagnostics must remain inspectable.
 - User guide pages must keep one canonical page per concept and verify commands, APIs, properties, dependencies, and compatibility against engine source.
 - Public docs changes that alter behavior need the matching docs PR; pure agent-guidance changes do not.
-- PR evidence must include the smallest useful validation plus screenshot links/paths for any UI or reporting enhancement.
+- PR evidence must include the smallest useful validation plus real screenshot links/paths for any UI or reporting enhancement.

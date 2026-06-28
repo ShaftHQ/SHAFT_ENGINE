@@ -13,3 +13,16 @@ record ToolTemplate(String label, String toolName, String arguments) {
         return label;
     }
 }
+
+/**
+ * Category of editable MCP tool invocation templates.
+ *
+ * @param label category label
+ * @param templates templates in this category
+ */
+record ToolCategory(String label, java.util.List<ToolTemplate> templates) {
+    @Override
+    public String toString() {
+        return label;
+    }
+}

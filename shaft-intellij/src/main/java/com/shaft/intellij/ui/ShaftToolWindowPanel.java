@@ -2,7 +2,6 @@ package com.shaft.intellij.ui;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBTabbedPane;
-import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.JComponent;
@@ -18,19 +17,10 @@ public final class ShaftToolWindowPanel extends JPanel {
     public ShaftToolWindowPanel(@NotNull Project project) {
         super(new BorderLayout());
         JBTabbedPane tabs = new JBTabbedPane();
-        ShaftFeaturePanel recorder = new ShaftFeaturePanel(project, ToolTemplates.recorder());
-        preferredFocusComponent = recorder.preferredFocusComponent();
-        tabs.addTab("Recorder", recorder);
-        tabs.addTab("Playback", new ShaftFeaturePanel(project, ToolTemplates.playback()));
-        tabs.addTab("Doctor", new ShaftFeaturePanel(project, ToolTemplates.doctor()));
-        tabs.addTab("Healer", new ShaftFeaturePanel(project, ToolTemplates.healer()));
-        tabs.addTab("Inspector", new ShaftFeaturePanel(project, ToolTemplates.inspector()));
-        tabs.addTab("Projects", new ShaftFeaturePanel(project, ToolTemplates.projects()));
-        tabs.addTab("MCP", new ShaftFeaturePanel(project, ToolTemplates.mcp()));
-        tabs.addTab("Guide", new ShaftFeaturePanel(project, ToolTemplates.guide()));
-        if (ShaftSettingsState.getInstance().getState().autobotEnabled) {
-            tabs.addTab("Autobot", new ShaftAutobotPanel(project));
-        }
+        ShaftAssistantPanel assistant = new ShaftAssistantPanel(project);
+        preferredFocusComponent = assistant.preferredFocusComponent();
+        tabs.addTab("Assistant", assistant);
+        tabs.addTab("Tools", new ShaftFeaturePanel(project));
         add(tabs, BorderLayout.CENTER);
     }
 
