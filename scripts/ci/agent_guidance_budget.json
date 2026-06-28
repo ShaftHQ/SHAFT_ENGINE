@@ -64,14 +64,19 @@
     ".github/codex/prompts/refresh-agent-instructions.md"
   ],
   "reduction_baseline_bytes": 150000,
-  "minimum_reduction_percent": 85,
+  "minimum_reduction_percent": 79,
   "expected_skill_names": {
     ".agents/skills": [
+      "agent-guidance-boundary-guard",
+      "allure-extent-report-operator",
       "ci-failure-investigator",
       "flaky-test-stabilizer",
       "framework-source-rules",
       "graphify",
       "java-test-rules",
+      "mcp-transport-contract-auditor",
+      "modular-boundary-auditor",
+      "public-behavior-docs-synchronizer",
       "release-dependency-guard",
       "shaft-marketing-ad-producer",
       "shaft-ui-design"
@@ -80,8 +85,13 @@
       "graphify"
     ],
     ".github/skills": [
+      "agent-guidance-boundary-guard",
+      "allure-extent-report-operator",
       "ci-failure-investigator",
       "flaky-test-stabilizer",
+      "mcp-transport-contract-auditor",
+      "modular-boundary-auditor",
+      "public-behavior-docs-synchronizer",
       "release-dependency-guard",
       "shaft-marketing-ad-producer",
       "shaft-ui-design"

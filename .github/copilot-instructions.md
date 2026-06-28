@@ -5,8 +5,8 @@ Follow `AGENTS.md` as the canonical repository policy.
 - Apply `.github/instructions/framework-source.instructions.md` only to
   production Java and `.github/instructions/java-tests.instructions.md` only
   to test Java.
-- Load one matching playbook from `.github/skills/` for CI failures, flaky
-  tests, release/dependency work, SHAFT UI design, or marketing ads.
+- Load one matching playbook from `.github/skills/` for CI, flaky tests,
+  release/deps, UI, ads, docs, MCP, modules, reports, or guidance work.
 - Prefer targeted reads and deterministic local checks; reuse valid evidence.
 - Preserve unrelated work and never expose secrets or claim unverified remote
   results.
