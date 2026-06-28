@@ -1,6 +1,6 @@
 {
   "body_path": "memory/facts/mcp-test-automation-scenario-catalog.md",
-  "content_hash": "sha256:23d2c4388b99ba7760d6bb117941aa862d86f4eddea42d8d21dc9a19fcb7dadb",
+  "content_hash": "sha256:3258b1137c6c0fffb09f37bf7b1584484e3de8d8020a303ac6423ea5b574fd70",
   "created_at": "2026-06-20T17:15:19+03:00",
   "evidence": [
     {
@@ -16,14 +16,14 @@
       "kind": "file"
     },
     {
-      "id": "C:/Users/Mohab/IdeaProjects/shafthq.github.io/docs/agentic/mcp.mdx",
-      "kind": "file"
+      "id": "https://shafthq.github.io/docs/agentic/mcp",
+      "kind": "task"
     }
   ],
   "facets": {
     "applies_to": [
       "shaft-mcp/",
-      "docs/agentic/mcp.mdx"
+      "https://shafthq.github.io/docs/agentic/mcp"
     ],
     "category": "product-feature",
     "load_modes": [
@@ -51,5 +51,5 @@
   ],
   "title": "SHAFT MCP exposes test automation scenario catalog and code guardrails",
   "type": "fact",
-  "updated_at": "2026-06-20T17:15:19+03:00"
+  "updated_at": "2026-06-28T10:31:53+03:00"
 }

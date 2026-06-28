@@ -1,6 +1,6 @@
 {
   "body_path": "memory/syntheses/conventions-quality.md",
-  "content_hash": "sha256:977de00c29cbe2d3534334589f43643f6c09cd3e3b024db0874d0b09e597a7b5",
+  "content_hash": "sha256:add16667ccb3c14a1264eb6b811c2f97e77e1b578533b7955487395756b63419",
   "created_at": "2026-06-17T11:14:58+03:00",
   "evidence": [
     {
@@ -14,11 +14,14 @@
   ],
   "facets": {
     "applies_to": [
-      "AGENTS.md"
+      "AGENTS.md",
+      "PowerShell",
+      "validation"
     ],
     "category": "convention",
     "load_modes": [
       "coding",
+      "debugging",
       "review",
       "onboarding"
     ]
@@ -38,9 +41,11 @@
   "tags": [
     "synthesis",
     "convention",
-    "quality"
+    "quality",
+    "validation",
+    "powershell"
   ],
   "title": "Conventions and quality bar",
   "type": "synthesis",
-  "updated_at": "2026-06-17T11:19:41+03:00"
+  "updated_at": "2026-06-28T10:31:53+03:00"
 }

@@ -1,5 +1,1 @@
-# Conventions and quality bar
-
-Work from current code, tests, and config first. Keep context loading targeted, preserve public API compatibility, update external user docs for functionality changes, and validate with the smallest check that proves the change.
-
-Update this synthesis when explicit repo conventions, review expectations, or completion checks change.
+Work from current code, tests, docs, and config first. Keep scope tight, preserve user work and public API compatibility, prefer `rg` plus structured parsers/APIs, update the external user guide for functionality changes, and validate with the smallest non-redundant check that proves the change. On PowerShell, quote Maven `-D...`, stash refs, and args containing `{}`, `@`, `;`, `&`, or `|`. Local validation should avoid opening reports and should keep browser runs headless unless headed execution is explicitly requested.
