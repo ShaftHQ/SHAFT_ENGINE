@@ -92,6 +92,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
 
     private JsonObject awaitResult(int requestId, Duration timeout) throws IOException {
         long deadline = System.nanoTime() + timeout.toNanos();
+        JsonObject response = null;
         while (System.nanoTime() < deadline) {
             JsonObject message = readMessage();
             if (message == null) {
@@ -104,7 +105,11 @@ final class ShaftMcpStdioClient implements AutoCloseable {
                 throw new IOException(message.get("error").toString());
             }
             JsonElement result = message.get("result");
-            return result == null || !result.isJsonObject() ? new JsonObject() : result.getAsJsonObject();
+            response = result == null || !result.isJsonObject() ? new JsonObject() : result.getAsJsonObject();
+            break;
+        }
+        if (response != null) {
+            return response;
         }
         throw new IOException("Timed out waiting for SHAFT MCP response.");
     }
