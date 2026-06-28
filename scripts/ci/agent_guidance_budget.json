@@ -37,7 +37,8 @@
       ".agents/skills/*/SKILL.md"
     ],
     "claude": [
-      ".agents/skills/*/SKILL.md"
+      ".agents/skills/*/SKILL.md",
+      ".claude/skills/*/SKILL.md"
     ]
   },
   "max_estimated_tokens_per_host": 2100,
@@ -46,6 +47,7 @@
     "CLAUDE.md",
     ".agents/skills/*/SKILL.md",
     ".agents/skills/*/agents/openai.yaml",
+    ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
     ".github/skills/*/SKILL.md"
@@ -67,10 +69,14 @@
       "ci-failure-investigator",
       "flaky-test-stabilizer",
       "framework-source-rules",
+      "graphify",
       "java-test-rules",
       "release-dependency-guard",
       "shaft-marketing-ad-producer",
       "shaft-ui-design"
+    ],
+    ".claude/skills": [
+      "graphify"
     ],
     ".github/skills": [
       "ci-failure-investigator",
@@ -92,6 +98,7 @@
     "CLAUDE.md",
     "CONTRIBUTING.md",
     ".agents/skills/*/SKILL.md",
+    ".claude/skills/*/SKILL.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
     ".github/skills/README.md",
@@ -106,6 +113,7 @@
   ],
   "skills_roots": [
     ".agents/skills",
+    ".claude/skills",
     ".github/skills"
   ],
   "duplicate_paragraph_min_chars": 180,
