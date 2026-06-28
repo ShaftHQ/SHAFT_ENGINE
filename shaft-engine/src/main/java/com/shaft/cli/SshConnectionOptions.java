@@ -64,21 +64,45 @@ public final class SshConnectionOptions {
     }
 
     public void validate() {
+        validateHost();
+        validateUsername();
+        validatePort();
+        validateAuthentication();
+        validateKnownHostsForStrictChecking();
+    }
+
+    private void validateHost() {
         if (host == null || host.isBlank()) {
             throw new IllegalArgumentException("SSH connection options require a non-blank host.");
         }
+    }
+
+    private void validateUsername() {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("SSH connection options require a non-blank username.");
         }
+    }
+
+    private void validatePort() {
         if (port <= 0) {
             throw new IllegalArgumentException("SSH connection options require a positive port.");
         }
-        boolean hasPrivateKey = privateKey != null;
-        boolean hasPassword = password != null && !password.isBlank();
-        boolean hasKeyboardInteractive = keyboardInteractive != null;
-        if (!legacyFacade && !hasPrivateKey && !hasPassword && !hasKeyboardInteractive) {
-            throw new IllegalArgumentException("SSH connection options require a private key, password, or keyboard-interactive handler.");
+    }
+
+    private void validateAuthentication() {
+        if (legacyFacade || hasAuthenticationMethod()) {
+            return;
         }
+        throw new IllegalArgumentException("SSH connection options require a private key, password, or keyboard-interactive handler.");
+    }
+
+    private boolean hasAuthenticationMethod() {
+        return privateKey != null
+                || (password != null && !password.isBlank())
+                || keyboardInteractive != null;
+    }
+
+    private void validateKnownHostsForStrictChecking() {
         if (strictHostKeyChecking && knownHosts == null) {
             throw new IllegalArgumentException("SSH strict host key checking requires a known_hosts file path.");
         }
