@@ -1895,8 +1895,8 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java": {
-    "mtime": 1782366241.7274811,
-    "ast_hash": "0dcc9d873618f00473caca1408d915b1",
+    "mtime": 1782595797.202267,
+    "ast_hash": "f45fe12445fd1a8e26ef0d23a74b58c4",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/java/com/shaft/properties/internal/Jira.java": {
@@ -4210,8 +4210,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/BrowserService.java": {
-    "mtime": 1782590273.11448,
-    "ast_hash": "fefee9a59e112341967bd24927401142",
+    "mtime": 1782595446.1574996,
+    "ast_hash": "df386156a735f404a206b247523bbb28",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/BrowserType.java": {
@@ -4465,8 +4465,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/TestAutomationService.java": {
-    "mtime": 1782590579.087544,
-    "ast_hash": "3f123af92682dacd727ecc441ae99523",
+    "mtime": 1782595446.1583102,
+    "ast_hash": "c8c98123f632e5afc7c8177dcfeae67c",
     "semantic_hash": ""
   },
   "shaft-mcp/src/main/java/com/shaft/mcp/TraceService.java": {
@@ -4525,8 +4525,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/McpMobileToolchainServiceTest.java": {
-    "mtime": 1782366241.9065468,
-    "ast_hash": "0be311e4c93392ece2f42dbc7ae5ef4a",
+    "mtime": 1782596555.6734104,
+    "ast_hash": "518dcd5f953bbb4e1762759095b3cf4f",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/McpNoDriverServiceTest.java": {
@@ -4545,8 +4545,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/McpServiceHelperTest.java": {
-    "mtime": 1782590285.7932153,
-    "ast_hash": "8bc9710ebd0bb282b64e6c19077f7f00",
+    "mtime": 1782595446.1583102,
+    "ast_hash": "6bf3291c428d5c3461f7e6bdc9211637",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/MobileRecordingServiceTest.java": {
@@ -4560,8 +4560,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/ShaftMcpApplicationTests.java": {
-    "mtime": 1782590298.7891097,
-    "ast_hash": "7a3d729439b3c2630b877bbb97e918c6",
+    "mtime": 1782595446.1600597,
+    "ast_hash": "4aba6bac344a1e1e936f582f931574d2",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/java/com/shaft/mcp/TestAutomationServiceTest.java": {
@@ -4575,8 +4575,8 @@
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json": {
-    "mtime": 1782590293.9965563,
-    "ast_hash": "448a370b148120569d890d130715f641",
+    "mtime": 1782595446.1600597,
+    "ast_hash": "4723f0c44d89032b2c1253ed88fd750f",
     "semantic_hash": ""
   },
   "shaft-mcp/src/test/resources/fixtures/shaft-pilot/doctor/repair-input.json": {
@@ -5875,8 +5875,8 @@
     "semantic_hash": ""
   },
   "modular-era-feature-catalog.md": {
-    "mtime": 1782591096.2091823,
-    "ast_hash": "93ba31689e77ad4ec4cc808edd1ae71d",
+    "mtime": 1782595446.154753,
+    "ast_hash": "6e431ba1938694788999234084a8624b",
     "semantic_hash": ""
   },
   "shaft-engine/src/main/resources/modular-era-feature-catalog/android-emulator-device.png": {
@@ -5910,7 +5910,7 @@
     "semantic_hash": ""
   },
   "shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png": {
-    "mtime": 1782590777.7228117,
+    "mtime": 1782595446.156752,
     "ast_hash": "5510ed556a6e4a97036bc0d64ed49342",
     "semantic_hash": ""
   },
@@ -5934,16 +5934,6 @@
     "ast_hash": "6ec460f170bf6fc8ddff471a6140b29a",
     "semantic_hash": ""
   },
-  "shaft-mcp/allure-report/summary.json": {
-    "mtime": 1782590901.9660249,
-    "ast_hash": "44aee9c95d8c91cdf157f05f74b8b2e3",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/categories.json": {
-    "mtime": 1782590899.1010327,
-    "ast_hash": "bbc6f20af79864d58750116e43d3d312",
-    "semantic_hash": ""
-  },
   "shaft-mcp/src/main/java/com/shaft/mcp/McpAppiumLocatorSuggester.java": {
     "mtime": 1782589719.0536847,
     "ast_hash": "96704a37b22b34851b8f59c581164a76",
@@ -5959,224 +5949,9 @@
     "ast_hash": "c35ea8db36b6eb045cff975edba587da",
     "semantic_hash": ""
   },
-  "shaft-mcp/allurerc.yaml": {
-    "mtime": 1782590899.102034,
-    "ast_hash": "53f2fc33c1fadb9a8f8586345871e6c2",
-    "semantic_hash": ""
-  },
   "shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png": {
     "mtime": 1782589719.0441766,
     "ast_hash": "275d9b479a3d6af63eeed222374e6ca4",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/056aa93c-66a3-4672-abf7-33382eabf959-container.json": {
-    "mtime": 1782590899.077219,
-    "ast_hash": "31dc3cea818d91838e6a85534907f685",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/0c0f3531-ef0e-443e-a34b-b664e2f1315d-result.json": {
-    "mtime": 1782590899.0782168,
-    "ast_hash": "3ca1a78a594c0294f7d24b1452b5d48c",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/0df881a9-c9c8-4193-ac08-f2e0e28fdc89-container.json": {
-    "mtime": 1782590899.0793462,
-    "ast_hash": "1b5e0a274834be39904f01a09055c000",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/0fbbb3f8-5a21-4fdd-b4b2-32a938a3e707-result.json": {
-    "mtime": 1782590899.0816314,
-    "ast_hash": "8acb8a791f1200792e31a27040c2ee7e",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/257173ff-8a07-47da-b253-a1ad132d8bf8-result.json": {
-    "mtime": 1782590899.0826378,
-    "ast_hash": "cc48cf18b70e1597819a4f8c0842d8cb",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/3314c5ab-3ff6-4bdb-a88d-fd084cd471cc-container.json": {
-    "mtime": 1782590899.083642,
-    "ast_hash": "6e7b4f7b79b82da5131ce19aee5ac0ad",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/3c7e6934-5212-4900-8a70-dcc7434dfca9-container.json": {
-    "mtime": 1782590899.0846398,
-    "ast_hash": "006d85b04b422d62d43cb944c76551e0",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/4ce0743d-9fbe-4883-9134-fa8087b2cced-container.json": {
-    "mtime": 1782590899.0856392,
-    "ast_hash": "4ad3cc5fc475bed6818db334efb88925",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/67ba8768-5be8-434c-b03b-0e8eb1d93315-result.json": {
-    "mtime": 1782590899.086644,
-    "ast_hash": "8ce32da459d8868ee79d82c563ab7838",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/7dccfd4c-d583-42b0-8ada-5fdc87199eff-container.json": {
-    "mtime": 1782590899.0887718,
-    "ast_hash": "335b545d6cac2ae1187c0a05f3c5c22f",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/828e5d49-9991-440a-968d-33197fb04629-container.json": {
-    "mtime": 1782590899.089307,
-    "ast_hash": "4de95ff3952a8590eabd8ef184d2943a",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/8b2e03c7-f012-4aed-ae89-1ee8ca5d46b7-result.json": {
-    "mtime": 1782590899.090605,
-    "ast_hash": "f1d16f302fc3d60184282694e88975ff",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/8c4c35aa-c052-468d-8dbc-37ae784d1e12-result.json": {
-    "mtime": 1782590899.0916069,
-    "ast_hash": "962a5dcc03e566e2a9cc8f01d144610f",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/91815295-3799-42fc-9567-446c1a2b8353-result.json": {
-    "mtime": 1782590899.0926032,
-    "ast_hash": "f7b163bab9ff7044669045a670335e97",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/941d55b9-949d-476c-b7fe-9012cd590ec2-container.json": {
-    "mtime": 1782590899.0936034,
-    "ast_hash": "7033932ae083f0e4cf7b6be639a2b96f",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/9566878f-a9f0-417e-9cdd-3e50b6219df9-container.json": {
-    "mtime": 1782590899.0949297,
-    "ast_hash": "12415e85d8958be8105b11cbf0043062",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/a1bf9193-7235-4b8d-a4b8-c7587d2f110b-result.json": {
-    "mtime": 1782590899.0957856,
-    "ast_hash": "328f1db08edede8cedc780dbcd59d238",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/af205779-4885-4e3f-b8a5-132679e4776b-container.json": {
-    "mtime": 1782590899.0970204,
-    "ast_hash": "00c05d11c08a803563b2482c43f3f5bf",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/b3fda377-9b66-4f90-9da4-f407e0b6b865-result.json": {
-    "mtime": 1782590899.0980265,
-    "ast_hash": "e67b22e87d52d6f0243eac652ab1950b",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/ba0f2e74-4a4f-4529-a56c-cd6c6ddd0d13-container.json": {
-    "mtime": 1782590899.0990312,
-    "ast_hash": "353db645c606d933b9e56ccee74e263d",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/c4ced598-ed2a-4ff9-bb39-6a99a5046017-result.json": {
-    "mtime": 1782590899.0990312,
-    "ast_hash": "4ee292615872f6c4504dad80e25aed20",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/d971b004-a600-458c-9769-81ebf5c7a11a-container.json": {
-    "mtime": 1782590899.100031,
-    "ast_hash": "4fbd1286f37e53f2550eabec12d26146",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/performanceReport/PerformanceReport_27-06-2026_22-55-22-1287-PM.json": {
-    "mtime": 1782590122.1307106,
-    "ast_hash": "c7c128f11c0dd56a710d067ea19a34f0",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/performanceReport/PerformanceReport_27-06-2026_22-59-16-0360-PM.json": {
-    "mtime": 1782590356.0380793,
-    "ast_hash": "d65b62351e35771b1054ae9f2d7a5f4d",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/performanceReport/PerformanceReport_27-06-2026_23-08-19-0617-PM.json": {
-    "mtime": 1782590899.0637217,
-    "ast_hash": "fd8d3dc4434577e86faf269c53be36b3",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-report/2026-06-27_22-55-25-170_AllureReport.html": {
-    "mtime": 1782590125.1630557,
-    "ast_hash": "562683cdb3b1e8680ac07fac9ab5570c",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-report/2026-06-27_22-59-19-117_AllureReport.html": {
-    "mtime": 1782590359.1049666,
-    "ast_hash": "2cdb2e86fb4fd50e439970be799225fa",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-report/2026-06-27_23-08-22-061_AllureReport.html": {
-    "mtime": 1782590902.0480683,
-    "ast_hash": "c319252d1695b8e1dbfe25d373e26b5a",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/31e31810-3175-4ea5-87f2-888e59a20014-attachment.txt": {
-    "mtime": 1782590893.5361378,
-    "ast_hash": "54f39d51ac99c67af6c503b1deca8b56",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/92667b7e-2aa2-49fc-9d78-cd357a2fc78f-attachment.txt": {
-    "mtime": 1782590895.2810893,
-    "ast_hash": "283257bc7f0e6b07efd8f02b93ff9a8b",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/b87b86e9-a412-4bd9-934f-7d9e1d85318c-attachment.txt": {
-    "mtime": 1782590895.3832686,
-    "ast_hash": "4bf9e855b8e73289bc92f1ab3f0cc31e",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/c537c3e0-8bef-44a0-a623-de2c20418ce3-attachment.txt": {
-    "mtime": 1782590895.4085412,
-    "ast_hash": "6d11823ab3dab6adc1ef3cb7aac2ff9b",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/cd1ab1e6-2425-4a37-a44f-64b7f5ce391a-attachment.txt": {
-    "mtime": 1782590899.0303602,
-    "ast_hash": "63117a96a87914c71858fe3b021a7c81",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/de6cf2a5-698d-44c0-b2b5-015b3fbaece0-attachment.txt": {
-    "mtime": 1782590895.3643048,
-    "ast_hash": "d0565d08633428f7e82f3c57761b883b",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/e29aa8aa-2cff-4829-a4b6-5cc83d330d7b-attachment.txt": {
-    "mtime": 1782590895.4279592,
-    "ast_hash": "28f4fd82d5fdc7990f8d9dd65fe528a6",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/f47bc234-82a3-42e7-9d89-0e411179223b-attachment.txt": {
-    "mtime": 1782590895.6414163,
-    "ast_hash": "efedccc823fea9d18904423c4f0e8449",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/execution-summary/ExecutionSummaryReport_27-06-2026_23-08-19-0650-PM.html": {
-    "mtime": 1782590899.0700378,
-    "ast_hash": "dc38434871ff754cac008852e59a5b85",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/performanceReport/PerformanceReport_27-06-2026_22-55-22-1287-PM.html": {
-    "mtime": 1782590122.1297126,
-    "ast_hash": "9b79e4be04cd3198b23212c7f3a73cfb",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/performanceReport/PerformanceReport_27-06-2026_22-59-16-0360-PM.html": {
-    "mtime": 1782590356.0370808,
-    "ast_hash": "df8042fcd64c6676b20c113a811ca572",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/performanceReport/PerformanceReport_27-06-2026_23-08-19-0617-PM.html": {
-    "mtime": 1782590899.0631545,
-    "ast_hash": "c709735a2b81b9f3469b067532e4e348",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/6c9e1cd4-7ed0-4bb2-a711-1a6fbfff61db-attachment.png": {
-    "mtime": 1782590895.176357,
-    "ast_hash": "960b60ce94286db4d09740ee391daf8b",
-    "semantic_hash": ""
-  },
-  "shaft-mcp/allure-results/df5e0029-4ac5-40a3-8183-c2be20bd21ba-attachment.png": {
-    "mtime": 1782590893.2311072,
-    "ast_hash": "3630e84a77b72f65d7b798f87a56f474",
     "semantic_hash": ""
   }
 }
