@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
  * @see com.shaft.driver.SHAFT.CLI
  */
 @SuppressWarnings("unused")
-public class TerminalActions {
+public class TerminalActions implements AutoCloseable {
     @Getter
     private String sshHostName = "";
     @Getter
@@ -56,6 +56,7 @@ public class TerminalActions {
     private boolean verbose = false;
     private boolean isInternal = false;
     private boolean reuseRemoteSession = false;
+    private SshConnectionOptions sshConnectionOptions;
     private Session reusableRemoteSession;
     private ScheduledExecutorService reusableSessionTimeoutScheduler;
     private ScheduledFuture<?> reusableSessionTimeoutTask;
@@ -213,10 +214,38 @@ public class TerminalActions {
      */
     public static TerminalActions getRemoteInstance(String sshHostName, int sshPortNumber, String sshUsername,
                                                     String sshKeyFileFolderName, String sshKeyFileName, boolean verbose) {
-        TerminalActions terminalActions = new TerminalActions(sshHostName, sshPortNumber, sshUsername,
-                sshKeyFileFolderName, sshKeyFileName);
+        TerminalActions terminalActions = getRemoteInstance(SshConnectionOptions.fromKeyFile(sshHostName, sshPortNumber, sshUsername,
+                sshKeyFileFolderName, sshKeyFileName, verbose));
+        terminalActions.sshKeyFileFolderName = sshKeyFileFolderName;
+        terminalActions.sshKeyFileName = sshKeyFileName;
+        return terminalActions;
+    }
+
+    /**
+     * Creates a reusable remote terminal from {@link SshConnectionOptions}.
+     *
+     * @param options validated SSH connection options
+     * @return a reusable remote {@link TerminalActions} instance
+     */
+    public static TerminalActions getRemoteInstance(SshConnectionOptions options) {
+        options.validate();
+        TerminalActions terminalActions = new TerminalActions();
+        terminalActions.sshConnectionOptions = options;
+        terminalActions.sshHostName = options.getHost();
+        terminalActions.sshPortNumber = options.getPort();
+        terminalActions.sshUsername = options.getUsername();
+        if (options.getPrivateKey() != null) {
+            Path privateKey = options.getPrivateKey();
+            Path parent = privateKey.getParent();
+            terminalActions.sshKeyFileFolderName = parent == null ? "" : parent.toString();
+            if (!terminalActions.sshKeyFileFolderName.isEmpty()
+                    && !terminalActions.sshKeyFileFolderName.endsWith(File.separator)) {
+                terminalActions.sshKeyFileFolderName += File.separator;
+            }
+            terminalActions.sshKeyFileName = privateKey.getFileName().toString();
+        }
         terminalActions.reuseRemoteSession = true;
-        terminalActions.verbose = verbose;
+        terminalActions.verbose = options.isVerbose();
         return terminalActions;
     }
 
@@ -506,6 +535,14 @@ public class TerminalActions {
         }
     }
 
+    /**
+     * Closes the reusable remote SSH session by delegating to {@link #quit()}.
+     */
+    @Override
+    public synchronized void close() {
+        quit();
+    }
+
     private void passAction(String actionName, String testData, String log) {
         reportActionResult(actionName, testData, log, true);
     }
@@ -534,6 +571,13 @@ public class TerminalActions {
     }
 
     private Session createSSHsession() {
+        if (sshConnectionOptions != null) {
+            return createOptionsBackedSshSession(sshConnectionOptions);
+        }
+        return createLegacySshSession();
+    }
+
+    private Session createLegacySshSession() {
         Session session = null;
         String testData = sshHostName + ", " + sshPortNumber + ", " + sshUsername + ", " + sshKeyFileFolderName + ", "
                 + sshKeyFileName;
@@ -553,6 +597,100 @@ public class TerminalActions {
             failAction(testData, rootCauseException);
         }
         return session;
+    }
+
+    private Session createOptionsBackedSshSession(SshConnectionOptions options) {
+        Session session = null;
+        String testData = options.toRedactedDescription();
+        try {
+            JSch jsch = new JSch();
+            if (options.getKnownHosts() != null) {
+                jsch.setKnownHosts(options.getKnownHosts().toString());
+            }
+            if (options.getPrivateKey() != null) {
+                String privateKeyPath = options.getPrivateKey().toString();
+                if (options.getPrivateKeyPassphrase() != null && !options.getPrivateKeyPassphrase().isBlank()) {
+                    jsch.addIdentity(privateKeyPath, options.getPrivateKeyPassphrase());
+                } else {
+                    jsch.addIdentity(privateKeyPath);
+                }
+            }
+            session = jsch.getSession(options.getUsername(), options.getHost(), options.getPort());
+            Properties config = new Properties();
+            config.put("StrictHostKeyChecking", options.isStrictHostKeyChecking() ? "yes" : "no");
+            options.getExtraJschConfig().forEach(config::put);
+            session.setConfig(config);
+            if (options.getPassword() != null && !options.getPassword().isBlank()) {
+                session.setPassword(options.getPassword());
+            }
+            UserInfo userInfo = createUserInfo(options);
+            if (userInfo != null) {
+                session.setUserInfo(userInfo);
+            }
+            configureRemoteSshKeepAlive(session);
+            session.connect();
+            ReportManager.logDiscrete("Created SSH session for " + options.getUsername() + "@"
+                    + options.getHost() + ":" + options.getPort() + ".");
+        } catch (JSchException rootCauseException) {
+            failAction(testData, rootCauseException);
+        }
+        return session;
+    }
+
+    private UserInfo createUserInfo(SshConnectionOptions options) {
+        boolean needsUserInfo = (options.getPrivateKeyPassphrase() != null && !options.getPrivateKeyPassphrase().isBlank())
+                || options.getKeyboardInteractive() != null;
+        if (!needsUserInfo) {
+            return null;
+        }
+        return new SshUserInfo(options);
+    }
+
+    private static final class SshUserInfo implements UserInfo, UIKeyboardInteractive {
+        private final SshConnectionOptions options;
+
+        private SshUserInfo(SshConnectionOptions options) {
+            this.options = options;
+        }
+
+        @Override
+        public String getPassphrase() {
+            return options.getPrivateKeyPassphrase();
+        }
+
+        @Override
+        public String getPassword() {
+            return options.getPassword();
+        }
+
+        @Override
+        public boolean promptPassword(String message) {
+            return false;
+        }
+
+        @Override
+        public boolean promptPassphrase(String message) {
+            return false;
+        }
+
+        @Override
+        public boolean promptYesNo(String message) {
+            return false;
+        }
+
+        @Override
+        public void showMessage(String message) {
+            // no interactive console in automated tests
+        }
+
+        @Override
+        public String[] promptKeyboardInteractive(String destination, String name, String instruction,
+                                                  String[] prompt, boolean[] echo) {
+            if (options.getKeyboardInteractive() == null) {
+                return new String[prompt.length];
+            }
+            return options.getKeyboardInteractive().respond(destination, name, instruction, prompt, echo);
+        }
     }
 
     private void configureRemoteSshKeepAlive(Session session) throws JSchException {

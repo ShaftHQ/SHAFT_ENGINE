@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.cli.SshConnectionOptions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
@@ -881,6 +882,16 @@ public class SHAFT {
                                                      String sshKeyFileFolderName, String sshKeyFileName, boolean verbose) {
             return TerminalActions.getRemoteInstance(sshHostName, sshPortNumber, sshUsername,
                     sshKeyFileFolderName, sshKeyFileName, verbose);
+        }
+
+        /**
+         * Creates a reusable remote terminal from {@link SshConnectionOptions}.
+         *
+         * @param options validated SSH connection options
+         * @return a reusable remote {@link TerminalActions} instance
+         */
+        public static TerminalActions remoteTerminal(SshConnectionOptions options) {
+            return TerminalActions.getRemoteInstance(options);
         }
 
         /**

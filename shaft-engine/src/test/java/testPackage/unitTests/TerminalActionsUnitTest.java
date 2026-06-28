@@ -3,8 +3,10 @@ package testPackage.unitTests;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import com.shaft.cli.SshConnectionOptions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
+import org.apache.commons.lang3.SystemUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -357,8 +359,11 @@ public class TerminalActionsUnitTest {
     public void performTerminalCommandsShouldRunFromChangedDirectory() throws Exception {
         Path tempDir = createTempDir("cwd");
         TerminalActions terminal = TerminalActions.getInstance(false, false, true);
-        String log = terminal.performTerminalCommands(List.of("cd " + tempDir.toAbsolutePath(), "pwd"));
-        Assert.assertTrue(log.contains(tempDir.toAbsolutePath().toString()),
+        String directory = tempDir.toAbsolutePath().toString();
+        String log = SystemUtils.IS_OS_WINDOWS
+                ? terminal.performTerminalCommands(List.of("cd " + directory, "(Get-Location).Path"))
+                : terminal.performTerminalCommands(List.of("cd " + directory, "pwd"));
+        Assert.assertTrue(log.toLowerCase().contains(directory.toLowerCase()),
                 "Expected command log to include changed working directory.");
     }
 
@@ -631,6 +636,20 @@ public class TerminalActionsUnitTest {
         } finally {
             SHAFT.Properties.timeouts.set().sshServerAliveInterval(originalInterval);
         }
+    }
+
+    @Test(description = "close should delegate to quit for reusable remote terminals")
+    public void closeShouldDelegateToQuitForReusableRemoteTerminal() {
+        TerminalActions terminal = SHAFT.CLI.remoteTerminal("host.example.com", 22, "user", "", "");
+        Assert.assertTrue(terminal.isRemoteTerminal());
+        terminal.close();
+        terminal.quit();
+    }
+
+    @Test(description = "SshConnectionOptions legacy facade should disable strict host key checking by default")
+    public void sshConnectionOptionsLegacyFacadeShouldDisableStrictHostKeyChecking() {
+        SshConnectionOptions options = SshConnectionOptions.fromKeyFile("host.example.com", 22, "user", "/keys/", "id_rsa", false);
+        Assert.assertFalse(options.isStrictHostKeyChecking());
     }
 
     @Test(description = "createSSHsession should surface connection failures for invalid settings")
