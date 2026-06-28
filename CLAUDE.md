@@ -7,7 +7,8 @@
 - Treat imported `AGENTS.md` as canonical; do not restate it or append logs.
 - Follow the imported new-task flow for branch cleanup, fresh `origin/main`
   branches, ready PRs, and PR links.
-- Load one matching `.agents/skills/` bridge only when its trigger applies.
+- Load one matching `.agents/skills/` bridge only when its trigger applies;
+  use `.claude/skills/graphify` for native Graphify discovery.
 - Keep plans and final responses proportional to the task and stop when the
   requested behavior is verified.
 

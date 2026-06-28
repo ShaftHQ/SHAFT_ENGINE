@@ -422,6 +422,7 @@ def validate_refresh_workflow(root: Path, budget: dict) -> list[dict[str, str]]:
         "force_ai:": "force_ai input is missing",
         "python3 scripts/ci/validate_agent_setup.py": "deterministic audit step is missing",
         "if: steps.audit.outputs.needs_ai == 'true'": "paid action is not audit-gated",
+        ".claude/skills/*": "Claude skill surface is missing from the change allowlist",
     }
     errors: list[dict[str, str]] = []
     if re.search(r"(?m)^\s+schedule:\s*$", content):

@@ -113,7 +113,7 @@ jobs:
                 ;;
               .github/copilot-instructions.md|.github/pull_request_template.md)
                 ;;
-              .agents/skills/*|.github/instructions/*|.github/skills/*)
+              .agents/skills/*|.claude/skills/*|.github/instructions/*|.github/skills/*)
                 ;;
               *)
                 disallowed_files+=("$file")

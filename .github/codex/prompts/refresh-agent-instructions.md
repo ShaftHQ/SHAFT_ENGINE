@@ -7,8 +7,8 @@ the explicit maintainer reason.
 ## Allowed Work
 
 - Edit compact agent guidance: `AGENTS.md`, `CLAUDE.md`,
-  `.agents/skills/**`, `.github/copilot-instructions.md`, `.github/instructions/**`,
-  `.github/skills/**`, `CONTRIBUTING.md`, and
+  `.agents/skills/**`, `.claude/skills/**`, `.github/copilot-instructions.md`,
+  `.github/instructions/**`, `.github/skills/**`, `CONTRIBUTING.md`, and
   `.github/pull_request_template.md`.
 - Inspect executable configuration only when needed to verify a disputed fact.
 - Preserve unique safety and engineering rules in the narrowest canonical
