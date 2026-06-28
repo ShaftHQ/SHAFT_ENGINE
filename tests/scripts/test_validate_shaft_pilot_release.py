@@ -13,6 +13,169 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(MODULE)
 
 
+def _write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def _write_minimal_reactor(root: Path, reactor_version: str, plugin_version: str) -> None:
+    modules = "\n".join(f"                <module>{module}</module>" for module in MODULE.PILOT_MODULES)
+    _write_text(
+        root / "pom.xml",
+        f"""<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-parent</artifactId>
+            <version>{reactor_version}</version>
+            <modules>
+{modules}
+            </modules>
+        </project>
+        """,
+    )
+    _write_text(
+        root / "shaft-bom/pom.xml",
+        f"""<project xmlns="http://maven.apache.org/POM/4.0.0">
+            <dependencyManagement>
+                <dependencies>
+                    {"".join(
+                        f'<dependency><artifactId>{artifact}</artifactId></dependency>'
+                        for artifact in MODULE.PUBLIC_ARTIFACTS.values()
+                    )}
+                </dependencies>
+            </dependencyManagement>
+        </project>
+        """,
+    )
+    _write_text(
+        root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java",
+        f"""package com.shaft.properties.internal;
+
+        import org.aeonbits.owner.Config;
+
+        public interface Internal extends Config {{
+            @Key("shaftEngineVersion")
+            @DefaultValue("{reactor_version}")
+            String shaftEngineVersion();
+
+            @Key("allure3Version")
+            @DefaultValue("2.35.3")
+            String allure3Version();
+
+            @Key("nodeLtsVersion")
+            @DefaultValue("22.17.0")
+            String nodeLtsVersion();
+
+            @Key("appiumServerVersion")
+            @DefaultValue("10.1.1")
+            String appiumServerVersion();
+
+            @Key("appiumInspectorPluginVersion")
+            @DefaultValue("2026.1.0")
+            String appiumInspectorPluginVersion();
+
+            @Key("appiumUiAutomator2DriverVersion")
+            @DefaultValue("10.1.1")
+            String appiumUiAutomator2DriverVersion();
+
+            @Key("appiumXcuitestDriverVersion")
+            @DefaultValue("10.1.1")
+            String appiumXcuitestDriverVersion();
+
+            @Key("androidCommandLineToolsVersion")
+            @DefaultValue("11076708")
+            String androidCommandLineToolsVersion();
+        }}
+        """,
+    )
+    _write_text(
+        root / "shaft-engine/src/main/java/com/shaft/properties/internal/Pilot.java",
+        """package com.shaft.properties.internal;
+
+@Key("pilot.ai.enabled")
+    @DefaultValue("false")
+String pilotAiEnabled();
+
+@Key("pilot.ai.provider")
+    @DefaultValue("none")
+String pilotAiProvider();
+
+@Key("pilot.ai.consent.local")
+    @DefaultValue("false")
+String pilotConsentLocal();
+
+@Key("pilot.ai.consent.remote")
+    @DefaultValue("false")
+String pilotConsentRemote();
+
+@Key("pilot.ai.telemetry.enabled")
+    @DefaultValue("false")
+String pilotTelemetryEnabled();
+""",
+    )
+    _write_text(
+        root / "shaft-intellij/gradle.properties",
+        f"""pluginGroup=io.github.shafthq
+pluginVersion={plugin_version}
+pluginSinceBuild=243
+platformVersion=2024.3
+""",
+    )
+    _write_text(
+        root / "shaft-intellij/build.gradle.kts",
+        """import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+
+        intellijPlatform {
+            publishing {
+            }
+        }
+        """,
+    )
+    _write_text(
+        root / "shaft-intellij/src/main/java/com/shaft/intellij/mcp/ShaftMcpStdioClient.java",
+        """package com.shaft.intellij.mcp;
+
+        public class ShaftMcpStdioClient {
+            private void init() {
+                clientInfo.addProperty("version", pluginVersion());
+            }
+
+            private static String pluginVersion() {
+                return "fromBundle";
+            }
+        }
+        """,
+    )
+    _write_text(
+        root / "shaft-mcp/src/test/resources/fixtures/shaft-pilot/fixture.json",
+        """{"status":"passed"}""",
+    )
+    _write_text(
+        root / ".github/workflows/mavenCentral_cd.yml",
+        """Verify IntelliJ plugin release candidate
+      gradle -p shaft-intellij check buildPlugin verifyPlugin
+Validate SHAFT Pilot release contract
+Run deterministic SHAFT Pilot tests
+Run headless SHAFT Capture release journey
+Validate Maven publication
+Deploy to Maven Central
+Verify published Maven Central coordinates
+""",
+    )
+    _write_text(
+        root / ".github/workflows/shaft-pilot-release.yml",
+        """Verify IntelliJ plugin release candidate
+      gradle -p shaft-intellij check buildPlugin verifyPlugin
+Validate SHAFT Pilot release contract
+Run deterministic SHAFT Pilot tests
+Run headless SHAFT Capture release journey
+Validate Maven publication
+Deploy to Maven Central
+Verify published Maven Central coordinates
+""",
+    )
+
+
 class ShaftPilotReleaseValidatorTest(unittest.TestCase):
     def test_repository_static_contract_is_valid(self):
         self.assertEqual([], MODULE.validate_static(ROOT))
@@ -53,6 +216,48 @@ class ShaftPilotReleaseValidatorTest(unittest.TestCase):
 
         self.assertTrue(
             any("capture-browser-secret-canary" in error for error in errors)
+        )
+
+    def test_plugin_version_must_match_reactor_version(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260628", plugin_version="10.2.20260628-beta.0"
+            )
+
+            errors = MODULE.validate_static(root)
+
+        self.assertTrue(
+            any(
+                "shaft-intellij pluginVersion must match the reactor version"
+                in error
+                for error in errors
+            )
+        )
+
+    def test_plugin_publish_channel_must_be_stable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260628", plugin_version="10.2.20260628"
+            )
+            _write_text(
+                root / "shaft-intellij/build.gradle.kts",
+                """intellijPlatform {
+                    publishing {
+                        channels = listOf("beta")
+                    }
+                }
+                """,
+            )
+            errors = MODULE.validate_static(root)
+
+        self.assertTrue(
+            any(
+                "shaft-intellij publishing channel must be omitted or target the stable Marketplace channel"
+                in error
+                for error in errors
+            )
         )
 
     def test_packaged_secret_canaries_are_rejected(self):
