@@ -45,6 +45,12 @@ workflows.
 SHAFT is built for Java teams that want consistent APIs, repeatable
 configuration, and useful run artifacts across the full automation suite.
 
+## User Guide
+
+- Start: [overview](https://shafthq.github.io/docs/start/overview), [installation](https://shafthq.github.io/docs/start/installation), [upgrade](https://shafthq.github.io/docs/start/upgrade).
+- Testing: [web](https://shafthq.github.io/docs/testing/web), [mobile](https://shafthq.github.io/docs/testing/mobile), [API](https://shafthq.github.io/docs/testing/api).
+- Agentic workflows: [MCP](https://shafthq.github.io/docs/agentic/mcp), [Doctor](https://shafthq.github.io/docs/agentic/doctor), [Heal](https://shafthq.github.io/docs/agentic/heal).
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, validation, and pull

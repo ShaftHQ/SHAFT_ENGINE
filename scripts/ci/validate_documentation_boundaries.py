@@ -23,15 +23,19 @@ ALLOWED_EXACT = {
     ".github/skills/README.md",
     ".github/workflows/README.md",
     "shaft-mcp/.github/copilot-instructions.md",
+    "tools/repository-map/README.md",
 }
 ALLOWED_GLOBS = (
-    ".agents/skills/*/SKILL.md",
+    ".agents/skills/**/*.md",
+    ".claude/skills/**/*.md",
+    ".codex/**/*.md",
     ".github/codex/prompts/*.md",
     ".github/instructions/*.instructions.md",
     ".github/ISSUE_TEMPLATE/*.md",
-    ".github/skills/*/SKILL.md",
+    ".github/skills/**/*.md",
     ".memory/memory/*.md",
     ".memory/memory/**/*.md",
+    "tools/**/*.md",
     "*/src/test/resources/fixtures/**/*.md",
 )
 FORBIDDEN_LINK_FRAGMENTS = (
@@ -77,7 +81,7 @@ def validate_repository(root: Path = ROOT) -> list[str]:
         if not is_allowed(path):
             errors.append(f"public or unapproved Markdown remains: {path}")
         if path != "README.md" and Path(path).name.lower() == "readme.md":
-            if path not in {".github/skills/README.md", ".github/workflows/README.md"}:
+            if not is_allowed(path) or path.startswith("docs/"):
                 errors.append(f"non-root README is prohibited: {path}")
 
     readme = (root / "README.md").read_text(encoding="utf-8")

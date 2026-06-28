@@ -38,6 +38,26 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_repository_map_readme(self):
+        self.write("tools/repository-map/README.md", "# Repository Map\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
+    def test_allows_internal_tool_markdown(self):
+        self.write("tools/repository-map/details/usage.md", "# Usage\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
+    def test_allows_codex_internal_markdown(self):
+        self.write(".codex/tools/graphify.md", "# Graphify\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
+    def test_allows_claude_project_skill(self):
+        self.write(".claude/skills/graphify/SKILL.md", "# Graphify\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_rejects_unapproved_nested_readme(self):
         self.write(".github/other/README.md", "# Other\n")
 
