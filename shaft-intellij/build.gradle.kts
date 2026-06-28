@@ -91,5 +91,6 @@ tasks {
 
     test {
         useJUnitPlatform()
+        systemProperty("shaft.intellij.screenshotDir", System.getProperty("shaft.intellij.screenshotDir", ""))
     }
 }

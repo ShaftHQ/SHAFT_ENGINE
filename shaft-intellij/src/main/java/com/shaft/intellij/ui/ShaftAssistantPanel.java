@@ -42,9 +42,12 @@ final class ShaftAssistantPanel extends JPanel {
     private String lastResponse = "";
 
     ShaftAssistantPanel(@NotNull Project project) {
+        this(project, ShaftSettingsState.getInstance().getState());
+    }
+
+    ShaftAssistantPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
         super(new BorderLayout(8, 8));
         setBorder(JBUI.Borders.empty(8));
-        ShaftSettingsState.Settings settings = ShaftSettingsState.getInstance().getState();
         mode = new JComboBox<>(new String[]{"ASK", "PLAN", "AGENT"});
         client = new JComboBox<>(new String[]{"CODEX", "CLAUDE_CODE", "COPILOT_CLI"});
         mode.setSelectedItem(settings.defaultAutobotMode);
@@ -111,7 +114,7 @@ final class ShaftAssistantPanel extends JPanel {
                 text,
                 String.valueOf(client.getSelectedItem()),
                 String.valueOf(mode.getSelectedItem()),
-                project.getBasePath() == null ? "" : project.getBasePath(),
+                project == null || project.getBasePath() == null ? "" : project.getBasePath(),
                 customCommand.getText(),
                 allowSourceMutation.isSelected());
         append("You [" + mode.getSelectedItem() + " via " + client.getSelectedItem() + "]:\n" + text);

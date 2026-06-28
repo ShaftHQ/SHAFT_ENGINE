@@ -26,14 +26,14 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 <table>
   <tr>
     <td width="50%">
-      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-recorder.png" alt="SHAFT IntelliJ IDEA plugin Recorder tab" width="620">
-      <br><strong>IntelliJ Recorder tools</strong>
-      <br>Shows the recorder template content now grouped under the plugin's Tools tab.
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab" width="620">
+      <br><strong>IntelliJ Assistant</strong>
+      <br>Shows the Assistant-first tool window with Ask, Plan, Agent modes, local client choice, prompt, and transcript.
     </td>
     <td width="50%">
-      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-projects.png" alt="SHAFT IntelliJ IDEA plugin Projects tab" width="620">
-      <br><strong>IntelliJ project tools</strong>
-      <br>Shows project creation and upgrade templates now grouped under the plugin's Tools tab.
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-tools.png" alt="SHAFT IntelliJ IDEA plugin Tools tab" width="620">
+      <br><strong>IntelliJ Tools</strong>
+      <br>Shows recorder templates inside the secondary Tools tab with editable MCP JSON and output panes.
     </td>
   </tr>
   <tr>
@@ -116,7 +116,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | Ask, plan, or run guarded local-agent prompts in the Assistant, then run curated MCP workflows from the Tools tab. | `intellij-plugin-recorder.png`, `intellij-plugin-projects.png`, `intellij-plugin-mcp-guide.png` |
+| IntelliJ IDEA plugin | Ask, plan, or run guarded local-agent prompts in the Assistant, then run curated MCP workflows from the Tools tab. | `intellij-plugin-assistant.png`, `intellij-plugin-tools.png` |
 | Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
@@ -179,12 +179,12 @@ The plugin does not hide MCP requests: the Tools tab shows exact JSON arguments 
 
 <table>
   <tr>
-    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-recorder.png" alt="IntelliJ plugin Recorder tab" width="620"></td>
-    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-projects.png" alt="IntelliJ plugin Projects tab" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png" alt="IntelliJ plugin Assistant tab" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-tools.png" alt="IntelliJ plugin Tools tab" width="620"></td>
   </tr>
   <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin MCP tab" width="620"></td>
-    <td width="50%">Screenshots show the curated tool template content captured on `2026-06-28`; the current shell groups those templates under the secondary Tools tab.</td>
+    <td width="50%">Screenshots show the current Assistant-first shell and curated tool template content captured on `2026-06-28`.</td>
   </tr>
 </table>
 

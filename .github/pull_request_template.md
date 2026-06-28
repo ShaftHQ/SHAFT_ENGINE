@@ -41,6 +41,7 @@
 - [ ] New `public` methods and classes have JavaDoc comments with `@param` / `@return` / `@throws` tags.
 - [ ] I have not introduced any hardcoded credentials, secrets, or sensitive data.
 - [ ] I have not broken backward compatibility (or documented the breaking change above).
+- [ ] UI/reporting changes include real screenshots in the Evidence section or a PR comment.
 
 
 ## 🧪 How to Test
@@ -54,8 +55,8 @@
 ## Evidence
 
 > Provide the smallest evidence that proves the change: validator output, test
-> results, logs, or a concise before/after. Attach screenshots only for visual
-> behavior.
+> results, logs, or a concise before/after. UI/reporting changes must include
+> real screenshots: before/after for revamps, after-only for new UI.
 
 <!-- Paste results or attach relevant visual evidence. -->
 
