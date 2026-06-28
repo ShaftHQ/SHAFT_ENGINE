@@ -116,6 +116,19 @@
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
             </resource>
+            <resource>
+                <directory>${project.basedir}/../shaft-engine/src/main/resources/examples</directory>
+                <targetPath>META-INF/shaft-mcp/examples</targetPath>
+                <filtering>false</filtering>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../shaft-upgrader</directory>
+                <targetPath>META-INF/shaft-mcp</targetPath>
+                <includes>
+                    <include>upgrade_to_modular_shaft.py</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
         </resources>
         <plugins>
             <plugin>
@@ -163,7 +176,7 @@
                     </archive>
                     <includes>
                         <include>com/**</include>
-                        <include>META-INF/shaft-mcp/*</include>
+                        <include>META-INF/shaft-mcp/**</include>
                         <include>application*.properties</include>
                         <include>logback-spring.xml</include>
                     </includes>

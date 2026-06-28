@@ -248,6 +248,53 @@ final class ToolTemplates {
                         """));
     }
 
+    static List<ToolTemplate> projects() {
+        return List.of(
+                template("Create SHAFT Project", "shaft_project_create",
+                        """
+                        {
+                          "outputDirectory": "shaft-web-testng",
+                          "runner": "TestNG",
+                          "platform": "web",
+                          "groupId": "io.github.yourUsername",
+                          "artifactId": "shaft-web-testng",
+                          "version": "1.0.0",
+                          "optionalModules": [],
+                          "includeGithubActions": true,
+                          "includeDependabot": true,
+                          "overwrite": false
+                        }
+                        """),
+                template("Preview Current Project Upgrade", "shaft_project_upgrade",
+                        """
+                        {
+                          "projectRoot": ".",
+                          "upgradeType": "basic",
+                          "dryRun": true,
+                          "approve": false,
+                          "shaftVersion": "",
+                          "compileCommand": "",
+                          "compileTimeout": 900,
+                          "skipBaselineCompile": false,
+                          "allowAiRepair": false
+                        }
+                        """),
+                template("Apply Current Project Upgrade", "shaft_project_upgrade",
+                        """
+                        {
+                          "projectRoot": ".",
+                          "upgradeType": "basic",
+                          "dryRun": false,
+                          "approve": true,
+                          "shaftVersion": "",
+                          "compileCommand": "",
+                          "compileTimeout": 900,
+                          "skipBaselineCompile": false,
+                          "allowAiRepair": false
+                        }
+                        """));
+    }
+
     private static ToolTemplate template(String label, String toolName, String arguments) {
         return new ToolTemplate(label, toolName, arguments.stripIndent().trim());
     }
