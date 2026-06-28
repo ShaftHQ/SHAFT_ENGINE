@@ -24,7 +24,7 @@ workflows.
 
 ## Why SHAFT
 
-- Java and Maven first, with TestNG, JUnit 5, and Cucumber integration.
+- Java and Maven first, with TestNG, JUnit, and Cucumber integration.
 - One workflow for Web, Mobile, API, CLI, Database, accessibility, reporting,
   and evidence.
 - Configuration-first defaults for local, grid, cloud, and CI execution.
