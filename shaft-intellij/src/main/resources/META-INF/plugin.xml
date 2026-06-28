@@ -1,0 +1,40 @@
+<idea-plugin>
+    <id>io.github.shafthq.shaft</id>
+    <name>SHAFT</name>
+    <vendor email="Mohab.MohieElDeen@outlook.com" url="https://shafthq.github.io">ShaftHQ</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.java</depends>
+
+    <resource-bundle>messages.ShaftBundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="SHAFT"
+                    anchor="right"
+                    icon="/icons/shaftToolWindow.svg"
+                    factoryClass="com.shaft.intellij.ShaftToolWindowFactory"/>
+        <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftSettingsState"/>
+        <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftCredentialService"/>
+        <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpInvocationService"/>
+        <applicationConfigurable instance="com.shaft.intellij.settings.ShaftSettingsConfigurable"
+                                 id="shaft.settings"
+                                 displayName="SHAFT"/>
+        <notificationGroup id="SHAFT Notifications" displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <group id="Shaft.ToolsMenu" text="SHAFT" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="Shaft.OpenToolWindow"
+                    class="com.shaft.intellij.actions.OpenShaftToolWindowAction"
+                    text="Open SHAFT"
+                    description="Open the SHAFT tool window"
+                    icon="/icons/shaftToolWindow.svg"/>
+            <action id="Shaft.RecordJavaTarget"
+                    class="com.shaft.intellij.actions.RecordShaftFlowHereAction"
+                    text="Record SHAFT Flow Here"
+                    description="Prepare a SHAFT record-at-target MCP request for the current Java context"
+                    icon="/icons/shaftToolWindow.svg"/>
+        </group>
+    </actions>
+</idea-plugin>

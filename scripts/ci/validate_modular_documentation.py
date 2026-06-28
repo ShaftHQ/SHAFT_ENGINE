@@ -181,7 +181,7 @@ def main() -> None:
         "codex-config.toml",
         "claude-desktop.json",
         "gemini-settings.json",
-        "vscode-mcp.json",
+        "jetbrains-mcp.json",
     ):
         contents = (MCP_FIXTURES / fixture).read_text(encoding="utf-8")
         if "shaft-mcp.args" not in contents:

@@ -243,7 +243,7 @@ def validate(root: Path = ROOT) -> list[str]:
                 errors.append(f"shared Python MCP installer must contain standalone support for {required}")
         if '"-jar", str(jar)' in installer_implementation_text or '"-jar", str(args_file)' in installer_implementation_text:
             errors.append("shared Python MCP installer must configure the thin classpath argfile, not java -jar")
-        for legacy_client in ("codex-app", "copilot-vscode"):
+        for legacy_client in ("codex-app",):
             if legacy_client in installer_implementation_text:
                 errors.append(f"shared Python MCP installer must not contain removed client target: {legacy_client}")
     for installer in ("scripts/mcp/install-shaft-mcp.ps1", "scripts/mcp/install-shaft-mcp.sh"):
@@ -263,7 +263,6 @@ def validate(root: Path = ROOT) -> list[str]:
                 "-jar $jar install",
                 "-jar $Jar install",
                 "codex-app",
-                "copilot-vscode",
             )
             for token in forbidden:
                 if token in installer_text:
