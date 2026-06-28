@@ -1,1 +1,0 @@
-When a SHAFT_ENGINE task changes repository files, finish by validating, committing, pushing, opening a ready-for-review pull request, and reporting the PR link back to the user, unless the user explicitly asks not to publish. Use draft only when validation is blocked/incomplete or the user asks for draft. This is the required final step of the new-task flow.

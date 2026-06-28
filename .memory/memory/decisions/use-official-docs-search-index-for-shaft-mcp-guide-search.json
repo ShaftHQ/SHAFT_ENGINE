@@ -1,14 +1,27 @@
 {
   "body_path": "memory/decisions/use-official-docs-search-index-for-shaft-mcp-guide-search.md",
-  "content_hash": "sha256:526004412c33f74d5bc7219ab6642a51baaf18d3f6361723278a8cb1fae274a7",
+  "content_hash": "sha256:a5aa1028b34769c69ecd859c46df177d2ddb291fd9bb3dfbc94089fd8cfc4f18",
   "created_at": "2026-06-19T20:01:52+03:00",
-  "evidence": [],
+  "evidence": [
+    {
+      "id": "shaft-mcp/src/main/java/com/shaft/mcp/GuideService.java",
+      "kind": "file"
+    },
+    {
+      "id": "https://shafthq.github.io/docs/agentic/mcp",
+      "kind": "task"
+    }
+  ],
   "facets": {
     "applies_to": [
       "shaft-mcp/src/main/java/com/shaft/mcp/GuideService.java",
-      "C:/Users/Mohab/IdeaProjects/shafthq.github.io/docs/agentic/mcp.mdx"
+      "https://shafthq.github.io/docs/agentic/mcp"
     ],
-    "category": "decision-rationale"
+    "category": "decision-rationale",
+    "load_modes": [
+      "coding",
+      "review"
+    ]
   },
   "id": "decision.use-official-docs-search-index-for-shaft-mcp-guide-search",
   "scope": {
@@ -30,5 +43,5 @@
   ],
   "title": "Use official docs search index for SHAFT MCP guide search",
   "type": "decision",
-  "updated_at": "2026-06-19T20:01:52+03:00"
+  "updated_at": "2026-06-28T10:31:53+03:00"
 }

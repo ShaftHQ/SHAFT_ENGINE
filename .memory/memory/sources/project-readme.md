@@ -1,7 +1,3 @@
 # Source: README.md
 
-This source records that durable Memory can be derived from `README.md`.
-
-Captured signals:
-- README title: SHAFT
-- README summary: Fluent automation, synchronized actions, built-in assertions, rich evidence, and optional agent tools without rebuilding the framework for every surface.
+Canonical product overview. SHAFT is a Java 25 automation framework for Web, Mobile, API, CLI, and Database testing, with driver management, synchronization, assertions, configuration, test data, reporting, evidence, and optional modules for cloud execution, capture, diagnostics, healing, MCP, AI, video, and visual checks.

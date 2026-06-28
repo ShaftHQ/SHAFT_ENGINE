@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/run-local-e2e-jobs-in-a-dedicated-workflow.md",
-  "content_hash": "sha256:17b59d60bfba6671142733f89e964bd42f39f13dcb089e90b3d8752ab199fdd5",
+  "content_hash": "sha256:e8893f8069771dbbb0f9aeea87ecf9ea7bb54a3a91c59a087a2bf2e0d31cc43c",
   "created_at": "2026-06-17T21:29:23+03:00",
   "evidence": [
     {
@@ -12,10 +12,6 @@
       "kind": "file"
     },
     {
-      "id": "docs/maintainers/reactor.md",
-      "kind": "file"
-    },
-    {
       "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/27715249474",
       "kind": "task"
     }
@@ -23,8 +19,7 @@
   "facets": {
     "applies_to": [
       ".github/workflows/e2eLocalTests.yml",
-      ".github/workflows/e2eTests.yml",
-      "docs/maintainers/reactor.md"
+      ".github/workflows/e2eTests.yml"
     ],
     "category": "workflow",
     "load_modes": [
@@ -52,5 +47,5 @@
   ],
   "title": "Run local E2E jobs in a dedicated workflow",
   "type": "workflow",
-  "updated_at": "2026-06-17T23:37:27+03:00"
+  "updated_at": "2026-06-28T10:31:53+03:00"
 }

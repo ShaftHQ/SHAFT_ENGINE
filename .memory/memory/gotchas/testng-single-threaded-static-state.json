@@ -1,22 +1,24 @@
 {
   "body_path": "memory/gotchas/testng-single-threaded-static-state.md",
-  "content_hash": "sha256:96185473680f4ec6117279b2bcba84b31ad9dd38b41eebd882b7cb2848e2a9e5",
+  "content_hash": "sha256:b4bdaa1cc39b2180daf443bd0097b0720ec0f2c3640db99ad5eb62f7a7310493",
   "created_at": "2026-06-15T17:06:51+03:00",
   "evidence": [
     {
-      "id": "shaft-engine/src/test/java/testPackage/unitTests/RealtimeReporterTestLock.java",
-      "kind": "file"
-    },
-    {
-      "id": "shaft-engine/src/test/java/testPackage/unitTests/RealtimeReporterServerUnitTest.java",
+      "id": "shaft-engine/src/test/java/testPackage/unitTests/AllureManagerUnitTest.java",
       "kind": "file"
     }
   ],
   "facets": {
     "applies_to": [
-      "shaft-engine/src/test/java/testPackage/unitTests/RealtimeReporter*"
+      "shaft-engine/src/test/java/testPackage/unitTests/AllureManagerUnitTest.java",
+      "TestNG"
     ],
-    "category": "gotcha"
+    "category": "gotcha",
+    "load_modes": [
+      "coding",
+      "debugging",
+      "review"
+    ]
   },
   "id": "gotcha.testng-single-threaded-static-state",
   "scope": {
@@ -37,5 +39,5 @@
   ],
   "title": "TestNG singleThreaded does not isolate static state",
   "type": "gotcha",
-  "updated_at": "2026-06-15T17:06:51+03:00"
+  "updated_at": "2026-06-28T10:32:59+03:00"
 }
