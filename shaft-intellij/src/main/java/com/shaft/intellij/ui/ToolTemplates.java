@@ -70,7 +70,9 @@ final class ToolTemplates {
                           "insertAfter": "testMethod",
                           "driverVariableName": "driver"
                         }
-                        """));
+                        """,
+                        "Generates code for a selected Java target. Review targetSourcePath and insertAfter before running.",
+                        true));
     }
 
     static List<ToolTemplate> playback() {
@@ -170,7 +172,9 @@ final class ToolTemplates {
                           "allowRemoteAi": false,
                           "driverVariableName": "driver"
                         }
-                        """),
+                        """,
+                        "Runs a focused failed-test repair attempt. Review testCommand and allowedSourcePaths.",
+                        true),
                 template("Propose Healed Locator", "doctor_propose_healed_locator",
                         """
                         {
@@ -180,7 +184,9 @@ final class ToolTemplates {
                           "sourcePatchConsent": true,
                           "outputDirectory": "target/shaft-doctor/healing-proposals"
                         }
-                        """));
+                        """,
+                        "Creates a locator patch proposal. Confirm the sourcePath before running.",
+                        true));
     }
 
     static List<ToolTemplate> inspector() {
@@ -304,10 +310,21 @@ final class ToolTemplates {
                           "skipBaselineCompile": false,
                           "allowAiRepair": false
                         }
-                        """));
+                        """,
+                        "Applies a SHAFT project upgrade. Run the preview template first.",
+                        true));
     }
 
     private static ToolTemplate template(String label, String toolName, String arguments) {
         return new ToolTemplate(label, toolName, arguments.stripIndent().trim());
+    }
+
+    private static ToolTemplate template(
+            String label,
+            String toolName,
+            String arguments,
+            String description,
+            boolean confirmationRequired) {
+        return new ToolTemplate(label, toolName, arguments.stripIndent().trim(), description, confirmationRequired);
     }
 }

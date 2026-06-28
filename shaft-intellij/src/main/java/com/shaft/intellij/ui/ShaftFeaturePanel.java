@@ -3,11 +3,15 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
+import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -18,25 +22,38 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JSplitPane;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.datatransfer.StringSelection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 
 /**
  * MCP tools panel with editable JSON arguments.
  */
 final class ShaftFeaturePanel extends JPanel {
+    private final JBTextField search;
     private final JComboBox<ToolCategory> categorySelector;
     private final JComboBox<ToolTemplate> toolSelector;
+    private final JLabel templateDescription;
     private final JBTextArea argumentsArea;
     private final JBTextArea outputArea;
     private final JButton runButton;
+    private final JButton cancelButton;
+    private final JButton restoreDefaultsButton;
+    private final JButton copyOutputButton;
+    private final JProgressBar progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
     private final Map<String, String> argumentDrafts = new LinkedHashMap<>();
     private ToolTemplate activeTemplate;
+    private ShaftMcpInvocation currentInvocation;
     private boolean updatingTools;
 
     ShaftFeaturePanel(@NotNull Project project) {
@@ -44,22 +61,39 @@ final class ShaftFeaturePanel extends JPanel {
     }
 
     ShaftFeaturePanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
-        super(new BorderLayout(8, 8));
+        super(new BorderLayout(6, 6));
         this.settings = settings;
         setBorder(JBUI.Borders.empty(8));
+        search = new JBTextField();
+        search.setColumns(8);
+        search.getEmptyText().setText("Search tools");
         categorySelector = new JComboBox<>(ToolTemplates.categories().toArray(ToolCategory[]::new));
         toolSelector = new JComboBox<>();
-        argumentsArea = new JBTextArea(14, 56);
+        templateDescription = new JLabel(" ");
+        argumentsArea = new JBTextArea(16, 32);
         argumentsArea.setLineWrap(true);
         argumentsArea.setWrapStyleWord(true);
-        outputArea = new JBTextArea(10, 56);
+        outputArea = new JBTextArea(10, 32);
         outputArea.setEditable(false);
         outputArea.setLineWrap(true);
         outputArea.setWrapStyleWord(true);
         status = new JLabel("Ready");
+        progress = new JProgressBar();
+        progress.setIndeterminate(true);
+        progress.setVisible(false);
 
         runButton = new JButton("Run");
         runButton.addActionListener(event -> run(project));
+        cancelButton = new JButton("Cancel");
+        cancelButton.setEnabled(false);
+        cancelButton.addActionListener(event -> cancelCurrent());
+        restoreDefaultsButton = new JButton("Restore defaults");
+        restoreDefaultsButton.addActionListener(event -> restoreDefaults());
+        copyOutputButton = new JButton("Copy output");
+        copyOutputButton.setEnabled(false);
+        copyOutputButton.addActionListener(event -> copyOutput());
+        search.getDocument().addDocumentListener(new SimpleDocumentListener(this::refreshTools));
+        argumentsArea.getDocument().addDocumentListener(new SimpleDocumentListener(this::validateArguments));
         categorySelector.addActionListener(event -> refreshTools());
         toolSelector.addActionListener(event -> {
             if (!updatingTools) {
@@ -68,26 +102,40 @@ final class ShaftFeaturePanel extends JPanel {
         });
         refreshTools();
 
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel selectors = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JLabel searchLabel = label("Search", 'S', search);
         JLabel categoryLabel = label("Category", 'C', categorySelector);
         JLabel toolLabel = label("Tool", 'T', toolSelector);
-        header.add(categoryLabel);
-        header.add(categorySelector);
-        header.add(toolLabel);
-        header.add(toolSelector);
-        header.add(runButton);
-        header.add(status);
+        selectors.add(searchLabel);
+        selectors.add(search);
+        selectors.add(categoryLabel);
+        selectors.add(categorySelector);
+        selectors.add(toolLabel);
+        selectors.add(toolSelector);
 
-        JPanel north = new JPanel(new BorderLayout(6, 6));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        actions.add(runButton);
+        actions.add(cancelButton);
+        actions.add(restoreDefaultsButton);
+        actions.add(copyOutputButton);
+        actions.add(progress);
+        actions.add(status);
+
+        JPanel header = new JPanel(new BorderLayout(4, 4));
+        header.add(selectors, BorderLayout.NORTH);
+        header.add(actions, BorderLayout.CENTER);
+
+        JPanel north = new JPanel(new BorderLayout(4, 4));
         north.add(header, BorderLayout.NORTH);
+        north.add(templateDescription, BorderLayout.CENTER);
         north.add(setupNotice(project, settings), BorderLayout.SOUTH);
 
-        JPanel center = new JPanel(new BorderLayout(6, 6));
+        JPanel center = new JPanel(new BorderLayout(4, 4));
         JLabel argumentsLabel = label("Arguments", 'A', argumentsArea);
         center.add(argumentsLabel, BorderLayout.NORTH);
         center.add(new JBScrollPane(argumentsArea), BorderLayout.CENTER);
 
-        JPanel output = new JPanel(new BorderLayout(6, 6));
+        JPanel output = new JPanel(new BorderLayout(4, 4));
         JLabel outputLabel = label("Output", 'O', outputArea);
         output.add(outputLabel, BorderLayout.NORTH);
         output.add(new JBScrollPane(outputArea), BorderLayout.CENTER);
@@ -111,6 +159,18 @@ final class ShaftFeaturePanel extends JPanel {
         if (!mcpConfigured()) {
             status.setText("Configure MCP");
             outputArea.setText("Configure SHAFT MCP in Settings before running Tools requests.");
+            copyOutputButton.setEnabled(true);
+            return;
+        }
+        if (template.confirmationRequired()
+                && Messages.showOkCancelDialog(
+                this,
+                "Run " + template.label() + "?\n\nReview the arguments before continuing.",
+                "Confirm SHAFT Tool",
+                "Run",
+                "Cancel",
+                null) != Messages.OK) {
+            status.setText("Cancelled");
             return;
         }
         JsonObject arguments;
@@ -120,41 +180,48 @@ final class ShaftFeaturePanel extends JPanel {
         } catch (RuntimeException exception) {
             status.setText("Invalid JSON");
             outputArea.setText("Invalid JSON: " + exception.getMessage());
+            copyOutputButton.setEnabled(true);
             return;
         }
         setRunning(true, "Running " + template.toolName() + "...");
         outputArea.setText("");
-        ShaftMcpInvocationService.getInstance(project)
-                .invokeTool(template.toolName(), arguments)
-                .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
-                        () -> showResult(result, error)));
+        copyOutputButton.setEnabled(false);
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(template.toolName(), arguments);
+        currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                () -> showResult(result, error)));
     }
 
     private void showResult(ShaftMcpToolResult result, Throwable error) {
+        if (error instanceof CancellationException) {
+            setRunning(false, "Cancelled");
+            outputArea.setText("Cancelled.");
+            copyOutputButton.setEnabled(true);
+            return;
+        }
         setRunning(false, error == null && result != null && result.success() ? "Finished" : "Failed");
         if (error != null) {
             outputArea.setText(error.getMessage());
         } else if (result == null) {
             outputArea.setText("No result returned.");
         } else {
-            outputArea.setText(result.output());
+            outputArea.setText(JsonText.prettyOrOriginal(result.output()));
         }
+        copyOutputButton.setEnabled(!outputArea.getText().isBlank());
     }
 
     private void refreshTools() {
         saveActiveDraft();
+        String query = search.getText().trim().toLowerCase();
         ToolCategory category = (ToolCategory) categorySelector.getSelectedItem();
         updatingTools = true;
         toolSelector.removeAllItems();
-        if (category == null) {
+        if (category == null && query.isBlank()) {
             updatingTools = false;
             activeTemplate = null;
             argumentsArea.setText("");
             return;
         }
-        for (ToolTemplate template : category.templates()) {
-            toolSelector.addItem(template);
-        }
+        matchingTemplates(category, query).forEach(toolSelector::addItem);
         updatingTools = false;
         loadSelectedTemplate();
     }
@@ -165,7 +232,12 @@ final class ShaftFeaturePanel extends JPanel {
         activeTemplate = selected;
         if (selected != null) {
             argumentsArea.setText(argumentDrafts.getOrDefault(draftKey(selected), selected.arguments()));
+            templateDescription.setText(description(selected));
+        } else {
+            argumentsArea.setText("");
+            templateDescription.setText("No tool template matches the current filter.");
         }
+        validateArguments();
     }
 
     private void saveActiveDraft() {
@@ -176,9 +248,17 @@ final class ShaftFeaturePanel extends JPanel {
 
     private void setRunning(boolean running, String message) {
         runButton.setEnabled(!running);
+        cancelButton.setEnabled(running);
+        restoreDefaultsButton.setEnabled(!running);
+        search.setEnabled(!running);
         categorySelector.setEnabled(!running);
         toolSelector.setEnabled(!running);
+        argumentsArea.setEnabled(!running);
+        progress.setVisible(running);
         status.setText(message);
+        if (!running) {
+            currentInvocation = null;
+        }
     }
 
     private ToolTemplate selectedTemplate() {
@@ -212,5 +292,105 @@ final class ShaftFeaturePanel extends JPanel {
 
     private static String draftKey(ToolTemplate template) {
         return template.toolName() + "\n" + template.label();
+    }
+
+    void prefillTool(String toolName, JsonObject arguments) {
+        saveActiveDraft();
+        search.setText("");
+        for (ToolCategory category : ToolTemplates.categories()) {
+            for (ToolTemplate template : category.templates()) {
+                if (template.toolName().equals(toolName)) {
+                    categorySelector.setSelectedItem(category);
+                    toolSelector.setSelectedItem(template);
+                    activeTemplate = template;
+                    argumentsArea.setText(JsonText.prettyOrOriginal(arguments.toString()));
+                    argumentDrafts.put(draftKey(template), argumentsArea.getText());
+                    templateDescription.setText(description(template));
+                    validateArguments();
+                    return;
+                }
+            }
+        }
+    }
+
+    void selectCategory(String label) {
+        search.setText("");
+        for (ToolCategory category : ToolTemplates.categories()) {
+            if (category.label().equals(label)) {
+                categorySelector.setSelectedItem(category);
+                return;
+            }
+        }
+    }
+
+    private void restoreDefaults() {
+        ToolTemplate template = selectedTemplate();
+        if (template != null) {
+            argumentDrafts.remove(draftKey(template));
+            argumentsArea.setText(template.arguments());
+            validateArguments();
+        }
+    }
+
+    private void validateArguments() {
+        String error = JsonText.validateObject(argumentsArea.getText());
+        if (error.isBlank()) {
+            if (currentInvocation == null) {
+                status.setText("Ready");
+            }
+            runButton.setEnabled(currentInvocation == null);
+        } else {
+            status.setText("Invalid JSON");
+            runButton.setEnabled(false);
+        }
+    }
+
+    private void cancelCurrent() {
+        if (currentInvocation != null) {
+            currentInvocation.cancel();
+            status.setText("Cancelling...");
+        }
+    }
+
+    private void copyOutput() {
+        if (!outputArea.getText().isBlank()) {
+            CopyPasteManager.getInstance().setContents(new StringSelection(outputArea.getText()));
+            status.setText("Copied output");
+        }
+    }
+
+    private static List<ToolTemplate> matchingTemplates(ToolCategory category, String query) {
+        return ToolTemplates.categories().stream()
+                .filter(candidate -> query.isBlank() && candidate.equals(category) || !query.isBlank())
+                .flatMap(candidate -> candidate.templates().stream())
+                .filter(template -> query.isBlank() || matches(template, query))
+                .toList();
+    }
+
+    private static boolean matches(ToolTemplate template, String query) {
+        return template.label().toLowerCase().contains(query)
+                || template.toolName().toLowerCase().contains(query)
+                || template.description().toLowerCase().contains(query);
+    }
+
+    private static String description(ToolTemplate template) {
+        return template.description().isBlank() ? template.toolName() : template.description();
+    }
+
+    private record SimpleDocumentListener(Runnable callback) implements DocumentListener {
+        @Override
+        public void insertUpdate(DocumentEvent event) {
+            callback.run();
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent event) {
+            callback.run();
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent event) {
+            callback.run();
+        }
     }
 }

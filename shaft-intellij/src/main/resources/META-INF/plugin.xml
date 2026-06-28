@@ -9,9 +9,10 @@
     <resource-bundle>messages.ShaftBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="SHAFT"
+                    <toolWindow id="SHAFT"
                     anchor="right"
-                    icon="/icons/shaftToolWindow.svg"
+                    icon="/icons/shaftToolWindow.png"
+                    iconDark="/icons/shaftToolWindow_dark.png"
                     factoryClass="com.shaft.intellij.ShaftToolWindowFactory"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftSettingsState"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftCredentialService"/>
@@ -29,12 +30,16 @@
                     class="com.shaft.intellij.actions.OpenShaftToolWindowAction"
                     text="Open SHAFT"
                     description="Open the SHAFT tool window"
-                    icon="/icons/shaftToolWindow.svg"/>
+                    icon="/icons/shaftToolWindow.png"
+                    iconDark="/icons/shaftToolWindow_dark.png"/>
             <action id="Shaft.RecordJavaTarget"
                     class="com.shaft.intellij.actions.RecordShaftFlowHereAction"
                     text="Record SHAFT Flow Here"
                     description="Prepare a SHAFT record-at-target MCP request for the current Java context"
-                    icon="/icons/shaftToolWindow.svg"/>
+                    icon="/icons/shaftToolWindow.png"
+                    iconDark="/icons/shaftToolWindow_dark.png">
+                <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            </action>
         </group>
     </actions>
 </idea-plugin>

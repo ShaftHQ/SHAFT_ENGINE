@@ -44,6 +44,11 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         stderr = CompletableFuture.supplyAsync(() -> readAll(process.getErrorStream()));
     }
 
+    String initializeOnly(Duration timeout) throws IOException {
+        initialize(timeout);
+        return "SHAFT MCP connection is ready.";
+    }
+
     JsonObject callTool(String toolName, JsonObject arguments, Duration timeout) throws IOException {
         initialize(timeout);
         int requestId = id.getAndIncrement();
@@ -177,5 +182,9 @@ final class ShaftMcpStdioClient implements AutoCloseable {
             process.destroyForcibly();
         }
         stderr.cancel(true);
+    }
+
+    void cancel() {
+        close();
     }
 }

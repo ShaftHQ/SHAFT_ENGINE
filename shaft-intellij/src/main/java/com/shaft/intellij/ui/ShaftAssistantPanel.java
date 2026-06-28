@@ -9,6 +9,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -20,12 +21,14 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.KeyStroke;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.concurrent.CancellationException;
 
 /**
  * SHAFT Assistant chat-style panel.
@@ -38,17 +41,25 @@ final class ShaftAssistantPanel extends JPanel {
     private final JBTextArea prompt;
     private final JBTextArea transcript;
     private final JButton send;
+    private final JButton cancel;
     private final JButton copyLastResponse;
+    private final JButton copyTranscript;
+    private final JButton clearTranscript;
+    private final JButton rerunLastPrompt;
+    private final JButton testConnection;
+    private final JProgressBar progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
     private String lastResponse = "";
+    private String lastPrompt = "";
+    private ShaftMcpInvocation currentInvocation;
 
     ShaftAssistantPanel(@NotNull Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
     }
 
     ShaftAssistantPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
-        super(new BorderLayout(8, 8));
+        super(new BorderLayout(6, 6));
         this.settings = settings;
         setBorder(JBUI.Borders.empty(8));
         mode = new JComboBox<>(new String[]{"ASK", "PLAN", "AGENT"});
@@ -56,55 +67,86 @@ final class ShaftAssistantPanel extends JPanel {
         mode.setSelectedItem(settings.defaultAutobotMode);
         client.setSelectedItem(settings.defaultAutobotClient);
         customCommand = new JBTextField();
+        customCommand.getEmptyText().setText("Optional local agent command");
         allowSourceMutation = new JBCheckBox("Approve source mutation for Agent mode");
-        prompt = new JBTextArea(8, 56);
+        prompt = new JBTextArea(5, 32);
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
-        transcript = new JBTextArea(14, 56);
+        transcript = new JBTextArea(18, 32);
         transcript.setEditable(false);
         transcript.setLineWrap(true);
         transcript.setWrapStyleWord(true);
         transcript.setText("Type a question or use /help for SHAFT commands.");
         status = new JLabel("Ready");
+        progress = new JProgressBar();
+        progress.setIndeterminate(true);
+        progress.setVisible(false);
 
         send = new JButton("Send");
         send.addActionListener(event -> send(project));
+        cancel = new JButton("Cancel");
+        cancel.setEnabled(false);
+        cancel.addActionListener(event -> cancelCurrent());
         copyLastResponse = new JButton("Copy response");
         copyLastResponse.setEnabled(false);
         copyLastResponse.addActionListener(event -> copyLastResponse());
+        copyTranscript = new JButton("Copy all");
+        copyTranscript.addActionListener(event -> copy(transcript.getText(), "Copied transcript"));
+        clearTranscript = new JButton("Clear");
+        clearTranscript.addActionListener(event -> clearTranscript());
+        rerunLastPrompt = new JButton("Rerun");
+        rerunLastPrompt.setEnabled(false);
+        rerunLastPrompt.addActionListener(event -> rerun(project));
+        testConnection = new JButton("Test MCP");
+        testConnection.addActionListener(event -> testConnection(project));
         mode.addActionListener(event -> updateMutationVisibility());
         updateMutationVisibility();
         bindKeyboard(project);
 
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         controls.add(label("Mode", 'M', mode));
         controls.add(mode);
         controls.add(label("Client", 'L', client));
         controls.add(client);
         controls.add(allowSourceMutation);
-        controls.add(send);
-        controls.add(copyLastResponse);
-        controls.add(status);
 
-        JPanel commandPanel = new JPanel(new BorderLayout(6, 6));
-        commandPanel.add(label("Custom local agent command", 'U', customCommand), BorderLayout.WEST);
+        JPanel commandPanel = new JPanel(new BorderLayout(4, 4));
+        commandPanel.add(label("Command", 'U', customCommand), BorderLayout.WEST);
         commandPanel.add(customCommand, BorderLayout.CENTER);
 
-        JPanel north = new JPanel(new BorderLayout(6, 6));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        actions.add(testConnection);
+        actions.add(copyLastResponse);
+        actions.add(copyTranscript);
+        actions.add(clearTranscript);
+        actions.add(rerunLastPrompt);
+        actions.add(cancel);
+        actions.add(status);
+
+        JPanel north = new JPanel(new BorderLayout(4, 4));
         north.add(controls, BorderLayout.NORTH);
-        north.add(setupNotice(project, settings), BorderLayout.CENTER);
-        north.add(commandPanel, BorderLayout.SOUTH);
+        north.add(commandPanel, BorderLayout.CENTER);
+        north.add(setupNotice(project, settings), BorderLayout.SOUTH);
 
-        JPanel center = new JPanel(new BorderLayout(6, 6));
-        center.add(label("Prompt", 'P', prompt), BorderLayout.NORTH);
-        center.add(new JBScrollPane(prompt), BorderLayout.CENTER);
+        JPanel transcriptPanel = new JPanel(new BorderLayout(4, 4));
+        transcriptPanel.add(label("Transcript", 'T', transcript), BorderLayout.NORTH);
+        transcriptPanel.add(new JBScrollPane(transcript), BorderLayout.CENTER);
 
-        JPanel south = new JPanel(new BorderLayout(6, 6));
-        south.add(label("Transcript", 'T', transcript), BorderLayout.NORTH);
-        south.add(new JBScrollPane(transcript), BorderLayout.CENTER);
+        JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        promptActions.add(progress);
+        promptActions.add(send);
+
+        JPanel composer = new JPanel(new BorderLayout(4, 4));
+        composer.add(label("Prompt", 'P', prompt), BorderLayout.NORTH);
+        composer.add(new JBScrollPane(prompt), BorderLayout.CENTER);
+        composer.add(promptActions, BorderLayout.SOUTH);
+
+        JPanel south = new JPanel(new BorderLayout(4, 4));
+        south.add(actions, BorderLayout.NORTH);
+        south.add(composer, BorderLayout.CENTER);
 
         add(north, BorderLayout.NORTH);
-        add(center, BorderLayout.CENTER);
+        add(transcriptPanel, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
     }
 
@@ -118,6 +160,8 @@ final class ShaftAssistantPanel extends JPanel {
             status.setText("Enter a prompt");
             return;
         }
+        lastPrompt = text;
+        rerunLastPrompt.setEnabled(true);
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 text,
                 String.valueOf(client.getSelectedItem()),
@@ -137,18 +181,23 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         setRunning(true, "Running " + invocation.toolName() + "...");
-        ShaftMcpInvocationService.getInstance(project)
-                .invokeTool(invocation.toolName(), invocation.arguments())
-                .whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
-                        () -> showResult(invocation.toolName(), result, error)));
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
+        currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                () -> showResult(invocation.toolName(), result, error)));
     }
 
     private void showResult(String toolName, ShaftMcpToolResult result, Throwable error) {
+        boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
         setRunning(false, success ? "Finished" : "Failed");
+        if (cancelled) {
+            showResponse("SHAFT Assistant [" + toolName + " cancelled]");
+            status.setText("Cancelled");
+            return;
+        }
         String output = error != null ? error.getMessage()
                 : result == null ? "No result returned."
-                : result.output();
+                : JsonText.prettyOrOriginal(result.output());
         showResponse("SHAFT Assistant [" + toolName + (success ? " OK" : " failed") + "]:\n" + output);
     }
 
@@ -174,11 +223,18 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void setRunning(boolean running, String message) {
         send.setEnabled(!running);
+        testConnection.setEnabled(!running);
+        rerunLastPrompt.setEnabled(!running && !lastPrompt.isBlank());
         mode.setEnabled(!running);
         client.setEnabled(!running);
         customCommand.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
+        cancel.setEnabled(running);
+        progress.setVisible(running);
         status.setText(message);
+        if (!running) {
+            currentInvocation = null;
+        }
     }
 
     private void updateMutationVisibility() {
@@ -201,8 +257,47 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void copyLastResponse() {
         if (!lastResponse.isBlank()) {
-            CopyPasteManager.getInstance().setContents(new StringSelection(lastResponse));
-            status.setText("Copied response");
+            copy(lastResponse, "Copied response");
+        }
+    }
+
+    private void clearTranscript() {
+        transcript.setText("");
+        lastResponse = "";
+        copyLastResponse.setEnabled(false);
+        status.setText("Cleared");
+    }
+
+    private void rerun(Project project) {
+        if (!lastPrompt.isBlank()) {
+            prompt.setText(lastPrompt);
+            send(project);
+        }
+    }
+
+    private void testConnection(Project project) {
+        if (!mcpConfigured()) {
+            showLocalResponse("Configure SHAFT MCP in Settings before testing the connection.");
+            status.setText("Configure MCP");
+            return;
+        }
+        setRunning(true, "Testing MCP...");
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).testConnection();
+        currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                () -> showResult("mcp initialize", result, error)));
+    }
+
+    private void cancelCurrent() {
+        if (currentInvocation != null) {
+            currentInvocation.cancel();
+            status.setText("Cancelling...");
+        }
+    }
+
+    private void copy(String value, String message) {
+        if (!value.isBlank()) {
+            CopyPasteManager.getInstance().setContents(new StringSelection(value));
+            status.setText(message);
         }
     }
 
