@@ -17,14 +17,12 @@ Bridge skills point to `.github/` or docs; do not preload.
 
 ## New Task Flow
 
-For file edits unless told otherwise:
+For file edits:
 
 1. Delete only clean unused merged/closed Codex worktrees/branches; preserve user work.
-2. Fetch/prune; fast-forward `main` from `origin/main`.
-3. Branch fresh `codex/*` from `origin/main`.
-4. Implement, validate, commit, push, and open a ready PR after checks pass;
-   draft only when blocked/incomplete/requested.
-5. Share PR link.
+2. Fetch/prune; fast-forward `main` from `origin/main`; branch fresh `codex/*`.
+3. Before PR: fetch remote default; merge/rebase, resolve conflicts, rerun checks.
+4. Commit, push, open ready PR; draft only when blocked/incomplete/requested; share link.
 
 ## Working Rules
 
