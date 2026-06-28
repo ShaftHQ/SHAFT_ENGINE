@@ -14,7 +14,7 @@ This catalog is written for framework users who want to know what changed, what 
 | --- | --- | --- |
 | Upgrade without pulling every optional integration into the core artifact. | [Modular adoption](#modular-adoption) | `shaft-engine` stays lean while BrowserStack, visual, video, AI, Doctor, Heal, and Capture remain available as opt-in modules. |
 | Let an agent inspect pages, choose locators, record flows, and review generated code. | [MCP and agent workflows](#mcp-and-agent-workflows) | `shaft-mcp` exposes WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, and guardrail tools through one automation surface. |
-| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The beta plugin adds MCP-backed tabs for recording, playback, Doctor, Healer, Inspector, project scaffolding/upgrades, guide search, and optional Autobot. |
+| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The beta plugin now opens on a SHAFT Assistant chat surface and keeps recorder, playback, Doctor, Healer, Inspector, project, MCP, and guide workflows under Tools. |
 | Turn exploratory browser or mobile sessions into maintainable Java tests. | [Capture and code generation](#capture-and-code-generation) | Recorder sessions preserve actions, checkpoints, locators, context, privacy, and replay snippets. |
 | Make Android/Appium setup and recording less coordinate-driven. | [Mobile automation](#mobile-automation) | Toolchain diagnostics and locator-first Inspector recording show the exact device, locator, and fallback state. |
 | Debug failed tests from evidence instead of guessing. | [Doctor, Heal, Trace, and reporting](#doctor-heal-trace-and-reporting) | Failure briefs, traces, locator health, healing decisions, and report UI give a shorter path from failure to fix. |
@@ -27,20 +27,20 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
   <tr>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-recorder.png" alt="SHAFT IntelliJ IDEA plugin Recorder tab" width="620">
-      <br><strong>IntelliJ Recorder tab</strong>
-      <br>Runs SHAFT MCP recorder templates from the IDE with editable JSON arguments and an output pane.
+      <br><strong>IntelliJ Recorder tools</strong>
+      <br>Shows the recorder template content now grouped under the plugin's Tools tab.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-projects.png" alt="SHAFT IntelliJ IDEA plugin Projects tab" width="620">
       <br><strong>IntelliJ project tools</strong>
-      <br>Creates new SHAFT projects and previews or applies MCP-backed upgrades from the IDE.
+      <br>Shows project creation and upgrade templates now grouped under the plugin's Tools tab.
     </td>
   </tr>
   <tr>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="SHAFT IntelliJ IDEA plugin MCP tab" width="620">
-      <br><strong>IntelliJ MCP tab</strong>
-      <br>Exposes scenario catalog, generated-code guardrails, and local Autobot client discovery.
+      <br><strong>IntelliJ MCP tools</strong>
+      <br>Shows scenario catalog, generated-code guardrails, and local Assistant client discovery templates.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png" alt="Web recorder overlay capturing a form flow" width="620">
@@ -116,7 +116,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | Run the curated MCP workflows from the IDE through Recorder, Playback, Doctor, Healer, Inspector, Projects, MCP, Guide, and optional Autobot tabs. | `intellij-plugin-recorder.png`, `intellij-plugin-projects.png`, `intellij-plugin-mcp-guide.png` |
+| IntelliJ IDEA plugin | Ask, plan, or run guarded local-agent prompts in the Assistant, then run curated MCP workflows from the Tools tab. | `intellij-plugin-recorder.png`, `intellij-plugin-projects.png`, `intellij-plugin-mcp-guide.png` |
 | Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
@@ -163,19 +163,19 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the new beta IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628-beta.0`). It is intentionally thin: users configure the SHAFT MCP stdio command in `Settings | SHAFT`, then run curated MCP tool templates from an IDE tool window without leaving the project.
+`shaft-intellij` is the new beta IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628-beta.0`). It is intentionally thin: users configure the SHAFT MCP stdio command in `Settings | SHAFT`, then use the Assistant or curated MCP tool templates from an IDE tool window without leaving the project.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
-| Tool window | Tabs for Recorder, Playback, Doctor, Healer, Inspector, Projects, MCP, Guide, and optional Autobot. | `Tools -> SHAFT -> Open SHAFT` |
+| Tool window | Assistant-first layout with a secondary Tools tab for the curated MCP templates. | `Tools -> SHAFT -> Open SHAFT` |
 | Recorder and playback | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` and `Playback` tabs |
 | Project tools | Create a SHAFT project, preview an upgrade, or apply an approved upgrade through MCP. | `shaft_project_create`, `shaft_project_upgrade` |
 | Failure work | Run failed-test analysis, trace lookup, trace analysis, and healer templates from the IDE. | `Doctor` and `Healer` tabs |
 | Mobile Inspector | Check mobile tooling, prepare Inspector recording, inspect status, read accessibility trees, and take mobile screenshots. | `Inspector` tab |
-| Agent helpers | Search SHAFT docs, fetch automation scenarios, run generated-code guardrails, and optionally route prompts to local Codex, Claude Code, or Copilot CLI. | `Guide`, `MCP`, and `Autobot` tabs |
+| Agent helpers | Ask, plan, or run guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; slash commands search docs, scenarios, guardrails, and clients. | `Assistant` tab |
 | Record at target | Copy a `capture_record_at_target_code_blocks` request using the current Java caret context. | `Tools -> SHAFT -> Record SHAFT Flow Here` |
 
-The plugin does not hide the MCP request: each tab shows the exact JSON arguments and writes the tool result to an output pane.
+The plugin does not hide MCP requests: the Tools tab shows exact JSON arguments and writes tool results to an output pane, while Assistant responses show the invoked tool and can be copied.
 
 <table>
   <tr>
@@ -184,7 +184,7 @@ The plugin does not hide the MCP request: each tab shows the exact JSON argument
   </tr>
   <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin MCP tab" width="620"></td>
-    <td width="50%">Screenshots are rendered from the plugin's Swing panels and current `ToolTemplates` on `2026-06-28`.</td>
+    <td width="50%">Screenshots show the curated tool template content captured on `2026-06-28`; the current shell groups those templates under the secondary Tools tab.</td>
   </tr>
 </table>
 

@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -9,6 +10,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ToolTemplatesTest {
+    @Test
+    void categoriesKeepCopilotLikeAssistantToolsSecondary() {
+        List<String> labels = ToolTemplates.categories().stream()
+                .map(ToolCategory::label)
+                .toList();
+
+        assertEquals(List.of("Recorder", "Playback", "Doctor", "Healer", "Inspector", "Projects", "MCP", "Guide"),
+                labels);
+    }
+
     @Test
     void projectsExposeCreatePreviewAndApplyTemplates() {
         Map<String, ToolTemplate> templates = ToolTemplates.projects().stream()

@@ -38,7 +38,6 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
      */
     public static final class Settings {
         public String mcpCommand = "";
-        public boolean autobotEnabled = true;
         public String defaultAutobotClient = "CODEX";
         public String defaultAutobotMode = "ASK";
         public boolean passProviderApiKeysToMcp = false;

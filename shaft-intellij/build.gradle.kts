@@ -38,14 +38,14 @@ intellijPlatform {
         name = "SHAFT"
         version = project.version.toString()
         description = """
-            SHAFT integration for IntelliJ IDEA with recorder, playback, Doctor, Healer, Inspector, MCP, guide search,
-            and optional Autobot chat routing through SHAFT MCP.
+            SHAFT integration for IntelliJ IDEA with an Assistant-first SHAFT MCP chat surface plus curated recorder,
+            playback, Doctor, Healer, Inspector, project, MCP, and guide tools.
         """.trimIndent()
         changeNotes = """
             <ul>
-              <li>Initial beta IntelliJ IDEA integration for SHAFT.</li>
-              <li>Adds thin MCP-backed tool windows for Recorder, Playback, Doctor, Healer, Inspector, MCP, and Guide.</li>
-              <li>Adds optional SHAFT Autobot Ask, Plan, and Agent view for local Codex, Claude Code, and Copilot CLI routing.</li>
+              <li>Adds an Assistant-first tool window with Ask, Plan, Agent, slash commands, and copyable responses.</li>
+              <li>Groups Recorder, Playback, Doctor, Healer, Inspector, Projects, MCP, and Guide templates under Tools.</li>
+              <li>Keeps MCP requests transparent with editable JSON arguments and output panes.</li>
             </ul>
         """.trimIndent()
         ideaVersion {
