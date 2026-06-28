@@ -85,6 +85,7 @@ public class ShaftProjectService {
      */
     @Tool(name = "shaft_project_create",
             description = "creates a new SHAFT Maven project from the same examples and rules used by the guide generator")
+    @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpShaftProjectGenerationResult createProject(
             String outputDirectory,
             String runner,
@@ -315,10 +316,9 @@ public class ShaftProjectService {
                 return;
             }
             throw new IOException("Unsupported project generator resource protocol: " + url.getProtocol());
+        } catch (IOException exception) {
+            throw exception;
         } catch (Exception exception) {
-            if (exception instanceof IOException ioException) {
-                throw ioException;
-            }
             throw new IOException("Project generator resources could not be read.", exception);
         }
     }
