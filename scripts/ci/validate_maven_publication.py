@@ -36,7 +36,6 @@ FORBIDDEN_ENTRY_PARTS = (
     "BOOT-INF/lib/",
     "CucumberFeatures/",
     "CustomCucumberFeatures/",
-    "graphify-out/",
     "scripts/",
     "src/test/",
     "target/",

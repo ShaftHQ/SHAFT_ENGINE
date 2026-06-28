@@ -111,7 +111,6 @@ Avoid `mvn test` until the active Surefire/TestNG gotchas are checked. Browser t
 3. Add missing workspace policy/service regression tests.
 4. Tighten installer/config/transport validators only where they fail to cover an accepted invariant above.
 5. Add minimal `shaft-engine` hook fixes only if a stability test proves the need.
-6. Refresh graphify after core/docs relationship changes, or report why it could not run.
 
 ## Risks
 
