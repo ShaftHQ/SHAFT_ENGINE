@@ -1,230 +1,134 @@
 # SHAFT Modular-Era Feature Catalog
 
-Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
-Catalog source: current `origin/main` at `8259212b11352f7d6d65a5ba60d97e9e7cdd071e`
-Fresh evidence captured: `2026-06-27`
+SHAFT is now a modular Java 25 automation framework with a lean core, opt-in power modules, and evidence-first tooling for browser, mobile, API, Playwright, MCP, capture, reporting, diagnosis, and healing.
 
-## Runtime Screenshots
+This catalog is written for framework users who want to know what changed, what they can adopt now, and which command or API gets them started.
 
-![Web recorder running from current shaft-capture recorder overlay](shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png)
+- Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
+- Catalog source: current `origin/main` at `f05165e918ce4cf6e7c46f50fd72431c9fab6e6e`
+- Fresh evidence captured: `2026-06-27`
 
-![Android recorder resolving Inspector gestures to accessibility id and resource id locators](shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png)
+## Start Here
 
-![Mobile Inspector locator-first recording details and fallback warning](shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png)
+| If you need to... | Start with... | Why it matters |
+| --- | --- | --- |
+| Upgrade without pulling every optional integration into the core artifact. | [Modular adoption](#modular-adoption) | `shaft-engine` stays lean while BrowserStack, visual, video, AI, Doctor, Heal, and Capture remain available as opt-in modules. |
+| Let an agent inspect pages, choose locators, record flows, and review generated code. | [MCP and agent workflows](#mcp-and-agent-workflows) | `shaft-mcp` exposes WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, and guardrail tools through one automation surface. |
+| Turn exploratory browser or mobile sessions into maintainable Java tests. | [Capture and code generation](#capture-and-code-generation) | Recorder sessions preserve actions, checkpoints, locators, context, privacy, and replay snippets. |
+| Make Android/Appium setup and recording less coordinate-driven. | [Mobile automation](#mobile-automation) | Toolchain diagnostics and locator-first Inspector recording show the exact device, locator, and fallback state. |
+| Debug failed tests from evidence instead of guessing. | [Doctor, Heal, Trace, and reporting](#doctor-heal-trace-and-reporting) | Failure briefs, traces, locator health, healing decisions, and report UI give a shorter path from failure to fix. |
 
-![Android/Appium toolchain status after fresh install and emulator connection](shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png)
+## Screenshot Proof Gallery
 
-## Relationship Map
+Every screenshot in this catalog is real repository evidence under `shaft-engine/src/main/resources/modular-era-feature-catalog/`.
 
-```mermaid
-flowchart LR
-    Core[shaft-engine<br/>lean core] --> WebDriver[Selenium/Appium WebDriver]
-    Core --> Playwright[SHAFT.GUI.Playwright]
-    Core --> API[API facade]
-    Core --> Reporting[Allure 3, traces, reports]
+<table>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png" alt="Web recorder overlay capturing a form flow" width="620">
+      <br><strong>Web recorder overlay</strong>
+      <br>Captures user actions, risk/readiness state, assertions, and SHAFT locator-friendly replay hints while the flow is still fresh.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" alt="Android recorder resolving gestures to accessibility id and resource id locators" width="620">
+      <br><strong>Android recorder with real locators</strong>
+      <br>Inspector gestures are resolved to `ACCESSIBILITY_ID` and `ID` locators before falling back to coordinates.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png" alt="Mobile Inspector locator details and coordinate fallback warning" width="620">
+      <br><strong>Locator details and fallback warning</strong>
+      <br>Shows the locator order, recorded action details, and warning-only coordinate fallback path.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png" alt="Android Appium toolchain status after setup" width="620">
+      <br><strong>Android toolchain status</strong>
+      <br>Confirms SDK, emulator, Appium, UiAutomator2, Inspector plugin, and readiness checks from one diagnostic surface.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-emulator-device.png" alt="Android emulator device used for evidence capture" width="620">
+      <br><strong>Fresh emulator evidence</strong>
+      <br>Shows the real Android emulator target used while validating the mobile recorder path.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" alt="shaft-mcp tool manifest and tool families" width="620">
+      <br><strong>121 registered MCP tools</strong>
+      <br>WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, scenario catalog, and guardrails in one manifest.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" alt="Capture and code generation feature catalog" width="620">
+      <br><strong>40 capture/codegen capabilities</strong>
+      <br>Session storage, replay generation, checkpoints, privacy, locator fallback, and record-at-target support are visible in source.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" alt="Playwright facade and MCP tool surface" width="620">
+      <br><strong>Playwright surface beside WebDriver</strong>
+      <br>Browser actions, element actions, assertions, tracing, replay, screenshots, and Doctor hooks share the SHAFT workflow.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" alt="Doctor Heal and Trace tools" width="620">
+      <br><strong>Doctor, Heal, and Trace</strong>
+      <br>Failure analysis, trace summaries, locator recovery, and reviewed repair suggestions stay connected to test evidence.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" alt="API contract reporting and observability APIs" width="620">
+      <br><strong>API, contracts, and reporting</strong>
+      <br>GraphQL, retries, typed JSON mapping, contract replay, locator health, trace reporting, and evidence profiles are grouped together.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" alt="SHAFT module map from current reactor POMs" width="620">
+      <br><strong>Module map</strong>
+      <br>Current reactor POMs show the lean core, BOM, relocation artifact, and optional module split.
+    </td>
+    <td width="50%">
+      <strong>Use the gallery as proof, not decoration.</strong>
+      <br>Each section below points back to these screenshots and gives the minimum command or Java snippet needed to try the feature.
+    </td>
+  </tr>
+</table>
 
-    BOM[shaft-bom] --> Core
-    Legacy[legacy-shaft-engine<br/>relocation] --> Core
+## What Changed
 
-    Capture[shaft-capture] --> Core
-    Capture --> Recorder[web recorder UI]
-    Capture --> Codegen[TestNG replay/code blocks]
+| Area | Framework-user value | Proof |
+| --- | --- | --- |
+| Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
+| MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
+| Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
+| Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
+| Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
 
-    MCP[shaft-mcp] --> Core
-    MCP --> Capture
-    MCP --> Playwright
-    MCP --> Mobile[Appium/mobile tools]
-    MCP --> Doctor
-    MCP --> Heal
-    MCP --> Trace[trace tools]
+## Modular Adoption
 
-    Doctor[shaft-doctor] --> Reporting
-    Heal[shaft-heal] --> Core
-    AI[shaft-ai + shaft-pilot-core] --> Doctor
-    AI --> MCP
+Use the new reactor split when you want SHAFT as a framework base, not a monolith. `shaft-engine` remains the center. Optional modules publish independently, the BOM keeps dependency alignment boring, and `legacy-shaft-engine` preserves the relocation path for existing consumers.
 
-    BrowserStack[shaft-browserstack] --> Core
-    Video[shaft-video] --> Core
-    Visual[shaft-visual] --> Core
-```
+| Capability | What changed | Try it |
+| --- | --- | --- |
+| Lean core | `shaft-engine` contains the core WebDriver/Appium, API, and reporting surfaces without forcing every optional integration into the same artifact. | `mvn -pl shaft-engine -am package '-DskipTests'` |
+| Optional modules | BrowserStack, video, visual, AI, Doctor, Heal, and Capture are opt-in modules. | `mvn -pl shaft-browserstack,shaft-video,shaft-visual -am package '-DskipTests'` |
+| Upgrade path | `shaft-bom` and `legacy-shaft-engine` keep dependency alignment and relocation explicit. | `rg "shaft-bom|relocation" shaft-bom legacy-shaft-engine -g pom.xml` |
+| Consumer fixture | A combined-module fixture validates that optional modules can be consumed together. | `mvn -f tools/modularization/consumer-fixtures/combined-modules/pom.xml test '-DskipTests'` |
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant MCP as shaft-mcp
-    participant Recorder as Web/Appium recorder
-    participant Capture as shaft-capture session JSON
-    participant Codegen as replay/code blocks
-    participant Test as SHAFT test
-    participant Trace as Doctor/Heal/Trace
+<img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" alt="Current module map" width="760">
 
-    User->>MCP: capture_start / mobile_record_start / playwright_record_start
-    MCP->>Recorder: inject overlay or bind Appium/Playwright events
-    Recorder->>Capture: actions, checkpoints, context, network, privacy
-    User->>MCP: capture_stop / mobile_record_stop
-    MCP->>Codegen: generate replay + review blocks
-    Codegen->>Test: paste or insert SHAFT TestNG code
-    Test->>Trace: Allure, trace, locator health, failure brief
-    Trace->>MCP: doctor/healer recommendations
-```
+## MCP and Agent Workflows
 
-```mermaid
-sequenceDiagram
-    participant Agent
-    participant MCP as shaft-mcp
-    participant Browser as SHAFT WebDriver
-    participant DOM as DOM + LocatorRanker
-    participant Codegen as Capture/code blocks
-    participant Failure as Allure/Trace/Heal
+`shaft-mcp` turns SHAFT into an agent-friendly local automation server. Framework users get direct tools for browser sessions, Playwright sessions, mobile devices, recorder sessions, guide search, scenario discovery, generated-code guardrails, trace reading, Doctor analysis, and Heal workflows.
 
-    Agent->>MCP: shaft_guide_search(intent)
-    Agent->>MCP: driver_initialize()
-    Agent->>MCP: browser_open_intent(targetUrl, userIntent)
-    MCP->>Browser: navigate + read page source
-    MCP->>DOM: parse actionable DOM and score locators
-    DOM-->>Agent: bounded DOM, best locator, alternatives, SHAFT locator code
-    Agent->>MCP: element_click / element_type / natural_act
-    Agent->>MCP: capture_start, capture_stop, capture_code_blocks
-    Agent->>Failure: doctor_analyze_failed_allure, trace_summarize, healer_run_failed_test
-```
-
-```mermaid
-flowchart TB
-    A[121 registered MCP tools] --> B[WebDriver browser + element]
-    A --> C[Playwright browser + element + semantic]
-    A --> D[Capture start/status/stop/generate]
-    A --> E[Mobile native, web emulation, inspector, screenshots]
-    A --> F[Doctor, Heal, Trace]
-    A --> G[Guide search, scenario catalog, code guardrails, natural_act]
-```
-
-## Evidence Images
-
-| Image | Source |
-| --- | --- |
-| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" width="220"> | Current reactor POMs and module descriptions. |
-| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="220"> | Current `shaft-mcp` 121-tool manifest and runtime tool families, including URL intent orientation and record-at-target code blocks. |
-| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="220"> | Current `CodegenFeatureCatalog.java` with 40 capture/codegen capabilities. |
-| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" width="220"> | Current Playwright facade and MCP tool surface. |
-| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="220"> | Current Android recorder evidence showing `tap` and `swipeByOffset` recorded with locators. |
-| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png" width="220"> | Current Appium Inspector locator order and coordinate fallback warning. |
-| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" width="220"> | Current Doctor, Heal, and Trace tools. |
-| <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="220"> | Current API, contract, reporting, and observability APIs. |
-
-## Feature Inventory
-
-| Area | New feature | Evidence | Current command or code sample |
-| --- | --- | --- | --- |
-| Modular core | Reactor split into `shaft-engine`, optional modules, aggregate reports, BOM, and relocation POM. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" width="140"> | `mvn -pl shaft-engine -am package '-DskipTests'` |
-| Modular core | Lean core keeps BrowserStack, video, visual, AI, Doctor, Heal, and Capture as opt-in modules. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" width="140"> | `rg "shaft-video|shaft-visual|shaft-browserstack|shaft-ai|shaft-heal" shaft-engine/pom.xml` |
-| Modular core | Consumer fixture validates combined optional-module usage. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" width="140"> | `mvn -f tools/modularization/consumer-fixtures/combined-modules/pom.xml test '-DskipTests'` |
-| Modular core | BOM and legacy relocation preserve consumer upgrade paths. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" width="140"> | `rg "shaft-bom|relocation" shaft-bom legacy-shaft-engine -g pom.xml` |
-| `shaft-mcp` | MCP server integrated into reactor, release lifecycle, Docker image, Smithery config, stdio, and HTTP transport. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `java -cp "shaft-mcp\target\shaft-mcp-10.2.20260623.jar;shaft-mcp\target\dependency\*" com.shaft.mcp.ShaftMcpApplication --spring.profiles.active=http --server.port=8093` |
-| `shaft-mcp` | Local installers for Codex, Claude, Claude Desktop, Copilot, and Copilot IntelliJ. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `py -3 scripts/mcp/install_shaft_mcp.py --target codex --version 10.2.20260623` |
-| `shaft-mcp` | Transport validation for stdio and HTTP JSON-RPC protocol `2025-03-26`. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `py -3 scripts/ci/validate_shaft_mcp_transports.py` |
-| MCP WebDriver | Browser and element tools for Selenium/Appium WebDriver sessions. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `driver_initialize -> browser_navigate -> element_click -> browser_take_screenshot -> driver_quit` |
-| MCP WebDriver | URL-intent orientation opens any URL, returns bounded DOM, capture-ranked locator candidates, SHAFT locator snippets, and next-tool hints. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `driver_initialize -> browser_open_intent(targetUrl, userIntent, 200000, 10) -> element_click or natural_act` |
-| MCP WebDriver | DOM locator inspection reuses `shaft-capture` `LocatorRanker` scoring for role, accessible-name, label, test-id, id, name, and XPath alternatives. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
-| MCP Playwright | Playwright tools for browser, element, recording, replay, and screenshots. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" width="140"> | `playwright_initialize -> playwright_browser_navigate -> playwright_record_start -> playwright_recording_code_blocks` |
-| MCP semantic/natural | Semantic Playwright element tools, guide search, scenario catalog, guardrail checks, and `natural_act`. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
-| MCP semantic/natural | Scenario catalog guides URL-intent action, official guide search, generated-code review, and failure triage workflows. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `test_automation_scenarios(area="web", intent="open url click sign in")` |
-| MCP mobile | Native Appium, mobile web emulation, contexts, accessibility tree, screenshots, locator-first gestures, rotation, keyboard, app backgrounding. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="140"> | `mobile_initialize_native -> mobile_get_accessibility_tree -> mobile_tap(ACCESSIBILITY_ID, "login")` |
-| MCP mobile | Toolchain diagnostics for Appium, Inspector plugin, adb, emulator, sdkmanager, avdmanager, and iOS/macOS readiness. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png" width="140"> | `mobile_toolchain_status` |
-| MCP mobile | Wrapped Appium Inspector recording plan/start/status/control/stop tools. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png" width="140"> | `mobile_inspector_record_prepare -> mobile_inspector_record_start -> mobile_inspector_record_stop` |
-| MCP mobile | Fresh Android recording resolves Inspector pointer gestures through the accessibility source before coordinates. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="140"> | `GET /source -> tap ACCESSIBILITY_ID login -> swipeByOffset ID com.example:id/list -> mobile_recording_code_blocks` |
-| Android setup | SHAFT-managed Android command-line tools, SDK packages, AVD, Appium 3.5.2, UiAutomator2 7.6.2, Inspector plugin 2026.5.1. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png" width="140"> | `sdkmanager.bat --sdk_root=C:\Users\Mohab\android-tools 'platform-tools' 'emulator' 'platforms;android-36' 'system-images;android-36;google_apis;x86_64'` |
-| Capture | Deterministic capture session model, JSON codec, storage, privacy, checkpoints, incomplete-session recovery. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="140"> | `capture_start -> capture_checkpoint -> capture_status -> capture_stop` |
-| Capture | Managed browser recorder overlay with pause, assert/verify modes, copy, clear, edit, locator picker, and readiness score. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png" width="140"> | `capture_start --url https://example.com --browser chrome --output target/capture/session.json` |
-| Capture | TestNG generation, replay snippets, Page Object insertion, and review warnings. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="140"> | `capture_generate_replay --session target/capture/session.json --target-source src/test/java/CheckoutTest.java` |
-| Capture | Assertion mode for visibility, text, and value checkpoints. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png" width="140"> | `capture_checkpoint --description "cart total is visible"` |
-| Capture | Fallback locator replay and live locator picker/refinement. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="140"> | `capture_code_blocks --session target/capture/session.json --driver-variable-name driver` |
-| Capture | Flow segmentation, record-at-cursor snippets, and control-flow suggestions. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="140"> | `capture_start_codegen --url https://example.com --target-source src/test/java/CheckoutTest.java` |
-| Capture | MCP code generation covers automated and user-performed flows through start/status/stop/code-block tools, including record-at-target snippets. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="140"> | `capture_start -> capture_status -> capture_stop -> capture_code_blocks -> capture_record_at_target_code_blocks` |
-| Capture | Native emulation and browser context flags: viewport, device, color scheme, geo, lang, timezone, storage, user data dir, HTTPS, HAR, proxy. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" width="140"> | `capture start --url https://example.com --device "Pixel 5" --timezone Africa/Cairo --save-har target/capture/run.har` |
-| Playwright | `SHAFT.GUI.Playwright` backend added beside WebDriver under the shared GUI driver facade. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" width="140"> | `SHAFT.GUI.Playwright driver = new SHAFT.GUI.Playwright(); driver.browser().navigateToURL("https://example.com");` |
-| Playwright | Browser, element, assertions, verifications, tracing, contract replay, and natural action executor support. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" width="140"> | `driver.element().click(By.id("submit")); driver.assertThat().browser().title().contains("Example");` |
-| Playwright | Visual validation and parity pack across browser actions, validations, recording metadata, and MCP code blocks. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" width="140"> | `playwright_capture_code_blocks`, `playwright_replay_recording`, `playwright_doctor_suggest_fix` |
-| Browser | Browser network interception builder, mock/assert/verify responses, offline mode, throttling, and resource blocking. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `driver.browser().interceptRequest().get().urlContains("/api/users").respond().statusCode(200).perform();` |
-| Browser | API and browser auth-state bridge. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `driver.browser().startRecordingContract("src/test/resources/contracts/checkout.json", "/api");` |
-| Browser/mobile | UI state wait timeout, touch end-scroll, image invisibility waits, Appium recursion fallback, and mobile trace enrichment. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" width="140"> | `SHAFT.Properties.timeouts.set().waitForUiStateTimeout(600); driver.touch().swipeToEndOfView(TouchActions.SwipeDirection.DOWN);` |
-| API | GraphQL builder facade on `SHAFT.API`. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `api.sendGraphQlRequest("/graphql", "query { viewer { id } }").perform();` |
-| API | Request retry policies with transient defaults, custom status codes, fixed/exponential/jittered backoff, and non-idempotent opt-in. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `api.get("/health").withRetry(RetryPolicy.transientFailures().maxAttempts(3)).perform();` |
-| API | Typed JSON response mapping to classes, records, lists, and Jackson `TypeReference`. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `User user = api.get("/users/1").perform().getResponseAs(User.class);` |
-| API | OpenAPI coverage reporting with threshold failure at lifecycle end. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `SHAFT.Properties.api.set().openApiCoverageReportEnabled(true).swaggerValidationUrl("openapi.yaml");` |
-| Contracts | HTTP contract recording and assert/verify replay for browser and API traffic. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `SHAFT.Contracts.startRecording("src/test/resources/contracts/checkout.json", "/api/checkout");` |
-| Doctor | Deterministic failed-test analysis, evidence bundle parsing, root-cause categories, and local CLI. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" width="140"> | `doctor analyze --input allure-results --output-dir target/shaft-doctor` |
-| Doctor | MCP failure investigation combines Allure briefs, SHAFT traces, stacktrace context, locator health, and flakiness categories before repairs. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" width="140"> | `doctor_analyze_failed_allure -> trace_summarize -> doctor_analyze_trace -> healer_run_failed_test` |
-| Doctor | Optional AI-assisted advisory flow with reviewed repair workflows and draft PR publishing guardrails. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" width="140"> | `doctor propose-fix --analysis target/shaft-doctor/doctor-report.json --output-dir target/shaft-doctor` |
-| Heal | Deterministic locator recovery module with explainable decisions, reports, Selenium/Appium support, and MCP healer tools. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" width="140"> | `healer_run_failed_test`, `playwright_healer_run_failed_test`, `ShaftHeal.lastReport()` |
-| Trace | Structured Selenium trace archive, trace-ready browser observability, actionability diagnostics, network/console/native metadata, and MCP trace tools. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" width="140"> | `trace_latest -> trace_read -> trace_summarize -> doctor_analyze_trace` |
-| Reporting | Failure trace viewer, diagnostics bundle, Allure failure briefs, full log attachments, and standardized HTML report UI. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");` |
-| Reporting | Locator health dashboard and scoring with warn/fail thresholds and healing metrics. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `SHAFT.Properties.reporting.set().locatorHealthEnabled(true).locatorHealthWarnBelowScore(80);` |
-| Reporting | Flake profiler, evidence level profiles, Allure 3 usability/theme, console summary/progress styling. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `SHAFT.Properties.reporting.set().evidenceLevel("BALANCED");` |
-| Reporting | Animated GIF generation optimization, visual attachment fixes, screenshot/log metadata cleanup, and lean assertion/action reporting. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `mvn -pl shaft-engine -am package '-DskipTests' '-Dallure.automaticallyOpen=false'` |
-| Remote/grid | Remote WebDriver timeout, Selenium Grid preflight, remote session diagnostics, remote video attachment, and BrowserStack app capability handling. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" width="140"> | `SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(true);` |
-| CLI/terminal | Reusable SSH terminal sessions, verbose streaming, SFTP upload/download, SSH port forwarding, env vars, keep-alive packets, and command log redaction. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" width="140"> | `SHAFT.CLI.remoteTerminal(host, 22, user, keyFolder, keyName, true);` |
-| Optional modules | `shaft-browserstack`, `shaft-video`, and `shaft-visual` publish as opt-in artifacts. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" width="140"> | `mvn -pl shaft-browserstack,shaft-video,shaft-visual -am package '-DskipTests'` |
-| AI/Pilot | Provider-neutral `shaft-pilot-core`, optional `shaft-ai`, deterministic artifacts, trust-gated natural actions, and provider conformance. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" width="140"> | `natural_act`, `doctor_suggest_fix`, `playwright_doctor_suggest_fix` |
-| Release/devex | Release guards, modular upgrader coverage, MCP runtime path fixes, MCP generated-code guardrails, docs consolidation, and graph/memory assets. | <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/module-map.png" width="140"> | `py -3 scripts/ci/validate_agent_setup.py` |
-
-## Fresh Capture Commands
-
-```powershell
-# Built current remote/main code used by the MCP server.
-mvn -pl shaft-mcp -am package '-DskipTests' '-Dallure.automaticallyOpen=false' '-Dallure.open=false'
-mvn -pl shaft-mcp dependency:copy-dependencies '-DincludeScope=runtime' '-Dallure.automaticallyOpen=false' '-Dallure.open=false'
-
-# Focused validation for browser_open_intent and the synchronized MCP tool manifest.
-mvn -pl shaft-mcp -am '-Dtest=McpServiceHelperTest,ShaftMcpApplicationTests#contextRegistersExpectedLeanMcpToolApi' '-Dallure.automaticallyOpen=false' '-Dallure.open=false' test
-
-# Started the current shaft-mcp HTTP server from the merged build.
-java -cp "shaft-mcp\target\shaft-mcp-10.2.20260623.jar;shaft-mcp\target\dependency\*" com.shaft.mcp.ShaftMcpApplication --spring.profiles.active=http --server.port=8093
-```
-
-```powershell
-# Installed Android SDK pieces used for the fresh emulator screenshot.
-C:\Users\Mohab\android-tools\cmdline-tools\latest\bin\sdkmanager.bat --sdk_root=C:\Users\Mohab\android-tools `
-  'platform-tools' 'emulator' 'platforms;android-36' 'system-images;android-36;google_apis;x86_64'
-
-# Appium tool cache versions used by current SHAFT internal defaults.
-appium@3.5.2
-appium-uiautomator2-driver@7.6.2
-appium-inspector-plugin@2026.5.1
-```
-
-```text
-# Fresh Android recorder path used for android-recorder-working.png and android-recorder-locator-details.png.
-mobile_initialize_native(appiumServerUrl="http://127.0.0.1:4723", platformName="Android", deviceName="emulator-5554")
-mobile_inspector_record_start(...)
-GET /session/{id}/source -> current Appium accessibility XML
-POST /session/{id}/actions -> pointer tap inside content-desc="login"
-POST /session/{id}/actions -> pointer swipe inside resource-id="com.example:id/list"
-mobile_record_status() -> actionCount=2
-mobile_recording_code_blocks(recordingPath="target/shaft-evidence/mobile-inspector-locators.json")
-
-Recorded action evidence:
-tap -> locatorStrategy=ACCESSIBILITY_ID, locatorValue=login
-swipeByOffset -> locatorStrategy=ID, locatorValue=com.example:id/list, xOffset=0, yOffset=200
-
-SHAFT fluent replay excerpt from the recorded actions:
-driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId("login"));
-driver.element().touch().swipeByOffset(SHAFT.GUI.Locator.id("com.example:id/list"), 0, 200);
-
-Coordinate fallback remains warning-only when no locator can be resolved:
-"Coordinate fallback used because no stable locator could be resolved from the accessibility tree; this will probably fail when executed on a different device, screen size, orientation, or app state."
-```
-
-```text
-# Web recorder path used for web-recorder.png.
-Load current shaft-capture-recorder.js into a local fixture page.
-Type email, select plan, type notes, toggle terms, submit.
-Capture overlay state: RISKY | 8 events | Step 8 needs a follow-up assertion after form submission.
-Generated replay syntax: driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
-```
-
-## Current API Samples
-
-`browser_open_intent` returns SHAFT code-friendly locators and MCP action hints. Use role/name/label snippets when generating Java tests; use ID, CSS, name, or XPath alternatives when driving direct `element_*` MCP actions.
+| Workflow | What it gives users | Entry point |
+| --- | --- | --- |
+| Install and run | Local installers for Codex, Claude, Claude Desktop, Copilot, and Copilot IntelliJ, plus stdio and HTTP transports. | `py -3 scripts/mcp/install_shaft_mcp.py --target codex --version 10.2.20260623` |
+| URL intent orientation | Open a URL, bound the DOM, rank actionable elements, return SHAFT locator code, and suggest the next MCP tools. | `driver_initialize -> browser_open_intent(targetUrl, userIntent, 200000, 10)` |
+| Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
+| Semantic actions | Combine guide search, scenario catalog, guardrail checks, and `natural_act` without leaving the MCP session. | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
 
 ```text
 driver_initialize(browserName="chrome", headless=true)
@@ -239,6 +143,93 @@ orientation.elements[0].bestLocator.strategy=ROLE
 orientation.elements[0].shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")
 nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, element_click, natural_act, capture_start, capture_code_blocks, test_code_guardrails_check]
 ```
+
+<img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" alt="MCP tool manifest" width="760">
+
+## Capture and Code Generation
+
+Capture is now the bridge between exploratory testing and maintainable Java. It records actions, checkpoints, browser context, privacy choices, network details, locator alternatives, replay metadata, and code-generation warnings in a deterministic session model.
+
+| Capability | Better user outcome | Entry point |
+| --- | --- | --- |
+| Managed web recorder | Pause, assert, verify, copy, clear, edit, pick locators, and see readiness score while recording. | `capture_start --url https://example.com --browser chrome --output target/capture/session.json` |
+| TestNG replay | Generate replay snippets, Page Object insertions, and review warnings from the captured session. | `capture_generate_replay --session target/capture/session.json --target-source src/test/java/CheckoutTest.java` |
+| Assertions | Record visibility, text, and value checkpoints instead of writing assertions from memory later. | `capture_checkpoint --description "cart total is visible"` |
+| Locator refinement | Keep fallback locator replay and live locator picker/refinement in the workflow. | `capture_code_blocks --session target/capture/session.json --driver-variable-name driver` |
+| Record at cursor | Generate code blocks for automated and user-performed flows, including record-at-target snippets. | `capture_record_at_target_code_blocks` |
+| Browser context | Capture viewport, device, color scheme, geolocation, language, timezone, storage, HTTPS, HAR, proxy, and user data directory options. | `capture start --url https://example.com --device "Pixel 5" --timezone Africa/Cairo --save-har target/capture/run.har` |
+
+```text
+Load current shaft-capture-recorder.js into a local fixture page.
+Type email, select plan, type notes, toggle terms, submit.
+Capture overlay state: RISKY | 8 events | Step 8 needs a follow-up assertion after form submission.
+Generated replay syntax: driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+```
+
+<table>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png" alt="Web recorder evidence" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" alt="Capture catalog evidence" width="620"></td>
+  </tr>
+</table>
+
+## Mobile Automation
+
+Mobile support now covers Appium sessions, mobile web emulation, accessibility trees, screenshots, contexts, rotation, keyboard control, app backgrounding, toolchain diagnostics, and Inspector-based recording. The key improvement is locator-first recording: pointer gestures are resolved through the Appium accessibility source before coordinate fallback is used.
+
+| Capability | Better user outcome | Entry point |
+| --- | --- | --- |
+| Native Appium sessions | Initialize native sessions, inspect accessibility, and tap by stable locators. | `mobile_initialize_native -> mobile_get_accessibility_tree -> mobile_tap(ACCESSIBILITY_ID, "login")` |
+| Toolchain diagnostics | Check Appium, Inspector plugin, adb, emulator, sdkmanager, avdmanager, and iOS/macOS readiness from one tool. | `mobile_toolchain_status` |
+| Inspector recording | Prepare, start, inspect status, control, stop, and generate code from wrapped Appium Inspector recording. | `mobile_inspector_record_prepare -> mobile_inspector_record_start -> mobile_inspector_record_stop` |
+| Locator-first replay | Convert a tap into `ACCESSIBILITY_ID` and a swipe target into `ID` when the accessibility tree supports it. | `mobile_recording_code_blocks(recordingPath="target/shaft-evidence/mobile-inspector-locators.json")` |
+
+```text
+mobile_initialize_native(appiumServerUrl="http://127.0.0.1:4723", platformName="Android", deviceName="emulator-5554")
+mobile_inspector_record_start(...)
+GET /session/{id}/source -> current Appium accessibility XML
+POST /session/{id}/actions -> pointer tap inside content-desc="login"
+POST /session/{id}/actions -> pointer swipe inside resource-id="com.example:id/list"
+mobile_record_status() -> actionCount=2
+
+Recorded action evidence:
+tap -> locatorStrategy=ACCESSIBILITY_ID, locatorValue=login
+swipeByOffset -> locatorStrategy=ID, locatorValue=com.example:id/list, xOffset=0, yOffset=200
+
+SHAFT fluent replay excerpt:
+driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId("login"));
+driver.element().touch().swipeByOffset(SHAFT.GUI.Locator.id("com.example:id/list"), 0, 200);
+```
+
+Coordinate fallback stays warning-only when no stable locator can be resolved:
+
+```text
+"Coordinate fallback used because no stable locator could be resolved from the accessibility tree; this will probably fail when executed on a different device, screen size, orientation, or app state."
+```
+
+<table>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-emulator-device.png" alt="Android emulator evidence" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-toolchain-status.png" alt="Android toolchain evidence" width="620"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" alt="Android recorder evidence" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-locator-details.png" alt="Android locator details evidence" width="620"></td>
+  </tr>
+</table>
+
+## Web, Playwright, API, and Contracts
+
+The modular era keeps classic WebDriver/Appium flows, adds a first-class Playwright facade, and expands browser/API test composition. Users can mix browser network interception, API retry and mapping helpers, GraphQL, OpenAPI coverage, and contract recording without changing framework style.
+
+| Surface | What changed | Example |
+| --- | --- | --- |
+| Playwright facade | `SHAFT.GUI.Playwright` sits beside WebDriver under the shared GUI driver concept. | `SHAFT.GUI.Playwright driver = new SHAFT.GUI.Playwright();` |
+| Playwright parity | Browser actions, element actions, assertions, verifications, tracing, contract replay, natural action executor, screenshots, and Doctor hooks. | `playwright_capture_code_blocks`, `playwright_replay_recording`, `playwright_doctor_suggest_fix` |
+| Browser network control | Intercept, mock, assert, verify, throttle, block resources, bridge API/browser auth state, and record contracts. | `driver.browser().interceptRequest().get().urlContains("/api/users")...perform();` |
+| API facade | GraphQL builder, retry policies, typed JSON mapping to classes/records/lists, and OpenAPI coverage thresholds. | `api.get("/health").withRetry(RetryPolicy.transientFailures().maxAttempts(3)).perform();` |
+| Browser/mobile polish | UI state wait timeout, touch end-scroll, image invisibility waits, Appium recursion fallback, and mobile trace enrichment. | `SHAFT.Properties.timeouts.set().waitForUiStateTimeout(600);` |
+| CLI and grid | SSH terminal sessions, SFTP, port forwarding, redaction, remote WebDriver timeout, Selenium Grid preflight, remote video, and BrowserStack app capability handling. | `SHAFT.CLI.remoteTerminal(host, 22, user, keyFolder, keyName, true);` |
 
 ```java
 SHAFT.GUI.Playwright driver = new SHAFT.GUI.Playwright();
@@ -281,6 +272,26 @@ api.get("/health")
 User user = api.get("/users/1").perform().getResponseAs(User.class);
 ```
 
+<table>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/playwright-surface.png" alt="Playwright surface evidence" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" alt="API and reporting evidence" width="620"></td>
+  </tr>
+</table>
+
+## Doctor, Heal, Trace, and Reporting
+
+Failure work is now a connected workflow instead of a pile of screenshots. Doctor analyzes failure evidence, Trace exposes structured browser and network context, Heal recovers locators with explainable reports, and reporting surfaces locator health, flake profiling, Allure 3 usability, evidence profiles, failure trace viewer, diagnostics bundles, and standardized HTML output.
+
+| Tooling | What it helps with | Entry point |
+| --- | --- | --- |
+| Doctor | Deterministic failed-test analysis, evidence bundle parsing, root-cause categories, and a local CLI. | `doctor analyze --input allure-results --output-dir target/shaft-doctor` |
+| MCP triage | Combine Allure briefs, SHAFT traces, stacktrace context, locator health, and flakiness categories before repairs. | `doctor_analyze_failed_allure -> trace_summarize -> doctor_analyze_trace -> healer_run_failed_test` |
+| Reviewed repair advice | Optional AI-assisted advisory flow with repair workflow and draft PR guardrails. | `doctor propose-fix --analysis target/shaft-doctor/doctor-report.json --output-dir target/shaft-doctor` |
+| Heal | Deterministic locator recovery for Selenium/Appium with explainable decisions, reports, and MCP healer tools. | `healer_run_failed_test`, `playwright_healer_run_failed_test`, `ShaftHeal.lastReport()` |
+| Trace | Structured Selenium trace archive with actionability diagnostics, network, console, native metadata, and MCP trace tools. | `trace_latest -> trace_read -> trace_summarize -> doctor_analyze_trace` |
+| Reporting | Failure trace viewer, diagnostics bundle, Allure failure briefs, full log attachments, locator health, flake profiler, evidence profiles, and lean assertion/action reporting. | `SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");` |
+
 ```java
 SHAFT.Properties.reporting.set()
         .evidenceLevel("BALANCED")
@@ -288,4 +299,144 @@ SHAFT.Properties.reporting.set()
         .locatorHealthWarnBelowScore(80)
         .traceEnabled(true)
         .traceMode("failure");
+```
+
+<table>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/doctor-heal-trace.png" alt="Doctor Heal Trace evidence" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/api-reporting.png" alt="Reporting evidence" width="620"></td>
+  </tr>
+</table>
+
+## Release and Developer Experience Guardrails
+
+The modular-era work also tightened release and developer workflows: release guards, modular upgrader coverage, MCP runtime path fixes, generated-code guardrails, documentation consolidation, graph assets, and memory guidance now sit beside the feature surface instead of after it.
+
+```powershell
+py -3 scripts/ci/validate_agent_setup.py
+py -3 scripts/ci/validate_shaft_mcp_transports.py
+```
+
+## Relationship Map
+
+```mermaid
+flowchart LR
+    Core[shaft-engine<br/>lean core] --> WebDriver[Selenium/Appium WebDriver]
+    Core --> Playwright[SHAFT.GUI.Playwright]
+    Core --> API[API facade]
+    Core --> Reporting[Allure 3, traces, reports]
+
+    BOM[shaft-bom] --> Core
+    Legacy[legacy-shaft-engine<br/>relocation] --> Core
+
+    Capture[shaft-capture] --> Core
+    Capture --> Recorder[web recorder UI]
+    Capture --> Codegen[TestNG replay/code blocks]
+
+    MCP[shaft-mcp] --> Core
+    MCP --> Capture
+    MCP --> Playwright
+    MCP --> Mobile[Appium/mobile tools]
+    MCP --> Doctor
+    MCP --> Heal
+    MCP --> Trace[trace tools]
+
+    Doctor[shaft-doctor] --> Reporting
+    Heal[shaft-heal] --> Core
+    AI[shaft-ai + shaft-pilot-core] --> Doctor
+    AI --> MCP
+
+    BrowserStack[shaft-browserstack] --> Core
+    Video[shaft-video] --> Core
+    Visual[shaft-visual] --> Core
+```
+
+<details>
+<summary>Recorder-to-test evidence flow</summary>
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant MCP as shaft-mcp
+    participant Recorder as Web/Appium recorder
+    participant Capture as shaft-capture session JSON
+    participant Codegen as replay/code blocks
+    participant Test as SHAFT test
+    participant Trace as Doctor/Heal/Trace
+
+    User->>MCP: capture_start / mobile_record_start / playwright_record_start
+    MCP->>Recorder: inject overlay or bind Appium/Playwright events
+    Recorder->>Capture: actions, checkpoints, context, network, privacy
+    User->>MCP: capture_stop / mobile_record_stop
+    MCP->>Codegen: generate replay + review blocks
+    Codegen->>Test: paste or insert SHAFT TestNG code
+    Test->>Trace: Allure, trace, locator health, failure brief
+    Trace->>MCP: doctor/healer recommendations
+```
+
+</details>
+
+<details>
+<summary>Agent URL-intent workflow</summary>
+
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant MCP as shaft-mcp
+    participant Browser as SHAFT WebDriver
+    participant DOM as DOM + LocatorRanker
+    participant Codegen as Capture/code blocks
+    participant Failure as Allure/Trace/Heal
+
+    Agent->>MCP: shaft_guide_search(intent)
+    Agent->>MCP: driver_initialize()
+    Agent->>MCP: browser_open_intent(targetUrl, userIntent)
+    MCP->>Browser: navigate + read page source
+    MCP->>DOM: parse actionable DOM and score locators
+    DOM-->>Agent: bounded DOM, best locator, alternatives, SHAFT locator code
+    Agent->>MCP: element_click / element_type / natural_act
+    Agent->>MCP: capture_start, capture_stop, capture_code_blocks
+    Agent->>Failure: doctor_analyze_failed_allure, trace_summarize, healer_run_failed_test
+```
+
+</details>
+
+<details>
+<summary>MCP tool family map</summary>
+
+```mermaid
+flowchart TB
+    A[121 registered MCP tools] --> B[WebDriver browser + element]
+    A --> C[Playwright browser + element + semantic]
+    A --> D[Capture start/status/stop/generate]
+    A --> E[Mobile native, web emulation, inspector, screenshots]
+    A --> F[Doctor, Heal, Trace]
+    A --> G[Guide search, scenario catalog, code guardrails, natural_act]
+```
+
+</details>
+
+## Fresh Capture Commands
+
+```powershell
+# Build the current remote/main code used by the MCP server.
+mvn -pl shaft-mcp -am package '-DskipTests' '-Dallure.automaticallyOpen=false' '-Dallure.open=false'
+mvn -pl shaft-mcp dependency:copy-dependencies '-DincludeScope=runtime' '-Dallure.automaticallyOpen=false' '-Dallure.open=false'
+
+# Validate browser_open_intent and the synchronized MCP tool manifest.
+mvn -pl shaft-mcp -am '-Dtest=McpServiceHelperTest,ShaftMcpApplicationTests#contextRegistersExpectedLeanMcpToolApi' '-Dallure.automaticallyOpen=false' '-Dallure.open=false' test
+
+# Start the shaft-mcp HTTP server from the merged build.
+java -cp "shaft-mcp\target\shaft-mcp-10.2.20260623.jar;shaft-mcp\target\dependency\*" com.shaft.mcp.ShaftMcpApplication --spring.profiles.active=http --server.port=8093
+```
+
+```powershell
+# Install Android SDK pieces used for the fresh emulator screenshot.
+C:\Users\Mohab\android-tools\cmdline-tools\latest\bin\sdkmanager.bat --sdk_root=C:\Users\Mohab\android-tools `
+  'platform-tools' 'emulator' 'platforms;android-36' 'system-images;android-36;google_apis;x86_64'
+
+# Appium tool cache versions used by current SHAFT internal defaults.
+appium@3.5.2
+appium-uiautomator2-driver@7.6.2
+appium-inspector-plugin@2026.5.1
 ```
