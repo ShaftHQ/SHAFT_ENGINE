@@ -51,6 +51,20 @@ class ShaftProjectServiceTest {
     }
 
     @Test
+    void resourceDestinationRejectsTraversalOutsideProjectDirectory() {
+        Path project = temp.resolve("project");
+
+        assertEquals(project.resolve("src/test/java/SampleTest.java").toAbsolutePath().normalize(),
+                ShaftProjectService.safeResourceDestination(project, "src/test/java/SampleTest.java"));
+        assertThrows(IllegalArgumentException.class,
+                () -> ShaftProjectService.safeResourceDestination(project, "../pom.xml"));
+        assertThrows(IllegalArgumentException.class,
+                () -> ShaftProjectService.safeResourceDestination(project, "src/../../pom.xml"));
+        assertThrows(IllegalArgumentException.class,
+                () -> ShaftProjectService.safeResourceDestination(project, temp.resolve("pom.xml").toString()));
+    }
+
+    @Test
     void upgradeProjectRunsExistingScriptAndRequiresApprovalForMutation() throws Exception {
         Path project = Files.createDirectories(temp.resolve("current"));
         Files.writeString(project.resolve("pom.xml"), "<project/>");

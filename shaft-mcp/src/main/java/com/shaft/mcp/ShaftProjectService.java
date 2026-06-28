@@ -306,7 +306,7 @@ public class ShaftProjectService {
                 try (JarFile jar = connection.getJarFile()) {
                     for (JarEntry entry : jar.stream().filter(entry -> !entry.isDirectory())
                             .filter(entry -> entry.getName().startsWith(prefix)).toList()) {
-                        Path destination = target.resolve(entry.getName().substring(prefix.length()));
+                        Path destination = safeResourceDestination(target, entry.getName().substring(prefix.length()));
                         try (var input = jar.getInputStream(entry)) {
                             copyFile(input.readAllBytes(), destination, target, overwrite);
                         }
@@ -357,6 +357,15 @@ public class ShaftProjectService {
             throw new IllegalArgumentException("Generated project file escaped the output directory.");
         }
         return normalized;
+    }
+
+    static Path safeResourceDestination(Path targetRoot, String resourceName) {
+        Path normalizedRoot = targetRoot.toAbsolutePath().normalize();
+        Path normalizedDestination = normalizedRoot.resolve(resourceName).normalize();
+        if (!normalizedDestination.startsWith(normalizedRoot)) {
+            throw new IllegalArgumentException("Generated project file escaped the output directory.");
+        }
+        return normalizedDestination;
     }
 
     private static URL resource(String resourceName) throws IOException {
