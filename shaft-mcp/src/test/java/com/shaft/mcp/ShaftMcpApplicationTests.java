@@ -79,6 +79,8 @@ class ShaftMcpApplicationTests {
         assertTrue(toolNames.contains("mobile_replay_recording"));
         assertTrue(toolNames.contains("natural_act"));
         assertTrue(toolNames.contains("shaft_guide_search"));
+        assertTrue(toolNames.contains("shaft_project_create"));
+        assertTrue(toolNames.contains("shaft_project_upgrade"));
         assertTrue(toolNames.contains("test_automation_scenarios"));
         assertTrue(toolNames.contains("test_code_guardrails_check"));
         assertTrue(toolNames.contains("autobot_local_agent_clients"));

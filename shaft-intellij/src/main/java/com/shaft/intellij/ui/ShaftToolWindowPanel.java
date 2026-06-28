@@ -25,6 +25,7 @@ public final class ShaftToolWindowPanel extends JPanel {
         tabs.addTab("Doctor", new ShaftFeaturePanel(project, ToolTemplates.doctor()));
         tabs.addTab("Healer", new ShaftFeaturePanel(project, ToolTemplates.healer()));
         tabs.addTab("Inspector", new ShaftFeaturePanel(project, ToolTemplates.inspector()));
+        tabs.addTab("Projects", new ShaftFeaturePanel(project, ToolTemplates.projects()));
         tabs.addTab("MCP", new ShaftFeaturePanel(project, ToolTemplates.mcp()));
         tabs.addTab("Guide", new ShaftFeaturePanel(project, ToolTemplates.guide()));
         if (ShaftSettingsState.getInstance().getState().autobotEnabled) {
