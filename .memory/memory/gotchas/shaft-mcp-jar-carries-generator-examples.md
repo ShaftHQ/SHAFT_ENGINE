@@ -1,0 +1,1 @@
+The `shaft-mcp` runtime jar intentionally packages project generator templates under `META-INF/shaft-mcp/examples/**`, including test trees and mobile fixture assets. Publication validation should exempt only that runtime-template prefix while keeping generic bans on test trees, `.github`, scripts, and nested archives for other artifacts and jar areas.

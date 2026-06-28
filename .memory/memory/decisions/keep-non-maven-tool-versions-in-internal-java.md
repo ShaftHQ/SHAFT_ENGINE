@@ -1,0 +1,1 @@
+Non-Maven release-time tool versions such as Allure 3, Node LTS, Appium, Appium drivers/plugins, and Android command line tools belong in `Internal.java`. Tests and release validators should read these defaults instead of duplicating version literals; `McpMobileToolchainServiceTest` uses `ConfigFactory.create(Internal.class)` as the current pattern.
