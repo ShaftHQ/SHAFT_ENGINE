@@ -5,6 +5,8 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.testng.annotations.Test;
 import testPackage.TestScenario;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 public class SmartLocatorsRealisticTests extends TestScenario {
@@ -22,7 +24,7 @@ public class SmartLocatorsRealisticTests extends TestScenario {
 
     @Test
     public void login() {
-        driver.browser().navigateToURL("https://qa-practice.netlify.app/auth_ecommerce")
+        driver.browser().navigateToURL(localStorefrontUrl())
                 .and().element().type("Email", "admin@admin.com")
                 .and().type("Password", "admin123")
                 .and().click("Submit")
@@ -50,5 +52,75 @@ public class SmartLocatorsRealisticTests extends TestScenario {
                 .and().select(By.id("countries_dropdown_menu"), "Egypt")
                 .and().element().click("Submit Order")
                 .and().assertThat(By.id("message")).text().isEqualTo("Congrats! Your order of $236.12 has been registered and will be shipped to 101 dummy street, Cairo - Egypt.");
+    }
+
+    private static String localStorefrontUrl() {
+        String html = """
+                <!doctype html>
+                <html lang="en">
+                <head>
+                    <meta charset="utf-8">
+                    <title>Local storefront</title>
+                </head>
+                <body>
+                    <main id="app">
+                        <form id="login-form">
+                            <label for="email">Email</label>
+                            <input id="email" name="email" type="email">
+                            <label for="password">Password</label>
+                            <input id="password" name="password" type="password">
+                            <button type="submit">Submit</button>
+                        </form>
+                    </main>
+                    <script>
+                        const app = document.getElementById('app');
+                        const orderMessage = 'Congrats! Your order of $236.12 has been registered and will be shipped to 101 dummy street, Cairo - Egypt.';
+
+                        function showShop() {
+                            app.innerHTML = `
+                                <div id="prooood">
+                                    <h2>SHOPPING CART</h2>
+                                    <div class="shop-item">
+                                        <span>Huawei Mate 20 Lite, 64GB, Black</span>
+                                        <button type="button" class="shop-item-button">Add to cart</button>
+                                    </div>
+                                    <div class="cart-total-price">$0.00</div>
+                                    <button type="button" id="checkout">PROCEED TO CHECKOUT</button>
+                                </div>`;
+                            document.querySelector('.shop-item-button').addEventListener('click', () => {
+                                document.querySelector('.cart-total-price').textContent = '$236.12';
+                            });
+                            document.getElementById('checkout').addEventListener('click', showCheckout);
+                        }
+
+                        function showCheckout() {
+                            app.insertAdjacentHTML('beforeend', `
+                                <section id="shipping">
+                                    <label for="phone">Phone number</label>
+                                    <input id="phone" name="phone">
+                                    <label for="street">Street</label>
+                                    <input id="street" name="street">
+                                    <label for="city">City</label>
+                                    <input id="city" name="city">
+                                    <select id="countries_dropdown_menu">
+                                        <option>Egypt</option>
+                                    </select>
+                                    <button type="button" id="submit-order">Submit Order</button>
+                                    <div id="message"></div>
+                                </section>`);
+                            document.getElementById('submit-order').addEventListener('click', () => {
+                                document.getElementById('message').textContent = orderMessage;
+                            });
+                        }
+
+                        document.getElementById('login-form').addEventListener('submit', event => {
+                            event.preventDefault();
+                            showShop();
+                        });
+                    </script>
+                </body>
+                </html>
+                """;
+        return "data:text/html;charset=utf-8," + URLEncoder.encode(html, StandardCharsets.UTF_8).replace("+", "%20");
     }
 }

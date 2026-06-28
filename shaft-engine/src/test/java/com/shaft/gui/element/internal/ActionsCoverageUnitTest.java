@@ -354,6 +354,21 @@ public class ActionsCoverageUnitTest {
     }
 
     @Test
+    public void typingShouldIgnoreUnsupportedDomPropertyReads() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty(anyString())).thenThrow(new UnsupportedCommandException("unsupported dom property"));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "native text");
+
+            verify(element).sendKeys(new CharSequence[]{"native text"});
+        }
+    }
+
+    @Test
     public void typingShouldFailWhenConfiguredTypedTextDoesNotMatchElementValue() {
         SHAFT.Properties.flags.set()
                 .forceCheckTextWasTypedCorrectly(true)

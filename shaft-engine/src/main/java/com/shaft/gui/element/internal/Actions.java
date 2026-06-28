@@ -720,7 +720,7 @@ public class Actions extends ElementActions {
                                     """, foundElements.get().getFirst(), data);
                     case CLEAR -> {
                         executeClearBasedOnClearMode(foundElements.get().getFirst(), "native");
-                        if (!"".equals(foundElements.get().getFirst().getDomProperty("value")))
+                        if (!"".equals(safeDomProperty(foundElements.get().getFirst(), "value")))
                             executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
                     }
                     case SCROLL_TO_ELEMENT -> {
@@ -1074,13 +1074,13 @@ public class Actions extends ElementActions {
         String text = element.getText();
         if (!text.isEmpty())
             return text;
-        text = element.getDomProperty("value");
+        text = safeDomProperty(element, "value");
         if (text != null && !text.isEmpty())
             return text;
-        text = element.getDomProperty("textContent");
+        text = safeDomProperty(element, "textContent");
         if (text != null && !text.isEmpty())
             return text;
-        text = element.getDomProperty("innerHTML");
+        text = safeDomProperty(element, "innerHTML");
         if (text != null && !text.isEmpty() && !text.contains("<"))
             return text;
         return "";
@@ -1117,16 +1117,25 @@ public class Actions extends ElementActions {
     }
 
     private String readElementValueForTyping(WebElement element) {
-        String text = element.getDomProperty("value");
+        String text = safeDomProperty(element, "value");
         if (text != null && !text.isEmpty())
             return text;
-        text = element.getDomProperty("textContent");
+        text = safeDomProperty(element, "textContent");
         if (text != null && !text.isEmpty())
             return text;
         text = element.getText();
         if (text != null && !text.isEmpty())
             return text;
         return "";
+    }
+
+    private String safeDomProperty(WebElement element, String propertyName) {
+        try {
+            return element.getDomProperty(propertyName);
+        } catch (UnsupportedCommandException unsupportedCommandException) {
+            ReportManagerHelper.logDiscrete(unsupportedCommandException, Level.DEBUG);
+            return "";
+        }
     }
 
     private static boolean shouldRefreshElementAfterLazyLoading(ActionType action, By locator) {
