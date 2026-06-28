@@ -18,6 +18,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
+import java.util.function.IntSupplier;
 import java.util.regex.Pattern;
 
 /**
@@ -351,7 +353,7 @@ public class TerminalActions implements AutoCloseable {
                 : internalCommands;
 
         // Perform command
-        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(commandsToExecute, longCommand, environmentVariables) : executeLocalCommand(commandsToExecute, longCommand, environmentVariables);
+        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(longCommand, environmentVariables) : executeLocalCommand(commandsToExecute, longCommand, environmentVariables);
         String log = exitLogs.get(0);
         String exitStatus = exitLogs.get(1);
 
@@ -393,6 +395,53 @@ public class TerminalActions implements AutoCloseable {
      */
     public String performTerminalCommand(String command, Map<String, String> environmentVariables) {
         return performTerminalCommands(Collections.singletonList(command), environmentVariables);
+    }
+
+    /**
+     * Executes a remote SSH command and returns structured stdout, stderr, and exit code.
+     *
+     * <p>Requires a reusable remote terminal created through
+     * {@link com.shaft.driver.SHAFT.CLI#remoteTerminal(String, int, String, String, String)}.
+     * Non-zero remote exit codes are returned in the result and do not fail the action by themselves.</p>
+     *
+     * @param command the remote command to execute
+     * @return structured command result with unredacted stream content for assertions
+     */
+    public SshCommandResult performSshCommand(String command) {
+        return performSshCommand(command, Collections.emptyMap());
+    }
+
+    /**
+     * Executes a remote SSH command with environment variables and returns structured output.
+     *
+     * @param command              the remote command to execute
+     * @param environmentVariables remote environment variables sent as SSH {@code env} requests
+     * @return structured command result with unredacted stream content for assertions
+     * @see #performSshCommand(String)
+     */
+    public SshCommandResult performSshCommand(String command, Map<String, String> environmentVariables) {
+        verifyReusableRemoteSessionFeature();
+        if (command == null || command.isBlank()) {
+            failAction("SSH command", new IllegalArgumentException("SSH command must not be blank."));
+        }
+        return executeRemoteSshCommand(command, environmentVariables);
+    }
+
+    /**
+     * Executes multiple remote SSH commands sequentially on the same reusable session.
+     *
+     * @param commands             the remote commands to execute in order
+     * @param environmentVariables remote environment variables sent as SSH {@code env} requests
+     * @return one structured result per command
+     */
+    public List<SshCommandResult> performSshCommands(List<String> commands, Map<String, String> environmentVariables) {
+        verifyReusableRemoteSessionFeature();
+        List<String> internalCommands = getValidCommands(commands);
+        List<SshCommandResult> results = new ArrayList<>(internalCommands.size());
+        for (String command : internalCommands) {
+            results.add(executeRemoteSshCommand(command, environmentVariables));
+        }
+        return results;
     }
 
     private List<String> getValidCommands(List<String> commands) {
@@ -990,43 +1039,149 @@ public class TerminalActions implements AutoCloseable {
         return pb;
     }
 
-    private List<String> executeRemoteCommand(List<String> commands, String longCommand, Map<String, String> environmentVariables) {
-        StringBuilder logs = new StringBuilder();
-        StringBuilder exitStatuses = new StringBuilder();
+    private List<String> executeRemoteCommand(String longCommand, Map<String, String> environmentVariables) {
+        RemoteCommandCapture capture = runRemoteExecChannel(longCommand, environmentVariables);
+        return Arrays.asList(mergeRemoteCommandOutput(capture.stdout(), capture.stderr()), String.valueOf(capture.exitCode()));
+    }
+
+    private SshCommandResult executeRemoteSshCommand(String command, Map<String, String> environmentVariables) {
+        long startedAt = System.nanoTime();
+        RemoteCommandCapture capture = runRemoteExecChannel(command, environmentVariables);
+        return reportSshCommandResult(command, capture, startedAt);
+    }
+
+    private SshCommandResult reportSshCommandResult(String command, RemoteCommandCapture capture, long startedAt) {
+        long durationMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+        SshCommandResult result = new SshCommandResult(command, capture.stdout(), capture.stderr(), capture.exitCode(), durationMillis);
+        passAction(buildSshCommandReportMessage(result), buildSshCommandReportLog(result));
+        return result;
+    }
+
+    private String buildSshCommandReportMessage(SshCommandResult result) {
+        StringBuilder reportMessage = new StringBuilder();
+        reportMessage.append("Host Name: \"").append(sshHostName).append("\"");
+        reportMessage.append(" | SSH Port Number: \"").append(sshPortNumber).append("\"");
+        reportMessage.append(" | SSH Username: \"").append(sshUsername).append("\"");
+        if (sshKeyFileName != null && !sshKeyFileName.isEmpty()) {
+            reportMessage.append(" | Key File: \"").append(sshKeyFileFolderName).append(sshKeyFileName).append("\"");
+        }
+        reportMessage.append(" | Command: \"").append(result.command()).append("\"");
+        reportMessage.append(" | Exit Status: \"").append(result.exitCode()).append("\"");
+        reportMessage.append(" | Duration (ms): \"").append(result.durationMillis()).append("\"");
+        return reportMessage.toString();
+    }
+
+    private static String buildSshCommandReportLog(SshCommandResult result) {
+        return mergeRemoteCommandOutput(result.stdout(), result.stderr());
+    }
+
+    private RemoteCommandCapture runRemoteExecChannel(String command, Map<String, String> environmentVariables) {
         int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
-        // remote execution
-        ReportManager.logDiscrete("Executing remote command: \"" + redactTerminalLogForReporting(longCommand) + "\".");
+        ReportManager.logDiscrete("Executing remote command: \"" + redactTerminalLogForReporting(command) + "\".");
         Session remoteSession = getRemoteSession();
+        if (remoteSession == null) {
+            failAction(command, new IllegalStateException("Remote SSH session is not available."));
+        }
         ChannelExec remoteChannelExecutor = null;
-        if (remoteSession != null) {
+        try {
+            remoteChannelExecutor = openRemoteExecChannel(remoteSession, command, environmentVariables, sessionTimeout);
+            return readRemoteExecChannelOutput(remoteChannelExecutor, sessionTimeout);
+        } catch (JSchException | IOException exception) {
+            failAction(command, exception);
+            return new RemoteCommandCapture("", "", -1);
+        } finally {
+            disconnectRemoteExecChannel(remoteChannelExecutor, remoteSession);
+        }
+    }
+
+    private ChannelExec openRemoteExecChannel(Session remoteSession, String command, Map<String, String> environmentVariables,
+                                              int sessionTimeout) throws JSchException {
+        remoteSession.setTimeout(sessionTimeout);
+        ChannelExec remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
+        remoteChannelExecutor.setCommand(command);
+        if (environmentVariables != null) {
+            environmentVariables.forEach(remoteChannelExecutor::setEnv);
+        }
+        return remoteChannelExecutor;
+    }
+
+    private RemoteCommandCapture readRemoteExecChannelOutput(ChannelExec remoteChannelExecutor, int sessionTimeout)
+            throws IOException, JSchException {
+        return captureRemoteCommandStreams(
+                remoteChannelExecutor.getInputStream(),
+                remoteChannelExecutor.getErrStream(),
+                () -> remoteChannelExecutor.connect(sessionTimeout),
+                remoteChannelExecutor::isClosed,
+                remoteChannelExecutor::getExitStatus,
+                sessionTimeout);
+    }
+
+    private void disconnectRemoteExecChannel(ChannelExec remoteChannelExecutor, Session remoteSession) {
+        if (remoteChannelExecutor != null && remoteChannelExecutor.isConnected()) {
+            remoteChannelExecutor.disconnect();
+        }
+        disconnectRemoteSessionIfEphemeral(remoteSession);
+    }
+
+    private RemoteCommandCapture captureRemoteCommandStreams(InputStream stdoutStream, InputStream stderrStream,
+                                                             ThrowingRunnable connectAction,
+                                                             BooleanSupplier channelClosed,
+                                                             IntSupplier exitCodeSupplier,
+                                                             long timeoutMillis)
+            throws IOException, JSchException {
+        ExecutorService streamReaders = Executors.newFixedThreadPool(2);
+        try {
+            Future<String> stdoutFuture = streamReaders.submit(() -> readProcessStream(stdoutStream));
+            Future<String> stderrFuture = streamReaders.submit(() -> readProcessStream(stderrStream));
+            connectAction.run();
+            long deadline = System.currentTimeMillis() + timeoutMillis;
+            String stdout = awaitRemoteStreamOutput(stdoutFuture, timeoutMillis);
+            String stderr = awaitRemoteStreamOutput(stderrFuture, Math.max(0, deadline - System.currentTimeMillis()));
+            awaitChannelClosed(channelClosed, deadline);
+            return new RemoteCommandCapture(stdout, stderr, exitCodeSupplier.getAsInt());
+        } finally {
+            streamReaders.shutdownNow();
+        }
+    }
+
+    private String awaitRemoteStreamOutput(Future<String> future, long timeoutMillis) {
+        try {
+            return future.get(Math.max(1, timeoutMillis), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return "";
+        } catch (ExecutionException | TimeoutException exception) {
+            return "";
+        }
+    }
+
+    private void awaitChannelClosed(BooleanSupplier channelClosed, long deadline) {
+        while (!channelClosed.getAsBoolean() && System.currentTimeMillis() < deadline) {
             try {
-                remoteSession.setTimeout(sessionTimeout);
-                remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
-                remoteChannelExecutor.setCommand(longCommand);
-                if (environmentVariables != null) {
-                    environmentVariables.forEach(remoteChannelExecutor::setEnv);
-                }
-                remoteChannelExecutor.connect();
-
-                // Capture logs and close readers
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getInputStream()));
-                     BufferedReader errorReader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getErrStream()))) {
-                    logs.append(readConsoleLogs(reader));
-                    logs.append(readConsoleLogs(errorReader));
-                }
-
-                // Retrieve the exit status of the executed command and destroy open sessions
-                exitStatuses.append(remoteChannelExecutor.getExitStatus());
-            } catch (JSchException | IOException exception) {
-                failAction(longCommand, exception);
-            } finally {
-                if (remoteChannelExecutor != null && remoteChannelExecutor.isConnected()) {
-                    remoteChannelExecutor.disconnect();
-                }
-                disconnectRemoteSessionIfEphemeral(remoteSession);
+                Thread.sleep(50);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                return;
             }
         }
-        return Arrays.asList(logs.toString(), exitStatuses.toString());
+    }
+
+    private static String mergeRemoteCommandOutput(String stdout, String stderr) {
+        if (stdout == null || stdout.isEmpty()) {
+            return stderr == null ? "" : stderr;
+        }
+        if (stderr == null || stderr.isEmpty()) {
+            return stdout;
+        }
+        return stdout + System.lineSeparator() + stderr;
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws JSchException;
+    }
+
+    private record RemoteCommandCapture(String stdout, String stderr, int exitCode) {
     }
 
     private String readConsoleLogs(BufferedReader reader) throws IOException {
