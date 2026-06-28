@@ -93,20 +93,18 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     private JsonObject awaitResult(int requestId, Duration timeout) throws IOException {
         long deadline = System.nanoTime() + timeout.toNanos();
         JsonObject response = null;
-        while (System.nanoTime() < deadline) {
+        boolean waiting = true;
+        while (waiting && response == null && System.nanoTime() < deadline) {
             JsonObject message = readMessage();
             if (message == null) {
-                break;
+                waiting = false;
+            } else if (message.has("id") && message.get("id").getAsInt() == requestId) {
+                if (message.has("error")) {
+                    throw new IOException(message.get("error").toString());
+                }
+                JsonElement result = message.get("result");
+                response = result == null || !result.isJsonObject() ? new JsonObject() : result.getAsJsonObject();
             }
-            if (!message.has("id") || message.get("id").getAsInt() != requestId) {
-                continue;
-            }
-            if (message.has("error")) {
-                throw new IOException(message.get("error").toString());
-            }
-            JsonElement result = message.get("result");
-            response = result == null || !result.isJsonObject() ? new JsonObject() : result.getAsJsonObject();
-            break;
         }
         if (response != null) {
             return response;
