@@ -22,8 +22,9 @@ Never run deployment or publication commands locally.
 3. Update `shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java`
    `shaftEngineVersion`. Verify `allure3Version` against the stable npm package
    and `nodeLtsVersion` against the current LTS patch using primary sources.
-   Keep non-Maven static versions in `Internal.java`; move stray version
-   literals there.
+   Verify every other version default in `Internal.java` against its source
+   registry when it changes. Keep non-Maven static versions in `Internal.java`;
+   move stray version literals there.
 4. Update all example and consumer-fixture `<shaft.version>` values found by:
 
    ```bash
@@ -34,8 +35,9 @@ Never run deployment or publication commands locally.
    compatibility review; do not treat alpha, beta, RC,
    milestone, or snapshot releases as upgrades.
 6. Validate release metadata and publication rules with existing scripts,
-   including Maven Central POM/JAR/classifier/signature and canonical,
-   combined-module, and legacy-relocation consumer checks.
+   including Maven Central POM/JAR/classifier/signature, the IntelliJ IDEA
+   plugin release candidate, and canonical, combined-module, and
+   legacy-relocation consumer checks.
 7. Run one compile/package pass after metadata is aligned. Do not rerun broad
    product tests for metadata-only changes unless source/test behavior changed.
 8. Verify the release version is newer than any immutable Maven Central

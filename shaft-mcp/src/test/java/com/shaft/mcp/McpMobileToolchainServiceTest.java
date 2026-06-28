@@ -1,5 +1,7 @@
 package com.shaft.mcp;
 
+import com.shaft.properties.internal.Internal;
+import org.aeonbits.owner.ConfigFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -15,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class McpMobileToolchainServiceTest {
+    private static final Internal INTERNAL = ConfigFactory.create(Internal.class);
+
     @TempDir
     Path temp;
 
@@ -27,8 +31,8 @@ class McpMobileToolchainServiceTest {
         create(sdk.resolve("emulator"), "emulator.exe");
         create(sdk.resolve("cmdline-tools/latest/bin"), "sdkmanager.bat");
         create(sdk.resolve("cmdline-tools/latest/bin"), "avdmanager.bat");
-        create(toolRoot.resolve("node/node-v24.18.0-win-x64"), "node.exe");
-        create(toolRoot.resolve("node/node-v24.18.0-win-x64"), "npm.cmd");
+        create(toolRoot.resolve(windowsNodeArchive()), "node.exe");
+        create(toolRoot.resolve(windowsNodeArchive()), "npm.cmd");
         create(toolRoot.resolve("appium/node_modules/.bin"), "appium.cmd");
         Files.createDirectories(avdHome.resolve("Cached_Pixel.avd"));
 
@@ -40,7 +44,7 @@ class McpMobileToolchainServiceTest {
                 """;
         runner.emulatorOutput = "Pixel_API_36\n";
         runner.appiumPluginOutput = "inspector\n";
-        runner.appiumVersionOutput = "3.5.2\n";
+        runner.appiumVersionOutput = INTERNAL.appiumServerVersion() + "\n";
 
         McpMobileToolchainService service = new McpMobileToolchainService(runner,
                 Map.of("ANDROID_SDK_ROOT", sdk.toString(), "ANDROID_AVD_HOME", avdHome.toString(), "PATH", ""),
@@ -51,7 +55,7 @@ class McpMobileToolchainServiceTest {
         assertTrue(status.adbAvailable());
         assertTrue(status.appiumAvailable());
         assertTrue(status.appiumInspectorAvailable());
-        assertEquals("3.5.2", status.appiumVersion());
+        assertEquals(INTERNAL.appiumServerVersion(), status.appiumVersion());
         assertEquals(2, status.androidDevices().size());
         assertEquals("Pixel 8", status.androidDevices().getFirst().name());
         assertFalse(status.androidDevices().get(1).warnings().isEmpty());
@@ -60,7 +64,7 @@ class McpMobileToolchainServiceTest {
         assertFalse(status.missingDependencies().contains("adb"));
         assertTrue(diagnostic(status, "appium").available());
         assertTrue(diagnostic(status, "appium").detectedPath().endsWith("appium.cmd"));
-        assertEquals("3.5.2", diagnostic(status, "appium").detectedVersion());
+        assertEquals(INTERNAL.appiumServerVersion(), diagnostic(status, "appium").detectedVersion());
         assertTrue(diagnostic(status, "appium-inspector-plugin").available());
         assertEquals("", diagnostic(status, "appium-inspector-plugin").detectedVersion());
     }
@@ -129,7 +133,7 @@ class McpMobileToolchainServiceTest {
     @Test
     void ensureAppiumInstallsPinnedPackagesWithCurrentCliSyntax() throws Exception {
         Path toolRoot = Files.createDirectories(temp.resolve("tools"));
-        create(toolRoot.resolve("node/node-v24.18.0-win-x64"), "npm.cmd");
+        create(toolRoot.resolve(windowsNodeArchive()), "npm.cmd");
         create(toolRoot.resolve("appium/node_modules/.bin"), "appium.cmd");
         FakeRunner runner = new FakeRunner();
         McpMobileToolchainService service = new McpMobileToolchainService(runner,
@@ -137,19 +141,24 @@ class McpMobileToolchainServiceTest {
 
         service.ensureAppium("Android");
 
-        assertTrue(runner.commands.stream().anyMatch(command -> command.contains("appium@3.5.2")));
+        assertTrue(runner.commands.stream().anyMatch(command ->
+                command.contains("appium@" + INTERNAL.appiumServerVersion())));
         assertTrue(runner.commands.stream().anyMatch(command -> command.equals(List.of(
                 toolRoot.resolve("appium/node_modules/.bin/appium.cmd").toString(),
                 "driver",
                 "install",
                 "--source=npm",
-                "appium-uiautomator2-driver@8.0.0"))));
+                "appium-uiautomator2-driver@" + INTERNAL.appiumUiAutomator2DriverVersion()))));
         assertTrue(runner.commands.stream().anyMatch(command -> command.equals(List.of(
                 toolRoot.resolve("appium/node_modules/.bin/appium.cmd").toString(),
                 "plugin",
                 "install",
                 "--source=npm",
-                "appium-inspector-plugin@2026.5.1"))));
+                "appium-inspector-plugin@" + INTERNAL.appiumInspectorPluginVersion()))));
+    }
+
+    private static String windowsNodeArchive() {
+        return "node/node-v" + INTERNAL.nodeLtsVersion() + "-win-x64";
     }
 
     private static void create(Path directory, String fileName) throws Exception {
