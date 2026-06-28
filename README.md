@@ -31,20 +31,19 @@ workflows.
 - Optional modules for BrowserStack, Capture, Doctor, Heal, MCP, AI, video, and
   visual testing.
 
-## How It Compares
+## Feature Overview
 
-| Solution | Best fit | SHAFT difference |
-|---|---|---|
-| Playwright | Modern browser automation with a rich test runner | SHAFT is Java/Maven-first and covers browser, mobile, API, CLI, Database, reporting, and evidence together. |
-| Selenide | Concise Java UI tests on Selenium WebDriver | SHAFT adds broader test surfaces, configuration, artifacts, and reports around WebDriver-style automation. |
-| WebdriverIO | Node.js browser and mobile automation | SHAFT fits Java teams that want cross-surface automation without adopting a Node.js test stack. |
-| Cypress | Browser-focused E2E and component testing | SHAFT fits regression suites that extend beyond frontend browser flows. |
-| Selenium, Appium, REST Assured | Focused browser, mobile, and API building blocks | SHAFT packages these concerns into a higher-level framework with synchronized actions and evidence. |
-| Karate | Unified API, UI, performance, and mocks in one syntax | SHAFT keeps tests in Java and emphasizes framework reuse, configuration, and reporting. |
+| Area | Built in |
+|---|---|
+| UI automation | Browser and mobile driver management, synchronized actions, screenshots, and logs. |
+| Service testing | REST and GraphQL API workflows with request, response, and assertion support. |
+| System coverage | CLI and Database actions for end-to-end validation beyond the browser. |
+| Test design | Assertions, validations, test data handling, and configuration overrides. |
+| Reporting | Allure-ready evidence, attachments, execution logs, and accessibility artifacts. |
+| Extensions | Optional modules for cloud execution, capture, diagnostics, healing, MCP, AI, video, and visual checks. |
 
-Use SHAFT when the suite needs to cover multiple test surfaces with consistent
-Java APIs, repeatable configuration, and useful run artifacts. Use a narrower
-tool when the project only needs that tool's specific strength.
+SHAFT is built for Java teams that want consistent APIs, repeatable
+configuration, and useful run artifacts across the full automation suite.
 
 ## Contributing
 
