@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ToolTemplatesTest {
@@ -31,5 +32,15 @@ class ToolTemplatesTest {
         assertTrue(templates.get("Preview Current Project Upgrade").arguments().contains("\"dryRun\": true"));
         assertEquals("shaft_project_upgrade", templates.get("Apply Current Project Upgrade").toolName());
         assertTrue(templates.get("Apply Current Project Upgrade").arguments().contains("\"approve\": true"));
+    }
+
+    @Test
+    void projectChangingTemplatesRequireConfirmation() {
+        Map<String, ToolTemplate> templates = ToolTemplates.projects().stream()
+                .collect(Collectors.toMap(ToolTemplate::label, template -> template));
+
+        assertFalse(templates.get("Preview Current Project Upgrade").confirmationRequired());
+        assertTrue(templates.get("Apply Current Project Upgrade").confirmationRequired());
+        assertFalse(templates.get("Apply Current Project Upgrade").description().isBlank());
     }
 }

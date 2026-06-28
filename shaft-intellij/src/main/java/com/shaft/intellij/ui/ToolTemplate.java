@@ -6,8 +6,19 @@ package com.shaft.intellij.ui;
  * @param label UI label
  * @param toolName MCP tool name
  * @param arguments JSON argument template
+ * @param description concise purpose and parameter hint
+ * @param confirmationRequired whether the tool can change project/source state
  */
-record ToolTemplate(String label, String toolName, String arguments) {
+record ToolTemplate(
+        String label,
+        String toolName,
+        String arguments,
+        String description,
+        boolean confirmationRequired) {
+    ToolTemplate(String label, String toolName, String arguments) {
+        this(label, toolName, arguments, "", false);
+    }
+
     @Override
     public String toString() {
         return label;

@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
-    private static final int WIDTH = 1200;
+    private static final int WIDTH = 620;
     private static final int HEIGHT = 780;
     private static final String LIGHT_THEME = "com.intellij.ide.ui.laf.IntelliJLaf";
     private static final String DARK_THEME = "com.intellij.ide.ui.laf.darcula.DarculaLaf";
@@ -69,28 +69,44 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
         Path toolsLightScreenshot = outputPath.resolve("intellij-plugin-tools.png");
         Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
+        Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
+        Path projectsScreenshot = outputPath.resolve("intellij-plugin-projects.png");
+        Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
 
-        write(assistantLightScreenshot, renderToolWindow(0, LIGHT_THEME, false));
-        write(assistantDarkScreenshot, renderToolWindow(0, DARK_THEME, true));
-        write(toolsLightScreenshot, renderToolWindow(1, LIGHT_THEME, false));
-        write(toolsDarkScreenshot, renderToolWindow(1, DARK_THEME, true));
+        write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
+        write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
+        write(toolsLightScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
+        write(toolsDarkScreenshot, renderToolWindow(1, "", DARK_THEME, true));
+        write(recorderScreenshot, renderToolWindow(1, "Recorder", LIGHT_THEME, false));
+        write(projectsScreenshot, renderToolWindow(1, "Projects", LIGHT_THEME, false));
+        write(mcpGuideScreenshot, renderToolWindow(1, "MCP", LIGHT_THEME, false));
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(projectsScreenshot) > 0, projectsScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
+                () -> assertDimensions(assistantLightScreenshot),
+                () -> assertDimensions(assistantDarkScreenshot),
+                () -> assertDimensions(toolsLightScreenshot),
+                () -> assertDimensions(toolsDarkScreenshot),
+                () -> assertDimensions(recorderScreenshot),
+                () -> assertDimensions(projectsScreenshot),
+                () -> assertDimensions(mcpGuideScreenshot),
                 () -> assertTrue(Files.mismatch(assistantLightScreenshot, assistantDarkScreenshot) >= 0,
                         "Assistant light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(toolsLightScreenshot, toolsDarkScreenshot) >= 0,
                         "Tools light and dark screenshots should differ"));
     }
 
-    private static BufferedImage renderToolWindow(int selectedTab, String lookAndFeelClassName, boolean dark)
+    private static BufferedImage renderToolWindow(int selectedTab, String toolsCategory, String lookAndFeelClassName, boolean dark)
             throws InterruptedException, InvocationTargetException {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
-            JComponent component = toolWindow(selectedTab);
+            JComponent component = toolWindow(selectedTab, toolsCategory);
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
@@ -101,11 +117,15 @@ class ShaftPluginScreenshotRendererTest {
         return image.get();
     }
 
-    private static JComponent toolWindow(int selectedTab) {
+    private static JComponent toolWindow(int selectedTab, String toolsCategory) {
         Project project = screenshotProject();
         JBTabbedPane tabs = new JBTabbedPane();
+        ShaftFeaturePanel tools = new ShaftFeaturePanel(project, defaultSettings());
+        if (!toolsCategory.isBlank()) {
+            tools.selectCategory(toolsCategory);
+        }
         tabs.addTab("Assistant", new ShaftAssistantPanel(project, defaultSettings()));
-        tabs.addTab("Tools", new ShaftFeaturePanel(project, defaultSettings()));
+        tabs.addTab("Tools", tools);
         tabs.setSelectedIndex(selectedTab);
         return tabs;
     }
@@ -227,5 +247,12 @@ class ShaftPluginScreenshotRendererTest {
         if (!ImageIO.write(image, "png", outputPath.toFile())) {
             throw new IOException("No PNG writer available for " + outputPath);
         }
+    }
+
+    private static void assertDimensions(Path imagePath) throws IOException {
+        BufferedImage image = ImageIO.read(imagePath.toFile());
+        assertAll(
+                () -> assertTrue(image.getWidth() == WIDTH, imagePath + " width should be " + WIDTH),
+                () -> assertTrue(image.getHeight() == HEIGHT, imagePath + " height should be " + HEIGHT));
     }
 }
