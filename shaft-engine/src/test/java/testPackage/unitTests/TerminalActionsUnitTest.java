@@ -5,12 +5,16 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
+import org.apache.commons.lang3.SystemUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.io.BufferedReader;
 import java.io.StringReader;
+import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -18,6 +22,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
+import java.util.function.IntSupplier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -357,8 +364,11 @@ public class TerminalActionsUnitTest {
     public void performTerminalCommandsShouldRunFromChangedDirectory() throws Exception {
         Path tempDir = createTempDir("cwd");
         TerminalActions terminal = TerminalActions.getInstance(false, false, true);
-        String log = terminal.performTerminalCommands(List.of("cd " + tempDir.toAbsolutePath(), "pwd"));
-        Assert.assertTrue(log.contains(tempDir.toAbsolutePath().toString()),
+        String directory = tempDir.toAbsolutePath().toString();
+        String log = SystemUtils.IS_OS_WINDOWS
+                ? terminal.performTerminalCommands(List.of("cd " + directory, "(Get-Location).Path"))
+                : terminal.performTerminalCommands(List.of("cd " + directory, "pwd"));
+        Assert.assertTrue(log.toLowerCase().contains(directory.toLowerCase()),
                 "Expected command log to include changed working directory.");
     }
 
@@ -654,5 +664,111 @@ public class TerminalActionsUnitTest {
         InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
                 () -> createSshSession.invoke(terminal));
         Assert.assertTrue(failure.getCause() instanceof RuntimeException);
+    }
+
+    @Test(description = "mergeRemoteCommandOutput should preserve stdout-only remote logs")
+    public void mergeRemoteCommandOutputShouldPreserveStdoutOnly() throws Exception {
+        Method mergeRemoteCommandOutput = TerminalActions.class.getDeclaredMethod("mergeRemoteCommandOutput", String.class, String.class);
+        mergeRemoteCommandOutput.setAccessible(true);
+        String merged = (String) mergeRemoteCommandOutput.invoke(null, "stdout-only", "");
+        Assert.assertEquals(merged, "stdout-only");
+    }
+
+    @Test(description = "mergeRemoteCommandOutput should preserve stderr-only remote logs")
+    public void mergeRemoteCommandOutputShouldPreserveStderrOnly() throws Exception {
+        Method mergeRemoteCommandOutput = TerminalActions.class.getDeclaredMethod("mergeRemoteCommandOutput", String.class, String.class);
+        mergeRemoteCommandOutput.setAccessible(true);
+        String merged = (String) mergeRemoteCommandOutput.invoke(null, "", "stderr-only");
+        Assert.assertEquals(merged, "stderr-only");
+    }
+
+    @Test(description = "mergeRemoteCommandOutput should merge stdout and stderr for legacy String API")
+    public void mergeRemoteCommandOutputShouldMergeStdoutAndStderr() throws Exception {
+        Method mergeRemoteCommandOutput = TerminalActions.class.getDeclaredMethod("mergeRemoteCommandOutput", String.class, String.class);
+        mergeRemoteCommandOutput.setAccessible(true);
+        String merged = (String) mergeRemoteCommandOutput.invoke(null, "stdout", "stderr");
+        Assert.assertEquals(merged, "stdout" + System.lineSeparator() + "stderr");
+    }
+
+    @Test(description = "captureRemoteCommandStreams should drain stdout and stderr separately after the command completes")
+    public void captureRemoteCommandStreamsShouldDrainStdoutAndStderrSeparately() throws Exception {
+        Class<?> throwingRunnableType = Class.forName("com.shaft.cli.TerminalActions$ThrowingRunnable");
+        Method captureRemoteCommandStreams = TerminalActions.class.getDeclaredMethod(
+                "captureRemoteCommandStreams",
+                InputStream.class,
+                InputStream.class,
+                throwingRunnableType,
+                BooleanSupplier.class,
+                IntSupplier.class,
+                long.class);
+        captureRemoteCommandStreams.setAccessible(true);
+
+        PipedOutputStream stdoutOut = new PipedOutputStream();
+        PipedInputStream stdoutIn = new PipedInputStream(stdoutOut);
+        PipedOutputStream stderrOut = new PipedOutputStream();
+        PipedInputStream stderrIn = new PipedInputStream(stderrOut);
+        AtomicBoolean channelClosed = new AtomicBoolean(false);
+
+        Object connectAction = java.lang.reflect.Proxy.newProxyInstance(
+                throwingRunnableType.getClassLoader(),
+                new Class<?>[]{throwingRunnableType},
+                (proxy, method, args) -> {
+                    // Simulate a remote command that keeps the channel open past the old 1-second cutoff.
+                    Thread producer = new Thread(() -> {
+                        try {
+                            Thread.sleep(1500);
+                            stdoutOut.write("stdout-line\n".getBytes());
+                            stderrOut.write("stderr-line\n".getBytes());
+                            stdoutOut.close();
+                            stderrOut.close();
+                            channelClosed.set(true);
+                        } catch (Exception ignored) {
+                            Thread.currentThread().interrupt();
+                        }
+                    });
+                    producer.setDaemon(true);
+                    producer.start();
+                    return null;
+                });
+
+        Object capture = captureRemoteCommandStreams.invoke(new TerminalActions(), stdoutIn, stderrIn, connectAction,
+                (BooleanSupplier) channelClosed::get,
+                (IntSupplier) () -> 7,
+                30_000L);
+
+        Method stdoutAccessor = capture.getClass().getDeclaredMethod("stdout");
+        Method stderrAccessor = capture.getClass().getDeclaredMethod("stderr");
+        Method exitCodeAccessor = capture.getClass().getDeclaredMethod("exitCode");
+        stdoutAccessor.setAccessible(true);
+        stderrAccessor.setAccessible(true);
+        exitCodeAccessor.setAccessible(true);
+
+        Assert.assertEquals(stdoutAccessor.invoke(capture), "stdout-line");
+        Assert.assertEquals(stderrAccessor.invoke(capture), "stderr-line");
+        Assert.assertEquals(exitCodeAccessor.invoke(capture), 7);
+    }
+
+    @Test(description = "performSshCommand should reject local terminals")
+    public void performSshCommandShouldRejectLocalTerminal() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.performSshCommand("echo test"));
+        Assert.assertTrue(failure.getMessage().contains("remote SSH"));
+    }
+
+    @Test(description = "performSshCommand should reject blank commands on reusable remote terminals")
+    public void performSshCommandShouldRejectBlankCommands() {
+        TerminalActions terminal = SHAFT.CLI.remoteTerminal("host.example.com", 22, "user", "", "");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.performSshCommand(" "));
+        Assert.assertTrue(failure.getMessage().contains("SSH command"));
+    }
+
+    @Test(description = "performTerminalCommand should remain backward compatible for local command output")
+    public void performTerminalCommandShouldRemainBackwardCompatibleForLocalOutput() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        String log = terminal.performTerminalCommand("echo legacy-string-api");
+        Assert.assertTrue(log.contains("legacy-string-api"),
+                "Existing String API should still return command output for assertions");
     }
 }
