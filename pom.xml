@@ -59,7 +59,7 @@
         <!-- Dependency BOM Versions -->
         <junit.bom.version>6.1.0</junit.bom.version>
         <allure.bom.version>2.35.3</allure.bom.version>
-        <cucumber.bom.version>7.34.3</cucumber.bom.version>
+        <cucumber.bom.version>7.34.4</cucumber.bom.version>
         <jackson.version>2.22.0</jackson.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <tools.jackson.core.version>3.2.0</tools.jackson.core.version>
