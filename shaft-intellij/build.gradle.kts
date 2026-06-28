@@ -82,6 +82,13 @@ tasks {
         options.release.set(17)
     }
 
+    processResources {
+        inputs.property("pluginVersion", project.version.toString())
+        filesMatching("messages/ShaftBundle.properties") {
+            expand("pluginVersion" to project.version.toString())
+        }
+    }
+
     test {
         useJUnitPlatform()
     }

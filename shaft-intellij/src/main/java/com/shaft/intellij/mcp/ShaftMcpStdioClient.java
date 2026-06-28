@@ -1,7 +1,5 @@
 package com.shaft.intellij.mcp;
 
-import com.intellij.ide.plugins.PluginManagerCore;
-import com.intellij.openapi.extensions.PluginId;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -16,6 +14,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 final class ShaftMcpStdioClient implements AutoCloseable {
     private static final Gson GSON = new Gson();
     private static final String PROTOCOL_VERSION = "2024-11-05";
-    private static final String PLUGIN_ID = "io.github.shafthq.shaft";
 
     private final Process process;
     private final InputStream input;
@@ -78,9 +77,12 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     }
 
     private static String pluginVersion() {
-        var descriptor = PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID));
-        String version = descriptor == null ? null : descriptor.getVersion();
-        return version == null || version.isBlank() ? "dev" : version;
+        try {
+            String version = ResourceBundle.getBundle("messages.ShaftBundle").getString("shaft.plugin.version");
+            return version == null || version.isBlank() ? "dev" : version;
+        } catch (MissingResourceException exception) {
+            return "dev";
+        }
     }
 
     private static JsonObject request(int requestId, String method) {
