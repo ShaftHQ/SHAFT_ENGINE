@@ -22,11 +22,24 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
     private static final int WIDTH = 1200;
     private static final int HEIGHT = 780;
+    private static final Map<Class<?>, Object> PRIMITIVE_DEFAULTS = Map.of(
+            boolean.class, false,
+            byte.class, (byte) 0,
+            short.class, (short) 0,
+            int.class, 0,
+            long.class, 0L,
+            float.class, 0.0F,
+            double.class, 0.0D,
+            char.class, '\0');
 
     @Test
     void rendersFeatureCatalogScreenshotsWhenOutputDirectoryIsProvided() throws Exception {
@@ -36,8 +49,13 @@ class ShaftPluginScreenshotRendererTest {
 
         Path outputPath = Path.of(outputDirectory);
         Files.createDirectories(outputPath);
-        write(outputPath.resolve("intellij-plugin-assistant.png"), renderToolWindow(0));
-        write(outputPath.resolve("intellij-plugin-tools.png"), renderToolWindow(1));
+        Path assistantScreenshot = outputPath.resolve("intellij-plugin-assistant.png");
+        Path toolsScreenshot = outputPath.resolve("intellij-plugin-tools.png");
+        write(assistantScreenshot, renderToolWindow(0));
+        write(toolsScreenshot, renderToolWindow(1));
+        assertAll(
+                () -> assertTrue(Files.size(assistantScreenshot) > 0, assistantScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(toolsScreenshot) > 0, toolsScreenshot + " should be non-empty"));
     }
 
     private static BufferedImage renderToolWindow(int selectedTab)
@@ -77,31 +95,7 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static Object defaultValue(Class<?> returnType) {
-        if (returnType == boolean.class) {
-            return false;
-        }
-        if (returnType == byte.class) {
-            return (byte) 0;
-        }
-        if (returnType == short.class) {
-            return (short) 0;
-        }
-        if (returnType == int.class) {
-            return 0;
-        }
-        if (returnType == long.class) {
-            return 0L;
-        }
-        if (returnType == float.class) {
-            return 0.0F;
-        }
-        if (returnType == double.class) {
-            return 0.0D;
-        }
-        if (returnType == char.class) {
-            return '\0';
-        }
-        return null;
+        return PRIMITIVE_DEFAULTS.get(returnType);
     }
 
     private static ShaftSettingsState.Settings defaultSettings() {
