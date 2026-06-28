@@ -1,0 +1,43 @@
+name: IntelliJ Plugin
+
+on:
+  pull_request:
+    paths:
+      - 'shaft-intellij/**'
+      - '.github/workflows/intellij-plugin.yml'
+      - '.github/workflows/publish-intellij-plugin.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'shaft-intellij/**'
+      - '.github/workflows/intellij-plugin.yml'
+      - '.github/workflows/publish-intellij-plugin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Gradle 9
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: '9.0.0'
+      - name: Build IntelliJ plugin
+        run: gradle -p shaft-intellij check buildPlugin verifyPlugin
+      - name: Upload plugin distribution
+        uses: actions/upload-artifact@v6
+        with:
+          name: shaft-intellij-plugin
+          path: shaft-intellij/build/distributions/*.zip
+          if-no-files-found: error

@@ -120,7 +120,6 @@ IGNORED_DIRECTORIES = {
     ".idea",
     ".mvn-repository",
     ".shaft-upgrade",
-    ".vscode",
     "allure-report",
     "allure-results",
     "build",

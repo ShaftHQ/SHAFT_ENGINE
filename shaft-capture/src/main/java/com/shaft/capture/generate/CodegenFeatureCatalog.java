@@ -7,7 +7,7 @@ import java.util.List;
  */
 public final class CodegenFeatureCatalog {
     private static final List<Feature> FEATURES = List.of(
-            feature("Recording UI", "VS Code record new test", "Record new",
+            feature("Recording UI", "IntelliJ record new test", "Record new",
                     "SUPPORTED", "Use capture_start or the generated workbench record panel."),
             feature("Recording UI", "Record at cursor", "Record at cursor",
                     "AGENT_MAPPED", "MCP returns method/code blocks for insertion at an agent-selected location."),
