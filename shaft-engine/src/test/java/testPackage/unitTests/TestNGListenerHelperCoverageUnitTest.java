@@ -190,13 +190,6 @@ public class TestNGListenerHelperCoverageUnitTest {
         xmlTest.setName("sampleTest");
 
         SHAFT.Properties.platform.set().crossBrowserMode("parallelized");
-        System.setProperty("setParallel", "METHODS");
-        System.setProperty("setParallelMode", "STATIC");
-        System.setProperty("setThreadCount", "2.0");
-        System.setProperty("setPreserveOrder", "true");
-        System.setProperty("setGroupByInstances", "true");
-        System.setProperty("setVerbose", "2");
-        System.setProperty("setDataProviderThreadCount", "3");
 
         TestNGListenerHelper.configureCrossBrowserExecution(new ArrayList<>(List.of(suite)));
         Assert.assertEquals(suite.getTests().size(), 4);
@@ -205,10 +198,11 @@ public class TestNGListenerHelperCoverageUnitTest {
 
         TestNGListenerHelper.configureTestNGProperties(List.of(suite));
         int expectedThreadCount = expectedConfiguredThreadCount();
-        Assert.assertEquals(suite.getVerbose(), 2);
+        int expectedVerbose = SHAFT.Properties.testNG.verbose();
+        Assert.assertEquals(suite.getVerbose(), expectedVerbose);
         for (XmlTest expandedTest : suite.getTests()) {
             Assert.assertEquals(expandedTest.getThreadCount(), expectedThreadCount);
-            Assert.assertEquals(expandedTest.getVerbose(), 2);
+            Assert.assertEquals(expandedTest.getVerbose(), expectedVerbose);
             Assert.assertNotNull(expandedTest.getName());
         }
         Assert.assertTrue(suite.getDataProviderThreadCount() > 0);

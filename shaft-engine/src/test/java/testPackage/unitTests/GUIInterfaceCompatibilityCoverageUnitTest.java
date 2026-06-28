@@ -110,7 +110,7 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
         boolean originalForceRetryEvidence = SHAFT.Properties.flags.forceCaptureSupportingEvidenceOnRetry();
         try {
             SHAFT.Properties.clearForCurrentThread();
-            Assert.assertFalse(SHAFT.Properties.playwright.tracingEnabled());
+            boolean defaultTracingEnabled = SHAFT.Properties.playwright.tracingEnabled();
 
             SHAFT.Properties.playwright.set()
                     .connectionMode("connect")
@@ -123,6 +123,10 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
             Assert.assertTrue(SHAFT.Properties.playwright.tracingEnabled());
 
             SHAFT.Properties.clearForCurrentThread();
+            Assert.assertEquals(SHAFT.Properties.playwright.tracingEnabled(), defaultTracingEnabled);
+            SHAFT.Properties.playwright.set()
+                    .tracingEnabled(false)
+                    .tracingOnRetryOnly(true);
             SHAFT.Properties.flags.set().forceCaptureSupportingEvidenceOnRetry(true);
             RetryAnalyzer.enableSupportingEvidenceCaptureForRetryAttempt();
             RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();

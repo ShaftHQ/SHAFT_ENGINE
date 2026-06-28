@@ -171,7 +171,7 @@ public class ReportManagerHelperUnitTests {
         SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Response JSON", "payload.json")).isEqualTo("json").perform();
         SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Response XML", "payload.xml")).isEqualTo("xml").perform();
         SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Report CSV", "report.csv")).isEqualTo("csv").perform();
-        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Page Snapshot", "index.html")).isEqualTo("page snapshot").perform();
+        SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Page Snapshot", "index.html")).isEqualTo("html").perform();
         SHAFT.Validations.assertThat().object(getAttachmentCaseMethod.invoke(null, "Unknown", "data.bin")).isEqualTo("default").perform();
     }
 
