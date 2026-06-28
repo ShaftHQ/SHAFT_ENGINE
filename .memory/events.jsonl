@@ -42,8 +42,6 @@
 {"actor":"agent","event":"memory.updated","id":"synthesis.product-intent","timestamp":"2026-06-17T11:19:41+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.surefire-testng-deletes-module","timestamp":"2026-06-17T11:20:53+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.issue-linked-pr-closure-and-focused-tests","timestamp":"2026-06-17T11:20:53+03:00"}
-{"actor":"agent","event":"memory.created","id":"workflow.share-memory-and-graphify-assets","timestamp":"2026-06-17T11:26:27+03:00"}
-{"actor":"agent","event":"relation.created","relation_id":"rel.workflow-share-memory-and-graphify-assets-documents-project-shaft-engine","timestamp":"2026-06-17T11:26:27+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.create-and-report-pr-after-tasks","timestamp":"2026-06-17T11:28:59+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.workflow-create-and-report-pr-after-tasks-documents-project-shaft-engine","timestamp":"2026-06-17T11:28:59+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.python-script-tests-use-python310","timestamp":"2026-06-17T11:39:13+03:00"}
@@ -58,7 +56,6 @@
 {"actor":"agent","event":"memory.created","id":"fact.deterministic-ai-test-lifecycle-artifacts","timestamp":"2026-06-18T13:59:56+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.heal-ai-reranking-trigger-gated","timestamp":"2026-06-18T13:59:56+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.decision-heal-ai-reranking-trigger-gated-affects-fact-deterministic-ai-test-lifecycle-artifacts","timestamp":"2026-06-18T13:59:56+03:00"}
-{"actor":"agent","event":"memory.created","id":"workflow.use-memory-and-graphify-through-cli-in-codex","timestamp":"2026-06-18T15:03:29+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.surefire-testng-bootstrap-validation-after-pr2947","timestamp":"2026-06-18T17:07:40+03:00"}
 {"actor":"agent","event":"memory.superseded","id":"gotcha.surefire-testng-deletes-module","reason":"PR #2945 and PR #2947 fixed the Windows bootstrap/deletion path, and focused Surefire/TestNG validation on main@1143717914 passed with populated Allure results and the shaft-engine module tree intact.","timestamp":"2026-06-18T17:07:40+03:00"}
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.workflow-surefire-testng-bootstrap-validation-after-pr2947-supersedes-gotcha-surefire-testng-deletes-module","timestamp":"2026-06-18T19:50:26+03:00"}
@@ -74,14 +71,12 @@
 {"actor":"agent","event":"memory.created","id":"decision.use-official-docs-search-index-for-shaft-mcp-guide-search","timestamp":"2026-06-19T20:01:52+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.prefer-shaft-api-builder-facade-for-rest-work","timestamp":"2026-06-20T09:44:36+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-saves-use-intent-first-json-on-stdin","timestamp":"2026-06-20T12:08:49+03:00"}
-{"actor":"agent","event":"memory.created","id":"gotcha.graphify-updates-use-installed-cli-subcommands","timestamp":"2026-06-20T12:08:49+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.mcp-test-automation-scenario-catalog","timestamp":"2026-06-20T17:15:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"constraint.delegate-broadly-to-spark","timestamp":"2026-06-21T10:28:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.use-override-annotations","timestamp":"2026-06-21T11:06:45+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.playwright-entrypoint-casing","timestamp":"2026-06-21T11:58:05+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.gui-driver-facade-alias","timestamp":"2026-06-21T12:09:46+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.keep-shaft-mcp-webdriver-default-with-opt-in-playwright-tools","timestamp":"2026-06-21T13:16:01+03:00"}
-{"actor":"agent","event":"memory.updated","id":"gotcha.graphify-updates-use-installed-cli-subcommands","timestamp":"2026-06-21T15:23:04+03:00"}
 {"actor":"agent","event":"memory.updated","id":"constraint.delegate-broadly-to-spark","timestamp":"2026-06-21T20:33:51+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.do-not-wait-for-ci-unless-explicitly-requested","timestamp":"2026-06-23T20:24:32+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.talk-less-outside-planning","timestamp":"2026-06-24T11:50:28+03:00"}
@@ -92,3 +87,5 @@
 {"actor":"agent","event":"memory.updated","id":"workflow.include-examples-or-screenshots-in-prs","timestamp":"2026-06-26T16:17:32+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.include-concrete-evidence-in-shaft-pr-bodies","timestamp":"2026-06-26T18:36:57+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.resolve-pr-base-conflicts-before-opening-prs","timestamp":"2026-06-27T09:00:09+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.delegate-only-when-needed-for-correctness","timestamp":"2026-06-28T08:58:11+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.memory-saves-use-intent-first-json-on-stdin","timestamp":"2026-06-28T08:59:38+03:00"}

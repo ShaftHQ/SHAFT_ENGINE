@@ -276,17 +276,7 @@ mvn -pl shaft-mcp -Dtest=DoctorServiceTest,McpResultRecordsTest,ShaftMcpApplicat
 mvn -pl shaft-engine,shaft-mcp -am test-compile
 ```
 
-- [ ] **Step 2: Refresh graphify or report blocker**
-
-Run:
-
-```powershell
-graphify . --update
-```
-
-If unavailable or too slow, report the blocker and the existing graph freshness.
-
-- [ ] **Step 3: Update PR body and mark ready only if implementation is complete**
+- [ ] **Step 2: Update PR body and mark ready only if implementation is complete**
 
 ```powershell
 $body = @'

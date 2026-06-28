@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/delegate-only-when-needed-for-correctness.md",
-  "content_hash": "sha256:7abef5e6ef3e51f949784b8061fe34616b19e5a7f7710e8b6c6b7051e26b75ae",
+  "content_hash": "sha256:d0b4c348900b36419c8edbddae9663fc33226e30633bfb57d5f78d9e26b1f66b",
   "created_at": "2026-06-18T02:06:18+03:00",
   "evidence": [
     {
@@ -29,5 +29,5 @@
   ],
   "title": "Delegate only when needed for correctness",
   "type": "workflow",
-  "updated_at": "2026-06-18T02:06:18+03:00"
+  "updated_at": "2026-06-28T08:58:11+03:00"
 }

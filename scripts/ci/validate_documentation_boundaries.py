@@ -22,7 +22,6 @@ ALLOWED_EXACT = {
     ".github/RELEASE_BODY_TEMPLATE.md",
     ".github/skills/README.md",
     ".github/workflows/README.md",
-    "graphify-out/GRAPH_REPORT.md",
     "shaft-mcp/.github/copilot-instructions.md",
 }
 ALLOWED_GLOBS = (

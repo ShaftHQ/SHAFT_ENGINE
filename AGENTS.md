@@ -35,7 +35,6 @@ For file edits unless told otherwise:
 - Preserve public API; deprecate before removal/rename.
 - Public docs: `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`/excerpts.
   Functionality changes need guide update plus docs PR.
-- Before PRs, refresh graphify for core/docs changes; report blockers.
 - Never expose secrets or run deploy, publish, history rewrites, cleanup, or cloud suites unless explicit.
 - No generated reports, binaries, or `target/`.
 - Browser tests headless unless headed approved.
