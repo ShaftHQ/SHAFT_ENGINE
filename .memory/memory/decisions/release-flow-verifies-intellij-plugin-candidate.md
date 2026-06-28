@@ -1,0 +1,1 @@
+Release preparation must verify `shaft-intellij` as part of both PR-side and Maven Central release gates. The permanent check is `gradle -p shaft-intellij check buildPlugin verifyPlugin` in `.github/workflows/shaft-pilot-release.yml` and `.github/workflows/mavenCentral_cd.yml`, enforced by `scripts/ci/validate_shaft_pilot_release.py`.

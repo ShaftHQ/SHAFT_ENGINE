@@ -42,6 +42,7 @@ FORBIDDEN_ENTRY_PARTS = (
     "testDataFiles/",
 )
 FORBIDDEN_ENTRY_SUFFIXES = (".apk", ".ipa", ".jar", ".zip")
+SHAFT_MCP_TEMPLATE_PREFIX = "META-INF/shaft-mcp/examples/"
 
 
 def _parse(path: Path) -> ET.Element:
@@ -71,6 +72,12 @@ def validate_jar_contents(artifact: str, classifier: str | None, jar: Path) -> l
             continue
         if ABSOLUTE_ENTRY.match(name):
             errors.append(f"{jar.name} contains absolute path entry: {name}")
+        if (
+            artifact == "shaft-mcp"
+            and classifier is None
+            and name.startswith(SHAFT_MCP_TEMPLATE_PREFIX)
+        ):
+            continue
         for forbidden in FORBIDDEN_ENTRY_PARTS:
             if forbidden in name or name.startswith(forbidden):
                 errors.append(f"{jar.name} contains forbidden entry: {name}")

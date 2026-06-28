@@ -54,6 +54,17 @@ CREDENTIAL_PATTERNS = (
     re.compile(rb"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
     re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),
 )
+INTERNAL_VERSION_DEFAULTS = {
+    "shaftEngineVersion": r"\d+\.[1-4]\.\d{8}",
+    "allure3Version": r"\d+\.\d+\.\d+",
+    "nodeLtsVersion": r"\d+\.\d+\.\d+",
+    "appiumServerVersion": r"\d+\.\d+\.\d+",
+    "appiumInspectorPluginVersion": r"\d{4}\.\d+\.\d+",
+    "appiumUiAutomator2DriverVersion": r"\d+\.\d+\.\d+",
+    "appiumXcuitestDriverVersion": r"\d+\.\d+\.\d+",
+    "androidCommandLineToolsVersion": r"\d+",
+}
+UNSTABLE_VERSION = re.compile(r"(?i)(alpha|beta|rc|cr|m[0-9]+|ea|preview|milestone|snapshot)")
 
 
 def text(element: ET.Element, path: str) -> str:
@@ -62,6 +73,25 @@ def text(element: ET.Element, path: str) -> str:
 
 def reactor_version(root: Path = ROOT) -> str:
     return text(ET.parse(root / "pom.xml").getroot(), "m:version")
+
+
+def java_default_value(source: str, method: str) -> str | None:
+    match = re.search(
+        r'@DefaultValue\("([^"]+)"\)\s+(?:String|int)\s+' + re.escape(method) + r"\(\);",
+        source,
+    )
+    return match.group(1) if match else None
+
+
+def read_gradle_properties(path: Path) -> dict[str, str]:
+    properties: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        properties[key.strip()] = value.strip()
+    return properties
 
 
 def scan_bytes(label: str, content: bytes) -> list[str]:
@@ -121,12 +151,32 @@ def validate_static(root: Path = ROOT) -> list[str]:
     internal = (
         root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java"
     ).read_text(encoding="utf-8")
-    version_match = re.search(
-        r'@DefaultValue\("([^"]+)"\)\s+String shaftEngineVersion\(\);',
-        internal,
-    )
-    if not version_match or version_match.group(1) != version:
+    version_match = java_default_value(internal, "shaftEngineVersion")
+    if version_match != version:
         errors.append("Internal.shaftEngineVersion must match the reactor version")
+    for method, expected_format in INTERNAL_VERSION_DEFAULTS.items():
+        default_value = java_default_value(internal, method)
+        if default_value is None:
+            errors.append(f"Internal.{method} default is missing")
+            continue
+        if not re.fullmatch(expected_format, default_value):
+            errors.append(f"Internal.{method} has unexpected default format: {default_value!r}")
+        if method != "shaftEngineVersion" and UNSTABLE_VERSION.search(default_value):
+            errors.append(f"Internal.{method} must use a stable release version: {default_value!r}")
+
+    intellij_properties = read_gradle_properties(root / "shaft-intellij/gradle.properties")
+    expected_plugin_version = f"{version}-beta.0"
+    if intellij_properties.get("pluginVersion") != expected_plugin_version:
+        errors.append("shaft-intellij pluginVersion must match the reactor beta release version")
+    for required_property in ("pluginSinceBuild", "platformVersion"):
+        if not intellij_properties.get(required_property):
+            errors.append(f"shaft-intellij {required_property} is missing")
+
+    intellij_client = (
+        root / "shaft-intellij/src/main/java/com/shaft/intellij/mcp/ShaftMcpStdioClient.java"
+    ).read_text(encoding="utf-8")
+    if re.search(r'clientInfo\.addProperty\("version",\s*"\d+\.\d+\.\d{8}', intellij_client):
+        errors.append("shaft-intellij clientInfo version must come from plugin metadata, not a literal")
 
     pilot_properties = (
         root / "shaft-engine/src/main/java/com/shaft/properties/internal/Pilot.java"
@@ -161,7 +211,18 @@ def validate_static(root: Path = ROOT) -> list[str]:
     workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(
         encoding="utf-8"
     )
+    pilot_release_workflow = (root / ".github/workflows/shaft-pilot-release.yml").read_text(
+        encoding="utf-8"
+    )
+    intellij_command = "gradle -p shaft-intellij check buildPlugin verifyPlugin"
+    for workflow_name, workflow_content in (
+        ("mavenCentral_cd.yml", workflow),
+        ("shaft-pilot-release.yml", pilot_release_workflow),
+    ):
+        if intellij_command not in workflow_content:
+            errors.append(f"{workflow_name} must verify the IntelliJ plugin release candidate")
     required_steps = (
+        "Verify IntelliJ plugin release candidate",
         "Validate SHAFT Pilot release contract",
         "Run deterministic SHAFT Pilot tests",
         "Run headless SHAFT Capture release journey",

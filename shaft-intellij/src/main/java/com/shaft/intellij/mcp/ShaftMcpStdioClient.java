@@ -1,5 +1,7 @@
 package com.shaft.intellij.mcp;
 
+import com.intellij.ide.plugins.PluginManagerCore;
+import com.intellij.openapi.extensions.PluginId;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -24,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 final class ShaftMcpStdioClient implements AutoCloseable {
     private static final Gson GSON = new Gson();
     private static final String PROTOCOL_VERSION = "2024-11-05";
+    private static final String PLUGIN_ID = "io.github.shafthq.shaft";
 
     private final Process process;
     private final InputStream input;
@@ -62,7 +65,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         params.add("capabilities", new JsonObject());
         JsonObject clientInfo = new JsonObject();
         clientInfo.addProperty("name", "shaft-intellij");
-        clientInfo.addProperty("version", "10.2.20260627-beta.0");
+        clientInfo.addProperty("version", pluginVersion());
         params.add("clientInfo", clientInfo);
         request.add("params", params);
         send(request);
@@ -72,6 +75,12 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         initialized.addProperty("jsonrpc", "2.0");
         initialized.addProperty("method", "notifications/initialized");
         send(initialized);
+    }
+
+    private static String pluginVersion() {
+        var descriptor = PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID));
+        String version = descriptor == null ? null : descriptor.getVersion();
+        return version == null || version.isBlank() ? "dev" : version;
     }
 
     private static JsonObject request(int requestId, String method) {

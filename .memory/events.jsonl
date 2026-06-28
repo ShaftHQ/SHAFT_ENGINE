@@ -123,3 +123,6 @@
 {"actor":"agent","event":"memory.deleted","id":"workflow.proactive-memory-use-when-material","timestamp":"2026-06-28T10:31:53+03:00"}
 {"actor":"agent","event":"memory.deleted","id":"workflow.surefire-testng-bootstrap-validation-after-pr2947","timestamp":"2026-06-28T10:31:53+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.testng-single-threaded-static-state","timestamp":"2026-06-28T10:32:59+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.release-flow-verifies-intellij-plugin-candidate","timestamp":"2026-06-28T19:12:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.keep-non-maven-tool-versions-in-internal-java","timestamp":"2026-06-28T19:12:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-mcp-jar-carries-generator-examples","timestamp":"2026-06-28T19:12:38+03:00"}

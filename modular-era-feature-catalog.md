@@ -163,7 +163,7 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the new beta IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260627-beta.0`). It is intentionally thin: users configure the SHAFT MCP stdio command in `Settings | SHAFT`, then run curated MCP tool templates from an IDE tool window without leaving the project.
+`shaft-intellij` is the new beta IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628-beta.0`). It is intentionally thin: users configure the SHAFT MCP stdio command in `Settings | SHAFT`, then run curated MCP tool templates from an IDE tool window without leaving the project.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
