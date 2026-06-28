@@ -1,4 +1,5 @@
 com.shaft.api
+com.shaft.api.internal
 com.shaft.cli
 com.shaft.cucumber
 com.shaft.db
