@@ -3,12 +3,14 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.JButton;
@@ -32,18 +34,28 @@ final class ShaftFeaturePanel extends JPanel {
     private final JBTextArea outputArea;
     private final JButton runButton;
     private final JLabel status;
+    private final ShaftSettingsState.Settings settings;
     private final Map<String, String> argumentDrafts = new LinkedHashMap<>();
     private ToolTemplate activeTemplate;
     private boolean updatingTools;
 
     ShaftFeaturePanel(@NotNull Project project) {
+        this(project, ShaftSettingsState.getInstance().getState());
+    }
+
+    ShaftFeaturePanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
         super(new BorderLayout(8, 8));
+        this.settings = settings;
         setBorder(JBUI.Borders.empty(8));
         categorySelector = new JComboBox<>(ToolTemplates.categories().toArray(ToolCategory[]::new));
         toolSelector = new JComboBox<>();
         argumentsArea = new JBTextArea(14, 56);
+        argumentsArea.setLineWrap(true);
+        argumentsArea.setWrapStyleWord(true);
         outputArea = new JBTextArea(10, 56);
         outputArea.setEditable(false);
+        outputArea.setLineWrap(true);
+        outputArea.setWrapStyleWord(true);
         status = new JLabel("Ready");
 
         runButton = new JButton("Run");
@@ -66,6 +78,10 @@ final class ShaftFeaturePanel extends JPanel {
         header.add(runButton);
         header.add(status);
 
+        JPanel north = new JPanel(new BorderLayout(6, 6));
+        north.add(header, BorderLayout.NORTH);
+        north.add(setupNotice(project, settings), BorderLayout.SOUTH);
+
         JPanel center = new JPanel(new BorderLayout(6, 6));
         JLabel argumentsLabel = label("Arguments", 'A', argumentsArea);
         center.add(argumentsLabel, BorderLayout.NORTH);
@@ -79,7 +95,7 @@ final class ShaftFeaturePanel extends JPanel {
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, center, output);
         splitPane.setResizeWeight(0.66);
         splitPane.setBorder(JBUI.Borders.empty());
-        add(header, BorderLayout.NORTH);
+        add(north, BorderLayout.NORTH);
         add(splitPane, BorderLayout.CENTER);
     }
 
@@ -90,6 +106,11 @@ final class ShaftFeaturePanel extends JPanel {
     private void run(Project project) {
         ToolTemplate template = selectedTemplate();
         if (template == null) {
+            return;
+        }
+        if (!mcpConfigured()) {
+            status.setText("Configure MCP");
+            outputArea.setText("Configure SHAFT MCP in Settings before running Tools requests.");
             return;
         }
         JsonObject arguments;
@@ -169,6 +190,24 @@ final class ShaftFeaturePanel extends JPanel {
         label.setDisplayedMnemonic(mnemonic);
         label.setLabelFor(target);
         return label;
+    }
+
+    private boolean mcpConfigured() {
+        return settings.mcpCommand != null && !settings.mcpCommand.isBlank();
+    }
+
+    private static JPanel setupNotice(Project project, ShaftSettingsState.Settings settings) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        panel.add(new JLabel("Configure SHAFT MCP to run Assistant and Tools."));
+        JButton openSettings = new JButton("Open Settings");
+        openSettings.addActionListener(event -> {
+            if (project != null) {
+                ShowSettingsUtil.getInstance().showSettingsDialog(project, "SHAFT");
+            }
+        });
+        panel.add(openSettings);
+        panel.setVisible(settings.mcpCommand == null || settings.mcpCommand.isBlank());
+        return panel;
     }
 
     private static String draftKey(ToolTemplate template) {

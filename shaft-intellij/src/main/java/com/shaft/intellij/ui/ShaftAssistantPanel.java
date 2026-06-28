@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
+import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBScrollPane;
@@ -39,6 +40,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton send;
     private final JButton copyLastResponse;
     private final JLabel status;
+    private final ShaftSettingsState.Settings settings;
     private String lastResponse = "";
 
     ShaftAssistantPanel(@NotNull Project project) {
@@ -47,6 +49,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     ShaftAssistantPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
         super(new BorderLayout(8, 8));
+        this.settings = settings;
         setBorder(JBUI.Borders.empty(8));
         mode = new JComboBox<>(new String[]{"ASK", "PLAN", "AGENT"});
         client = new JComboBox<>(new String[]{"CODEX", "CLAUDE_CODE", "COPILOT_CLI"});
@@ -55,8 +58,12 @@ final class ShaftAssistantPanel extends JPanel {
         customCommand = new JBTextField();
         allowSourceMutation = new JBCheckBox("Approve source mutation for Agent mode");
         prompt = new JBTextArea(8, 56);
+        prompt.setLineWrap(true);
+        prompt.setWrapStyleWord(true);
         transcript = new JBTextArea(14, 56);
         transcript.setEditable(false);
+        transcript.setLineWrap(true);
+        transcript.setWrapStyleWord(true);
         transcript.setText("Type a question or use /help for SHAFT commands.");
         status = new JLabel("Ready");
 
@@ -85,6 +92,7 @@ final class ShaftAssistantPanel extends JPanel {
 
         JPanel north = new JPanel(new BorderLayout(6, 6));
         north.add(controls, BorderLayout.NORTH);
+        north.add(setupNotice(project, settings), BorderLayout.CENTER);
         north.add(commandPanel, BorderLayout.SOUTH);
 
         JPanel center = new JPanel(new BorderLayout(6, 6));
@@ -121,6 +129,11 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.setText("");
         if (invocation.isLocal()) {
             showLocalResponse(invocation.localResponse());
+            return;
+        }
+        if (!mcpConfigured()) {
+            showLocalResponse("Configure SHAFT MCP in Settings before sending Assistant requests.");
+            status.setText("Configure MCP");
             return;
         }
         setRunning(true, "Running " + invocation.toolName() + "...");
@@ -191,6 +204,24 @@ final class ShaftAssistantPanel extends JPanel {
             CopyPasteManager.getInstance().setContents(new StringSelection(lastResponse));
             status.setText("Copied response");
         }
+    }
+
+    private boolean mcpConfigured() {
+        return settings.mcpCommand != null && !settings.mcpCommand.isBlank();
+    }
+
+    private static JPanel setupNotice(Project project, ShaftSettingsState.Settings settings) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        panel.add(new JLabel("Configure SHAFT MCP to run Assistant and Tools."));
+        JButton openSettings = new JButton("Open Settings");
+        openSettings.addActionListener(event -> {
+            if (project != null) {
+                ShowSettingsUtil.getInstance().showSettingsDialog(project, "SHAFT");
+            }
+        });
+        panel.add(openSettings);
+        panel.setVisible(settings.mcpCommand == null || settings.mcpCommand.isBlank());
+        return panel;
     }
 
     private static JLabel label(String text, char mnemonic, JComponent target) {

@@ -14,7 +14,7 @@ This catalog is written for framework users who want to know what changed, what 
 | --- | --- | --- |
 | Upgrade without pulling every optional integration into the core artifact. | [Modular adoption](#modular-adoption) | `shaft-engine` stays lean while BrowserStack, visual, video, AI, Doctor, Heal, and Capture remain available as opt-in modules. |
 | Let an agent inspect pages, choose locators, record flows, and review generated code. | [MCP and agent workflows](#mcp-and-agent-workflows) | `shaft-mcp` exposes WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, and guardrail tools through one automation surface. |
-| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The beta plugin now opens on a SHAFT Assistant chat surface and keeps recorder, playback, Doctor, Healer, Inspector, project, MCP, and guide workflows under Tools. |
+| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The stable plugin opens on a SHAFT Assistant chat surface and keeps recorder, playback, Doctor, Healer, Inspector, project, MCP, and guide workflows under Tools. |
 | Turn exploratory browser or mobile sessions into maintainable Java tests. | [Capture and code generation](#capture-and-code-generation) | Recorder sessions preserve actions, checkpoints, locators, context, privacy, and replay snippets. |
 | Make Android/Appium setup and recording less coordinate-driven. | [Mobile automation](#mobile-automation) | Toolchain diagnostics and locator-first Inspector recording show the exact device, locator, and fallback state. |
 | Debug failed tests from evidence instead of guessing. | [Doctor, Heal, Trace, and reporting](#doctor-heal-trace-and-reporting) | Failure briefs, traces, locator health, healing decisions, and report UI give a shorter path from failure to fix. |
@@ -163,7 +163,7 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the new beta IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628-beta.0`). It is intentionally thin: users configure the SHAFT MCP stdio command in `Settings | SHAFT`, then use the Assistant or curated MCP tool templates from an IDE tool window without leaving the project.
+`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628`). It is intentionally thin: users configure the SHAFT MCP stdio command in `Settings | SHAFT`, then use the Assistant or curated MCP tool templates from an IDE tool window without leaving the project.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
@@ -184,7 +184,11 @@ The plugin does not hide MCP requests: the Tools tab shows exact JSON arguments 
   </tr>
   <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin MCP tab" width="620"></td>
-    <td width="50%">Screenshots show the current Assistant-first shell and curated tool template content captured on `2026-06-28`.</td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-dark.png" alt="IntelliJ plugin Assistant tab in dark theme" width="620"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-tools-dark.png" alt="IntelliJ plugin Tools tab in dark theme" width="620"></td>
+    <td width="50%">Screenshots show the current Assistant-first shell and curated tool template content captured on `2026-06-28` in standard IntelliJ light and dark themes.</td>
   </tr>
 </table>
 

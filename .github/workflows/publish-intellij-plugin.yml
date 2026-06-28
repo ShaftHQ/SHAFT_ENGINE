@@ -1,4 +1,4 @@
-name: Publish IntelliJ Plugin Beta
+name: Publish IntelliJ Plugin
 
 on:
   workflow_run:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  publish-beta:
+  publish:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-22.04
     env:
@@ -42,10 +42,10 @@ jobs:
             ORG_GRADLE_PROJECT_intellijPlatformPrivateKey \
             ORG_GRADLE_PROJECT_intellijPlatformPrivateKeyPassword; do
             if [ -z "${!name}" ]; then
-              echo "::error::$name is required to publish the IntelliJ plugin beta"
+              echo "::error::$name is required to publish the IntelliJ plugin"
               missing=1
             fi
           done
           exit "$missing"
-      - name: Publish beta to JetBrains Marketplace
+      - name: Publish to JetBrains Marketplace
         run: gradle -p shaft-intellij check buildPlugin verifyPlugin signPlugin publishPlugin

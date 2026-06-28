@@ -65,6 +65,7 @@ INTERNAL_VERSION_DEFAULTS = {
     "androidCommandLineToolsVersion": r"\d+",
 }
 UNSTABLE_VERSION = re.compile(r"(?i)(alpha|beta|rc|cr|m[0-9]+|ea|preview|milestone|snapshot)")
+STABLE_INTELLIJ_MARKETPLACE_CHANNELS = {"", "default"}
 
 
 def text(element: ET.Element, path: str) -> str:
@@ -92,6 +93,15 @@ def read_gradle_properties(path: Path) -> dict[str, str]:
         key, value = stripped.split("=", 1)
         properties[key.strip()] = value.strip()
     return properties
+
+
+def intellij_marketplace_channel_errors(build_source: str) -> list[str]:
+    errors = []
+    for match in re.finditer(r"^\s*channels\s*=\s*listOf\(([^)]*)\)", build_source, re.MULTILINE):
+        channels = re.findall(r'"([^"]*)"', match.group(1))
+        if any(channel not in STABLE_INTELLIJ_MARKETPLACE_CHANNELS for channel in channels):
+            errors.append("shaft-intellij publishing channel must be omitted or target the stable Marketplace channel")
+    return errors
 
 
 def scan_bytes(label: str, content: bytes) -> list[str]:
@@ -165,12 +175,15 @@ def validate_static(root: Path = ROOT) -> list[str]:
             errors.append(f"Internal.{method} must use a stable release version: {default_value!r}")
 
     intellij_properties = read_gradle_properties(root / "shaft-intellij/gradle.properties")
-    expected_plugin_version = f"{version}-beta.0"
+    expected_plugin_version = version
     if intellij_properties.get("pluginVersion") != expected_plugin_version:
-        errors.append("shaft-intellij pluginVersion must match the reactor beta release version")
+        errors.append("shaft-intellij pluginVersion must match the reactor version")
     for required_property in ("pluginSinceBuild", "platformVersion"):
         if not intellij_properties.get(required_property):
             errors.append(f"shaft-intellij {required_property} is missing")
+
+    intellij_build = (root / "shaft-intellij/build.gradle.kts").read_text(encoding="utf-8")
+    errors.extend(intellij_marketplace_channel_errors(intellij_build))
 
     intellij_client = (
         root / "shaft-intellij/src/main/java/com/shaft/intellij/mcp/ShaftMcpStdioClient.java"
