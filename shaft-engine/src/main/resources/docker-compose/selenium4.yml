@@ -5,7 +5,7 @@
 # To stop the execution, hit Ctrl+C, and then `docker compose -f selenium4.yml down --remove-orphans`
 services:
   chrome:
-    image: selenium/node-chrome:4.44.0-20260505
+    image: selenium/node-chrome:4.45.0-20260606
     shm_size: 2gb
     depends_on:
       - selenium-hub
@@ -19,7 +19,7 @@ services:
       - SE_RECORD_VIDEO=true
 
   edge:
-    image: selenium/node-edge:4.44.0-20260505
+    image: selenium/node-edge:4.45.0-20260606
     shm_size: 2gb
     depends_on:
       - selenium-hub
@@ -33,7 +33,7 @@ services:
       - SE_RECORD_VIDEO=true
 
   firefox:
-    image: selenium/node-firefox:4.44.0-20260505
+    image: selenium/node-firefox:4.45.0-20260606
     shm_size: 2gb
     depends_on:
       - selenium-hub
@@ -47,7 +47,7 @@ services:
       - SE_RECORD_VIDEO=true
 
   selenium-hub:
-    image: selenium/hub:4.44.0-20260505
+    image: selenium/hub:4.45.0-20260606
     container_name: selenium-hub
     ports:
       - "4442:4442"
