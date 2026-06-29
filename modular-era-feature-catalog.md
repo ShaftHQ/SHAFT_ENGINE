@@ -6,7 +6,7 @@ This catalog is written for framework users who want to know what changed, what 
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
 - Catalog source: current `origin/main` at `dc4cdb1c714b0c2b83ac4a34f04845a045259792`
-- Fresh evidence captured: `2026-06-28`
+- Fresh evidence captured: `2026-06-29`
 
 ## Start Here
 
@@ -14,7 +14,7 @@ This catalog is written for framework users who want to know what changed, what 
 | --- | --- | --- |
 | Upgrade without pulling every optional integration into the core artifact. | [Modular adoption](#modular-adoption) | `shaft-engine` stays lean while BrowserStack, visual, video, AI, Doctor, Heal, and Capture remain available as opt-in modules. |
 | Let an agent inspect pages, choose locators, record flows, and review generated code. | [MCP and agent workflows](#mcp-and-agent-workflows) | `shaft-mcp` exposes WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, and guardrail tools through one automation surface. |
-| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The stable plugin rides in a right-side SHAFT Assistant panel and keeps recorder, playback, Doctor, Healer, Inspector, project, MCP, and guide workflows under Tools. |
+| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The stable plugin uses right-side workflow tabs (Assistant, Recorder, Inspector, Evidence, Projects, Advanced Tools) so prompts, sessions, and MCP templates stay close to the editor. |
 | Turn exploratory browser or mobile sessions into maintainable Java tests. | [Capture and code generation](#capture-and-code-generation) | Recorder sessions preserve actions, checkpoints, locators, context, privacy, and replay snippets. |
 | Make Android/Appium setup and recording less coordinate-driven. | [Mobile automation](#mobile-automation) | Toolchain diagnostics and locator-first Inspector recording show the exact device, locator, and fallback state. |
 | Debug failed tests from evidence instead of guessing. | [Doctor, Heal, Trace, and reporting](#doctor-heal-trace-and-reporting) | Failure briefs, traces, locator health, healing decisions, and report UI give a shorter path from failure to fix. |
@@ -28,24 +28,48 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab" width="620">
       <br><strong>IntelliJ Assistant</strong>
-      <br>Shows the 620 px right-side Assistant panel with Ask, Plan, Agent modes, local client choice, prompt, and transcript.
+      <br>Right-side Assistant tab with local client, modes, prompt, and response transcript.
     </td>
     <td width="50%">
-      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-tools.png" alt="SHAFT IntelliJ IDEA plugin Tools tab" width="620">
-      <br><strong>IntelliJ Tools</strong>
-      <br>Shows recorder templates inside the secondary Tools tab with editable MCP JSON and output panes.
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-dark.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab in dark theme" width="620">
+      <br><strong>Assistant (dark)</strong>
+      <br>Assistant workflow view in IntelliJ dark theme for the same prompt/action path.
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="SHAFT IntelliJ IDEA plugin MCP category" width="620">
-      <br><strong>IntelliJ MCP tools</strong>
-      <br>Shows scenario catalog, generated-code guardrails, and local Assistant client discovery templates.
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-recorder.png" alt="SHAFT IntelliJ IDEA plugin Recorder tab" width="620">
+      <br><strong>Recorder</strong>
+      <br>Editable capture templates, checkpoints, Playwright/native replay settings, and request/result state.
     </td>
     <td width="50%">
-      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/web-recorder.png" alt="Web recorder overlay capturing a form flow" width="620">
-      <br><strong>Web recorder overlay</strong>
-      <br>Captures user actions, risk/readiness state, assertions, and SHAFT locator-friendly replay hints while the flow is still fresh.
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-inspector.png" alt="SHAFT IntelliJ IDEA plugin Inspector tab" width="620">
+      <br><strong>Inspector</strong>
+      <br>Inspector-backed status and MCP request inspection during capture and mobile tool workflows.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-evidence.png" alt="SHAFT IntelliJ IDEA plugin Evidence tab" width="620">
+      <br><strong>Evidence</strong>
+      <br>Evidence and repair-oriented outputs, including locator and failure-context helpers.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-projects.png" alt="SHAFT IntelliJ IDEA plugin Projects tab" width="620">
+      <br><strong>Projects</strong>
+      <br>Project and upgrade actions, migration checkers, and project tool execution surfaces.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-advanced-tools.png" alt="SHAFT IntelliJ IDEA plugin Advanced Tools tab" width="620">
+      <br><strong>Advanced Tools (light)</strong>
+      <br>Curated MCP template families and lower-frequency operational tool access.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-advanced-tools-dark.png" alt="SHAFT IntelliJ IDEA plugin Advanced Tools tab in dark theme" width="620">
+      <br><strong>Advanced Tools (dark)</strong>
+      <br>Same curated MCP families in IntelliJ dark theme.
     </td>
   </tr>
   <tr>
@@ -116,7 +140,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | Ask, plan, or run guarded local-agent prompts in the Assistant, then run curated MCP workflows from the Tools tab. | `intellij-plugin-assistant.png`, `intellij-plugin-tools.png` |
+| IntelliJ IDEA plugin | Assistant prompts, Recorder session setup, Inspector checks, Evidence reads, project actions, and Advanced Tools are now first-class workflow tabs. | `intellij-plugin-assistant.png`, `intellij-plugin-recorder.png`, `intellij-plugin-inspector.png`, `intellij-plugin-evidence.png`, `intellij-plugin-projects.png`, `intellij-plugin-advanced-tools.png` |
 | Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
@@ -167,28 +191,35 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
-| Tool window | Right-side SHAFT assistant panel with compact Assistant and Tools tabs for curated MCP templates. | `Tools -> SHAFT -> Open SHAFT` |
-| Recorder and playback | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` and `Playback` tabs |
-| Project tools | Create a SHAFT project, preview an upgrade, or apply an approved upgrade through MCP. | `shaft_project_create`, `shaft_project_upgrade` |
-| Failure work | Run failed-test analysis, trace lookup, trace analysis, and healer templates from the IDE. | `Doctor` and `Healer` tabs |
+| Tool window | Right-side SHAFT assistant panel with dedicated workflow tabs for Assistant, Recorder, Inspector, Evidence, Projects, and Advanced Tools. | `Tools -> SHAFT -> Open SHAFT` |
+| Recorder | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` tab |
+| Project tools | Create a SHAFT project, preview an upgrade, or apply an approved upgrade through MCP. | `Projects` tab |
+| Evidence and healing | Run failed-test analysis, trace lookup, trace analysis, and healer templates from the IDE. | `Evidence` tab |
 | Mobile Inspector | Check mobile tooling, prepare Inspector recording, inspect status, read accessibility trees, and take mobile screenshots. | `Inspector` tab |
 | Agent helpers | Ask, plan, or run guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; slash commands search docs, scenarios, guardrails, and clients. | `Assistant` tab |
-| Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Tools -> SHAFT -> Record SHAFT Flow Here` or Java editor popup |
+| Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Recorder` tab |
 
-The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. It does not hide MCP requests: the Tools tab shows exact JSON arguments, validates them before run, and writes formatted tool results to an output pane, while Assistant responses show the invoked tool and can be copied.
+The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. It does not hide MCP requests: the Advanced Tools and Recorder tabs show exact JSON arguments, validate them before run, and write formatted outputs to an output pane, while Assistant responses show the invoked tool and can be copied.
 
 <table>
   <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png" alt="IntelliJ plugin Assistant tab" width="620"></td>
-    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-tools.png" alt="IntelliJ plugin Tools tab" width="620"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin MCP category" width="620"></td>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-dark.png" alt="IntelliJ plugin Assistant tab in dark theme" width="620"></td>
   </tr>
   <tr>
-    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-tools-dark.png" alt="IntelliJ plugin Tools tab in dark theme" width="620"></td>
-    <td width="50%">Screenshots show the 620 px right-side panel captured on `2026-06-28` in standard IntelliJ light and dark themes.</td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-recorder.png" alt="IntelliJ plugin Recorder tab" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-inspector.png" alt="IntelliJ plugin Inspector tab" width="620"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-evidence.png" alt="IntelliJ plugin Evidence tab" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-projects.png" alt="IntelliJ plugin Projects tab" width="620"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-advanced-tools.png" alt="IntelliJ plugin Advanced Tools tab" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-advanced-tools-dark.png" alt="IntelliJ plugin Advanced Tools tab in dark theme" width="620"></td>
+  </tr>
+  <tr>
+    <td colspan="2">Screenshots show the 620 px right-side panel captured on `2026-06-29` in standard IntelliJ light and dark themes.</td>
   </tr>
 </table>
 

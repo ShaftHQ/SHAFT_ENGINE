@@ -55,6 +55,33 @@ public final class ShaftMcpInvocationService {
     }
 
     /**
+     * Returns the latest list of tools from SHAFT MCP.
+     *
+     * @return future MCP result
+     */
+    public CompletableFuture<ShaftMcpToolResult> listTools() {
+        return startListTools().future();
+    }
+
+    /**
+     * Starts a cancellable SHAFT MCP tools/list request.
+     *
+     * @return cancellable invocation
+     */
+    public ShaftMcpInvocation startListTools() {
+        ShaftSettingsState.Settings settings = ShaftSettingsState.getInstance().getState();
+        List<String> command = command(settings);
+        if (command.isEmpty()) {
+            return completed(CONFIGURE_MESSAGE);
+        }
+        AtomicReference<ShaftMcpStdioClient> clientReference = new AtomicReference<>();
+        AtomicBoolean cancellationRequested = new AtomicBoolean();
+        CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
+                () -> listTools(command, settings, clientReference, cancellationRequested));
+        return new ShaftMcpInvocation(future, () -> cancel(clientReference, cancellationRequested));
+    }
+
+    /**
      * Starts a cancellable SHAFT MCP tool invocation.
      *
      * @param toolName MCP tool name
@@ -132,6 +159,30 @@ public final class ShaftMcpInvocationService {
                 throw new CancellationException("Operation cancelled");
             }
             return ShaftMcpToolResult.success(client.initializeOnly(DEFAULT_TIMEOUT));
+        } catch (Exception exception) {
+            if (cancellationRequested.get() || exception instanceof CancellationException) {
+                throw new CancellationException("Operation cancelled");
+            }
+            return ShaftMcpToolResult.failure(exception.getMessage());
+        } finally {
+            clientReference.set(null);
+        }
+    }
+
+    private ShaftMcpToolResult listTools(
+            List<String> command,
+            ShaftSettingsState.Settings settings,
+            AtomicReference<ShaftMcpStdioClient> clientReference,
+            AtomicBoolean cancellationRequested) {
+        Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
+        Map<String, String> environment = providerEnvironment(settings);
+        try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, workingDirectory, environment)) {
+            clientReference.set(client);
+            if (cancellationRequested.get()) {
+                throw new CancellationException("Operation cancelled");
+            }
+            JsonObject result = client.listTools(DEFAULT_TIMEOUT);
+            return ShaftMcpToolResult.success(result.toString());
         } catch (Exception exception) {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
