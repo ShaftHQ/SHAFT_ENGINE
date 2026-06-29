@@ -39,6 +39,11 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
     public static final class Settings {
         public String mcpCommand = "";
         public boolean mcpSetupComplete = true;
+        public String assistantProviderType = "LOCAL";
+        public String assistantFamily = "";
+        public String assistantRuntime = "CLI";
+        public String cloudProvider = "openai";
+        public String cloudModel = "";
         public String defaultAutobotClient = "CODEX";
         public String defaultAutobotMode = "ASK";
         public String pilotAiProvider = "none";

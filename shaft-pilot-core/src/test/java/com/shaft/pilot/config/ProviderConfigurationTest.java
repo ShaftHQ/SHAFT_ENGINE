@@ -1,6 +1,7 @@
 package com.shaft.pilot.config;
 
 import com.shaft.pilot.ai.ProcessingLocation;
+import com.shaft.driver.SHAFT;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -49,5 +50,20 @@ class ProviderConfigurationTest {
                 () -> new ProviderConfiguration(null, URI.create("https://example.test"), "", "", Map.of()));
         assertThrows(NullPointerException.class,
                 () -> new ProviderConfiguration("id", null, "", "", Map.of()));
+    }
+
+    @Test
+    void currentConfigurationIncludesGitHubModelsProvider() {
+        SHAFT.Properties.pilot.set()
+                .githubEndpoint("https://models.github.ai/inference/chat/completions")
+                .githubModel("openai/gpt-4.1");
+
+        ProviderConfiguration configuration = PilotConfiguration.current().provider("github");
+
+        assertEquals(URI.create("https://models.github.ai/inference/chat/completions"), configuration.endpoint());
+        assertEquals("openai/gpt-4.1", configuration.model());
+        assertEquals("GITHUB_TOKEN", configuration.apiKeyEnvironmentVariable());
+        assertEquals(ProcessingLocation.REMOTE, configuration.processingLocation());
+        SHAFT.Properties.clearForCurrentThread();
     }
 }

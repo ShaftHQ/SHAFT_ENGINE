@@ -15,14 +15,26 @@ final class ShaftMcpEnvironment {
     }
 
     static Map<String, String> forSettings(ShaftSettingsState.Settings settings) {
-        Map<String, String> environment = providerKeys(settings != null && settings.passProviderApiKeysToMcp);
+        String provider = selectedProvider(settings);
+        Map<String, String> environment = providerKeys(settings != null && settings.passProviderApiKeysToMcp, provider);
         addPilotOptions(environment, settings);
         return environment.isEmpty() ? Map.of() : Map.copyOf(environment);
     }
 
     static Map<String, String> providerKeys(boolean passProviderKeys) {
+        return providerKeys(passProviderKeys, "");
+    }
+
+    static Map<String, String> providerKeys(boolean passProviderKeys, String provider) {
         if (!passProviderKeys) {
             return new LinkedHashMap<>();
+        }
+        String keyName = providerKeyName(provider);
+        if (!keyName.isBlank()) {
+            ShaftCredentialService credentials = ShaftCredentialService.getInstance();
+            Map<String, String> environment = new LinkedHashMap<>();
+            putIfPresent(environment, keyName, credentials.apiKey(keyName));
+            return environment;
         }
         ShaftCredentialService credentials = ShaftCredentialService.getInstance();
         Map<String, String> environment = new LinkedHashMap<>();
@@ -33,8 +45,18 @@ final class ShaftMcpEnvironment {
         return environment;
     }
 
+    static String providerKeyName(String provider) {
+        return switch (normalize(provider)) {
+            case "openai" -> "OPENAI_API_KEY";
+            case "anthropic" -> "ANTHROPIC_API_KEY";
+            case "gemini" -> "GEMINI_API_KEY";
+            case "github" -> "GITHUB_TOKEN";
+            default -> "";
+        };
+    }
+
     private static void addPilotOptions(Map<String, String> environment, ShaftSettingsState.Settings settings) {
-        String provider = normalize(settings == null ? "" : settings.pilotAiProvider);
+        String provider = selectedProvider(settings);
         if (provider.isBlank() || "none".equals(provider)) {
             return;
         }
@@ -46,7 +68,7 @@ final class ShaftMcpEnvironment {
         } else {
             options.add("-Dpilot.ai.consent.remote=true");
         }
-        String model = settings == null || settings.pilotAiModel == null ? "" : settings.pilotAiModel.trim();
+        String model = selectedModel(settings);
         if (!model.isBlank()) {
             options.add("-Dpilot.ai." + provider + ".model=" + model);
         }
@@ -64,5 +86,23 @@ final class ShaftMcpEnvironment {
 
     private static String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String selectedProvider(ShaftSettingsState.Settings settings) {
+        if (settings == null) {
+            return "";
+        }
+        if ("CLOUD".equalsIgnoreCase(settings.assistantProviderType)) {
+            return normalize(settings.cloudProvider);
+        }
+        return normalize(settings.pilotAiProvider);
+    }
+
+    private static String selectedModel(ShaftSettingsState.Settings settings) {
+        if (settings == null) {
+            return "";
+        }
+        String model = "CLOUD".equalsIgnoreCase(settings.assistantProviderType) ? settings.cloudModel : settings.pilotAiModel;
+        return model == null ? "" : model.trim();
     }
 }

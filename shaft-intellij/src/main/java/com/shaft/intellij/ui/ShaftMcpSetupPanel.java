@@ -19,6 +19,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.util.Locale;
 
 /**
  * First-run SHAFT MCP setup panel.
@@ -27,7 +28,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final ShaftSettingsState.Settings settings;
     private final Runnable connected;
     private final JButton install;
-    private final JComboBox<String> provider;
+    private final JComboBox<String> family;
+    private final JComboBox<String> runtime;
     private final JButton test;
     private final JLabel status;
     private final JBTextArea details;
@@ -41,9 +43,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         install = new JButton("Install / Update SHAFT MCP");
         install.getAccessibleContext().setAccessibleName("Install or update SHAFT MCP");
         install.addActionListener(event -> installMcp());
-        provider = new JComboBox<>(new String[]{"CODEX", "CLAUDE_CODE", "COPILOT_CLI"});
-        provider.setSelectedItem(settings.defaultAutobotClient);
-        provider.getAccessibleContext().setAccessibleName("Assistant provider");
+        family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT"});
+        family.setSelectedItem(resolveFamily(settings));
+        family.getAccessibleContext().setAccessibleName("Assistant family");
+        runtime = new JComboBox<>(new String[]{"CLI", "IDE_PLUGIN", "DESKTOP_APP"});
+        runtime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
+        runtime.getAccessibleContext().setAccessibleName("Assistant runtime");
         test = new JButton("Test connection");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
         test.setEnabled(settings.mcpCommand != null && !settings.mcpCommand.isBlank());
@@ -64,8 +69,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel form = FormBuilder.createFormBuilder()
                 .addComponent(new JLabel("1. Install or update SHAFT MCP"))
                 .addComponent(installRow)
-                .addLabeledComponent("2. Assistant provider", provider)
-                .addComponent(new JLabel("3. Test connection"))
+                .addLabeledComponent("2. Assistant family", family)
+                .addLabeledComponent("3. Assistant runtime", runtime)
+                .addComponent(new JLabel("4. Test connection"))
                 .addComponent(testRow)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
@@ -108,7 +114,10 @@ final class ShaftMcpSetupPanel extends JPanel {
             status.setText("Install first");
             return;
         }
-        settings.defaultAutobotClient = String.valueOf(provider.getSelectedItem());
+        settings.assistantProviderType = "LOCAL";
+        settings.assistantFamily = String.valueOf(family.getSelectedItem());
+        settings.assistantRuntime = String.valueOf(runtime.getSelectedItem());
+        settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
         setRunning(true, "Testing...");
         ShaftMcpConnectionProbe.test(command, settings).whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> showTestResult(result, error)));
@@ -131,8 +140,34 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void setRunning(boolean running, String text) {
         install.setEnabled(!running);
-        provider.setEnabled(!running);
+        family.setEnabled(!running);
+        runtime.setEnabled(!running);
         test.setEnabled(!running && settings.mcpCommand != null && !settings.mcpCommand.isBlank());
         status.setText(text);
+    }
+
+    private static String resolveFamily(ShaftSettingsState.Settings settings) {
+        String family = normalize(settings.assistantFamily, "");
+        if (!family.isBlank()) {
+            return family;
+        }
+        return switch (normalize(settings.defaultAutobotClient, "CODEX")) {
+            case "CLAUDE_CODE" -> "CLAUDE";
+            case "COPILOT_CLI" -> "COPILOT";
+            default -> "CODEX";
+        };
+    }
+
+    private static String clientFromFamily(String family) {
+        return switch (normalize(family, "CODEX")) {
+            case "CLAUDE" -> "CLAUDE_CODE";
+            case "COPILOT" -> "COPILOT_CLI";
+            default -> "CODEX";
+        };
+    }
+
+    private static String normalize(String value, String fallback) {
+        String normalized = value == null || value.isBlank() ? fallback : value.trim();
+        return normalized.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
     }
 }

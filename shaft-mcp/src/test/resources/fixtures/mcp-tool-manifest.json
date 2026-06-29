@@ -125,6 +125,7 @@
     {"name": "test_automation_scenarios", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "test_code_guardrails_check", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "autobot_local_agent_clients", "mutation": false, "sensitive": false, "deprecated": false},
-    {"name": "autobot_local_agent_run", "mutation": true, "sensitive": true, "deprecated": false}
+    {"name": "autobot_local_agent_run", "mutation": true, "sensitive": true, "deprecated": false},
+    {"name": "autobot_provider_chat", "mutation": false, "sensitive": true, "deprecated": false}
   ]
 }

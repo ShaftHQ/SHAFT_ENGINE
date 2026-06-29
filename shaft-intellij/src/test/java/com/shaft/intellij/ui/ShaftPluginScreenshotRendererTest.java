@@ -82,6 +82,8 @@ class ShaftPluginScreenshotRendererTest {
         Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
         Path mcpSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup.png");
         Path settingsScreenshot = outputPath.resolve("intellij-plugin-settings.png");
+        Path settingsDarkScreenshot = outputPath.resolve("intellij-plugin-settings-dark.png");
+        Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
 
         write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
@@ -97,6 +99,8 @@ class ShaftPluginScreenshotRendererTest {
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
+        write(settingsDarkScreenshot, renderSettings(DARK_THEME, true));
+        write(mcpGuideScreenshot, renderToolWindow(7, "Guide", LIGHT_THEME, false));
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
@@ -112,6 +116,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupScreenshot) > 0, mcpSetupScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsScreenshot) > 0, settingsScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(settingsDarkScreenshot) > 0, settingsDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
                 () -> assertDimensions(assistantDarkScreenshot),
                 () -> assertDimensions(guidedScreenshot),
@@ -126,8 +132,12 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(toolsDarkScreenshot),
                 () -> assertDimensions(mcpSetupScreenshot),
                 () -> assertDimensions(settingsScreenshot),
+                () -> assertDimensions(settingsDarkScreenshot),
+                () -> assertDimensions(mcpGuideScreenshot),
                 () -> assertTrue(Files.mismatch(assistantLightScreenshot, assistantDarkScreenshot) >= 0,
                         "Assistant light and dark screenshots should differ"),
+                () -> assertTrue(Files.mismatch(settingsScreenshot, settingsDarkScreenshot) >= 0,
+                        "Settings light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(advancedToolsLightScreenshot, advancedToolsDarkScreenshot) >= 0,
                         "Advanced Tools light and dark screenshots should differ"));
     }

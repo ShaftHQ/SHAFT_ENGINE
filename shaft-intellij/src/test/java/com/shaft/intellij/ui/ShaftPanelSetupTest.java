@@ -80,6 +80,8 @@ class ShaftPanelSetupTest {
         assertNull(toolWindowTabbedPane(toolWindow));
         assertTrue(containsText(toolWindow, "1. Install or update SHAFT MCP"));
         assertTrue(containsText(toolWindow, "Install / Update SHAFT MCP"));
+        assertTrue(containsText(toolWindow, "Assistant family"));
+        assertTrue(containsText(toolWindow, "Assistant runtime"));
         assertTrue(containsText(toolWindow, "Test connection"));
     }
 
