@@ -16,14 +16,11 @@ public final class ShaftCommandLine {
         StringBuilder current = new StringBuilder();
         boolean quoted = false;
         char quote = 0;
-        boolean escaping = false;
         for (int index = 0; index < commandLine.length(); index++) {
             char c = commandLine.charAt(index);
-            if (escaping) {
-                current.append(c);
-                escaping = false;
-            } else if (c == '\\') {
-                escaping = true;
+            if (c == '\\' && index + 1 < commandLine.length() && quoted && commandLine.charAt(index + 1) == quote) {
+                current.append(commandLine.charAt(index + 1));
+                index++;
             } else if (quoted && c == quote) {
                 quoted = false;
             } else if (!quoted && (c == '"' || c == '\'')) {

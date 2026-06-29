@@ -57,6 +57,15 @@ class InstallShaftMcpTest(unittest.TestCase):
             ],
         )
 
+    def test_parse_intellij_plugin_json_target(self):
+        args = MODULE.parse_args(["--intellij-plugin", "--json"])
+
+        self.assertEqual("intellij-plugin", args.client)
+        self.assertTrue(args.json)
+
+    def test_intellij_plugin_target_does_not_configure_external_client(self):
+        MODULE.configure_client("intellij-plugin", Path("java"), Path("shaft-mcp.args"))
+
     def test_write_launcher_args(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

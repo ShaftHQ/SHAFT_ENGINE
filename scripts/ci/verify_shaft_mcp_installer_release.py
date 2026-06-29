@@ -43,7 +43,7 @@ def write_fake_copilot(bin_directory: Path) -> None:
     executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
 
 
-def installer_command(client: str) -> list[str]:
+def installer_command(client: str, *extra_args: str) -> list[str]:
     if platform.system() == "Windows":
         return [
             "powershell",
@@ -54,8 +54,17 @@ def installer_command(client: str) -> list[str]:
             str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.ps1"),
             "-Client",
             client,
+            *extra_args,
         ]
-    return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh"), f"--{client}"]
+    return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh"), f"--{client}", *extra_args]
+
+
+def last_json_line(output: str) -> dict[str, object]:
+    for line in reversed(output.splitlines()):
+        line = line.strip()
+        if line.startswith("{") and line.endswith("}"):
+            return json.loads(line)
+    raise RuntimeError(f"Expected JSON installer output, got:\n{output}")
 
 
 def sha256(path: Path) -> str:
@@ -147,6 +156,17 @@ def verify_configuration(configuration: Path, java: Path, args: Path, root_prope
         raise RuntimeError(f"Unexpected shaft-mcp arguments in {configuration}: {entry['args']}")
 
 
+def verify_plugin_json(result: dict[str, object], java: Path, args: Path) -> None:
+    if result.get("client") != "intellij-plugin":
+        raise RuntimeError(f"Unexpected IntelliJ plugin installer target: {result}")
+    if result.get("server") != "shaft-mcp":
+        raise RuntimeError(f"Unexpected MCP server name in IntelliJ plugin installer output: {result}")
+    if Path(str(result.get("command"))).resolve() != java.resolve():
+        raise RuntimeError(f"Unexpected Java command in IntelliJ plugin installer output: {result}")
+    if result.get("args") != [f"@{args}"]:
+        raise RuntimeError(f"Unexpected SHAFT MCP arguments in IntelliJ plugin installer output: {result}")
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="shaft-mcp-public-installer-") as temporary:
         root = Path(temporary).resolve()
@@ -177,6 +197,15 @@ def main() -> int:
             clients.append("claude-desktop")
 
         java = expected_java(environment)
+        plugin_install = subprocess.run(
+            installer_command("intellij-plugin", "--json"),
+            cwd=root,
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        plugin_result = last_json_line(plugin_install.stdout)
         for client in clients:
             subprocess.run(installer_command(client), cwd=root, env=environment, check=True)
 
@@ -190,6 +219,7 @@ def main() -> int:
         for client in clients:
             root_property = "mcpServers" if client in {"copilot", "claude-desktop"} else "servers"
             verify_configuration(configuration_path(client, root, home, environment), java, args, root_property)
+        verify_plugin_json(plugin_result, java, args)
 
         subprocess.run(installer_command(clients[0]), cwd=root, env=environment, check=True)
         if sha256(jar) != first_hash or jar.stat().st_mtime_ns != first_timestamp:

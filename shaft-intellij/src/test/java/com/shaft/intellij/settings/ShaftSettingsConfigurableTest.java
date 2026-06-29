@@ -29,12 +29,13 @@ class ShaftSettingsConfigurableTest {
         assertFalse(source.isBlank());
         assertTrue(source.contains("Clear stored OpenAI API key"));
         assertTrue(source.contains("Clear stored Anthropic API key"));
+        assertTrue(source.contains("Clear stored Gemini API key"));
         assertTrue(source.contains("Clear stored GitHub API key"));
-        assertTrue(source.contains("Copy SHAFT MCP installer command"));
-        assertTrue(source.contains("install-shaft-mcp.ps1 --copilot-intellij"));
-        assertTrue(source.contains("install-shaft-mcp.sh --copilot-intellij"));
+        assertTrue(source.contains("Install or update SHAFT MCP"));
+        assertTrue(source.contains("Connect GitHub Copilot MCP"));
+        assertTrue(source.contains("SHAFT AI provider"));
         assertTrue(source.contains("setAccessibleDescription(\"Mark this provider key as ready to clear on apply.\")"));
-        assertTrue(source.contains("Copy the supported SHAFT MCP installer commands without running them."));
+        assertTrue(source.contains("Install or update shaft-mcp and fill the plugin stdio command automatically."));
         assertTrue(source.contains("Passing keys exposes them only to the SHAFT MCP process."));
         assertTrue(source.contains("key storage status"));
         assertTrue(source.contains("Stored in Password Safe."));
@@ -51,23 +52,33 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(testMcp.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, testMcp.getAccessibleContext().getAccessibleDescription().length());
 
-        JButton copyInstaller = (JButton) findByAccessibleName(panel, "Copy SHAFT MCP installer command");
-        assertNotNull(copyInstaller);
-        assertNotNull(copyInstaller.getAccessibleContext().getAccessibleDescription());
-        assertNotEquals(0, copyInstaller.getAccessibleContext().getAccessibleDescription().length());
+        JButton installMcp = (JButton) findByAccessibleName(panel, "Install or update SHAFT MCP");
+        assertNotNull(installMcp);
+        assertNotNull(installMcp.getAccessibleContext().getAccessibleDescription());
+        assertNotEquals(0, installMcp.getAccessibleContext().getAccessibleDescription().length());
+
+        JButton connectCopilot = (JButton) findByAccessibleName(panel, "Connect GitHub Copilot MCP");
+        assertNotNull(connectCopilot);
+        assertNotNull(connectCopilot.getAccessibleContext().getAccessibleDescription());
+        assertNotEquals(0, connectCopilot.getAccessibleContext().getAccessibleDescription().length());
 
         List<JButton> clearButtons = collectButtons(panel);
-        assertEquals(3, clearButtons.size());
+        assertEquals(4, clearButtons.size());
         assertTrue(clearButtons.stream().anyMatch(button ->
                 "Clear stored OpenAI API key".equals(button.getAccessibleContext().getAccessibleName())));
         assertTrue(clearButtons.stream().anyMatch(button ->
                 "Clear stored Anthropic API key".equals(button.getAccessibleContext().getAccessibleName())));
         assertTrue(clearButtons.stream().anyMatch(button ->
+                "Clear stored Gemini API key".equals(button.getAccessibleContext().getAccessibleName())));
+        assertTrue(clearButtons.stream().anyMatch(button ->
                 "Clear stored GitHub API key".equals(button.getAccessibleContext().getAccessibleName())));
 
         assertNotNull(findByAccessibleName(panel, "OpenAI key storage status"));
         assertNotNull(findByAccessibleName(panel, "Anthropic key storage status"));
+        assertNotNull(findByAccessibleName(panel, "Gemini key storage status"));
         assertNotNull(findByAccessibleName(panel, "GitHub key storage status"));
+        assertNotNull(findByAccessibleName(panel, "SHAFT AI provider"));
+        assertNotNull(findByAccessibleName(panel, "SHAFT AI provider model"));
     }
 
     @Test

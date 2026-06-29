@@ -80,6 +80,7 @@ class ShaftPluginScreenshotRendererTest {
         Path advancedToolsDarkScreenshot = outputPath.resolve("intellij-plugin-advanced-tools-dark.png");
         Path toolsLightScreenshot = outputPath.resolve("intellij-plugin-tools.png");
         Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
+        Path mcpSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup.png");
         Path settingsScreenshot = outputPath.resolve("intellij-plugin-settings.png");
 
         write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
@@ -94,6 +95,7 @@ class ShaftPluginScreenshotRendererTest {
         write(advancedToolsDarkScreenshot, renderToolWindow(7, "", DARK_THEME, true));
         Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
+        write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
@@ -108,6 +110,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(advancedToolsDarkScreenshot) > 0, advancedToolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupScreenshot) > 0, mcpSetupScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsScreenshot) > 0, settingsScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
                 () -> assertDimensions(assistantDarkScreenshot),
@@ -121,6 +124,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(advancedToolsDarkScreenshot),
                 () -> assertDimensions(toolsLightScreenshot),
                 () -> assertDimensions(toolsDarkScreenshot),
+                () -> assertDimensions(mcpSetupScreenshot),
                 () -> assertDimensions(settingsScreenshot),
                 () -> assertTrue(Files.mismatch(assistantLightScreenshot, assistantDarkScreenshot) >= 0,
                         "Assistant light and dark screenshots should differ"),
@@ -150,6 +154,22 @@ class ShaftPluginScreenshotRendererTest {
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
             JComponent component = settingsPanel();
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component));
+        });
+        return image.get();
+    }
+
+    private static BufferedImage renderSetup(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            JComponent component = new ShaftToolWindowPanel(screenshotProject(), new ShaftSettingsState.Settings());
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
@@ -209,7 +229,10 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static ShaftSettingsState.Settings defaultSettings() {
-        return new ShaftSettingsState.Settings();
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        return settings;
     }
 
     private static void configureLookAndFeel(String lookAndFeelClassName, boolean dark) {
