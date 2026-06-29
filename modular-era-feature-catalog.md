@@ -28,7 +28,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab" width="620">
       <br><strong>IntelliJ Assistant</strong>
-      <br>Right-side Assistant tab with local client, modes, prompt, and response transcript.
+      <br>Copilot-style composer with Ask/Plan/Agent mode, Local/Cloud provider type, family/runtime, prompt, and transcript.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-dark.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab in dark theme" width="620">
@@ -88,12 +88,12 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png" alt="SHAFT IntelliJ IDEA plugin first-run MCP setup flow" width="620">
       <br><strong>First-run MCP setup</strong>
-      <br>Three-step setup installs or updates SHAFT MCP, selects the assistant provider, and tests the connection before opening the Assistant.
+      <br>Setup installs or updates SHAFT MCP, selects assistant family/runtime, and tests the connection before opening the Assistant.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="SHAFT IntelliJ IDEA plugin Settings panel with MCP and provider controls" width="620">
       <br><strong>Settings and providers</strong>
-      <br>Post-setup controls for reinstalling MCP, testing connectivity, changing the assistant/provider model, configuring Copilot MCP, and storing provider keys.
+      <br>Post-setup controls for Local/Cloud routing, cloud model selection, selected-key passing, and provider key storage.
     </td>
   </tr>
   <tr>
@@ -164,7 +164,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | First-run MCP installation, Assistant prompts, guided recorder/locator flows, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools are now first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-assistant.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png` |
+| IntelliJ IDEA plugin | First-run MCP installation, Copilot-style Assistant provider/runtime prompts, guided recorder/locator flows, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools are now first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
 | Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
@@ -211,24 +211,24 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628`). It is intentionally thin: first-run setup installs or updates SHAFT MCP, persists the stdio command, asks the user to choose the assistant provider, and opens the Assistant after a successful connection test. Settings remain available later for provider changes, API keys, Copilot MCP configuration, and custom local MCP commands.
+`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628`). It is intentionally thin: first-run setup installs or updates SHAFT MCP, persists the stdio command, asks the user to choose the assistant family/runtime, and opens the Assistant after a successful connection test. Settings remain available later for Local/Cloud routing, API keys, Copilot MCP configuration, and custom local MCP commands.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
 | Tool window | Right-side SHAFT assistant panel with dedicated workflow tabs for Assistant, Guided, Recorder, Inspector, Triage, Evidence Tools, Projects, and Advanced Tools. | `Tools -> SHAFT -> Open SHAFT` |
-| First-run setup | Install or update SHAFT MCP from the tool window, choose Codex, Claude Code, or Copilot CLI as the assistant provider, then test the connection. A successful test hides setup and opens the Assistant. | `Tools -> SHAFT -> Open SHAFT` |
-| Settings and providers | Reinstall or retest MCP, change the assistant provider, select a SHAFT AI provider/model, configure GitHub Copilot MCP, and store or clear OpenAI, Anthropic, Gemini, and GitHub keys. | `Settings -> SHAFT` |
+| First-run setup | Install or update SHAFT MCP from the tool window, choose Codex, Claude, or Copilot plus CLI/plugin/app runtime, then test the connection. A successful test hides setup and opens the Assistant. | `Tools -> SHAFT -> Open SHAFT` |
+| Settings and providers | Reinstall or retest MCP, change Local/Cloud routing, connect the selected local runtime MCP client, select the cloud provider/model, configure GitHub Copilot MCP, and store or clear OpenAI, Anthropic, Gemini, and GitHub keys. Only the selected cloud provider key is passed to MCP. | `Settings -> SHAFT` |
 | Guided workflows | Prepare recorder, locator inspection, code generation, and guardrail requests without editing JSON first. | `Guided` tab |
 | Recorder | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` tab |
 | Project tools | Create a SHAFT project, preview an upgrade, or apply an approved upgrade through MCP. | `Projects` tab |
 | Triage | Prepare failed Allure analysis, trace analysis, Doctor fix suggestions, Healer runs, and locator proposal requests. | `Triage` tab |
 | Evidence and healing | Run failed-test analysis, trace lookup, trace analysis, and healer templates from the IDE. | `Evidence Tools` tab |
 | Mobile Inspector | Check mobile tooling, prepare Inspector recording, inspect status, read accessibility trees, and take mobile screenshots. | `Inspector` tab |
-| Agent helpers | Ask, plan, or run guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; slash commands search docs, scenarios, guardrails, recording, locators, triage, and clients. | `Assistant` tab |
+| Agent helpers | Ask, plan, or run guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; Ask/Plan can route to OpenAI, Anthropic, Gemini, or GitHub Models with a stored key; slash commands search docs, scenarios, guardrails, recording, locators, triage, and clients. | `Assistant` tab |
 | Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Recorder` tab |
 | Editor action | Start from the current Java caret context through the `Record SHAFT Flow Here` action in Tools or the editor popup menu. | `Record SHAFT Flow Here` |
 
-The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. It does not hide MCP requests: the Advanced Tools and Recorder tabs show exact JSON arguments, validate them before run, and write formatted outputs to an output pane, while Assistant responses show the invoked tool and can be copied.
+The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps mode and provider/runtime selectors in the bottom composer, while the Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
 
 <table>
   <tr>
@@ -254,6 +254,10 @@ The plugin rides as a right-side IntelliJ panel, similar to assistant tools such
   <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png" alt="IntelliJ plugin first-run MCP setup flow" width="620"></td>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="IntelliJ plugin Settings panel" width="620"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings-dark.png" alt="IntelliJ plugin Settings panel in dark theme" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin Guide MCP category" width="620"></td>
   </tr>
   <tr>
     <td colspan="2">Screenshots show the 860 px right-side panel, first-run MCP setup view, and SHAFT settings panel captured on `2026-06-29` in standard IntelliJ light and dark themes.</td>

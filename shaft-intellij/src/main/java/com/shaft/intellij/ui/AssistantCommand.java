@@ -39,6 +39,16 @@ final class AssistantCommand {
             String workingDirectory,
             String customCommand,
             boolean allowSourceMutation) {
+        return fromPrompt(prompt, Selection.fromClient(client), mode, workingDirectory, customCommand, allowSourceMutation);
+    }
+
+    static Invocation fromPrompt(
+            String prompt,
+            Selection selection,
+            String mode,
+            String workingDirectory,
+            String customCommand,
+            boolean allowSourceMutation) {
         String text = prompt == null ? "" : prompt.trim();
         if (text.isEmpty()) {
             return Invocation.local("Enter a prompt or slash command.");
@@ -46,8 +56,15 @@ final class AssistantCommand {
         if (text.startsWith("/")) {
             return slash(text, workingDirectory);
         }
+        if (selection.cloud()) {
+            return cloud(text, selection, mode, workingDirectory);
+        }
+        if (!"CLI".equals(selection.runtime())) {
+            return Invocation.local("SHAFT is configured for " + selection.displayName()
+                    + ". Configure SHAFT MCP for that runtime, then send this prompt from its native chat panel.");
+        }
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("client", client);
+        arguments.addProperty("client", selection.client());
         arguments.addProperty("mode", mode);
         arguments.addProperty("prompt", text);
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
@@ -56,6 +73,18 @@ final class AssistantCommand {
         arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
         arguments.addProperty("allowSourceMutation", "AGENT".equals(mode) && allowSourceMutation);
         return Invocation.tool("autobot_local_agent_run", arguments);
+    }
+
+    private static Invocation cloud(String text, Selection selection, String mode, String workingDirectory) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("provider", selection.cloudProvider());
+        arguments.addProperty("model", selection.cloudModel());
+        arguments.addProperty("mode", mode);
+        arguments.addProperty("prompt", text);
+        arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
+        arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
+        arguments.addProperty("allowSourceMutation", false);
+        return Invocation.tool("autobot_provider_chat", arguments);
     }
 
     private static Invocation slash(String text, String workingDirectory) {
@@ -247,6 +276,52 @@ final class AssistantCommand {
 
         boolean isLocal() {
             return localResponse != null;
+        }
+    }
+
+    record Selection(boolean cloud, String family, String runtime, String cloudProvider, String cloudModel) {
+        static Selection local(String family, String runtime) {
+            return new Selection(false, normalize(family, "CODEX"), normalize(runtime, "CLI"), "", "");
+        }
+
+        static Selection cloud(String provider, String model) {
+            return new Selection(true, "", "", normalize(provider, "openai").toLowerCase(Locale.ROOT),
+                    model == null ? "" : model.trim());
+        }
+
+        static Selection fromClient(String client) {
+            return switch (normalize(client, "CODEX")) {
+                case "CLAUDE_CODE" -> local("CLAUDE", "CLI");
+                case "COPILOT_CLI" -> local("COPILOT", "CLI");
+                default -> local("CODEX", "CLI");
+            };
+        }
+
+        String client() {
+            return switch (family) {
+                case "CLAUDE" -> "CLAUDE_CODE";
+                case "COPILOT" -> "COPILOT_CLI";
+                default -> "CODEX";
+            };
+        }
+
+        String displayName() {
+            String familyName = switch (family) {
+                case "CLAUDE" -> "Claude";
+                case "COPILOT" -> "GitHub Copilot";
+                default -> "Codex";
+            };
+            String runtimeName = switch (runtime) {
+                case "IDE_PLUGIN" -> "plugin";
+                case "DESKTOP_APP" -> "desktop app";
+                default -> "CLI";
+            };
+            return familyName + " " + runtimeName;
+        }
+
+        private static String normalize(String value, String fallback) {
+            String normalized = value == null || value.isBlank() ? fallback : value.trim();
+            return normalized.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
         }
     }
 }

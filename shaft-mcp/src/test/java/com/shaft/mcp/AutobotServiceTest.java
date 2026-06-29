@@ -6,6 +6,8 @@ import com.shaft.pilot.agent.LocalAgentProcessRunner;
 import com.shaft.pilot.agent.LocalAgentResponse;
 import com.shaft.pilot.agent.LocalAgentService;
 import com.shaft.pilot.agent.LocalAgentStatus;
+import com.shaft.pilot.ai.AiResponse;
+import com.shaft.pilot.ai.AiResponseStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -62,6 +64,39 @@ class AutobotServiceTest {
         assertEquals(LocalAgentClient.values().length, clients.size());
         assertTrue(clients.stream().anyMatch(client -> "CODEX".equals(client.id())));
         assertTrue(clients.stream().noneMatch(AutobotLocalAgentClient::requiresCloudApiKey));
+    }
+
+    @Test
+    void providerChatRejectsAgentModeBecauseCloudChatCannotMutateSources() {
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                    throw new AssertionError("Cloud provider should not be invoked");
+                });
+
+        AutobotProviderChatResponse response = service.runProviderChat(
+                "github", "openai/gpt-4.1", "AGENT", "Edit the tests", "", 10, true);
+
+        assertEquals("REJECTED", response.status());
+        assertTrue(response.warnings().contains(AutobotService.CLOUD_AGENT_MODE_WARNING));
+    }
+
+    @Test
+    void providerChatDelegatesAskAndReturnsAnswer() {
+        AtomicReference<String> capturedText = new AtomicReference<>("");
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                    capturedText.set(request.text());
+                    return AiResponse.success("github", "openai/gpt-4.1",
+                            com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("answer", "ok"),
+                            Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(), request.deterministicFallback());
+                });
+
+        AutobotProviderChatResponse response = service.runProviderChat(
+                "github", "openai/gpt-4.1", "ASK", "Explain this failure", "", 10, false);
+
+        assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
+        assertEquals("ok", response.answer());
+        assertEquals("Explain this failure", capturedText.get());
     }
 
     private static final class CapturingRunner implements LocalAgentProcessRunner {

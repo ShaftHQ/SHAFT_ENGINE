@@ -182,6 +182,26 @@ public interface Pilot extends EngineProperties<Pilot> {
     @DefaultValue("remote")
     String geminiProcessingLocation();
 
+    /** @return GitHub Models chat-completions endpoint */
+    @Key("pilot.ai.github.endpoint")
+    @DefaultValue("https://models.github.ai/inference/chat/completions")
+    String githubEndpoint();
+
+    /** @return configured GitHub Models model */
+    @Key("pilot.ai.github.model")
+    @DefaultValue("")
+    String githubModel();
+
+    /** @return environment variable containing the GitHub credential */
+    @Key("pilot.ai.github.apiKeyEnvironmentVariable")
+    @DefaultValue("GITHUB_TOKEN")
+    String githubApiKeyEnvironmentVariable();
+
+    /** @return explicit GitHub Models endpoint processing location */
+    @Key("pilot.ai.github.processingLocation")
+    @DefaultValue("remote")
+    String githubProcessingLocation();
+
     /** @return Ollama chat endpoint */
     @Key("pilot.ai.ollama.endpoint")
     @DefaultValue("http://127.0.0.1:11434/api/chat")
@@ -414,6 +434,30 @@ public interface Pilot extends EngineProperties<Pilot> {
         /** @param value processing location @return this builder */
         public SetProperty geminiProcessingLocation(String value) {
             setProperty("pilot.ai.gemini.processingLocation", value);
+            return this;
+        }
+
+        /** @param value endpoint URL @return this builder */
+        public SetProperty githubEndpoint(String value) {
+            setProperty("pilot.ai.github.endpoint", value);
+            return this;
+        }
+
+        /** @param value model identifier @return this builder */
+        public SetProperty githubModel(String value) {
+            setProperty("pilot.ai.github.model", value);
+            return this;
+        }
+
+        /** @param value environment variable name @return this builder */
+        public SetProperty githubApiKeyEnvironmentVariable(String value) {
+            setProperty("pilot.ai.github.apiKeyEnvironmentVariable", value);
+            return this;
+        }
+
+        /** @param value processing location @return this builder */
+        public SetProperty githubProcessingLocation(String value) {
+            setProperty("pilot.ai.github.processingLocation", value);
             return this;
         }
 

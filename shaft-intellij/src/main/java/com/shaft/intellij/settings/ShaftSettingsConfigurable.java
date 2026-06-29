@@ -7,6 +7,7 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
+import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpInstallResult;
 import com.shaft.intellij.mcp.ShaftMcpInstaller;
@@ -25,6 +26,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import java.awt.FlowLayout;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -43,8 +45,14 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JBTextField mcpCommand;
     private JButton installMcp;
     private JButton testMcp;
+    private JButton configureRuntimeMcp;
     private JButton configureCopilotMcp;
     private JLabel testStatus;
+    private JComboBox<String> assistantProviderType;
+    private JComboBox<String> assistantFamily;
+    private JComboBox<String> assistantRuntime;
+    private JComboBox<String> cloudProvider;
+    private JBTextField cloudModel;
     private JComboBox<String> defaultClient;
     private JComboBox<String> defaultMode;
     private JComboBox<String> pilotAiProvider;
@@ -110,19 +118,40 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         testMcp.getAccessibleContext().setAccessibleDescription(
                 "Run a one-time SHAFT MCP connection check with current settings.");
         testMcp.addActionListener(event -> testMcpConnection());
+        configureRuntimeMcp = new JButton("Connect selected runtime MCP");
+        configureRuntimeMcp.getAccessibleContext().setAccessibleName("Connect selected runtime MCP");
+        configureRuntimeMcp.getAccessibleContext().setAccessibleDescription(
+                "Install or update shaft-mcp and configure the selected local assistant runtime.");
+        configureRuntimeMcp.addActionListener(event -> configureRuntimeMcp());
         configureCopilotMcp = new JButton("Connect GitHub Copilot MCP");
         configureCopilotMcp.getAccessibleContext().setAccessibleName("Connect GitHub Copilot MCP");
         configureCopilotMcp.getAccessibleContext().setAccessibleDescription(
                 "Install or update shaft-mcp and configure GitHub Copilot for IntelliJ IDEA.");
         configureCopilotMcp.addActionListener(event -> configureCopilotMcp());
         testStatus = help("Not tested");
+        assistantProviderType = new JComboBox<>(model("LOCAL", "CLOUD"));
+        assistantProviderType.getAccessibleContext().setAccessibleName("Assistant provider type");
+        assistantProviderType.getAccessibleContext().setAccessibleDescription("Select whether Assistant prompts use local tools or a cloud provider.");
+        assistantFamily = new JComboBox<>(model("CODEX", "CLAUDE", "COPILOT"));
+        assistantFamily.getAccessibleContext().setAccessibleName("Assistant family");
+        assistantFamily.getAccessibleContext().setAccessibleDescription("Local assistant family used by the Assistant tab.");
+        assistantRuntime = new JComboBox<>(model("CLI", "IDE_PLUGIN", "DESKTOP_APP"));
+        assistantRuntime.getAccessibleContext().setAccessibleName("Assistant runtime");
+        assistantRuntime.getAccessibleContext().setAccessibleDescription("Local runtime: command line, IDE plugin, or desktop app.");
+        cloudProvider = new JComboBox<>(model("openai", "anthropic", "gemini", "github"));
+        cloudProvider.getAccessibleContext().setAccessibleName("Assistant cloud provider");
+        cloudProvider.getAccessibleContext().setAccessibleDescription("Cloud provider used by Assistant Ask and Plan prompts.");
+        cloudModel = new JBTextField();
+        cloudModel.getEmptyText().setText("Cloud model, for example openai/gpt-4.1");
+        cloudModel.getAccessibleContext().setAccessibleName("Assistant cloud model");
+        cloudModel.getAccessibleContext().setAccessibleDescription("Model name passed to the selected cloud provider.");
         defaultClient = new JComboBox<>(model("CODEX", "CLAUDE_CODE", "COPILOT_CLI"));
         defaultClient.getAccessibleContext().setAccessibleName("Default assistant provider");
         defaultClient.getAccessibleContext().setAccessibleDescription("Default assistant provider used when opening the assistant panel.");
         defaultMode = new JComboBox<>(model("ASK", "PLAN", "AGENT"));
         defaultMode.getAccessibleContext().setAccessibleName("Default assistant mode");
         defaultMode.getAccessibleContext().setAccessibleDescription("Default assistant mode used when opening the assistant panel.");
-        pilotAiProvider = new JComboBox<>(model("none", "openai", "anthropic", "gemini", "ollama"));
+        pilotAiProvider = new JComboBox<>(model("none", "openai", "anthropic", "gemini", "github", "ollama"));
         pilotAiProvider.getAccessibleContext().setAccessibleName("SHAFT AI provider");
         pilotAiProvider.getAccessibleContext().setAccessibleDescription(
                 "Optional SHAFT AI provider used by MCP tools that request configured provider assistance.");
@@ -160,12 +189,16 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
 
         panel = FormBuilder.createFormBuilder()
                 .addComponent(section("MCP"))
-                .addComponent(actionRow(installMcp, configureCopilotMcp))
+                .addComponent(actionRow(installMcp, configureRuntimeMcp, configureCopilotMcp))
                 .addLabeledComponent(label("MCP stdio command", 'M', mcpCommand), mcpCommand)
                 .addLabeledComponent(testMcp, testStatus)
                 .addComponent(help("The command is filled by the installer. Edit it only for a custom local shaft-mcp runtime."))
                 .addComponent(section("Assistant"))
-                .addLabeledComponent(label("Default assistant provider", 'C', defaultClient), defaultClient)
+                .addLabeledComponent(label("Provider type", 'Y', assistantProviderType), assistantProviderType)
+                .addLabeledComponent(label("Family", 'F', assistantFamily), assistantFamily)
+                .addLabeledComponent(label("Runtime", 'R', assistantRuntime), assistantRuntime)
+                .addLabeledComponent(label("Cloud provider", 'V', cloudProvider), cloudProvider)
+                .addLabeledComponent(label("Cloud model", 'W', cloudModel), cloudModel)
                 .addLabeledComponent(label("Default assistant mode", 'D', defaultMode), defaultMode)
                 .addComponent(help("The Assistant tab is always available. Agent mode still requires explicit source mutation approval per request."))
                 .addComponent(section("SHAFT AI provider"))
@@ -186,6 +219,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(keyRow(clearGithubKey, githubKeyStatus))
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
+        panel.setBorder(JBUI.Borders.empty(8));
         reset();
         return panel;
     }
@@ -194,7 +228,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     public boolean isModified() {
         ShaftSettingsState.Settings state = settingsProvider.get();
         return !Objects.equals(state.mcpCommand, mcpCommand.getText())
-                || !Objects.equals(state.defaultAutobotClient, defaultClient.getSelectedItem())
+                || !Objects.equals(normalize(state.assistantProviderType, "LOCAL"), assistantProviderType.getSelectedItem())
+                || !Objects.equals(resolveFamily(state), assistantFamily.getSelectedItem())
+                || !Objects.equals(normalize(state.assistantRuntime, "CLI"), assistantRuntime.getSelectedItem())
+                || !Objects.equals(normalizeLower(state.cloudProvider, "openai"), cloudProvider.getSelectedItem())
+                || !Objects.equals(state.cloudModel == null ? "" : state.cloudModel, cloudModel.getText())
+                || !Objects.equals(state.defaultAutobotClient, clientFromFamily(String.valueOf(assistantFamily.getSelectedItem())))
                 || !Objects.equals(state.defaultAutobotMode, defaultMode.getSelectedItem())
                 || !Objects.equals(state.pilotAiProvider, pilotAiProvider.getSelectedItem())
                 || !Objects.equals(state.pilotAiModel, pilotAiModel.getText())
@@ -217,7 +256,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             state.mcpSetupComplete = false;
         }
         state.mcpCommand = command;
-        state.defaultAutobotClient = String.valueOf(defaultClient.getSelectedItem());
+        state.assistantProviderType = String.valueOf(assistantProviderType.getSelectedItem());
+        state.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
+        state.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
+        state.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
+        state.cloudModel = cloudModel.getText().trim();
+        state.defaultAutobotClient = clientFromFamily(state.assistantFamily);
         state.defaultAutobotMode = String.valueOf(defaultMode.getSelectedItem());
         state.pilotAiProvider = String.valueOf(pilotAiProvider.getSelectedItem());
         state.pilotAiModel = pilotAiModel.getText().trim();
@@ -239,7 +283,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     public void reset() {
         ShaftSettingsState.Settings state = settingsProvider.get();
         mcpCommand.setText(state.mcpCommand);
-        defaultClient.setSelectedItem(state.defaultAutobotClient);
+        assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
+        assistantFamily.setSelectedItem(resolveFamily(state));
+        assistantRuntime.setSelectedItem(normalize(state.assistantRuntime, "CLI"));
+        cloudProvider.setSelectedItem(normalizeLower(state.cloudProvider, "openai"));
+        cloudModel.setText(state.cloudModel == null ? "" : state.cloudModel);
+        defaultClient.setSelectedItem(clientFromFamily(resolveFamily(state)));
         defaultMode.setSelectedItem(state.defaultAutobotMode);
         pilotAiProvider.setSelectedItem(state.pilotAiProvider == null || state.pilotAiProvider.isBlank()
                 ? "none" : state.pilotAiProvider);
@@ -262,8 +311,14 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         mcpCommand = null;
         installMcp = null;
         testMcp = null;
+        configureRuntimeMcp = null;
         configureCopilotMcp = null;
         testStatus = null;
+        assistantProviderType = null;
+        assistantFamily = null;
+        assistantRuntime = null;
+        cloudProvider = null;
+        cloudModel = null;
         defaultClient = null;
         defaultMode = null;
         pilotAiProvider = null;
@@ -285,6 +340,36 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
 
     private static ComboBoxModel<String> model(String... values) {
         return new DefaultComboBoxModel<>(values);
+    }
+
+    private static String resolveFamily(ShaftSettingsState.Settings state) {
+        String family = normalize(state.assistantFamily, "");
+        if (!family.isBlank()) {
+            return family;
+        }
+        return switch (normalize(state.defaultAutobotClient, "CODEX")) {
+            case "CLAUDE_CODE" -> "CLAUDE";
+            case "COPILOT_CLI" -> "COPILOT";
+            default -> "CODEX";
+        };
+    }
+
+    private static String clientFromFamily(String family) {
+        return switch (normalize(family, "CODEX")) {
+            case "CLAUDE" -> "CLAUDE_CODE";
+            case "COPILOT" -> "COPILOT_CLI";
+            default -> "CODEX";
+        };
+    }
+
+    private static String normalize(String value, String fallback) {
+        String normalized = value == null || value.isBlank() ? fallback : value.trim();
+        return normalized.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+    }
+
+    private static String normalizeLower(String value, String fallback) {
+        String normalized = value == null || value.isBlank() ? fallback : value.trim();
+        return normalized.toLowerCase(Locale.ROOT);
     }
 
     private static JLabel section(String text) {
@@ -337,10 +422,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         return row;
     }
 
-    private static JPanel actionRow(JButton first, JButton second) {
+    private static JPanel actionRow(JButton... buttons) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        row.add(first);
-        row.add(second);
+        for (JButton button : buttons) {
+            row.add(button);
+        }
         return row;
     }
 
@@ -473,6 +559,42 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 ApplicationManager.getApplication().invokeLater(() -> showCopilotResult(button, result, error)));
     }
 
+    private void configureRuntimeMcp() {
+        JButton button = configureRuntimeMcp;
+        if (button == null || testStatus == null) {
+            return;
+        }
+        String client = installerClientForSelection();
+        button.setEnabled(false);
+        testStatus.setText("Configuring " + client + "...");
+        ShaftMcpInstaller.configureClient(client).whenComplete((result, error) ->
+                ApplicationManager.getApplication().invokeLater(() -> showRuntimeResult(button, client, result, error)));
+    }
+
+    private void showRuntimeResult(JButton button, String client, ShaftMcpInstallResult result, Throwable error) {
+        if (button != null) {
+            button.setEnabled(true);
+        }
+        if (error == null && result != null && result.success()) {
+            testStatus.setText(client + " configured");
+        } else {
+            testStatus.setText("Runtime failed");
+            Messages.showErrorDialog(panel,
+                    error != null ? error.getMessage() : result == null ? "No installer result returned." : result.output(),
+                    "SHAFT MCP");
+        }
+    }
+
+    private String installerClientForSelection() {
+        String family = String.valueOf(assistantFamily.getSelectedItem());
+        String runtime = String.valueOf(assistantRuntime.getSelectedItem());
+        return switch (normalize(family, "CODEX")) {
+            case "CLAUDE" -> "DESKTOP_APP".equals(normalize(runtime, "CLI")) ? "claude-desktop" : "claude";
+            case "COPILOT" -> "IDE_PLUGIN".equals(normalize(runtime, "CLI")) ? "copilot-intellij" : "copilot";
+            default -> "codex";
+        };
+    }
+
     private void showCopilotResult(JButton button, ShaftMcpInstallResult result, Throwable error) {
         if (button != null) {
             button.setEnabled(true);
@@ -490,7 +612,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private ShaftSettingsState.Settings formSettings() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
-        settings.defaultAutobotClient = String.valueOf(defaultClient.getSelectedItem());
+        settings.assistantProviderType = String.valueOf(assistantProviderType.getSelectedItem());
+        settings.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
+        settings.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
+        settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
+        settings.cloudModel = cloudModel.getText() == null ? "" : cloudModel.getText().trim();
+        settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
         settings.defaultAutobotMode = String.valueOf(defaultMode.getSelectedItem());
         settings.pilotAiProvider = String.valueOf(pilotAiProvider.getSelectedItem());
         settings.pilotAiModel = pilotAiModel.getText() == null ? "" : pilotAiModel.getText().trim();
@@ -502,6 +629,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftSettingsState.Settings state = settingsProvider.get();
         ShaftSettingsState.Settings form = formSettings();
         state.mcpCommand = form.mcpCommand;
+        state.assistantProviderType = form.assistantProviderType;
+        state.assistantFamily = form.assistantFamily;
+        state.assistantRuntime = form.assistantRuntime;
+        state.cloudProvider = form.cloudProvider;
+        state.cloudModel = form.cloudModel;
         state.defaultAutobotClient = form.defaultAutobotClient;
         state.defaultAutobotMode = form.defaultAutobotMode;
         state.pilotAiProvider = form.pilotAiProvider;

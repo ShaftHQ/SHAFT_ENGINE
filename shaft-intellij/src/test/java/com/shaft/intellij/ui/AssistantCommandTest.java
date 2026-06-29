@@ -47,6 +47,39 @@ class AssistantCommandTest {
     }
 
     @Test
+    void cloudPromptBuildsProviderChatRequestWithoutMutation() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Review the checkout test plan",
+                AssistantCommand.Selection.cloud("github", "openai/gpt-4.1"),
+                "PLAN",
+                "C:/work/project",
+                "",
+                true);
+
+        assertFalse(invocation.isLocal());
+        assertEquals("autobot_provider_chat", invocation.toolName());
+        assertEquals("github", invocation.arguments().get("provider").getAsString());
+        assertEquals("openai/gpt-4.1", invocation.arguments().get("model").getAsString());
+        assertEquals("PLAN", invocation.arguments().get("mode").getAsString());
+        assertEquals("Review the checkout test plan", invocation.arguments().get("prompt").getAsString());
+        assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    @Test
+    void appAndPluginRuntimePromptsStayLocalWithHandoffMessage() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Open this in Copilot",
+                AssistantCommand.Selection.local("COPILOT", "IDE_PLUGIN"),
+                "ASK",
+                "C:/work/project",
+                "",
+                false);
+
+        assertTrue(invocation.isLocal());
+        assertTrue(invocation.localResponse().contains("GitHub Copilot plugin"));
+    }
+
+    @Test
     void slashCommandsMapToCuratedTools() {
         assertEquals("shaft_guide_search", command("/guide locators").toolName());
         assertEquals("locators", command("/guide locators").arguments().get("query").getAsString());

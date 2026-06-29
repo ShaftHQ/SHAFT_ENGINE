@@ -127,6 +127,7 @@ platformVersion=2024.3
 
         intellijPlatform {
             publishing {
+                channels = listOf("default")
             }
         }
         """,
@@ -254,7 +255,31 @@ class ShaftPilotReleaseValidatorTest(unittest.TestCase):
 
         self.assertTrue(
             any(
-                "shaft-intellij publishing channel must be omitted or target the stable Marketplace channel"
+                "shaft-intellij publishing channel must explicitly target the stable Marketplace channel"
+                in error
+                for error in errors
+            )
+        )
+
+    def test_plugin_publish_channel_must_be_explicit(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_reactor(
+                root, reactor_version="10.2.20260628", plugin_version="10.2.20260628"
+            )
+            _write_text(
+                root / "shaft-intellij/build.gradle.kts",
+                """intellijPlatform {
+                    publishing {
+                    }
+                }
+                """,
+            )
+            errors = MODULE.validate_static(root)
+
+        self.assertTrue(
+            any(
+                "shaft-intellij publishing channel must explicitly target the stable Marketplace channel"
                 in error
                 for error in errors
             )

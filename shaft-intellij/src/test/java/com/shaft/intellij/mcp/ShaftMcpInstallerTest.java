@@ -36,4 +36,11 @@ class ShaftMcpInstallerTest {
         assertTrue(command.contains("intellij-plugin"));
         assertTrue(command.contains("json"));
     }
+
+    @Test
+    void genericClientConfigurationUsesExistingInstallerTargets() {
+        String command = String.join(" ", ShaftMcpInstaller.installCommand("claude-desktop", false));
+
+        assertTrue(command.contains("claude-desktop"));
+    }
 }

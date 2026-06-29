@@ -42,7 +42,17 @@ public final class ShaftMcpInstaller {
      * @return async installer result
      */
     public static CompletableFuture<ShaftMcpInstallResult> configureCopilotIntellij() {
-        return CompletableFuture.supplyAsync(() -> run(installCommand("copilot-intellij", false), false));
+        return configureClient("copilot-intellij");
+    }
+
+    /**
+     * Installs or updates shaft-mcp and configures one supported MCP client.
+     *
+     * @param client installer client target
+     * @return async installer result
+     */
+    public static CompletableFuture<ShaftMcpInstallResult> configureClient(String client) {
+        return CompletableFuture.supplyAsync(() -> run(installCommand(client, false), false));
     }
 
     static List<String> installCommand(String client, boolean json) {

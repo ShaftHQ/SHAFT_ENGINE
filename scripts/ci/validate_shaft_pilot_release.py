@@ -65,7 +65,7 @@ INTERNAL_VERSION_DEFAULTS = {
     "androidCommandLineToolsVersion": r"\d+",
 }
 UNSTABLE_VERSION = re.compile(r"(?i)(alpha|beta|rc|cr|m[0-9]+|ea|preview|milestone|snapshot)")
-STABLE_INTELLIJ_MARKETPLACE_CHANNELS = {"", "default"}
+STABLE_INTELLIJ_MARKETPLACE_CHANNEL = "default"
 
 
 def text(element: ET.Element, path: str) -> str:
@@ -97,10 +97,13 @@ def read_gradle_properties(path: Path) -> dict[str, str]:
 
 def intellij_marketplace_channel_errors(build_source: str) -> list[str]:
     errors = []
-    for match in re.finditer(r"^\s*channels\s*=\s*listOf\(([^)]*)\)", build_source, re.MULTILINE):
+    matches = list(re.finditer(r"^\s*channels\s*=\s*listOf\(([^)]*)\)", build_source, re.MULTILINE))
+    if not matches:
+        return ["shaft-intellij publishing channel must explicitly target the stable Marketplace channel"]
+    for match in matches:
         channels = re.findall(r'"([^"]*)"', match.group(1))
-        if any(channel not in STABLE_INTELLIJ_MARKETPLACE_CHANNELS for channel in channels):
-            errors.append("shaft-intellij publishing channel must be omitted or target the stable Marketplace channel")
+        if channels != [STABLE_INTELLIJ_MARKETPLACE_CHANNEL]:
+            errors.append("shaft-intellij publishing channel must explicitly target the stable Marketplace channel")
     return errors
 
 

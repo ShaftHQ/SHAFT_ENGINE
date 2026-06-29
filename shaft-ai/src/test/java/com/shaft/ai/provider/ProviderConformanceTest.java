@@ -76,6 +76,7 @@ class ProviderConformanceTest {
                 case "openai" -> exchange.getRequestHeaders().getFirst("Authorization");
                 case "anthropic" -> exchange.getRequestHeaders().getFirst("x-api-key");
                 case "gemini" -> exchange.getRequestHeaders().getFirst("x-goog-api-key");
+                case "github" -> exchange.getRequestHeaders().getFirst("Authorization");
                 default -> "";
             });
             respond(exchange, 200, successfulResponse(providerId, "{\"answer\":\"ok\"}"));
@@ -170,7 +171,7 @@ class ProviderConformanceTest {
     void serviceLoaderDiscoversAllDirectProviders() {
         var ids = new AiProviderRegistry().serviceProviders().stream().map(AiProvider::id).toList();
 
-        assertEquals(java.util.List.of("anthropic", "gemini", "ollama", "openai"), ids);
+        assertEquals(List.of("anthropic", "gemini", "github", "ollama", "openai"), ids);
     }
 
     @Test
@@ -237,6 +238,7 @@ class ProviderConformanceTest {
             case "openai" -> new OpenAiProvider(client, ignored -> "test-credential");
             case "anthropic" -> new AnthropicProvider(client, ignored -> "test-credential");
             case "gemini" -> new GeminiProvider(client, ignored -> "test-credential");
+            case "github" -> new GitHubModelsProvider(client, ignored -> "test-credential");
             case "ollama" -> new OllamaProvider(client, ignored -> "");
             default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
         };
@@ -289,13 +291,14 @@ class ProviderConformanceTest {
             case "openai" -> properties.openAiEndpoint(base + "/responses").openAiModel("test-model");
             case "anthropic" -> properties.anthropicEndpoint(base + "/messages").anthropicModel("test-model");
             case "gemini" -> properties.geminiEndpoint(base + "/v1beta/models").geminiModel("test-model");
+            case "github" -> properties.githubEndpoint(base + "/inference/chat/completions").githubModel("test-model");
             case "ollama" -> properties.ollamaEndpoint(base + "/api/chat").ollamaModel("test-model");
             default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
         }
     }
 
     private static Stream<String> providerIds() {
-        return Stream.of("openai", "anthropic", "gemini", "ollama");
+        return Stream.of("openai", "anthropic", "gemini", "github", "ollama");
     }
 
     private static Stream<Arguments> providerFailures() {
@@ -383,6 +386,8 @@ class ProviderConformanceTest {
                     + escaped + "\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}";
             case "gemini" -> "{\"modelVersion\":\"test-model\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\""
                     + escaped + "\"}]}}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2}}";
+            case "github" -> "{\"model\":\"test-model\",\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\""
+                    + escaped + "\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2}}";
             case "ollama" -> "{\"model\":\"test-model\",\"message\":{\"role\":\"assistant\",\"content\":\""
                     + escaped + "\"},\"prompt_eval_count\":3,\"eval_count\":2}";
             default -> throw new IllegalArgumentException("Unknown provider: " + providerId);

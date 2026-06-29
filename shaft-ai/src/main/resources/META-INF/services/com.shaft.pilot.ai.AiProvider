@@ -1,4 +1,5 @@
 com.shaft.ai.provider.AnthropicProvider
 com.shaft.ai.provider.GeminiProvider
+com.shaft.ai.provider.GitHubModelsProvider
 com.shaft.ai.provider.OllamaProvider
 com.shaft.ai.provider.OpenAiProvider

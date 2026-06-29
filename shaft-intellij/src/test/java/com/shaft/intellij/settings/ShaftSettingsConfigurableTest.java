@@ -32,7 +32,12 @@ class ShaftSettingsConfigurableTest {
         assertTrue(source.contains("Clear stored Gemini API key"));
         assertTrue(source.contains("Clear stored GitHub API key"));
         assertTrue(source.contains("Install or update SHAFT MCP"));
+        assertTrue(source.contains("Connect selected runtime MCP"));
         assertTrue(source.contains("Connect GitHub Copilot MCP"));
+        assertTrue(source.contains("Assistant provider type"));
+        assertTrue(source.contains("Assistant family"));
+        assertTrue(source.contains("Assistant runtime"));
+        assertTrue(source.contains("github"));
         assertTrue(source.contains("SHAFT AI provider"));
         assertTrue(source.contains("setAccessibleDescription(\"Mark this provider key as ready to clear on apply.\")"));
         assertTrue(source.contains("Install or update shaft-mcp and fill the plugin stdio command automatically."));
@@ -62,6 +67,11 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(connectCopilot.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, connectCopilot.getAccessibleContext().getAccessibleDescription().length());
 
+        JButton connectRuntime = (JButton) findByAccessibleName(panel, "Connect selected runtime MCP");
+        assertNotNull(connectRuntime);
+        assertNotNull(connectRuntime.getAccessibleContext().getAccessibleDescription());
+        assertNotEquals(0, connectRuntime.getAccessibleContext().getAccessibleDescription().length());
+
         List<JButton> clearButtons = collectButtons(panel);
         assertEquals(4, clearButtons.size());
         assertTrue(clearButtons.stream().anyMatch(button ->
@@ -79,6 +89,9 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(findByAccessibleName(panel, "GitHub key storage status"));
         assertNotNull(findByAccessibleName(panel, "SHAFT AI provider"));
         assertNotNull(findByAccessibleName(panel, "SHAFT AI provider model"));
+        assertNotNull(findByAccessibleName(panel, "Assistant provider type"));
+        assertNotNull(findByAccessibleName(panel, "Assistant family"));
+        assertNotNull(findByAccessibleName(panel, "Assistant runtime"));
     }
 
     @Test
