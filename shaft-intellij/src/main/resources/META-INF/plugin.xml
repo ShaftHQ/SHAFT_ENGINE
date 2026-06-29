@@ -1,4 +1,4 @@
-<idea-plugin>
+<idea-plugin require-restart="true">
     <id>io.github.shafthq.shaft</id>
     <name>SHAFT</name>
     <vendor email="Mohab.MohieElDeen@outlook.com" url="https://shafthq.github.io">ShaftHQ</vendor>

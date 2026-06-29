@@ -1,8 +1,8 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
-import com.intellij.ui.components.JBTabbedPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
@@ -77,7 +77,7 @@ class ShaftPanelSetupTest {
     void toolWindowShowsFirstRunSetupUntilMcpConnectionIsComplete() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), blankMcpSettings());
 
-        assertNull(toolWindowTabbedPane(toolWindow));
+        assertNull(toolWindowWorkflowSelector(toolWindow));
         assertTrue(containsText(toolWindow, "1. Install or update SHAFT MCP"));
         assertTrue(containsText(toolWindow, "Install / Update SHAFT MCP"));
         assertTrue(containsText(toolWindow, "Assistant family"));
@@ -86,42 +86,72 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void toolWindowShowsWorkflowTabLabels() {
+    void toolWindowShowsReadableWorkflowSelectorLabels() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 
-        JBTabbedPane tabs = toolWindowTabbedPane(toolWindow);
-        assertNotNull(tabs);
+        JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
+        assertNotNull(selector);
         List<String> labels = new ArrayList<>();
-        for (int index = 0; index < tabs.getTabCount(); index++) {
-            labels.add(tabs.getTitleAt(index));
+        for (int index = 0; index < selector.getItemCount(); index++) {
+            labels.add(selector.getItemAt(index).label());
         }
 
-        assertEquals(List.of("Assistant", "Guided", "Recorder", "Inspector", "Triage", "Evidence Tools", "Projects",
-                "Advanced Tools"), labels);
+        assertEquals(List.of("Assistant", "Guided", "Recorder", "Inspector", "Triage", "Evidence",
+                "Projects", "Advanced"), labels);
     }
 
     @Test
-    void prefillToolSelectsMatchingWorkflowTabAndCategory() {
+    void workflowSelectorKeepsEnoughHeightForVisibleTopLabels() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
-        JBTabbedPane tabs = toolWindowTabbedPane(toolWindow);
-        assertNotNull(tabs);
+        JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
+
+        assertNotNull(selector);
+        assertTrue(selector.getPreferredSize().height >= 30);
+    }
+
+    @Test
+    void prefillToolSelectsMatchingWorkflowAndCategory() {
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
+        JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
+        assertNotNull(selector);
         JsonObject arguments = JsonParser.parseString("{}").getAsJsonObject();
 
         toolWindow.prefillTool("capture_start", arguments);
-        assertEquals("Recorder", tabs.getTitleAt(tabs.getSelectedIndex()));
+        assertEquals("Recorder", selectedWorkflow(toolWindow));
         assertEquals("Recorder", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("mobile_get_accessibility_tree", arguments);
-        assertEquals("Inspector", tabs.getTitleAt(tabs.getSelectedIndex()));
+        assertEquals("Inspector", selectedWorkflow(toolWindow));
         assertEquals("Inspector", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("doctor_analyze_trace", arguments);
-        assertEquals("Evidence Tools", tabs.getTitleAt(tabs.getSelectedIndex()));
+        assertEquals("Evidence", selectedWorkflow(toolWindow));
         assertEquals("Evidence", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("shaft_project_create", arguments);
-        assertEquals("Projects", tabs.getTitleAt(tabs.getSelectedIndex()));
+        assertEquals("Projects", selectedWorkflow(toolWindow));
         assertEquals("Projects", selectedCategory(toolWindow));
+    }
+
+    @Test
+    void assistantDisplaysMarkdownInsteadOfNestedMcpJsonEnvelope() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String javaCode = """
+                public class LoginTest {
+                    @Test void logsIn() {
+                    }
+                }
+                """.stripIndent().trim();
+        String output = mcpText(mcpText(javaCode));
+
+        showAssistantResult(panel, ShaftMcpToolResult.success(output));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("```java")),
+                () -> assertTrue(markdown.contains("public class LoginTest")),
+                () -> assertFalse(markdown.contains("\\\"content\\\"")),
+                () -> assertTrue(containsText(panel, "Copy raw")));
     }
 
     @Test
@@ -134,6 +164,21 @@ class ShaftPanelSetupTest {
         }));
         assertAccessibleControls(new EvidenceTriagePanel(null, (tool, arguments) -> {
         }));
+    }
+
+    @Test
+    void assistantTextButtonsDoNotReserveInvisibleIconSpace() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        assertAll(
+                () -> assertNull(findButton(panel, "Test MCP").getIcon()),
+                () -> assertNull(findButton(panel, "Copy response").getIcon()),
+                () -> assertNull(findButton(panel, "Copy raw").getIcon()),
+                () -> assertNull(findButton(panel, "Copy all").getIcon()),
+                () -> assertNull(findButton(panel, "Clear").getIcon()),
+                () -> assertNull(findButton(panel, "Rerun").getIcon()),
+                () -> assertNull(findButton(panel, "Cancel").getIcon()),
+                () -> assertNull(findButton(panel, "Send").getIcon()));
     }
 
     @Test
@@ -257,6 +302,25 @@ class ShaftPanelSetupTest {
         showResult.invoke(panel, result, null);
     }
 
+    private static void showAssistantResult(ShaftAssistantPanel panel, ShaftMcpToolResult result) throws Exception {
+        Method showResult = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
+        showResult.setAccessible(true);
+        showResult.invoke(panel, "autobot_local_agent_run", result, null);
+    }
+
+    private static String mcpText(String text) {
+        JsonObject item = new JsonObject();
+        item.addProperty("type", "text");
+        item.addProperty("text", text);
+        JsonArray content = new JsonArray();
+        content.add(item);
+        JsonObject result = new JsonObject();
+        result.add("content", content);
+        result.addProperty("isError", false);
+        return result.toString();
+    }
+
     private static String outputText(Component component) {
         if (component instanceof JBTextArea textArea && !textArea.isEditable()) {
             return textArea.getText();
@@ -272,14 +336,23 @@ class ShaftPanelSetupTest {
         return "";
     }
 
-    private static String selectedCategory(ShaftToolWindowPanel toolWindow) {
-        JBTabbedPane tabs = toolWindowTabbedPane(toolWindow);
-        assertNotNull(tabs);
-        int selected = tabs.getSelectedIndex();
-        if (selected < 0) {
-            return "";
+    private static String transcriptMarkdown(Component component) {
+        if (component instanceof AssistantTranscriptView view) {
+            return view.markdown();
         }
-        Component selectedComponent = tabs.getComponentAt(selected);
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                String found = transcriptMarkdown(child);
+                if (!found.isEmpty()) {
+                    return found;
+                }
+            }
+        }
+        return "";
+    }
+
+    private static String selectedCategory(ShaftToolWindowPanel toolWindow) {
+        Component selectedComponent = selectedWorkflowComponent(toolWindow);
         if (selectedComponent instanceof Container container) {
             JComboBox<?> categorySelector = findCategorySelector(container);
             if (categorySelector != null && categorySelector.getSelectedItem() != null) {
@@ -289,8 +362,26 @@ class ShaftPanelSetupTest {
         return "";
     }
 
-    private static JBTabbedPane toolWindowTabbedPane(ShaftToolWindowPanel toolWindow) {
-        return toolWindow.tabbedPane();
+    private static String selectedWorkflow(ShaftToolWindowPanel toolWindow) {
+        JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
+        Object selected = selector == null ? null : selector.getSelectedItem();
+        if (!(selected instanceof ShaftToolWindowPanel.WorkflowView view)) {
+            return "";
+        }
+        return view.label();
+    }
+
+    private static Component selectedWorkflowComponent(ShaftToolWindowPanel toolWindow) {
+        JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
+        Object selected = selector == null ? null : selector.getSelectedItem();
+        if (!(selected instanceof ShaftToolWindowPanel.WorkflowView view)) {
+            return null;
+        }
+        return view.component();
+    }
+
+    private static JComboBox<ShaftToolWindowPanel.WorkflowView> toolWindowWorkflowSelector(ShaftToolWindowPanel toolWindow) {
+        return toolWindow.workflowSelector();
     }
 
     private static JComboBox<?> findCategorySelector(Component component) {
