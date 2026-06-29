@@ -43,9 +43,10 @@ intellijPlatform {
         """.trimIndent()
         changeNotes = """
             <ul>
-              <li>Adds an Assistant-first tool window with Ask, Plan, Agent, slash commands, and copyable responses.</li>
-              <li>Groups Recorder, Playback, Doctor, Healer, Inspector, Projects, MCP, and Guide templates under Tools.</li>
-              <li>Keeps MCP requests transparent with editable JSON arguments and output panes.</li>
+              <li>Adds guided Recorder, Locator, Doctor, Trace, Healer, and locator-proposal workflows.</li>
+              <li>Expands Assistant slash commands for recording, inspection, test generation, and failed-test triage.</li>
+              <li>Refreshes Advanced Tools from the live SHAFT MCP catalog while preserving curated safe defaults.</li>
+              <li>Improves MCP stdio result handling, accessibility metadata, and narrow tool-window tab behavior.</li>
             </ul>
         """.trimIndent()
         ideaVersion {

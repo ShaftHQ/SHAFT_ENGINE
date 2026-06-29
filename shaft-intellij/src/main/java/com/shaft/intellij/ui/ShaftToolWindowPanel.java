@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
 import java.awt.BorderLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +30,11 @@ public final class ShaftToolWindowPanel extends JPanel {
     ShaftToolWindowPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
         super(new BorderLayout());
         tabs = new JBTabbedPane();
+        tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+        tabs.getAccessibleContext().setAccessibleName("SHAFT workflow tabs");
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings);
+        GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool);
+        EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
         ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
                 List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
         ShaftFeaturePanel inspectorTools = new ShaftFeaturePanel(project, settings,
@@ -39,7 +44,7 @@ public final class ShaftToolWindowPanel extends JPanel {
                         ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
         ShaftFeaturePanel projectsTools = new ShaftFeaturePanel(project, settings,
                 List.of(new ToolCategory("Projects", ToolTemplates.projects())));
-        advancedTools = new ShaftFeaturePanel(project, settings, ToolTemplates.categories());
+        advancedTools = new ShaftFeaturePanel(project, settings);
         featurePanels = new ArrayList<>();
         featurePanels.add(recorderTools);
         featurePanels.add(inspectorTools);
@@ -48,9 +53,11 @@ public final class ShaftToolWindowPanel extends JPanel {
         featurePanels.add(advancedTools);
         preferredFocusComponent = assistant.preferredFocusComponent();
         tabs.addTab("Assistant", assistant);
+        tabs.addTab("Guided", guided);
         tabs.addTab("Recorder", recorderTools);
         tabs.addTab("Inspector", inspectorTools);
-        tabs.addTab("Evidence", evidenceTools);
+        tabs.addTab("Triage", triage);
+        tabs.addTab("Evidence Tools", evidenceTools);
         tabs.addTab("Projects", projectsTools);
         tabs.addTab("Advanced Tools", advancedTools);
         add(tabs, BorderLayout.CENTER);

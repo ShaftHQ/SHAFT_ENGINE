@@ -22,6 +22,10 @@ final class ToolTemplates {
                 new ToolCategory("Guide", guide()));
     }
 
+    static List<ToolCategory> categories(String toolsListOutput) {
+        return ToolCatalog.mergeDiscoveredTools(categories(), ToolCatalog.parseToolsList(toolsListOutput));
+    }
+
     static List<ToolTemplate> recorder() {
         return List.of(
                 template("Start WebDriver Recording", "capture_start",
