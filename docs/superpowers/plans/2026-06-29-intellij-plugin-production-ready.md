@@ -13,10 +13,16 @@ Make the SHAFT IntelliJ IDEA plugin a production-ready assistant for test automa
 5. Add guided workflow panels for recorder, locator, guardrail, Doctor, Trace, Healer, and locator proposal requests.
 6. Keep focused workflow tabs stable while allowing the Advanced Tools tab to refresh its MCP catalog dynamically.
 7. Polish accessibility metadata and narrow-pane behavior for the expanded tab surface.
-8. Add focused regression tests for command routing, tool catalog parsing, guided payload contracts, MCP transport, and screenshot rendering.
-9. Generate updated IntelliJ plugin screenshot evidence for the new surfaces.
+8. Add focused regression tests for command routing, tool catalog parsing, guided payload contracts, MCP transport, result-type-preserving UI output rendering, and screenshot rendering.
+9. Generate updated IntelliJ plugin screenshot evidence for the new surfaces, including first-run Settings setup.
 10. Run targeted plugin tests first, then broader Gradle plugin checks before PR preparation.
 
 ## Delegation
 
 Spark agents were split across MCP transport, dynamic tool discovery, assistant commands, and UI accessibility/status work. The controller owns integration review, contract alignment, test coverage, screenshots, and final validation.
+
+## Iteration 2
+
+- Added real settings screenshot evidence for the MCP setup and installer-command copy path.
+- Updated `modular-era-feature-catalog.md` with the settings surface, editor action, and current MCP tool count.
+- Added regression coverage that array and string MCP outputs remain readable in shared formatting and the Tools output pane.

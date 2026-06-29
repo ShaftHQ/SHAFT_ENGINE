@@ -30,7 +30,11 @@ class ShaftSettingsConfigurableTest {
         assertTrue(source.contains("Clear stored OpenAI API key"));
         assertTrue(source.contains("Clear stored Anthropic API key"));
         assertTrue(source.contains("Clear stored GitHub API key"));
+        assertTrue(source.contains("Copy SHAFT MCP installer command"));
+        assertTrue(source.contains("install-shaft-mcp.ps1 --copilot-intellij"));
+        assertTrue(source.contains("install-shaft-mcp.sh --copilot-intellij"));
         assertTrue(source.contains("setAccessibleDescription(\"Mark this provider key as ready to clear on apply.\")"));
+        assertTrue(source.contains("Copy the supported SHAFT MCP installer commands without running them."));
         assertTrue(source.contains("Passing keys exposes them only to the SHAFT MCP process."));
         assertTrue(source.contains("key storage status"));
         assertTrue(source.contains("Stored in Password Safe."));
@@ -46,6 +50,11 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(testMcp);
         assertNotNull(testMcp.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, testMcp.getAccessibleContext().getAccessibleDescription().length());
+
+        JButton copyInstaller = (JButton) findByAccessibleName(panel, "Copy SHAFT MCP installer command");
+        assertNotNull(copyInstaller);
+        assertNotNull(copyInstaller.getAccessibleContext().getAccessibleDescription());
+        assertNotEquals(0, copyInstaller.getAccessibleContext().getAccessibleDescription().length());
 
         List<JButton> clearButtons = collectButtons(panel);
         assertEquals(3, clearButtons.size());

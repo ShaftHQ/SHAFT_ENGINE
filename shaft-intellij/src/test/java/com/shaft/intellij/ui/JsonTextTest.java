@@ -9,6 +9,8 @@ class JsonTextTest {
     @Test
     void prettyPrintsJsonAndKeepsPlainText() {
         assertEquals("{\n  \"ok\": true\n}", JsonText.prettyOrOriginal("{\"ok\":true}"));
+        assertEquals("[\n  \"a\",\n  \"b\"\n]", JsonText.prettyOrOriginal("[\"a\",\"b\"]"));
+        assertEquals("\"plain text result\"", JsonText.prettyOrOriginal("\"plain text result\""));
         assertEquals("not json", JsonText.prettyOrOriginal("not json"));
     }
 
