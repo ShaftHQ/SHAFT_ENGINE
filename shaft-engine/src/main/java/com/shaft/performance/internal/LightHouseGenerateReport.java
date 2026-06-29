@@ -48,9 +48,7 @@ public class LightHouseGenerateReport {
             commandToGenerateLightHouseReport = commandToGenerateLightHouseReport.replace("&", "N898");
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
             (new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
-            if (shouldOpenLighthouseReport()) {
-                writeReportPathToFilesInProjectDirectory(PageName);
-            }
+            writeReportPathToFilesInProjectDirectory(PageName);
             openLighthouseReportWhileExecution();
             SHAFT.Report.report("Lighthouse Report Generated successfully");
             SHAFT.Report.attach("LightHouse HTML", "Report", FileActions.getInstance(true).readFile("lighthouse-reports/" + PageName + ".html"));
@@ -64,10 +62,6 @@ public class LightHouseGenerateReport {
     public void openLighthouseReportWhileExecution() {
         String commandToOpenLighthouseReport;
         if (SHAFT.Properties.reporting.openLighthouseReportWhileExecution()) {
-            if (isCodexShellSession()) {
-                SHAFT.Report.report("Lighthouse Report automatic opening skipped in Codex shell sessions");
-                return;
-            }
             if (SystemUtils.IS_OS_WINDOWS) {
                 commandToOpenLighthouseReport = ("cmd.exe /c node OpenLHReport.js");
             } else {
@@ -80,27 +74,25 @@ public class LightHouseGenerateReport {
     }
 
     public void writeReportPathToFilesInProjectDirectory(String pageName) {
-        if (isCodexShellSession()) {
-            return;
-        }
-        List<String> commandsToOpenLHReport;
-        commandsToOpenLHReport = List.of(
+        List<String> commandsToServeLHReport;
+        commandsToServeLHReport = List.of(
                 "import open from 'open';\n" +
                         "import path from 'path';\n" +
                         "const __dirname = path.resolve();\n" +
                         "await open(__dirname +'/lighthouse-reports/" + pageName + ".html');\n");
-        FileActions.getInstance(true).writeToFile("", "OpenLHReport.js", commandsToOpenLHReport);
+        FileActions.getInstance(true).writeToFile("", "OpenLHReport.js", commandsToServeLHReport);
     }
 
     public void writeNodeScriptFileInProjectDirectory() {
-        List<String> commandsToGenerateLHReport;
+        List<String> commandsToServeLHReport;
         if (SystemUtils.IS_OS_WINDOWS) {
-            commandsToGenerateLHReport = List.of("""
+            commandsToServeLHReport = List.of("""
                     import puppeteer from 'puppeteer';
                     import fs from 'fs';
                     import lighthouse from 'lighthouse';
                     import optimist from 'optimist';
                     var argv =optimist.argv;
+                    import open from 'open';
                     import path from 'path';
                     const __dirname = path.resolve();
                      import desktopConfig from 'lighthouse/core/config/desktop-config.js';
@@ -127,12 +119,13 @@ public class LightHouseGenerateReport {
                       await browser.disconnect();
                     })();""");
         } else {
-            commandsToGenerateLHReport = List.of("""
+            commandsToServeLHReport = List.of("""
                     import puppeteer from 'puppeteer';
                     import fs from 'fs';
                     import lighthouse from 'lighthouse';
                     import optimist from 'optimist';
                     var argv =optimist.argv;
+                    import open from 'open';
                     import path from 'path';
                     const __dirname = path.resolve();
                     import desktopConfig from 'lighthouse/lighthouse-core/config/desktop-config.js';
@@ -162,7 +155,7 @@ public class LightHouseGenerateReport {
                        await browser.disconnect();
                      })();""");
         }
-        FileActions.getInstance(true).writeToFile("", "GenerateLHScript.js", commandsToGenerateLHReport);
+        FileActions.getInstance(true).writeToFile("", "GenerateLHScript.js", commandsToServeLHReport);
     }
 
     public String getPageName() {
@@ -179,14 +172,6 @@ public class LightHouseGenerateReport {
 //            return  (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis())+ "-" + Pagename;
             return "Error Occurred while creating the requested page name";
         }
-    }
-
-    private static boolean shouldOpenLighthouseReport() {
-        return SHAFT.Properties.reporting.openLighthouseReportWhileExecution() && !isCodexShellSession();
-    }
-
-    private static boolean isCodexShellSession() {
-        return "1".equals(System.getenv("CODEX_SHELL"));
     }
 
 }

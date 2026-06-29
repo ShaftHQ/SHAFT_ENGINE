@@ -453,10 +453,6 @@ final class McpMobileInspectorRecordingService {
 
     private void openBrowser(String url, List<String> warnings) {
         try {
-            if ("1".equals(System.getenv("CODEX_SHELL"))) {
-                warnings.add("Inspector browser launch is skipped in Codex shell sessions.");
-                return;
-            }
             if (!Desktop.isDesktopSupported()) {
                 warnings.add("Desktop browser launch is not supported in this environment.");
                 return;

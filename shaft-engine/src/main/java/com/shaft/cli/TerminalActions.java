@@ -1025,7 +1025,14 @@ public class TerminalActions implements AutoCloseable {
 
         // https://stackoverflow.com/a/10954450/12912100
         if (isWindows) {
-            pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command);
+            if (asynchronous && verbose) {
+                // Apply the execution policy to the spawned child PowerShell as well,
+                // because Start-Process launches a separate process that does not inherit
+                // the outer shell's command-line arguments.
+                pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "Start-Process powershell.exe '-ExecutionPolicy Bypass -NoExit -WindowStyle Minimized -Command \"[Console]::Title = ''shaft-engine''; " + command + "\"'");
+            } else {
+                pb.command("powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", command);
+            }
         } else {
             pb.command("sh", "-c", command);
         }
