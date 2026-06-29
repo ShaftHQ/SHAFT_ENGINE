@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import com.shaft.intellij.settings.ShaftSettingsConfigurable;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
@@ -23,6 +24,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
@@ -78,6 +80,7 @@ class ShaftPluginScreenshotRendererTest {
         Path advancedToolsDarkScreenshot = outputPath.resolve("intellij-plugin-advanced-tools-dark.png");
         Path toolsLightScreenshot = outputPath.resolve("intellij-plugin-tools.png");
         Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
+        Path settingsScreenshot = outputPath.resolve("intellij-plugin-settings.png");
 
         write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
@@ -91,6 +94,7 @@ class ShaftPluginScreenshotRendererTest {
         write(advancedToolsDarkScreenshot, renderToolWindow(7, "", DARK_THEME, true));
         Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
+        write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
@@ -104,6 +108,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(advancedToolsDarkScreenshot) > 0, advancedToolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(settingsScreenshot) > 0, settingsScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
                 () -> assertDimensions(assistantDarkScreenshot),
                 () -> assertDimensions(guidedScreenshot),
@@ -116,6 +121,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(advancedToolsDarkScreenshot),
                 () -> assertDimensions(toolsLightScreenshot),
                 () -> assertDimensions(toolsDarkScreenshot),
+                () -> assertDimensions(settingsScreenshot),
                 () -> assertTrue(Files.mismatch(assistantLightScreenshot, assistantDarkScreenshot) >= 0,
                         "Assistant light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(advancedToolsLightScreenshot, advancedToolsDarkScreenshot) >= 0,
@@ -136,6 +142,42 @@ class ShaftPluginScreenshotRendererTest {
             image.set(render(component));
         });
         return image.get();
+    }
+
+    private static BufferedImage renderSettings(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            JComponent component = settingsPanel();
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component));
+        });
+        return image.get();
+    }
+
+    private static JComponent settingsPanel() {
+        try {
+            Class<?> credentialAccess = Class.forName(
+                    "com.shaft.intellij.settings.ShaftSettingsConfigurable$CredentialAccess");
+            Object credentials = Proxy.newProxyInstance(credentialAccess.getClassLoader(), new Class<?>[]{credentialAccess},
+                    (proxy, method, arguments) -> switch (method.getName()) {
+                        case "hasApiKey" -> false;
+                        case "setApiKey" -> null;
+                        default -> defaultValue(method.getReturnType());
+                    });
+            Constructor<ShaftSettingsConfigurable> constructor = ShaftSettingsConfigurable.class.getDeclaredConstructor(
+                    ShaftSettingsState.Settings.class, credentialAccess);
+            constructor.setAccessible(true);
+            ShaftSettingsConfigurable configurable = constructor.newInstance(new ShaftSettingsState.Settings(), credentials);
+            return (JComponent) configurable.createComponent();
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to create settings screenshot panel", exception);
+        }
     }
 
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {

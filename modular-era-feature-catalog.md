@@ -5,7 +5,7 @@ SHAFT is now a modular Java 25 automation framework with a lean core, opt-in pow
 This catalog is written for framework users who want to know what changed, what they can adopt now, and which command or API gets them started.
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
-- Catalog source: current `origin/main` at `dc4cdb1c714b0c2b83ac4a34f04845a045259792`
+- Catalog source: current PR branch based on `origin/main` at `b67b11c9c7`
 - Fresh evidence captured: `2026-06-29`
 
 ## Start Here
@@ -86,6 +86,18 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
   </tr>
   <tr>
     <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="SHAFT IntelliJ IDEA plugin Settings panel with MCP setup" width="620">
+      <br><strong>Settings setup</strong>
+      <br>MCP command setup, connection test, installer command copy, assistant defaults, and provider key controls.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="SHAFT IntelliJ IDEA MCP guide helper" width="620">
+      <br><strong>MCP guide</strong>
+      <br>Installer-oriented setup guidance for connecting the IDE plugin to the local SHAFT MCP server.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/android-recorder-working.png" alt="Android recorder resolving gestures to accessibility id and resource id locators" width="620">
       <br><strong>Android recorder with real locators</strong>
       <br>Inspector gestures are resolved to `ACCESSIBILITY_ID` and `ID` locators before falling back to coordinates.
@@ -111,7 +123,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
   <tr>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" alt="shaft-mcp tool manifest and tool families" width="620">
-      <br><strong>121 registered MCP tools</strong>
+      <br><strong>125 registered MCP tools</strong>
       <br>WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, scenario catalog, and guardrails in one manifest.
     </td>
     <td width="50%">
@@ -152,7 +164,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | Assistant prompts, guided recorder/locator flows, Inspector checks, Triage, Evidence Tools, project actions, and live-refresh Advanced Tools are now first-class workflow tabs. | `intellij-plugin-assistant.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png` |
+| IntelliJ IDEA plugin | Assistant prompts, guided recorder/locator flows, Inspector checks, Triage, Evidence Tools, project actions, setup guidance, and live-refresh Advanced Tools are now first-class workflow tabs. | `intellij-plugin-assistant.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png` |
 | Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
@@ -204,6 +216,7 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 | Surface | What users get | Entry point |
 | --- | --- | --- |
 | Tool window | Right-side SHAFT assistant panel with dedicated workflow tabs for Assistant, Guided, Recorder, Inspector, Triage, Evidence Tools, Projects, and Advanced Tools. | `Tools -> SHAFT -> Open SHAFT` |
+| First-run setup | Configure the SHAFT MCP stdio command, test connectivity, and copy supported installer commands without running them from the IDE. | `Settings -> SHAFT` |
 | Guided workflows | Prepare recorder, locator inspection, code generation, and guardrail requests without editing JSON first. | `Guided` tab |
 | Recorder | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` tab |
 | Project tools | Create a SHAFT project, preview an upgrade, or apply an approved upgrade through MCP. | `Projects` tab |
@@ -212,6 +225,7 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 | Mobile Inspector | Check mobile tooling, prepare Inspector recording, inspect status, read accessibility trees, and take mobile screenshots. | `Inspector` tab |
 | Agent helpers | Ask, plan, or run guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; slash commands search docs, scenarios, guardrails, recording, locators, triage, and clients. | `Assistant` tab |
 | Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Recorder` tab |
+| Editor action | Start from the current Java caret context through the `Record SHAFT Flow Here` action in Tools or the editor popup menu. | `Record SHAFT Flow Here` |
 
 The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. It does not hide MCP requests: the Advanced Tools and Recorder tabs show exact JSON arguments, validate them before run, and write formatted outputs to an output pane, while Assistant responses show the invoked tool and can be copied.
 
@@ -237,7 +251,11 @@ The plugin rides as a right-side IntelliJ panel, similar to assistant tools such
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-advanced-tools-dark.png" alt="IntelliJ plugin Advanced Tools tab in dark theme" width="620"></td>
   </tr>
   <tr>
-    <td colspan="2">Screenshots show the 860 px right-side panel captured on `2026-06-29` in standard IntelliJ light and dark themes.</td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="IntelliJ plugin Settings panel" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin MCP setup guide" width="620"></td>
+  </tr>
+  <tr>
+    <td colspan="2">Screenshots show the 860 px right-side panel and SHAFT settings panel captured on `2026-06-29` in standard IntelliJ light and dark themes.</td>
   </tr>
 </table>
 
@@ -502,7 +520,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    A[121 registered MCP tools] --> B[WebDriver browser + element]
+    A[125 registered MCP tools] --> B[WebDriver browser + element]
     A --> C[Playwright browser + element + semantic]
     A --> D[Capture start/status/stop/generate]
     A --> E[Mobile native, web emulation, inspector, screenshots]

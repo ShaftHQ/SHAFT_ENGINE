@@ -5,6 +5,7 @@ import com.google.gson.JsonParser;
 import com.intellij.ui.components.JBTabbedPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +17,7 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import java.awt.Component;
 import java.awt.Container;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +59,17 @@ class ShaftPanelSetupTest {
                 .map(textArea -> () -> assertTrue(textArea.getLineWrap())));
         assertAll(textAreas.stream()
                 .map(textArea -> () -> assertTrue(textArea.getWrapStyleWord())));
+    }
+
+    @Test
+    void toolsPreserveNonObjectMcpOutputForReview() throws Exception {
+        ShaftFeaturePanel panel = new ShaftFeaturePanel(null, blankMcpSettings());
+
+        showToolResult(panel, ShaftMcpToolResult.success("[\"a\",\"b\"]"));
+        assertEquals("[\n  \"a\",\n  \"b\"\n]", outputText(panel));
+
+        showToolResult(panel, ShaftMcpToolResult.success("plain text result"));
+        assertEquals("plain text result", outputText(panel));
     }
 
     @Test
@@ -213,6 +226,28 @@ class ShaftPanelSetupTest {
                 collectTextAreas(child, textAreas);
             }
         }
+    }
+
+    private static void showToolResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {
+        Method showResult = ShaftFeaturePanel.class.getDeclaredMethod(
+                "showResult", ShaftMcpToolResult.class, Throwable.class);
+        showResult.setAccessible(true);
+        showResult.invoke(panel, result, null);
+    }
+
+    private static String outputText(Component component) {
+        if (component instanceof JBTextArea textArea && !textArea.isEditable()) {
+            return textArea.getText();
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                String found = outputText(child);
+                if (!found.isEmpty()) {
+                    return found;
+                }
+            }
+        }
+        return "";
     }
 
     private static String selectedCategory(ShaftToolWindowPanel toolWindow) {
