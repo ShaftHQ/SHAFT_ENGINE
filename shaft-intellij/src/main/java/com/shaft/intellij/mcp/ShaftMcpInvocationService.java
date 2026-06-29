@@ -126,15 +126,19 @@ public final class ShaftMcpInvocationService {
             AtomicReference<ShaftMcpStdioClient> clientReference,
             AtomicBoolean cancellationRequested) {
         Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
-        Map<String, String> environment = ShaftMcpEnvironment.forSettings(settings);
-        try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, workingDirectory, environment)) {
-            clientReference.set(client);
-            if (cancellationRequested.get()) {
-                throw new CancellationException("Operation cancelled");
+        try {
+            Map<String, String> environment = ShaftMcpProjectScope.environmentForProject(
+                    ShaftMcpEnvironment.forSettings(settings), workingDirectory);
+            List<String> scopedCommand = ShaftMcpProjectScope.commandForProject(command, workingDirectory);
+            try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(scopedCommand, workingDirectory, environment)) {
+                clientReference.set(client);
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                JsonElement result = client.callTool(toolName, arguments == null ? new JsonObject() : arguments,
+                        DEFAULT_TIMEOUT);
+                return ShaftMcpToolResult.success(result.toString());
             }
-            JsonElement result = client.callTool(toolName, arguments == null ? new JsonObject() : arguments,
-                    DEFAULT_TIMEOUT);
-            return ShaftMcpToolResult.success(result.toString());
         } catch (Exception exception) {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
@@ -151,13 +155,17 @@ public final class ShaftMcpInvocationService {
             AtomicReference<ShaftMcpStdioClient> clientReference,
             AtomicBoolean cancellationRequested) {
         Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
-        Map<String, String> environment = ShaftMcpEnvironment.forSettings(settings);
-        try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, workingDirectory, environment)) {
-            clientReference.set(client);
-            if (cancellationRequested.get()) {
-                throw new CancellationException("Operation cancelled");
+        try {
+            Map<String, String> environment = ShaftMcpProjectScope.environmentForProject(
+                    ShaftMcpEnvironment.forSettings(settings), workingDirectory);
+            List<String> scopedCommand = ShaftMcpProjectScope.commandForProject(command, workingDirectory);
+            try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(scopedCommand, workingDirectory, environment)) {
+                clientReference.set(client);
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                return ShaftMcpToolResult.success(client.initializeOnly(DEFAULT_TIMEOUT));
             }
-            return ShaftMcpToolResult.success(client.initializeOnly(DEFAULT_TIMEOUT));
         } catch (Exception exception) {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
@@ -174,14 +182,18 @@ public final class ShaftMcpInvocationService {
             AtomicReference<ShaftMcpStdioClient> clientReference,
             AtomicBoolean cancellationRequested) {
         Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
-        Map<String, String> environment = ShaftMcpEnvironment.forSettings(settings);
-        try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, workingDirectory, environment)) {
-            clientReference.set(client);
-            if (cancellationRequested.get()) {
-                throw new CancellationException("Operation cancelled");
+        try {
+            Map<String, String> environment = ShaftMcpProjectScope.environmentForProject(
+                    ShaftMcpEnvironment.forSettings(settings), workingDirectory);
+            List<String> scopedCommand = ShaftMcpProjectScope.commandForProject(command, workingDirectory);
+            try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(scopedCommand, workingDirectory, environment)) {
+                clientReference.set(client);
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                JsonElement result = client.listTools(DEFAULT_TIMEOUT);
+                return ShaftMcpToolResult.success(result.toString());
             }
-            JsonElement result = client.listTools(DEFAULT_TIMEOUT);
-            return ShaftMcpToolResult.success(result.toString());
         } catch (Exception exception) {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");

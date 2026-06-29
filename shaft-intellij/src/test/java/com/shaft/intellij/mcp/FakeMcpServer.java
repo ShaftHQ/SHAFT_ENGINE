@@ -1,8 +1,8 @@
 package com.shaft.intellij.mcp;
 
-import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
@@ -19,6 +19,7 @@ final class FakeMcpServer {
         String mode = args.length == 0 ? "hang" : args[0];
         switch (mode) {
             case "stderrAndExit" -> runWithStderrFailure();
+            case "stdoutNoiseThenToolsList" -> runStdoutNoiseThenToolsListServer();
             case "toolsList" -> runToolsListServer();
             case "toolResultArray" -> runToolCallResultServer("[\"first\",{\"name\":\"second\"}]");
             case "toolResultString" -> runToolCallResultServer("\"plain text result\"");
@@ -36,15 +37,21 @@ final class FakeMcpServer {
         runServer("{\"tools\":[{\"name\":\"fake_tool\"}]}");
     }
 
+    private static void runStdoutNoiseThenToolsListServer() throws Exception {
+        System.out.println("2026-06-29 INFO fake MCP startup log");
+        System.out.flush();
+        runToolsListServer();
+    }
+
     private static void runToolCallResultServer(String resultJson) throws Exception {
         runServer(resultJson);
     }
 
     private static void runServer(String toolCallResultJson) throws Exception {
-        InputStream input = System.in;
+        BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         OutputStream output = System.out;
         while (true) {
-            String message = readMessage(input);
+            String message = input.readLine();
             if (message == null) {
                 return;
             }
@@ -65,46 +72,9 @@ final class FakeMcpServer {
     private static void writeMessage(OutputStream output, int requestId, String responseTemplate) throws IOException {
         String response = responseTemplate.formatted(requestId);
         byte[] body = response.getBytes(StandardCharsets.UTF_8);
-        output.write(("Content-Length: " + body.length + "\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
         output.write(body);
+        output.write('\n');
         output.flush();
-    }
-
-    private static String readMessage(InputStream input) throws IOException {
-        int contentLength = readContentLength(input);
-        if (contentLength < 0) {
-            return null;
-        }
-        byte[] body = input.readNBytes(contentLength);
-        if (body.length != contentLength) {
-            return null;
-        }
-        return new String(body, StandardCharsets.UTF_8);
-    }
-
-    private static int readContentLength(InputStream input) throws IOException {
-        ByteArrayOutputStream header = new ByteArrayOutputStream();
-        int previous = -1;
-        while (true) {
-            int current = input.read();
-            if (current == -1) {
-                return -1;
-            }
-            header.write(current);
-            String value = header.toString(StandardCharsets.US_ASCII);
-            if ((previous == '\n' && current == '\n') || value.endsWith("\r\n\r\n")) {
-                break;
-            }
-            previous = current;
-        }
-        String[] lines = header.toString(StandardCharsets.US_ASCII).split("\\r?\\n");
-        for (String line : lines) {
-            int separator = line.indexOf(':');
-            if (separator > 0 && "content-length".equalsIgnoreCase(line.substring(0, separator).trim())) {
-                return Integer.parseInt(line.substring(separator + 1).trim());
-            }
-        }
-        return -1;
     }
 
     private static int requestId(String message) {

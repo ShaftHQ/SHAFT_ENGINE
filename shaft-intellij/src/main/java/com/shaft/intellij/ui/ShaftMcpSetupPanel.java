@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.FormBuilder;
@@ -19,12 +20,14 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.nio.file.Path;
 import java.util.Locale;
 
 /**
  * First-run SHAFT MCP setup panel.
  */
 final class ShaftMcpSetupPanel extends JPanel {
+    private final Project project;
     private final ShaftSettingsState.Settings settings;
     private final Runnable connected;
     private final JButton install;
@@ -34,8 +37,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JLabel status;
     private final JBTextArea details;
 
-    ShaftMcpSetupPanel(@NotNull ShaftSettingsState.Settings settings, @NotNull Runnable connected) {
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected) {
         super(new BorderLayout(8, 8));
+        this.project = project;
         this.settings = settings;
         this.connected = connected;
         setBorder(JBUI.Borders.empty(12));
@@ -119,8 +124,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         settings.assistantRuntime = String.valueOf(runtime.getSelectedItem());
         settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
         setRunning(true, "Testing...");
-        ShaftMcpConnectionProbe.test(command, settings).whenComplete((result, error) ->
+        ShaftMcpConnectionProbe.test(command, settings, projectRoot()).whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> showTestResult(result, error)));
+    }
+
+    private Path projectRoot() {
+        return project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
     }
 
     private void showTestResult(ShaftMcpToolResult result, Throwable error) {

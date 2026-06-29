@@ -40,6 +40,14 @@ class ShaftMcpStdioClientTest {
     }
 
     @Test
+    void initializeIgnoresNonProtocolStdoutBeforeJsonRpcMessage() throws IOException {
+        String result = withClient("stdoutNoiseThenToolsList",
+                client -> client.initializeOnly(Duration.ofSeconds(2)));
+
+        assertEquals("SHAFT MCP connection is ready.", result);
+    }
+
+    @Test
     void listToolsReturnsRawJsonResult() throws IOException {
         JsonElement result = withClient("toolsList", client -> client.listTools(Duration.ofSeconds(2)));
 
