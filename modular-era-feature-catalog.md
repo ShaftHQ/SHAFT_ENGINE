@@ -5,7 +5,7 @@ SHAFT is now a modular Java 25 automation framework with a lean core, opt-in pow
 This catalog is written for framework users who want to know what changed, what they can adopt now, and which command or API gets them started.
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
-- Catalog source: current PR branch based on `origin/main` at `b67b11c9c7`
+- Catalog source: current PR branch based on `origin/main` at `35eedca6e3`
 - Fresh evidence captured: `2026-06-29`
 
 ## Start Here
@@ -86,14 +86,14 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
   </tr>
   <tr>
     <td width="50%">
-      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="SHAFT IntelliJ IDEA plugin Settings panel with MCP setup" width="620">
-      <br><strong>Settings setup</strong>
-      <br>MCP command setup, connection test, installer command copy, assistant defaults, and provider key controls.
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png" alt="SHAFT IntelliJ IDEA plugin first-run MCP setup flow" width="620">
+      <br><strong>First-run MCP setup</strong>
+      <br>Three-step setup installs or updates SHAFT MCP, selects the assistant provider, and tests the connection before opening the Assistant.
     </td>
     <td width="50%">
-      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="SHAFT IntelliJ IDEA MCP guide helper" width="620">
-      <br><strong>MCP guide</strong>
-      <br>Installer-oriented setup guidance for connecting the IDE plugin to the local SHAFT MCP server.
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="SHAFT IntelliJ IDEA plugin Settings panel with MCP and provider controls" width="620">
+      <br><strong>Settings and providers</strong>
+      <br>Post-setup controls for reinstalling MCP, testing connectivity, changing the assistant/provider model, configuring Copilot MCP, and storing provider keys.
     </td>
   </tr>
   <tr>
@@ -164,7 +164,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | Assistant prompts, guided recorder/locator flows, Inspector checks, Triage, Evidence Tools, project actions, setup guidance, and live-refresh Advanced Tools are now first-class workflow tabs. | `intellij-plugin-assistant.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png` |
+| IntelliJ IDEA plugin | First-run MCP installation, Assistant prompts, guided recorder/locator flows, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools are now first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-assistant.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png` |
 | Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
@@ -188,7 +188,7 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 
 | Workflow | What it gives users | Entry point |
 | --- | --- | --- |
-| Install and run | Local installers for Codex, Claude, Claude Desktop, Copilot, and Copilot IntelliJ, plus stdio and HTTP transports. | `py -3 scripts/mcp/install_shaft_mcp.py --target codex --version 10.2.20260623` |
+| Install and run | Local installers for Codex, Claude, Claude Desktop, Copilot, Copilot IntelliJ, and the SHAFT IntelliJ plugin JSON bootstrap, plus stdio and HTTP transports. | `py -3 scripts/mcp/install_shaft_mcp.py --client intellij-plugin --json` |
 | URL intent orientation | Open a URL, bound the DOM, rank actionable elements, return SHAFT locator code, and suggest the next MCP tools. | `driver_initialize -> browser_open_intent(targetUrl, userIntent, 200000, 10)` |
 | Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
 | Semantic actions | Combine guide search, scenario catalog, guardrail checks, and `natural_act` without leaving the MCP session. | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
@@ -211,12 +211,13 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628`). It is intentionally thin: users configure the SHAFT MCP stdio command in `Settings | SHAFT`, then use the Assistant or curated MCP tool templates from a right-side IDE panel without leaving the project.
+`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628`). It is intentionally thin: first-run setup installs or updates SHAFT MCP, persists the stdio command, asks the user to choose the assistant provider, and opens the Assistant after a successful connection test. Settings remain available later for provider changes, API keys, Copilot MCP configuration, and custom local MCP commands.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
 | Tool window | Right-side SHAFT assistant panel with dedicated workflow tabs for Assistant, Guided, Recorder, Inspector, Triage, Evidence Tools, Projects, and Advanced Tools. | `Tools -> SHAFT -> Open SHAFT` |
-| First-run setup | Configure the SHAFT MCP stdio command, test connectivity, and copy supported installer commands without running them from the IDE. | `Settings -> SHAFT` |
+| First-run setup | Install or update SHAFT MCP from the tool window, choose Codex, Claude Code, or Copilot CLI as the assistant provider, then test the connection. A successful test hides setup and opens the Assistant. | `Tools -> SHAFT -> Open SHAFT` |
+| Settings and providers | Reinstall or retest MCP, change the assistant provider, select a SHAFT AI provider/model, configure GitHub Copilot MCP, and store or clear OpenAI, Anthropic, Gemini, and GitHub keys. | `Settings -> SHAFT` |
 | Guided workflows | Prepare recorder, locator inspection, code generation, and guardrail requests without editing JSON first. | `Guided` tab |
 | Recorder | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` tab |
 | Project tools | Create a SHAFT project, preview an upgrade, or apply an approved upgrade through MCP. | `Projects` tab |
@@ -251,11 +252,11 @@ The plugin rides as a right-side IntelliJ panel, similar to assistant tools such
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-advanced-tools-dark.png" alt="IntelliJ plugin Advanced Tools tab in dark theme" width="620"></td>
   </tr>
   <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png" alt="IntelliJ plugin first-run MCP setup flow" width="620"></td>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="IntelliJ plugin Settings panel" width="620"></td>
-    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin MCP setup guide" width="620"></td>
   </tr>
   <tr>
-    <td colspan="2">Screenshots show the 860 px right-side panel and SHAFT settings panel captured on `2026-06-29` in standard IntelliJ light and dark themes.</td>
+    <td colspan="2">Screenshots show the 860 px right-side panel, first-run MCP setup view, and SHAFT settings panel captured on `2026-06-29` in standard IntelliJ light and dark themes.</td>
   </tr>
 </table>
 

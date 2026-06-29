@@ -33,13 +33,14 @@ RUNTIME_DEPENDENCIES_ENTRY = "META-INF/shaft-mcp/runtime-dependencies.txt"
 WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.workspaceRoot"
 USER_GUIDE_URL = "https://shafthq.github.io/docs/agentic/mcp"
 BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
-TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij")
+TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "intellij-plugin")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
     ("claude", "Claude Code"),
     ("claude-desktop", "Claude Desktop"),
     ("copilot", "GitHub Copilot CLI"),
     ("copilot-intellij", "GitHub Copilot for IntelliJ IDEA"),
+    ("intellij-plugin", "SHAFT IntelliJ IDEA plugin"),
 )
 
 
@@ -137,7 +138,7 @@ def choose_client() -> str:
         normalized = normalize_client(answer)
         if normalized in TARGETS:
             return normalized
-        print("Enter a number from 1 to 5, or a target name.")
+        print("Enter a number from 1 to 6, or a target name.")
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -147,6 +148,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--client", choices=TARGETS)
     parser.add_argument("--version", default=os.environ.get("SHAFT_MCP_VERSION", "LATEST"))
+    parser.add_argument("--json", action="store_true", help="Print machine-readable install details to stdout.")
     for target, _ in TARGET_CHOICES:
         parser.add_argument(f"--{target}", action="store_true", dest=target.replace("-", "_"))
     parser.add_argument(
@@ -170,7 +172,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         fail("Specify only one MCP client target.", 2)
     args.client = selected[0] if selected else choose_client()
     if args.client not in TARGETS:
-        fail("Usage: install-shaft-mcp.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij>]", 2)
+        fail("Usage: install-shaft-mcp.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|intellij-plugin>]", 2)
     return args
 
 
@@ -927,6 +929,8 @@ def configure_copilot_intellij(java: Path, args_file: Path) -> None:
 
 
 def configure_client(client: str, java: Path, args_file: Path) -> None:
+    if client == "intellij-plugin":
+        return
     if client == "codex":
         configure_codex(java, args_file)
     elif client == "claude":
@@ -942,6 +946,8 @@ def configure_client(client: str, java: Path, args_file: Path) -> None:
 
 
 def activation_hint(client: str) -> str:
+    if client == "intellij-plugin":
+        return "Return to the SHAFT IntelliJ IDEA plugin and test the connection."
     if client == "claude-desktop":
         return "Restart Claude Desktop, then open a new chat and use the shaft-mcp tools."
     if client == "copilot-intellij":
@@ -961,7 +967,8 @@ def install(args: argparse.Namespace) -> None:
     os.environ["JAVA_HOME"] = str(java_home)
     os.environ["PATH"] = f"{java.parent}{os.pathsep}{os.environ.get('PATH', '')}"
 
-    detect_project_override(args.client)
+    if args.client != "intellij-plugin":
+        detect_project_override(args.client)
     version = resolve_shaft_mcp_version(args.version, repository, root)
     log(f"Installing io.github.shafthq:shaft-mcp:{version}")
     jar = install_shaft_mcp_jar(version, repository, root)
@@ -971,11 +978,24 @@ def install(args: argparse.Namespace) -> None:
     log(f"Verifying shaft-mcp {version} over stdio...")
     probe_stdio(java, args_file)
 
-    log(f"Configuring shaft-mcp for {args.client}...")
-    configure_client(args.client, java, args_file)
-    print(f"shaft-mcp {version} is installed and configured for {args.client}.")
-    print(activation_hint(args.client))
-    print(f"User guide: {USER_GUIDE_URL}")
+    if args.client != "intellij-plugin":
+        log(f"Configuring shaft-mcp for {args.client}...")
+        configure_client(args.client, java, args_file)
+    result = {
+        "client": args.client,
+        "server": SERVER_NAME,
+        "version": version,
+        "command": str(java),
+        "args": [f"@{args_file}"],
+        "userGuide": USER_GUIDE_URL,
+    }
+    if args.json:
+        print(json.dumps(result, separators=(",", ":")))
+    else:
+        action = "installed and ready for" if args.client == "intellij-plugin" else "installed and configured for"
+        print(f"shaft-mcp {version} is {action} {args.client}.")
+        print(activation_hint(args.client))
+        print(f"User guide: {USER_GUIDE_URL}")
 
 
 def main(argv: list[str]) -> int:

@@ -238,7 +238,7 @@ def validate(root: Path = ROOT) -> list[str]:
         installer_implementation_text = installer_implementation.read_text(encoding="utf-8")
         for required in ("maven-metadata.xml", ".sha256", "runtime-dependencies.txt", "shaft-mcp.args",
                          "shaft.mcp.workspaceRoot", "ThreadPoolExecutor", "USER_GUIDE_URL",
-                         "copilot-intellij", "claude-desktop", "probe_stdio"):
+                         "copilot-intellij", "claude-desktop", "intellij-plugin", "--json", "probe_stdio"):
             if required not in installer_implementation_text:
                 errors.append(f"shared Python MCP installer must contain standalone support for {required}")
         if '"-jar", str(jar)' in installer_implementation_text or '"-jar", str(args_file)' in installer_implementation_text:
@@ -277,7 +277,7 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("public shaft-mcp installer verification must not depend on the Maven exec plugin")
     if "SHAFT_MCP_FORCE_BOOTSTRAP_MAVEN" in public_installer:
         errors.append("public shaft-mcp installer verification must not exercise Maven bootstrapping")
-    for required_client in ("claude-desktop", "copilot-intellij"):
+    for required_client in ("claude-desktop", "copilot-intellij", "intellij-plugin"):
         if required_client not in public_installer:
             errors.append(f"public shaft-mcp installer verification must cover {required_client}")
     for required_token in ("-Duser.dir", "shaft.mcp.workspaceRoot"):

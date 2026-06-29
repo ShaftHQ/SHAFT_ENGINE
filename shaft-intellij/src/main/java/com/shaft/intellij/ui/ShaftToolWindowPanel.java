@@ -18,10 +18,12 @@ import java.util.stream.Stream;
  * Top-level SHAFT IntelliJ tool window content.
  */
 public final class ShaftToolWindowPanel extends JPanel {
-    private final JComponent preferredFocusComponent;
-    private final JBTabbedPane tabs;
-    private final ShaftFeaturePanel advancedTools;
-    private final List<ShaftFeaturePanel> featurePanels;
+    private final Project project;
+    private final ShaftSettingsState.Settings settings;
+    private JComponent preferredFocusComponent;
+    private JBTabbedPane tabs;
+    private ShaftFeaturePanel advancedTools;
+    private List<ShaftFeaturePanel> featurePanels = List.of();
 
     public ShaftToolWindowPanel(@NotNull Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -29,6 +31,29 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     ShaftToolWindowPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
         super(new BorderLayout());
+        this.project = project;
+        this.settings = settings;
+        if (mcpReady(settings)) {
+            showMainView();
+        } else {
+            showSetupView();
+        }
+    }
+
+    private void showSetupView() {
+        removeAll();
+        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(settings, this::showMainView);
+        preferredFocusComponent = setup.preferredFocusComponent();
+        tabs = null;
+        advancedTools = null;
+        featurePanels = List.of();
+        add(setup, BorderLayout.CENTER);
+        revalidate();
+        repaint();
+    }
+
+    private void showMainView() {
+        removeAll();
         tabs = new JBTabbedPane();
         tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
         tabs.getAccessibleContext().setAccessibleName("SHAFT workflow tabs");
@@ -61,6 +86,8 @@ public final class ShaftToolWindowPanel extends JPanel {
         tabs.addTab("Projects", projectsTools);
         tabs.addTab("Advanced Tools", advancedTools);
         add(tabs, BorderLayout.CENTER);
+        revalidate();
+        repaint();
     }
 
     /**
@@ -83,6 +110,9 @@ public final class ShaftToolWindowPanel extends JPanel {
      * @param arguments JSON arguments
      */
     public void prefillTool(@NotNull String toolName, @NotNull JsonObject arguments) {
+        if (tabs == null) {
+            return;
+        }
         for (ShaftFeaturePanel panel : featurePanels) {
             if (panel.prefillTool(toolName, arguments)) {
                 tabs.setSelectedComponent(panel);
@@ -90,5 +120,9 @@ public final class ShaftToolWindowPanel extends JPanel {
             }
         }
         tabs.setSelectedComponent(advancedTools);
+    }
+
+    private static boolean mcpReady(ShaftSettingsState.Settings settings) {
+        return settings.mcpSetupComplete && settings.mcpCommand != null && !settings.mcpCommand.isBlank();
     }
 }

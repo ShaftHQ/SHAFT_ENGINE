@@ -3,13 +3,11 @@ package com.shaft.intellij.mcp;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.project.Project;
-import com.shaft.intellij.settings.ShaftCredentialService;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -128,7 +126,7 @@ public final class ShaftMcpInvocationService {
             AtomicReference<ShaftMcpStdioClient> clientReference,
             AtomicBoolean cancellationRequested) {
         Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
-        Map<String, String> environment = providerEnvironment(settings);
+        Map<String, String> environment = ShaftMcpEnvironment.forSettings(settings);
         try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, workingDirectory, environment)) {
             clientReference.set(client);
             if (cancellationRequested.get()) {
@@ -153,7 +151,7 @@ public final class ShaftMcpInvocationService {
             AtomicReference<ShaftMcpStdioClient> clientReference,
             AtomicBoolean cancellationRequested) {
         Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
-        Map<String, String> environment = providerEnvironment(settings);
+        Map<String, String> environment = ShaftMcpEnvironment.forSettings(settings);
         try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, workingDirectory, environment)) {
             clientReference.set(client);
             if (cancellationRequested.get()) {
@@ -176,7 +174,7 @@ public final class ShaftMcpInvocationService {
             AtomicReference<ShaftMcpStdioClient> clientReference,
             AtomicBoolean cancellationRequested) {
         Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
-        Map<String, String> environment = providerEnvironment(settings);
+        Map<String, String> environment = ShaftMcpEnvironment.forSettings(settings);
         try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, workingDirectory, environment)) {
             clientReference.set(client);
             if (cancellationRequested.get()) {
@@ -213,24 +211,6 @@ public final class ShaftMcpInvocationService {
             return List.of();
         }
         return ShaftCommandLine.parse(settings.mcpCommand);
-    }
-
-    private static Map<String, String> providerEnvironment(ShaftSettingsState.Settings settings) {
-        if (!settings.passProviderApiKeysToMcp) {
-            return Map.of();
-        }
-        ShaftCredentialService credentials = ShaftCredentialService.getInstance();
-        Map<String, String> environment = new LinkedHashMap<>();
-        putIfPresent(environment, "OPENAI_API_KEY", credentials.apiKey("OPENAI_API_KEY"));
-        putIfPresent(environment, "ANTHROPIC_API_KEY", credentials.apiKey("ANTHROPIC_API_KEY"));
-        putIfPresent(environment, "GITHUB_TOKEN", credentials.apiKey("GITHUB_TOKEN"));
-        return environment;
-    }
-
-    private static void putIfPresent(Map<String, String> environment, String key, String value) {
-        if (value != null && !value.isBlank()) {
-            environment.put(key, value);
-        }
     }
 
     private static final String CONFIGURE_MESSAGE = "Configure the SHAFT MCP stdio command in Settings | SHAFT.";

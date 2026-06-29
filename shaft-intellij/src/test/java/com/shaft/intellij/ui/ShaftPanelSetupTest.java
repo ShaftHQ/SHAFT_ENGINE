@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
@@ -73,8 +74,18 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void toolWindowShowsWorkflowTabLabels() {
+    void toolWindowShowsFirstRunSetupUntilMcpConnectionIsComplete() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), blankMcpSettings());
+
+        assertNull(toolWindowTabbedPane(toolWindow));
+        assertTrue(containsText(toolWindow, "1. Install or update SHAFT MCP"));
+        assertTrue(containsText(toolWindow, "Install / Update SHAFT MCP"));
+        assertTrue(containsText(toolWindow, "Test connection"));
+    }
+
+    @Test
+    void toolWindowShowsWorkflowTabLabels() {
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 
         JBTabbedPane tabs = toolWindowTabbedPane(toolWindow);
         assertNotNull(tabs);
@@ -89,7 +100,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void prefillToolSelectsMatchingWorkflowTabAndCategory() {
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), blankMcpSettings());
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
         JBTabbedPane tabs = toolWindowTabbedPane(toolWindow);
         assertNotNull(tabs);
         JsonObject arguments = JsonParser.parseString("{}").getAsJsonObject();
@@ -115,6 +126,8 @@ class ShaftPanelSetupTest {
     void assistantAndToolsControlsExposeAccessibleMetadata() {
         assertAccessibleControls(new ShaftAssistantPanel(null, blankMcpSettings()));
         assertAccessibleControls(new ShaftFeaturePanel(null, blankMcpSettings()));
+        assertAccessibleControls(new ShaftMcpSetupPanel(blankMcpSettings(), () -> {
+        }));
         assertAccessibleControls(new GuidedWorkflowPanel(null, (tool, arguments) -> {
         }));
         assertAccessibleControls(new EvidenceTriagePanel(null, (tool, arguments) -> {
@@ -197,6 +210,13 @@ class ShaftPanelSetupTest {
     private static ShaftSettingsState.Settings blankMcpSettings() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = "";
+        return settings;
+    }
+
+    private static ShaftSettingsState.Settings connectedMcpSettings() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
         return settings;
     }
 
