@@ -74,17 +74,20 @@ public class LightHouseGenerateReportCoverageUnitTest {
 
             verify(mockedFileActions, times(1)).createFolder("lighthouse-reports");
             verify(mockedFileActions, times(1)).writeToFile(Mockito.eq(""), Mockito.eq("GenerateLHScript.js"), any(List.class));
-            verify(mockedFileActions, times(1)).writeToFile(Mockito.eq(""), Mockito.eq("OpenLHReport.js"), any(List.class));
+            verify(mockedFileActions, times(isCodexShellSession() ? 0 : 1))
+                    .writeToFile(Mockito.eq(""), Mockito.eq("OpenLHReport.js"), any(List.class));
             verify(mockedFileActions, times(1)).readFile(Mockito.argThat(path -> path.startsWith("lighthouse-reports/") && path.endsWith(".html")));
 
-            Assert.assertEquals(mockedTerminalActions.constructed().size(), 2);
+            Assert.assertEquals(mockedTerminalActions.constructed().size(), isCodexShellSession() ? 1 : 2);
             verify(mockedTerminalActions.constructed().getFirst(), times(1))
                     .performTerminalCommand(Mockito.argThat(command ->
                             command.contains("node GenerateLHScript.js")
                                     && command.contains("--port=9999")
                                     && command.contains(AMPERSAND_PLACEHOLDER)));
-            verify(mockedTerminalActions.constructed().get(1), times(1))
-                    .performTerminalCommand(Mockito.argThat(command -> command.contains("node OpenLHReport.js")));
+            if (!isCodexShellSession()) {
+                verify(mockedTerminalActions.constructed().get(1), times(1))
+                        .performTerminalCommand(Mockito.argThat(command -> command.contains("node OpenLHReport.js")));
+            }
         }
     }
 
@@ -116,10 +119,14 @@ public class LightHouseGenerateReportCoverageUnitTest {
             String pageName = reportGenerator.getPageName();
 
             verify(mockedFileActions, times(1)).createFolder("lighthouse-reports");
-            verify(mockedFileActions, times(1)).writeToFile(eq(""), eq("OpenLHReport.js"), Mockito.<List<String>>any());
+            verify(mockedFileActions, times(isCodexShellSession() ? 0 : 1))
+                    .writeToFile(eq(""), eq("OpenLHReport.js"), Mockito.<List<String>>any());
             verify(mockedFileActions, times(1)).writeToFile(eq(""), eq("GenerateLHScript.js"), Mockito.<List<String>>any());
-            Assert.assertTrue(openScriptContent[0].get(0).contains("custom-page.html"));
+            if (!isCodexShellSession()) {
+                Assert.assertTrue(openScriptContent[0].get(0).contains("custom-page.html"));
+            }
             Assert.assertTrue(generateScriptContent[0].get(0).contains("desktop-config.js"));
+            Assert.assertFalse(generateScriptContent[0].get(0).contains("import open from 'open';"));
 
             Assert.assertTrue(pageName.contains("--path-sub-path"));
             Assert.assertTrue(pageName.startsWith(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))));
@@ -140,5 +147,9 @@ public class LightHouseGenerateReportCoverageUnitTest {
 
             Assert.assertEquals(reportGenerator.getPageName(), "Error Occurred while creating the requested page name");
         }
+    }
+
+    private static boolean isCodexShellSession() {
+        return "1".equals(System.getenv("CODEX_SHELL"));
     }
 }

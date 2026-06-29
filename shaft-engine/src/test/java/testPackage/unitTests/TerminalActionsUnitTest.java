@@ -509,8 +509,9 @@ public class TerminalActionsUnitTest {
 
         TerminalActions windowsAsyncVerboseTerminal = TerminalActions.getInstance(true, true, true);
         ProcessBuilder windowsAsyncVerboseBuilder = (ProcessBuilder) getProcessBuilder.invoke(windowsAsyncVerboseTerminal, "echo hello", ".", true);
-        Assert.assertTrue(windowsAsyncVerboseBuilder.command().stream().anyMatch(part -> part.contains("Start-Process")),
-                "Asynchronous verbose windows command should use Start-Process.");
+        Assert.assertFalse(windowsAsyncVerboseBuilder.command().stream().anyMatch(part -> part.contains("Start-Process")),
+                "Windows commands should not use shell-open helpers.");
+        Assert.assertTrue(windowsAsyncVerboseBuilder.command().contains("-Command"));
 
         TerminalActions linuxTerminal = new TerminalActions();
         ProcessBuilder linuxBuilder = (ProcessBuilder) getProcessBuilder.invoke(linuxTerminal, "echo hello", ".", false);

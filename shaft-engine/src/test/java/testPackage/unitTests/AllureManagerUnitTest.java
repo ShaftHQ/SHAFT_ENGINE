@@ -202,8 +202,8 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(exception.getCause().getMessage()).isEqualTo("Utility class").perform();
     }
 
-    @Test(description = "Generated allure serve script should verify installed allure version before using it")
-    public void generatedAllureServeScriptShouldCheckVersionBeforeUsingSystemAllure() throws Exception {
+    @Test(description = "Generated allure report script should use configured Allure without serving or pausing")
+    public void generatedAllureReportScriptShouldUseConfiguredAllureWithoutServingOrPausing() throws Exception {
         Field pathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
         pathField.setAccessible(true);
         pathField.set(null, "allure-results/");
@@ -221,14 +221,17 @@ public class AllureManagerUnitTest {
             SHAFT.Validations.assertThat().object(content.contains("npx --yes allure@" + SHAFT.Properties.internal.allure3Version()))
                     .isEqualTo(true).perform();
             SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(content.contains(" generate ")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(content.contains(" serve ")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(content.contains("pause")).isEqualTo(false).perform();
         } finally {
             SHAFT.Properties.allure.set().forceConfiguredCliVersion(false);
             Files.deleteIfExists(scriptPath);
         }
     }
 
-    @Test(description = "Generated allure serve script should preserve legacy PATH-first behavior when enforcement is disabled")
-    public void generatedAllureServeScriptShouldUseLegacyPathFirstFlowWhenEnforcementDisabled() throws Exception {
+    @Test(description = "Generated allure report script should preserve legacy PATH-first behavior when enforcement is disabled")
+    public void generatedAllureReportScriptShouldUseLegacyPathFirstFlowWhenEnforcementDisabled() throws Exception {
         Field pathField = AllureManager.class.getDeclaredField("allureResultsFolderPath");
         pathField.setAccessible(true);
         pathField.set(null, "allure-results/");
@@ -246,6 +249,9 @@ public class AllureManagerUnitTest {
             SHAFT.Validations.assertThat().object(content.contains("allure@" + SHAFT.Properties.internal.allure3Version()))
                     .isEqualTo(true).perform();
             SHAFT.Validations.assertThat().object(content.contains("allure --version")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(content.contains(" generate ")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(content.contains(" serve ")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(content.contains("pause")).isEqualTo(false).perform();
         } finally {
             Files.deleteIfExists(scriptPath);
         }
@@ -1030,8 +1036,8 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(command).contains("allure-results").perform();
     }
 
-    @Test(description = "Generated allure serve script should use allure2 syntax (no --config) when cachedIsAllure2 is true")
-    public void generatedAllureServeScriptShouldUseAllure2SyntaxWhenAllure2Detected() throws Exception {
+    @Test(description = "Generated allure report script should use allure2 syntax (no --config) when cachedIsAllure2 is true")
+    public void generatedAllureReportScriptShouldUseAllure2SyntaxWhenAllure2Detected() throws Exception {
         setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results/");
         setStaticField(AllureManager.class, "cachedIsAllure2", true);
         setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "allure");
@@ -1045,38 +1051,28 @@ public class AllureManagerUnitTest {
             scriptMethod.invoke(null);
             String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
 
-            // Allure 2 script: no --config or allurerc.yaml, just a simple allure serve command
             SHAFT.Validations.assertThat().object(content.contains("--config")).isEqualTo(false).perform();
             SHAFT.Validations.assertThat().object(content.contains("allurerc.yaml")).isEqualTo(false).perform();
-            SHAFT.Validations.assertThat().object(content).contains("allure serve").perform();
+            SHAFT.Validations.assertThat().object(content).contains("allure generate").perform();
+            SHAFT.Validations.assertThat().object(content.contains(" serve ")).isEqualTo(false).perform();
+            SHAFT.Validations.assertThat().object(content.contains("pause")).isEqualTo(false).perform();
         } finally {
             Files.deleteIfExists(scriptPath);
         }
     }
 
-    @Test(description = "watchCommandShouldUseSimpleAllure3SyntaxWithOnlyResultsDir when allure3 is used for realtime monitoring")
-    public void watchCommandShouldUseSimpleAllure3SyntaxWithOnlyResultsDir() throws Exception {
-        // Simulate allure3 state
-        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", "npx --yes allure@3.5.0");
-        setStaticField(AllureManager.class, "cachedIsAllure2", false);
-        setStaticField(AllureManager.class, "allureResultsFolderPath", "allure-results");
-
+    @Test(description = "shouldOpenAllureAutomatically should respect automatic open and Codex shell guard")
+    public void shouldOpenAllureAutomaticallyShouldRespectAutomaticOpenAndCodexShellGuard() throws Exception {
+        Method shouldOpenAllureAutomatically = AllureManager.class.getDeclaredMethod("shouldOpenAllureAutomatically");
+        shouldOpenAllureAutomatically.setAccessible(true);
         String originalAutomaticallyOpen = String.valueOf(SHAFT.Properties.allure.automaticallyOpen());
         try {
             SHAFT.Properties.allure.set().automaticallyOpen(true);
 
-            // Build the expected watch command the same way the production code does
-            String prefix = (String) getStaticField(AllureManager.class, "cachedAllureCommandPrefix");
-            String resultsPath = "allure-results"; // getResultsPath with no trailing separator
+            Object shouldOpen = shouldOpenAllureAutomatically.invoke(null);
 
-            String expectedCommand = prefix + " watch --open \"" + resultsPath + "\"";
-
-            // Watch command should include --open when automatic browser opening is enabled.
-            SHAFT.Validations.assertThat().object(expectedCommand.contains("--config")).isEqualTo(false).perform();
-            SHAFT.Validations.assertThat().object(expectedCommand.contains("--output")).isEqualTo(false).perform();
-            SHAFT.Validations.assertThat().object(expectedCommand.contains("--open")).isEqualTo(true).perform();
-            SHAFT.Validations.assertThat().object(expectedCommand).contains("watch").perform();
-            SHAFT.Validations.assertThat().object(expectedCommand).contains("allure-results").perform();
+            SHAFT.Validations.assertThat().object(shouldOpen)
+                    .isEqualTo(!"1".equals(System.getenv("CODEX_SHELL"))).perform();
         } finally {
             SHAFT.Properties.allure.set().automaticallyOpen(Boolean.parseBoolean(originalAutomaticallyOpen));
         }

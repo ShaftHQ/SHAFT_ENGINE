@@ -12,9 +12,11 @@ import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
 import org.apache.commons.lang3.SystemUtils;
 
+import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
@@ -406,16 +408,20 @@ public class AllureManager {
             ReportManager.logDiscrete("Allure report automatic opening is disabled.");
             return false;
         }
-        String reportPath = reportDirectoryPath().resolve(newFileName).toFile().getAbsolutePath();
-        if (SystemUtils.IS_OS_WINDOWS) {
-            reportPath = reportPath.replace("'", "''");
-            internalTerminalSession.performTerminalCommand(
-                    "powershell -NoProfile -Command \"Start-Process -FilePath '" + reportPath + "'\""
-            );
-        } else if (SystemUtils.IS_OS_MAC) {
-            internalTerminalSession.performTerminalCommand("open \"" + reportPath + "\"");
-        } else {
-            internalTerminalSession.performTerminalCommand("xdg-open \"" + reportPath + "\"");
+        if (isCodexShellSession()) {
+            ReportManager.logDiscrete("Allure report automatic opening is skipped in Codex shell sessions.");
+            return false;
+        }
+        URI reportUri = reportDirectoryPath().resolve(newFileName).toUri();
+        try {
+            if (!Desktop.isDesktopSupported()) {
+                ReportManager.logDiscrete("Desktop report opening is not supported in this environment.");
+                return false;
+            }
+            Desktop.getDesktop().browse(reportUri);
+        } catch (IOException | RuntimeException e) {
+            ReportManager.logDiscrete("Allure report could not be opened automatically: " + e.getMessage());
+            return false;
         }
         return true;
     }
@@ -505,22 +511,22 @@ public class AllureManager {
 
     private static void writeGenerateReportShellFilesToProjectDirectory() {
         // create generate_allure_report.sh or generate_allure_report.bat
-        // These scripts re-generate the report from allure-results and serve it via HTTP.
+        // These scripts re-generate the report from allure-results without opening a browser.
         String resultsPath = getResultsPath();
 
         if (cachedIsAllure2) {
-            // Allure 2 mode: simple serve command, no --config needed.
+            String generateArguments = "generate \"" + resultsPath + "\" --single-file --clean -o \"" + allureReportPath + "\"";
             if (SystemUtils.IS_OS_WINDOWS) {
                 List<String> commands = Arrays.asList(
                         "@echo off",
-                        "allure serve \"" + resultsPath + "\"",
-                        "pause", "exit");
+                        "allure " + generateArguments,
+                        "exit /b %ERRORLEVEL%");
                 internalFileSession.writeToFile(resolveExecutionPath("generate_allure_report.bat").toString(),
                         String.join(System.lineSeparator(), commands));
             } else {
                 List<String> commands = Arrays.asList(
                         "#!/bin/bash",
-                        "allure serve \"" + resultsPath + "\"");
+                        "allure " + generateArguments);
                 Path scriptPath = resolveExecutionPath("generate_allure_report.sh");
                 internalFileSession.writeToFile(scriptPath.toString(), String.join(System.lineSeparator(), commands));
                 internalTerminalSession.performTerminalCommand("chmod u+x \"" + scriptPath + "\"");
@@ -532,38 +538,39 @@ public class AllureManager {
         // options written by writeAllureConfig() are honoured when the user runs the script manually.
         String allure3Version = SHAFT.Properties.internal.allure3Version();
         boolean enforceConfiguredCliVersion = SHAFT.Properties.allure.forceConfiguredCliVersion();
-        String serveArguments = "serve --config \"" + allureConfigPath() + "\" \"" + resultsPath + "\"";
-        List<String> commandsToServeAllureReport;
+        String generateArguments = "generate --config \"" + allureConfigPath() + "\" \"" + resultsPath
+                + "\" -o \"" + allureReportPath + "\"";
+        List<String> commandsToGenerateAllureReport;
         if (SystemUtils.IS_OS_WINDOWS) {
             if (enforceConfiguredCliVersion) {
-                commandsToServeAllureReport = Arrays.asList(
+                commandsToGenerateAllureReport = Arrays.asList(
                         "@echo off",
-                        "npx --yes allure@" + allure3Version + " " + serveArguments,
-                        "pause", "exit");
+                        "npx --yes allure@" + allure3Version + " " + generateArguments,
+                        "exit /b %ERRORLEVEL%");
             } else {
-                commandsToServeAllureReport = Arrays.asList(
+                commandsToGenerateAllureReport = Arrays.asList(
                         "@echo off",
-                        "where allure >nul 2>&1 && (allure " + serveArguments + ") || (npx --yes allure@" + allure3Version + " " + serveArguments + ")",
-                        "pause", "exit");
+                        "where allure >nul 2>&1 && (allure " + generateArguments + ") || (npx --yes allure@" + allure3Version + " " + generateArguments + ")",
+                        "exit /b %ERRORLEVEL%");
             }
             internalFileSession.writeToFile(resolveExecutionPath("generate_allure_report.bat").toString(),
-                    String.join(System.lineSeparator(), commandsToServeAllureReport));
+                    String.join(System.lineSeparator(), commandsToGenerateAllureReport));
         } else {
             if (enforceConfiguredCliVersion) {
-                commandsToServeAllureReport = Arrays.asList(
+                commandsToGenerateAllureReport = Arrays.asList(
                         "#!/bin/bash",
-                        "npx --yes allure@" + allure3Version + " " + serveArguments);
+                        "npx --yes allure@" + allure3Version + " " + generateArguments);
             } else {
-                commandsToServeAllureReport = Arrays.asList(
+                commandsToGenerateAllureReport = Arrays.asList(
                         "#!/bin/bash",
                         "if command -v allure >/dev/null 2>&1; then",
-                        "  allure " + serveArguments,
+                        "  allure " + generateArguments,
                         "else",
-                        "  npx --yes allure@" + allure3Version + " " + serveArguments,
+                        "  npx --yes allure@" + allure3Version + " " + generateArguments,
                         "fi");
             }
             Path scriptPath = resolveExecutionPath("generate_allure_report.sh");
-            internalFileSession.writeToFile(scriptPath.toString(), String.join(System.lineSeparator(), commandsToServeAllureReport));
+            internalFileSession.writeToFile(scriptPath.toString(), String.join(System.lineSeparator(), commandsToGenerateAllureReport));
             // make script executable on Unix-based shells
             internalTerminalSession.performTerminalCommand("chmod u+x \"" + scriptPath + "\"");
         }
@@ -927,12 +934,20 @@ public class AllureManager {
                 + "--config " + q(allureConfigPath().toString()) + " "
                 + "--output " + q(watchOutputDirectory.toString()) + " "
                 + "--report-name " + q(reportName) + " "
-                + (SHAFT.Properties.allure.automaticallyOpen() ? "--open " : "")
+                + (shouldOpenAllureAutomatically() ? "--open " : "")
                 + q(getResultsPath());
         realtimeMonitoringProcess = startLongRunningCommand(command);
         if (realtimeMonitoringProcess != null && realtimeMonitoringProcess.isAlive()) {
             ReportManager.logDiscrete("Allure real-time monitoring started.");
         }
+    }
+
+    private static boolean shouldOpenAllureAutomatically() {
+        return SHAFT.Properties.allure.automaticallyOpen() && !isCodexShellSession();
+    }
+
+    private static boolean isCodexShellSession() {
+        return "1".equals(System.getenv("CODEX_SHELL"));
     }
 
     private static boolean isRealtimeMonitoringExecutionContextEligible() {
