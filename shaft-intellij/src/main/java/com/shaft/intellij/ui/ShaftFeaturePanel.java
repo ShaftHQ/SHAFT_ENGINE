@@ -41,7 +41,8 @@ import java.util.concurrent.CancellationException;
  * MCP tools panel with editable JSON arguments.
  */
 final class ShaftFeaturePanel extends JPanel {
-    private final List<ToolCategory> categories;
+    private List<ToolCategory> categories;
+    private final boolean catalogRefreshEnabled;
     private final JBTextField search;
     private final JComboBox<ToolCategory> categorySelector;
     private final JComboBox<ToolTemplate> toolSelector;
@@ -52,6 +53,7 @@ final class ShaftFeaturePanel extends JPanel {
     private final JButton cancelButton;
     private final JButton restoreDefaultsButton;
     private final JButton copyOutputButton;
+    private final JButton refreshCatalogButton;
     private final JProgressBar progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
@@ -61,16 +63,24 @@ final class ShaftFeaturePanel extends JPanel {
     private boolean updatingTools;
 
     ShaftFeaturePanel(Project project) {
-        this(project, ShaftSettingsState.getInstance().getState(), ToolTemplates.categories());
+        this(project, ShaftSettingsState.getInstance().getState());
     }
 
     ShaftFeaturePanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
-        this(project, settings, ToolTemplates.categories());
+        this(project, settings, ToolTemplates.categories(), true);
     }
 
     ShaftFeaturePanel(Project project, @NotNull ShaftSettingsState.Settings settings, @NotNull List<ToolCategory> categories) {
+        this(project, settings, categories, false);
+    }
+
+    ShaftFeaturePanel(Project project,
+                      @NotNull ShaftSettingsState.Settings settings,
+                      @NotNull List<ToolCategory> categories,
+                      boolean catalogRefreshEnabled) {
         super(new BorderLayout(6, 6));
         this.categories = List.copyOf(categories);
+        this.catalogRefreshEnabled = catalogRefreshEnabled;
         this.settings = settings;
         setBorder(JBUI.Borders.empty(8));
         search = new JBTextField();
@@ -112,9 +122,17 @@ final class ShaftFeaturePanel extends JPanel {
         copyOutputButton.getAccessibleContext().setAccessibleName("Copy SHAFT tool output");
         copyOutputButton.setEnabled(false);
         copyOutputButton.addActionListener(event -> copyOutput());
+        refreshCatalogButton = new JButton("Refresh tools");
+        refreshCatalogButton.getAccessibleContext().setAccessibleName("Refresh SHAFT MCP tool catalog");
+        refreshCatalogButton.setVisible(catalogRefreshEnabled);
+        refreshCatalogButton.addActionListener(event -> refreshCatalog(project));
         search.getDocument().addDocumentListener(new SimpleDocumentListener(this::refreshTools));
         argumentsArea.getDocument().addDocumentListener(new SimpleDocumentListener(this::validateArguments));
-        categorySelector.addActionListener(event -> refreshTools());
+        categorySelector.addActionListener(event -> {
+            if (!updatingTools) {
+                refreshTools();
+            }
+        });
         toolSelector.addActionListener(event -> {
             if (!updatingTools) {
                 loadSelectedTemplate();
@@ -138,6 +156,7 @@ final class ShaftFeaturePanel extends JPanel {
         actions.add(cancelButton);
         actions.add(restoreDefaultsButton);
         actions.add(copyOutputButton);
+        actions.add(refreshCatalogButton);
         actions.add(progress);
         actions.add(status);
 
@@ -186,6 +205,9 @@ final class ShaftFeaturePanel extends JPanel {
             copyOutputButton.setEnabled(true);
             return;
         }
+        if (!projectAvailable(project)) {
+            return;
+        }
         if (template.confirmationRequired()
                 && Messages.showOkCancelDialog(
                 this,
@@ -215,6 +237,27 @@ final class ShaftFeaturePanel extends JPanel {
                 () -> showResult(result, error)));
     }
 
+    private void refreshCatalog(Project project) {
+        if (!catalogRefreshEnabled) {
+            return;
+        }
+        if (!mcpConfigured()) {
+            status.setText("Configure MCP");
+            outputArea.setText("Configure SHAFT MCP in Settings before refreshing the tool catalog.");
+            copyOutputButton.setEnabled(true);
+            return;
+        }
+        if (!projectAvailable(project)) {
+            return;
+        }
+        setRunning(true, "Refreshing tools...");
+        outputArea.setText("");
+        copyOutputButton.setEnabled(false);
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startListTools();
+        currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                () -> showCatalogResult(result, error)));
+    }
+
     private void showResult(ShaftMcpToolResult result, Throwable error) {
         if (error instanceof CancellationException) {
             setRunning(false, "Cancelled");
@@ -231,6 +274,45 @@ final class ShaftFeaturePanel extends JPanel {
             outputArea.setText(JsonText.prettyOrOriginal(result.output()));
         }
         copyOutputButton.setEnabled(!outputArea.getText().isBlank());
+    }
+
+    private void showCatalogResult(ShaftMcpToolResult result, Throwable error) {
+        if (error instanceof CancellationException) {
+            setRunning(false, "Cancelled");
+            outputArea.setText("Cancelled.");
+            copyOutputButton.setEnabled(true);
+            return;
+        }
+        boolean success = error == null && result != null && result.success();
+        setRunning(false, success ? "Tools refreshed" : "Failed");
+        if (success) {
+            categories = ToolTemplates.categories(result.output());
+            reloadCategories();
+            outputArea.setText(JsonText.prettyOrOriginal(result.output()));
+        } else if (error != null) {
+            outputArea.setText(error.getMessage());
+        } else {
+            outputArea.setText(result == null ? "No result returned." : result.output());
+        }
+        copyOutputButton.setEnabled(!outputArea.getText().isBlank());
+    }
+
+    private void reloadCategories() {
+        Object selected = categorySelector.getSelectedItem();
+        String selectedLabel = selected instanceof ToolCategory category ? category.label() : "";
+        updatingTools = true;
+        categorySelector.removeAllItems();
+        for (ToolCategory category : categories) {
+            categorySelector.addItem(category);
+            if (category.label().equals(selectedLabel)) {
+                categorySelector.setSelectedItem(category);
+            }
+        }
+        if (categorySelector.getSelectedItem() == null && categorySelector.getItemCount() > 0) {
+            categorySelector.setSelectedIndex(0);
+        }
+        updatingTools = false;
+        refreshTools();
     }
 
     private void refreshTools() {
@@ -274,6 +356,7 @@ final class ShaftFeaturePanel extends JPanel {
         runButton.setEnabled(!running);
         cancelButton.setEnabled(running);
         restoreDefaultsButton.setEnabled(!running);
+        refreshCatalogButton.setEnabled(!running);
         search.setEnabled(!running);
         categorySelector.setEnabled(!running);
         toolSelector.setEnabled(!running);
@@ -313,6 +396,16 @@ final class ShaftFeaturePanel extends JPanel {
 
     private boolean mcpConfigured() {
         return settings.mcpCommand != null && !settings.mcpCommand.isBlank();
+    }
+
+    private boolean projectAvailable(Project project) {
+        if (project != null) {
+            return true;
+        }
+        status.setText("Open project");
+        outputArea.setText("Open an IntelliJ project before running SHAFT MCP tools.");
+        copyOutputButton.setEnabled(true);
+        return false;
     }
 
     private static JPanel setupNotice(Project project, ShaftSettingsState.Settings settings) {

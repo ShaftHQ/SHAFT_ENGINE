@@ -54,7 +54,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         return "SHAFT MCP connection is ready.";
     }
 
-    JsonObject listTools(Duration timeout) throws IOException {
+    JsonElement listTools(Duration timeout) throws IOException {
         initialize(timeout);
         int requestId = id.getAndIncrement();
         JsonObject request = request(requestId, "tools/list");
@@ -62,7 +62,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         return awaitResult(requestId, timeout);
     }
 
-    JsonObject callTool(String toolName, JsonObject arguments, Duration timeout) throws IOException {
+    JsonElement callTool(String toolName, JsonObject arguments, Duration timeout) throws IOException {
         initialize(timeout);
         int requestId = id.getAndIncrement();
         JsonObject request = request(requestId, "tools/call");
@@ -119,9 +119,9 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         output.flush();
     }
 
-    private JsonObject awaitResult(int requestId, Duration timeout) throws IOException {
+    private JsonElement awaitResult(int requestId, Duration timeout) throws IOException {
         long deadline = System.nanoTime() + timeout.toNanos();
-        JsonObject response = null;
+        JsonElement response = null;
         boolean waiting = true;
         while (waiting && response == null && System.nanoTime() < deadline) {
             long timeoutNanos = deadline - System.nanoTime();
@@ -134,7 +134,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
                             new IOException(message.get("error").toString()));
                 }
                 JsonElement result = message.get("result");
-                response = result == null || !result.isJsonObject() ? new JsonObject() : result.getAsJsonObject();
+                response = result == null || result.isJsonNull() ? new JsonObject() : result;
             }
         }
         if (response != null) {

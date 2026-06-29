@@ -20,6 +20,8 @@ final class FakeMcpServer {
         switch (mode) {
             case "stderrAndExit" -> runWithStderrFailure();
             case "toolsList" -> runToolsListServer();
+            case "toolResultArray" -> runToolCallResultServer("[\"first\",{\"name\":\"second\"}]");
+            case "toolResultString" -> runToolCallResultServer("\"plain text result\"");
             case "hang" -> Thread.sleep(Long.MAX_VALUE);
             default -> Thread.sleep(Long.MAX_VALUE);
         }
@@ -31,6 +33,14 @@ final class FakeMcpServer {
     }
 
     private static void runToolsListServer() throws Exception {
+        runServer("{\"tools\":[{\"name\":\"fake_tool\"}]}");
+    }
+
+    private static void runToolCallResultServer(String resultJson) throws Exception {
+        runServer(resultJson);
+    }
+
+    private static void runServer(String toolCallResultJson) throws Exception {
         InputStream input = System.in;
         OutputStream output = System.out;
         while (true) {
@@ -44,6 +54,8 @@ final class FakeMcpServer {
                         "{\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":{\"protocolVersion\":\"2024-11-05\"}}");
                 case "tools/list" -> writeMessage(output, requestId,
                         "{\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":{\"tools\":[{\"name\":\"fake_tool\"}]}}");
+                case "tools/call" -> writeMessage(output, requestId,
+                        "{\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":" + toolCallResultJson + "}");
                 default -> {
                 }
             }

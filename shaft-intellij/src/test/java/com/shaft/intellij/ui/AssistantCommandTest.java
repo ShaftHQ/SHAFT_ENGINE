@@ -52,19 +52,48 @@ class AssistantCommandTest {
         assertEquals("locators", command("/guide locators").arguments().get("query").getAsString());
         assertEquals("test_automation_scenarios", command("/scenarios checkout").toolName());
         assertEquals("checkout", command("/scenarios checkout").arguments().get("intent").getAsString());
+        assertEquals("capture_start", command("/record").toolName());
+        assertEquals("Chrome", command("/record").arguments().get("browser").getAsString());
+        assertEquals("playwright_record_start", command("/record playwright").toolName());
+        assertEquals("browser_open_intent", command("/inspect").toolName());
+        assertEquals("browser_open_intent", command("/locator").toolName());
+        assertEquals("", command("/inspect").arguments().get("targetUrl").getAsString());
+        assertEquals("https://example.com", command("/inspect https://example.com sign in").arguments().get("targetUrl").getAsString());
+        assertEquals("sign in", command("/inspect https://example.com sign in").arguments().get("userIntent").getAsString());
         assertEquals("test_code_guardrails_check", command("/guardrails driver.element().click(locator);").toolName());
         assertEquals("java", command("/guardrails code").arguments().get("language").getAsString());
         assertEquals("autobot_local_agent_clients", command("/clients").toolName());
+        assertEquals("test_automation_scenarios", command("/generatetest login").toolName());
+        assertEquals("capture_code_blocks", command("/generatetest recordings/capture-session.json").toolName());
+        assertEquals("playwright_recording_code_blocks", command("/generatetest recordings/playwright-session.json").toolName());
+    }
+
+    @Test
+    void triageAndFixTestFailureRouteToDoctorWithWorkingDirectory() {
+        String workingDirectory = "C:/work/project";
+        AssistantCommand.Invocation triage = command("/triage", workingDirectory);
+        AssistantCommand.Invocation fix = command("/fixTestFailure", workingDirectory);
+
+        assertEquals("doctor_analyze_failed_allure", triage.toolName());
+        assertEquals("doctor_analyze_failed_allure", fix.toolName());
+        assertEquals("allure-results", triage.arguments().get("allureResultPaths").getAsJsonArray().get(0).getAsString());
+        assertEquals(workingDirectory, triage.arguments().get("repositoryRoot").getAsString());
+        assertEquals(workingDirectory, fix.arguments().get("repositoryRoot").getAsString());
     }
 
     @Test
     void helpAndUnknownCommandsStayLocal() {
         assertTrue(command("/help").isLocal());
+        assertTrue(command("/help").localResponse().contains("/record"));
         assertTrue(command("/missing").isLocal());
         assertTrue(command("   ").isLocal());
     }
 
     private static AssistantCommand.Invocation command(String prompt) {
-        return AssistantCommand.fromPrompt(prompt, "CODEX", "ASK", ".", "", false);
+        return command(prompt, ".");
+    }
+
+    private static AssistantCommand.Invocation command(String prompt, String workingDirectory) {
+        return AssistantCommand.fromPrompt(prompt, "CODEX", "ASK", workingDirectory, "", false);
     }
 }

@@ -70,7 +70,8 @@ class ShaftPanelSetupTest {
             labels.add(tabs.getTitleAt(index));
         }
 
-        assertEquals(List.of("Assistant", "Recorder", "Inspector", "Evidence", "Projects", "Advanced Tools"), labels);
+        assertEquals(List.of("Assistant", "Guided", "Recorder", "Inspector", "Triage", "Evidence Tools", "Projects",
+                "Advanced Tools"), labels);
     }
 
     @Test
@@ -89,7 +90,7 @@ class ShaftPanelSetupTest {
         assertEquals("Inspector", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("doctor_analyze_trace", arguments);
-        assertEquals("Evidence", tabs.getTitleAt(tabs.getSelectedIndex()));
+        assertEquals("Evidence Tools", tabs.getTitleAt(tabs.getSelectedIndex()));
         assertEquals("Evidence", selectedCategory(toolWindow));
 
         toolWindow.prefillTool("shaft_project_create", arguments);
@@ -101,6 +102,83 @@ class ShaftPanelSetupTest {
     void assistantAndToolsControlsExposeAccessibleMetadata() {
         assertAccessibleControls(new ShaftAssistantPanel(null, blankMcpSettings()));
         assertAccessibleControls(new ShaftFeaturePanel(null, blankMcpSettings()));
+        assertAccessibleControls(new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        }));
+        assertAccessibleControls(new EvidenceTriagePanel(null, (tool, arguments) -> {
+        }));
+    }
+
+    @Test
+    void guidedWorkflowPrefillsContractAlignedToolArguments() {
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+
+        click(panel, "Inspect locator");
+        CapturedInvocation inspect = last(invocations);
+        assertAll(
+                () -> assertEquals("browser_open_intent", inspect.toolName()),
+                () -> assertTrue(inspect.arguments().has("userIntent")),
+                () -> assertTrue(inspect.arguments().has("maxCharacters")),
+                () -> assertFalse(inspect.arguments().has("intent")));
+
+        click(panel, "Generate code");
+        CapturedInvocation codegen = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_code_blocks", codegen.toolName()),
+                () -> assertTrue(codegen.arguments().has("outputDirectory")),
+                () -> assertTrue(codegen.arguments().has("packageName")),
+                () -> assertTrue(codegen.arguments().has("driverVariableName")));
+
+        JComboBox<?> backend = findComboBox(panel);
+        assertNotNull(backend);
+        backend.setSelectedItem("Playwright");
+        click(panel, "Start recording");
+        CapturedInvocation playwright = last(invocations);
+        assertAll(
+                () -> assertEquals("playwright_record_start", playwright.toolName()),
+                () -> assertTrue(playwright.arguments().has("outputPath")),
+                () -> assertTrue(playwright.arguments().has("includeSensitiveValues")),
+                () -> assertFalse(playwright.arguments().has("targetUrl")));
+    }
+
+    @Test
+    void evidenceTriagePrefillsDoctorAndHealerContracts() {
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        EvidenceTriagePanel panel = new EvidenceTriagePanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+
+        click(panel, "Analyze Allure");
+        CapturedInvocation analyze = last(invocations);
+        assertAll(
+                () -> assertEquals("doctor_analyze_failed_allure", analyze.toolName()),
+                () -> assertTrue(analyze.arguments().has("repositoryRoot")),
+                () -> assertTrue(analyze.arguments().has("historicalBundlePaths")),
+                () -> assertTrue(analyze.arguments().has("useAi")),
+                () -> assertFalse(analyze.arguments().has("repository")));
+
+        click(panel, "Suggest Fix");
+        CapturedInvocation suggest = last(invocations);
+        assertAll(
+                () -> assertEquals("doctor_suggest_fix", suggest.toolName()),
+                () -> assertTrue(suggest.arguments().has("jsonReportPath")),
+                () -> assertTrue(suggest.arguments().has("repositoryRoot")),
+                () -> assertTrue(suggest.arguments().has("useAi")));
+
+        click(panel, "Run Healer");
+        CapturedInvocation healer = last(invocations);
+        assertAll(
+                () -> assertEquals("healer_run_failed_test", healer.toolName()),
+                () -> assertEquals("-Dtest=ExampleTest",
+                        healer.arguments().getAsJsonArray("testCommand").get(2).getAsString()));
+
+        click(panel, "Propose Locator");
+        CapturedInvocation locator = last(invocations);
+        assertAll(
+                () -> assertEquals("doctor_propose_healed_locator", locator.toolName()),
+                () -> assertTrue(locator.arguments().has("repositoryRoot")),
+                () -> assertTrue(locator.arguments().has("healingReportPath")),
+                () -> assertTrue(locator.arguments().has("sourcePath")));
     }
 
     private static ShaftSettingsState.Settings blankMcpSettings() {
@@ -178,6 +256,47 @@ class ShaftPanelSetupTest {
         return null;
     }
 
+    private static JComboBox<?> findComboBox(Component component) {
+        if (component instanceof JComboBox<?> comboBox) {
+            return comboBox;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JComboBox<?> found = findComboBox(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void click(Component component, String text) {
+        JButton button = findButton(component, text);
+        assertNotNull(button, text);
+        button.doClick();
+    }
+
+    private static JButton findButton(Component component, String text) {
+        if (component instanceof JButton button && text.equals(button.getText())) {
+            return button;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JButton found = findButton(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static CapturedInvocation last(List<CapturedInvocation> invocations) {
+        assertFalse(invocations.isEmpty());
+        return invocations.get(invocations.size() - 1);
+    }
+
     private static void assertAccessibleControls(Component component) {
         List<String> missing = new ArrayList<>();
         collectAccessibilityViolations(component, missing);
@@ -242,5 +361,8 @@ class ShaftPanelSetupTest {
         } else {
             return null;
         }
+    }
+
+    private record CapturedInvocation(String toolName, JsonObject arguments) {
     }
 }

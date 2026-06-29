@@ -1,5 +1,6 @@
 package com.shaft.intellij.mcp;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.settings.ShaftCredentialService;
@@ -133,7 +134,7 @@ public final class ShaftMcpInvocationService {
             if (cancellationRequested.get()) {
                 throw new CancellationException("Operation cancelled");
             }
-            JsonObject result = client.callTool(toolName, arguments == null ? new JsonObject() : arguments,
+            JsonElement result = client.callTool(toolName, arguments == null ? new JsonObject() : arguments,
                     DEFAULT_TIMEOUT);
             return ShaftMcpToolResult.success(result.toString());
         } catch (Exception exception) {
@@ -181,7 +182,7 @@ public final class ShaftMcpInvocationService {
             if (cancellationRequested.get()) {
                 throw new CancellationException("Operation cancelled");
             }
-            JsonObject result = client.listTools(DEFAULT_TIMEOUT);
+            JsonElement result = client.listTools(DEFAULT_TIMEOUT);
             return ShaftMcpToolResult.success(result.toString());
         } catch (Exception exception) {
             if (cancellationRequested.get() || exception instanceof CancellationException) {

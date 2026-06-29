@@ -119,6 +119,85 @@ class ToolTemplatesTest {
         assertTrue(violations.isEmpty(), "Missing confirmation for: " + violations);
     }
 
+    @Test
+    void parseToolsListResultEnvelopeSupportsMcpStylePayload() {
+        String toolsList = """
+                {
+                  "jsonrpc": "2.0",
+                  "result": {
+                    "tools": [
+                      {
+                        "name": "capture_start",
+                        "description": "Start or resume a capture session"
+                      },
+                      {
+                        "name": "new_dynamic_tool",
+                        "description": "Tool not in curated templates"
+                      }
+                    ]
+                  }
+                }
+                """;
+
+        assertEquals(List.of(
+                        new DiscoveredTool("capture_start", "Start or resume a capture session"),
+                        new DiscoveredTool("new_dynamic_tool", "Tool not in curated templates")),
+                ToolCatalog.parseToolsList(toolsList));
+    }
+
+    @Test
+    void mergeDiscoveredToolsUpdatesDescriptionsAndAddsFallbackTemplates() {
+        String toolsList = """
+                {
+                  "tools": [
+                    {
+                      "name": "capture_start",
+                      "description": "Start or resume a capture session"
+                    },
+                    {
+                      "name": "new_dynamic_tool",
+                      "description": "Tool not in curated templates"
+                    }
+                  ]
+                }
+                """;
+
+        Map<String, ToolTemplate> mergedByTool = ToolTemplates.categories(toolsList).stream()
+                .flatMap(category -> category.templates().stream())
+                .collect(Collectors.toMap(ToolTemplate::toolName, template -> template, (first, second) -> first));
+
+        assertEquals("Start or resume a capture session", mergedByTool.get("capture_start").description());
+        assertEquals("new_dynamic_tool", mergedByTool.get("new_dynamic_tool").label());
+        assertEquals("{}", mergedByTool.get("new_dynamic_tool").arguments());
+        assertEquals("Tool not in curated templates", mergedByTool.get("new_dynamic_tool").description());
+    }
+
+    @Test
+    void mergeDiscoveredToolsFallsBackToMcpCategoryWhenEnvelopeStyle() {
+        String toolsList = """
+                {
+                  "jsonrpc": "2.0",
+                  "result": {
+                    "tools": [
+                      {
+                        "name": "new_toolkit_tool",
+                        "description": "Tool from result envelope"
+                      }
+                    ]
+                  }
+                }
+                """;
+
+        Map<String, ToolTemplate> mergedByTool = ToolTemplates.categories(toolsList).stream()
+                .filter(category -> category.label().equals("MCP"))
+                .flatMap(category -> category.templates().stream())
+                .collect(Collectors.toMap(ToolTemplate::toolName, template -> template, (first, second) -> first));
+
+        assertTrue(mergedByTool.containsKey("new_toolkit_tool"));
+        assertEquals("{}", mergedByTool.get("new_toolkit_tool").arguments());
+        assertEquals("Tool from result envelope", mergedByTool.get("new_toolkit_tool").description());
+    }
+
     private static boolean isMutationRisk(ToolTemplate template) {
         JsonObject arguments = JsonParser.parseString(template.arguments()).getAsJsonObject();
         return booleanFlagEnabled(arguments, "approve")

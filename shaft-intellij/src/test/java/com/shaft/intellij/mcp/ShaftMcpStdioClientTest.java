@@ -1,5 +1,6 @@
 package com.shaft.intellij.mcp;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
@@ -40,9 +41,21 @@ class ShaftMcpStdioClientTest {
 
     @Test
     void listToolsReturnsRawJsonResult() throws IOException {
-        JsonObject result = withClient("toolsList", client -> client.listTools(Duration.ofSeconds(2)));
+        JsonElement result = withClient("toolsList", client -> client.listTools(Duration.ofSeconds(2)));
 
-        assertEquals("fake_tool", result.getAsJsonArray("tools").get(0).getAsJsonObject().get("name").getAsString());
+        assertEquals("fake_tool", result.getAsJsonObject()
+                .getAsJsonArray("tools").get(0).getAsJsonObject().get("name").getAsString());
+    }
+
+    @Test
+    void callToolPreservesNonObjectJsonResults() throws IOException {
+        JsonElement array = withClient("toolResultArray",
+                client -> client.callTool("fake_tool", new JsonObject(), Duration.ofSeconds(2)));
+        JsonElement string = withClient("toolResultString",
+                client -> client.callTool("fake_tool", new JsonObject(), Duration.ofSeconds(2)));
+
+        assertEquals("first", array.getAsJsonArray().get(0).getAsString());
+        assertEquals("plain text result", string.getAsString());
     }
 
     private interface ClientAction<T> {
