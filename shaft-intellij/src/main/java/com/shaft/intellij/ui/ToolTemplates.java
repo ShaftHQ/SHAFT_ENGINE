@@ -34,6 +34,19 @@ final class ToolTemplates {
                         }
                         """),
                 template("Recording Status", "capture_status", "{}"),
+                template("Start Playwright Recording", "playwright_record_start",
+                        """
+                        {
+                          "outputPath": "recordings/playwright-recording.json",
+                          "mode": "default",
+                          "includeSensitiveValues": false
+                        }
+                        """,
+                        "Starts a Playwright recorder session with workspace output.",
+                        true),
+                template("Playwright Recording Status", "playwright_record_status", "{}",
+                        "Checks the active Playwright recorder status.",
+                        true),
                 template("Checkpoint", "capture_checkpoint",
                         """
                         {
@@ -47,6 +60,14 @@ final class ToolTemplates {
                           "discard": false
                         }
                         """),
+                template("Stop Playwright Recording", "playwright_record_stop",
+                        """
+                        {
+                          "discard": false
+                        }
+                        """,
+                        "Stops Playwright recording and optionally discards the recording file.",
+                        true),
                 template("Generate Code Blocks", "capture_code_blocks",
                         """
                         {
@@ -58,6 +79,28 @@ final class ToolTemplates {
                           "driverVariableName": "driver"
                         }
                         """),
+                template("Generate Playwright Recording Code Blocks", "playwright_recording_code_blocks",
+                        """
+                        {
+                          "recordingPath": "recordings/playwright-recording.json",
+                          "driverVariableName": "driver"
+                        }
+                        """,
+                        "Generates copy-paste SHAFT Playwright code from a recorder file.",
+                        false),
+                template("Generate Playwright Capture Code Blocks", "playwright_capture_code_blocks",
+                        """
+                        {
+                          "sessionPath": "recordings/playwright-recording.json",
+                          "outputDirectory": ".",
+                          "packageName": "tests.generated",
+                          "className": "RecordedFlowTest",
+                          "overwrite": false,
+                          "driverVariableName": "driver"
+                        }
+                        """,
+                        "Generates Playwright-friendly code blocks from a Playwright Capture session.",
+                        false),
                 template("Generate Record At Target", "capture_record_at_target_code_blocks",
                         """
                         {
@@ -92,6 +135,23 @@ final class ToolTemplates {
                           "driverVariableName": "driver"
                         }
                         """),
+                template("Generate And Replay Playwright", "playwright_capture_generate_replay",
+                        """
+                        {
+                          "sessionPath": "recordings/playwright-recording.json",
+                          "outputDirectory": ".",
+                          "packageName": "tests.generated",
+                          "className": "RecordedFlowTest",
+                          "overwrite": false,
+                          "replay": false,
+                          "useAi": false,
+                          "allowLocalAi": false,
+                          "allowRemoteAi": false,
+                          "driverVariableName": "driver"
+                        }
+                        """,
+                        "Generates Playwright tests from a recording session. Set replay=true only after review.",
+                        true),
                 template("Replay Playwright Recording", "playwright_replay_recording",
                         """
                         {
@@ -110,6 +170,23 @@ final class ToolTemplates {
 
     static List<ToolTemplate> doctor() {
         return List.of(
+                template("Read Trace", "trace_read",
+                        """
+                        {
+                          "tracePath": "target/shaft-traces",
+                          "maxCharacters": 12000
+                        }
+                        """,
+                        "Reads trace data with bounded output for evidence review.",
+                        false),
+                template("Summarize Trace", "trace_summarize",
+                        """
+                        {
+                          "tracePath": "target/shaft-traces"
+                        }
+                        """,
+                        "Returns a deterministic summary for a persisted SHAFT trace.",
+                        false),
                 template("Analyze Failed Allure", "doctor_analyze_failed_allure",
                         """
                         {
@@ -197,6 +274,34 @@ final class ToolTemplates {
                           "platformName": "Android"
                         }
                         """),
+                template("Open Intent", "browser_open_intent",
+                        """
+                        {
+                          "targetUrl": "https://example.com",
+                          "userIntent": "Sign in",
+                          "maxCharacters": 12000,
+                          "maxElements": 10
+                        }
+                        """,
+                        "Opens the URL and returns DOM plus locator candidates for the requested intent.",
+                        true),
+                template("Get Page DOM", "browser_get_page_dom",
+                        """
+                        {
+                          "maxCharacters": 12000
+                        }
+                        """,
+                        "Returns bounded DOM for locator inspection.",
+                        false),
+                template("Take Screenshot", "browser_take_screenshot",
+                        """
+                        {
+                          "outputPath": "target/shaft-browser/screenshot.png",
+                          "includeBase64": false
+                        }
+                        """,
+                        "Captures a viewport screenshot before risky manual actions.",
+                        true),
                 template("Prepare Mobile Inspector Recording", "mobile_inspector_record_prepare",
                         """
                         {
@@ -232,7 +337,24 @@ final class ToolTemplates {
                         {
                           "outputPath": "target/shaft-mobile/screenshot.png"
                         }
-                        """));
+                        """),
+                template("Playwright Get Page DOM", "playwright_browser_get_page_dom",
+                        """
+                        {
+                          "maxCharacters": 12000
+                        }
+                        """,
+                        "Returns Playwright DOM with bounded size for locator discovery.",
+                        false),
+                template("Playwright Take Screenshot", "playwright_browser_take_screenshot",
+                        """
+                        {
+                          "outputPath": "target/shaft-playwright/screenshot.png",
+                          "includeBase64": false
+                        }
+                        """,
+                        "Captures a Playwright viewport screenshot and writes evidence into workspace files.",
+                        true));
     }
 
     static List<ToolTemplate> mcp() {

@@ -28,6 +28,9 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.datatransfer.StringSelection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +41,7 @@ import java.util.concurrent.CancellationException;
  * MCP tools panel with editable JSON arguments.
  */
 final class ShaftFeaturePanel extends JPanel {
+    private final List<ToolCategory> categories;
     private final JBTextField search;
     private final JComboBox<ToolCategory> categorySelector;
     private final JComboBox<ToolTemplate> toolSelector;
@@ -56,24 +60,36 @@ final class ShaftFeaturePanel extends JPanel {
     private ShaftMcpInvocation currentInvocation;
     private boolean updatingTools;
 
-    ShaftFeaturePanel(@NotNull Project project) {
-        this(project, ShaftSettingsState.getInstance().getState());
+    ShaftFeaturePanel(Project project) {
+        this(project, ShaftSettingsState.getInstance().getState(), ToolTemplates.categories());
     }
 
     ShaftFeaturePanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
+        this(project, settings, ToolTemplates.categories());
+    }
+
+    ShaftFeaturePanel(Project project, @NotNull ShaftSettingsState.Settings settings, @NotNull List<ToolCategory> categories) {
         super(new BorderLayout(6, 6));
+        this.categories = List.copyOf(categories);
         this.settings = settings;
         setBorder(JBUI.Borders.empty(8));
         search = new JBTextField();
         search.setColumns(8);
         search.getEmptyText().setText("Search tools");
-        categorySelector = new JComboBox<>(ToolTemplates.categories().toArray(ToolCategory[]::new));
+        search.getAccessibleContext().setAccessibleName("Search SHAFT tools");
+        categorySelector = new JComboBox<>(this.categories.toArray(ToolCategory[]::new));
+        categorySelector.setPrototypeDisplayValue(new ToolCategory("Advanced Tools", List.of()));
+        categorySelector.getAccessibleContext().setAccessibleName("SHAFT tool category");
         toolSelector = new JComboBox<>();
+        toolSelector.setPrototypeDisplayValue(new ToolTemplate("Generate Playwright replay", "", "{}"));
+        toolSelector.getAccessibleContext().setAccessibleName("SHAFT tool");
         templateDescription = new JLabel(" ");
         argumentsArea = new JBTextArea(16, 32);
+        argumentsArea.getAccessibleContext().setAccessibleName("SHAFT tool arguments");
         argumentsArea.setLineWrap(true);
         argumentsArea.setWrapStyleWord(true);
         outputArea = new JBTextArea(10, 32);
+        outputArea.getAccessibleContext().setAccessibleName("SHAFT tool output");
         outputArea.setEditable(false);
         outputArea.setLineWrap(true);
         outputArea.setWrapStyleWord(true);
@@ -83,13 +99,17 @@ final class ShaftFeaturePanel extends JPanel {
         progress.setVisible(false);
 
         runButton = new JButton("Run");
+        runButton.getAccessibleContext().setAccessibleName("Run SHAFT tool");
         runButton.addActionListener(event -> run(project));
         cancelButton = new JButton("Cancel");
+        cancelButton.getAccessibleContext().setAccessibleName("Cancel SHAFT tool");
         cancelButton.setEnabled(false);
         cancelButton.addActionListener(event -> cancelCurrent());
         restoreDefaultsButton = new JButton("Restore defaults");
+        restoreDefaultsButton.getAccessibleContext().setAccessibleName("Restore default SHAFT tool arguments");
         restoreDefaultsButton.addActionListener(event -> restoreDefaults());
         copyOutputButton = new JButton("Copy output");
+        copyOutputButton.getAccessibleContext().setAccessibleName("Copy SHAFT tool output");
         copyOutputButton.setEnabled(false);
         copyOutputButton.addActionListener(event -> copyOutput());
         search.getDocument().addDocumentListener(new SimpleDocumentListener(this::refreshTools));
@@ -102,16 +122,16 @@ final class ShaftFeaturePanel extends JPanel {
         });
         refreshTools();
 
-        JPanel selectors = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel selectors = new JPanel(new GridBagLayout());
         JLabel searchLabel = label("Search", 'S', search);
         JLabel categoryLabel = label("Category", 'C', categorySelector);
         JLabel toolLabel = label("Tool", 'T', toolSelector);
-        selectors.add(searchLabel);
-        selectors.add(search);
-        selectors.add(categoryLabel);
-        selectors.add(categorySelector);
-        selectors.add(toolLabel);
-        selectors.add(toolSelector);
+        addSelectorComponent(selectors, searchLabel, 0, 0.0, false);
+        addSelectorComponent(selectors, search, 1, 0.0, false);
+        addSelectorComponent(selectors, categoryLabel, 2, 0.0, false);
+        addSelectorComponent(selectors, categorySelector, 3, 0.0, false);
+        addSelectorComponent(selectors, toolLabel, 4, 0.0, false);
+        addSelectorComponent(selectors, toolSelector, 5, 1.0, true);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         actions.add(runButton);
@@ -149,6 +169,10 @@ final class ShaftFeaturePanel extends JPanel {
 
     JComponent preferredFocusComponent() {
         return argumentsArea;
+    }
+
+    JComboBox<ToolCategory> categorySelector() {
+        return categorySelector;
     }
 
     private void run(Project project) {
@@ -272,6 +296,21 @@ final class ShaftFeaturePanel extends JPanel {
         return label;
     }
 
+    private static void addSelectorComponent(JPanel panel,
+                                             JComponent component,
+                                             int gridX,
+                                             double weightX,
+                                             boolean fillHorizontal) {
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.gridx = gridX;
+        constraints.gridy = 0;
+        constraints.weightx = weightX;
+        constraints.anchor = GridBagConstraints.WEST;
+        constraints.fill = fillHorizontal ? GridBagConstraints.HORIZONTAL : GridBagConstraints.NONE;
+        constraints.insets = new Insets(0, 0, 0, gridX == 5 ? 0 : 6);
+        panel.add(component, constraints);
+    }
+
     private boolean mcpConfigured() {
         return settings.mcpCommand != null && !settings.mcpCommand.isBlank();
     }
@@ -280,6 +319,7 @@ final class ShaftFeaturePanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panel.add(new JLabel("Configure SHAFT MCP to run Assistant and Tools."));
         JButton openSettings = new JButton("Open Settings");
+        openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");
         openSettings.addActionListener(event -> {
             if (project != null) {
                 ShowSettingsUtil.getInstance().showSettingsDialog(project, "SHAFT");
@@ -294,10 +334,10 @@ final class ShaftFeaturePanel extends JPanel {
         return template.toolName() + "\n" + template.label();
     }
 
-    void prefillTool(String toolName, JsonObject arguments) {
+    boolean prefillTool(String toolName, JsonObject arguments) {
         saveActiveDraft();
         search.setText("");
-        for (ToolCategory category : ToolTemplates.categories()) {
+        for (ToolCategory category : categories) {
             for (ToolTemplate template : category.templates()) {
                 if (template.toolName().equals(toolName)) {
                     categorySelector.setSelectedItem(category);
@@ -307,15 +347,16 @@ final class ShaftFeaturePanel extends JPanel {
                     argumentDrafts.put(draftKey(template), argumentsArea.getText());
                     templateDescription.setText(description(template));
                     validateArguments();
-                    return;
+                    return true;
                 }
             }
         }
+        return false;
     }
 
     void selectCategory(String label) {
         search.setText("");
-        for (ToolCategory category : ToolTemplates.categories()) {
+        for (ToolCategory category : categories) {
             if (category.label().equals(label)) {
                 categorySelector.setSelectedItem(category);
                 return;
@@ -359,8 +400,8 @@ final class ShaftFeaturePanel extends JPanel {
         }
     }
 
-    private static List<ToolTemplate> matchingTemplates(ToolCategory category, String query) {
-        return ToolTemplates.categories().stream()
+    private List<ToolTemplate> matchingTemplates(ToolCategory category, String query) {
+        return categories.stream()
                 .filter(candidate -> query.isBlank() && candidate.equals(category) || !query.isBlank())
                 .flatMap(candidate -> candidate.templates().stream())
                 .filter(template -> query.isBlank() || matches(template, query))

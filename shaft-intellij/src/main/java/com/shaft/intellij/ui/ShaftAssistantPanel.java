@@ -54,7 +54,7 @@ final class ShaftAssistantPanel extends JPanel {
     private String lastPrompt = "";
     private ShaftMcpInvocation currentInvocation;
 
-    ShaftAssistantPanel(@NotNull Project project) {
+    ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
     }
 
@@ -63,16 +63,22 @@ final class ShaftAssistantPanel extends JPanel {
         this.settings = settings;
         setBorder(JBUI.Borders.empty(8));
         mode = new JComboBox<>(new String[]{"ASK", "PLAN", "AGENT"});
+        mode.getAccessibleContext().setAccessibleName("Assistant mode");
         client = new JComboBox<>(new String[]{"CODEX", "CLAUDE_CODE", "COPILOT_CLI"});
+        client.getAccessibleContext().setAccessibleName("Assistant client");
         mode.setSelectedItem(settings.defaultAutobotMode);
         client.setSelectedItem(settings.defaultAutobotClient);
         customCommand = new JBTextField();
         customCommand.getEmptyText().setText("Optional local agent command");
+        customCommand.getAccessibleContext().setAccessibleName("Optional local agent command");
         allowSourceMutation = new JBCheckBox("Approve source mutation for Agent mode");
+        allowSourceMutation.getAccessibleContext().setAccessibleName("Approve source mutation for Agent mode");
         prompt = new JBTextArea(5, 32);
+        prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new JBTextArea(18, 32);
+        transcript.getAccessibleContext().setAccessibleName("Assistant transcript");
         transcript.setEditable(false);
         transcript.setLineWrap(true);
         transcript.setWrapStyleWord(true);
@@ -83,21 +89,28 @@ final class ShaftAssistantPanel extends JPanel {
         progress.setVisible(false);
 
         send = new JButton("Send");
+        send.getAccessibleContext().setAccessibleName("Send assistant prompt");
         send.addActionListener(event -> send(project));
         cancel = new JButton("Cancel");
+        cancel.getAccessibleContext().setAccessibleName("Cancel assistant request");
         cancel.setEnabled(false);
         cancel.addActionListener(event -> cancelCurrent());
         copyLastResponse = new JButton("Copy response");
+        copyLastResponse.getAccessibleContext().setAccessibleName("Copy last assistant response");
         copyLastResponse.setEnabled(false);
         copyLastResponse.addActionListener(event -> copyLastResponse());
         copyTranscript = new JButton("Copy all");
+        copyTranscript.getAccessibleContext().setAccessibleName("Copy assistant transcript");
         copyTranscript.addActionListener(event -> copy(transcript.getText(), "Copied transcript"));
         clearTranscript = new JButton("Clear");
+        clearTranscript.getAccessibleContext().setAccessibleName("Clear assistant transcript");
         clearTranscript.addActionListener(event -> clearTranscript());
         rerunLastPrompt = new JButton("Rerun");
+        rerunLastPrompt.getAccessibleContext().setAccessibleName("Rerun last assistant prompt");
         rerunLastPrompt.setEnabled(false);
         rerunLastPrompt.addActionListener(event -> rerun(project));
         testConnection = new JButton("Test MCP");
+        testConnection.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
         testConnection.addActionListener(event -> testConnection(project));
         mode.addActionListener(event -> updateMutationVisibility());
         updateMutationVisibility();
@@ -309,6 +322,7 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panel.add(new JLabel("Configure SHAFT MCP to run Assistant and Tools."));
         JButton openSettings = new JButton("Open Settings");
+        openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");
         openSettings.addActionListener(event -> {
             if (project != null) {
                 ShowSettingsUtil.getInstance().showSettingsDialog(project, "SHAFT");

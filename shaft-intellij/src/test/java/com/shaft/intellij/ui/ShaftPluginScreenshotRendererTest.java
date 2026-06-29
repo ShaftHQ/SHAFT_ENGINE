@@ -27,7 +27,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -67,38 +70,50 @@ class ShaftPluginScreenshotRendererTest {
 
         Path assistantLightScreenshot = outputPath.resolve("intellij-plugin-assistant.png");
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
+        Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
+        Path inspectorScreenshot = outputPath.resolve("intellij-plugin-inspector.png");
+        Path evidenceScreenshot = outputPath.resolve("intellij-plugin-evidence.png");
+        Path projectsScreenshot = outputPath.resolve("intellij-plugin-projects.png");
+        Path advancedToolsLightScreenshot = outputPath.resolve("intellij-plugin-advanced-tools.png");
+        Path advancedToolsDarkScreenshot = outputPath.resolve("intellij-plugin-advanced-tools-dark.png");
         Path toolsLightScreenshot = outputPath.resolve("intellij-plugin-tools.png");
         Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
-        Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
-        Path projectsScreenshot = outputPath.resolve("intellij-plugin-projects.png");
-        Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
 
         write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
-        write(toolsLightScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
-        write(toolsDarkScreenshot, renderToolWindow(1, "", DARK_THEME, true));
-        write(recorderScreenshot, renderToolWindow(1, "Recorder", LIGHT_THEME, false));
-        write(projectsScreenshot, renderToolWindow(1, "Projects", LIGHT_THEME, false));
-        write(mcpGuideScreenshot, renderToolWindow(1, "MCP", LIGHT_THEME, false));
+        write(recorderScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
+        write(inspectorScreenshot, renderToolWindow(2, "", LIGHT_THEME, false));
+        write(evidenceScreenshot, renderToolWindow(3, "", LIGHT_THEME, false));
+        write(projectsScreenshot, renderToolWindow(4, "", LIGHT_THEME, false));
+        write(advancedToolsLightScreenshot, renderToolWindow(5, "", LIGHT_THEME, false));
+        write(advancedToolsDarkScreenshot, renderToolWindow(5, "", DARK_THEME, true));
+        Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(inspectorScreenshot) > 0, inspectorScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(evidenceScreenshot) > 0, evidenceScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(projectsScreenshot) > 0, projectsScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(advancedToolsLightScreenshot) > 0, advancedToolsLightScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(advancedToolsDarkScreenshot) > 0, advancedToolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(projectsScreenshot) > 0, projectsScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
                 () -> assertDimensions(assistantDarkScreenshot),
+                () -> assertDimensions(recorderScreenshot),
+                () -> assertDimensions(inspectorScreenshot),
+                () -> assertDimensions(evidenceScreenshot),
+                () -> assertDimensions(projectsScreenshot),
+                () -> assertDimensions(advancedToolsLightScreenshot),
+                () -> assertDimensions(advancedToolsDarkScreenshot),
                 () -> assertDimensions(toolsLightScreenshot),
                 () -> assertDimensions(toolsDarkScreenshot),
-                () -> assertDimensions(recorderScreenshot),
-                () -> assertDimensions(projectsScreenshot),
-                () -> assertDimensions(mcpGuideScreenshot),
                 () -> assertTrue(Files.mismatch(assistantLightScreenshot, assistantDarkScreenshot) >= 0,
                         "Assistant light and dark screenshots should differ"),
-                () -> assertTrue(Files.mismatch(toolsLightScreenshot, toolsDarkScreenshot) >= 0,
-                        "Tools light and dark screenshots should differ"));
+                () -> assertTrue(Files.mismatch(advancedToolsLightScreenshot, advancedToolsDarkScreenshot) >= 0,
+                        "Advanced Tools light and dark screenshots should differ"));
     }
 
     private static BufferedImage renderToolWindow(int selectedTab, String toolsCategory, String lookAndFeelClassName, boolean dark)
@@ -120,12 +135,26 @@ class ShaftPluginScreenshotRendererTest {
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {
         Project project = screenshotProject();
         JBTabbedPane tabs = new JBTabbedPane();
-        ShaftFeaturePanel tools = new ShaftFeaturePanel(project, defaultSettings());
-        if (!toolsCategory.isBlank()) {
-            tools.selectCategory(toolsCategory);
-        }
+        ShaftFeaturePanel recorder = new ShaftFeaturePanel(project, defaultSettings(),
+                List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
+        ShaftFeaturePanel inspector = new ShaftFeaturePanel(project, defaultSettings(),
+                List.of(new ToolCategory("Inspector", ToolTemplates.inspector())));
+        ShaftFeaturePanel evidence = new ShaftFeaturePanel(project, defaultSettings(),
+                List.of(new ToolCategory("Evidence", Stream.concat(
+                        ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
+        ShaftFeaturePanel projects = new ShaftFeaturePanel(project, defaultSettings(),
+                List.of(new ToolCategory("Projects", ToolTemplates.projects())));
+        ShaftFeaturePanel advancedTools = new ShaftFeaturePanel(project, defaultSettings(), ToolTemplates.categories());
         tabs.addTab("Assistant", new ShaftAssistantPanel(project, defaultSettings()));
-        tabs.addTab("Tools", tools);
+        tabs.addTab("Recorder", recorder);
+        tabs.addTab("Inspector", inspector);
+        tabs.addTab("Evidence", evidence);
+        tabs.addTab("Projects", projects);
+        tabs.addTab("Advanced Tools", advancedTools);
+        Component selected = tabs.getComponentAt(selectedTab);
+        if (selected instanceof ShaftFeaturePanel featurePanel && !toolsCategory.isBlank()) {
+            featurePanel.selectCategory(toolsCategory);
+        }
         tabs.setSelectedIndex(selectedTab);
         return tabs;
     }

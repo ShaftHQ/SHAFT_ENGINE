@@ -51,6 +51,21 @@ public final class ShaftCredentialService {
         return credentials == null ? "" : credentials.getPasswordAsString();
     }
 
+    /**
+     * Indicates whether a provider API key is currently stored.
+     *
+     * @param provider provider id
+     * @return true if a non-blank API key is stored for the provider
+     */
+    public boolean hasApiKey(String provider) {
+        Credentials credentials = PasswordSafe.getInstance().get(attributes(provider));
+        if (credentials == null) {
+            return false;
+        }
+        String password = credentials.getPasswordAsString();
+        return password != null && !password.isBlank();
+    }
+
     private static CredentialAttributes attributes(String provider) {
         return new CredentialAttributes(SERVICE_PREFIX + provider);
     }

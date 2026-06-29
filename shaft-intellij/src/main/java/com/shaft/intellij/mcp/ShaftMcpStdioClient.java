@@ -9,6 +9,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -17,8 +18,11 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Minimal JSON-RPC MCP stdio client used by the IntelliJ shell.
@@ -32,6 +36,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     private final OutputStream output;
     private final AtomicInteger id = new AtomicInteger(1);
     private final CompletableFuture<String> stderr;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     ShaftMcpStdioClient(List<String> command, Path workingDirectory, Map<String, String> environment)
             throws IOException {
@@ -47,6 +52,14 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     String initializeOnly(Duration timeout) throws IOException {
         initialize(timeout);
         return "SHAFT MCP connection is ready.";
+    }
+
+    JsonObject listTools(Duration timeout) throws IOException {
+        initialize(timeout);
+        int requestId = id.getAndIncrement();
+        JsonObject request = request(requestId, "tools/list");
+        send(request);
+        return awaitResult(requestId, timeout);
     }
 
     JsonObject callTool(String toolName, JsonObject arguments, Duration timeout) throws IOException {
@@ -111,12 +124,14 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         JsonObject response = null;
         boolean waiting = true;
         while (waiting && response == null && System.nanoTime() < deadline) {
-            JsonObject message = readMessage();
+            long timeoutNanos = deadline - System.nanoTime();
+            JsonObject message = readMessage(timeoutNanos);
             if (message == null) {
-                waiting = false;
-            } else if (message.has("id") && message.get("id").getAsInt() == requestId) {
+                waiting = process.isAlive();
+            } else if (message.has("id") && matchesId(message, requestId)) {
                 if (message.has("error")) {
-                    throw new IOException(message.get("error").toString());
+                    throw withDiagnostics("SHAFT MCP returned an error response.",
+                            new IOException(message.get("error").toString()));
                 }
                 JsonElement result = message.get("result");
                 response = result == null || !result.isJsonObject() ? new JsonObject() : result.getAsJsonObject();
@@ -125,7 +140,60 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         if (response != null) {
             return response;
         }
-        throw new IOException("Timed out waiting for SHAFT MCP response.");
+        throw requestTimedOut();
+    }
+
+    private boolean matchesId(JsonObject message, int requestId) {
+        try {
+            return message.get("id").getAsInt() == requestId;
+        } catch (IllegalStateException | ClassCastException exception) {
+            return false;
+        }
+    }
+
+    private JsonObject readMessage(long timeoutNanos) throws IOException {
+        if (timeoutNanos <= 0) {
+            return null;
+        }
+        CompletableFuture<JsonObject> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                return readMessage();
+            } catch (IOException exception) {
+                throw new UncheckedIOException(exception);
+            }
+        });
+        long timeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(timeoutNanos));
+        try {
+            return future.get(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException exception) {
+            future.cancel(true);
+            close();
+            throw requestTimedOut();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw withDiagnostics("Interrupted while waiting for SHAFT MCP response.", exception);
+        } catch (ExecutionException exception) {
+            if (exception.getCause() instanceof UncheckedIOException ioException) {
+                throw withDiagnostics("Failed to read SHAFT MCP response.", ioException.getCause());
+            }
+            throw withDiagnostics("Failed to read SHAFT MCP response.", exception);
+        }
+    }
+
+    private IOException requestTimedOut() {
+        return withDiagnostics("Timed out waiting for SHAFT MCP response.", (Throwable) null, failureDetails());
+    }
+
+    private IOException withDiagnostics(String message, Throwable cause) {
+        return withDiagnostics(message, cause, failureDetails());
+    }
+
+    private IOException withDiagnostics(String message, Throwable cause, String details) {
+        String composed = message;
+        if (details != null && !details.isBlank()) {
+            composed = message + "\n" + details;
+        }
+        return cause == null ? new IOException(composed) : new IOException(composed, cause);
     }
 
     private JsonObject readMessage() throws IOException {
@@ -170,8 +238,43 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         }
     }
 
+    private String failureDetails() {
+        StringBuilder details = new StringBuilder();
+        Integer exitCode = exitCode();
+        String stderrOutput = readStandardError();
+        if (!stderrOutput.isBlank()) {
+            details.append("stderr: ").append(stderrOutput.trim());
+        }
+        if (exitCode != null) {
+            if (details.length() > 0) {
+                details.append("; ");
+            }
+            details.append("process exit code: ").append(exitCode);
+        }
+        return details.toString();
+    }
+
+    private String readStandardError() {
+        try {
+            return stderr.get(250, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private Integer exitCode() {
+        try {
+            return process.exitValue();
+        } catch (IllegalThreadStateException exception) {
+            return null;
+        }
+    }
+
     @Override
     public void close() {
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
         process.destroy();
         try {
             if (!process.waitFor(2, TimeUnit.SECONDS)) {
@@ -181,7 +284,6 @@ final class ShaftMcpStdioClient implements AutoCloseable {
             Thread.currentThread().interrupt();
             process.destroyForcibly();
         }
-        stderr.cancel(true);
     }
 
     void cancel() {
