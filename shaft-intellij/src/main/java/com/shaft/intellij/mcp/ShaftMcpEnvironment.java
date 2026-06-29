@@ -46,7 +46,7 @@ final class ShaftMcpEnvironment {
         } else {
             options.add("-Dpilot.ai.consent.remote=true");
         }
-        String model = settings.pilotAiModel == null ? "" : settings.pilotAiModel.trim();
+        String model = settings == null || settings.pilotAiModel == null ? "" : settings.pilotAiModel.trim();
         if (!model.isBlank()) {
             options.add("-Dpilot.ai." + provider + ".model=" + model);
         }
