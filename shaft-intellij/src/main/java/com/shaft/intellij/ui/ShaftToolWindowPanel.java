@@ -2,14 +2,22 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.components.JBTabbedPane;
+import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
-import javax.swing.JTabbedPane;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -21,9 +29,12 @@ public final class ShaftToolWindowPanel extends JPanel {
     private final Project project;
     private final ShaftSettingsState.Settings settings;
     private JComponent preferredFocusComponent;
-    private JBTabbedPane tabs;
+    private JComboBox<WorkflowView> workflowSelector;
+    private JPanel workflowCards;
+    private CardLayout workflowLayout;
     private ShaftFeaturePanel advancedTools;
     private List<ShaftFeaturePanel> featurePanels = List.of();
+    private List<WorkflowView> workflowViews = List.of();
 
     public ShaftToolWindowPanel(@NotNull Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -44,9 +55,12 @@ public final class ShaftToolWindowPanel extends JPanel {
         removeAll();
         ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::showMainView);
         preferredFocusComponent = setup.preferredFocusComponent();
-        tabs = null;
+        workflowSelector = null;
+        workflowCards = null;
+        workflowLayout = null;
         advancedTools = null;
         featurePanels = List.of();
+        workflowViews = List.of();
         add(setup, BorderLayout.CENTER);
         revalidate();
         repaint();
@@ -54,9 +68,9 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private void showMainView() {
         removeAll();
-        tabs = new JBTabbedPane();
-        tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-        tabs.getAccessibleContext().setAccessibleName("SHAFT workflow tabs");
+        workflowLayout = new CardLayout();
+        workflowCards = new JPanel(workflowLayout);
+        workflowCards.getAccessibleContext().setAccessibleName("SHAFT workflow content");
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings);
         GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool);
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
@@ -77,15 +91,48 @@ public final class ShaftToolWindowPanel extends JPanel {
         featurePanels.add(projectsTools);
         featurePanels.add(advancedTools);
         preferredFocusComponent = assistant.preferredFocusComponent();
-        tabs.addTab("Assistant", assistant);
-        tabs.addTab("Guided", guided);
-        tabs.addTab("Recorder", recorderTools);
-        tabs.addTab("Inspector", inspectorTools);
-        tabs.addTab("Triage", triage);
-        tabs.addTab("Evidence Tools", evidenceTools);
-        tabs.addTab("Projects", projectsTools);
-        tabs.addTab("Advanced Tools", advancedTools);
-        add(tabs, BorderLayout.CENTER);
+        workflowViews = List.of(
+                new WorkflowView("Assistant", assistant),
+                new WorkflowView("Guided", guided),
+                new WorkflowView("Recorder", recorderTools),
+                new WorkflowView("Inspector", inspectorTools),
+                new WorkflowView("Triage", triage),
+                new WorkflowView("Evidence", evidenceTools),
+                new WorkflowView("Projects", projectsTools),
+                new WorkflowView("Advanced", advancedTools));
+        for (WorkflowView view : workflowViews) {
+            workflowCards.add(view.component(), view.label());
+        }
+        workflowSelector = new JComboBox<>(new DefaultComboBoxModel<>(
+                workflowViews.toArray(new WorkflowView[0])));
+        workflowSelector.getAccessibleContext().setAccessibleName("SHAFT workflow selector");
+        workflowSelector.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list,
+                                                          Object value,
+                                                          int index,
+                                                          boolean isSelected,
+                                                          boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                label.setBorder(JBUI.Borders.empty(2, 6));
+                return label;
+            }
+        });
+        workflowSelector.setPrototypeDisplayValue(new WorkflowView("Assistant", assistant));
+        Dimension selectorSize = workflowSelector.getPreferredSize();
+        int selectorHeight = Math.max(30, selectorSize.height);
+        workflowSelector.setPreferredSize(JBUI.size(Math.max(150, selectorSize.width), selectorHeight));
+        workflowSelector.setMinimumSize(JBUI.size(140, selectorHeight));
+        workflowSelector.addActionListener(event -> showSelectedWorkflow());
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        header.setBorder(JBUI.Borders.empty(6, 8, 4, 8));
+        JLabel label = new JLabel("Workflow");
+        label.setLabelFor(workflowSelector);
+        header.add(label);
+        header.add(workflowSelector);
+        add(header, BorderLayout.NORTH);
+        add(workflowCards, BorderLayout.CENTER);
         revalidate();
         repaint();
     }
@@ -99,8 +146,8 @@ public final class ShaftToolWindowPanel extends JPanel {
         return preferredFocusComponent;
     }
 
-    JBTabbedPane tabbedPane() {
-        return tabs;
+    JComboBox<WorkflowView> workflowSelector() {
+        return workflowSelector;
     }
 
     /**
@@ -110,19 +157,43 @@ public final class ShaftToolWindowPanel extends JPanel {
      * @param arguments JSON arguments
      */
     public void prefillTool(@NotNull String toolName, @NotNull JsonObject arguments) {
-        if (tabs == null) {
+        if (workflowSelector == null) {
             return;
         }
         for (ShaftFeaturePanel panel : featurePanels) {
             if (panel.prefillTool(toolName, arguments)) {
-                tabs.setSelectedComponent(panel);
+                selectWorkflow(panel);
                 return;
             }
         }
-        tabs.setSelectedComponent(advancedTools);
+        selectWorkflow(advancedTools);
+    }
+
+    private void showSelectedWorkflow() {
+        WorkflowView view = workflowSelector == null ? null : (WorkflowView) workflowSelector.getSelectedItem();
+        if (view != null && workflowLayout != null && workflowCards != null) {
+            workflowLayout.show(workflowCards, view.label());
+        }
+    }
+
+    private void selectWorkflow(JComponent component) {
+        for (WorkflowView view : workflowViews) {
+            if (view.component() == component) {
+                workflowSelector.setSelectedItem(view);
+                workflowLayout.show(workflowCards, view.label());
+                return;
+            }
+        }
     }
 
     private static boolean mcpReady(ShaftSettingsState.Settings settings) {
         return settings.mcpSetupComplete && settings.mcpCommand != null && !settings.mcpCommand.isBlank();
+    }
+
+    record WorkflowView(String label, JComponent component) {
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 }

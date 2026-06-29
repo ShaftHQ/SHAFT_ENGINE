@@ -4,7 +4,6 @@ import com.shaft.intellij.settings.ShaftSettingsConfigurable;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
-import com.intellij.ui.components.JBTabbedPane;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
     private static final int WIDTH = 860;
+    private static final int NARROW_WIDTH = 360;
     private static final int HEIGHT = 780;
     private static final String LIGHT_THEME = "com.intellij.ide.ui.laf.IntelliJLaf";
     private static final String DARK_THEME = "com.intellij.ide.ui.laf.darcula.DarculaLaf";
@@ -70,6 +70,7 @@ class ShaftPluginScreenshotRendererTest {
 
         Path assistantLightScreenshot = outputPath.resolve("intellij-plugin-assistant.png");
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
+        Path assistantNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-narrow-dark.png");
         Path guidedScreenshot = outputPath.resolve("intellij-plugin-guided.png");
         Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
         Path inspectorScreenshot = outputPath.resolve("intellij-plugin-inspector.png");
@@ -87,6 +88,7 @@ class ShaftPluginScreenshotRendererTest {
 
         write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
+        write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(guidedScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
         write(recorderScreenshot, renderToolWindow(2, "", LIGHT_THEME, false));
         write(inspectorScreenshot, renderToolWindow(3, "", LIGHT_THEME, false));
@@ -104,6 +106,7 @@ class ShaftPluginScreenshotRendererTest {
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantNarrowDarkScreenshot) > 0, assistantNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(guidedScreenshot) > 0, guidedScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(inspectorScreenshot) > 0, inspectorScreenshot + " should be non-empty"),
@@ -120,6 +123,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
                 () -> assertDimensions(assistantDarkScreenshot),
+                () -> assertDimensions(assistantNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(guidedScreenshot),
                 () -> assertDimensions(recorderScreenshot),
                 () -> assertDimensions(inspectorScreenshot),
@@ -144,16 +148,26 @@ class ShaftPluginScreenshotRendererTest {
 
     private static BufferedImage renderToolWindow(int selectedTab, String toolsCategory, String lookAndFeelClassName, boolean dark)
             throws InterruptedException, InvocationTargetException {
+        return renderToolWindow(selectedTab, toolsCategory, lookAndFeelClassName, dark, WIDTH, HEIGHT);
+    }
+
+    private static BufferedImage renderToolWindow(int selectedTab,
+                                                  String toolsCategory,
+                                                  String lookAndFeelClassName,
+                                                  boolean dark,
+                                                  int width,
+                                                  int height)
+            throws InterruptedException, InvocationTargetException {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
             JComponent component = toolWindow(selectedTab, toolsCategory);
-            component.setSize(new Dimension(WIDTH, HEIGHT));
-            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            component.setSize(new Dimension(width, height));
+            component.setPreferredSize(new Dimension(width, height));
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             layout(component, !dark);
-            image.set(render(component));
+            image.set(render(component, width, height));
         });
         return image.get();
     }
@@ -169,7 +183,7 @@ class ShaftPluginScreenshotRendererTest {
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             layout(component, !dark);
-            image.set(render(component));
+            image.set(render(component, WIDTH, HEIGHT));
         });
         return image.get();
     }
@@ -185,7 +199,7 @@ class ShaftPluginScreenshotRendererTest {
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             layout(component, !dark);
-            image.set(render(component));
+            image.set(render(component, WIDTH, HEIGHT));
         });
         return image.get();
     }
@@ -213,12 +227,13 @@ class ShaftPluginScreenshotRendererTest {
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {
         Project project = screenshotProject();
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, defaultSettings());
-        JBTabbedPane tabs = toolWindow.tabbedPane();
-        Component selected = tabs.getComponentAt(selectedTab);
+        JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindow.workflowSelector();
+        ShaftToolWindowPanel.WorkflowView selectedView = selector.getItemAt(selectedTab);
+        Component selected = selectedView.component();
         if (selected instanceof ShaftFeaturePanel featurePanel && !toolsCategory.isBlank()) {
             featurePanel.selectCategory(toolsCategory);
         }
-        tabs.setSelectedIndex(selectedTab);
+        selector.setSelectedIndex(selectedTab);
         return toolWindow;
     }
 
@@ -322,8 +337,8 @@ class ShaftPluginScreenshotRendererTest {
         }
     }
 
-    private static BufferedImage render(Component component) {
-        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+    private static BufferedImage render(Component component, int width, int height) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         try {
             Color background = component.getBackground();
@@ -331,7 +346,7 @@ class ShaftPluginScreenshotRendererTest {
                 background = UIManager.getColor("Panel.background");
             }
             graphics.setColor(background == null ? Color.WHITE : background);
-            graphics.fillRect(0, 0, WIDTH, HEIGHT);
+            graphics.fillRect(0, 0, width, height);
             graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
                     RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             component.printAll(graphics);
@@ -348,9 +363,13 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static void assertDimensions(Path imagePath) throws IOException {
+        assertDimensions(imagePath, WIDTH, HEIGHT);
+    }
+
+    private static void assertDimensions(Path imagePath, int width, int height) throws IOException {
         BufferedImage image = ImageIO.read(imagePath.toFile());
         assertAll(
-                () -> assertTrue(image.getWidth() == WIDTH, imagePath + " width should be " + WIDTH),
-                () -> assertTrue(image.getHeight() == HEIGHT, imagePath + " height should be " + HEIGHT));
+                () -> assertTrue(image.getWidth() == width, imagePath + " width should be " + width),
+                () -> assertTrue(image.getHeight() == height, imagePath + " height should be " + height));
     }
 }

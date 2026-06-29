@@ -49,9 +49,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         install.getAccessibleContext().setAccessibleName("Install or update SHAFT MCP");
         install.addActionListener(event -> installMcp());
         family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT"});
+        ShaftUiLabels.applyFriendlyRenderer(family);
         family.setSelectedItem(resolveFamily(settings));
         family.getAccessibleContext().setAccessibleName("Assistant family");
         runtime = new JComboBox<>(new String[]{"CLI", "IDE_PLUGIN", "DESKTOP_APP"});
+        ShaftUiLabels.applyFriendlyRenderer(runtime);
         runtime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
         runtime.getAccessibleContext().setAccessibleName("Assistant runtime");
         test = new JButton("Test connection");

@@ -9,6 +9,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
+import com.intellij.util.ui.WrapLayout;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
@@ -51,10 +52,11 @@ final class ShaftAssistantPanel extends JPanel {
     private final JLabel cloudKeyStatus;
     private final JBCheckBox allowSourceMutation;
     private final JBTextArea prompt;
-    private final JBTextArea transcript;
+    private final AssistantTranscriptView transcript;
     private final JButton send;
     private final JButton cancel;
     private final JButton copyLastResponse;
+    private final JButton copyRawResponse;
     private final JButton copyTranscript;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
@@ -63,6 +65,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
     private String lastResponse = "";
+    private String lastRawResponse = "";
     private String lastPrompt = "";
     private ShaftMcpInvocation currentInvocation;
 
@@ -112,12 +115,7 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
-        transcript = new JBTextArea(18, 32);
-        transcript.getAccessibleContext().setAccessibleName("Assistant transcript");
-        transcript.setEditable(false);
-        transcript.setLineWrap(true);
-        transcript.setWrapStyleWord(true);
-        transcript.setText("Type a question or use /help for SHAFT commands.");
+        transcript = new AssistantTranscriptView();
         status = new JLabel("Ready");
         progress = new JProgressBar();
         progress.setIndeterminate(true);
@@ -128,7 +126,10 @@ final class ShaftAssistantPanel extends JPanel {
         cancel.setEnabled(false);
         copyLastResponse = button("Copy response", "Copy last assistant response", event -> copyLastResponse());
         copyLastResponse.setEnabled(false);
-        copyTranscript = button("Copy all", "Copy assistant transcript", event -> copy(transcript.getText(), "Copied transcript"));
+        copyRawResponse = button("Copy raw", "Copy last raw assistant response", event -> copyRawResponse());
+        copyRawResponse.setEnabled(false);
+        copyTranscript = button("Copy all", "Copy assistant transcript",
+                event -> copy(transcript.markdown(), "Copied transcript"));
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
         rerunLastPrompt.setEnabled(false);
@@ -142,18 +143,19 @@ final class ShaftAssistantPanel extends JPanel {
         bindKeyboard(project);
 
         JPanel transcriptPanel = new JPanel(new BorderLayout(4, 4));
-        transcriptPanel.add(new JBScrollPane(transcript), BorderLayout.CENTER);
+        transcriptPanel.add(transcript, BorderLayout.CENTER);
 
-        JPanel actionRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel actionRow = wrapRow();
         actionRow.add(testConnection);
         actionRow.add(copyLastResponse);
+        actionRow.add(copyRawResponse);
         actionRow.add(copyTranscript);
         actionRow.add(clearTranscript);
         actionRow.add(rerunLastPrompt);
         actionRow.add(cancel);
         actionRow.add(status);
 
-        JPanel routeRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JPanel routeRow = wrapRow();
         routeRow.add(mode);
         routeRow.add(providerType);
         routeRow.add(assistantFamily);
@@ -200,7 +202,7 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         if (usesCloud() && !hasSelectedCloudKey()) {
-            status.setText("Enter " + cloudProvider.getSelectedItem() + " key");
+            status.setText("Enter " + ShaftUiLabels.friendly(cloudProvider.getSelectedItem()) + " key");
             updateCloudKeyStatus();
             return;
         }
@@ -214,7 +216,8 @@ final class ShaftAssistantPanel extends JPanel {
                 project == null || project.getBasePath() == null ? "" : project.getBasePath(),
                 customCommand.getText(),
                 allowSourceMutation.isSelected());
-        append("You [" + mode.getSelectedItem() + " via " + routeLabel(route) + "]:\n" + text);
+        append("**You (" + ShaftUiLabels.friendly(mode.getSelectedItem()) + " via " + routeLabel(route) + ")**\n\n"
+                + AssistantMarkdown.normalizeMarkdown(text));
         prompt.setText("");
         if (invocation.isLocal()) {
             showLocalResponse(invocation.localResponse());
@@ -252,34 +255,32 @@ final class ShaftAssistantPanel extends JPanel {
         boolean success = error == null && result != null && result.success();
         setRunning(false, success ? "Finished" : "Failed");
         if (cancelled) {
-            showResponse("SHAFT Assistant [" + toolName + " cancelled]");
+            showResponse("**SHAFT Assistant (" + toolName + " cancelled)**", "");
             status.setText("Cancelled");
             return;
         }
         String output = error != null ? error.getMessage()
                 : result == null ? "No result returned."
-                : JsonText.prettyOrOriginal(result.output());
-        showResponse("SHAFT Assistant [" + toolName + (success ? " OK" : " failed") + "]:\n" + output);
+                : result.output();
+        showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
+                + AssistantMarkdown.fromMcpOutput(output), output);
     }
 
     private void showLocalResponse(String response) {
         status.setText("Ready");
-        showResponse("SHAFT Assistant:\n" + response);
+        showResponse("**SHAFT Assistant**\n\n" + AssistantMarkdown.normalizeMarkdown(response), response);
     }
 
-    private void showResponse(String response) {
+    private void showResponse(String response, String rawResponse) {
         lastResponse = response;
+        lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
+        copyRawResponse.setEnabled(!lastRawResponse.isBlank());
         append(response);
     }
 
     private void append(String text) {
-        if (transcript.getText().isBlank() || transcript.getText().startsWith("Type a question")) {
-            transcript.setText(text);
-        } else {
-            transcript.append("\n\n" + text);
-        }
-        transcript.setCaretPosition(transcript.getDocument().getLength());
+        transcript.append(text);
     }
 
     private void setRunning(boolean running, String message) {
@@ -329,7 +330,8 @@ final class ShaftAssistantPanel extends JPanel {
         String provider = String.valueOf(cloudProvider.getSelectedItem());
         String keyName = providerKeyName(provider);
         boolean stored = !keyName.isBlank() && ShaftCredentialService.getInstance().hasApiKey(keyName);
-        cloudKeyStatus.setText(stored ? provider + " key stored" : "Enter " + provider + " key");
+        String providerLabel = ShaftUiLabels.friendly(provider);
+        cloudKeyStatus.setText(stored ? providerLabel + " key stored" : "Enter " + providerLabel + " key");
         cloudApiKey.setVisible(!stored);
         saveCloudApiKey.setVisible(!stored);
     }
@@ -368,10 +370,18 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
+    private void copyRawResponse() {
+        if (!lastRawResponse.isBlank()) {
+            copy(lastRawResponse, "Copied raw response");
+        }
+    }
+
     private void clearTranscript() {
-        transcript.setText("");
+        transcript.clear();
         lastResponse = "";
+        lastRawResponse = "";
         copyLastResponse.setEnabled(false);
+        copyRawResponse.setEnabled(false);
         status.setText("Cleared");
     }
 
@@ -433,8 +443,13 @@ final class ShaftAssistantPanel extends JPanel {
 
     private static JComboBox<String> combo(String accessibleName, String... values) {
         JComboBox<String> combo = new JComboBox<>(values);
+        ShaftUiLabels.applyFriendlyRenderer(combo);
         combo.getAccessibleContext().setAccessibleName(accessibleName);
         return combo;
+    }
+
+    private static JPanel wrapRow() {
+        return new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
     }
 
     private static JButton button(String text, String accessibleName, java.awt.event.ActionListener action) {
@@ -466,7 +481,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private static String routeLabel(AssistantCommand.Selection route) {
         if (route.cloud()) {
-            return route.cloudProvider();
+            return ShaftUiLabels.friendly(route.cloudProvider());
         }
         return route.displayName();
     }
