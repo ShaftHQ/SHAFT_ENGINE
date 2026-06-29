@@ -4,10 +4,12 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 
-import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +21,9 @@ import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,11 +37,12 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     private static final String PROTOCOL_VERSION = "2024-11-05";
 
     private final Process process;
-    private final InputStream input;
+    private final BufferedReader input;
     private final OutputStream output;
     private final AtomicInteger id = new AtomicInteger(1);
     private final CompletableFuture<String> stderr;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final ExecutorService ioExecutor;
 
     ShaftMcpStdioClient(List<String> command, Path workingDirectory, Map<String, String> environment)
             throws IOException {
@@ -44,9 +50,10 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         builder.directory(workingDirectory.toFile());
         builder.environment().putAll(environment);
         process = builder.start();
-        input = process.getInputStream();
+        input = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
         output = process.getOutputStream();
-        stderr = CompletableFuture.supplyAsync(() -> readAll(process.getErrorStream()));
+        ioExecutor = Executors.newFixedThreadPool(2, daemonThreadFactory());
+        stderr = CompletableFuture.supplyAsync(() -> readAll(process.getErrorStream()), ioExecutor);
     }
 
     String initializeOnly(Duration timeout) throws IOException {
@@ -113,9 +120,8 @@ final class ShaftMcpStdioClient implements AutoCloseable {
 
     private void send(JsonObject payload) throws IOException {
         byte[] body = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
-        byte[] header = ("Content-Length: " + body.length + "\r\n\r\n").getBytes(StandardCharsets.US_ASCII);
-        output.write(header);
         output.write(body);
+        output.write('\n');
         output.flush();
     }
 
@@ -161,7 +167,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
             } catch (IOException exception) {
                 throw new UncheckedIOException(exception);
             }
-        });
+        }, ioExecutor);
         long timeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(timeoutNanos));
         try {
             return future.get(timeoutMillis, TimeUnit.MILLISECONDS);
@@ -197,37 +203,21 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     }
 
     private JsonObject readMessage() throws IOException {
-        int contentLength = readContentLength();
-        if (contentLength <= 0) {
-            return null;
-        }
-        byte[] body = input.readNBytes(contentLength);
-        if (body.length != contentLength) {
-            return null;
-        }
-        return JsonParser.parseString(new String(body, StandardCharsets.UTF_8)).getAsJsonObject();
-    }
-
-    private int readContentLength() throws IOException {
-        ByteArrayOutputStream header = new ByteArrayOutputStream();
-        int previous = -1;
-        int current;
-        while ((current = input.read()) != -1) {
-            header.write(current);
-            String value = header.toString(StandardCharsets.US_ASCII);
-            if ((previous == '\n' && current == '\n') || value.endsWith("\r\n\r\n")) {
-                break;
+        String line;
+        while ((line = input.readLine()) != null) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) {
+                continue;
             }
-            previous = current;
-        }
-        String[] lines = header.toString(StandardCharsets.US_ASCII).split("\\r?\\n");
-        for (String line : lines) {
-            int separator = line.indexOf(':');
-            if (separator > 0 && "content-length".equalsIgnoreCase(line.substring(0, separator).trim())) {
-                return Integer.parseInt(line.substring(separator + 1).trim());
+            try {
+                JsonElement message = JsonParser.parseString(trimmed);
+                return message.isJsonObject() ? message.getAsJsonObject() : null;
+            } catch (JsonSyntaxException | IllegalStateException exception) {
+                // Spring Boot and tooling can write startup logs to stdout before MCP frames.
+                // Ignore those non-protocol lines and keep waiting for a JSON-RPC message.
             }
         }
-        return -1;
+        return null;
     }
 
     private static String readAll(InputStream stream) {
@@ -283,10 +273,20 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             process.destroyForcibly();
+        } finally {
+            ioExecutor.shutdownNow();
         }
     }
 
     void cancel() {
         close();
+    }
+
+    private static ThreadFactory daemonThreadFactory() {
+        return runnable -> {
+            Thread thread = new Thread(runnable, "shaft-mcp-stdio");
+            thread.setDaemon(true);
+            return thread;
+        };
     }
 }

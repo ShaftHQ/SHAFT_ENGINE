@@ -128,7 +128,7 @@ class ShaftPanelSetupTest {
     void assistantAndToolsControlsExposeAccessibleMetadata() {
         assertAccessibleControls(new ShaftAssistantPanel(null, blankMcpSettings()));
         assertAccessibleControls(new ShaftFeaturePanel(null, blankMcpSettings()));
-        assertAccessibleControls(new ShaftMcpSetupPanel(blankMcpSettings(), () -> {
+        assertAccessibleControls(new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         }));
         assertAccessibleControls(new GuidedWorkflowPanel(null, (tool, arguments) -> {
         }));

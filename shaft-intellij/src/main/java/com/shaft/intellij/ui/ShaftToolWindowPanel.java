@@ -42,7 +42,7 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private void showSetupView() {
         removeAll();
-        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(settings, this::showMainView);
+        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::showMainView);
         preferredFocusComponent = setup.preferredFocusComponent();
         tabs = null;
         advancedTools = null;
