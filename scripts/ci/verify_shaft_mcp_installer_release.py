@@ -14,6 +14,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+INSTALLER_CLIENTS = {"claude-desktop", "copilot", "copilot-intellij", "intellij-plugin"}
 
 
 def write_fake_copilot(bin_directory: Path) -> None:
@@ -44,6 +45,8 @@ def write_fake_copilot(bin_directory: Path) -> None:
 
 
 def installer_command(client: str, *extra_args: str) -> list[str]:
+    if client not in INSTALLER_CLIENTS:
+        raise ValueError(f"Unsupported installer verification client: {client}")
     if platform.system() == "Windows":
         return [
             "powershell",
@@ -197,7 +200,7 @@ def main() -> int:
             clients.append("claude-desktop")
 
         java = expected_java(environment)
-        plugin_install = subprocess.run(
+        plugin_install = subprocess.run(  # nosec B603 - client and arguments are validated above.
             installer_command("intellij-plugin", "--json"),
             cwd=root,
             env=environment,

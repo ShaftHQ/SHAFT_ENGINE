@@ -171,7 +171,7 @@ class ProviderConformanceTest {
     void serviceLoaderDiscoversAllDirectProviders() {
         var ids = new AiProviderRegistry().serviceProviders().stream().map(AiProvider::id).toList();
 
-        assertEquals(java.util.List.of("anthropic", "gemini", "github", "ollama", "openai"), ids);
+        assertEquals(List.of("anthropic", "gemini", "github", "ollama", "openai"), ids);
     }
 
     @Test
