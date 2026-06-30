@@ -14,7 +14,10 @@ final class AssistantCommand {
     private static final int DEFAULT_BROWSER_MAX_CHARACTERS = 12_000;
     private static final int DEFAULT_BROWSER_MAX_ELEMENTS = 10;
     private static final String SHAFT_MCP_USAGE_HINT =
-            "If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.";
+            """
+                    If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
+                    For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                    """.stripIndent().trim();
     private static final String HELP = """
             Slash commands:
             /guide <query> - Search the SHAFT guide.

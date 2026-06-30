@@ -5,6 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
+import com.shaft.intellij.mcp.ShaftMcpInstallResult;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
@@ -115,6 +116,80 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(formatted.contains("MCP installer")),
                 () -> assertFalse(formatted.contains("27.6%")),
                 () -> assertFalse(formatted.contains("########")));
+    }
+
+    @Test
+    void setupPanelShowsClearGreenInstallSuccessNextStep() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        ShaftMcpInstallResult result = new ShaftMcpInstallResult(true, "\"java\" \"@target/shaft-mcp.args\"", """
+                Client target: codex
+                {"client":"codex","server":"shaft-mcp","version":"1.0.0","command":"java","args":["@target/shaft-mcp.args"]}
+                """);
+
+        showInstallResult(panel, result);
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "SUCCESS: Installation completed successfully.")),
+                () -> assertTrue(containsText(panel, "Test connection and start chatting")),
+                () -> assertTrue(containsText(panel, "Installed")),
+                () -> assertFalse(findButton(panel, "Install / Update SHAFT MCP").isEnabled()),
+                () -> assertTrue(findButton(panel, "Test connection and start chatting").isEnabled()));
+    }
+
+    @Test
+    void setupPanelReenablesInstallOnlyWhenAssistantSelectionChanges() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        ShaftMcpInstallResult result = new ShaftMcpInstallResult(true, "\"java\" \"@target/shaft-mcp.args\"", """
+                {"client":"codex","server":"shaft-mcp","version":"1.0.0","command":"java","args":["@target/shaft-mcp.args"]}
+                """);
+
+        showInstallResult(panel, result);
+        JButton install = findButton(panel, "Install / Update SHAFT MCP");
+        JButton test = findButton(panel, "Test connection and start chatting");
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
+
+        assertAll(
+                () -> assertNotNull(install),
+                () -> assertNotNull(test),
+                () -> assertNotNull(family),
+                () -> assertNotNull(runtime),
+                () -> assertFalse(install.isEnabled()),
+                () -> assertTrue(test.isEnabled()));
+
+        family.setSelectedItem("CLAUDE");
+        assertAll(
+                () -> assertTrue(install.isEnabled()),
+                () -> assertFalse(test.isEnabled()),
+                () -> assertFalse(containsText(panel, "Installed")));
+
+        family.setSelectedItem("CODEX");
+        assertAll(
+                () -> assertFalse(install.isEnabled()),
+                () -> assertTrue(test.isEnabled()),
+                () -> assertTrue(containsText(panel, "Installed")));
+
+        runtime.setSelectedItem("DESKTOP_APP");
+        assertAll(
+                () -> assertTrue(install.isEnabled()),
+                () -> assertFalse(test.isEnabled()),
+                () -> assertFalse(containsText(panel, "Installed")));
+    }
+
+    @Test
+    void setupPanelShowsClearConnectionSuccess() throws Exception {
+        AtomicBoolean connected = new AtomicBoolean();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> connected.set(true));
+
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Probe OK")),
+                () -> assertTrue(containsText(panel, "SUCCESS: Connected to SHAFT MCP.")),
+                () -> assertTrue(containsText(panel, "Connected")),
+                () -> assertTrue(connected.get()));
     }
 
     @Test
@@ -348,11 +423,31 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(html.contains("class=\"message-row user\"")),
                 () -> assertTrue(html.contains("class=\"message-row assistant\"")),
+                () -> assertTrue(html.contains("class=\"message-bubble user\"")),
+                () -> assertTrue(html.contains("class=\"message-bubble assistant\"")),
+                () -> assertTrue(html.contains("cellpadding=\"8\"")),
+                () -> assertTrue(html.contains("border=\"0\"")),
+                () -> assertTrue(html.contains("bgcolor=")),
+                () -> assertTrue(html.contains("background-color:")),
+                () -> assertFalse(html.contains("border=\"1\"")),
                 () -> assertTrue(html.contains("class=\"message-hint\"")),
+                () -> assertFalse(html.contains("border-radius")),
                 () -> assertTrue(html.contains("Hello assistant")),
                 () -> assertTrue(html.contains("Hi user")),
                 () -> assertTrue(html.indexOf("Hi user") < html.indexOf("Type a question")),
                 () -> assertTrue(html.contains("align=\"left\"")));
+    }
+
+    @Test
+    void assistantTranscriptCanReplaceLiveAgentOutputWithFinalMessage() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("assistant", "Running Codex CLI...");
+        transcript.replaceLast("assistant", "Validated DuckDuckGo title.");
+
+        assertAll(
+                () -> assertEquals("Validated DuckDuckGo title.", transcript.markdown()),
+                () -> assertFalse(transcript.html().contains("Running Codex CLI")),
+                () -> assertTrue(transcript.html().contains("Validated DuckDuckGo title.")));
     }
 
     @Test
@@ -485,6 +580,11 @@ class ShaftPanelSetupTest {
         if (component instanceof AbstractButton button && button.getText() != null && button.getText().contains(expected)) {
             return true;
         }
+        if (component instanceof JTextComponent textComponent
+                && textComponent.getText() != null
+                && textComponent.getText().contains(expected)) {
+            return true;
+        }
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 if (containsText(child, expected)) {
@@ -509,6 +609,20 @@ class ShaftPanelSetupTest {
     private static void showToolResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {
         Method showResult = ShaftFeaturePanel.class.getDeclaredMethod(
                 "showResult", ShaftMcpToolResult.class, Throwable.class);
+        showResult.setAccessible(true);
+        showResult.invoke(panel, result, null);
+    }
+
+    private static void showInstallResult(ShaftMcpSetupPanel panel, ShaftMcpInstallResult result) throws Exception {
+        Method showResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "showInstallResult", ShaftMcpInstallResult.class, Throwable.class);
+        showResult.setAccessible(true);
+        showResult.invoke(panel, result, null);
+    }
+
+    private static void showTestResult(ShaftMcpSetupPanel panel, ShaftMcpToolResult result) throws Exception {
+        Method showResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "showTestResult", ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, result, null);
     }
@@ -728,7 +842,10 @@ class ShaftPanelSetupTest {
     }
 
     private static boolean needsAccessibleName(Component component) {
-        return component instanceof JButton button && button.getText() != null && !button.getClass().getSimpleName().equals("MetalComboBoxButton")
+        return component instanceof JButton button
+                && button.getText() != null
+                && !button.getText().isBlank()
+                && !button.getClass().getSimpleName().equals("MetalComboBoxButton")
                 || component instanceof JComboBox<?>
                 || component instanceof JTextComponent;
     }

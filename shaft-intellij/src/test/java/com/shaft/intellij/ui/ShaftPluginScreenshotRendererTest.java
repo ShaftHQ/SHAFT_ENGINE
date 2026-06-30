@@ -1,9 +1,10 @@
 package com.shaft.intellij.ui;
 
-import com.shaft.intellij.settings.ShaftSettingsConfigurable;
-import com.shaft.intellij.settings.ShaftSettingsState;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
+import com.shaft.intellij.mcp.ShaftMcpInstallResult;
+import com.shaft.intellij.settings.ShaftSettingsConfigurable;
+import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +26,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -71,6 +73,7 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantLightScreenshot = outputPath.resolve("intellij-plugin-assistant.png");
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
         Path assistantNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-narrow-dark.png");
+        Path assistantLiveDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-live-output-dark.png");
         Path guidedScreenshot = outputPath.resolve("intellij-plugin-guided.png");
         Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
         Path inspectorScreenshot = outputPath.resolve("intellij-plugin-inspector.png");
@@ -82,6 +85,7 @@ class ShaftPluginScreenshotRendererTest {
         Path toolsLightScreenshot = outputPath.resolve("intellij-plugin-tools.png");
         Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
         Path mcpSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup.png");
+        Path mcpSetupSuccessScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-success.png");
         Path settingsScreenshot = outputPath.resolve("intellij-plugin-settings.png");
         Path settingsDarkScreenshot = outputPath.resolve("intellij-plugin-settings-dark.png");
         Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
@@ -89,6 +93,7 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
         write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
+        write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
         write(guidedScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
         write(recorderScreenshot, renderToolWindow(2, "", LIGHT_THEME, false));
         write(inspectorScreenshot, renderToolWindow(3, "", LIGHT_THEME, false));
@@ -100,6 +105,7 @@ class ShaftPluginScreenshotRendererTest {
         Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
+        write(mcpSetupSuccessScreenshot, renderSetupSuccess(LIGHT_THEME, false));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         write(settingsDarkScreenshot, renderSettings(DARK_THEME, true));
         write(mcpGuideScreenshot, renderToolWindow(7, "Guide", LIGHT_THEME, false));
@@ -107,6 +113,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantNarrowDarkScreenshot) > 0, assistantNarrowDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantLiveDarkScreenshot) > 0, assistantLiveDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(guidedScreenshot) > 0, guidedScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(inspectorScreenshot) > 0, inspectorScreenshot + " should be non-empty"),
@@ -118,12 +125,14 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupScreenshot) > 0, mcpSetupScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupSuccessScreenshot) > 0, mcpSetupSuccessScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsScreenshot) > 0, settingsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsDarkScreenshot) > 0, settingsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
                 () -> assertDimensions(assistantDarkScreenshot),
                 () -> assertDimensions(assistantNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
+                () -> assertDimensions(assistantLiveDarkScreenshot),
                 () -> assertDimensions(guidedScreenshot),
                 () -> assertDimensions(recorderScreenshot),
                 () -> assertDimensions(inspectorScreenshot),
@@ -135,6 +144,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(toolsLightScreenshot),
                 () -> assertDimensions(toolsDarkScreenshot),
                 () -> assertDimensions(mcpSetupScreenshot),
+                () -> assertDimensions(mcpSetupSuccessScreenshot),
                 () -> assertDimensions(settingsScreenshot),
                 () -> assertDimensions(settingsDarkScreenshot),
                 () -> assertDimensions(mcpGuideScreenshot),
@@ -188,12 +198,73 @@ class ShaftPluginScreenshotRendererTest {
         return image.get();
     }
 
+    private static BufferedImage renderAssistantLiveOutput(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            chatState.append("user", """
+                    **You (Agent via Codex CLI)**
+
+                    Use shaft-mcp WebDriver tools only. Open DuckDuckGo, search for SHAFT Engine, open the first result, and validate the title.
+                    """.stripIndent().trim(), "");
+            chatState.append("assistant", """
+                    _Running local assistant..._
+
+                    ```text
+                    codex exec started
+                    Calling driver_initialize for Chrome
+                    Opening https://duckduckgo.com
+                    Searching for SHAFT Engine
+                    ```
+                    """.stripIndent().trim(), "");
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), defaultSettings(), chatState,
+                    () -> {
+                    });
+            invokeSetRunning(component, true, "Thinking...");
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+            invokeSetRunning(component, false, "ready");
+        });
+        return image.get();
+    }
+
     private static BufferedImage renderSetup(String lookAndFeelClassName, boolean dark)
             throws InterruptedException, InvocationTargetException {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
             JComponent component = new ShaftToolWindowPanel(screenshotProject(), new ShaftSettingsState.Settings());
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static BufferedImage renderSetupSuccess(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), new ShaftSettingsState.Settings(),
+                    () -> {
+                    });
+            invokeShowInstallResult(component, new ShaftMcpInstallResult(true, "\"java\" \"@target/shaft-mcp.args\"",
+                    """
+                            Client target: codex
+                            Resolving io.github.shafthq:shaft-mcp:LATEST...
+                            Installing io.github.shafthq:shaft-mcp:10.2.20260628
+                            {"client":"codex","server":"shaft-mcp","version":"10.2.20260628","command":"java","args":["@target/shaft-mcp.args"]}
+                            """.stripIndent().trim()));
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
@@ -221,6 +292,27 @@ class ShaftPluginScreenshotRendererTest {
             return (JComponent) configurable.createComponent();
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to create settings screenshot panel", exception);
+        }
+    }
+
+    private static void invokeSetRunning(ShaftAssistantPanel component, boolean running, String message) {
+        try {
+            Method setRunning = ShaftAssistantPanel.class.getDeclaredMethod("setRunning", boolean.class, String.class);
+            setRunning.setAccessible(true);
+            setRunning.invoke(component, running, message);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to set Assistant running state", exception);
+        }
+    }
+
+    private static void invokeShowInstallResult(ShaftMcpSetupPanel component, ShaftMcpInstallResult result) {
+        try {
+            Method showResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                    "showInstallResult", ShaftMcpInstallResult.class, Throwable.class);
+            showResult.setAccessible(true);
+            showResult.invoke(component, result, null);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to set MCP setup success state", exception);
         }
     }
 

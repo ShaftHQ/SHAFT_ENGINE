@@ -39,8 +39,15 @@ final class AssistantTranscriptView extends JPanel {
         pane.setEditable(false);
         pane.setOpaque(true);
         pane.setBorder(JBUI.Borders.empty(8));
+        Color transcriptBackground = resolvedColor("TextArea.background", Color.WHITE);
+        pane.setBackground(transcriptBackground);
         showInitialMessage();
-        add(new JBScrollPane(pane), BorderLayout.CENTER);
+        JBScrollPane scrollPane = new JBScrollPane(pane);
+        scrollPane.setBorder(JBUI.Borders.empty());
+        scrollPane.setBackground(transcriptBackground);
+        scrollPane.getViewport().setOpaque(true);
+        scrollPane.getViewport().setBackground(transcriptBackground);
+        add(scrollPane, BorderLayout.CENTER);
     }
 
     String markdown() {
@@ -59,6 +66,21 @@ final class AssistantTranscriptView extends JPanel {
 
     void append(String role, String message) {
         addMessage(role, message);
+        markdown = joinMessages(messages);
+        refresh();
+    }
+
+    void replaceLast(String role, String message) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        if (messages.isEmpty()) {
+            append(role, message);
+            return;
+        }
+        ShaftAssistantChatState.Message last = messages.get(messages.size() - 1);
+        last.role = normalizedRole(role);
+        last.markdown = message;
         markdown = joinMessages(messages);
         refresh();
     }
@@ -101,36 +123,21 @@ final class AssistantTranscriptView extends JPanel {
                 <head>
                   <style>
                     body { font-family: %s; font-size: %dpt; color: %s; background: %s; margin: 0; }
-                    table.message-row { margin: 0 0 8px 0; }
-                    .message-bubble {
-                        width: 86%%;
-                        border: 1px solid %s;
-                        border-radius: 12px;
-                        padding: 8px 10px;
-                        text-align: right;
-                    }
-                    .message-bubble.assistant {
-                        background: %s;
-                        color: %s;
-                    }
-                    .message-bubble.user {
-                        background: %s;
-                        color: %s;
-                        border-color: %s;
-                    }
+                    #chat { background: %s; }
+                    table.message-row { margin: 0 0 8px 0; background: %s; }
+                    table.message-row td { background: %s; }
                     .message-hint {
                         margin: 4px 0 0 0;
                         text-align: left;
+                        background: %s;
                     }
                     p, ul, ol, h1, h2, h3 { margin: 0 0 8px 0; }
-                    .message-bubble p { text-align: right; }
-                    .message-hint p { text-align: left; }
+                    .message-hint p { text-align: left; background: %s; }
                     pre {
                         margin: 8px 0;
-                        padding: 8px;
+                        padding: 0;
                         background: %s;
-                        border: 1px solid %s;
-                        border-radius: 8px;
+                        border: 0;
                         white-space: pre-wrap;
                     }
                     code { font-family: Monospaced; }
@@ -143,14 +150,12 @@ final class AssistantTranscriptView extends JPanel {
                 Math.max(11, pane.getFont() == null ? 12 : pane.getFont().getSize()),
                 color("TextArea.foreground", "#000000"),
                 color("TextArea.background", "#ffffff"),
-                color("Component.borderColor", "#d8d8d8"),
-                color("Panel.background", "#f5f7fc"),
-                color("TextArea.foreground", "#202020"),
-                color("Panel.selectionBackground", "#4B86FF"),
-                color("Panel.selectionForeground", "#ffffff"),
-                color("Panel.selectionBackground", "#4B86FF"),
-                color("Panel.background", "#f2f2f2"),
-                color("Component.borderColor", "#cccccc"),
+                color("TextArea.background", "#ffffff"),
+                color("TextArea.background", "#ffffff"),
+                color("TextArea.background", "#ffffff"),
+                color("TextArea.background", "#ffffff"),
+                color("TextArea.background", "#ffffff"),
+                color("TextArea.background", "#ffffff"),
                 value);
     }
 
@@ -182,18 +187,38 @@ final class AssistantTranscriptView extends JPanel {
     private static String renderMessage(String role, String markdown) {
         boolean user = USER_ROLE.equals(normalizedRole(role));
         String roleClass = roleClass(user);
-        return "<table class=\"message-row " + roleClass + "\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">"
-                + "<tr><td align=\"" + (user ? "right" : "left") + "\">"
-                + "<div class=\"message-bubble " + roleClass + "\">"
-                + convertMarkdown(markdown)
-                + "</div></td></tr></table>";
+        String transcriptBackground = color("TextArea.background", "#ffffff");
+        String background = user
+                ? color("Panel.selectionBackground", "#4B86FF")
+                : transcriptBackground;
+        String foreground = user
+                ? color("Panel.selectionForeground", "#ffffff")
+                : color("TextArea.foreground", "#202020");
+        return "<table class=\"message-row " + roleClass
+                + "\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\"" + transcriptBackground + "\">"
+                + "<tr><td align=\"" + (user ? "right" : "left") + "\" bgcolor=\"" + transcriptBackground + "\">"
+                + "<table class=\"message-bubble " + roleClass
+                + "\" width=\"88%\" cellspacing=\"0\" cellpadding=\"8\" border=\"0\" bgcolor=\"" + background
+                + "\" style=\"background-color:" + background + "; border-collapse:collapse;\">"
+                + "<tr><td class=\"message-content " + roleClass + "\" bgcolor=\"" + background
+                + "\" style=\"color:" + foreground + "; background-color:" + background + ";\">"
+                + messageHtml(markdown, background)
+                + "</td></tr></table></td></tr></table>";
     }
 
     private static String renderInitialMessage() {
-        return "<table class=\"message-hint\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">"
-                + "<tr><td align=\"left\">"
+        String transcriptBackground = color("TextArea.background", "#ffffff");
+        return "<table class=\"message-hint\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\""
+                + transcriptBackground + "\">"
+                + "<tr><td align=\"left\" bgcolor=\"" + transcriptBackground + "\">"
                 + convertMarkdown(INITIAL_MESSAGE)
                 + "</td></tr></table>";
+    }
+
+    private static String messageHtml(String markdown, String background) {
+        return convertMarkdown(markdown)
+                .replace("<pre>", "<pre style=\"background-color:" + background
+                        + "; border:0; padding:0; margin:8px 0;\">");
     }
 
     private static String joinMessages(List<ShaftAssistantChatState.Message> messageList) {
@@ -231,7 +256,16 @@ final class AssistantTranscriptView extends JPanel {
         if (resolved == null) {
             return fallback;
         }
-        return "#%02x%02x%02x".formatted(resolved.getRed(), resolved.getGreen(), resolved.getBlue());
+        return hex(resolved);
+    }
+
+    private static Color resolvedColor(String uiKey, Color fallback) {
+        Color resolved = UIManager.getColor(uiKey);
+        return resolved == null ? fallback : resolved;
+    }
+
+    private static String hex(Color color) {
+        return "#%02x%02x%02x".formatted(color.getRed(), color.getGreen(), color.getBlue());
     }
 
     private static String escapeHtml(String value) {
