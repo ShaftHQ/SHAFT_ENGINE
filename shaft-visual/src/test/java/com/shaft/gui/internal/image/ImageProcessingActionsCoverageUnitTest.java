@@ -162,6 +162,16 @@ public class ImageProcessingActionsCoverageUnitTest {
     }
 
     @Test
+    public void findImageWithinCurrentPageShouldMatchReferenceCapturedAtLowerDpi() {
+        assertScaledReferenceMatch(0.5);
+    }
+
+    @Test
+    public void findImageWithinCurrentPageShouldMatchReferenceCapturedAtHigherDpi() {
+        assertScaledReferenceMatch(1.5);
+    }
+
+    @Test
     public void findImageWithinCurrentPageShouldReturnEmptyForInvalidOrEmptyInputs() {
         Path invalidReference = tempDir.resolve("invalid-reference.png");
         FILE_ACTIONS.writeToFile(invalidReference.toString(), "invalid-image");
@@ -500,6 +510,62 @@ public class ImageProcessingActionsCoverageUnitTest {
         graphics.fillRect(x, y, cropWidth, cropHeight);
         graphics.dispose();
         return encodePng(image);
+    }
+
+    private void assertScaledReferenceMatch(double referenceScale) {
+        int targetX = 26;
+        int targetY = 22;
+        int targetWidth = 36;
+        int targetHeight = 24;
+        Path referenceImage = tempDir.resolve("scaled-reference-" + referenceScale + ".png");
+        FILE_ACTIONS.writeToFile(referenceImage.toString(), encodePng(scaleImage(createReferenceTarget(targetWidth, targetHeight), referenceScale)));
+
+        List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(
+                referenceImage.toString(),
+                encodePng(createScreenshotWithReferenceTarget(96, 80, targetX, targetY, targetWidth, targetHeight)));
+
+        Assert.assertFalse(coordinates.isEmpty());
+        Assert.assertEquals(coordinates.size(), 2);
+        Assert.assertTrue(Math.abs(coordinates.get(0) - (targetX + targetWidth / 2)) <= 3);
+        Assert.assertTrue(Math.abs(coordinates.get(1) - (targetY + targetHeight / 2)) <= 3);
+    }
+
+    private static BufferedImage createScreenshotWithReferenceTarget(int width, int height, int x, int y,
+                                                                    int targetWidth, int targetHeight) {
+        BufferedImage image = createImage(width, height, Color.WHITE);
+        Graphics2D graphics = image.createGraphics();
+        drawReferenceTarget(graphics, x, y, targetWidth, targetHeight);
+        graphics.dispose();
+        return image;
+    }
+
+    private static BufferedImage createReferenceTarget(int width, int height) {
+        BufferedImage image = createImage(width, height, Color.WHITE);
+        Graphics2D graphics = image.createGraphics();
+        drawReferenceTarget(graphics, 0, 0, width, height);
+        graphics.dispose();
+        return image;
+    }
+
+    private static void drawReferenceTarget(Graphics2D graphics, int x, int y, int width, int height) {
+        graphics.setColor(Color.YELLOW);
+        graphics.fillRect(x, y, width, height);
+        graphics.setColor(Color.BLACK);
+        graphics.drawRect(x, y, width - 1, height - 1);
+        graphics.drawLine(x + 3, y + 3, x + width - 4, y + height - 4);
+        graphics.drawLine(x + width - 4, y + 3, x + 3, y + height - 4);
+        graphics.setColor(Color.BLUE);
+        graphics.fillOval(x + width / 3, y + height / 4, width / 3, height / 2);
+    }
+
+    private static BufferedImage scaleImage(BufferedImage source, double scale) {
+        int width = Math.max(1, (int) Math.round(source.getWidth() * scale));
+        int height = Math.max(1, (int) Math.round(source.getHeight() * scale));
+        BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = scaled.createGraphics();
+        graphics.drawImage(source, 0, 0, width, height, null);
+        graphics.dispose();
+        return scaled;
     }
 
     private static BufferedImage createImage(int width, int height, Color color) {
