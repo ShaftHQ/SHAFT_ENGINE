@@ -392,9 +392,6 @@ final class ShaftAssistantPanel extends JPanel {
     private void showTransientStatus(String message) {
         stopTransientStatus();
         status.setText(message);
-        if (TRANSIENT_STATUS_MILLIS <= 0) {
-            return;
-        }
         transientStatusTimer = new Timer(TRANSIENT_STATUS_MILLIS, event -> {
             status.setText("Ready");
             stopTransientStatus();
