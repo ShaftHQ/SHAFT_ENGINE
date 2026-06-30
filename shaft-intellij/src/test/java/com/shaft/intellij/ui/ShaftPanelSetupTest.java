@@ -302,7 +302,7 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         assertAll(
-                () -> assertNull(findButton(panel, "Test connection and start chatting").getIcon()),
+                () -> assertNull(findButton(panel, "Test connection and start chatting")),
                 () -> assertNull(findButton(panel, "Copy response").getIcon()),
                 () -> assertNull(findButton(panel, "Copy raw").getIcon()),
                 () -> assertNull(findButton(panel, "Copy all").getIcon()),
@@ -328,8 +328,10 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(family),
                 () -> assertNotNull(runtime),
                 () -> assertTrue(configure.isVisible()),
-                () -> assertFalse(family.isEnabled()),
-                () -> assertFalse(runtime.isEnabled()),
+                () -> assertFalse(family.isVisible()),
+                () -> assertFalse(runtime.isVisible()),
+                () -> assertTrue(containsText(panel, "Agent: Local / Codex / CLI")),
+                () -> assertNull(findButton(panel, "Test connection and start chatting")),
                 () -> assertFalse(openedSetup.get()));
 
         configure.doClick();
@@ -346,9 +348,11 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(html.contains("class=\"message-row user\"")),
                 () -> assertTrue(html.contains("class=\"message-row assistant\"")),
+                () -> assertTrue(html.contains("class=\"message-hint\"")),
                 () -> assertTrue(html.contains("Hello assistant")),
                 () -> assertTrue(html.contains("Hi user")),
-                () -> assertTrue(html.contains("text-align: right")));
+                () -> assertTrue(html.indexOf("Hi user") < html.indexOf("Type a question")),
+                () -> assertTrue(html.contains("align=\"left\"")));
     }
 
     @Test

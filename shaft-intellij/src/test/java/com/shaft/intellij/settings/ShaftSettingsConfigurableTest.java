@@ -3,7 +3,9 @@ package com.shaft.intellij.settings;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPasswordField;
 import java.awt.Component;
 import java.awt.Container;
@@ -37,6 +39,8 @@ class ShaftSettingsConfigurableTest {
         assertTrue(source.contains("Assistant provider type"));
         assertTrue(source.contains("Assistant family"));
         assertTrue(source.contains("Assistant runtime"));
+        assertTrue(source.contains("Current agent configuration"));
+        assertTrue(source.contains("Configure assistant agent"));
         assertTrue(source.contains("github"));
         assertTrue(source.contains("SHAFT AI provider"));
         assertTrue(source.contains("setAccessibleDescription(\"Mark this provider key as ready to clear on apply.\")"));
@@ -93,6 +97,41 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(findByAccessibleName(panel, "Assistant provider type"));
         assertNotNull(findByAccessibleName(panel, "Assistant family"));
         assertNotNull(findByAccessibleName(panel, "Assistant runtime"));
+    }
+
+    @Test
+    void settingsShowsConnectedAgentConfigurationReadOnlyUntilConfigureIsClicked() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        settings.assistantFamily = "CLAUDE";
+        settings.assistantRuntime = "DESKTOP_APP";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JLabel currentAgent = findByAccessibleName(panel, "Current agent configuration", JLabel.class);
+        JButton configure = findByAccessibleName(panel, "Configure assistant agent", JButton.class);
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
+
+        assertNotNull(currentAgent);
+        assertNotNull(configure);
+        assertNotNull(family);
+        assertNotNull(runtime);
+        assertTrue(currentAgent.isVisible());
+        assertTrue(configure.isVisible());
+        assertTrue(currentAgent.getText().contains("Agent: Local / Claude / Desktop app"));
+        assertFalse(family.isVisible());
+        assertFalse(runtime.isVisible());
+        boolean modifiedBeforeConfigure = configurable.isModified();
+
+        configure.doClick();
+
+        assertFalse(currentAgent.isVisible());
+        assertFalse(configure.isVisible());
+        assertTrue(family.isVisible());
+        assertTrue(runtime.isVisible());
+        assertEquals(modifiedBeforeConfigure, configurable.isModified());
     }
 
     @Test

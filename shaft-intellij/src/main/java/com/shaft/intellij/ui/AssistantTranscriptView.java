@@ -27,7 +27,7 @@ final class AssistantTranscriptView extends JPanel {
 
     private final JEditorPane pane;
     private final List<ShaftAssistantChatState.Message> messages = new ArrayList<>();
-    private String markdown = INITIAL_MESSAGE;
+    private String markdown = "";
 
     AssistantTranscriptView() {
         super(new BorderLayout());
@@ -118,8 +118,13 @@ final class AssistantTranscriptView extends JPanel {
                         color: %s;
                         border-color: %s;
                     }
+                    .message-hint {
+                        margin: 4px 0 0 0;
+                        text-align: left;
+                    }
                     p, ul, ol, h1, h2, h3 { margin: 0 0 8px 0; }
-                    p { text-align: right; }
+                    .message-bubble p { text-align: right; }
+                    .message-hint p { text-align: left; }
                     pre {
                         margin: 8px 0;
                         padding: 8px;
@@ -158,7 +163,7 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private void refresh() {
-        pane.setText(toHtml(renderMessages()));
+        pane.setText(toHtml(renderMessages() + renderInitialMessage()));
         pane.setCaretPosition(pane.getDocument().getLength());
     }
 
@@ -171,8 +176,7 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private void showInitialMessage() {
-        pane.setText(toHtml(renderMessage(UNKNOWN_ROLE, INITIAL_MESSAGE)));
-        pane.setCaretPosition(pane.getDocument().getLength());
+        refresh();
     }
 
     private static String renderMessage(String role, String markdown) {
@@ -183,6 +187,13 @@ final class AssistantTranscriptView extends JPanel {
                 + "<div class=\"message-bubble " + roleClass + "\">"
                 + convertMarkdown(markdown)
                 + "</div></td></tr></table>";
+    }
+
+    private static String renderInitialMessage() {
+        return "<table class=\"message-hint\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">"
+                + "<tr><td align=\"left\">"
+                + convertMarkdown(INITIAL_MESSAGE)
+                + "</td></tr></table>";
     }
 
     private static String joinMessages(List<ShaftAssistantChatState.Message> messageList) {

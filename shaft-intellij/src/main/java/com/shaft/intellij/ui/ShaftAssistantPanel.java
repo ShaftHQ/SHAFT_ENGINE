@@ -67,7 +67,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton copyTranscript;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
-    private final JButton testConnection;
+    private final JLabel currentAgentConfiguration;
     private final JButton configure;
     private final JProgressBar progress;
     private final JLabel status;
@@ -118,6 +118,10 @@ final class ShaftAssistantPanel extends JPanel {
         assistantFamily.setSelectedItem(resolveFamily(settings));
         assistantRuntime = combo("Assistant runtime", "CLI", "IDE_PLUGIN", "DESKTOP_APP");
         assistantRuntime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
+        currentAgentConfiguration = new JLabel();
+        currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
+        currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
+                "Read-only assistant agent configuration from the completed MCP setup flow.");
         cloudProvider = combo("Assistant cloud provider", "openai", "anthropic", "gemini", "github");
         cloudProvider.setSelectedItem(normalizeLower(settings.cloudProvider, "openai"));
         cloudModel = new JBTextField();
@@ -168,7 +172,6 @@ final class ShaftAssistantPanel extends JPanel {
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
         rerunLastPrompt.setEnabled(false);
-        testConnection = button("Test connection and start chatting", "Test SHAFT MCP connection", event -> testConnection(project));
         this.configure = button("Configure", "Open SHAFT MCP setup", event -> openSetup());
 
         mode.addActionListener(event -> updateControlVisibility());
@@ -184,7 +187,6 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel actionRow = wrapRow();
         actionRow.add(chatSelector);
         actionRow.add(newChat);
-        actionRow.add(testConnection);
         actionRow.add(copyLastResponse);
         actionRow.add(copyRawResponse);
         actionRow.add(copyTranscript);
@@ -198,6 +200,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(providerType);
         routeRow.add(assistantFamily);
         routeRow.add(assistantRuntime);
+        routeRow.add(currentAgentConfiguration);
         routeRow.add(configure);
         routeRow.add(customCommand);
         routeRow.add(cloudProvider);
@@ -365,7 +368,6 @@ final class ShaftAssistantPanel extends JPanel {
         send.setEnabled(!running);
         chatSelector.setEnabled(!running);
         newChat.setEnabled(!running);
-        testConnection.setEnabled(!running);
         configure.setEnabled(!running);
         rerunLastPrompt.setEnabled(!running && !lastPrompt.isBlank());
         mode.setEnabled(!running);
@@ -417,20 +419,23 @@ final class ShaftAssistantPanel extends JPanel {
         boolean lockedRoute = configureFlow != null && mcpConfigured();
         boolean controlsEnabled = !running;
         mode.setEnabled(controlsEnabled);
-        providerType.setEnabled(controlsEnabled);
-        assistantFamily.setVisible(!cloud);
-        assistantRuntime.setVisible(!cloud);
+        providerType.setVisible(!lockedRoute);
+        providerType.setEnabled(controlsEnabled && !lockedRoute);
+        assistantFamily.setVisible(!lockedRoute && !cloud);
+        assistantRuntime.setVisible(!lockedRoute && !cloud);
         assistantFamily.setEnabled(controlsEnabled && !lockedRoute);
         assistantRuntime.setEnabled(controlsEnabled && !lockedRoute);
-        customCommand.setVisible(localCli);
+        currentAgentConfiguration.setText(currentAgentConfigurationText());
+        currentAgentConfiguration.setVisible(lockedRoute);
+        customCommand.setVisible(!lockedRoute && localCli);
         customCommand.setEnabled(controlsEnabled && !lockedRoute && localCli);
-        cloudProvider.setVisible(cloud);
-        cloudProvider.setEnabled(controlsEnabled && cloud);
-        cloudModel.setVisible(cloud);
-        cloudModel.setEnabled(controlsEnabled && cloud);
-        cloudKeyPanel.setVisible(cloud);
-        cloudApiKey.setEnabled(controlsEnabled && cloud);
-        saveCloudApiKey.setEnabled(controlsEnabled && cloud);
+        cloudProvider.setVisible(!lockedRoute && cloud);
+        cloudProvider.setEnabled(controlsEnabled && !lockedRoute && cloud);
+        cloudModel.setVisible(!lockedRoute && cloud);
+        cloudModel.setEnabled(controlsEnabled && !lockedRoute && cloud);
+        cloudKeyPanel.setVisible(!lockedRoute && cloud);
+        cloudApiKey.setEnabled(controlsEnabled && !lockedRoute && cloud);
+        saveCloudApiKey.setEnabled(controlsEnabled && !lockedRoute && cloud);
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localCli);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localCli);
@@ -540,18 +545,6 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
-    private void testConnection(Project project) {
-        if (!mcpConfigured()) {
-            showLocalResponse("Configure SHAFT MCP in Settings before testing the connection.");
-            status.setText("Configure MCP");
-            return;
-        }
-        setRunning(true, "Testing MCP...");
-        currentInvocation = ShaftMcpInvocationService.getInstance(project).testConnection();
-        currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
-                () -> showResult("mcp initialize", result, error)));
-    }
-
     private void cancelCurrent() {
         if (currentInvocation != null) {
             currentInvocation.cancel();
@@ -643,7 +636,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private boolean mcpConfigured() {
-        return settings.mcpCommand != null && !settings.mcpCommand.isBlank();
+        return mcpReady(settings);
     }
 
     private boolean usesCloud() {
@@ -661,7 +654,7 @@ final class ShaftAssistantPanel extends JPanel {
             }
         });
         panel.add(openSettings);
-        panel.setVisible(settings.mcpCommand == null || settings.mcpCommand.isBlank());
+        panel.setVisible(!mcpReady(settings));
         return panel;
     }
 
@@ -716,6 +709,22 @@ final class ShaftAssistantPanel extends JPanel {
             return ShaftUiLabels.friendly(route.cloudProvider());
         }
         return route.displayName();
+    }
+
+    private static boolean mcpReady(ShaftSettingsState.Settings settings) {
+        return settings != null
+                && settings.mcpSetupComplete
+                && settings.mcpCommand != null
+                && !settings.mcpCommand.isBlank();
+    }
+
+    private String currentAgentConfigurationText() {
+        if ("CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
+            String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " / " + settings.cloudModel.trim();
+            return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "openai")) + model;
+        }
+        return "Agent: Local / " + ShaftUiLabels.friendly(resolveFamily(settings))
+                + " / " + ShaftUiLabels.friendly(normalize(settings.assistantRuntime, "CLI"));
     }
 
     private static String providerKeyName(String provider) {

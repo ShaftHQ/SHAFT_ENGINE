@@ -49,6 +49,15 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JButton configureRuntimeMcp;
     private JButton configureCopilotMcp;
     private JLabel testStatus;
+    private JLabel currentAgentConfigurationTitle;
+    private JLabel currentAgentConfiguration;
+    private JPanel currentAgentConfigurationRow;
+    private JButton configureAgent;
+    private JLabel assistantProviderTypeLabel;
+    private JLabel assistantFamilyLabel;
+    private JLabel assistantRuntimeLabel;
+    private JLabel cloudProviderLabel;
+    private JLabel cloudModelLabel;
     private JComboBox<String> assistantProviderType;
     private JComboBox<String> assistantFamily;
     private JComboBox<String> assistantRuntime;
@@ -75,6 +84,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private boolean anthropicClearRequested;
     private boolean geminiClearRequested;
     private boolean githubClearRequested;
+    private boolean editingAgentConfiguration;
 
     /**
      * Creates a settings page backed by IntelliJ persistent services.
@@ -130,6 +140,18 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 "Install or update shaft-mcp and configure GitHub Copilot for IntelliJ IDEA.");
         configureCopilotMcp.addActionListener(event -> configureCopilotMcp());
         testStatus = help("Not tested");
+        currentAgentConfiguration = new JLabel();
+        currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
+        currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
+                "Read-only assistant agent configuration saved after the MCP setup check.");
+        configureAgent = new JButton("Configure");
+        configureAgent.getAccessibleContext().setAccessibleName("Configure assistant agent");
+        configureAgent.getAccessibleContext().setAccessibleDescription(
+                "Edit the assistant agent configuration used by the SHAFT plugin.");
+        configureAgent.addActionListener(event -> {
+            editingAgentConfiguration = true;
+            updateAgentConfigurationControls();
+        });
         assistantProviderType = new JComboBox<>(model("LOCAL", "CLOUD"));
         ShaftUiLabels.applyFriendlyRenderer(assistantProviderType);
         assistantProviderType.getAccessibleContext().setAccessibleName("Assistant provider type");
@@ -194,6 +216,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         configureClearButton(clearGeminiKey, "Clear stored Gemini API key", geminiKey, geminiKeyStatus, () -> geminiClearRequested = true);
         clearGithubKey = new JButton("Clear");
         configureClearButton(clearGithubKey, "Clear stored GitHub API key", githubKey, githubKeyStatus, () -> githubClearRequested = true);
+        currentAgentConfigurationTitle = label("Current agent", 'C', currentAgentConfiguration);
+        currentAgentConfigurationRow = agentConfigurationRow(currentAgentConfiguration, configureAgent);
+        assistantProviderTypeLabel = label("Provider type", 'Y', assistantProviderType);
+        assistantFamilyLabel = label("Family", 'F', assistantFamily);
+        assistantRuntimeLabel = label("Runtime", 'R', assistantRuntime);
+        cloudProviderLabel = label("Cloud provider", 'V', cloudProvider);
+        cloudModelLabel = label("Cloud model", 'W', cloudModel);
 
         panel = FormBuilder.createFormBuilder()
                 .addComponent(section("MCP"))
@@ -202,11 +231,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addLabeledComponent(testMcp, testStatus)
                 .addComponent(help("The command is filled by the installer. Edit it only for a custom local shaft-mcp runtime."))
                 .addComponent(section("Assistant"))
-                .addLabeledComponent(label("Provider type", 'Y', assistantProviderType), assistantProviderType)
-                .addLabeledComponent(label("Family", 'F', assistantFamily), assistantFamily)
-                .addLabeledComponent(label("Runtime", 'R', assistantRuntime), assistantRuntime)
-                .addLabeledComponent(label("Cloud provider", 'V', cloudProvider), cloudProvider)
-                .addLabeledComponent(label("Cloud model", 'W', cloudModel), cloudModel)
+                .addLabeledComponent(currentAgentConfigurationTitle, currentAgentConfigurationRow)
+                .addLabeledComponent(assistantProviderTypeLabel, assistantProviderType)
+                .addLabeledComponent(assistantFamilyLabel, assistantFamily)
+                .addLabeledComponent(assistantRuntimeLabel, assistantRuntime)
+                .addLabeledComponent(cloudProviderLabel, cloudProvider)
+                .addLabeledComponent(cloudModelLabel, cloudModel)
                 .addLabeledComponent(label("Default assistant mode", 'D', defaultMode), defaultMode)
                 .addComponent(help("The Assistant tab is always available. Agent mode still requires explicit source mutation approval per request."))
                 .addComponent(section("SHAFT AI provider"))
@@ -285,6 +315,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         anthropicClearRequested = false;
         geminiClearRequested = false;
         githubClearRequested = false;
+        editingAgentConfiguration = false;
+        updateAgentConfigurationControls();
     }
 
     @Override
@@ -311,6 +343,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         clear(geminiKey);
         clear(githubKey);
         updateStoredKeyStatus(credentialsProvider.get());
+        editingAgentConfiguration = false;
+        updateAgentConfigurationControls();
     }
 
     @Override
@@ -322,6 +356,15 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         configureRuntimeMcp = null;
         configureCopilotMcp = null;
         testStatus = null;
+        currentAgentConfigurationTitle = null;
+        currentAgentConfiguration = null;
+        currentAgentConfigurationRow = null;
+        configureAgent = null;
+        assistantProviderTypeLabel = null;
+        assistantFamilyLabel = null;
+        assistantRuntimeLabel = null;
+        cloudProviderLabel = null;
+        cloudModelLabel = null;
         assistantProviderType = null;
         assistantFamily = null;
         assistantRuntime = null;
@@ -344,6 +387,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         anthropicKeyStatus = null;
         geminiKeyStatus = null;
         githubKeyStatus = null;
+        editingAgentConfiguration = false;
     }
 
     private static ComboBoxModel<String> model(String... values) {
@@ -427,6 +471,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         row.add(clearButton);
         row.add(statusLabel);
+        return row;
+    }
+
+    private static JPanel agentConfigurationRow(JLabel currentConfiguration, JButton configureButton) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        row.add(currentConfiguration);
+        row.add(configureButton);
         return row;
     }
 
@@ -517,6 +568,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         if (result != null && result.success()) {
             statusLabel.setText("Connected");
             saveConnectedSettings();
+            editingAgentConfiguration = false;
+            updateAgentConfigurationControls();
         } else {
             statusLabel.setText("Failed");
             Messages.showErrorDialog(host, result == null ? "No result returned." : result.output(), "SHAFT MCP");
@@ -549,6 +602,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             state.mcpCommand = result.commandLine();
             state.mcpSetupComplete = false;
             testStatus.setText("Installed");
+            updateAgentConfigurationControls();
         } else {
             testStatus.setText("Install failed");
             Messages.showErrorDialog(panel, result == null ? "No installer result returned." : result.output(),
@@ -648,6 +702,45 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.pilotAiModel = form.pilotAiModel;
         state.passProviderApiKeysToMcp = form.passProviderApiKeysToMcp;
         state.mcpSetupComplete = true;
+    }
+
+    private void updateAgentConfigurationControls() {
+        if (currentAgentConfiguration == null) {
+            return;
+        }
+        ShaftSettingsState.Settings state = settingsProvider.get();
+        currentAgentConfiguration.setText(currentAgentConfigurationText(state));
+        boolean showSummary = mcpReady(state) && !editingAgentConfiguration;
+        currentAgentConfigurationTitle.setVisible(showSummary);
+        currentAgentConfigurationRow.setVisible(showSummary);
+        currentAgentConfiguration.setVisible(showSummary);
+        configureAgent.setVisible(showSummary);
+        assistantProviderTypeLabel.setVisible(!showSummary);
+        assistantProviderType.setVisible(!showSummary);
+        assistantFamilyLabel.setVisible(!showSummary);
+        assistantFamily.setVisible(!showSummary);
+        assistantRuntimeLabel.setVisible(!showSummary);
+        assistantRuntime.setVisible(!showSummary);
+        cloudProviderLabel.setVisible(!showSummary);
+        cloudProvider.setVisible(!showSummary);
+        cloudModelLabel.setVisible(!showSummary);
+        cloudModel.setVisible(!showSummary);
+    }
+
+    private static boolean mcpReady(ShaftSettingsState.Settings state) {
+        return state != null
+                && state.mcpSetupComplete
+                && state.mcpCommand != null
+                && !state.mcpCommand.isBlank();
+    }
+
+    private static String currentAgentConfigurationText(ShaftSettingsState.Settings state) {
+        if ("CLOUD".equals(normalize(state.assistantProviderType, "LOCAL"))) {
+            String model = state.cloudModel == null || state.cloudModel.isBlank() ? "" : " / " + state.cloudModel.trim();
+            return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(state.cloudProvider, "openai")) + model;
+        }
+        return "Agent: Local / " + ShaftUiLabels.friendly(resolveFamily(state))
+                + " / " + ShaftUiLabels.friendly(normalize(state.assistantRuntime, "CLI"));
     }
 
     interface CredentialAccess {
