@@ -13,6 +13,8 @@ final class AssistantCommand {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
     private static final int DEFAULT_BROWSER_MAX_CHARACTERS = 12_000;
     private static final int DEFAULT_BROWSER_MAX_ELEMENTS = 10;
+    private static final String SHAFT_MCP_USAGE_HINT =
+            "If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.";
     private static final String HELP = """
             Slash commands:
             /guide <query> - Search the SHAFT guide.
@@ -66,7 +68,7 @@ final class AssistantCommand {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", selection.client());
         arguments.addProperty("mode", mode);
-        arguments.addProperty("prompt", text);
+        arguments.addProperty("prompt", localAgentPrompt(text));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.add("command", commandArray(customCommand));
         arguments.add("environment", new JsonObject());
@@ -218,6 +220,14 @@ final class AssistantCommand {
             array.add(token);
         }
         return array;
+    }
+
+    private static String localAgentPrompt(String text) {
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("shaft-mcp")) {
+            return text;
+        }
+        return SHAFT_MCP_USAGE_HINT + "\n\n" + text;
     }
 
     private static String[] splitTargetUrlAndIntent(String rest) {

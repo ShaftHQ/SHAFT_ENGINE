@@ -38,6 +38,29 @@ class ShaftMcpInstallerTest {
     }
 
     @Test
+    void installerUrlDefaultsToMainBranchScripts() {
+        assertEquals("https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp.ps1",
+                ShaftMcpInstaller.installerUrl("install-shaft-mcp.ps1", "main"));
+    }
+
+    @Test
+    void installerRefSanitizerFallsBackForBlankOrUnsafeRefs() {
+        assertEquals("main", ShaftMcpInstaller.sanitizeInstallerRef(null));
+        assertEquals("main", ShaftMcpInstaller.sanitizeInstallerRef("   "));
+        assertEquals("codex/intellij-plugin-recording-flow",
+                ShaftMcpInstaller.sanitizeInstallerRef(" codex/intellij-plugin-recording-flow "));
+        assertEquals("main", ShaftMcpInstaller.sanitizeInstallerRef("feature;Invoke-Expression"));
+    }
+
+    @Test
+    void selectedAgentInstallCommandCanReturnJsonForPluginSettings() {
+        String command = String.join(" ", ShaftMcpInstaller.installCommand("codex", true));
+
+        assertTrue(command.contains("codex"));
+        assertTrue(command.contains("json"));
+    }
+
+    @Test
     void genericClientConfigurationUsesExistingInstallerTargets() {
         String command = String.join(" ", ShaftMcpInstaller.installCommand("claude-desktop", false));
 

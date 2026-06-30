@@ -128,3 +128,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-mcp-jar-carries-generator-examples","timestamp":"2026-06-28T19:12:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.record-shaft-intellij-plugin-onboarding-video","timestamp":"2026-06-30T09:06:03+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-plugin-recording-windows-firewall-prompt","timestamp":"2026-06-30T09:28:28+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.record-shaft-intellij-plugin-onboarding-video","timestamp":"2026-06-30T10:10:23+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.record-shaft-intellij-plugin-onboarding-video","timestamp":"2026-06-30T10:43:38+03:00"}

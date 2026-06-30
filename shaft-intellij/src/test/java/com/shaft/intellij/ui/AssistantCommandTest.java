@@ -2,6 +2,8 @@ package com.shaft.intellij.ui;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,7 +23,7 @@ class AssistantCommandTest {
         assertEquals("autobot_local_agent_run", invocation.toolName());
         assertEquals("CODEX", invocation.arguments().get("client").getAsString());
         assertEquals("AGENT", invocation.arguments().get("mode").getAsString());
-        assertEquals("Plan a resilient login test", invocation.arguments().get("prompt").getAsString());
+        assertTrue(invocation.arguments().get("prompt").getAsString().endsWith("Plan a resilient login test"));
         assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
     }
 
@@ -44,6 +46,97 @@ class AssistantCommandTest {
 
         assertFalse(askInvocation.arguments().get("allowSourceMutation").getAsBoolean());
         assertTrue(agentInvocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    @Test
+    void localAgentPromptsIncludeGenericShaftMcpUsageHint() {
+        AssistantCommand.Invocation duckDuckGo = AssistantCommand.fromPrompt(
+                "open duckduckgo and search for SHAFT Engine",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation alreadyExplicit = AssistantCommand.fromPrompt(
+                "use shaft-mcp to open mobile app",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation plain = AssistantCommand.fromPrompt(
+                "Explain the current test failure",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false);
+
+        assertEquals("""
+                If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
+
+                open duckduckgo and search for SHAFT Engine""",
+                duckDuckGo.arguments().get("prompt").getAsString());
+        assertEquals("use shaft-mcp to open mobile app", alreadyExplicit.arguments().get("prompt").getAsString());
+        assertEquals("""
+                If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
+
+                Explain the current test failure""", plain.arguments().get("prompt").getAsString());
+    }
+
+    @Test
+    void directLocalAgentRunnerUsesSelectedCliDefaults() {
+        AssistantCommand.Invocation codexAsk = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "", false);
+        AssistantCommand.Invocation codexAgent = AssistantCommand.fromPrompt(
+                "Implement the fix", "CODEX", "AGENT", ".", "", true);
+        AssistantCommand.Invocation claudePlan = AssistantCommand.fromPrompt(
+                "Plan the fix", "CLAUDE_CODE", "PLAN", ".", "", false);
+        AssistantCommand.Invocation custom = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "custom-agent --safe", false);
+
+        assertEquals(List.of("codex", "exec", "--sandbox", "read-only", "-"),
+                AssistantLocalAgentRunner.commandFor(codexAsk.arguments()));
+        assertEquals(List.of("codex", "exec", "--sandbox", "workspace-write", "-"),
+                AssistantLocalAgentRunner.commandFor(codexAgent.arguments()));
+        assertEquals(List.of("claude", "--print", "--permission-mode", "plan"),
+                AssistantLocalAgentRunner.commandFor(claudePlan.arguments()));
+        assertEquals(List.of("custom-agent", "--safe"), AssistantLocalAgentRunner.commandFor(custom.arguments()));
+    }
+
+    @Test
+    void directLocalAgentRunnerOnlyHandlesNormalLocalCliPrompts() {
+        AssistantCommand.Invocation normal = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "", false);
+        AssistantCommand.Invocation slash = AssistantCommand.fromPrompt(
+                "/guide locators", "CODEX", "ASK", ".", "", false);
+        AssistantCommand.Invocation cloud = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.cloud("openai", "gpt-4.1"),
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation pluginRuntime = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.local("COPILOT", "IDE_PLUGIN"),
+                "ASK",
+                ".",
+                "",
+                false);
+
+        assertTrue(AssistantLocalAgentRunner.supports(normal));
+        assertFalse(AssistantLocalAgentRunner.supports(slash));
+        assertFalse(AssistantLocalAgentRunner.supports(cloud));
+        assertFalse(AssistantLocalAgentRunner.supports(pluginRuntime));
+    }
+
+    @Test
+    void directLocalAgentOutputPrefersStdoutOnSuccessAndIncludesStderrOnFailure() {
+        assertEquals("## Done", AssistantLocalAgentRunner.agentOutput(true, "## Done\n", "progress", ""));
+        assertEquals("warning", AssistantLocalAgentRunner.agentOutput(true, "", "warning\n", ""));
+        assertEquals("partial\n\nerror", AssistantLocalAgentRunner.agentOutput(false, "partial", "error", ""));
+        assertEquals("Timed out", AssistantLocalAgentRunner.agentOutput(false, "", "", "Timed out"));
     }
 
     @Test

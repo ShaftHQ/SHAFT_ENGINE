@@ -66,6 +66,47 @@ class InstallShaftMcpTest(unittest.TestCase):
     def test_intellij_plugin_target_does_not_configure_external_client(self):
         MODULE.configure_client("intellij-plugin", Path("java"), Path("shaft-mcp.args"))
 
+    def test_codex_auto_approval_is_added_to_shaft_mcp_section(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = Path(temp_dir) / "config.toml"
+            config.write_text(
+                '[mcp_servers.shaft-mcp]\n'
+                'command = "java"\n'
+                'args = ["@shaft-mcp.args"]\n'
+                '\n'
+                '[mcp_servers.other]\n'
+                'default_tools_approval_mode = "prompt"\n',
+                encoding="utf-8",
+            )
+
+            MODULE.ensure_codex_auto_approval(config)
+
+            text = config.read_text(encoding="utf-8")
+            shaft_section = text.split("[mcp_servers.other]", 1)[0]
+            self.assertIn('default_tools_approval_mode = "auto"', shaft_section)
+            self.assertIn('default_tools_approval_mode = "prompt"', text)
+
+    def test_codex_auto_approval_supports_quoted_section_and_fails_when_missing(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = Path(temp_dir) / "config.toml"
+            config.write_text(
+                '[mcp_servers."shaft-mcp"]\n'
+                'command = "java"\n'
+                'args = ["@shaft-mcp.args"]\n',
+                encoding="utf-8",
+            )
+
+            MODULE.ensure_codex_auto_approval(config)
+
+            self.assertIn('default_tools_approval_mode = "auto"', config.read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = Path(temp_dir) / "config.toml"
+            config.write_text('[mcp_servers.other]\ncommand = "java"\n', encoding="utf-8")
+
+            with self.assertRaises(MODULE.InstallError):
+                MODULE.ensure_codex_auto_approval(config)
+
     def test_write_launcher_args(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

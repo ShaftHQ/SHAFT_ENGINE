@@ -79,11 +79,40 @@ class ShaftPanelSetupTest {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), blankMcpSettings());
 
         assertNull(toolWindowWorkflowSelector(toolWindow));
-        assertTrue(containsText(toolWindow, "1. Install or update SHAFT MCP"));
+        assertTrue(containsText(toolWindow, "1. Assistant family"));
+        assertTrue(containsText(toolWindow, "2. Assistant runtime"));
+        assertTrue(containsText(toolWindow, "3. Install or update SHAFT MCP"));
         assertTrue(containsText(toolWindow, "Install / Update SHAFT MCP"));
-        assertTrue(containsText(toolWindow, "Assistant family"));
-        assertTrue(containsText(toolWindow, "Assistant runtime"));
         assertTrue(containsText(toolWindow, "Test connection"));
+    }
+
+    @Test
+    void setupPanelFormatsInstallerOutputForHumans() {
+        String formatted = ShaftMcpSetupPanel.formatInstallOutput("""
+                ===================
+                SHAFT MCP installer
+                ===================
+                  ____  __  __
+                 / __ \\/ / / /
+                MCP installer
+                27.6%
+                ########
+                Client target: intellij-plugin
+                Resolving io.github.shafthq:shaft-mcp:LATEST...
+                {"client":"intellij-plugin","server":"shaft-mcp","version":"1.0.0","command":"C:\\\\Java\\\\bin\\\\java.exe","args":["@C:\\\\shaft-mcp.args"]}
+                """);
+
+        assertAll(
+                () -> assertTrue(formatted.startsWith("SHAFT MCP installation")),
+                () -> assertTrue(formatted.contains("Summary")),
+                () -> assertTrue(formatted.contains("- Client: intellij-plugin")),
+                () -> assertTrue(formatted.contains("- Version: 1.0.0")),
+                () -> assertTrue(formatted.contains("Installation log")),
+                () -> assertTrue(formatted.contains("- Client target: intellij-plugin")),
+                () -> assertFalse(formatted.contains("===================")),
+                () -> assertFalse(formatted.contains("MCP installer")),
+                () -> assertFalse(formatted.contains("27.6%")),
+                () -> assertFalse(formatted.contains("########")));
     }
 
     @Test
@@ -170,6 +199,37 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(markdown.contains("| Client | Command | SHAFT API key |")),
                 () -> assertTrue(markdown.contains("| Codex CLI | `codex` | Not required |")),
                 () -> assertFalse(markdown.contains("\\\"displayName\\\"")));
+    }
+
+    @Test
+    void assistantKeepsShaftWrapperForCuratedMcpToolResponses() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        showAssistantResult(panel, "shaft_guide_search", ShaftMcpToolResult.success(mcpText("Use Page Object locators.")));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("**SHAFT Assistant (shaft_guide_search OK)**")),
+                () -> assertTrue(markdown.contains("Use Page Object locators.")));
+    }
+
+    @Test
+    void assistantDisplaysDirectLocalAgentMarkdownWithoutWrapperMetadata() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        showAgentResult(panel, ShaftMcpToolResult.success("""
+                ## Done
+
+                Opened DuckDuckGo and searched for SHAFT Engine.
+                """.stripIndent().trim()));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("## Done")),
+                () -> assertTrue(markdown.contains("Opened DuckDuckGo")),
+                () -> assertFalse(markdown.contains("SHAFT Assistant")),
+                () -> assertFalse(markdown.contains("Status:")),
+                () -> assertFalse(markdown.contains("autobot_local_agent_run")));
     }
 
     @Test
@@ -380,6 +440,13 @@ class ShaftPanelSetupTest {
                 "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, toolName, result, null);
+    }
+
+    private static void showAgentResult(ShaftAssistantPanel panel, ShaftMcpToolResult result) throws Exception {
+        Method showResult = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showAgentResult", ShaftMcpToolResult.class, Throwable.class);
+        showResult.setAccessible(true);
+        showResult.invoke(panel, result, null);
     }
 
     private static String mcpText(String text) {

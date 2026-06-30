@@ -16,11 +16,8 @@ import java.util.concurrent.TimeUnit;
  * Starts the public shaft-mcp installer from the IntelliJ plugin.
  */
 public final class ShaftMcpInstaller {
-    private static final String REF = "main";
-    private static final String PS_URL = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/"
-            + REF + "/scripts/mcp/install-shaft-mcp.ps1";
-    private static final String SH_URL = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/"
-            + REF + "/scripts/mcp/install-shaft-mcp.sh";
+    private static final String DEFAULT_REF = "main";
+    private static final String REF_ENV = "SHAFT_MCP_INSTALLER_REF";
     private static final long TIMEOUT_MINUTES = 20;
 
     private ShaftMcpInstaller() {
@@ -34,6 +31,17 @@ public final class ShaftMcpInstaller {
      */
     public static CompletableFuture<ShaftMcpInstallResult> installForPlugin() {
         return CompletableFuture.supplyAsync(() -> run(installCommand("intellij-plugin", true), true));
+    }
+
+    /**
+     * Installs or updates shaft-mcp for this plugin and configures the selected assistant client.
+     *
+     * @param client installer client target
+     * @return async installer result
+     */
+    public static CompletableFuture<ShaftMcpInstallResult> installForPluginAndClient(String client) {
+        String target = client == null || client.isBlank() ? "intellij-plugin" : client;
+        return CompletableFuture.supplyAsync(() -> run(installCommand(target, true), true));
     }
 
     /**
@@ -59,14 +67,25 @@ public final class ShaftMcpInstaller {
         if (isWindows()) {
             String arguments = json ? " -Arguments @('--json')" : "";
             return List.of("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
-                    "irm " + PS_URL + " | iex; Install-ShaftMcp -Client " + client + arguments);
+                    "irm " + installerUrl("install-shaft-mcp.ps1") + " | iex; Install-ShaftMcp -Client "
+                            + client + arguments);
         }
         List<String> flags = new ArrayList<>();
         flags.add("--" + client);
         if (json) {
             flags.add("--json");
         }
-        return List.of("sh", "-c", "curl -fsSL " + SH_URL + " | sh -s -- " + String.join(" ", flags));
+        return List.of("sh", "-c", "curl -fsSL " + installerUrl("install-shaft-mcp.sh")
+                + " | sh -s -- " + String.join(" ", flags));
+    }
+
+    static String installerUrl(String scriptName) {
+        return installerUrl(scriptName, installerRef());
+    }
+
+    static String installerUrl(String scriptName, String ref) {
+        return "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/"
+                + sanitizeInstallerRef(ref) + "/scripts/mcp/" + scriptName;
     }
 
     static ShaftMcpInstallResult run(List<String> command, boolean parseJson) {
@@ -131,5 +150,18 @@ public final class ShaftMcpInstaller {
 
     private static boolean isWindows() {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static String installerRef() {
+        String configured = System.getenv(REF_ENV);
+        return sanitizeInstallerRef(configured);
+    }
+
+    static String sanitizeInstallerRef(String ref) {
+        if (ref == null || ref.isBlank()) {
+            return DEFAULT_REF;
+        }
+        String trimmed = ref.trim();
+        return trimmed.matches("[A-Za-z0-9._/-]+") ? trimmed : DEFAULT_REF;
     }
 }

@@ -1,5 +1,8 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
@@ -21,6 +24,8 @@ import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -60,7 +65,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
         test.setEnabled(settings.mcpCommand != null && !settings.mcpCommand.isBlank());
         test.addActionListener(event -> testConnection());
-        status = new JLabel("Install SHAFT MCP to start.");
+        status = new JLabel("Select assistant runtime, then install SHAFT MCP.");
         details = new JBTextArea(8, 48);
         details.getAccessibleContext().setAccessibleName("SHAFT MCP setup output");
         details.setEditable(false);
@@ -74,10 +79,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         testRow.add(status);
 
         JPanel form = FormBuilder.createFormBuilder()
-                .addComponent(new JLabel("1. Install or update SHAFT MCP"))
+                .addLabeledComponent("1. Assistant family", family)
+                .addLabeledComponent("2. Assistant runtime", runtime)
+                .addComponent(new JLabel("3. Install or update SHAFT MCP"))
                 .addComponent(installRow)
-                .addLabeledComponent("2. Assistant family", family)
-                .addLabeledComponent("3. Assistant runtime", runtime)
                 .addComponent(new JLabel("4. Test connection"))
                 .addComponent(testRow)
                 .addComponentFillVertically(new JPanel(), 0)
@@ -87,13 +92,13 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     JComponent preferredFocusComponent() {
-        return install;
+        return family;
     }
 
     private void installMcp() {
         setRunning(true, "Installing...");
         details.setText("");
-        ShaftMcpInstaller.installForPlugin().whenComplete((result, error) ->
+        ShaftMcpInstaller.installForPluginAndClient(installerClientForSelection()).whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> showInstallResult(result, error)));
     }
 
@@ -107,7 +112,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             details.setText("No installer result returned.");
             return;
         }
-        details.setText(result.output());
+        details.setText(formatInstallOutput(result.output()));
         if (result.success()) {
             settings.mcpCommand = result.commandLine();
             settings.mcpSetupComplete = false;
@@ -175,6 +180,86 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "COPILOT" -> "COPILOT_CLI";
             default -> "CODEX";
         };
+    }
+
+    private String installerClientForSelection() {
+        String selectedFamily = String.valueOf(family.getSelectedItem());
+        String selectedRuntime = String.valueOf(runtime.getSelectedItem());
+        return switch (normalize(selectedFamily, "CODEX")) {
+            case "CLAUDE" -> "DESKTOP_APP".equals(normalize(selectedRuntime, "CLI")) ? "claude-desktop" : "claude";
+            case "COPILOT" -> "IDE_PLUGIN".equals(normalize(selectedRuntime, "CLI")) ? "copilot-intellij" : "copilot";
+            default -> "codex";
+        };
+    }
+
+    static String formatInstallOutput(String output) {
+        String text = output == null ? "" : output.trim();
+        if (text.isBlank()) {
+            return "No installer output returned.";
+        }
+        JsonObject summary = null;
+        List<String> log = new ArrayList<>();
+        for (String rawLine : text.split("\\R")) {
+            String line = rawLine.trim();
+            if (line.isBlank() || isNoisyInstallLine(line)) {
+                continue;
+            }
+            JsonObject parsed = parseJsonObject(line);
+            if (parsed != null) {
+                summary = parsed;
+                continue;
+            }
+            log.add(line);
+        }
+        StringBuilder formatted = new StringBuilder("SHAFT MCP installation\n\n");
+        if (summary != null) {
+            formatted.append("Summary\n")
+                    .append("- Client: ").append(text(summary, "client")).append('\n')
+                    .append("- Version: ").append(text(summary, "version")).append('\n')
+                    .append("- Command: ").append(text(summary, "command"));
+            JsonElement args = summary.get("args");
+            if (args != null && args.isJsonArray() && !args.getAsJsonArray().isEmpty()) {
+                formatted.append(' ').append(args.getAsJsonArray().get(0).getAsString());
+            }
+            formatted.append("\n\n");
+        }
+        if (!log.isEmpty()) {
+            formatted.append("Installation log\n");
+            for (String line : log) {
+                formatted.append("- ").append(line).append('\n');
+            }
+        }
+        return formatted.toString().trim();
+    }
+
+    private static boolean isNoisyInstallLine(String line) {
+        if ("SHAFT MCP installer".equals(line) || "MCP installer".equals(line)) {
+            return true;
+        }
+        if (line.matches("^[=#_\\-\\s]+$") || line.matches("^\\d+(?:\\.\\d+)?%$")) {
+            return true;
+        }
+        String compact = line.replace(" ", "");
+        return compact.length() >= 4
+                && (compact.contains("____") || compact.contains("/__") || compact.contains("\\__")
+                || compact.matches("^[#/\\\\_|]+$"));
+    }
+
+    private static JsonObject parseJsonObject(String line) {
+        if (!line.startsWith("{") || !line.endsWith("}")) {
+            return null;
+        }
+        try {
+            JsonElement parsed = JsonParser.parseString(line);
+            return parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private static String text(JsonObject object, String key) {
+        JsonElement value = object.get(key);
+        return value == null || value.isJsonNull() ? "" : value.getAsString();
     }
 
     private static String normalize(String value, String fallback) {

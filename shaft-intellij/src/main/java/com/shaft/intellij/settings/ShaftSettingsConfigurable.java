@@ -112,7 +112,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         installMcp = new JButton("Install / Update SHAFT MCP");
         installMcp.getAccessibleContext().setAccessibleName("Install or update SHAFT MCP");
         installMcp.getAccessibleContext().setAccessibleDescription(
-                "Install or update shaft-mcp and fill the plugin stdio command automatically.");
+                "Install or update shaft-mcp, fill the plugin stdio command, and connect the selected local assistant.");
         installMcp.addActionListener(event -> installMcp());
         testMcp = new JButton("Test MCP");
         testMcp.getAccessibleContext().setAccessibleName("Test MCP");
@@ -530,7 +530,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         button.setEnabled(false);
         testStatus.setText("Installing...");
-        ShaftMcpInstaller.installForPlugin().whenComplete((result, error) ->
+        ShaftMcpInstaller.installForPluginAndClient(installerClientForSelection()).whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> showInstallResult(button, result, error)));
     }
 
