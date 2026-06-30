@@ -189,7 +189,7 @@ public class OptionsManager {
                 applyRemoteVideoCapabilities(sfOptions);
                 ReportManager.logDiscrete(sfOptions.toString());
             }
-            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM, APPIUM_FLUTTER ->
+            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM, APPIUM_FLUTTER, APPIUM_WINDOWS ->
                     appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
             default ->
                     DriverFactoryHelper.failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -260,6 +260,10 @@ public class OptionsManager {
         switch (Properties.platform.targetPlatform().toLowerCase()) {
             case "android" -> appiumCapabilities.setPlatform(Platform.ANDROID);
             case "ios" -> appiumCapabilities.setPlatform(Platform.IOS);
+            case "windows" -> {
+                appiumCapabilities.setPlatform(Platform.WINDOWS);
+                appiumCapabilities.setCapability(CapabilityType.PLATFORM_NAME, "Windows");
+            }
             default -> appiumCapabilities.setPlatform(Platform.ANY);
         }
         if (!DriverFactoryHelper.isMobileWebExecution()) {

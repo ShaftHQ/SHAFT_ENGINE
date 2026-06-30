@@ -39,6 +39,7 @@
         <module>shaft-browserstack</module>
         <module>shaft-video</module>
         <module>shaft-visual</module>
+        <module>shaft-sikulix</module>
         <module>report-aggregate</module>
         <module>shaft-bom</module>
         <module>legacy-shaft-engine</module>
@@ -80,6 +81,7 @@
         <aspectj.version>1.9.25.1</aspectj.version>
         <commons.csv.version>1.14.1</commons.csv.version>
         <appium.flutterfinder.version>1.0.14</appium.flutterfinder.version>
+        <sikulix.version>2.0.5</sikulix.version>
         <poi.version>5.5.1</poi.version>
         <axe.selenium.version>4.12.0</axe.selenium.version>
         <pdfbox.version>3.0.7</pdfbox.version>

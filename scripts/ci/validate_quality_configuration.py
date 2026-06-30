@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 JAVA_MODULES = {
     "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-doctor", "shaft-ai", "shaft-heal",
-    "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-mcp",
+    "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-sikulix", "shaft-mcp",
 }
 DEPENDABOT_DIRECTORIES = {
     "/",
@@ -24,6 +24,7 @@ DEPENDABOT_DIRECTORIES = {
     "/shaft-browserstack",
     "/shaft-video",
     "/shaft-visual",
+    "/shaft-sikulix",
     "/shaft-mcp",
     "/shaft-bom",
     "/legacy-shaft-engine",
@@ -152,7 +153,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     codecov_count = (workflow_text + action_text).count("codecov/codecov-action@")
 
     codeql = (root / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
-    selector = "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-mcp -am"
+    selector = "-pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-sikulix,shaft-mcp -am"
     if selector not in codeql:
         errors.append("CodeQL build must compile every Java-bearing module")
 
@@ -191,6 +192,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
         "ws.schild:jave-*",
         "com.automation-remarks:video-recorder-*",
         "org.openpnp:opencv",
+        "com.sikulix:sikulixapi",
         "com.applitools:eyes-images-java4",
         "com.assertthat:selenium-shutterbug",
     ):
@@ -216,6 +218,16 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
             "e2eTests.yml and e2eLocalTests.yml must prepare and activate the visual test runtime "
             "for 4 grid/cloud and 4 local broad browser jobs"
         )
+    for required_local_flow in (
+        "Windows_SikuliX_Local",
+        'mvn -pl shaft-sikulix -am -e test "-DrunWindowsDesktopE2E=true"',
+        "Windows_Appium_Desktop_Local",
+        'mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5"',
+        '"-DtargetBrowserName=WindowsApp"',
+        '"-Dmobile_automationName=Windows"',
+    ):
+        if required_local_flow not in local_e2e_workflow:
+            errors.append(f"e2eLocalTests.yml is missing Windows desktop E2E flow token: {required_local_flow}")
     for cucumber_argument in (
         '"-Dcucumber.features=src/test/resources/CucumberFeatures,src/test/resources/CustomCucumberFeatures"',
         '"-Dcucumber.glue=customCucumberSteps,com.shaft.cucumber"',

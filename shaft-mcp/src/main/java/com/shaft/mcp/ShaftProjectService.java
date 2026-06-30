@@ -42,6 +42,7 @@ public class ShaftProjectService {
             "shaft-browserstack",
             "shaft-video",
             "shaft-visual",
+            "shaft-sikulix",
             "shaft-mcp");
     private static final Map<String, Map<String, String>> PROJECTS = projects();
 

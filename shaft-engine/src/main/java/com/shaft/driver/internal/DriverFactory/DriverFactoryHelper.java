@@ -22,6 +22,7 @@ import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.AutomationName;
+import io.appium.java_client.windows.WindowsDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.qameta.allure.Step;
@@ -212,6 +213,15 @@ public class DriverFactoryHelper {
     public static boolean isNotMobileExecution() {
         var isMobileExecution = Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
         return !isMobileExecution;
+    }
+
+    /**
+     * Checks to see if the execution is a Windows desktop Appium execution.
+     *
+     * @return true if it's a Windows desktop Appium execution
+     */
+    public static boolean isWindowsAppiumExecution() {
+        return isWindowsPlatform() && DriverType.APPIUM_WINDOWS.getValue().equalsIgnoreCase(SHAFT.Properties.web.targetBrowserName());
     }
 
     protected static void failAction(String testData, Throwable... rootCauseException) {
@@ -532,6 +542,7 @@ public class DriverFactoryHelper {
             // legacy constructor-based code block
             if (isAndroidExecution) return new AndroidDriver(targetExecutionUrlObject, capabilities);
             else if (isIosExecution) return new IOSDriver(targetExecutionUrlObject, capabilities);
+            else if (isWindowsAppiumExecution(capabilities)) return new WindowsDriver(targetExecutionUrlObject, capabilities);
             else {
                 var driver = new RemoteWebDriver(targetExecutionUrlObject, capabilities, createRemoteWebDriverClientConfig(targetExecutionUrlObject));
                 driver.setFileDetector(new LocalFileDetector());
@@ -553,6 +564,42 @@ public class DriverFactoryHelper {
             ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
             throw throwable;
         }
+    }
+
+    private static boolean isWindowsPlatform() {
+        return Platform.WINDOWS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
+                || "windows".equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform());
+    }
+
+    private static boolean isWindowsAppiumExecution(Capabilities capabilities) {
+        if (!isWindowsPlatform()) {
+            return false;
+        }
+        String automationName = firstCapabilityValue(
+                capabilities,
+                "appium:automationName",
+                "automationName",
+                SHAFT.Properties.mobile.automationName());
+        String app = firstCapabilityValue(
+                capabilities,
+                "appium:app",
+                "app",
+                SHAFT.Properties.mobile.app());
+        return "windows".equalsIgnoreCase(automationName)
+                || (DriverType.APPIUM_WINDOWS.getValue().equalsIgnoreCase(SHAFT.Properties.web.targetBrowserName())
+                && !app.isBlank());
+    }
+
+    private static String firstCapabilityValue(Capabilities capabilities, String firstName, String secondName, String fallback) {
+        Object first = capabilities == null ? null : capabilities.getCapability(firstName);
+        if (first != null && !String.valueOf(first).isBlank()) {
+            return String.valueOf(first);
+        }
+        Object second = capabilities == null ? null : capabilities.getCapability(secondName);
+        if (second != null && !String.valueOf(second).isBlank()) {
+            return String.valueOf(second);
+        }
+        return fallback == null ? "" : fallback;
     }
 
     /**
@@ -904,7 +951,7 @@ public class DriverFactoryHelper {
         }
         ReportManager.log(initialLog + ".");
 
-        if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform()) || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
+        if (isAppiumDriverType(driverType)) {
             optionsManager.initializeMobileDesiredCapabilities();
         }
 
@@ -1045,7 +1092,7 @@ public class DriverFactoryHelper {
                 appiumDesiredCapabilities.setCapability("chromedriverExecutable", WebDriverManager.chromedriver().getDownloadedDriverPath());
                 setRemoteDriverInstance(appiumDesiredCapabilities);
             }
-            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_BROWSER, APPIUM_FLUTTER ->
+            case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_BROWSER, APPIUM_FLUTTER, APPIUM_WINDOWS ->
                     setRemoteDriverInstance(appiumDesiredCapabilities);
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -1061,6 +1108,14 @@ public class DriverFactoryHelper {
         } else {
             ReportManager.log(successMessageRemote);
         }
+    }
+
+    private static boolean isAppiumDriverType(DriverType driverType) {
+        return switch (driverType) {
+            case APPIUM_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM, APPIUM_FLUTTER,
+                 APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_WINDOWS -> true;
+            default -> false;
+        };
     }
 
     /**

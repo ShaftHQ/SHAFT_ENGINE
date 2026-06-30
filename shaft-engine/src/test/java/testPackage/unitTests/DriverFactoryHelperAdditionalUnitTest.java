@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.OptionsManager;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.windows.WindowsDriver;
 import com.shaft.properties.internal.Properties;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.ImmutableCapabilities;
@@ -93,6 +94,10 @@ public class DriverFactoryHelperAdditionalUnitTest {
         SHAFT.Properties.mobile.set().browserName("chrome");
         SHAFT.Validations.assertThat().object(DriverFactoryHelper.isMobileNativeExecution()).isEqualTo(false).perform();
         SHAFT.Validations.assertThat().object(DriverFactoryHelper.isMobileWebExecution()).isEqualTo(true).perform();
+
+        SHAFT.Properties.platform.set().targetPlatform("Windows");
+        SHAFT.Properties.web.set().targetBrowserName("WindowsApp");
+        SHAFT.Validations.assertThat().object(DriverFactoryHelper.isWindowsAppiumExecution()).isEqualTo(true).perform();
     }
 
     @Test
@@ -417,6 +422,25 @@ public class DriverFactoryHelperAdditionalUnitTest {
         DriverFactoryHelper helper = new DriverFactoryHelper();
         try (MockedConstruction<AndroidDriver> ignored = org.mockito.Mockito.mockConstruction(AndroidDriver.class)) {
             helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, null);
+            SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
+        }
+    }
+
+    @Test
+    public void initializeDriverShouldCoverRemoteWindowsDesktopSuccessPathUsingMockedWindowsDriverConstruction() {
+        SHAFT.Properties.platform.set().targetPlatform("Windows");
+        SHAFT.Properties.platform.set().executionAddress("http://localhost:4723");
+        SHAFT.Properties.web.set().targetBrowserName("WindowsApp").headlessExecution(false);
+        SHAFT.Properties.mobile.set()
+                .browserName("")
+                .automationName("Windows")
+                .app("C:\\Windows\\System32\\notepad.exe");
+        SHAFT.Properties.healenium.set().healEnabled(false);
+        SHAFT.Properties.timeouts.set().waitForRemoteServerToBeUp(false);
+
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        try (MockedConstruction<WindowsDriver> ignored = org.mockito.Mockito.mockConstruction(WindowsDriver.class)) {
+            helper.initializeDriver(com.shaft.driver.DriverFactory.DriverType.APPIUM_WINDOWS, null);
             SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
         }
     }
