@@ -2,6 +2,46 @@
 
 Run this exact flow when asked to create a real SHAFT IntelliJ IDEA plugin video recording.
 
+## Scenario
+
+Use this exact onboarding scenario (latest local plugin build + MCP test + DuckDuckGo validation):
+
+1. Build and capture the latest local IntelliJ plugin ZIP:
+   - `powershell -NoProfile -ExecutionPolicy Bypass -File tools\\intellij-plugin-recording\\record-onboarding.ps1`
+   - (Equivalent: `gradle -p shaft-intellij check buildPlugin verifyPlugin`)
+2. Install the produced ZIP from `shaft-intellij/build/distributions/*.zip` into an isolated IntelliJ sandbox and open:
+   - `Tools -> SHAFT -> Open SHAFT`
+3. On first-run MCP setup:
+   - `Family: CODEX`
+   - `Runtime: CLI`
+   - `Install / Update SHAFT MCP`
+   - This installs the plugin MCP command and configures SHAFT MCP for the selected agent.
+   - `Test connection and start chatting`
+   - Require assistant status to show `Connected`.
+   - Setup panel closes and SHAFT Assistant opens after successful test.
+4. Validate MCP test flow and switch to assistant usage:
+   - `Route: LOCAL`
+   - `Provider/Family: CODEX`
+   - `Runtime: CLI`
+   - `Mode: AGENT`
+   - Enable `Allow edits`
+   - Visible agent output should look like the selected agent's normal Markdown response.
+   - Do not show raw JSON, `autobot_local_agent_run`, or SHAFT status metadata for normal local agent chat.
+5. In Assistant prompt, use exact first sentence:
+   - `open duckduckgo and search for SHAFT Engine`
+   - Then:
+     - `open the first result`
+     - `validate the title is "GitHub - ShaftHQ/SHAFT_ENGINE: Java test automation framework for web, mobile, API, CLI, database, and desktop E2E testing with a fluent API and built-in reporting. · GitHub"`
+   - Ensure the browser window is in focus.
+   - Ask the agent to finish with exactly:
+     - `DUCKDUCKGO_SHAFT_DONE`
+6. Verify completion marker in logs/output:
+   - `DUCKDUCKGO_SHAFT_DONE`
+
+## Base flow
+
+The base flow below remains the canonical reference for manual recordings.
+
 1. Build the latest local plugin ZIP:
    - `gradle -p shaft-intellij check buildPlugin verifyPlugin`
 2. Install the built ZIP from `shaft-intellij` build output into an isolated IntelliJ sandbox and open:
@@ -11,7 +51,7 @@ Run this exact flow when asked to create a real SHAFT IntelliJ IDEA plugin video
    - `Runtime: CLI`
    - `Install / Update SHAFT MCP`
    - This installs the plugin MCP command and configures SHAFT MCP for the selected agent.
-   - `Test connection`
+   - `Test connection and start chatting`
 4. Configure Assistant:
    - `Route: LOCAL`
    - `Provider/Family: CODEX`
@@ -22,6 +62,9 @@ Run this exact flow when asked to create a real SHAFT IntelliJ IDEA plugin video
    - Do not show raw JSON, `autobot_local_agent_run`, or SHAFT status metadata for normal local agent chat.
 5. In Assistant prompt, use exact first sentence:
    - `open duckduckgo and search for SHAFT Engine`
+   - Then:
+     - `open the first result`
+     - `validate the title is "GitHub - ShaftHQ/SHAFT_ENGINE: Java test automation framework for web, mobile, API, CLI, database, and desktop E2E testing with a fluent API and built-in reporting. · GitHub"`
    - Ensure the browser window is in focus.
    - Ask the agent to finish with exactly:
      - `DUCKDUCKGO_SHAFT_DONE`

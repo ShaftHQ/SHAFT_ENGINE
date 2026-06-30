@@ -32,10 +32,14 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.datatransfer.StringSelection;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.concurrent.CancellationException;
+import java.util.stream.Collectors;
 
 /**
  * MCP tools panel with editable JSON arguments.
@@ -45,6 +49,7 @@ final class ShaftFeaturePanel extends JPanel {
     private final boolean catalogRefreshEnabled;
     private final JBTextField search;
     private final JComboBox<ToolCategory> categorySelector;
+    private final JComboBox<String> contextSelector;
     private final JComboBox<ToolTemplate> toolSelector;
     private final JLabel templateDescription;
     private final JBTextArea argumentsArea;
@@ -90,6 +95,8 @@ final class ShaftFeaturePanel extends JPanel {
         categorySelector = new JComboBox<>(this.categories.toArray(ToolCategory[]::new));
         categorySelector.setPrototypeDisplayValue(new ToolCategory("Advanced Tools", List.of()));
         categorySelector.getAccessibleContext().setAccessibleName("SHAFT tool category");
+        contextSelector = new JComboBox<>();
+        contextSelector.getAccessibleContext().setAccessibleName("SHAFT tool context");
         toolSelector = new JComboBox<>();
         toolSelector.setPrototypeDisplayValue(new ToolTemplate("Generate Playwright replay", "", "{}"));
         toolSelector.getAccessibleContext().setAccessibleName("SHAFT tool");
@@ -133,23 +140,32 @@ final class ShaftFeaturePanel extends JPanel {
                 refreshTools();
             }
         });
+        contextSelector.addActionListener(event -> {
+            if (!updatingTools) {
+                refreshTools();
+            }
+        });
         toolSelector.addActionListener(event -> {
             if (!updatingTools) {
                 loadSelectedTemplate();
             }
         });
+        updateContextOptions();
         refreshTools();
 
         JPanel selectors = new JPanel(new GridBagLayout());
         JLabel searchLabel = label("Search", 'S', search);
         JLabel categoryLabel = label("Category", 'C', categorySelector);
         JLabel toolLabel = label("Tool", 'T', toolSelector);
+        JLabel contextLabel = label("Context", 'O', contextSelector);
         addSelectorComponent(selectors, searchLabel, 0, 0.0, false);
         addSelectorComponent(selectors, search, 1, 0.0, false);
         addSelectorComponent(selectors, categoryLabel, 2, 0.0, false);
         addSelectorComponent(selectors, categorySelector, 3, 0.0, false);
-        addSelectorComponent(selectors, toolLabel, 4, 0.0, false);
-        addSelectorComponent(selectors, toolSelector, 5, 1.0, true);
+        addSelectorComponent(selectors, contextLabel, 4, 0.0, false);
+        addSelectorComponent(selectors, contextSelector, 5, 0.0, false);
+        addSelectorComponent(selectors, toolLabel, 6, 0.0, false);
+        addSelectorComponent(selectors, toolSelector, 7, 1.0, true);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         actions.add(runButton);
@@ -311,6 +327,7 @@ final class ShaftFeaturePanel extends JPanel {
         if (categorySelector.getSelectedItem() == null && categorySelector.getItemCount() > 0) {
             categorySelector.setSelectedIndex(0);
         }
+        updateContextOptions();
         updatingTools = false;
         refreshTools();
     }
@@ -319,6 +336,7 @@ final class ShaftFeaturePanel extends JPanel {
         saveActiveDraft();
         String query = search.getText().trim().toLowerCase();
         ToolCategory category = (ToolCategory) categorySelector.getSelectedItem();
+        String context = normalizeContext(String.valueOf(contextSelector.getSelectedItem()));
         updatingTools = true;
         toolSelector.removeAllItems();
         if (category == null && query.isBlank()) {
@@ -327,9 +345,36 @@ final class ShaftFeaturePanel extends JPanel {
             argumentsArea.setText("");
             return;
         }
-        matchingTemplates(category, query).forEach(toolSelector::addItem);
+        matchingTemplates(category, query, context).forEach(toolSelector::addItem);
         updatingTools = false;
         loadSelectedTemplate();
+    }
+
+    private void updateContextOptions() {
+        boolean wasUpdatingTools = updatingTools;
+        updatingTools = true;
+        String selected = normalizeContext(String.valueOf(contextSelector.getSelectedItem()));
+        LinkedHashSet<String> contexts = new LinkedHashSet<>();
+        contexts.add("all");
+        for (ToolCategory category : categories) {
+            for (ToolTemplate template : category.templates()) {
+                contexts.addAll(template.contextTypes());
+            }
+        }
+        if (contexts.isEmpty()) {
+            contexts.add("all");
+        }
+        contextSelector.removeAllItems();
+        List<String> sorted = contexts.stream()
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+        for (String value : sorted) {
+            contextSelector.addItem(value);
+        }
+        contextSelector.setSelectedItem(sorted.contains(selected) ? selected : "all");
+        contextSelector.setEnabled(contextSelector.getItemCount() > 1);
+        updatingTools = wasUpdatingTools;
     }
 
     private void loadSelectedTemplate() {
@@ -390,7 +435,7 @@ final class ShaftFeaturePanel extends JPanel {
         constraints.weightx = weightX;
         constraints.anchor = GridBagConstraints.WEST;
         constraints.fill = fillHorizontal ? GridBagConstraints.HORIZONTAL : GridBagConstraints.NONE;
-        constraints.insets = new Insets(0, 0, 0, gridX == 5 ? 0 : 6);
+        constraints.insets = new Insets(0, 0, 0, gridX == 7 ? 0 : 6);
         panel.add(component, constraints);
     }
 
@@ -494,11 +539,23 @@ final class ShaftFeaturePanel extends JPanel {
     }
 
     private List<ToolTemplate> matchingTemplates(ToolCategory category, String query) {
+        return matchingTemplates(category, query, "all");
+    }
+
+    private List<ToolTemplate> matchingTemplates(ToolCategory category, String query, String context) {
         return categories.stream()
-                .filter(candidate -> query.isBlank() && candidate.equals(category) || !query.isBlank())
+                .filter(candidate -> category == null || candidate.equals(category))
                 .flatMap(candidate -> candidate.templates().stream())
-                .filter(template -> query.isBlank() || matches(template, query))
+                .filter(template -> (query.isBlank() || matches(template, query)) && matches(context, template))
                 .toList();
+    }
+
+    private static boolean matches(String context, ToolTemplate template) {
+        return "all".equals(context) || template.contextTypes().stream().anyMatch(context::equals);
+    }
+
+    private static String normalizeContext(String value) {
+        return value == null || value.isBlank() ? "all" : value.trim().toLowerCase(Locale.ROOT).replace(' ', '-');
     }
 
     private static boolean matches(ToolTemplate template, String query) {

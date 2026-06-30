@@ -6,7 +6,7 @@ This catalog is written for framework users who want to know what changed, what 
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
 - Catalog source: current PR branch based on `origin/main` at `35eedca6e3`
-- Fresh evidence captured: `2026-06-29`
+- Fresh evidence captured: `2026-06-30`
 
 ## Start Here
 
@@ -22,6 +22,12 @@ This catalog is written for framework users who want to know what changed, what 
 ## Screenshot Proof Gallery
 
 Every screenshot in this catalog is real repository evidence under `shaft-engine/src/main/resources/modular-era-feature-catalog/`.
+
+### Issue #3188 PR attachments
+
+- `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png`
+- `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png`
+- `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png`
 
 <table>
   <tr>
@@ -165,6 +171,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
 | IntelliJ IDEA plugin | First-run MCP installation, Copilot-style Assistant provider/runtime prompts, guided recorder/locator flows, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools are now first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
+| IntelliJ Assistant fix for issue #3188 | Chat transcript messages are now role-rendered (user/assistant bubbles), sessions persist and restore correctly, and the route/runtime controls lock with a visible configure recovery path once MCP is configured. | `intellij-plugin-assistant.png`, `intellij-plugin-mcp-setup.png` |
 | Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |

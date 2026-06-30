@@ -28,6 +28,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JProgressBar;
 import javax.swing.KeyStroke;
+import javax.swing.Timer;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.datatransfer.StringSelection;
@@ -40,6 +41,7 @@ import java.util.concurrent.CancellationException;
  * SHAFT Assistant chat-style panel.
  */
 final class ShaftAssistantPanel extends JPanel {
+    private static final int TRANSIENT_STATUS_MILLIS = 2300;
     private final Project project;
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
@@ -66,13 +68,17 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JButton testConnection;
+    private final JButton configure;
     private final JProgressBar progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
+    private final Runnable configureFlow;
     private String lastResponse = "";
     private String lastRawResponse = "";
     private String lastPrompt = "";
     private ShaftMcpInvocation currentInvocation;
+    private Timer transientStatusTimer;
+    private boolean running;
     private boolean refreshingChats;
 
     ShaftAssistantPanel(Project project) {
@@ -86,10 +92,18 @@ final class ShaftAssistantPanel extends JPanel {
     ShaftAssistantPanel(Project project,
                         @NotNull ShaftSettingsState.Settings settings,
                         @NotNull ShaftAssistantChatState chatState) {
+        this(project, settings, chatState, null);
+    }
+
+    ShaftAssistantPanel(Project project,
+                        @NotNull ShaftSettingsState.Settings settings,
+                        @NotNull ShaftAssistantChatState chatState,
+                        Runnable setupFlow) {
         super(new BorderLayout(6, 6));
         this.project = project;
         this.settings = settings;
         this.chatState = chatState;
+        this.configureFlow = setupFlow;
         setBorder(JBUI.Borders.empty(8));
 
         chatSelector = new JComboBox<>();
@@ -134,9 +148,8 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView();
-        String persistedTranscript = chatState.activeMarkdown();
-        if (!persistedTranscript.isBlank()) {
-            transcript.setMarkdown(persistedTranscript);
+        if (!chatState.activeMarkdown().isBlank()) {
+            transcript.setMessages(chatState.activeMessages());
         }
         status = new JLabel("Ready");
         progress = new JProgressBar();
@@ -155,7 +168,8 @@ final class ShaftAssistantPanel extends JPanel {
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
         rerunLastPrompt.setEnabled(false);
-        testConnection = button("Test MCP", "Test SHAFT MCP connection", event -> testConnection(project));
+        testConnection = button("Test connection and start chatting", "Test SHAFT MCP connection", event -> testConnection(project));
+        this.configure = button("Configure", "Open SHAFT MCP setup", event -> openSetup());
 
         mode.addActionListener(event -> updateControlVisibility());
         providerType.addActionListener(event -> updateControlVisibility());
@@ -184,6 +198,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(providerType);
         routeRow.add(assistantFamily);
         routeRow.add(assistantRuntime);
+        routeRow.add(configure);
         routeRow.add(customCommand);
         routeRow.add(cloudProvider);
         routeRow.add(cloudModel);
@@ -234,6 +249,7 @@ final class ShaftAssistantPanel extends JPanel {
         lastPrompt = text;
         rerunLastPrompt.setEnabled(true);
         AssistantCommand.Selection route = selectedRoute();
+        boolean agentMode = "AGENT".equals(String.valueOf(mode.getSelectedItem()));
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 text,
                 route,
@@ -243,6 +259,10 @@ final class ShaftAssistantPanel extends JPanel {
                 allowSourceMutation.isSelected());
         append("user", "**You (" + ShaftUiLabels.friendly(mode.getSelectedItem()) + " via " + routeLabel(route) + ")**\n\n"
                 + AssistantMarkdown.normalizeMarkdown(text), "");
+        if (agentMode && !route.cloud() && !allowSourceMutation.isSelected()) {
+            append("assistant", "To let the agent make source edits, please tick **Allow edits** before sending.",
+                    "");
+        }
         prompt.setText("");
         if (invocation.isLocal()) {
             showLocalResponse(invocation.localResponse());
@@ -285,7 +305,11 @@ final class ShaftAssistantPanel extends JPanel {
     private void showResult(String toolName, ShaftMcpToolResult result, Throwable error) {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
-        setRunning(false, success ? "Finished" : "Failed");
+        boolean isMcpConnectionCheck = "mcp initialize".equals(toolName);
+        setRunning(false, success ? (isMcpConnectionCheck ? "MCP test passed" : "Finished") : "Failed");
+        if (isMcpConnectionCheck && success) {
+            showTransientStatus("MCP test passed. You can start chatting.");
+        }
         if (cancelled) {
             showResponse("**SHAFT Assistant (" + toolName + " cancelled)**", "");
             status.setText("Cancelled");
@@ -331,16 +355,18 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void append(String role, String text, String rawResponse) {
-        transcript.append(text);
+        transcript.append(role, text);
         chatState.append(role, text, rawResponse);
         refreshChatSelector();
     }
 
     private void setRunning(boolean running, String message) {
+        this.running = running;
         send.setEnabled(!running);
         chatSelector.setEnabled(!running);
         newChat.setEnabled(!running);
         testConnection.setEnabled(!running);
+        configure.setEnabled(!running);
         rerunLastPrompt.setEnabled(!running && !lastPrompt.isBlank());
         mode.setEnabled(!running);
         providerType.setEnabled(!running);
@@ -354,8 +380,31 @@ final class ShaftAssistantPanel extends JPanel {
         cancel.setEnabled(running);
         progress.setVisible(running);
         status.setText(message);
+        stopTransientStatus();
+        updateControlVisibility();
         if (!running) {
             currentInvocation = null;
+        }
+    }
+
+    private void showTransientStatus(String message) {
+        stopTransientStatus();
+        status.setText(message);
+        if (TRANSIENT_STATUS_MILLIS <= 0) {
+            return;
+        }
+        transientStatusTimer = new Timer(TRANSIENT_STATUS_MILLIS, event -> {
+            status.setText("Ready");
+            stopTransientStatus();
+        });
+        transientStatusTimer.setRepeats(false);
+        transientStatusTimer.start();
+    }
+
+    private void stopTransientStatus() {
+        if (transientStatusTimer != null) {
+            transientStatusTimer.stop();
+            transientStatusTimer = null;
         }
     }
 
@@ -365,14 +414,28 @@ final class ShaftAssistantPanel extends JPanel {
             mode.setSelectedItem("PLAN");
         }
         boolean localCli = !cloud && "CLI".equals(assistantRuntime.getSelectedItem());
+        boolean lockedRoute = configureFlow != null && mcpConfigured();
+        boolean controlsEnabled = !running;
+        mode.setEnabled(controlsEnabled);
+        providerType.setEnabled(controlsEnabled);
         assistantFamily.setVisible(!cloud);
         assistantRuntime.setVisible(!cloud);
+        assistantFamily.setEnabled(controlsEnabled && !lockedRoute);
+        assistantRuntime.setEnabled(controlsEnabled && !lockedRoute);
         customCommand.setVisible(localCli);
+        customCommand.setEnabled(controlsEnabled && !lockedRoute && localCli);
         cloudProvider.setVisible(cloud);
+        cloudProvider.setEnabled(controlsEnabled && cloud);
         cloudModel.setVisible(cloud);
+        cloudModel.setEnabled(controlsEnabled && cloud);
         cloudKeyPanel.setVisible(cloud);
+        cloudApiKey.setEnabled(controlsEnabled && cloud);
+        saveCloudApiKey.setEnabled(controlsEnabled && cloud);
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localCli);
+        allowSourceMutation.setEnabled(controlsEnabled && agentMode && localCli);
+        configure.setVisible(lockedRoute);
+        configure.setEnabled(controlsEnabled && lockedRoute);
         if (!agentMode || !localCli) {
             allowSourceMutation.setSelected(false);
         }
@@ -496,6 +559,12 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
+    private void openSetup() {
+        if (configureFlow != null) {
+            configureFlow.run();
+        }
+    }
+
     private boolean formatUnknownResponse(String toolName, String output, String fallbackMarkdown) {
         if (!AssistantMarkdown.shouldFormatWithAgent(toolName, output) || project == null || !mcpConfigured()) {
             return false;
@@ -553,9 +622,8 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void restoreTranscript() {
-        String markdown = chatState.activeMarkdown();
-        if (!markdown.isBlank()) {
-            transcript.setMarkdown(markdown);
+        if (!chatState.activeMarkdown().isBlank()) {
+            transcript.setMessages(chatState.activeMessages());
         } else {
             transcript.clear();
         }
