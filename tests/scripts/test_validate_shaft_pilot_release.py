@@ -223,7 +223,7 @@ class ShaftPilotReleaseValidatorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             _write_minimal_reactor(
-                root, reactor_version="10.2.20260628", plugin_version="10.2.20260628-beta.0"
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630-beta.0"
             )
 
             errors = MODULE.validate_static(root)
@@ -240,7 +240,7 @@ class ShaftPilotReleaseValidatorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             _write_minimal_reactor(
-                root, reactor_version="10.2.20260628", plugin_version="10.2.20260628"
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630"
             )
             _write_text(
                 root / "shaft-intellij/build.gradle.kts",
@@ -265,7 +265,7 @@ class ShaftPilotReleaseValidatorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             _write_minimal_reactor(
-                root, reactor_version="10.2.20260628", plugin_version="10.2.20260628"
+                root, reactor_version="10.2.20260630", plugin_version="10.2.20260630"
             )
             _write_text(
                 root / "shaft-intellij/build.gradle.kts",

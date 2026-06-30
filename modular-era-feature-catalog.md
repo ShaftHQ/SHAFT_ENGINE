@@ -1,6 +1,6 @@
 # SHAFT Modular-Era Feature Catalog
 
-SHAFT is now a modular Java 25 automation framework with a lean core, opt-in power modules, and evidence-first tooling for browser, mobile, API, Playwright, MCP, IntelliJ IDEA, capture, reporting, diagnosis, and healing.
+SHAFT is now a modular Java 25 automation framework with a lean core, opt-in power modules, and evidence-first tooling for browser, mobile, API, Playwright, MCP, IntelliJ IDEA, SikuliX desktop image automation, capture, reporting, diagnosis, and healing.
 
 This catalog is written for framework users who want to know what changed, what they can adopt now, and which command or API gets them started.
 
@@ -23,10 +23,13 @@ This catalog is written for framework users who want to know what changed, what 
 
 Every screenshot in this catalog is real repository evidence under `shaft-engine/src/main/resources/modular-era-feature-catalog/`.
 
-### Issue #3188 PR attachments
+### IntelliJ plugin screenshots
 
 - `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png`
+- `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-live-output-dark.png`
+- `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-narrow-dark.png`
 - `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png`
+- `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-success.png`
 - `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png`
 
 <table>
@@ -40,6 +43,18 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-dark.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab in dark theme" width="620">
       <br><strong>Assistant (dark)</strong>
       <br>Assistant workflow view in IntelliJ dark theme for the same prompt/action path.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-live-output-dark.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab while a local agent is running" width="620">
+      <br><strong>Assistant live output</strong>
+      <br>Local agent execution keeps transcript output, progress, cancellation, and copy controls visible in the tool window.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-narrow-dark.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab in a narrow dark tool window" width="620">
+      <br><strong>Assistant narrow panel</strong>
+      <br>The same Assistant controls stay usable in a narrow right-side IntelliJ tool window.
     </td>
   </tr>
   <tr>
@@ -100,6 +115,18 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="SHAFT IntelliJ IDEA plugin Settings panel with MCP and provider controls" width="620">
       <br><strong>Settings and providers</strong>
       <br>Post-setup controls for Local/Cloud routing, cloud model selection, selected-key passing, and provider key storage.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-success.png" alt="SHAFT IntelliJ IDEA plugin MCP setup success flow" width="620">
+      <br><strong>MCP setup success</strong>
+      <br>The setup flow shows the resolved version, stdio command, install log, and next test-connection action.
+    </td>
+    <td width="50%">
+      <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings-dark.png" alt="SHAFT IntelliJ IDEA plugin Settings panel in dark theme" width="620">
+      <br><strong>Settings (dark)</strong>
+      <br>Provider routing, selected-key passing, and stored-key controls remain readable in IntelliJ dark theme.
     </td>
   </tr>
   <tr>
@@ -168,10 +195,11 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 
 | Area | Framework-user value | Proof |
 | --- | --- | --- |
-| Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
+| Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, SikuliX desktop image automation, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
 | IntelliJ IDEA plugin | First-run MCP installation, Copilot-style Assistant provider/runtime prompts, guided recorder/locator flows, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools are now first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
 | IntelliJ Assistant fix for issue #3188 | Chat transcript messages are now role-rendered (user/assistant bubbles), sessions persist and restore correctly, and the route/runtime controls lock with a visible configure recovery path once MCP is configured. | `intellij-plugin-assistant.png`, `intellij-plugin-mcp-setup.png` |
+| SikuliX desktop automation | Desktop image automation lives in `shaft-sikulix`, so projects opt into `com.sikulix:sikulixapi` only when they need image-based desktop flows. | `tools/modularization/consumer-fixtures/sikulix/pom.xml`, `tests/scripts/test_sikulix_module_boundary.py` |
 | Recorder-to-code workflow | Capture real user actions, preserve context and checkpoints, then generate TestNG replay snippets and Page Object insertions. | `web-recorder.png`, `capture-catalog.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
@@ -183,7 +211,8 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 | Capability | What changed | Try it |
 | --- | --- | --- |
 | Lean core | `shaft-engine` contains the core WebDriver/Appium, API, and reporting surfaces without forcing every optional integration into the same artifact. | `mvn -pl shaft-engine -am package '-DskipTests'` |
-| Optional modules | BrowserStack, video, visual, AI, Doctor, Heal, and Capture are opt-in modules. | `mvn -pl shaft-browserstack,shaft-video,shaft-visual -am package '-DskipTests'` |
+| Optional modules | BrowserStack, video, visual, SikuliX, AI, Doctor, Heal, and Capture are opt-in modules. | `mvn -pl shaft-browserstack,shaft-video,shaft-visual,shaft-sikulix -am package '-DskipTests'` |
+| Desktop image automation | `shaft-sikulix` owns the `com.sikulix:sikulixapi` dependency and keeps image-based desktop automation out of the lean engine artifact. | `mvn -f tools/modularization/consumer-fixtures/sikulix/pom.xml test '-DskipTests'` |
 | Upgrade path | `shaft-bom` and `legacy-shaft-engine` keep dependency alignment and relocation explicit. | `rg "shaft-bom|relocation" shaft-bom legacy-shaft-engine -g pom.xml` |
 | Consumer fixture | A combined-module fixture validates that optional modules can be consumed together. | `mvn -f tools/modularization/consumer-fixtures/combined-modules/pom.xml test '-DskipTests'` |
 
@@ -218,7 +247,7 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260628`). It is intentionally thin: first-run setup installs or updates SHAFT MCP, persists the stdio command, asks the user to choose the assistant family/runtime, and opens the Assistant after a successful connection test. Settings remain available later for Local/Cloud routing, API keys, Copilot MCP configuration, and custom local MCP commands.
+`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.2.20260630`). It is intentionally thin: first-run setup installs or updates SHAFT MCP, persists the stdio command, asks the user to choose the assistant family/runtime, and opens the Assistant after a successful connection test. Settings remain available later for Local/Cloud routing, API keys, Copilot MCP configuration, and custom local MCP commands.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
@@ -243,6 +272,10 @@ The plugin rides as a right-side IntelliJ panel, similar to assistant tools such
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-dark.png" alt="IntelliJ plugin Assistant tab in dark theme" width="620"></td>
   </tr>
   <tr>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-live-output-dark.png" alt="IntelliJ plugin Assistant tab while a local agent is running" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-narrow-dark.png" alt="IntelliJ plugin Assistant tab in a narrow dark tool window" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-guided.png" alt="IntelliJ plugin Guided tab" width="620"></td>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-triage.png" alt="IntelliJ plugin Triage tab" width="620"></td>
   </tr>
@@ -260,14 +293,18 @@ The plugin rides as a right-side IntelliJ panel, similar to assistant tools such
   </tr>
   <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png" alt="IntelliJ plugin first-run MCP setup flow" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-success.png" alt="IntelliJ plugin MCP setup success flow" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="IntelliJ plugin Settings panel" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings-dark.png" alt="IntelliJ plugin Settings panel in dark theme" width="620"></td>
-    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin Guide MCP category" width="620"></td>
   </tr>
   <tr>
-    <td colspan="2">Screenshots show the 860 px right-side panel, first-run MCP setup view, and SHAFT settings panel captured on `2026-06-29` in standard IntelliJ light and dark themes.</td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin Guide MCP category" width="620"></td>
+    <td width="50%"></td>
+  </tr>
+  <tr>
+    <td colspan="2">Screenshots show the 860 px right-side panel, 360 px narrow Assistant view, first-run MCP setup states, live assistant output, and SHAFT settings panel captured on `2026-06-30` in standard IntelliJ light and dark themes.</td>
   </tr>
 </table>
 
@@ -475,6 +512,7 @@ flowchart LR
     BrowserStack[shaft-browserstack] --> Core
     Video[shaft-video] --> Core
     Visual[shaft-visual] --> Core
+    SikuliX[shaft-sikulix<br/>desktop image automation] --> Core
 ```
 
 <details>
