@@ -1,16 +1,18 @@
 package com.shaft.intellij.mcp;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Starts the public shaft-mcp installer from the IntelliJ plugin.
@@ -42,6 +44,19 @@ public final class ShaftMcpInstaller {
     public static CompletableFuture<ShaftMcpInstallResult> installForPluginAndClient(String client) {
         String target = client == null || client.isBlank() ? "intellij-plugin" : client;
         return CompletableFuture.supplyAsync(() -> run(installCommand(target, true), true));
+    }
+
+    /**
+     * Installs or updates shaft-mcp for this plugin and streams installer output to the supplied consumer.
+     *
+     * @param client installer client target
+     * @param outputConsumer consumer for installer output lines; may be null
+     * @return async installer result
+     */
+    public static CompletableFuture<ShaftMcpInstallResult> installForPluginAndClient(String client,
+                                                                                  Consumer<String> outputConsumer) {
+        String target = client == null || client.isBlank() ? "intellij-plugin" : client;
+        return CompletableFuture.supplyAsync(() -> run(installCommand(target, true), true, outputConsumer));
     }
 
     /**
@@ -89,16 +104,20 @@ public final class ShaftMcpInstaller {
     }
 
     static ShaftMcpInstallResult run(List<String> command, boolean parseJson) {
+        return run(command, parseJson, null);
+    }
+
+    static ShaftMcpInstallResult run(List<String> command, boolean parseJson, Consumer<String> outputConsumer) {
         Process process = null;
         try {
             process = new ProcessBuilder(command).redirectErrorStream(true).start();
             Process activeProcess = process;
-            CompletableFuture<String> output = CompletableFuture.supplyAsync(() -> readOutput(activeProcess));
+            CompletableFuture<String> output = CompletableFuture.supplyAsync(() -> readOutput(activeProcess, outputConsumer));
             if (!process.waitFor(TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
                 process.destroyForcibly();
                 return ShaftMcpInstallResult.failure("Timed out while installing SHAFT MCP.");
             }
-            String text = output.get(5, TimeUnit.SECONDS).trim();
+            String text = output.join().trim();
             if (process.exitValue() != 0) {
                 return ShaftMcpInstallResult.failure(text);
             }
@@ -140,10 +159,24 @@ public final class ShaftMcpInstaller {
         return "\"" + value.replace('\\', '/').replace("\"", "\\\"") + "\"";
     }
 
-    private static String readOutput(Process process) {
+    private static String readOutput(Process process, Consumer<String> outputConsumer) {
         try {
-            return new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append('\n');
+                    if (outputConsumer != null) {
+                        outputConsumer.accept(line);
+                    }
+                }
+                return output.toString();
+            }
         } catch (IOException exception) {
+            if (outputConsumer != null) {
+                outputConsumer.accept(exception.getMessage());
+            }
             return exception.getMessage();
         }
     }

@@ -864,7 +864,7 @@ def detect_project_override(client: str) -> None:
     while True:
         for candidate in project_candidates(directory, client):
             if project_entry_exists(candidate, client):
-                fail(f"Project configuration at {candidate} defines {SERVER_NAME} and would override the per-user entry.", 5)
+                log(f"Existing project configuration at {candidate} defines {SERVER_NAME}; it will be updated in-place.")
         if directory == user_home or directory.parent == directory:
             break
         directory = directory.parent
@@ -910,7 +910,8 @@ def configure_claude_code(java: Path, args_file: Path) -> None:
         fail("Claude Code configuration is malformed.", 5)
     existing = isinstance(root.get("mcpServers"), dict) and SERVER_NAME in root["mcpServers"]
     if existing:
-        run_checked([str(claude), "mcp", "remove", SERVER_NAME, "-s", "user"], "Claude Code could not remove the previous shaft-mcp entry.")
+        run_checked([str(claude), "mcp", "remove", SERVER_NAME, "-s", "user"],
+                    "Claude Code could not remove the previous shaft-mcp entry.", True)
     run_checked([str(claude), "mcp", "add", "-s", "user", SERVER_NAME, "--", str(java), f"@{args_file}"], "Claude Code MCP configuration command failed.")
     verify_json_entry(configuration, "mcpServers", java, args_file)
 

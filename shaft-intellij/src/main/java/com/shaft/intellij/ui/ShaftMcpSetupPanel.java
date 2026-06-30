@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
 
 /**
  * First-run SHAFT MCP setup panel.
@@ -41,6 +42,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton test;
     private final JLabel status;
     private final JBTextArea details;
+    private boolean installing;
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected) {
@@ -97,12 +99,15 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void installMcp() {
         setRunning(true, "Installing...");
-        details.setText("");
-        ShaftMcpInstaller.installForPluginAndClient(installerClientForSelection()).whenComplete((result, error) ->
-                ApplicationManager.getApplication().invokeLater(() -> showInstallResult(result, error)));
+        installing = true;
+        details.setText("SHAFT MCP installation\n\n- Starting installer...");
+        ShaftMcpInstaller.installForPluginAndClient(installerClientForSelection(), createInstallerOutputHandler())
+                .whenComplete((result, error) ->
+                        ApplicationManager.getApplication().invokeLater(() -> showInstallResult(result, error)));
     }
 
     private void showInstallResult(ShaftMcpInstallResult result, Throwable error) {
+        installing = false;
         setRunning(false, error == null && result != null && result.success() ? "Installed" : "Install failed");
         if (error != null) {
             details.setText(error.getMessage());
@@ -118,6 +123,22 @@ final class ShaftMcpSetupPanel extends JPanel {
             settings.mcpSetupComplete = false;
             test.setEnabled(true);
         }
+    }
+
+    private Consumer<String> createInstallerOutputHandler() {
+        return line -> ApplicationManager.getApplication().invokeLater(() -> appendInstallerOutput(line));
+    }
+
+    private void appendInstallerOutput(String line) {
+        if (!installing || line == null) {
+            return;
+        }
+        String text = line.trim();
+        if (text.isBlank() || isNoisyInstallLine(text) || parseJsonObject(text) != null) {
+            return;
+        }
+        details.append("\n- ");
+        details.append(text);
     }
 
     private void testConnection() {

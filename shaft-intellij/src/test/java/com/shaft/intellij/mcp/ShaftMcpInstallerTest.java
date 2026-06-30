@@ -9,6 +9,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftMcpInstallerTest {
     @Test
+    void runStreamsInstallerOutputToConsumer() {
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
+        List<String> command = isWindows
+                ? List.of("cmd", "/c", "echo first & echo second")
+                : List.of("sh", "-c", "printf 'first\\nsecond\\n'");
+
+        List<String> lines = new java.util.ArrayList<>();
+        ShaftMcpInstallResult result = ShaftMcpInstaller.run(command, false, lines::add);
+
+        assertTrue(result.success());
+        assertEquals(List.of("first", "second"), lines.stream().map(String::trim).toList());
+    }
+
+    @Test
     void installerJsonBuildsQuotedPluginCommand() {
         String command = ShaftMcpInstaller.commandLineFromJson("""
                 installer banner
