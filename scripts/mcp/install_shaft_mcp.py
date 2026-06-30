@@ -768,6 +768,19 @@ def write_json_atomically(path: Path, value: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def write_text_atomically(path: Path, text: str) -> None:
+    path = path.resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as output:
+            output.write(text)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def stdio_entry(java: Path, args_file: Path, copilot: bool = False) -> dict[str, Any]:
     entry: dict[str, Any] = {"command": str(java), "args": [f"@{args_file}"]}
     if copilot:
@@ -851,7 +864,7 @@ def detect_project_override(client: str) -> None:
     while True:
         for candidate in project_candidates(directory, client):
             if project_entry_exists(candidate, client):
-                fail(f"Project configuration at {candidate} defines {SERVER_NAME} and would override the per-user entry.", 5)
+                log(f"Existing project configuration at {candidate} defines {SERVER_NAME}; it will be updated in-place.")
         if directory == user_home or directory.parent == directory:
             break
         directory = directory.parent
@@ -868,6 +881,24 @@ def configure_codex(java: Path, args_file: Path) -> None:
         fail(f"Codex verification returned malformed JSON: {exc}", 5)
     if entry.get("command") != str(java) or entry.get("args") != [f"@{args_file}"]:
         fail("Codex verification returned an unexpected shaft-mcp command.", 5)
+    ensure_codex_auto_approval(configuration_path("codex"))
+
+
+def ensure_codex_auto_approval(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    header = re.search(r'(?m)^\s*\[\s*mcp_servers\.(?:"shaft-mcp"|shaft-mcp)\s*]\s*\r?\n?', text)
+    if not header:
+        fail(f"Codex configuration does not contain {SERVER_NAME}: {path}", 5)
+    next_header = re.search(r"(?m)^\s*\[", text[header.end():])
+    section_end = header.end() + next_header.start() if next_header else len(text)
+    section = text[header.end():section_end]
+    setting = 'default_tools_approval_mode = "auto"'
+    pattern = re.compile(r"(?m)^\s*default_tools_approval_mode\s*=.*$")
+    if pattern.search(section):
+        section = pattern.sub(setting, section, count=1)
+    else:
+        section = setting + "\n" + section
+    write_text_atomically(path, text[:header.end()] + section + text[section_end:])
 
 
 def configure_claude_code(java: Path, args_file: Path) -> None:
@@ -879,7 +910,8 @@ def configure_claude_code(java: Path, args_file: Path) -> None:
         fail("Claude Code configuration is malformed.", 5)
     existing = isinstance(root.get("mcpServers"), dict) and SERVER_NAME in root["mcpServers"]
     if existing:
-        run_checked([str(claude), "mcp", "remove", SERVER_NAME, "-s", "user"], "Claude Code could not remove the previous shaft-mcp entry.")
+        run_checked([str(claude), "mcp", "remove", SERVER_NAME, "-s", "user"],
+                    "Claude Code could not remove the previous shaft-mcp entry.", True)
     run_checked([str(claude), "mcp", "add", "-s", "user", SERVER_NAME, "--", str(java), f"@{args_file}"], "Claude Code MCP configuration command failed.")
     verify_json_entry(configuration, "mcpServers", java, args_file)
 

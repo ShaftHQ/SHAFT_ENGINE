@@ -253,6 +253,13 @@ final class ShaftAssistantPanel extends JPanel {
             status.setText("Configure MCP");
             return;
         }
+        if (AssistantLocalAgentRunner.supports(invocation)) {
+            setRunning(true, "Running " + routeLabel(route) + "...");
+            currentInvocation = AssistantLocalAgentRunner.start(invocation);
+            currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                    () -> showAgentResult(result, error)));
+            return;
+        }
         setRunning(true, "Running " + invocation.toolName() + "...");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
@@ -293,6 +300,21 @@ final class ShaftAssistantPanel extends JPanel {
         }
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
                 + markdown, output);
+    }
+
+    private void showAgentResult(ShaftMcpToolResult result, Throwable error) {
+        boolean cancelled = error instanceof CancellationException;
+        boolean success = error == null && result != null && result.success();
+        setRunning(false, success ? "Finished" : "Failed");
+        if (cancelled) {
+            showResponse("_Cancelled._", "");
+            status.setText("Cancelled");
+            return;
+        }
+        String output = error != null ? error.getMessage()
+                : result == null ? "No response returned."
+                : result.output();
+        showResponse(AssistantMarkdown.normalizeMarkdown(output), output);
     }
 
     private void showLocalResponse(String response) {

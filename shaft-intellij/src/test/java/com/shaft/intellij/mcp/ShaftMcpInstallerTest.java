@@ -9,6 +9,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftMcpInstallerTest {
     @Test
+    void runStreamsInstallerOutputToConsumer() {
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
+        List<String> command = isWindows
+                ? List.of("cmd", "/c", "echo first & echo second")
+                : List.of("sh", "-c", "printf 'first\\nsecond\\n'");
+
+        List<String> lines = new java.util.ArrayList<>();
+        ShaftMcpInstallResult result = ShaftMcpInstaller.run(command, false, lines::add);
+
+        assertTrue(result.success());
+        assertEquals(List.of("first", "second"), lines.stream().map(String::trim).toList());
+    }
+
+    @Test
     void installerJsonBuildsQuotedPluginCommand() {
         String command = ShaftMcpInstaller.commandLineFromJson("""
                 installer banner
@@ -34,6 +48,29 @@ class ShaftMcpInstallerTest {
         String command = String.join(" ", ShaftMcpInstaller.installCommand("intellij-plugin", true));
 
         assertTrue(command.contains("intellij-plugin"));
+        assertTrue(command.contains("json"));
+    }
+
+    @Test
+    void installerUrlDefaultsToMainBranchScripts() {
+        assertEquals("https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install-shaft-mcp.ps1",
+                ShaftMcpInstaller.installerUrl("install-shaft-mcp.ps1", "main"));
+    }
+
+    @Test
+    void installerRefSanitizerFallsBackForBlankOrUnsafeRefs() {
+        assertEquals("main", ShaftMcpInstaller.sanitizeInstallerRef(null));
+        assertEquals("main", ShaftMcpInstaller.sanitizeInstallerRef("   "));
+        assertEquals("codex/intellij-plugin-recording-flow",
+                ShaftMcpInstaller.sanitizeInstallerRef(" codex/intellij-plugin-recording-flow "));
+        assertEquals("main", ShaftMcpInstaller.sanitizeInstallerRef("feature;Invoke-Expression"));
+    }
+
+    @Test
+    void selectedAgentInstallCommandCanReturnJsonForPluginSettings() {
+        String command = String.join(" ", ShaftMcpInstaller.installCommand("codex", true));
+
+        assertTrue(command.contains("codex"));
         assertTrue(command.contains("json"));
     }
 

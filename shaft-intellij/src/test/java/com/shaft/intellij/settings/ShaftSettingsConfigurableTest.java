@@ -40,7 +40,8 @@ class ShaftSettingsConfigurableTest {
         assertTrue(source.contains("github"));
         assertTrue(source.contains("SHAFT AI provider"));
         assertTrue(source.contains("setAccessibleDescription(\"Mark this provider key as ready to clear on apply.\")"));
-        assertTrue(source.contains("Install or update shaft-mcp and fill the plugin stdio command automatically."));
+        assertTrue(source.contains("fill the plugin stdio command, and connect the selected local assistant"));
+        assertTrue(source.contains("installForPluginAndClient(installerClientForSelection())"));
         assertTrue(source.contains("Passing keys exposes them only to the SHAFT MCP process."));
         assertTrue(source.contains("key storage status"));
         assertTrue(source.contains("Stored in Password Safe."));
