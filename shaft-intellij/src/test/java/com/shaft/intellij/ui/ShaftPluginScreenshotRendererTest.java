@@ -26,7 +26,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -296,24 +295,11 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static void invokeSetRunning(ShaftAssistantPanel component, boolean running, String message) {
-        try {
-            Method setRunning = ShaftAssistantPanel.class.getDeclaredMethod("setRunning", boolean.class, String.class);
-            setRunning.setAccessible(true);
-            setRunning.invoke(component, running, message);
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Unable to set Assistant running state", exception);
-        }
+        component.setRunning(running, message);
     }
 
     private static void invokeShowInstallResult(ShaftMcpSetupPanel component, ShaftMcpInstallResult result) {
-        try {
-            Method showResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
-                    "showInstallResult", ShaftMcpInstallResult.class, Throwable.class);
-            showResult.setAccessible(true);
-            showResult.invoke(component, result, null);
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Unable to set MCP setup success state", exception);
-        }
+        component.showInstallResult(result, null);
     }
 
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {

@@ -355,12 +355,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         setRunning(false, success ? READY_STATUS : "Failed");
         if (cancelled) {
-            String canceledResponse = "_Cancelled._";
-            if (currentStream) {
-                finishLocalAgentResponse(streamToken, canceledResponse, "");
-            } else {
-                showResponse(canceledResponse, "");
-            }
+            showAgentCancelled(streamToken, currentStream);
             status.setText("Cancelled");
             return;
         }
@@ -368,6 +363,15 @@ final class ShaftAssistantPanel extends JPanel {
                 : result == null ? "No response returned."
                 : result.output();
         String response = AssistantMarkdown.normalizeMarkdown(output);
+        showAgentResponse(streamToken, currentStream, response, output);
+    }
+
+    private void showAgentCancelled(int streamToken, boolean currentStream) {
+        String canceledResponse = "_Cancelled._";
+        showAgentResponse(streamToken, currentStream, canceledResponse, "");
+    }
+
+    private void showAgentResponse(int streamToken, boolean currentStream, String response, String output) {
         if (currentStream) {
             finishLocalAgentResponse(streamToken, response, output);
         } else {
@@ -422,7 +426,7 @@ final class ShaftAssistantPanel extends JPanel {
         refreshChatSelector();
     }
 
-    private void setRunning(boolean running, String message) {
+    void setRunning(boolean running, String message) {
         this.running = running;
         send.setEnabled(!running);
         chatSelector.setEnabled(!running);

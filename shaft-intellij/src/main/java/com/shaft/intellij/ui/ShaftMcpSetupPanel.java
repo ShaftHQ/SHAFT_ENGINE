@@ -134,7 +134,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                         ApplicationManager.getApplication().invokeLater(() -> showInstallResult(result, error)));
     }
 
-    private void showInstallResult(ShaftMcpInstallResult result, Throwable error) {
+    void showInstallResult(ShaftMcpInstallResult result, Throwable error) {
         installing = false;
         setRunning(false, error == null && result != null && result.success()
                 ? "Press Test connection next."
