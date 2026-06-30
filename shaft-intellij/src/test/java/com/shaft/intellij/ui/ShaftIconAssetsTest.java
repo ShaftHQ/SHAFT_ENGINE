@@ -32,10 +32,16 @@ class ShaftIconAssetsTest {
     @Test
     void pluginDescriptorRegistersDarkModeIconAndRestartRequirement() throws IOException {
         String descriptor = Files.readString(Path.of("src/main/resources/META-INF/plugin.xml"));
+        String javaDescriptor = Files.readString(Path.of(
+                "src/main/resources/META-INF/io.github.shafthq.shaft-withJava.xml"));
 
         assertAll(
                 () -> assertTrue(descriptor.contains("require-restart=\"true\"")),
-                () -> assertTrue(descriptor.contains("iconDark=\"/icons/shaftToolWindow_dark.png\"")));
+                () -> assertTrue(descriptor.contains("iconDark=\"/icons/shaftToolWindow_dark.png\"")),
+                () -> assertTrue(descriptor.contains("optional=\"true\"")),
+                () -> assertTrue(descriptor.contains("config-file=\"io.github.shafthq.shaft-withJava.xml\"")),
+                () -> assertTrue(javaDescriptor.contains("Shaft.RecordJavaTarget")),
+                () -> assertTrue(javaDescriptor.contains("EditorPopupMenu")));
     }
 
     private static boolean hasNonTransparentPixel(BufferedImage image) {

@@ -84,11 +84,19 @@ public final class ShaftMcpConnectionProbe {
                 List<String> scopedCommand = ShaftMcpProjectScope.commandForProject(command, workspace);
                 Map<String, String> scopedEnvironment = ShaftMcpProjectScope.environmentForProject(environment, workspace);
                 try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(scopedCommand, workspace, scopedEnvironment)) {
-                    return ShaftMcpToolResult.success(client.initializeOnly(TIMEOUT));
+                    return ShaftMcpToolResult.success(scopedMessage(client.initializeOnly(TIMEOUT), workspace));
                 }
             } catch (Exception exception) {
                 return ShaftMcpToolResult.failure(exception.getMessage());
             }
         });
+    }
+
+    private static String scopedMessage(String message, Path workspace) {
+        String root = workspace.toAbsolutePath().normalize().toString();
+        return message + "\n\nMCP workspace: " + root
+                + "\nuser.dir: " + root
+                + "\nshaft.mcp.workspaceRoot: " + root
+                + "\nSHAFT_MCP_WORKSPACE_ROOT: " + root;
     }
 }

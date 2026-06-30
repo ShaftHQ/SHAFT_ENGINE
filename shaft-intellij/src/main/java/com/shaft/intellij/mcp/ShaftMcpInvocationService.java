@@ -164,7 +164,7 @@ public final class ShaftMcpInvocationService {
                 if (cancellationRequested.get()) {
                     throw new CancellationException("Operation cancelled");
                 }
-                return ShaftMcpToolResult.success(client.initializeOnly(DEFAULT_TIMEOUT));
+                return ShaftMcpToolResult.success(scopedMessage(client.initializeOnly(DEFAULT_TIMEOUT), workingDirectory));
             }
         } catch (Exception exception) {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
@@ -223,6 +223,14 @@ public final class ShaftMcpInvocationService {
             return List.of();
         }
         return ShaftCommandLine.parse(settings.mcpCommand);
+    }
+
+    private static String scopedMessage(String message, Path workingDirectory) {
+        String root = workingDirectory.toAbsolutePath().normalize().toString();
+        return message + "\n\nMCP workspace: " + root
+                + "\nuser.dir: " + root
+                + "\nshaft.mcp.workspaceRoot: " + root
+                + "\nSHAFT_MCP_WORKSPACE_ROOT: " + root;
     }
 
     private static final String CONFIGURE_MESSAGE = "Configure the SHAFT MCP stdio command in Settings | SHAFT.";
