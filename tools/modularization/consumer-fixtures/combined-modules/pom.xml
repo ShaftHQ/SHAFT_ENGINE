@@ -66,6 +66,11 @@
             <artifactId>shaft-visual</artifactId>
             <version>${shaft.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>shaft-sikulix</artifactId>
+            <version>${shaft.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -20,6 +20,8 @@ jobs:
       - Windows_Edge_Local
       - MacOSX_Safari_Local
       - Windows_Chrome_Local
+      - Windows_SikuliX_Local
+      - Windows_Appium_Desktop_Local
       - MacOSX_Chrome_Local
       - Windows_Edge_Cucumber_Local
     runs-on: ubuntu-latest
@@ -125,6 +127,92 @@ jobs:
         uses: ./.github/actions/post-test-report
         with:
           job-name: Windows_Chrome_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Windows_SikuliX_Local:
+    runs-on: windows-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Run SikuliX Windows desktop flow
+        continue-on-error: true
+        run: mvn -pl shaft-sikulix -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=SikuliWindowsDesktopE2ETest"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_SikuliX_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          module-directory: shaft-sikulix
+
+  Windows_Appium_Desktop_Local:
+    runs-on: windows-latest
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '24'
+      - name: Install Appium Windows driver
+        run: |
+          npm install -g appium@3.5.2
+          appium driver install windows
+          appium driver run windows install-wad
+      - name: Start Appium server
+        shell: powershell
+        run: |
+          Start-Job -Name shaft-appium -ScriptBlock {
+            appium --address 127.0.0.1 --port 4723 --log-level info
+          } | Out-Null
+          $ready = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            try {
+              Invoke-RestMethod -Uri "http://127.0.0.1:4723/status" -TimeoutSec 2 | Out-Null
+              $ready = $true
+              break
+            } catch {
+              Start-Sleep -Seconds 1
+            }
+          }
+          if (-not $ready) {
+            Receive-Job -Name shaft-appium -Keep
+            throw "Appium server did not become ready."
+          }
+      - name: Run Appium Windows desktop flow
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:\Windows\System32\notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=WindowsDesktopAppiumE2ETest"
+      - name: Stop Appium server
+        if: always()
+        shell: powershell
+        run: Get-Job -Name shaft-appium -ErrorAction SilentlyContinue | Stop-Job
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Appium_Desktop_Local
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   MacOSX_Chrome_Local:

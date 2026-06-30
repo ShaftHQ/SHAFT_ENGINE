@@ -18,6 +18,7 @@ on:
       - 'shaft-browserstack/**'
       - 'shaft-video/**'
       - 'shaft-visual/**'
+      - 'shaft-sikulix/**'
       - 'shaft-bom/**'
       - 'legacy-shaft-engine/**'
       - 'report-aggregate/**'

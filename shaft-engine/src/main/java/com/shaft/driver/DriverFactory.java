@@ -242,7 +242,9 @@ public class DriverFactory {
         /** Appium native mobile app execution. */
         APPIUM_MOBILE_NATIVE("NativeMobileApp"),
         /** Appium Flutter app execution. */
-        APPIUM_FLUTTER("Flutter");
+        APPIUM_FLUTTER("Flutter"),
+        /** Appium Windows desktop app execution. */
+        APPIUM_WINDOWS("WindowsApp");
 
         private final String value;
 

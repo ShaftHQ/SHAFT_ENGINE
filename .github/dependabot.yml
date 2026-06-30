@@ -25,6 +25,7 @@ updates:
       - "/shaft-browserstack"
       - "/shaft-video"
       - "/shaft-visual"
+      - "/shaft-sikulix"
       - "/shaft-mcp"
       - "/shaft-bom"
       - "/legacy-shaft-engine"

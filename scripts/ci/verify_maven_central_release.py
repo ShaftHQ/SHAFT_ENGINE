@@ -18,7 +18,7 @@ GROUP_PATH = "io/github/shafthq"
 DEFAULT_REPOSITORY = "https://repo.maven.apache.org/maven2"
 JAR_ARTIFACTS = (
     "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-doctor", "shaft-ai", "shaft-heal",
-    "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-mcp",
+    "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-sikulix", "shaft-mcp",
 )
 POM_ARTIFACTS = ("shaft-parent", "shaft-bom", "SHAFT_ENGINE")
 FIXTURE_GOALS = {
@@ -28,6 +28,7 @@ FIXTURE_GOALS = {
     "legacy-coordinate": "test-compile",
     "mcp": "verify",
     "pilot-core": "verify",
+    "sikulix": "test-compile",
     "testng-web": "test",
 }
 

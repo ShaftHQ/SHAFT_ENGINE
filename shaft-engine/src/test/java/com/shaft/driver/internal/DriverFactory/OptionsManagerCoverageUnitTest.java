@@ -239,6 +239,16 @@ public class OptionsManagerCoverageUnitTest {
         manager.setDriverOptions(DriverFactory.DriverType.APPIUM_FLUTTER, new MutableCapabilities());
         manager.initializeMobileDesiredCapabilities();
         Assert.assertEquals(manager.getAppiumCapabilities().getPlatformName(), Platform.IOS);
+
+        SHAFT.Properties.platform.set().targetPlatform("windows");
+        SHAFT.Properties.web.set().targetBrowserName("WindowsApp");
+        SHAFT.Properties.mobile.set().automationName("Windows").app("C:\\Windows\\System32\\notepad.exe");
+        manager.setDriverOptions(DriverFactory.DriverType.APPIUM_WINDOWS, new MutableCapabilities());
+        manager.initializeMobileDesiredCapabilities();
+        Assert.assertEquals(manager.getAppiumCapabilities().getPlatformName(), Platform.WINDOWS);
+        Assert.assertEquals(String.valueOf(manager.getAppiumCapabilities().getCapability(CapabilityType.PLATFORM_NAME)).toLowerCase(), "windows");
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:automationName"), "Windows");
+        Assert.assertEquals(manager.getAppiumCapabilities().getCapability("appium:app"), "C:\\Windows\\System32\\notepad.exe");
     }
 
 }
