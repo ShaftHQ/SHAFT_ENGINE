@@ -30,6 +30,9 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,7 +45,7 @@ import java.util.Map;
  * and Database interactions. All subsystems are accessed through nested static
  * classes:
  * <ul>
- *   <li>{@link GUI} &ndash; Browser, element, touch, and alert actions via Selenium/Appium.</li>
+ *   <li>{@link GUI} &ndash; Browser, element, touch, alert, and SikuliX actions.</li>
  *   <li>{@link API} &ndash; RESTful API interactions via REST Assured.</li>
  *   <li>{@link CLI} &ndash; Terminal and file-system operations.</li>
  *   <li>{@link DB}  &ndash; Database queries and result handling.</li>
@@ -71,6 +74,7 @@ public class SHAFT {
      * Contains GUI-related subsystems for web and mobile test automation.
      *
      * @see WebDriver
+     * @see SikuliX
      * @see Locator
      */
     public static class GUI {
@@ -406,6 +410,346 @@ public class SHAFT {
 
             public com.microsoft.playwright.Playwright getPlaywright() {
                 return session.playwright();
+            }
+        }
+
+        /**
+         * Entry point for optional SikuliX image-based desktop automation.
+         *
+         * <p>Add {@code io.github.shafthq:shaft-sikulix} to the project before
+         * creating this class. Without that optional module SHAFT throws a
+         * dependency-specific error instead of a generic class loading failure.</p>
+         */
+        public static class SikuliX {
+            private static final String DRIVER_CLASS = "com.shaft.sikulix.SikuliDriver";
+            private static final String ACTIONS_CLASS = "com.shaft.gui.element.SikuliActions";
+            private static final String DEPENDENCY = "io.github.shafthq:shaft-sikulix";
+            private final Object driver;
+            private final SikuliActions screenActions;
+
+            /**
+             * Creates SikuliX actions for the current desktop screen.
+             *
+             * @throws IllegalStateException when {@code shaft-sikulix} is missing
+             */
+            public SikuliX() {
+                driver = null;
+                screenActions = new SikuliActions(newInstance(ACTIONS_CLASS));
+            }
+
+            /**
+             * Attaches to an opened desktop application window by name or partial name.
+             *
+             * @param applicationName name or partial name of the target application window
+             * @throws IllegalStateException when {@code shaft-sikulix} is missing
+             */
+            public SikuliX(String applicationName) {
+                driver = newInstance(DRIVER_CLASS, new Class<?>[]{String.class}, applicationName);
+                screenActions = null;
+            }
+
+            /**
+             * Creates a SikuliX driver attached to an opened desktop application window.
+             *
+             * @param applicationName name or partial name of the target application window
+             * @return a SikuliX driver facade
+             */
+            public static SikuliX getInstance(String applicationName) {
+                return new SikuliX(applicationName);
+            }
+
+            /**
+             * Closes the attached desktop application window.
+             */
+            public void quit() {
+                if (driver != null) {
+                    invoke(driver, "quit");
+                }
+            }
+
+            /**
+             * Returns a SikuliX action facade.
+             *
+             * @return SikuliX action facade
+             */
+            public SikuliActions element() {
+                return driver == null ? screenActions : new SikuliActions(invoke(driver, "element"));
+            }
+
+            /**
+             * Returns the native SikuliX app handle, or {@code null} for screen-only actions.
+             *
+             * @return native SikuliX app handle
+             */
+            public Object getDriver() {
+                return driver == null ? null : invoke(driver, "getDriver");
+            }
+
+            /**
+             * Reflection-backed wrapper for optional SikuliX element actions.
+             */
+            public static class SikuliActions {
+                private final Object delegate;
+
+                private SikuliActions(Object delegate) {
+                    this.delegate = delegate;
+                }
+
+                /**
+                 * Clicks the target image.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions click(String pathToTargetElementImage) {
+                    invoke(delegate, "click", new Class<?>[]{String.class}, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Clicks the target image.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions click(byte[] targetElement) {
+                    invoke(delegate, "click", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                /**
+                 * Types text into the target image region.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @param text text to type
+                 * @return self reference for chaining
+                 */
+                public SikuliActions type(String pathToTargetElementImage, String text) {
+                    invoke(delegate, "type", new Class<?>[]{String.class, String.class}, pathToTargetElementImage, text);
+                    return this;
+                }
+
+                /**
+                 * Types text into the target image region.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @param text text to type
+                 * @return self reference for chaining
+                 */
+                public SikuliActions type(byte[] targetElement, String text) {
+                    invoke(delegate, "type", new Class<?>[]{byte[].class, String.class}, targetElement, text);
+                    return this;
+                }
+
+                /**
+                 * Appends text into the target image region.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @param text text to append
+                 * @return self reference for chaining
+                 */
+                public SikuliActions typeAppend(String pathToTargetElementImage, String text) {
+                    invoke(delegate, "typeAppend", new Class<?>[]{String.class, String.class}, pathToTargetElementImage, text);
+                    return this;
+                }
+
+                /**
+                 * Appends text into the target image region.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @param text text to append
+                 * @return self reference for chaining
+                 */
+                public SikuliActions typeAppend(byte[] targetElement, String text) {
+                    invoke(delegate, "typeAppend", new Class<?>[]{byte[].class, String.class}, targetElement, text);
+                    return this;
+                }
+
+                /**
+                 * Types sensitive text into the target image region.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @param text sensitive text to type
+                 * @return self reference for chaining
+                 */
+                public SikuliActions typeSecure(String pathToTargetElementImage, String text) {
+                    invoke(delegate, "typeSecure", new Class<?>[]{String.class, String.class}, pathToTargetElementImage, text);
+                    return this;
+                }
+
+                /**
+                 * Types sensitive text into the target image region.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @param text sensitive text to type
+                 * @return self reference for chaining
+                 */
+                public SikuliActions typeSecure(byte[] targetElement, String text) {
+                    invoke(delegate, "typeSecure", new Class<?>[]{byte[].class, String.class}, targetElement, text);
+                    return this;
+                }
+
+                /**
+                 * Reads text from the target image region.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return extracted text
+                 */
+                public String getText(String pathToTargetElementImage) {
+                    return String.valueOf(invoke(delegate, "getText", new Class<?>[]{String.class}, pathToTargetElementImage));
+                }
+
+                /**
+                 * Reads text from the target image region.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return extracted text
+                 */
+                public String getText(byte[] targetElement) {
+                    return String.valueOf(invoke(delegate, "getText", new Class<?>[]{byte[].class}, targetElement));
+                }
+
+                /**
+                 * Moves the mouse over the target image.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions hover(String pathToTargetElementImage) {
+                    invoke(delegate, "hover", new Class<?>[]{String.class}, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Moves the mouse over the target image.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions hover(byte[] targetElement) {
+                    invoke(delegate, "hover", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                /**
+                 * Double-clicks the target image.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions doubleClick(String pathToTargetElementImage) {
+                    invoke(delegate, "doubleClick", new Class<?>[]{String.class}, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Double-clicks the target image.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions doubleClick(byte[] targetElement) {
+                    invoke(delegate, "doubleClick", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                /**
+                 * Right-clicks the target image.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions rightClick(String pathToTargetElementImage) {
+                    invoke(delegate, "rightClick", new Class<?>[]{String.class}, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Right-clicks the target image.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions rightClick(byte[] targetElement) {
+                    invoke(delegate, "rightClick", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                /**
+                 * Drags one target image to another target image.
+                 *
+                 * @param pathToDraggableElementImage path to the source reference image
+                 * @param pathToTargetElementImage path to the target reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions dragAndDrop(String pathToDraggableElementImage, String pathToTargetElementImage) {
+                    invoke(delegate, "dragAndDrop", new Class<?>[]{String.class, String.class}, pathToDraggableElementImage, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Drags one target image to another target image.
+                 *
+                 * @param draggableElement source reference image bytes
+                 * @param targetElement target reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions dragAndDrop(byte[] draggableElement, byte[] targetElement) {
+                    invoke(delegate, "dragAndDrop", new Class<?>[]{byte[].class, byte[].class}, draggableElement, targetElement);
+                    return this;
+                }
+            }
+
+            private static Object newInstance(String className, Object... args) {
+                return newInstance(className, new Class<?>[]{}, args);
+            }
+
+            private static Object newInstance(String className, Class<?>[] parameterTypes, Object... args) {
+                try {
+                    Constructor<?> constructor = Class.forName(className).getDeclaredConstructor(parameterTypes);
+                    return constructor.newInstance(args);
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                    throw missingDependency(e);
+                } catch (InvocationTargetException e) {
+                    throw unwrap(e);
+                } catch (ReflectiveOperationException e) {
+                    throw new IllegalStateException("Failed to initialize SHAFT.GUI.SikuliX through optional dependency " + DEPENDENCY + ".", e);
+                }
+            }
+
+            private static Object invoke(Object target, String methodName) {
+                return invoke(target, methodName, new Class<?>[]{});
+            }
+
+            private static Object invoke(Object target, String methodName, Class<?>[] parameterTypes, Object... args) {
+                try {
+                    Method method = target.getClass().getMethod(methodName, parameterTypes);
+                    return method.invoke(target, args);
+                } catch (NoClassDefFoundError e) {
+                    throw missingDependency(e);
+                } catch (InvocationTargetException e) {
+                    throw unwrap(e);
+                } catch (ReflectiveOperationException e) {
+                    throw new IllegalStateException("Failed to call SHAFT.GUI.SikuliX." + methodName + " through optional dependency " + DEPENDENCY + ".", e);
+                }
+            }
+
+            private static IllegalStateException missingDependency(Throwable cause) {
+                return new IllegalStateException("SHAFT.GUI.SikuliX requires the optional dependency " + DEPENDENCY + ". Add shaft-sikulix to your project dependencies or enable the SikuliX optional module in the project generator.", cause);
+            }
+
+            private static RuntimeException unwrap(InvocationTargetException exception) {
+                Throwable cause = exception.getCause();
+                if (cause instanceof NoClassDefFoundError) {
+                    throw missingDependency(cause);
+                }
+                if (cause instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                if (cause instanceof Error error) {
+                    throw error;
+                }
+                return new IllegalStateException("Failed to execute SHAFT.GUI.SikuliX through optional dependency " + DEPENDENCY + ".", cause);
             }
         }
 

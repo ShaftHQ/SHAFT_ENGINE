@@ -1,7 +1,6 @@
 package com.shaft.sikulix;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.element.SikuliActions;
 import com.shaft.properties.internal.Properties;
 import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
@@ -58,7 +57,7 @@ public class SikuliWindowsDesktopE2ETest {
         TimeUnit.MILLISECONDS.sleep(500);
         Path targetImage = captureButtonReferenceImage(robot, button.get());
 
-        new SikuliActions().click(targetImage.toString());
+        new SHAFT.GUI.SikuliX().element().click(targetImage.toString());
 
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         SHAFT.Validations.assertThat().object(clicked.get()).isEqualTo(true).perform();
