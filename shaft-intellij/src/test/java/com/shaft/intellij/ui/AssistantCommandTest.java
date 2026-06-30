@@ -1,8 +1,10 @@
 package com.shaft.intellij.ui;
 
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -23,7 +25,9 @@ class AssistantCommandTest {
         assertEquals("autobot_local_agent_run", invocation.toolName());
         assertEquals("CODEX", invocation.arguments().get("client").getAsString());
         assertEquals("AGENT", invocation.arguments().get("mode").getAsString());
-        assertTrue(invocation.arguments().get("prompt").getAsString().endsWith("Plan a resilient login test"));
+        assertTrue(invocation.arguments().get("prompt").getAsString().contains("Plan a resilient login test"));
+        assertTrue(invocation.arguments().get("prompt").getAsString()
+                .contains("Source edits are not enabled for this session"));
         assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
     }
 
@@ -75,6 +79,7 @@ class AssistantCommandTest {
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
 
                 open duckduckgo and search for SHAFT Engine""",
                 duckDuckGo.arguments().get("prompt").getAsString());
@@ -82,8 +87,23 @@ class AssistantCommandTest {
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
 
                 Explain the current test failure""", plain.arguments().get("prompt").getAsString());
+    }
+
+    @Test
+    void agentModeWithoutSourceEditsAddsSourceMutationGuardInPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Implement this login flow in Java",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                false);
+
+        assertTrue(invocation.arguments().get("prompt").getAsString().contains("Source edits are not enabled for this session"));
+        assertTrue(invocation.arguments().get("prompt").getAsString().contains("Do not apply patches"));
     }
 
     @Test
@@ -92,6 +112,8 @@ class AssistantCommandTest {
                 "Explain this failure", "CODEX", "ASK", ".", "", false);
         AssistantCommand.Invocation codexAgent = AssistantCommand.fromPrompt(
                 "Implement the fix", "CODEX", "AGENT", ".", "", true);
+        AssistantCommand.Invocation codexAgentNoSource = AssistantCommand.fromPrompt(
+                "Implement the fix", "CODEX", "AGENT", ".", "", false);
         AssistantCommand.Invocation claudePlan = AssistantCommand.fromPrompt(
                 "Plan the fix", "CLAUDE_CODE", "PLAN", ".", "", false);
         AssistantCommand.Invocation custom = AssistantCommand.fromPrompt(
@@ -100,15 +122,38 @@ class AssistantCommandTest {
         assertEquals(List.of("codex", "exec", "--sandbox", "read-only", "-"),
                 AssistantLocalAgentRunner.commandFor(codexAsk.arguments()));
         assertEquals(List.of(
-                        "codex", "exec",
-                        "--sandbox", "workspace-write",
-                        "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
-                        "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
-                        "-"),
+                "codex", "exec",
+                "--sandbox", "workspace-write",
+                "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                "-"),
                 AssistantLocalAgentRunner.commandFor(codexAgent.arguments()));
+        assertEquals(List.of(
+                "codex", "exec",
+                "--sandbox", "read-only",
+                "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                "-"),
+                AssistantLocalAgentRunner.commandFor(codexAgentNoSource.arguments()));
         assertEquals(List.of("claude", "--print", "--permission-mode", "plan"),
                 AssistantLocalAgentRunner.commandFor(claudePlan.arguments()));
         assertEquals(List.of("custom-agent", "--safe"), AssistantLocalAgentRunner.commandFor(custom.arguments()));
+    }
+
+    @Test
+    void directCustomAgentCommandRequiresSourceEditApprovalBecauseItCannotBeSandboxed() throws Exception {
+        AssistantCommand.Invocation custom = AssistantCommand.fromPrompt(
+                "Inspect the browser",
+                "CODEX",
+                "AGENT",
+                ".",
+                "custom-agent --unsafe",
+                false);
+
+        ShaftMcpToolResult result = AssistantLocalAgentRunner.start(custom).future().get(5, TimeUnit.SECONDS);
+
+        assertFalse(result.success());
+        assertTrue(result.output().contains("Custom Agent commands require Allow source edits"));
     }
 
     @Test

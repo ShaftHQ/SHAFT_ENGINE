@@ -43,15 +43,23 @@ class AutobotServiceTest {
     }
 
     @Test
-    void agentModeRemainsBlockedUntilMutationApprovalIsExplicit() {
+    void agentModeWithoutMutationApprovalUsesReadOnlyDefaultCommand() throws Exception {
+        CapturingRunner runner = new CapturingRunner();
         AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
-                new LocalAgentService(client -> true, new CapturingRunner()));
+                new LocalAgentService(client -> true, runner));
 
-        LocalAgentResponse response = service.runLocalAgent("claude_code", "agent", "Refactor this class.",
+        LocalAgentResponse response = service.runLocalAgent("codex", "agent", "Inspect this browser flow.",
                 "", List.of(), Map.of(), 10, false);
 
-        assertEquals(LocalAgentStatus.REJECTED, response.status());
-        assertTrue(response.warnings().contains(LocalAgentService.AGENT_MODE_APPROVAL_WARNING));
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of(
+                        "codex", "exec",
+                        "--sandbox", "read-only",
+                        "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                        "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                        "-"),
+                runner.command.get());
+        assertEquals(workspace.toRealPath(), runner.workingDirectory.get());
     }
 
     @Test

@@ -218,7 +218,9 @@ class ShaftPluginScreenshotRendererTest {
                     Searching for SHAFT Engine
                     ```
                     """.stripIndent().trim(), "");
-            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), defaultSettings(), chatState,
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.defaultAutobotMode = "AGENT";
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
                     () -> {
                     });
             invokeSetRunning(component, true, "Thinking...");

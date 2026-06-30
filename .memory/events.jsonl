@@ -130,3 +130,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-plugin-recording-windows-firewall-prompt","timestamp":"2026-06-30T09:28:28+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.record-shaft-intellij-plugin-onboarding-video","timestamp":"2026-06-30T10:10:23+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.record-shaft-intellij-plugin-onboarding-video","timestamp":"2026-06-30T10:43:38+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-agent-readonly-without-source-approval","timestamp":"2026-06-30T17:49:33+03:00"}

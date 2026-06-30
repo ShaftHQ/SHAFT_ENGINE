@@ -13,8 +13,14 @@ import java.util.function.Predicate;
  * Routes SHAFT Autobot requests to local agent CLIs.
  */
 public final class LocalAgentService {
+    /**
+     * @deprecated Agent mode can run without source mutation approval; custom Agent commands still require it.
+     */
+    @Deprecated(since = "2026.6", forRemoval = false)
     public static final String AGENT_MODE_APPROVAL_WARNING =
-            "Agent mode requires explicit source-mutation approval.";
+            "Agent mode can run without source-mutation approval; custom Agent commands still require it.";
+    private static final String CUSTOM_AGENT_APPROVAL_WARNING =
+            "Custom Agent commands require source-mutation approval because SHAFT cannot enforce read-only execution.";
 
     private final Predicate<String> commandAvailable;
     private final LocalAgentProcessRunner runner;
@@ -45,12 +51,11 @@ public final class LocalAgentService {
      */
     public LocalAgentResponse execute(LocalAgentRequest request) {
         Objects.requireNonNull(request, "request");
-        if (request.mode() == LocalAgentMode.AGENT && !request.allowSourceMutation()) {
-            return response(request, LocalAgentStatus.REJECTED, defaultCommand(request), -1, "", "", false,
-                    Duration.ZERO, List.of(AGENT_MODE_APPROVAL_WARNING));
-        }
-
         boolean customCommand = !request.command().isEmpty();
+        if (customCommand && request.mode() == LocalAgentMode.AGENT && !request.allowSourceMutation()) {
+            return response(request, LocalAgentStatus.REJECTED, request.command(), -1, "", "", false,
+                    Duration.ZERO, List.of(CUSTOM_AGENT_APPROVAL_WARNING));
+        }
         List<String> command = customCommand ? request.command() : defaultCommand(request);
         if (!customCommand && !commandAvailable.test(command.getFirst())) {
             return response(request, LocalAgentStatus.UNAVAILABLE, command, -1, "", "", false, Duration.ZERO,
@@ -87,32 +92,37 @@ public final class LocalAgentService {
 
     private static List<String> defaultCommand(LocalAgentRequest request) {
         return switch (request.client()) {
-            case CODEX -> codexCommand(request.mode());
-            case CLAUDE_CODE -> claudeCommand(request.mode());
-            case COPILOT_CLI -> copilotCommand(request.mode());
+            case CODEX -> codexCommand(request.mode(), request.allowSourceMutation());
+            case CLAUDE_CODE -> claudeCommand(request.mode(), request.allowSourceMutation());
+            case COPILOT_CLI -> copilotCommand(request.mode(), request.allowSourceMutation());
         };
     }
 
-    private static List<String> codexCommand(LocalAgentMode mode) {
+    private static List<String> codexCommand(LocalAgentMode mode, boolean allowSourceMutation) {
         return switch (mode) {
             case ASK, PLAN -> List.of("codex", "exec", "--sandbox", "read-only", "-");
-            case AGENT -> List.of("codex", "exec", "--sandbox", "workspace-write", "-");
+            case AGENT -> List.of(
+                    "codex", "exec",
+                    "--sandbox", allowSourceMutation ? "workspace-write" : "read-only",
+                    "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                    "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                    "-");
         };
     }
 
-    private static List<String> claudeCommand(LocalAgentMode mode) {
+    private static List<String> claudeCommand(LocalAgentMode mode, boolean allowSourceMutation) {
         return switch (mode) {
             case ASK -> List.of("claude", "--print");
             case PLAN -> List.of("claude", "--print", "--permission-mode", "plan");
-            case AGENT -> List.of("claude", "--print", "--permission-mode", "acceptEdits");
+            case AGENT -> List.of("claude", "--print", "--permission-mode", allowSourceMutation ? "acceptEdits" : "plan");
         };
     }
 
-    private static List<String> copilotCommand(LocalAgentMode mode) {
+    private static List<String> copilotCommand(LocalAgentMode mode, boolean allowSourceMutation) {
         return switch (mode) {
             case ASK -> List.of("copilot", "ask");
             case PLAN -> List.of("copilot", "plan");
-            case AGENT -> List.of("copilot", "agent");
+            case AGENT -> List.of("copilot", allowSourceMutation ? "agent" : "ask");
         };
     }
 
