@@ -75,6 +75,19 @@ public class GUIInterfaceCompatibilityCoverageUnitTest {
     }
 
     @Test
+    public void sikuliXShouldExplainMissingOptionalDependency() throws NoSuchMethodException {
+        assertDeclaredConstructor(SHAFT.GUI.SikuliX.class, new Class<?>[]{});
+        assertDeclaredConstructor(SHAFT.GUI.SikuliX.class, new Class<?>[]{String.class});
+        Assert.assertEquals(SHAFT.GUI.SikuliX.class.getMethod("element").getReturnType(),
+                SHAFT.GUI.SikuliX.SikuliActions.class);
+
+        IllegalStateException exception = Assert.expectThrows(IllegalStateException.class, SHAFT.GUI.SikuliX::new);
+        Assert.assertTrue(exception.getMessage().contains("SHAFT.GUI.SikuliX"));
+        Assert.assertTrue(exception.getMessage().contains("io.github.shafthq:shaft-sikulix"));
+        Assert.assertTrue(exception.getMessage().contains("optional dependency"));
+    }
+
+    @Test
     public void webDriverPublicConstructorsShouldRemainAvailableWithoutInstantiation() throws NoSuchMethodException {
         assertDeclaredConstructor(SHAFT.GUI.WebDriver.class, new Class<?>[]{});
         assertDeclaredConstructor(SHAFT.GUI.WebDriver.class, new Class<?>[]{DriverFactory.DriverType.class});

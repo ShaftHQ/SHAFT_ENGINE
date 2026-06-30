@@ -33,7 +33,7 @@ class ShaftProjectServiceTest {
                 "com.example",
                 "shaft-api-testng",
                 "1.2.3",
-                List.of("shaft-heal"),
+                List.of("shaft-heal", "shaft-sikulix"),
                 true,
                 true,
                 false);
@@ -46,6 +46,7 @@ class ShaftProjectServiceTest {
         assertTrue(pom.contains("<artifactId>shaft-api-testng</artifactId>"));
         assertTrue(pom.contains("<version>1.2.3</version>"));
         assertTrue(pom.contains("<artifactId>shaft-heal</artifactId>"));
+        assertTrue(pom.contains("<artifactId>shaft-sikulix</artifactId>"));
         assertTrue(Files.exists(generated.resolve(".github/workflows/api.yml")));
         assertTrue(Files.exists(generated.resolve(".github/dependabot.yml")));
     }

@@ -20,6 +20,7 @@ MODULES = {
     "shaft-browserstack": "BrowserStack integration",
     "shaft-video": "Desktop video integration",
     "shaft-visual": "Visual processing integration",
+    "shaft-sikulix": "SikuliX desktop automation",
     "shaft-mcp": "Model Context Protocol server",
 }
 

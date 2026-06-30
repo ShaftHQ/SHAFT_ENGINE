@@ -24,6 +24,7 @@ PUBLIC_ARTIFACTS = {
     "shaft-browserstack": (Path("shaft-browserstack/pom.xml"), "jar"),
     "shaft-video": (Path("shaft-video/pom.xml"), "jar"),
     "shaft-visual": (Path("shaft-visual/pom.xml"), "jar"),
+    "shaft-sikulix": (Path("shaft-sikulix/pom.xml"), "jar"),
     "shaft-mcp": (Path("shaft-mcp/pom.xml"), "jar"),
     "shaft-bom": (Path("shaft-bom/pom.xml"), "pom"),
     "SHAFT_ENGINE": (Path("legacy-shaft-engine/pom.xml"), "pom"),

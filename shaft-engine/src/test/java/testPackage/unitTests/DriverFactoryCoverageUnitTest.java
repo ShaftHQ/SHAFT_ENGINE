@@ -186,5 +186,6 @@ public class DriverFactoryCoverageUnitTest {
         SHAFT.Validations.assertThat().object(DriverFactory.DriverType.CHROME.getValue()).isEqualTo("chrome").perform();
         SHAFT.Validations.assertThat().object(DriverFactory.DriverType.BROWSERSTACK.getValue()).isEqualTo("BrowserStack").perform();
         SHAFT.Validations.assertThat().object(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE.getValue()).isEqualTo("NativeMobileApp").perform();
+        SHAFT.Validations.assertThat().object(DriverFactory.DriverType.APPIUM_WINDOWS.getValue()).isEqualTo("WindowsApp").perform();
     }
 }
