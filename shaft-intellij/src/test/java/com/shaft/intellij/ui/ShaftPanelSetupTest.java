@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
@@ -152,6 +153,74 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(markdown.contains("public class LoginTest")),
                 () -> assertFalse(markdown.contains("\\\"content\\\"")),
                 () -> assertTrue(containsText(panel, "Copy raw")));
+    }
+
+    @Test
+    void assistantDisplaysKnownClientListAsMarkdown() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        showAssistantResult(panel, "autobot_local_agent_clients", ShaftMcpToolResult.success(mcpText("""
+                [
+                  {"id":"CODEX","displayName":"Codex CLI","executableName":"codex","requiresCloudApiKey":false}
+                ]
+                """)));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("| Client | Command | SHAFT API key |")),
+                () -> assertTrue(markdown.contains("| Codex CLI | `codex` | Not required |")),
+                () -> assertFalse(markdown.contains("\\\"displayName\\\"")));
+    }
+
+    @Test
+    void assistantPersistsActiveChatAndCanStartNewContext() throws Exception {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        ShaftAssistantPanel firstPanel = new ShaftAssistantPanel(null, settings, chatState);
+
+        showAssistantResult(firstPanel, ShaftMcpToolResult.success(mcpText("First answer")));
+
+        ShaftAssistantPanel reopenedPanel = new ShaftAssistantPanel(null, settings, chatState);
+        assertTrue(transcriptMarkdown(reopenedPanel).contains("First answer"));
+
+        click(reopenedPanel, "New chat");
+        assertFalse(transcriptMarkdown(reopenedPanel).contains("First answer"));
+
+        showAssistantResult(reopenedPanel, ShaftMcpToolResult.success(mcpText("Second answer")));
+        assertAll(
+                () -> assertTrue(transcriptMarkdown(reopenedPanel).contains("Second answer")),
+                () -> assertEquals(2, chatState.sessions().size()));
+    }
+
+    @Test
+    void assistantDoesNotPersistRawResponsePayloads() throws Exception {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+
+        chatState.append("assistant", "Rendered response", "{\"secret\":\"raw payload\"}");
+
+        assertAll(
+                () -> assertEquals("Rendered response",
+                        chatState.getState().sessions.get(0).messages.get(0).markdown),
+                () -> assertThrows(NoSuchFieldException.class,
+                        () -> ShaftAssistantChatState.Message.class.getDeclaredField("raw")));
+    }
+
+    @Test
+    void assistantNewChatClearsRerunAndCopyState() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        assistantPrompt(panel).setText("/help");
+        click(panel, "Send");
+        assertAll(
+                () -> assertTrue(findButton(panel, "Rerun").isEnabled()),
+                () -> assertTrue(findButton(panel, "Copy response").isEnabled()));
+
+        click(panel, "New chat");
+
+        assertAll(
+                () -> assertFalse(findButton(panel, "Rerun").isEnabled()),
+                () -> assertFalse(findButton(panel, "Copy response").isEnabled()),
+                () -> assertFalse(transcriptMarkdown(panel).contains("Slash commands:")));
     }
 
     @Test
@@ -303,10 +372,14 @@ class ShaftPanelSetupTest {
     }
 
     private static void showAssistantResult(ShaftAssistantPanel panel, ShaftMcpToolResult result) throws Exception {
+        showAssistantResult(panel, "autobot_local_agent_run", result);
+    }
+
+    private static void showAssistantResult(ShaftAssistantPanel panel, String toolName, ShaftMcpToolResult result) throws Exception {
         Method showResult = ShaftAssistantPanel.class.getDeclaredMethod(
                 "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
-        showResult.invoke(panel, "autobot_local_agent_run", result, null);
+        showResult.invoke(panel, toolName, result, null);
     }
 
     private static String mcpText(String text) {
@@ -432,6 +505,27 @@ class ShaftPanelSetupTest {
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 JButton found = findButton(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static JTextComponent assistantPrompt(Component component) {
+        JTextComponent prompt = textComponent(component, "Assistant prompt");
+        assertNotNull(prompt);
+        return prompt;
+    }
+
+    private static JTextComponent textComponent(Component component, String accessibleName) {
+        if (component instanceof JTextComponent textComponent && accessibleName.equals(accessibleName(textComponent))) {
+            return textComponent;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JTextComponent found = textComponent(child, accessibleName);
                 if (found != null) {
                     return found;
                 }

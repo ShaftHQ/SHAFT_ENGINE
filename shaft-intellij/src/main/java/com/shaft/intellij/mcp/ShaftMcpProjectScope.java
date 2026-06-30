@@ -34,6 +34,9 @@ final class ShaftMcpProjectScope {
                 return List.copyOf(scoped);
             }
         }
+        if (isJavaCommand(scoped.get(0))) {
+            return javaCommandForProject(scoped, root);
+        }
         return List.copyOf(scoped);
     }
 
@@ -86,6 +89,31 @@ final class ShaftMcpProjectScope {
 
     private static String systemProperty(String property, Path projectRoot) {
         return quote("-D" + property + "=" + projectRoot.toString().replace('\\', '/'));
+    }
+
+    private static List<String> javaCommandForProject(List<String> command, Path projectRoot) {
+        List<String> scoped = new ArrayList<>(command.size() + 2);
+        scoped.add(command.get(0));
+        scoped.add(systemPropertyToken(USER_DIR_PROPERTY, projectRoot));
+        scoped.add(systemPropertyToken(WORKSPACE_PROPERTY, projectRoot));
+        for (int index = 1; index < command.size(); index++) {
+            String property = propertyName(command.get(index));
+            if (!USER_DIR_PROPERTY.equals(property) && !WORKSPACE_PROPERTY.equals(property)) {
+                scoped.add(command.get(index));
+            }
+        }
+        return List.copyOf(scoped);
+    }
+
+    private static String systemPropertyToken(String property, Path projectRoot) {
+        return "-D" + property + "=" + projectRoot.toString().replace('\\', '/');
+    }
+
+    private static boolean isJavaCommand(String token) {
+        String normalized = token == null ? "" : token.replace('\\', '/').toLowerCase();
+        int slash = normalized.lastIndexOf('/');
+        String executable = slash >= 0 ? normalized.substring(slash + 1) : normalized;
+        return "java".equals(executable) || "java.exe".equals(executable);
     }
 
     private static String quote(String value) {

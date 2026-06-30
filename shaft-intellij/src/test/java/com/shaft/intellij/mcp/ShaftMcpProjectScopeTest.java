@@ -60,6 +60,24 @@ class ShaftMcpProjectScopeTest {
     }
 
     @Test
+    void plainJavaCommandGetsProjectWorkspaceProperties() throws IOException {
+        Path project = temporary.resolve("project").toAbsolutePath().normalize();
+
+        List<String> command = ShaftMcpProjectScope.commandForProject(List.of(
+                "java",
+                "-Duser.dir=C:/Users/me/AppData/Local/ShaftHQ/shaft-mcp/work",
+                "-jar",
+                "shaft-mcp.jar"), project);
+
+        String expectedProject = project.toString().replace('\\', '/');
+        assertEquals("java", command.get(0));
+        assertEquals("-Duser.dir=" + expectedProject, command.get(1));
+        assertEquals("-Dshaft.mcp.workspaceRoot=" + expectedProject, command.get(2));
+        assertFalse(command.contains("-Duser.dir=C:/Users/me/AppData/Local/ShaftHQ/shaft-mcp/work"));
+        assertEquals("-jar", command.get(3));
+    }
+
+    @Test
     void environmentIncludesCurrentProjectWorkspace() {
         Path project = temporary.resolve("project").toAbsolutePath().normalize();
 

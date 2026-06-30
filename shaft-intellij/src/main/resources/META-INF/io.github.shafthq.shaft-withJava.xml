@@ -1,0 +1,13 @@
+<idea-plugin>
+    <actions>
+        <action id="Shaft.RecordJavaTarget"
+                class="com.shaft.intellij.actions.RecordShaftFlowHereAction"
+                text="Record SHAFT Flow Here"
+                description="Prepare a SHAFT record-at-target MCP request for the current Java context"
+                icon="/icons/shaftToolWindow.png"
+                iconDark="/icons/shaftToolWindow_dark.png">
+            <add-to-group group-id="Shaft.ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

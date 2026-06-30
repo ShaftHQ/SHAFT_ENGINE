@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -39,6 +40,10 @@ import java.util.concurrent.CancellationException;
  * SHAFT Assistant chat-style panel.
  */
 final class ShaftAssistantPanel extends JPanel {
+    private final Project project;
+    private final ShaftAssistantChatState chatState;
+    private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
+    private final JButton newChat;
     private final JComboBox<String> mode;
     private final JComboBox<String> providerType;
     private final JComboBox<String> assistantFamily;
@@ -68,16 +73,29 @@ final class ShaftAssistantPanel extends JPanel {
     private String lastRawResponse = "";
     private String lastPrompt = "";
     private ShaftMcpInvocation currentInvocation;
+    private boolean refreshingChats;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
     }
 
     ShaftAssistantPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
+        this(project, settings, chatState(project));
+    }
+
+    ShaftAssistantPanel(Project project,
+                        @NotNull ShaftSettingsState.Settings settings,
+                        @NotNull ShaftAssistantChatState chatState) {
         super(new BorderLayout(6, 6));
+        this.project = project;
         this.settings = settings;
+        this.chatState = chatState;
         setBorder(JBUI.Borders.empty(8));
 
+        chatSelector = new JComboBox<>();
+        chatSelector.getAccessibleContext().setAccessibleName("Assistant chat");
+        chatSelector.addActionListener(event -> switchChat());
+        newChat = button("New chat", "Start a new Assistant chat", event -> newChat());
         mode = combo("Assistant mode", "ASK", "PLAN", "AGENT");
         mode.setSelectedItem(normalize(settings.defaultAutobotMode, "ASK"));
         providerType = combo("Assistant provider type", "LOCAL", "CLOUD");
@@ -116,6 +134,10 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView();
+        String persistedTranscript = chatState.activeMarkdown();
+        if (!persistedTranscript.isBlank()) {
+            transcript.setMarkdown(persistedTranscript);
+        }
         status = new JLabel("Ready");
         progress = new JProgressBar();
         progress.setIndeterminate(true);
@@ -146,6 +168,8 @@ final class ShaftAssistantPanel extends JPanel {
         transcriptPanel.add(transcript, BorderLayout.CENTER);
 
         JPanel actionRow = wrapRow();
+        actionRow.add(chatSelector);
+        actionRow.add(newChat);
         actionRow.add(testConnection);
         actionRow.add(copyLastResponse);
         actionRow.add(copyRawResponse);
@@ -189,6 +213,7 @@ final class ShaftAssistantPanel extends JPanel {
         add(setupNotice(project, settings), BorderLayout.NORTH);
         add(transcriptPanel, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
+        refreshChatSelector();
     }
 
     JComponent preferredFocusComponent() {
@@ -216,8 +241,8 @@ final class ShaftAssistantPanel extends JPanel {
                 project == null || project.getBasePath() == null ? "" : project.getBasePath(),
                 customCommand.getText(),
                 allowSourceMutation.isSelected());
-        append("**You (" + ShaftUiLabels.friendly(mode.getSelectedItem()) + " via " + routeLabel(route) + ")**\n\n"
-                + AssistantMarkdown.normalizeMarkdown(text));
+        append("user", "**You (" + ShaftUiLabels.friendly(mode.getSelectedItem()) + " via " + routeLabel(route) + ")**\n\n"
+                + AssistantMarkdown.normalizeMarkdown(text), "");
         prompt.setText("");
         if (invocation.isLocal()) {
             showLocalResponse(invocation.localResponse());
@@ -262,8 +287,12 @@ final class ShaftAssistantPanel extends JPanel {
         String output = error != null ? error.getMessage()
                 : result == null ? "No result returned."
                 : result.output();
+        String markdown = AssistantMarkdown.fromMcpOutput(toolName, output);
+        if (success && formatUnknownResponse(toolName, output, markdown)) {
+            return;
+        }
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
-                + AssistantMarkdown.fromMcpOutput(output), output);
+                + markdown, output);
     }
 
     private void showLocalResponse(String response) {
@@ -276,15 +305,19 @@ final class ShaftAssistantPanel extends JPanel {
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
-        append(response);
+        append("assistant", response, rawResponse);
     }
 
-    private void append(String text) {
+    private void append(String role, String text, String rawResponse) {
         transcript.append(text);
+        chatState.append(role, text, rawResponse);
+        refreshChatSelector();
     }
 
     private void setRunning(boolean running, String message) {
         send.setEnabled(!running);
+        chatSelector.setEnabled(!running);
+        newChat.setEnabled(!running);
         testConnection.setEnabled(!running);
         rerunLastPrompt.setEnabled(!running && !lastPrompt.isBlank());
         mode.setEnabled(!running);
@@ -377,12 +410,42 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void clearTranscript() {
+        chatState.clearActiveSession();
         transcript.clear();
         lastResponse = "";
         lastRawResponse = "";
+        lastPrompt = "";
         copyLastResponse.setEnabled(false);
         copyRawResponse.setEnabled(false);
+        rerunLastPrompt.setEnabled(false);
+        refreshChatSelector();
         status.setText("Cleared");
+    }
+
+    private void newChat() {
+        chatState.newSession();
+        refreshChatSelector();
+        transcript.clear();
+        prompt.setText("");
+        lastResponse = "";
+        lastRawResponse = "";
+        lastPrompt = "";
+        copyLastResponse.setEnabled(false);
+        copyRawResponse.setEnabled(false);
+        rerunLastPrompt.setEnabled(false);
+        status.setText("New chat");
+    }
+
+    private void switchChat() {
+        if (refreshingChats) {
+            return;
+        }
+        Object selected = chatSelector.getSelectedItem();
+        if (selected instanceof ShaftAssistantChatState.Session session) {
+            chatState.activate(session.id);
+            restoreTranscript();
+            status.setText("Chat loaded");
+        }
     }
 
     private void rerun(Project project) {
@@ -409,6 +472,77 @@ final class ShaftAssistantPanel extends JPanel {
             currentInvocation.cancel();
             status.setText("Cancelling...");
         }
+    }
+
+    private boolean formatUnknownResponse(String toolName, String output, String fallbackMarkdown) {
+        if (!AssistantMarkdown.shouldFormatWithAgent(toolName, output) || project == null || !mcpConfigured()) {
+            return false;
+        }
+        if (usesCloud() && !hasSelectedCloudKey()) {
+            return false;
+        }
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                AssistantMarkdown.formatterPrompt(toolName, output),
+                selectedRoute(),
+                "ASK",
+                project.getBasePath() == null ? "" : project.getBasePath(),
+                customCommand.getText(),
+                false);
+        if (invocation.isLocal()) {
+            return false;
+        }
+        setRunning(true, "Formatting response...");
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
+        currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                () -> showFormattedUnknownResponse(toolName, output, fallbackMarkdown, invocation.toolName(), result, error)));
+        return true;
+    }
+
+    private void showFormattedUnknownResponse(String originalToolName,
+                                              String rawOutput,
+                                              String fallbackMarkdown,
+                                              String formatterToolName,
+                                              ShaftMcpToolResult result,
+                                              Throwable error) {
+        boolean success = error == null && result != null && result.success();
+        setRunning(false, success ? "Formatted" : "Finished");
+        String markdown = fallbackMarkdown;
+        if (success) {
+            String formatted = AssistantMarkdown.fromMcpOutput(formatterToolName, result.output());
+            if (!formatted.isBlank()) {
+                markdown = formatted;
+            }
+        }
+        showResponse("**SHAFT Assistant (" + originalToolName + " OK)**\n\n" + markdown, rawOutput);
+    }
+
+    private void refreshChatSelector() {
+        refreshingChats = true;
+        try {
+            DefaultComboBoxModel<ShaftAssistantChatState.Session> model = new DefaultComboBoxModel<>();
+            for (ShaftAssistantChatState.Session session : chatState.sessions()) {
+                model.addElement(session);
+            }
+            chatSelector.setModel(model);
+            chatSelector.setSelectedItem(chatState.activeSession());
+        } finally {
+            refreshingChats = false;
+        }
+    }
+
+    private void restoreTranscript() {
+        String markdown = chatState.activeMarkdown();
+        if (!markdown.isBlank()) {
+            transcript.setMarkdown(markdown);
+        } else {
+            transcript.clear();
+        }
+        lastResponse = "";
+        lastRawResponse = "";
+        lastPrompt = "";
+        copyLastResponse.setEnabled(false);
+        copyRawResponse.setEnabled(false);
+        rerunLastPrompt.setEnabled(false);
     }
 
     private void copy(String value, String message) {
@@ -457,6 +591,14 @@ final class ShaftAssistantPanel extends JPanel {
         button.getAccessibleContext().setAccessibleName(accessibleName);
         button.addActionListener(action);
         return button;
+    }
+
+    private static ShaftAssistantChatState chatState(Project project) {
+        if (project == null) {
+            return new ShaftAssistantChatState();
+        }
+        ShaftAssistantChatState state = ShaftAssistantChatState.getInstance(project);
+        return state == null ? new ShaftAssistantChatState() : state;
     }
 
     private static String resolveFamily(ShaftSettingsState.Settings settings) {
