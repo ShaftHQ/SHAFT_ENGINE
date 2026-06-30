@@ -58,6 +58,18 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JLabel assistantRuntimeLabel;
     private JLabel cloudProviderLabel;
     private JLabel cloudModelLabel;
+    private JLabel defaultModeLabel;
+    private JLabel shaftAiSection;
+    private JLabel shaftAiProviderLabel;
+    private JLabel shaftAiModelLabel;
+    private JLabel providerKeysSection;
+    private JLabel shaftAiHelp;
+    private JLabel providerKeysHelp;
+    private JLabel providerKeysStorageHelp;
+    private JLabel openAiKeyLabel;
+    private JLabel anthropicKeyLabel;
+    private JLabel geminiKeyLabel;
+    private JLabel githubKeyLabel;
     private JComboBox<String> assistantProviderType;
     private JComboBox<String> assistantFamily;
     private JComboBox<String> assistantRuntime;
@@ -68,6 +80,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JComboBox<String> pilotAiProvider;
     private JBTextField pilotAiModel;
     private JBCheckBox passProviderKeys;
+    private JBCheckBox advancedUiEnabled;
     private JPasswordField openAiKey;
     private JPasswordField anthropicKey;
     private JPasswordField geminiKey;
@@ -180,6 +193,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftUiLabels.applyFriendlyRenderer(defaultMode);
         defaultMode.getAccessibleContext().setAccessibleName("Default assistant mode");
         defaultMode.getAccessibleContext().setAccessibleDescription("Default assistant mode used when opening the assistant panel.");
+        advancedUiEnabled = new JBCheckBox("Enable advanced workflows and provider options");
+        advancedUiEnabled.getAccessibleContext().setAccessibleName("Enable advanced SHAFT UI");
+        advancedUiEnabled.getAccessibleContext().setAccessibleDescription(
+                "Shows guided workflows, direct tool panels, cloud provider controls, and provider key forwarding.");
+        advancedUiEnabled.addActionListener(event -> updateAgentConfigurationControls());
         pilotAiProvider = new JComboBox<>(model("none", "openai", "anthropic", "gemini", "github", "ollama"));
         ShaftUiLabels.applyFriendlyRenderer(pilotAiProvider);
         pilotAiProvider.getAccessibleContext().setAccessibleName("SHAFT AI provider");
@@ -223,6 +241,18 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         assistantRuntimeLabel = label("Runtime", 'R', assistantRuntime);
         cloudProviderLabel = label("Cloud provider", 'V', cloudProvider);
         cloudModelLabel = label("Cloud model", 'W', cloudModel);
+        defaultModeLabel = label("Default assistant mode", 'D', defaultMode);
+        shaftAiSection = section("SHAFT AI provider");
+        shaftAiProviderLabel = label("Provider", 'P', pilotAiProvider);
+        shaftAiModelLabel = label("Model", 'L', pilotAiModel);
+        providerKeysSection = section("Provider keys");
+        shaftAiHelp = help("Provider settings apply only to MCP tools that explicitly request configured SHAFT AI assistance.");
+        providerKeysHelp = help("Passing keys exposes them only to the SHAFT MCP process. Disable to keep provider credentials local to IntelliJ only.");
+        providerKeysStorageHelp = help("Provider keys are stored in IntelliJ Password Safe. Use 'Clear' only to remove a stored key.");
+        openAiKeyLabel = label("OpenAI API key", 'O', openAiKey);
+        anthropicKeyLabel = label("Anthropic API key", 'A', anthropicKey);
+        geminiKeyLabel = label("Gemini API key", 'I', geminiKey);
+        githubKeyLabel = label("GitHub API key", 'G', githubKey);
 
         panel = FormBuilder.createFormBuilder()
                 .addComponent(section("MCP"))
@@ -237,23 +267,24 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addLabeledComponent(assistantRuntimeLabel, assistantRuntime)
                 .addLabeledComponent(cloudProviderLabel, cloudProvider)
                 .addLabeledComponent(cloudModelLabel, cloudModel)
-                .addLabeledComponent(label("Default assistant mode", 'D', defaultMode), defaultMode)
+                .addLabeledComponent(defaultModeLabel, defaultMode)
+                .addComponent(advancedUiEnabled)
                 .addComponent(help("The Assistant tab is always available. Agent mode still requires explicit source mutation approval per request."))
-                .addComponent(section("SHAFT AI provider"))
-                .addLabeledComponent(label("Provider", 'P', pilotAiProvider), pilotAiProvider)
-                .addLabeledComponent(label("Model", 'L', pilotAiModel), pilotAiModel)
-                .addComponent(help("Provider settings apply only to MCP tools that explicitly request configured SHAFT AI assistance."))
-                .addComponent(section("Provider keys"))
+                .addComponent(shaftAiSection)
+                .addLabeledComponent(shaftAiProviderLabel, pilotAiProvider)
+                .addLabeledComponent(shaftAiModelLabel, pilotAiModel)
+                .addComponent(shaftAiHelp)
+                .addComponent(providerKeysSection)
                 .addComponent(passProviderKeys)
-                .addComponent(help("Passing keys exposes them only to the SHAFT MCP process. Disable to keep provider credentials local to IntelliJ only."))
-                .addComponent(help("Provider keys are stored in IntelliJ Password Safe. Use 'Clear' only to remove a stored key."))
-                .addLabeledComponent(label("OpenAI API key", 'O', openAiKey), openAiKey)
+                .addComponent(providerKeysHelp)
+                .addComponent(providerKeysStorageHelp)
+                .addLabeledComponent(openAiKeyLabel, openAiKey)
                 .addComponent(keyRow(clearOpenAiKey, openAiKeyStatus))
-                .addLabeledComponent(label("Anthropic API key", 'A', anthropicKey), anthropicKey)
+                .addLabeledComponent(anthropicKeyLabel, anthropicKey)
                 .addComponent(keyRow(clearAnthropicKey, anthropicKeyStatus))
-                .addLabeledComponent(label("Gemini API key", 'I', geminiKey), geminiKey)
+                .addLabeledComponent(geminiKeyLabel, geminiKey)
                 .addComponent(keyRow(clearGeminiKey, geminiKeyStatus))
-                .addLabeledComponent(label("GitHub API key", 'G', githubKey), githubKey)
+                .addLabeledComponent(githubKeyLabel, githubKey)
                 .addComponent(keyRow(clearGithubKey, githubKeyStatus))
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
@@ -265,8 +296,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     @Override
     public boolean isModified() {
         ShaftSettingsState.Settings state = settingsProvider.get();
+        boolean advancedSelected = advancedUiEnabled.isSelected();
+        String selectedProviderType = advancedSelected ? String.valueOf(assistantProviderType.getSelectedItem()) : "LOCAL";
+        String stateProviderType = state.advancedUiEnabled ? normalize(state.assistantProviderType, "LOCAL") : "LOCAL";
         return !Objects.equals(state.mcpCommand, mcpCommand.getText())
-                || !Objects.equals(normalize(state.assistantProviderType, "LOCAL"), assistantProviderType.getSelectedItem())
+                || state.advancedUiEnabled != advancedSelected
+                || !Objects.equals(stateProviderType, selectedProviderType)
                 || !Objects.equals(resolveFamily(state), assistantFamily.getSelectedItem())
                 || !Objects.equals(normalize(state.assistantRuntime, "CLI"), assistantRuntime.getSelectedItem())
                 || !Objects.equals(normalizeLower(state.cloudProvider, "openai"), cloudProvider.getSelectedItem())
@@ -294,7 +329,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             state.mcpSetupComplete = false;
         }
         state.mcpCommand = command;
-        state.assistantProviderType = String.valueOf(assistantProviderType.getSelectedItem());
+        state.advancedUiEnabled = advancedUiEnabled.isSelected();
+        state.assistantProviderType = state.advancedUiEnabled
+                ? String.valueOf(assistantProviderType.getSelectedItem())
+                : "LOCAL";
         state.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
         state.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
         state.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
@@ -323,6 +361,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     public void reset() {
         ShaftSettingsState.Settings state = settingsProvider.get();
         mcpCommand.setText(state.mcpCommand);
+        advancedUiEnabled.setSelected(state.advancedUiEnabled);
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
         assistantFamily.setSelectedItem(resolveFamily(state));
         assistantRuntime.setSelectedItem(normalize(state.assistantRuntime, "CLI"));
@@ -375,6 +414,19 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         pilotAiProvider = null;
         pilotAiModel = null;
         passProviderKeys = null;
+        advancedUiEnabled = null;
+        defaultModeLabel = null;
+        shaftAiSection = null;
+        shaftAiProviderLabel = null;
+        shaftAiModelLabel = null;
+        providerKeysSection = null;
+        shaftAiHelp = null;
+        providerKeysHelp = null;
+        providerKeysStorageHelp = null;
+        openAiKeyLabel = null;
+        anthropicKeyLabel = null;
+        geminiKeyLabel = null;
+        githubKeyLabel = null;
         openAiKey = null;
         anthropicKey = null;
         geminiKey = null;
@@ -674,7 +726,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private ShaftSettingsState.Settings formSettings() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
-        settings.assistantProviderType = String.valueOf(assistantProviderType.getSelectedItem());
+        settings.advancedUiEnabled = advancedUiEnabled.isSelected();
+        settings.assistantProviderType = settings.advancedUiEnabled
+                ? String.valueOf(assistantProviderType.getSelectedItem())
+                : "LOCAL";
         settings.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
         settings.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
         settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
@@ -691,6 +746,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftSettingsState.Settings state = settingsProvider.get();
         ShaftSettingsState.Settings form = formSettings();
         state.mcpCommand = form.mcpCommand;
+        state.advancedUiEnabled = form.advancedUiEnabled;
         state.assistantProviderType = form.assistantProviderType;
         state.assistantFamily = form.assistantFamily;
         state.assistantRuntime = form.assistantRuntime;
@@ -710,21 +766,51 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         ShaftSettingsState.Settings state = settingsProvider.get();
         currentAgentConfiguration.setText(currentAgentConfigurationText(state));
+        boolean advanced = advancedUiEnabled != null && advancedUiEnabled.isSelected();
+        if (!advanced && "CLOUD".equals(assistantProviderType.getSelectedItem())) {
+            assistantProviderType.setSelectedItem("LOCAL");
+        }
         boolean showSummary = mcpReady(state) && !editingAgentConfiguration;
+        boolean cloud = advanced && "CLOUD".equals(assistantProviderType.getSelectedItem());
+        configureRuntimeMcp.setVisible(advanced);
+        configureCopilotMcp.setVisible(advanced);
         currentAgentConfigurationTitle.setVisible(showSummary);
         currentAgentConfigurationRow.setVisible(showSummary);
         currentAgentConfiguration.setVisible(showSummary);
         configureAgent.setVisible(showSummary);
-        assistantProviderTypeLabel.setVisible(!showSummary);
-        assistantProviderType.setVisible(!showSummary);
+        assistantProviderTypeLabel.setVisible(advanced && !showSummary);
+        assistantProviderType.setVisible(advanced && !showSummary);
         assistantFamilyLabel.setVisible(!showSummary);
         assistantFamily.setVisible(!showSummary);
         assistantRuntimeLabel.setVisible(!showSummary);
         assistantRuntime.setVisible(!showSummary);
-        cloudProviderLabel.setVisible(!showSummary);
-        cloudProvider.setVisible(!showSummary);
-        cloudModelLabel.setVisible(!showSummary);
-        cloudModel.setVisible(!showSummary);
+        cloudProviderLabel.setVisible(cloud && !showSummary);
+        cloudProvider.setVisible(cloud && !showSummary);
+        cloudModelLabel.setVisible(cloud && !showSummary);
+        cloudModel.setVisible(cloud && !showSummary);
+        defaultModeLabel.setVisible(advanced && !showSummary);
+        defaultMode.setVisible(advanced && !showSummary);
+        setVisible(advanced, shaftAiSection, shaftAiProviderLabel, shaftAiModelLabel, shaftAiHelp,
+                providerKeysSection, providerKeysHelp, providerKeysStorageHelp, openAiKeyLabel,
+                anthropicKeyLabel, geminiKeyLabel, githubKeyLabel, openAiKeyStatus, anthropicKeyStatus,
+                geminiKeyStatus, githubKeyStatus);
+        pilotAiProvider.setVisible(advanced);
+        pilotAiModel.setVisible(advanced);
+        passProviderKeys.setVisible(advanced);
+        openAiKey.setVisible(advanced);
+        anthropicKey.setVisible(advanced);
+        geminiKey.setVisible(advanced);
+        githubKey.setVisible(advanced);
+        clearOpenAiKey.setVisible(advanced);
+        clearAnthropicKey.setVisible(advanced);
+        clearGeminiKey.setVisible(advanced);
+        clearGithubKey.setVisible(advanced);
+    }
+
+    private static void setVisible(boolean visible, JComponent... components) {
+        for (JComponent component : components) {
+            component.setVisible(visible);
+        }
     }
 
     private static boolean mcpReady(ShaftSettingsState.Settings state) {
@@ -735,7 +821,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     }
 
     private static String currentAgentConfigurationText(ShaftSettingsState.Settings state) {
-        if ("CLOUD".equals(normalize(state.assistantProviderType, "LOCAL"))) {
+        if (state.advancedUiEnabled && "CLOUD".equals(normalize(state.assistantProviderType, "LOCAL"))) {
             String model = state.cloudModel == null || state.cloudModel.isBlank() ? "" : " / " + state.cloudModel.trim();
             return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(state.cloudProvider, "openai")) + model;
         }

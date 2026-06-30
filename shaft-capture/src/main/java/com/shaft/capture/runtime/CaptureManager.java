@@ -1,7 +1,11 @@
 package com.shaft.capture.runtime;
 
 import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.storage.CaptureSessionStore;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -65,6 +69,7 @@ public final class CaptureManager implements AutoCloseable {
         return invoke(() -> {
             sessionLock = CaptureSingleSessionLock.acquire(request.runtimeDirectory());
             try {
+                cleanupExistingSessionOutput(request.outputPath());
                 recorder = recorderFactory.apply(request);
                 recorder.start();
                 lastStatus = recorder.status();
@@ -197,6 +202,24 @@ public final class CaptureManager implements AutoCloseable {
         if (healthCheck != null) {
             healthCheck.cancel(false);
             healthCheck = null;
+        }
+    }
+
+    private void cleanupExistingSessionOutput(Path outputPath) {
+        if (!Files.isRegularFile(outputPath)) {
+            return;
+        }
+        try {
+            new CaptureSessionStore(outputPath).read();
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException("Capture output already exists and is not a valid capture session.", exception);
+        }
+        try {
+            Files.delete(outputPath);
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Capture output could not be replaced. Remove " + outputPath.toAbsolutePath() + " before retrying.",
+                    exception);
         }
     }
 

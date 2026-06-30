@@ -1,9 +1,14 @@
 package com.shaft.capture.runtime;
 
+import com.shaft.capture.CaptureFixtures;
+import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.Checkpoint;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -11,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class CaptureManagerLifecycleTest {
     @TempDir
@@ -82,6 +88,44 @@ class CaptureManagerLifecycleTest {
 
         CaptureManager manager = new CaptureManager(FailingRecorder::new);
         assertThrows(IllegalStateException.class, () -> manager.start(request("failed.json")));
+        assertEquals(CaptureStatus.State.STARTING, manager.status().state());
+        manager.close();
+    }
+
+    @Test
+    void managerReplacesExistingValidCaptureSessionOutputBeforeStart() throws Exception {
+        Path existingSession = temp.resolve("existing.json");
+        new CaptureJsonCodec().write(existingSession, CaptureSession.start(
+                "stale-session",
+                CaptureFixtures.STARTED,
+                CaptureFixtures.browser()));
+        CaptureManager manager = new CaptureManager(FakeRecorder::new);
+
+        CaptureStatus status = manager.start(newCaptureRequest(existingSession));
+
+        assertEquals(CaptureStatus.State.ACTIVE, status.state());
+        assertEquals(CaptureStatus.State.COMPLETED, manager.stop(false).state());
+        assertEquals(CaptureStatus.State.COMPLETED, manager.status().state());
+        assertFalse(Files.exists(existingSession));
+        manager.close();
+    }
+
+    private CaptureStartRequest newCaptureRequest(Path outputPath) {
+        return new CaptureStartRequest(
+                "https://example.test",
+                CaptureBrowser.CHROME,
+                outputPath,
+                temp.resolve("runtime"),
+                true);
+    }
+
+    @Test
+    void managerRejectsPreexistingUnknownOutputFile() throws IOException {
+        Path notCaptureSession = temp.resolve("other.json");
+        Files.writeString(notCaptureSession, "not a capture session");
+
+        CaptureManager manager = new CaptureManager(FakeRecorder::new);
+        assertThrows(IllegalStateException.class, () -> manager.start(request("other.json")));
         assertEquals(CaptureStatus.State.STARTING, manager.status().state());
         manager.close();
     }

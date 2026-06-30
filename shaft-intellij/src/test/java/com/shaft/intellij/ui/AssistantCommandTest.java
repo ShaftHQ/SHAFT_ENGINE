@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -244,6 +245,57 @@ class AssistantCommandTest {
         assertEquals("test_automation_scenarios", command("/generatetest login").toolName());
         assertEquals("capture_code_blocks", command("/generatetest recordings/capture-session.json").toolName());
         assertEquals("playwright_recording_code_blocks", command("/generatetest recordings/playwright-session.json").toolName());
+    }
+
+    @Test
+    void naturalRecordingCommandsMapToSafeRecorderWorkflow() {
+        AssistantCommand.Invocation simpleStart = command("start recording");
+        AssistantCommand.Invocation articleStart = command("start a recording");
+        AssistantCommand.Invocation start = command("start recording https://duckduckgo.com/");
+        AssistantCommand.Invocation stop = command("stop");
+
+        assertAll(
+                () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_TARGET_URL,
+                        simpleStart.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_TARGET_URL,
+                        articleStart.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("capture_start", start.toolName()),
+                () -> assertEquals("https://duckduckgo.com/",
+                        start.arguments().get("targetUrl").getAsString()),
+                () -> assertTrue(start.arguments().get("outputPath").getAsString()
+                        .startsWith(AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH_PREFIX)),
+                () -> assertTrue(start.arguments().get("outputPath").getAsString().endsWith(".json")),
+                () -> assertFalse(start.arguments().get("headless").getAsBoolean()),
+                () -> assertEquals("capture_stop", stop.toolName()),
+                () -> assertFalse(stop.arguments().get("discard").getAsBoolean()));
+    }
+
+    @Test
+    void captureReviewUsesIgnoredReviewDirectoryAndApprovalCreatesAgentRequest() {
+        assertTrue(AssistantCommand.isCaptureApproval("okay"));
+        assertTrue(AssistantCommand.isCaptureApproval("generate"));
+        assertFalse(AssistantCommand.isCaptureApproval("generate a login test"));
+
+        var review = AssistantCommand.captureCodeReview("recordings/demo.json");
+        assertAll(
+                () -> assertEquals("recordings/demo.json", review.get("sessionPath").getAsString()),
+                () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_REVIEW_DIRECTORY,
+                        review.get("outputDirectory").getAsString()),
+                () -> assertTrue(review.get("overwrite").getAsBoolean()));
+
+        AssistantCommand.Invocation apply = AssistantCommand.approvedCaptureIntegration(
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "C:/work/project",
+                "",
+                "```java\nclass Generated {}\n```",
+                "{\"codeBlocks\":[]}");
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", apply.toolName()),
+                () -> assertEquals("AGENT", apply.arguments().get("mode").getAsString()),
+                () -> assertTrue(apply.arguments().get("allowSourceMutation").getAsBoolean()),
+                () -> assertTrue(apply.arguments().get("prompt").getAsString().contains("Page Object Model")),
+                () -> assertTrue(apply.arguments().get("prompt").getAsString().contains("Do not start a new recording")));
     }
 
     @Test

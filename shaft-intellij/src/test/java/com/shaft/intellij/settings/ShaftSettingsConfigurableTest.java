@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPasswordField;
 import java.awt.Component;
@@ -16,6 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -41,6 +43,7 @@ class ShaftSettingsConfigurableTest {
         assertTrue(source.contains("Assistant runtime"));
         assertTrue(source.contains("Current agent configuration"));
         assertTrue(source.contains("Configure assistant agent"));
+        assertTrue(source.contains("Enable advanced workflows and provider options"));
         assertTrue(source.contains("github"));
         assertTrue(source.contains("SHAFT AI provider"));
         assertTrue(source.contains("setAccessibleDescription(\"Mark this provider key as ready to clear on apply.\")"));
@@ -53,8 +56,10 @@ class ShaftSettingsConfigurableTest {
 
     @Test
     void settingsPanelExposesCredentialControlsWithAccessibilityMetadata() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.advancedUiEnabled = true;
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
-                new ShaftSettingsState.Settings(), new InMemoryCredentials());
+                settings, new InMemoryCredentials());
         JComponent panel = (JComponent) configurable.createComponent();
 
         JButton testMcp = (JButton) findByAccessibleName(panel, "Test MCP");
@@ -69,11 +74,13 @@ class ShaftSettingsConfigurableTest {
 
         JButton connectCopilot = (JButton) findByAccessibleName(panel, "Connect GitHub Copilot MCP");
         assertNotNull(connectCopilot);
+        assertTrue(connectCopilot.isVisible());
         assertNotNull(connectCopilot.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, connectCopilot.getAccessibleContext().getAccessibleDescription().length());
 
         JButton connectRuntime = (JButton) findByAccessibleName(panel, "Connect selected runtime MCP");
         assertNotNull(connectRuntime);
+        assertTrue(connectRuntime.isVisible());
         assertNotNull(connectRuntime.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, connectRuntime.getAccessibleContext().getAccessibleDescription().length());
 
@@ -97,6 +104,54 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(findByAccessibleName(panel, "Assistant provider type"));
         assertNotNull(findByAccessibleName(panel, "Assistant family"));
         assertNotNull(findByAccessibleName(panel, "Assistant runtime"));
+    }
+
+    @Test
+    void settingsPanelHidesAdvancedControlsByDefault() {
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                new ShaftSettingsState.Settings(), new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JCheckBox advanced = findByAccessibleName(panel, "Enable advanced SHAFT UI", JCheckBox.class);
+        JButton connectRuntime = findByAccessibleName(panel, "Connect selected runtime MCP", JButton.class);
+        JButton connectCopilot = findByAccessibleName(panel, "Connect GitHub Copilot MCP", JButton.class);
+        JComboBox<?> providerType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
+        JComboBox<?> shaftAiProvider = findByAccessibleName(panel, "SHAFT AI provider", JComboBox.class);
+        JPasswordField openAiField = findByAccessibleName(panel, "OpenAI API key", JPasswordField.class);
+        JButton clearOpenAi = findByAccessibleName(panel, "Clear stored OpenAI API key", JButton.class);
+
+        assertAll(
+                () -> assertNotNull(advanced),
+                () -> assertFalse(advanced.isSelected()),
+                () -> assertTrue(advanced.isVisible()),
+                () -> assertFalse(connectRuntime.isVisible()),
+                () -> assertFalse(connectCopilot.isVisible()),
+                () -> assertFalse(providerType.isVisible()),
+                () -> assertFalse(shaftAiProvider.isVisible()),
+                () -> assertFalse(openAiField.isVisible()),
+                () -> assertFalse(clearOpenAi.isVisible()),
+                () -> assertTrue(findByAccessibleName(panel, "Assistant family", JComboBox.class).isVisible()),
+                () -> assertTrue(findByAccessibleName(panel, "Assistant runtime", JComboBox.class).isVisible()));
+    }
+
+    @Test
+    void advancedUiFlagIsPersistedBySettingsPanel() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JCheckBox advanced = findByAccessibleName(panel, "Enable advanced SHAFT UI", JCheckBox.class);
+        assertNotNull(advanced);
+
+        advanced.setSelected(true);
+
+        assertTrue(configurable.isModified());
+        configurable.apply();
+        configurable.reset();
+
+        assertAll(
+                () -> assertTrue(settings.advancedUiEnabled),
+                () -> assertTrue(advanced.isSelected()));
     }
 
     @Test
