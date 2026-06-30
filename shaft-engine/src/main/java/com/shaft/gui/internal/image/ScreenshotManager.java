@@ -138,7 +138,13 @@ public class ScreenshotManager {
         return VALIDATION_ACTION_PATTERN.matcher(actionName.toLowerCase()).matches();
     }
 
-    private byte[] takeViewportScreenshot(WebDriver driver) {
+    /**
+     * Captures the current viewport screenshot.
+     *
+     * @param driver the active WebDriver instance
+     * @return encoded screenshot bytes for the current viewport
+     */
+    public byte[] takeViewportScreenshot(WebDriver driver) {
         return ScreenshotHelper.takeViewportScreenshot(driver, 6);
     }
 

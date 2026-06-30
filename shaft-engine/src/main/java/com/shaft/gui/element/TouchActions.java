@@ -31,6 +31,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
 
@@ -160,15 +161,8 @@ public class TouchActions extends FluentWebDriverAction {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
         } else {
             // Perform tap action by coordinates
-//            if (DriverFactoryHelper.isMobileNativeExecution()) {
-            PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
-            Sequence tap = new Sequence(input, 0);
-            tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
-            tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-            tap.addAction(new Pause(input, Duration.ofMillis(200)));
-            tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
             try {
-                ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
+                performCoordinateTap(coordinates);
             } catch (UnsupportedCommandException exception) {
                 elementActionsHelper.failAction(driverFactoryHelper.getDriver(),
                         "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates,
@@ -177,6 +171,43 @@ public class TouchActions extends FluentWebDriverAction {
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                     Thread.currentThread().getStackTrace()[1].getMethodName(),
                     "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates, attachments, null);
+        }
+        return this;
+    }
+
+    /**
+     * Taps an element found by reference image, then types into the active field.
+     *
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @param text                       one or more {@link CharSequence} values to type into the focused element
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("unchecked")
+    public TouchActions type(String elementReferenceScreenshot, CharSequence... text) {
+        var objects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), elementReferenceScreenshot);
+        byte[] currentScreenImage = (byte[]) objects.get(0);
+        byte[] referenceImage = (byte[]) objects.get(1);
+        List<Integer> coordinates = (List<Integer>) objects.get(2);
+
+        var screenshotManager = new ScreenshotManager();
+        var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "type - Current Screen Image");
+        var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "type - Reference Screenshot");
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(referenceScreenshot);
+        attachments.add(screenshot);
+
+        if (Collections.emptyList().equals(coordinates)) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
+        } else {
+            String testData = "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates;
+            try {
+                performCoordinateTap(coordinates);
+                new Actions(driverFactoryHelper.getDriver()).sendKeys(text).perform();
+            } catch (Exception exception) {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, exception);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, attachments, null);
         }
         return this;
     }
@@ -638,46 +669,22 @@ public class TouchActions extends FluentWebDriverAction {
         try {
             //noinspection CaughtExceptionImmediatelyRethrown
             try {
-                if (driverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
-                    // appium native application
-                    var visualIdentificationObjects = attemptToSwipeElementIntoViewInNativeApp(scrollableElementLocator, elementReferenceScreenshot, swipeDirection);
-                    byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
-                    byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
-                    List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+                var visualIdentificationObjects = attemptToSwipeElementIntoViewByImage(scrollableElementLocator, elementReferenceScreenshot, swipeDirection);
+                byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
+                byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
+                List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
 
-                    // prepare attachments
-                    var screenshotManager = new ScreenshotManager();
-                    var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
-                    var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
-                    attachments = new LinkedList<>();
-                    attachments.add(referenceScreenshot);
-                    attachments.add(screenshot);
+                // prepare attachments
+                var screenshotManager = new ScreenshotManager();
+                var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
+                var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
+                attachments = new LinkedList<>();
+                attachments.add(referenceScreenshot);
+                attachments.add(screenshot);
 
-                    // If coordinates are empty then OpenCV couldn't find the element on screen
-                    if (Collections.emptyList().equals(coordinates)) {
-                        elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
-                    }
-                } else {
-                    // Wait for element presence and get the needed data
-                    var objects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), elementReferenceScreenshot);
-                    byte[] currentScreenImage = (byte[]) objects.get(0);
-                    byte[] referenceImage = (byte[]) objects.get(1);
-                    List<Integer> coordinates = (List<Integer>) objects.get(2);
-
-                    // prepare attachments
-                    var screenshotManager = new ScreenshotManager();
-                    var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
-                    var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
-                    attachments = new LinkedList<>();
-                    attachments.add(referenceScreenshot);
-                    attachments.add(screenshot);
-
-                    // If coordinates are empty then OpenCV couldn't find the element on screen
-                    if (Collections.emptyList().equals(coordinates)) {
-                        elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
-                    } else {
-                        new Actions(driverFactoryHelper.getDriver()).scrollFromOrigin(WheelInput.ScrollOrigin.fromViewport(), coordinates.get(0), coordinates.get(1)).perform();
-                    }
+                // If coordinates are empty then OpenCV couldn't find the element on screen
+                if (Collections.emptyList().equals(coordinates)) {
+                    elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
                 }
                 elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
             } catch (AssertionError assertionError) {
@@ -841,21 +848,80 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     @SuppressWarnings("unchecked")
-    private List<Object> attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
-        List<Object> visualIdentificationObjects;
-        // appium native device
-        // Wait for element presence and get the needed data
-        visualIdentificationObjects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
-        List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
-
-        if (!Collections.emptyList().equals(coordinates)) {
-            // element is already on screen
-            ReportManager.logDiscrete("Element found on screen.");
-        } else {
-            swipeToEndOfViewInternal(scrollableElementLocator, swipeDirection);
-            visualIdentificationObjects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
+    private List<Object> attemptToSwipeElementIntoViewByImage(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
+        AtomicReference<List<Object>> visualIdentificationObjects = new AtomicReference<>(
+                elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage));
+        AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        try {
+            new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
+                List<Object> currentAttempt = elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
+                visualIdentificationObjects.set(currentAttempt);
+                List<Integer> coordinates = (List<Integer>) currentAttempt.get(2);
+                if (!Collections.emptyList().equals(coordinates)) {
+                    ReportManager.logDiscrete("Element found on screen.");
+                    return true;
+                }
+                canScrollMore.set(performImageScrollStep(scrollableElementLocator, swipeDirection));
+                return !canScrollMore.get();
+            });
+        } catch (TimeoutException timeoutException) {
+            ReportManager.logDiscrete(timeoutException.getMessage());
         }
-        return visualIdentificationObjects;
+        return visualIdentificationObjects.get();
+    }
+
+    private void performCoordinateTap(List<Integer> coordinates) {
+        PointerInput.Kind pointerKind = driverFactoryHelper.getDriver() instanceof AppiumDriver
+                ? PointerInput.Kind.TOUCH
+                : PointerInput.Kind.MOUSE;
+        PointerInput input = new PointerInput(pointerKind, pointerKind == PointerInput.Kind.TOUCH ? "finger1" : "mouse1");
+        Sequence tap = new Sequence(input, 0);
+        tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
+        tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        tap.addAction(new Pause(input, Duration.ofMillis(200)));
+        tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
+    }
+
+    private boolean performImageScrollStep(By scrollableElementLocator, SwipeDirection swipeDirection) {
+        if (driverFactoryHelper.getDriver() instanceof AppiumDriver) {
+            return performW3cCompliantScroll(prepareParameters(swipeDirection, scrollableElementLocator, null));
+        }
+        int deltaX = 0;
+        int deltaY = 0;
+        Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
+        switch (swipeDirection) {
+            case DOWN -> deltaY = screenSize.getHeight();
+            case UP -> deltaY = -screenSize.getHeight();
+            case RIGHT -> deltaX = screenSize.getWidth();
+            case LEFT -> deltaX = -screenSize.getWidth();
+        }
+        if (driverFactoryHelper.getDriver() instanceof JavascriptExecutor javascriptExecutor) {
+            Object scrollableElement = scrollableElementLocator == null
+                    ? null
+                    : elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+            try {
+                Object moved = javascriptExecutor.executeScript("""
+                        const target = arguments[0] || document.scrollingElement || document.documentElement;
+                        const beforeLeft = target.scrollLeft;
+                        const beforeTop = target.scrollTop;
+                        target.scrollBy(arguments[1], arguments[2]);
+                        return target.scrollLeft !== beforeLeft || target.scrollTop !== beforeTop;
+                        """, scrollableElement, deltaX, deltaY);
+                return Boolean.TRUE.equals(moved);
+            } catch (WebDriverException webDriverException) {
+                ReportManager.logDiscrete(webDriverException.getMessage());
+            }
+        }
+        try {
+            WheelInput.ScrollOrigin origin = scrollableElementLocator == null
+                    ? WheelInput.ScrollOrigin.fromViewport()
+                    : WheelInput.ScrollOrigin.fromElement((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1));
+            new Actions(driverFactoryHelper.getDriver()).scrollFromOrigin(origin, deltaX, deltaY).perform();
+        } catch (WebDriverException webDriverException) {
+            return false;
+        }
+        return true;
     }
 
     private HashMap<Object, Object> prepareParameters(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {

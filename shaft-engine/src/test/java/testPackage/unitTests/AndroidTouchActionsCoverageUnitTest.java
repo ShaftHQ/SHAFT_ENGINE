@@ -8,12 +8,14 @@ import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.properties.internal.Properties;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import org.mockito.ArgumentCaptor;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -26,6 +28,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -216,7 +219,8 @@ public class AndroidTouchActionsCoverageUnitTest {
         doReturn(true).doReturn(false).when(androidDriver).executeScript(eq("mobile: scrollGesture"), anyMap());
         TouchActions nativeTouchActions = new TouchActions(androidDriver);
         ElementActionsHelper nativeElementActionsHelper = mock(ElementActionsHelper.class);
-        when(nativeElementActionsHelper.waitForElementPresence(androidDriver, "native-missing.png"))
+        when(nativeElementActionsHelper.findElementPresence(androidDriver, "native-missing.png"))
+                .thenReturn(List.of(validPng, validPng, List.of()))
                 .thenReturn(List.of(validPng, validPng, List.of()))
                 .thenReturn(List.of(validPng, validPng, List.of(30, 40)));
         when(nativeElementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
@@ -228,9 +232,9 @@ public class AndroidTouchActionsCoverageUnitTest {
         RemoteWebDriver webDriver = createMockRemoteWebDriver();
         TouchActions webTouchActions = new TouchActions(webDriver);
         ElementActionsHelper webElementActionsHelper = mock(ElementActionsHelper.class);
-        when(webElementActionsHelper.waitForElementPresence(webDriver, "web-present.png"))
+        when(webElementActionsHelper.findElementPresence(webDriver, "web-present.png"))
                 .thenReturn(List.of(validPng, validPng, List.of(20, 40)));
-        when(webElementActionsHelper.waitForElementPresence(webDriver, "web-missing.png"))
+        when(webElementActionsHelper.findElementPresence(webDriver, "web-missing.png"))
                 .thenReturn(List.of(validPng, validPng, List.of()));
         injectElementActionsHelper(webTouchActions, webElementActionsHelper);
 
@@ -353,6 +357,48 @@ public class AndroidTouchActionsCoverageUnitTest {
     }
 
     @Test
+    public void visualTapShouldUseBackendSpecificPointerKind() throws Exception {
+        byte[] validPng = getValidPngBytes();
+
+        RemoteWebDriver webDriver = createMockRemoteWebDriver();
+        TouchActions webTouchActions = new TouchActions(webDriver);
+        ElementActionsHelper webElementActionsHelper = mock(ElementActionsHelper.class);
+        when(webElementActionsHelper.waitForElementPresence(webDriver, "web-present.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(10, 20)));
+        injectElementActionsHelper(webTouchActions, webElementActionsHelper);
+
+        webTouchActions.tap("web-present.png");
+
+        SHAFT.Validations.assertThat().object(capturedPointerType(webDriver)).isEqualTo("mouse").perform();
+
+        AndroidDriver androidDriver = createMockAndroidDriver();
+        TouchActions androidTouchActions = new TouchActions(androidDriver);
+        ElementActionsHelper androidElementActionsHelper = mock(ElementActionsHelper.class);
+        when(androidElementActionsHelper.waitForElementPresence(androidDriver, "android-present.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(10, 20)));
+        injectElementActionsHelper(androidTouchActions, androidElementActionsHelper);
+
+        androidTouchActions.tap("android-present.png");
+
+        SHAFT.Validations.assertThat().object(capturedPointerType(androidDriver)).isEqualTo("touch").perform();
+    }
+
+    @Test
+    public void visualTypeShouldTapReferenceAndSendKeysThroughActionsApi() throws Exception {
+        RemoteWebDriver driver = createMockRemoteWebDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        byte[] validPng = getValidPngBytes();
+        when(elementActionsHelper.waitForElementPresence(driver, "field.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(10, 20)));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.type("field.png", "hello");
+
+        verify(driver, times(2)).perform(any());
+    }
+
+    @Test
     public void swipeElementIntoViewOverloadsShouldCoverNativeAndWebPaths() throws Exception {
         AndroidDriver androidDriver = createMockAndroidDriver();
         WebElement targetElement = mock(WebElement.class);
@@ -361,7 +407,7 @@ public class AndroidTouchActionsCoverageUnitTest {
         TouchActions nativeTouchActions = new TouchActions(androidDriver);
         ElementActionsHelper nativeElementActionsHelper = mock(ElementActionsHelper.class);
         byte[] validPng = getValidPngBytes();
-        when(nativeElementActionsHelper.waitForElementPresence(any(), eq("target.png")))
+        when(nativeElementActionsHelper.findElementPresence(any(), eq("target.png")))
                 .thenReturn(List.of(validPng, validPng, List.of(100, 200)));
         when(nativeElementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
         injectElementActionsHelper(nativeTouchActions, nativeElementActionsHelper);
@@ -508,6 +554,15 @@ public class AndroidTouchActionsCoverageUnitTest {
         Field elementActionsHelperField = FluentWebDriverAction.class.getDeclaredField("elementActionsHelper");
         elementActionsHelperField.setAccessible(true);
         elementActionsHelperField.set(touchActions, elementActionsHelper);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private String capturedPointerType(RemoteWebDriver driver) {
+        ArgumentCaptor<Collection<Sequence>> actionsCaptor = ArgumentCaptor.forClass((Class) Collection.class);
+        verify(driver).perform(actionsCaptor.capture());
+        Map<String, Object> encodedSequence = actionsCaptor.getValue().iterator().next().encode();
+        Map<String, Object> parameters = (Map<String, Object>) encodedSequence.get("parameters");
+        return String.valueOf(parameters.get("pointerType"));
     }
 
     private byte[] getValidPngBytes() {

@@ -149,11 +149,9 @@ public class ElementActionsHelper {
     public List<Object> waitForElementPresence(WebDriver driver, String elementReferenceScreenshot) {
         long startTime = System.currentTimeMillis();
         long elapsedTime;
-        List<Integer> coordinates;
         boolean isFound = false;
-        byte[] currentScreenImage;
 
-        List<Object> returnedValue = new LinkedList<>();
+        List<Object> returnedValue;
         if (FileActions.getInstance(true).doesFileExist(elementReferenceScreenshot)) {
             do {
                 try {
@@ -162,25 +160,29 @@ public class ElementActionsHelper {
                 } catch (InterruptedException e) {
                     ReportManagerHelper.logDiscrete(e);
                 }
-                currentScreenImage = new ScreenshotManager().takeScreenshot(driver, null);
-                coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
+                returnedValue = findElementPresence(driver, elementReferenceScreenshot);
+                @SuppressWarnings("unchecked")
+                List<Integer> coordinates = (List<Integer>) returnedValue.get(2);
                 if (!Collections.emptyList().equals(coordinates)) {
                     isFound = true;
                 }
                 elapsedTime = System.currentTimeMillis() - startTime;
             } while (!isFound && elapsedTime < SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L);
-            returnedValue.add(currentScreenImage);
-            returnedValue.add(FileActions.getInstance(true).readFileAsByteArray(elementReferenceScreenshot));
-            returnedValue.add(coordinates);
         } else {
-            // reference screenshot doesn't exist
-            ReportManager.log("Reference screenshot not found. Kindly confirm the image exists under this path: \"" + elementReferenceScreenshot + "\"");
-            currentScreenImage = new ScreenshotManager().takeScreenshot(driver, null);
-            returnedValue.add(currentScreenImage);
-            returnedValue.add(new byte[0]);
-            returnedValue.add(Collections.emptyList());
+            returnedValue = findElementPresence(driver, elementReferenceScreenshot);
         }
         return returnedValue;
+    }
+
+    /**
+     * Checks once whether an on-screen image reference appears in the current viewport.
+     *
+     * @param driver the active WebDriver instance
+     * @param elementReferenceScreenshot path to the reference image file
+     * @return list containing current viewport screenshot, reference screenshot bytes, and matched coordinates
+     */
+    public List<Object> findElementPresence(WebDriver driver, String elementReferenceScreenshot) {
+        return findElementByReferenceImage(driver, elementReferenceScreenshot, Collections.emptyList());
     }
 
     /**
@@ -194,9 +196,8 @@ public class ElementActionsHelper {
         long startTime = System.currentTimeMillis();
         long elapsedTime;
         List<Integer> coordinates = Collections.emptyList();
-        byte[] currentScreenImage;
 
-        List<Object> returnedValue = new LinkedList<>();
+        List<Object> returnedValue;
         if (FileActions.getInstance(true).doesFileExist(elementReferenceScreenshot)) {
             do {
                 try {
@@ -206,20 +207,32 @@ public class ElementActionsHelper {
                     Thread.currentThread().interrupt();
                     ReportManagerHelper.logDiscrete(e);
                 }
-                currentScreenImage = new ScreenshotManager().takeScreenshot(driver, null);
-                coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
+                returnedValue = findElementByReferenceImage(driver, elementReferenceScreenshot, List.of(-1));
+                @SuppressWarnings("unchecked")
+                List<Integer> detectedCoordinates = (List<Integer>) returnedValue.get(2);
+                coordinates = detectedCoordinates;
                 elapsedTime = System.currentTimeMillis() - startTime;
             } while (!Collections.emptyList().equals(coordinates)
                     && elapsedTime < SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000L);
+        } else {
+            returnedValue = findElementByReferenceImage(driver, elementReferenceScreenshot, List.of(-1));
+        }
+        return returnedValue;
+    }
+
+    private List<Object> findElementByReferenceImage(WebDriver driver, String elementReferenceScreenshot,
+                                                     List<Integer> missingReferenceCoordinates) {
+        List<Object> returnedValue = new LinkedList<>();
+        byte[] currentScreenImage = new ScreenshotManager().takeViewportScreenshot(driver);
+        if (FileActions.getInstance(true).doesFileExist(elementReferenceScreenshot)) {
             returnedValue.add(currentScreenImage);
             returnedValue.add(FileActions.getInstance(true).readFileAsByteArray(elementReferenceScreenshot));
-            returnedValue.add(coordinates);
+            returnedValue.add(ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage));
         } else {
             ReportManager.log("Reference screenshot not found. Kindly confirm the image exists under this path: \"" + elementReferenceScreenshot + "\"");
-            currentScreenImage = new ScreenshotManager().takeScreenshot(driver, null);
             returnedValue.add(currentScreenImage);
             returnedValue.add(new byte[0]);
-            returnedValue.add(List.of(-1));
+            returnedValue.add(missingReferenceCoordinates);
         }
         return returnedValue;
     }
