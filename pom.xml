@@ -82,6 +82,10 @@
         <commons.csv.version>1.14.1</commons.csv.version>
         <appium.flutterfinder.version>1.0.14</appium.flutterfinder.version>
         <sikulix.version>2.0.5</sikulix.version>
+        <jython.slim.version>2.7.4</jython.slim.version>
+        <tess4j.version>5.19.0</tess4j.version>
+        <bouncycastle.version>1.84</bouncycastle.version>
+        <ant.version>1.10.17</ant.version>
         <poi.version>5.5.1</poi.version>
         <axe.selenium.version>4.12.0</axe.selenium.version>
         <pdfbox.version>3.0.7</pdfbox.version>
@@ -365,6 +369,36 @@
                 <groupId>io.appium</groupId>
                 <artifactId>java-client</artifactId>
                 <version>${appium.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.python</groupId>
+                <artifactId>jython-slim</artifactId>
+                <version>${jython.slim.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.sourceforge.tess4j</groupId>
+                <artifactId>tess4j</artifactId>
+                <version>${tess4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcpkix-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcutil-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.ant</groupId>
+                <artifactId>ant</artifactId>
+                <version>${ant.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.aspectj</groupId>
