@@ -26,7 +26,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
-import javax.swing.JProgressBar;
 import javax.swing.KeyStroke;
 import javax.swing.Timer;
 import java.awt.BorderLayout;
@@ -42,6 +41,8 @@ import java.util.concurrent.CancellationException;
  */
 final class ShaftAssistantPanel extends JPanel {
     private static final int TRANSIENT_STATUS_MILLIS = 2300;
+    private static final String READY_STATUS = "ready";
+    private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
     private final Project project;
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
@@ -69,7 +70,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
     private final JButton configure;
-    private final JProgressBar progress;
+    private final SpinnerLabel progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
     private final Runnable configureFlow;
@@ -80,6 +81,9 @@ final class ShaftAssistantPanel extends JPanel {
     private Timer transientStatusTimer;
     private boolean running;
     private boolean refreshingChats;
+    private int localAgentStreamToken;
+    private int activeLocalAgentStreamToken = -1;
+    private StringBuilder localAgentOutput;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -155,9 +159,9 @@ final class ShaftAssistantPanel extends JPanel {
         if (!chatState.activeMarkdown().isBlank()) {
             transcript.setMessages(chatState.activeMessages());
         }
-        status = new JLabel("Ready");
-        progress = new JProgressBar();
-        progress.setIndeterminate(true);
+        status = new JLabel(READY_STATUS);
+        status.setFont(status.getFont().deriveFont(Math.max(10.0F, status.getFont().getSize2D() - 1.0F)));
+        progress = new SpinnerLabel();
         progress.setVisible(false);
 
         send = button("Send", "Send assistant prompt", event -> send(project));
@@ -183,6 +187,10 @@ final class ShaftAssistantPanel extends JPanel {
 
         JPanel transcriptPanel = new JPanel(new BorderLayout(4, 4));
         transcriptPanel.add(transcript, BorderLayout.CENTER);
+        JPanel transcriptStatus = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        transcriptStatus.add(progress);
+        transcriptStatus.add(status);
+        transcriptPanel.add(transcriptStatus, BorderLayout.SOUTH);
 
         JPanel actionRow = wrapRow();
         actionRow.add(chatSelector);
@@ -193,7 +201,6 @@ final class ShaftAssistantPanel extends JPanel {
         actionRow.add(clearTranscript);
         actionRow.add(rerunLastPrompt);
         actionRow.add(cancel);
-        actionRow.add(status);
 
         JPanel routeRow = wrapRow();
         routeRow.add(mode);
@@ -208,7 +215,6 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(allowSourceMutation);
 
         JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        promptActions.add(progress);
         promptActions.add(send);
 
         JPanel composerFooter = new JPanel(new BorderLayout(4, 4));
@@ -277,10 +283,13 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         if (AssistantLocalAgentRunner.supports(invocation)) {
-            setRunning(true, "Running " + routeLabel(route) + "...");
-            currentInvocation = AssistantLocalAgentRunner.start(invocation);
+            int streamToken = ++localAgentStreamToken;
+            setRunning(true, "Thinking...");
+            appendStreamingLocalAgentBubble(streamToken);
+            currentInvocation = AssistantLocalAgentRunner.start(invocation, output -> ApplicationManager.getApplication().invokeLater(
+                    () -> appendLocalAgentOutput(streamToken, output)));
             currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
-                    () -> showAgentResult(result, error)));
+                    () -> showAgentResult(streamToken, result, error)));
             return;
         }
         setRunning(true, "Running " + invocation.toolName() + "...");
@@ -309,7 +318,7 @@ final class ShaftAssistantPanel extends JPanel {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
         boolean isMcpConnectionCheck = "mcp initialize".equals(toolName);
-        setRunning(false, success ? (isMcpConnectionCheck ? "MCP test passed" : "Finished") : "Failed");
+        setRunning(false, success ? (isMcpConnectionCheck ? "MCP test passed" : READY_STATUS) : "Failed");
         if (isMcpConnectionCheck && success) {
             showTransientStatus("MCP test passed. You can start chatting.");
         }
@@ -330,22 +339,76 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showAgentResult(ShaftMcpToolResult result, Throwable error) {
+        showAgentResult(-1, result, error);
+    }
+
+    private void showAgentResult(int streamToken, ShaftMcpToolResult result, Throwable error) {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
-        setRunning(false, success ? "Finished" : "Failed");
+        boolean currentStream = streamToken == activeLocalAgentStreamToken;
+        if (streamToken > 0 && !currentStream) {
+            return;
+        }
+        localAgentOutput = null;
+        if (currentStream) {
+            activeLocalAgentStreamToken = -1;
+        }
+        setRunning(false, success ? READY_STATUS : "Failed");
         if (cancelled) {
-            showResponse("_Cancelled._", "");
+            showAgentCancelled(streamToken, currentStream);
             status.setText("Cancelled");
             return;
         }
         String output = error != null ? error.getMessage()
                 : result == null ? "No response returned."
                 : result.output();
-        showResponse(AssistantMarkdown.normalizeMarkdown(output), output);
+        String response = AssistantMarkdown.normalizeMarkdown(output);
+        showAgentResponse(streamToken, currentStream, response, output);
+    }
+
+    private void showAgentCancelled(int streamToken, boolean currentStream) {
+        String canceledResponse = "_Cancelled._";
+        showAgentResponse(streamToken, currentStream, canceledResponse, "");
+    }
+
+    private void showAgentResponse(int streamToken, boolean currentStream, String response, String output) {
+        if (currentStream) {
+            finishLocalAgentResponse(streamToken, response, output);
+        } else {
+            showResponse(response, output);
+        }
+    }
+
+    private void appendStreamingLocalAgentBubble(int streamToken) {
+        activeLocalAgentStreamToken = streamToken;
+        localAgentOutput = new StringBuilder();
+        append("assistant", LOCAL_AGENT_STREAMING_HEADER, "");
+    }
+
+    private void appendLocalAgentOutput(int streamToken, String line) {
+        if (streamToken != activeLocalAgentStreamToken || localAgentOutput == null) {
+            return;
+        }
+        if (localAgentOutput.length() > 0) {
+            localAgentOutput.append("\n");
+        }
+        localAgentOutput.append(line == null ? "" : line);
+        replaceLastTranscriptAndChatState("assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()));
+    }
+
+    private void finishLocalAgentResponse(int streamToken, String response, String rawResponse) {
+        if (streamToken != activeLocalAgentStreamToken && activeLocalAgentStreamToken != -1) {
+            return;
+        }
+        replaceLastTranscriptAndChatState("assistant", response);
+        lastResponse = response;
+        lastRawResponse = rawResponse == null ? "" : rawResponse;
+        copyLastResponse.setEnabled(true);
+        copyRawResponse.setEnabled(!lastRawResponse.isBlank());
     }
 
     private void showLocalResponse(String response) {
-        status.setText("Ready");
+        status.setText(READY_STATUS);
         showResponse("**SHAFT Assistant**\n\n" + AssistantMarkdown.normalizeMarkdown(response), response);
     }
 
@@ -363,7 +426,7 @@ final class ShaftAssistantPanel extends JPanel {
         refreshChatSelector();
     }
 
-    private void setRunning(boolean running, String message) {
+    void setRunning(boolean running, String message) {
         this.running = running;
         send.setEnabled(!running);
         chatSelector.setEnabled(!running);
@@ -380,6 +443,11 @@ final class ShaftAssistantPanel extends JPanel {
         allowSourceMutation.setEnabled(!running);
         saveCloudApiKey.setEnabled(!running);
         cancel.setEnabled(running);
+        if (running) {
+            progress.start();
+        } else {
+            progress.stop();
+        }
         progress.setVisible(running);
         status.setText(message);
         stopTransientStatus();
@@ -393,7 +461,7 @@ final class ShaftAssistantPanel extends JPanel {
         stopTransientStatus();
         status.setText(message);
         transientStatusTimer = new Timer(TRANSIENT_STATUS_MILLIS, event -> {
-            status.setText("Ready");
+            status.setText(READY_STATUS);
             stopTransientStatus();
         });
         transientStatusTimer.setRepeats(false);
@@ -586,7 +654,7 @@ final class ShaftAssistantPanel extends JPanel {
                                               ShaftMcpToolResult result,
                                               Throwable error) {
         boolean success = error == null && result != null && result.success();
-        setRunning(false, success ? "Formatted" : "Finished");
+        setRunning(false, success ? "Formatted" : READY_STATUS);
         String markdown = fallbackMarkdown;
         if (success) {
             String formatted = AssistantMarkdown.fromMcpOutput(formatterToolName, result.output());
@@ -630,6 +698,37 @@ final class ShaftAssistantPanel extends JPanel {
             CopyPasteManager.getInstance().setContents(new StringSelection(value));
             status.setText(message);
         }
+    }
+
+    private void replaceLastTranscriptAndChatState(String role, String message) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        ShaftAssistantChatState.Session active = chatState.activeSession();
+        if (active != null && active.messages != null && !active.messages.isEmpty()) {
+            ShaftAssistantChatState.Message last = active.messages.get(active.messages.size() - 1);
+            last.role = role == null || role.isBlank() ? "assistant" : role.trim().toLowerCase(Locale.ROOT);
+            last.markdown = message;
+            transcript.replaceLast(last.role, message);
+            return;
+        }
+        append(role, message, "");
+    }
+
+    private static String formatLocalAgentStreamingResponse(String output) {
+        if (output == null || output.isBlank()) {
+            return LOCAL_AGENT_STREAMING_HEADER;
+        }
+        return LOCAL_AGENT_STREAMING_HEADER + "\n\n" + fencedCodeBlock(output);
+    }
+
+    private static String fencedCodeBlock(String content) {
+        String text = content == null ? "" : content.stripTrailing();
+        String fence = "```";
+        while (text.contains(fence)) {
+            fence += "`";
+        }
+        return fence + "text\n" + text + "\n" + fence;
     }
 
     private boolean mcpConfigured() {
@@ -742,5 +841,44 @@ final class ShaftAssistantPanel extends JPanel {
     private static String normalizeLower(String value, String fallback) {
         String normalized = value == null || value.isBlank() ? fallback : value.trim();
         return normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private static final class SpinnerLabel extends JLabel {
+        private static final String[] FRAMES = {"|", "/", "-", "\\"};
+        private final Timer timer;
+        private int frameIndex;
+
+        private SpinnerLabel() {
+            super(FRAMES[0]);
+            getAccessibleContext().setAccessibleName("Assistant thinking spinner");
+            setFont(getFont().deriveFont(java.awt.Font.BOLD));
+            timer = new Timer(120, event -> advance());
+            timer.setRepeats(true);
+        }
+
+        private void start() {
+            frameIndex = 0;
+            setText(FRAMES[frameIndex]);
+            setVisible(true);
+            timer.start();
+        }
+
+        private void stop() {
+            timer.stop();
+            frameIndex = 0;
+            setText(FRAMES[frameIndex]);
+            setVisible(false);
+        }
+
+        private void advance() {
+            frameIndex = (frameIndex + 1) % FRAMES.length;
+            setText(FRAMES[frameIndex]);
+        }
+
+        @Override
+        public void removeNotify() {
+            stop();
+            super.removeNotify();
+        }
     }
 }

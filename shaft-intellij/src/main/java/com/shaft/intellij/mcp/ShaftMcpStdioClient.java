@@ -254,7 +254,13 @@ final class ShaftMcpStdioClient implements AutoCloseable {
 
     private Integer exitCode() {
         try {
+            if (!process.waitFor(250, TimeUnit.MILLISECONDS)) {
+                return null;
+            }
             return process.exitValue();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return null;
         } catch (IllegalThreadStateException exception) {
             return null;
         }

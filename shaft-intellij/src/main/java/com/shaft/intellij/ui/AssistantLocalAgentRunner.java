@@ -5,8 +5,11 @@ import com.google.gson.JsonObject;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Runs selected local assistant CLIs directly so their markdown stays user-facing.
@@ -38,11 +42,15 @@ final class AssistantLocalAgentRunner {
     }
 
     static ShaftMcpInvocation start(AssistantCommand.Invocation invocation) {
+        return start(invocation, null);
+    }
+
+    static ShaftMcpInvocation start(AssistantCommand.Invocation invocation, Consumer<String> outputConsumer) {
         JsonObject arguments = invocation.arguments();
         AtomicReference<Process> processReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
-                () -> run(arguments, processReference, cancellationRequested));
+                () -> run(arguments, processReference, cancellationRequested, outputConsumer));
         return new ShaftMcpInvocation(future, () -> cancel(processReference, cancellationRequested));
     }
 
@@ -62,7 +70,8 @@ final class AssistantLocalAgentRunner {
     private static ShaftMcpToolResult run(
             JsonObject arguments,
             AtomicReference<Process> processReference,
-            AtomicBoolean cancellationRequested) {
+            AtomicBoolean cancellationRequested,
+            Consumer<String> outputConsumer) {
         List<String> command = commandFor(arguments);
         if (command.isEmpty()) {
             return ShaftMcpToolResult.failure("No local assistant command was configured.");
@@ -84,8 +93,8 @@ final class AssistantLocalAgentRunner {
             builder.environment().putAll(environment(arguments));
             Process process = builder.start();
             processReference.set(process);
-            CompletableFuture<String> stdout = readAsync(process.getInputStream());
-            CompletableFuture<String> stderr = readAsync(process.getErrorStream());
+            CompletableFuture<String> stdout = readAsync(process.getInputStream(), outputConsumer);
+            CompletableFuture<String> stderr = readAsync(process.getErrorStream(), outputConsumer);
             process.getOutputStream().write(stdin.getBytes(StandardCharsets.UTF_8));
             process.getOutputStream().close();
 
@@ -127,7 +136,12 @@ final class AssistantLocalAgentRunner {
 
     private static List<String> codexCommand(String mode) {
         return switch (mode) {
-            case "AGENT" -> List.of("codex", "exec", "--sandbox", "workspace-write", "-");
+            case "AGENT" -> List.of(
+                    "codex", "exec",
+                    "--sandbox", "workspace-write",
+                    "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                    "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                    "-");
             default -> List.of("codex", "exec", "--sandbox", "read-only", "-");
         };
     }
@@ -206,13 +220,23 @@ final class AssistantLocalAgentRunner {
         return String.join("\n\n", sections).trim();
     }
 
-    private static CompletableFuture<String> readAsync(java.io.InputStream stream) {
+    private static CompletableFuture<String> readAsync(InputStream stream, Consumer<String> outputConsumer) {
         return CompletableFuture.supplyAsync(() -> {
+            StringBuilder output = new StringBuilder();
             try {
-                return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append('\n');
+                        if (outputConsumer != null) {
+                            outputConsumer.accept(line);
+                        }
+                    }
+                }
             } catch (IOException exception) {
                 return "";
             }
+            return output.toString();
         });
     }
 

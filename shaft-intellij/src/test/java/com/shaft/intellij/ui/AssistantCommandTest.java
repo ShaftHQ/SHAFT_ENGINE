@@ -74,12 +74,14 @@ class AssistantCommandTest {
 
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
+                For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
 
                 open duckduckgo and search for SHAFT Engine""",
                 duckDuckGo.arguments().get("prompt").getAsString());
         assertEquals("use shaft-mcp to open mobile app", alreadyExplicit.arguments().get("prompt").getAsString());
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
+                For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
 
                 Explain the current test failure""", plain.arguments().get("prompt").getAsString());
     }
@@ -97,7 +99,12 @@ class AssistantCommandTest {
 
         assertEquals(List.of("codex", "exec", "--sandbox", "read-only", "-"),
                 AssistantLocalAgentRunner.commandFor(codexAsk.arguments()));
-        assertEquals(List.of("codex", "exec", "--sandbox", "workspace-write", "-"),
+        assertEquals(List.of(
+                        "codex", "exec",
+                        "--sandbox", "workspace-write",
+                        "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                        "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                        "-"),
                 AssistantLocalAgentRunner.commandFor(codexAgent.arguments()));
         assertEquals(List.of("claude", "--print", "--permission-mode", "plan"),
                 AssistantLocalAgentRunner.commandFor(claudePlan.arguments()));
