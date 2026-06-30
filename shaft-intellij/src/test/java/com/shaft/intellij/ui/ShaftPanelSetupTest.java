@@ -928,7 +928,8 @@ class ShaftPanelSetupTest {
                 (proxy, method, arguments) -> {
                     switch (method.getName()) {
                         case "equals":
-                            return proxy == arguments[0];
+                            Object other = arguments == null || arguments.length == 0 ? null : arguments[0];
+                            return proxy == other;
                         case "hashCode":
                             return System.identityHashCode(proxy);
                         case "getBasePath":
