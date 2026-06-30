@@ -46,6 +46,11 @@ final class AssistantMarkdown {
         return normalizeMarkdown(unwrapped);
     }
 
+    static JsonObject jsonObjectFromMcpOutput(String output) {
+        JsonElement parsed = parse(unwrapMcpText(output));
+        return parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+    }
+
     static boolean shouldFormatWithAgent(String toolName, String output) {
         if (KNOWN_TOOLS.contains(toolName)) {
             return false;
@@ -188,6 +193,9 @@ final class AssistantMarkdown {
     private static String genericMarkdown(JsonElement parsed) {
         if (parsed.isJsonObject()) {
             JsonObject object = parsed.getAsJsonObject();
+            if (object.has("state") && object.has("outputPath") && object.has("processId")) {
+                return captureStatusMarkdown(object);
+            }
             if (object.has("tools") && object.get("tools").isJsonArray()) {
                 return toolsMarkdown(object.getAsJsonArray("tools"));
             }
@@ -202,6 +210,29 @@ final class AssistantMarkdown {
             }
         }
         return "";
+    }
+
+    private static String captureStatusMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "State", string(object, "state", ""),
+                "Browser", string(object, "browser", ""),
+                "Readiness", string(object, "readiness", ""),
+                "Events", string(object, "eventCount", ""),
+                "Process", string(object, "processId", "")));
+        String outputPath = string(object, "outputPath", "");
+        if (!outputPath.isBlank()) {
+            sections.add("**Output:** `" + outputPath + "`");
+        }
+        String currentUrl = string(object, "currentUrl", "");
+        if (!currentUrl.isBlank()) {
+            sections.add("**Current URL:** " + currentUrl);
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
     }
 
     private static String toolsMarkdown(JsonArray tools) {

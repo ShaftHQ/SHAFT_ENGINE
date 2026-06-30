@@ -71,6 +71,11 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton copyLastResponse;
     private final JButton copyRawResponse;
     private final JButton copyTranscript;
+    private final JPanel captureReviewPanel;
+    private final JLabel captureReviewStatus;
+    private final JButton approveCaptureReview;
+    private final JButton copyCaptureReview;
+    private final JButton dismissCaptureReview;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
@@ -84,6 +89,7 @@ final class ShaftAssistantPanel extends JPanel {
     private String lastPrompt = "";
     private ShaftMcpInvocation currentInvocation;
     private Timer transientStatusTimer;
+    private Timer captureStartDiagnosticTimer;
     private boolean running;
     private boolean refreshingChats;
     private int localAgentStreamToken;
@@ -184,6 +190,23 @@ final class ShaftAssistantPanel extends JPanel {
         copyRawResponse.setEnabled(false);
         copyTranscript = button("Copy all", "Copy assistant transcript",
                 event -> copy(exportTranscriptWithEvidence(), "Copied transcript"));
+        captureReviewStatus = new JLabel("Capture review ready");
+        captureReviewStatus.getAccessibleContext().setAccessibleName("Capture review status");
+        approveCaptureReview = button("Approve", "Approve Capture review", event -> approvePendingCaptureReview());
+        copyCaptureReview = button("Copy review", "Copy Capture review", event -> copyPendingCaptureReview());
+        dismissCaptureReview = button("Dismiss", "Dismiss Capture review", event -> dismissPendingCaptureReview());
+        JPanel captureReviewActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        captureReviewActions.add(approveCaptureReview);
+        captureReviewActions.add(copyCaptureReview);
+        captureReviewActions.add(dismissCaptureReview);
+        captureReviewPanel = new JPanel(new BorderLayout(8, 0));
+        captureReviewPanel.getAccessibleContext().setAccessibleName("Capture review approval");
+        captureReviewPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEtchedBorder(),
+                JBUI.Borders.empty(6)));
+        captureReviewPanel.add(captureReviewStatus, BorderLayout.CENTER);
+        captureReviewPanel.add(captureReviewActions, BorderLayout.EAST);
+        captureReviewPanel.setVisible(false);
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
         rerunLastPrompt.setEnabled(false);
@@ -201,7 +224,10 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel transcriptStatus = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         transcriptStatus.add(progress);
         transcriptStatus.add(status);
-        transcriptPanel.add(transcriptStatus, BorderLayout.SOUTH);
+        JPanel transcriptBottom = new JPanel(new BorderLayout(4, 4));
+        transcriptBottom.add(captureReviewPanel, BorderLayout.NORTH);
+        transcriptBottom.add(transcriptStatus, BorderLayout.SOUTH);
+        transcriptPanel.add(transcriptBottom, BorderLayout.SOUTH);
 
         JPanel actionRow = wrapRow();
         actionRow.add(chatSelector);
@@ -379,7 +405,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (cancelled) {
             if ("capture_code_blocks".equals(toolName) && captureReviewGenerationRunning) {
                 captureReviewGenerationRunning = false;
-                pendingCaptureReview = null;
+                clearPendingCaptureReview();
             }
             showResponse("**SHAFT Assistant (" + toolName + " cancelled)**", "");
             status.setText("Cancelled");
@@ -398,6 +424,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (success && captureReviewGenerationRunning && "capture_code_blocks".equals(toolName)) {
             captureReviewGenerationRunning = false;
             pendingCaptureReview = new CaptureReview(markdown, output);
+            showPendingCaptureReview();
             showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n"
                     + markdown
                     + "\n\n**Review before writing files.** Send `approve`, `okay`, or `generate` to let the Agent create the actual Page Object Model files.",
@@ -406,6 +433,7 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         if (success && generateCaptureReviewAfterStop && "capture_stop".equals(toolName)) {
+            stopCaptureStartDiagnostic();
             showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n" + markdown, output);
             startCaptureCodeReview();
             return;
@@ -415,6 +443,9 @@ final class ShaftAssistantPanel extends JPanel {
         }
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
                 + markdown, output);
+        if (success && "capture_start".equals(toolName)) {
+            scheduleCaptureStartDiagnostic(output);
+        }
     }
 
     private void showAgentResult(ShaftMcpToolResult result, Throwable error) {
@@ -435,7 +466,7 @@ final class ShaftAssistantPanel extends JPanel {
         setRunning(false, success ? READY_STATUS : "Failed");
         if (captureIntegrationRunning) {
             if (success) {
-                pendingCaptureReview = null;
+                clearPendingCaptureReview();
             }
             captureIntegrationRunning = false;
         }
@@ -530,6 +561,9 @@ final class ShaftAssistantPanel extends JPanel {
         customCommand.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
         saveCloudApiKey.setEnabled(!running);
+        approveCaptureReview.setEnabled(!running && pendingCaptureReview != null);
+        copyCaptureReview.setEnabled(!running && pendingCaptureReview != null);
+        dismissCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         cancel.setEnabled(running);
         if (running) {
             progress.start();
@@ -692,7 +726,8 @@ final class ShaftAssistantPanel extends JPanel {
     private void clearTranscript() {
         chatState.clearActiveSession();
         toolEvidence.clear();
-        pendingCaptureReview = null;
+        clearPendingCaptureReview();
+        stopCaptureStartDiagnostic();
         generateCaptureReviewAfterStop = false;
         captureReviewGenerationRunning = false;
         captureIntegrationRunning = false;
@@ -710,7 +745,8 @@ final class ShaftAssistantPanel extends JPanel {
     private void newChat() {
         chatState.newSession();
         toolEvidence.clear();
-        pendingCaptureReview = null;
+        clearPendingCaptureReview();
+        stopCaptureStartDiagnostic();
         generateCaptureReviewAfterStop = false;
         captureReviewGenerationRunning = false;
         captureIntegrationRunning = false;
@@ -734,7 +770,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (selected instanceof ShaftAssistantChatState.Session session) {
             chatState.activate(session.id);
             toolEvidence.clear();
-            pendingCaptureReview = null;
+            clearPendingCaptureReview();
+            stopCaptureStartDiagnostic();
             generateCaptureReviewAfterStop = false;
             captureReviewGenerationRunning = false;
             captureIntegrationRunning = false;
@@ -747,12 +784,14 @@ final class ShaftAssistantPanel extends JPanel {
         if ("capture_start".equals(invocation.toolName())) {
             activeCaptureRecordingPath = string(invocation.arguments(), "outputPath",
                     AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH);
-            pendingCaptureReview = null;
+            clearPendingCaptureReview();
+            stopCaptureStartDiagnostic();
             generateCaptureReviewAfterStop = false;
             captureReviewGenerationRunning = false;
             return;
         }
         if ("capture_stop".equals(invocation.toolName()) && AssistantCommand.isStopRecording(promptText)) {
+            stopCaptureStartDiagnostic();
             generateCaptureReviewAfterStop = true;
         }
     }
@@ -767,6 +806,101 @@ final class ShaftAssistantPanel extends JPanel {
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(invocation.toolName(), result, error)));
+    }
+
+    private void showPendingCaptureReview() {
+        if (pendingCaptureReview == null) {
+            captureReviewPanel.setVisible(false);
+            return;
+        }
+        captureReviewStatus.setText(captureReviewSummary(pendingCaptureReview.markdown()));
+        approveCaptureReview.setEnabled(!running);
+        copyCaptureReview.setEnabled(!running);
+        dismissCaptureReview.setEnabled(!running);
+        captureReviewPanel.setVisible(true);
+        revalidate();
+        repaint();
+    }
+
+    private void approvePendingCaptureReview() {
+        if (pendingCaptureReview == null || running) {
+            return;
+        }
+        prompt.setText("approve");
+        send(project);
+    }
+
+    private void copyPendingCaptureReview() {
+        if (pendingCaptureReview != null) {
+            copy(pendingCaptureReview.markdown(), "Copied capture review");
+        }
+    }
+
+    private void dismissPendingCaptureReview() {
+        clearPendingCaptureReview();
+        status.setText(READY_STATUS);
+    }
+
+    private void clearPendingCaptureReview() {
+        pendingCaptureReview = null;
+        if (captureReviewPanel != null) {
+            approveCaptureReview.setEnabled(false);
+            copyCaptureReview.setEnabled(false);
+            dismissCaptureReview.setEnabled(false);
+            captureReviewPanel.setVisible(false);
+            revalidate();
+            repaint();
+        }
+    }
+
+    private void scheduleCaptureStartDiagnostic(String startOutput) {
+        stopCaptureStartDiagnostic();
+        if (project == null || !mcpConfigured()) {
+            return;
+        }
+        String expectedOutputPath = activeCaptureRecordingPath;
+        captureStartDiagnosticTimer = new Timer(1500, event -> {
+            stopCaptureStartDiagnostic();
+            if (running || !expectedOutputPath.equals(activeCaptureRecordingPath)) {
+                return;
+            }
+            ShaftMcpInvocation invocation = ShaftMcpInvocationService.getInstance(project)
+                    .startTool("capture_status", new JsonObject());
+            invocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                    () -> showCaptureStartDiagnostic(expectedOutputPath, startOutput, result, error)));
+        });
+        captureStartDiagnosticTimer.setRepeats(false);
+        captureStartDiagnosticTimer.start();
+    }
+
+    private void stopCaptureStartDiagnostic() {
+        if (captureStartDiagnosticTimer != null) {
+            captureStartDiagnosticTimer.stop();
+            captureStartDiagnosticTimer = null;
+        }
+    }
+
+    private void showCaptureStartDiagnostic(
+            String expectedOutputPath,
+            String startOutput,
+            ShaftMcpToolResult result,
+            Throwable error) {
+        if (error != null || result == null || !result.success()) {
+            return;
+        }
+        JsonObject statusJson = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        if (statusJson == null || activeCaptureState(string(statusJson, "state", ""))) {
+            return;
+        }
+        JsonObject startJson = AssistantMarkdown.jsonObjectFromMcpOutput(startOutput);
+        String outputPath = string(statusJson, "outputPath", expectedOutputPath);
+        if (outputPath.isBlank()) {
+            outputPath = expectedOutputPath;
+        }
+        String markdown = captureStartDiagnosticMarkdown(statusJson, startJson, outputPath);
+        appendToolEvidence("capture_status", result.output());
+        showResponse("**Capture diagnostic**\n\n" + markdown, result.output());
+        status.setText("Capture stopped");
     }
 
     private void rerun(Project project) {
@@ -895,6 +1029,67 @@ final class ShaftAssistantPanel extends JPanel {
             fence += "`";
         }
         return fence + "text\n" + text + "\n" + fence;
+    }
+
+    private static String captureReviewSummary(String markdown) {
+        int codeBlocks = count(markdown, "```") / 2;
+        boolean warnings = markdown != null && markdown.contains("**Warnings**");
+        StringBuilder summary = new StringBuilder("Capture review ready");
+        if (codeBlocks > 0) {
+            summary.append(": ").append(codeBlocks).append(codeBlocks == 1 ? " code block" : " code blocks");
+        }
+        if (warnings) {
+            summary.append(", warnings included");
+        }
+        return summary.toString();
+    }
+
+    private static String captureStartDiagnosticMarkdown(
+            JsonObject statusJson,
+            JsonObject startJson,
+            String outputPath) {
+        String startProcess = startJson == null ? "" : string(startJson, "processId", "");
+        String latestProcess = string(statusJson, "processId", "");
+        String process = startProcess.isBlank() ? latestProcess : startProcess;
+        StringBuilder markdown = new StringBuilder();
+        markdown.append("Managed browser capture stopped after start.")
+                .append("\n\n")
+                .append("- State: `").append(string(statusJson, "state", "unknown")).append("`")
+                .append("\n")
+                .append("- Recorder process: `").append(process.isBlank() ? "unknown" : process).append("`")
+                .append("\n")
+                .append("- Output: `").append(outputPath).append("`");
+        if (!latestProcess.isBlank() && !latestProcess.equals(process)) {
+            markdown.append("\n- Status check process: `").append(latestProcess).append("`");
+        }
+        JsonElement warnings = statusJson.get("warnings");
+        if (warnings != null && warnings.isJsonArray() && !warnings.getAsJsonArray().isEmpty()) {
+            markdown.append("\n\n**Warnings**");
+            for (JsonElement warning : warnings.getAsJsonArray()) {
+                if (warning.isJsonPrimitive()) {
+                    markdown.append("\n- ").append(warning.getAsString());
+                }
+            }
+        }
+        return markdown.toString();
+    }
+
+    private static boolean activeCaptureState(String state) {
+        String normalized = state == null ? "" : state.trim().toUpperCase(Locale.ROOT);
+        return normalized.equals("STARTING") || normalized.equals("ACTIVE") || normalized.equals("STOPPING");
+    }
+
+    private static int count(String value, String needle) {
+        if (value == null || value.isBlank() || needle == null || needle.isEmpty()) {
+            return 0;
+        }
+        int matches = 0;
+        int index = value.indexOf(needle);
+        while (index >= 0) {
+            matches++;
+            index = value.indexOf(needle, index + needle.length());
+        }
+        return matches;
     }
 
     private boolean mcpConfigured() {

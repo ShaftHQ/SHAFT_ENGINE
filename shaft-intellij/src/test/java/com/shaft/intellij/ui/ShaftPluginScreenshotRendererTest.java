@@ -261,8 +261,8 @@ class ShaftPluginScreenshotRendererTest {
                     """
                             Client target: codex
                             Resolving io.github.shafthq:shaft-mcp:LATEST...
-                            Installing io.github.shafthq:shaft-mcp:10.2.20260628
-                            {"client":"codex","server":"shaft-mcp","version":"10.2.20260628","command":"java","args":["@target/shaft-mcp.args"]}
+                            Installing io.github.shafthq:shaft-mcp:10.2.20260630
+                            {"client":"codex","server":"shaft-mcp","version":"10.2.20260630","command":"java","args":["@target/shaft-mcp.args"]}
                             """.stripIndent().trim()));
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));

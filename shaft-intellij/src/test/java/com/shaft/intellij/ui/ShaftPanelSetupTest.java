@@ -306,10 +306,72 @@ class ShaftPanelSetupTest {
                 """)));
 
         String markdown = transcriptMarkdown(panel);
+        JComponent reviewPanel = findByAccessibleName(panel, "Capture review approval", JComponent.class);
         assertAll(
                 () -> assertTrue(markdown.contains("public class RecordedFlowTest")),
                 () -> assertTrue(markdown.contains("Review before writing files")),
-                () -> assertTrue(markdown.contains("`approve`, `okay`, or `generate`")));
+                () -> assertTrue(markdown.contains("`approve`, `okay`, or `generate`")),
+                () -> assertNotNull(reviewPanel),
+                () -> assertTrue(reviewPanel.isVisible()),
+                () -> assertTrue(containsText(reviewPanel, "Capture review ready")),
+                () -> assertNotNull(findByAccessibleName(panel, "Approve Capture review", JButton.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Copy Capture review", JButton.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Dismiss Capture review", JButton.class)));
+    }
+
+    @Test
+    void dismissedCaptureReviewClearsApprovalPanelOnly() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "captureReviewGenerationRunning", true);
+
+        showAssistantResult(panel, "capture_code_blocks", ShaftMcpToolResult.success(mcpText("""
+                {
+                  "successful": true,
+                  "codeBlocks": [
+                    {"language":"java","code":"public class RecordedFlowTest {}"}
+                  ]
+                }
+                """)));
+
+        click(panel, "Dismiss");
+
+        JComponent reviewPanel = findByAccessibleName(panel, "Capture review approval", JComponent.class);
+        assertAll(
+                () -> assertNotNull(reviewPanel),
+                () -> assertFalse(reviewPanel.isVisible()),
+                () -> assertNull(getField(panel, "pendingCaptureReview")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("RecordedFlowTest")));
+    }
+
+    @Test
+    void captureStartDiagnosticShowsExitedRecorderStatus() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        String startOutput = mcpText("""
+                {
+                  "state": "ACTIVE",
+                  "outputPath": "recordings/intellij-capture-1.json",
+                  "processId": 111
+                }
+                """);
+        String statusOutput = mcpText("""
+                {
+                  "state": "NOT_RUNNING",
+                  "outputPath": "",
+                  "processId": 222,
+                  "warnings": ["The recorder process is no longer reachable."]
+                }
+                """);
+
+        showCaptureStartDiagnostic(panel, "recordings/intellij-capture-1.json", startOutput,
+                ShaftMcpToolResult.success(statusOutput));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("Capture diagnostic")),
+                () -> assertTrue(markdown.contains("State: `NOT_RUNNING`")),
+                () -> assertTrue(markdown.contains("Recorder process: `111`")),
+                () -> assertTrue(markdown.contains("Output: `recordings/intellij-capture-1.json`")),
+                () -> assertTrue(markdown.contains("The recorder process is no longer reachable.")));
     }
 
     @Test
@@ -820,6 +882,21 @@ class ShaftPanelSetupTest {
                 "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, toolName, result, error);
+    }
+
+    private static void showCaptureStartDiagnostic(
+            ShaftAssistantPanel panel,
+            String expectedOutputPath,
+            String startOutput,
+            ShaftMcpToolResult result) throws Exception {
+        Method showDiagnostic = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showCaptureStartDiagnostic",
+                String.class,
+                String.class,
+                ShaftMcpToolResult.class,
+                Throwable.class);
+        showDiagnostic.setAccessible(true);
+        showDiagnostic.invoke(panel, expectedOutputPath, startOutput, result, null);
     }
 
     private static void showAgentResult(ShaftAssistantPanel panel, ShaftMcpToolResult result) throws Exception {

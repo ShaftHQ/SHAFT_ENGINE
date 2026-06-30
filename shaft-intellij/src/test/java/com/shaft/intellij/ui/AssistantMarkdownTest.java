@@ -127,6 +127,31 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void formatsCaptureStatusWithoutRawJson() {
+        String markdown = AssistantMarkdown.fromMcpOutput("capture_status", mcpText("""
+                {
+                  "state": "INCOMPLETE",
+                  "sessionId": "session",
+                  "browser": "chrome",
+                  "currentUrl": "https://example.test/",
+                  "eventCount": 2,
+                  "readiness": "BLOCKED",
+                  "warnings": ["The recorder process is no longer reachable."],
+                  "outputPath": "recordings/intellij-capture.json",
+                  "aiEnabled": false,
+                  "processId": 123,
+                  "startedAt": "2026-06-30T19:00:00Z"
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**State:** INCOMPLETE")),
+                () -> assertTrue(markdown.contains("**Output:** `recordings/intellij-capture.json`")),
+                () -> assertTrue(markdown.contains("The recorder process is no longer reachable.")),
+                () -> assertFalse(markdown.contains("\"processId\"")));
+    }
+
+    @Test
     void unknownJsonCanUseAgentFormatterButKnownResponsesDoNot() {
         assertAll(
                 () -> assertTrue(AssistantMarkdown.shouldFormatWithAgent("browser_unknown", "{\"unexpected\":true}")),
