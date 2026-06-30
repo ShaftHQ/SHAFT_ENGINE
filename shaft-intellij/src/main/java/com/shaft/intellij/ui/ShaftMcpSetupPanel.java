@@ -21,6 +21,7 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.nio.file.Path;
@@ -40,6 +41,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JComboBox<String> family;
     private final JComboBox<String> runtime;
     private final JButton test;
+    private final JProgressBar installProgress;
     private final JLabel status;
     private final JBTextArea details;
     private boolean installing;
@@ -55,6 +57,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         install = new JButton("Install / Update SHAFT MCP");
         install.getAccessibleContext().setAccessibleName("Install or update SHAFT MCP");
         install.addActionListener(event -> installMcp());
+        installProgress = new JProgressBar();
+        installProgress.setIndeterminate(true);
+        installProgress.setVisible(false);
+        installProgress.setPreferredSize(JBUI.size(140, 14));
         family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT"});
         ShaftUiLabels.applyFriendlyRenderer(family);
         family.setSelectedItem(resolveFamily(settings));
@@ -63,7 +69,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         ShaftUiLabels.applyFriendlyRenderer(runtime);
         runtime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
         runtime.getAccessibleContext().setAccessibleName("Assistant runtime");
-        test = new JButton("Test connection");
+        test = new JButton("Test connection and start chatting");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
         test.setEnabled(settings.mcpCommand != null && !settings.mcpCommand.isBlank());
         test.addActionListener(event -> testConnection());
@@ -75,6 +81,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         details.setWrapStyleWord(true);
 
         JPanel installRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        installRow.add(installProgress);
         installRow.add(install);
         JPanel testRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         testRow.add(test);
@@ -98,8 +105,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void installMcp() {
-        setRunning(true, "Installing...");
         installing = true;
+        setRunning(true, "Installing...");
         details.setText("SHAFT MCP installation\n\n- Starting installer...");
         ShaftMcpInstaller.installForPluginAndClient(installerClientForSelection(), createInstallerOutputHandler())
                 .whenComplete((result, error) ->
@@ -177,6 +184,7 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void setRunning(boolean running, String text) {
         install.setEnabled(!running);
+        installProgress.setVisible(running);
         family.setEnabled(!running);
         runtime.setEnabled(!running);
         test.setEnabled(!running && settings.mcpCommand != null && !settings.mcpCommand.isBlank());

@@ -14,6 +14,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import java.awt.Component;
 import java.awt.Container;
@@ -21,6 +22,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.text.JTextComponent;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -300,7 +302,7 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         assertAll(
-                () -> assertNull(findButton(panel, "Test MCP").getIcon()),
+                () -> assertNull(findButton(panel, "Test connection and start chatting")),
                 () -> assertNull(findButton(panel, "Copy response").getIcon()),
                 () -> assertNull(findButton(panel, "Copy raw").getIcon()),
                 () -> assertNull(findButton(panel, "Copy all").getIcon()),
@@ -308,6 +310,86 @@ class ShaftPanelSetupTest {
                 () -> assertNull(findButton(panel, "Rerun").getIcon()),
                 () -> assertNull(findButton(panel, "Cancel").getIcon()),
                 () -> assertNull(findButton(panel, "Send").getIcon()));
+    }
+
+    @Test
+    void assistantPanelShowsConfigureButtonWhenSetupCallbackIsConfigured() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        AtomicBoolean openedSetup = new AtomicBoolean();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings(), chatState,
+                () -> openedSetup.set(true));
+
+        JButton configure = findButton(panel, "Configure");
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
+
+        assertAll(
+                () -> assertNotNull(configure),
+                () -> assertNotNull(family),
+                () -> assertNotNull(runtime),
+                () -> assertTrue(configure.isVisible()),
+                () -> assertFalse(family.isVisible()),
+                () -> assertFalse(runtime.isVisible()),
+                () -> assertTrue(containsText(panel, "Agent: Local / Codex / CLI")),
+                () -> assertNull(findButton(panel, "Test connection and start chatting")),
+                () -> assertFalse(openedSetup.get()));
+
+        configure.doClick();
+        assertTrue(openedSetup.get());
+    }
+
+    @Test
+    void assistantTranscriptRendersRoleBasedMessageBubbles() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("user", "Hello assistant");
+        transcript.append("assistant", "Hi user");
+
+        String html = transcript.html();
+        assertAll(
+                () -> assertTrue(html.contains("class=\"message-row user\"")),
+                () -> assertTrue(html.contains("class=\"message-row assistant\"")),
+                () -> assertTrue(html.contains("class=\"message-hint\"")),
+                () -> assertTrue(html.contains("Hello assistant")),
+                () -> assertTrue(html.contains("Hi user")),
+                () -> assertTrue(html.indexOf("Hi user") < html.indexOf("Type a question")),
+                () -> assertTrue(html.contains("align=\"left\"")));
+    }
+
+    @Test
+    void assistantTranscriptRestoresMessagesFromChatState() {
+        ShaftAssistantChatState state = new ShaftAssistantChatState();
+        state.append("user", "User prompt", "{}");
+        state.append("assistant", "Assistant reply", "{}");
+
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.setMessages(state.activeMessages());
+
+        assertEquals("User prompt\n\nAssistant reply", transcript.markdown());
+        assertNotNull(transcript.html());
+    }
+
+    @Test
+    void assistantAgentModeWarnsOnlyWhenSourceMutationIsNotApproved() {
+        ShaftAssistantPanel blockedPanel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> blockedMode = findByAccessibleName(blockedPanel, "Assistant mode", JComboBox.class);
+        assertNotNull(blockedMode);
+        blockedMode.setSelectedItem("AGENT");
+        assistantPrompt(blockedPanel).setText("edit this test");
+        click(blockedPanel, "Send");
+        assertTrue(transcriptMarkdown(blockedPanel).contains("tick **Allow edits**"));
+
+        ShaftAssistantPanel approvedPanel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> approvedMode = findByAccessibleName(approvedPanel, "Assistant mode", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(approvedPanel,
+                "Approve source mutation for Agent mode", JCheckBox.class);
+        assertAll(
+                () -> assertNotNull(approvedMode),
+                () -> assertNotNull(allowEdits));
+        approvedMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+        assistantPrompt(approvedPanel).setText("edit this test");
+        click(approvedPanel, "Send");
+        assertFalse(transcriptMarkdown(approvedPanel).contains("tick **Allow edits**"));
     }
 
     @Test
@@ -572,6 +654,25 @@ class ShaftPanelSetupTest {
         if (component instanceof Container container) {
             for (Component child : container.getComponents()) {
                 JButton found = findButton(child, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static <T extends JComponent> T findByAccessibleName(
+            Component component,
+            String accessibleName,
+            Class<T> type) {
+        if (type.isInstance(component)
+                && accessibleName.equals(accessibleName((JComponent) component))) {
+            return type.cast(component);
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                T found = findByAccessibleName(child, accessibleName, type);
                 if (found != null) {
                     return found;
                 }

@@ -109,6 +109,14 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         return String.join("\n\n", parts);
     }
 
+    List<Message> activeMessages() {
+        Session session = activeSession();
+        if (session.messages == null) {
+            return List.of();
+        }
+        return List.copyOf(session.messages);
+    }
+
     private void ensureActiveSession() {
         if (state.sessions == null) {
             state.sessions = new ArrayList<>();

@@ -71,7 +71,8 @@ public final class ShaftToolWindowPanel extends JPanel {
         workflowLayout = new CardLayout();
         workflowCards = new JPanel(workflowLayout);
         workflowCards.getAccessibleContext().setAccessibleName("SHAFT workflow content");
-        ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings);
+        ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
+                assistantState(project), this::showSetupView);
         GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool);
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
         ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
@@ -188,6 +189,14 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private static boolean mcpReady(ShaftSettingsState.Settings settings) {
         return settings.mcpSetupComplete && settings.mcpCommand != null && !settings.mcpCommand.isBlank();
+    }
+
+    private static ShaftAssistantChatState assistantState(Project project) {
+        if (project == null) {
+            return new ShaftAssistantChatState();
+        }
+        ShaftAssistantChatState state = ShaftAssistantChatState.getInstance(project);
+        return state == null ? new ShaftAssistantChatState() : state;
     }
 
     record WorkflowView(String label, JComponent component) {

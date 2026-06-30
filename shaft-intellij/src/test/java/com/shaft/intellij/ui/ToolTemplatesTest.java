@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ToolTemplatesTest {
@@ -117,6 +118,57 @@ class ToolTemplatesTest {
                 .toList();
 
         assertTrue(violations.isEmpty(), "Missing confirmation for: " + violations);
+    }
+
+    @Test
+    void parseToolsListSupportsAlternativeContextKeysAndStringValues() {
+        String toolsList = """
+                {
+                  "tools": [
+                    {
+                      "name": "browser_take_screenshot",
+                      "description": "Take a browser screenshot",
+                      "contexts": ["browser", "browser-action"]
+                    },
+                    {
+                      "name": "mobile_tap",
+                      "description": "Tap an element in a mobile app",
+                      "context": "mobile,mobile-element-touch-action"
+                    },
+                    {
+                      "name": "assist_only_tool",
+                      "description": "Tool from explicit context",
+                      "contextTypes": ["assistant", "diagnostics"]
+                    }
+                  ]
+                }
+                """;
+        List<DiscoveredTool> tools = ToolCatalog.parseToolsList(toolsList);
+        Map<String, DiscoveredTool> indexed = new java.util.LinkedHashMap<>();
+        for (DiscoveredTool tool : tools) {
+            indexed.put(tool.name(), tool);
+        }
+
+        assertEquals(Set.of("all", "browser", "browser-action"), indexed.get("browser_take_screenshot").contextTypes());
+        assertEquals(Set.of("all", "mobile", "mobile-element-touch-action"),
+                indexed.get("mobile_tap").contextTypes());
+        assertEquals(Set.of("all", "assistant", "diagnostics"), indexed.get("assist_only_tool").contextTypes());
+    }
+
+    @Test
+    void curatedTemplatesInferSearchContextTypes() {
+        ToolTemplate browserOpenIntent = templateByName("browser_open_intent");
+        assertNotNull(browserOpenIntent);
+        assertTrue(browserOpenIntent.contextTypes().contains("browser"));
+        assertTrue(browserOpenIntent.contextTypes().contains("browser-session-management"));
+
+        ToolTemplate mobileGetElement = templateByName("mobile_get_accessibility_tree");
+        assertNotNull(mobileGetElement);
+        assertTrue(mobileGetElement.contextTypes().contains("mobile"));
+
+        ToolTemplate traceRead = templateByName("trace_read");
+        assertNotNull(traceRead);
+        assertTrue(traceRead.contextTypes().contains("traces"));
     }
 
     @Test
@@ -255,5 +307,12 @@ class ToolTemplatesTest {
         return ToolTemplates.categories().stream()
                 .flatMap(category -> category.templates().stream())
                 .toList();
+    }
+
+    private static ToolTemplate templateByName(String toolName) {
+        return allTemplates().stream()
+                .filter(template -> toolName.equals(template.toolName()))
+                .findFirst()
+                .orElse(null);
     }
 }

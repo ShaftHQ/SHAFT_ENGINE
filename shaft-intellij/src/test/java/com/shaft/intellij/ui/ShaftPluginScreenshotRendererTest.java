@@ -217,7 +217,7 @@ class ShaftPluginScreenshotRendererTest {
             Constructor<ShaftSettingsConfigurable> constructor = ShaftSettingsConfigurable.class.getDeclaredConstructor(
                     ShaftSettingsState.Settings.class, credentialAccess);
             constructor.setAccessible(true);
-            ShaftSettingsConfigurable configurable = constructor.newInstance(new ShaftSettingsState.Settings(), credentials);
+            ShaftSettingsConfigurable configurable = constructor.newInstance(defaultSettings(), credentials);
             return (JComponent) configurable.createComponent();
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to create settings screenshot panel", exception);

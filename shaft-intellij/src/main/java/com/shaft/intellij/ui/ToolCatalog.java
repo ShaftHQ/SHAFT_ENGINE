@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.util.Locale;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -51,7 +52,8 @@ final class ToolCatalog {
                 continue;
             }
 
-            discoveredByName.putIfAbsent(name, new DiscoveredTool(name, string(toolJson, "description")));
+            discoveredByName.putIfAbsent(name, new DiscoveredTool(name, string(toolJson, "description"),
+                    contextTypes(toolJson)));
         }
 
         return List.copyOf(discoveredByName.values());
@@ -117,11 +119,77 @@ final class ToolCatalog {
                 template.toolName(),
                 template.arguments(),
                 discovered.description(),
-                template.confirmationRequired());
+                template.confirmationRequired(),
+                unionContextTypes(template.contextTypes(), discovered.contextTypes()));
     }
 
     private static ToolTemplate fallbackTemplate(DiscoveredTool tool) {
-        return new ToolTemplate(tool.name(), tool.name(), "{}", tool.description(), false);
+        return new ToolTemplate(tool.name(), tool.name(), "{}", tool.description(), false, tool.contextTypes());
+    }
+
+    private static Set<String> unionContextTypes(Set<String> templateContexts, Set<String> discoveredContexts) {
+        Set<String> merged = new java.util.LinkedHashSet<>(templateContexts == null ? Set.of("all") : templateContexts);
+        if (discoveredContexts != null && !discoveredContexts.isEmpty()) {
+            merged.addAll(discoveredContexts);
+        }
+        return Set.copyOf(merged);
+    }
+
+    private static Set<String> contextTypes(JsonObject toolJson) {
+        JsonElement value = toolJson.get("contextTypes");
+        if (value != null && value.isJsonArray()) {
+            return parseContextArray(value.getAsJsonArray());
+        }
+        JsonElement contexts = toolJson.get("contexts");
+        if (contexts != null && contexts.isJsonArray()) {
+            return parseContextArray(contexts.getAsJsonArray());
+        }
+        if (toolJson.has("context") && toolJson.get("context").isJsonPrimitive()
+                && toolJson.get("context").getAsJsonPrimitive().isString()) {
+            return parseContextList(toolJson.get("context").getAsString());
+        }
+        return Set.of("all");
+    }
+
+    private static Set<String> parseContextArray(com.google.gson.JsonArray array) {
+        if (array == null || array.isEmpty()) {
+            return Set.of("all");
+        }
+        Set<String> values = parseContexts();
+        for (JsonElement item : array) {
+            if (item == null || !item.isJsonPrimitive() || !item.getAsJsonPrimitive().isString()) {
+                continue;
+            }
+            String value = normalizeContext(item.getAsString());
+            if (!value.isBlank()) {
+                values.add(value);
+            }
+        }
+        return Set.copyOf(values);
+    }
+
+    private static String normalizeContext(String value) {
+        return value == null || value.isBlank() ? "all" : value.trim().toLowerCase(Locale.ROOT).replace(' ', '-');
+    }
+
+    private static Set<String> parseContextList(String value) {
+        if (value == null || value.isBlank()) {
+            return Set.of("all");
+        }
+        Set<String> contexts = parseContexts();
+        for (String raw : value.split("\\s*,\\s*")) {
+            String normalized = normalizeContext(raw);
+            if (!normalized.isBlank()) {
+                contexts.add(normalized);
+            }
+        }
+        return contexts;
+    }
+
+    private static java.util.LinkedHashSet<String> parseContexts() {
+        java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>();
+        values.add("all");
+        return values;
     }
 
     private static JsonElement extractToolsNode(JsonElement root) {
