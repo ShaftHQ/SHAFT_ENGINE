@@ -49,16 +49,23 @@ class LocalAgentServiceTest {
     }
 
     @Test
-    void agentModeRequiresExplicitMutationApproval() {
-        LocalAgentService service = new LocalAgentService(client -> true, new CapturingRunner());
+    void agentModeWithoutMutationApprovalUsesNoSourceDefaultCommand() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
         LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.AGENT,
                         "Implement the change")
                 .build();
 
         LocalAgentResponse response = service.execute(request);
 
-        assertEquals(LocalAgentStatus.REJECTED, response.status());
-        assertTrue(response.warnings().contains("Agent mode requires explicit source-mutation approval."));
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of(
+                        "codex", "exec",
+                        "--sandbox", "read-only",
+                        "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                        "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                        "-"),
+                runner.command.get());
     }
 
     @Test
@@ -77,6 +84,22 @@ class LocalAgentServiceTest {
         assertEquals(List.of("custom-agent", "--safe"), runner.command.get());
         assertEquals(Map.of("OPENAI_API_KEY", "secret-value", "VISIBLE_FLAG", "1"), runner.environment.get());
         assertFalse(response.toString().contains("secret-value"));
+    }
+
+    @Test
+    void customAgentCommandWithoutMutationApprovalIsRejectedBecauseItCannotBeSandboxed() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.AGENT,
+                        "Inspect the browser")
+                .command(List.of("custom-agent", "--unsafe"))
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.REJECTED, response.status());
+        assertEquals(null, runner.command.get());
+        assertTrue(response.warnings().getFirst().contains("cannot enforce read-only execution"));
     }
 
     @Test

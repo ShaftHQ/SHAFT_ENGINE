@@ -32,6 +32,8 @@ import java.util.function.Consumer;
 final class AssistantLocalAgentRunner {
     static final String LOCAL_AGENT_TOOL = "autobot_local_agent_run";
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
+    private static final String CUSTOM_AGENT_APPROVAL_WARNING =
+            "Custom Agent commands require Allow source edits because SHAFT cannot enforce read-only execution.";
 
     private AssistantLocalAgentRunner() {
         throw new IllegalStateException("Utility class");
@@ -59,11 +61,12 @@ final class AssistantLocalAgentRunner {
         if (!custom.isEmpty()) {
             return custom;
         }
+        boolean allowSourceMutation = allowSourceMutation(arguments);
         String mode = normalize(string(arguments, "mode", "ASK"));
         return switch (normalize(string(arguments, "client", "CODEX"))) {
-            case "CLAUDE_CODE" -> claudeCommand(mode);
-            case "COPILOT_CLI" -> copilotCommand(mode);
-            default -> codexCommand(mode);
+            case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation);
+            case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation);
+            default -> codexCommand(mode, allowSourceMutation);
         };
     }
 
@@ -76,9 +79,10 @@ final class AssistantLocalAgentRunner {
         if (command.isEmpty()) {
             return ShaftMcpToolResult.failure("No local assistant command was configured.");
         }
-        if ("AGENT".equals(normalize(string(arguments, "mode", "ASK")))
-                && !booleanValue(arguments, "allowSourceMutation")) {
-            return ShaftMcpToolResult.failure("Agent mode requires explicit source-mutation approval.");
+        if (!defaultCommand(arguments)
+                && "AGENT".equals(normalize(string(arguments, "mode", "ASK")))
+                && !allowSourceMutation(arguments)) {
+            return ShaftMcpToolResult.failure(CUSTOM_AGENT_APPROVAL_WARNING);
         }
         if (defaultCommand(arguments) && !isCommandAvailable(command.get(0))) {
             return ShaftMcpToolResult.failure(displayName(string(arguments, "client", "CODEX"))
@@ -134,11 +138,11 @@ final class AssistantLocalAgentRunner {
         }
     }
 
-    private static List<String> codexCommand(String mode) {
+    private static List<String> codexCommand(String mode, boolean allowSourceMutation) {
         return switch (mode) {
             case "AGENT" -> List.of(
                     "codex", "exec",
-                    "--sandbox", "workspace-write",
+                    "--sandbox", allowSourceMutation ? "workspace-write" : "read-only",
                     "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                     "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
                     "-");
@@ -146,20 +150,24 @@ final class AssistantLocalAgentRunner {
         };
     }
 
-    private static List<String> claudeCommand(String mode) {
+    private static List<String> claudeCommand(String mode, boolean allowSourceMutation) {
         return switch (mode) {
             case "PLAN" -> List.of("claude", "--print", "--permission-mode", "plan");
-            case "AGENT" -> List.of("claude", "--print", "--permission-mode", "acceptEdits");
+            case "AGENT" -> List.of("claude", "--print", "--permission-mode", allowSourceMutation ? "acceptEdits" : "plan");
             default -> List.of("claude", "--print");
         };
     }
 
-    private static List<String> copilotCommand(String mode) {
+    private static List<String> copilotCommand(String mode, boolean allowSourceMutation) {
         return switch (mode) {
             case "PLAN" -> List.of("copilot", "plan");
-            case "AGENT" -> List.of("copilot", "agent");
+            case "AGENT" -> List.of("copilot", allowSourceMutation ? "agent" : "ask");
             default -> List.of("copilot", "ask");
         };
+    }
+
+    private static boolean allowSourceMutation(JsonObject arguments) {
+        return booleanValue(arguments, "allowSourceMutation");
     }
 
     private static boolean defaultCommand(JsonObject arguments) {

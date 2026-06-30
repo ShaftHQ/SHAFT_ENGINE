@@ -33,6 +33,9 @@ import java.awt.FlowLayout;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CancellationException;
 
@@ -84,6 +87,7 @@ final class ShaftAssistantPanel extends JPanel {
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
     private StringBuilder localAgentOutput;
+    private final List<ToolEvidence> toolEvidence = new ArrayList<>();
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -149,7 +153,7 @@ final class ShaftAssistantPanel extends JPanel {
         cloudKeyPanel.add(cloudApiKey);
         cloudKeyPanel.add(saveCloudApiKey);
 
-        allowSourceMutation = new JBCheckBox("Allow edits");
+        allowSourceMutation = new JBCheckBox("Allow source edits");
         allowSourceMutation.getAccessibleContext().setAccessibleName("Approve source mutation for Agent mode");
         prompt = new JBTextArea(5, 32);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
@@ -172,7 +176,7 @@ final class ShaftAssistantPanel extends JPanel {
         copyRawResponse = button("Copy raw", "Copy last raw assistant response", event -> copyRawResponse());
         copyRawResponse.setEnabled(false);
         copyTranscript = button("Copy all", "Copy assistant transcript",
-                event -> copy(transcript.markdown(), "Copied transcript"));
+                event -> copy(exportTranscriptWithEvidence(), "Copied transcript"));
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
         rerunLastPrompt.setEnabled(false);
@@ -268,8 +272,8 @@ final class ShaftAssistantPanel extends JPanel {
                 allowSourceMutation.isSelected());
         append("user", "**You (" + ShaftUiLabels.friendly(mode.getSelectedItem()) + " via " + routeLabel(route) + ")**\n\n"
                 + AssistantMarkdown.normalizeMarkdown(text), "");
-        if (agentMode && !route.cloud() && !allowSourceMutation.isSelected()) {
-            append("assistant", "To let the agent make source edits, please tick **Allow edits** before sending.",
+        if (agentMode && !route.cloud() && !allowSourceMutation.isSelected() && promptRequiresSourceMutation(text)) {
+            append("assistant", "To let the agent make source edits, please tick **Allow source edits** before sending.",
                     "");
         }
         prompt.setText("");
@@ -296,6 +300,35 @@ final class ShaftAssistantPanel extends JPanel {
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(invocation.toolName(), result, error)));
+    }
+
+    private static boolean promptRequiresSourceMutation(String text) {
+        String lower = text == null ? "" : text.toLowerCase(Locale.ROOT);
+        boolean sourceArtifact = containsAny(lower,
+                "source", "code", "file", "class", "method", "test", "java", "pom", "gradle",
+                "package", "module", "import", "dependency", "readme", "docs", "documentation");
+        boolean browserInvestigation = containsAny(lower,
+                "browser", "page", "url", "http://", "https://", "open ", "navigate", "visit", "click",
+                "type", "inspect", "search", "form", "duckduckgo", "locator", "xpath", "css selector");
+        if (browserInvestigation && !sourceArtifact) {
+            return false;
+        }
+        boolean mutationVerb = containsAny(lower,
+                "edit", "modify", "refactor", "fix", "implement", "rewrite", "rename", "update", "change");
+        return lower.contains("apply patch")
+                || lower.contains("write file")
+                || lower.contains("source edit")
+                || lower.contains("change source")
+                || (sourceArtifact && (mutationVerb || lower.contains("add")));
+    }
+
+    private static boolean containsAny(String value, String... needles) {
+        for (String needle : needles) {
+            if (value.contains(needle)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private AssistantCommand.Selection selectedRoute() {
@@ -330,6 +363,9 @@ final class ShaftAssistantPanel extends JPanel {
         String output = error != null ? error.getMessage()
                 : result == null ? "No result returned."
                 : result.output();
+        if (!output.isBlank()) {
+            appendToolEvidence(toolName, output);
+        }
         String markdown = AssistantMarkdown.fromMcpOutput(toolName, output);
         if (success && formatUnknownResponse(toolName, output, markdown)) {
             return;
@@ -362,6 +398,9 @@ final class ShaftAssistantPanel extends JPanel {
         String output = error != null ? error.getMessage()
                 : result == null ? "No response returned."
                 : result.output();
+        if (!output.isBlank()) {
+            appendToolEvidence("autobot_local_agent_run", output);
+        }
         String response = AssistantMarkdown.normalizeMarkdown(output);
         showAgentResponse(streamToken, currentStream, response, output);
     }
@@ -564,8 +603,41 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
+    private String exportTranscriptWithEvidence() {
+        String transcriptText = transcript.markdown();
+        String evidenceText = exportToolEvidence();
+        if (evidenceText == null || evidenceText.isBlank()) {
+            return transcriptText;
+        }
+        return transcriptText + "\n\n" + evidenceText;
+    }
+
+    private void appendToolEvidence(String toolName, String evidence) {
+        if (evidence == null || evidence.isBlank()) {
+            return;
+        }
+        toolEvidence.add(new ToolEvidence(
+                toolName == null || toolName.isBlank() ? "tool" : toolName.trim(),
+                evidence.strip(),
+                Instant.now().toString()));
+    }
+
+    private String exportToolEvidence() {
+        if (toolEvidence.isEmpty()) {
+            return "";
+        }
+        StringBuilder export = new StringBuilder("## Tool evidence\n\n");
+        for (ToolEvidence evidence : toolEvidence) {
+            export.append("### ").append(evidence.toolName()).append(" (").append(evidence.createdAt()).append(")\n\n")
+                    .append(fencedCodeBlock(evidence.payload()))
+                    .append("\n\n");
+        }
+        return export.toString().trim();
+    }
+
     private void clearTranscript() {
         chatState.clearActiveSession();
+        toolEvidence.clear();
         transcript.clear();
         lastResponse = "";
         lastRawResponse = "";
@@ -579,6 +651,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void newChat() {
         chatState.newSession();
+        toolEvidence.clear();
         refreshChatSelector();
         transcript.clear();
         prompt.setText("");
@@ -598,6 +671,7 @@ final class ShaftAssistantPanel extends JPanel {
         Object selected = chatSelector.getSelectedItem();
         if (selected instanceof ShaftAssistantChatState.Session session) {
             chatState.activate(session.id);
+            toolEvidence.clear();
             restoreTranscript();
             status.setText("Chat loaded");
         }
@@ -880,5 +954,8 @@ final class ShaftAssistantPanel extends JPanel {
             stop();
             super.removeNotify();
         }
+    }
+
+    private record ToolEvidence(String toolName, String payload, String createdAt) {
     }
 }

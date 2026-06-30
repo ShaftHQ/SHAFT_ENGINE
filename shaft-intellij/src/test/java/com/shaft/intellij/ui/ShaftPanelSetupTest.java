@@ -471,7 +471,7 @@ class ShaftPanelSetupTest {
         blockedMode.setSelectedItem("AGENT");
         assistantPrompt(blockedPanel).setText("edit this test");
         click(blockedPanel, "Send");
-        assertTrue(transcriptMarkdown(blockedPanel).contains("tick **Allow edits**"));
+        assertTrue(transcriptMarkdown(blockedPanel).contains("tick **Allow source edits**"));
 
         ShaftAssistantPanel approvedPanel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<?> approvedMode = findByAccessibleName(approvedPanel, "Assistant mode", JComboBox.class);
@@ -484,7 +484,53 @@ class ShaftPanelSetupTest {
         allowEdits.setSelected(true);
         assistantPrompt(approvedPanel).setText("edit this test");
         click(approvedPanel, "Send");
-        assertFalse(transcriptMarkdown(approvedPanel).contains("tick **Allow edits**"));
+        assertFalse(transcriptMarkdown(approvedPanel).contains("tick **Allow source edits**"));
+    }
+
+    @Test
+    void assistantAgentModeDoesNotWarnForBrowserOnlyTasksWhenSourceEditsNotApproved() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> blockedMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        assertNotNull(blockedMode);
+        blockedMode.setSelectedItem("AGENT");
+        assistantPrompt(panel).setText("open https://example.com and update me on the login form");
+        click(panel, "Send");
+
+        assertFalse(transcriptMarkdown(panel).contains("tick **Allow source edits**"));
+    }
+
+    @Test
+    void assistantCopyAllIncludesCurrentSessionToolEvidence() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        showAgentResult(panel, ShaftMcpToolResult.success("tool output payload"));
+        String exported = assistantExport(panel);
+
+        assertAll(
+                () -> assertTrue(exported.contains("## Tool evidence")),
+                () -> assertTrue(exported.contains("autobot_local_agent_run")),
+                () -> assertTrue(exported.contains("tool output payload")));
+    }
+
+    @Test
+    void firstSetupSuccessStartsFreshAssistantSession() throws Exception {
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.mcpCommand = "cmd";
+        settings.mcpSetupComplete = false;
+        Project project = fakeProject();
+        ShaftAssistantChatState state = ShaftAssistantChatState.getInstance(project);
+        assertNotNull(state);
+        state.newSession();
+        state.append("user", "Previous assistant conversation", "{}");
+        int beforeSetupSessions = state.sessions().size();
+
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings);
+        ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
+        assertNotNull(setupPanel);
+        showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK"));
+
+        assertEquals(beforeSetupSessions + 1, state.sessions().size());
+        assertNotNull(state.activeSession());
+        assertTrue(state.activeSession().messages.isEmpty());
     }
 
     @Test
@@ -627,6 +673,18 @@ class ShaftPanelSetupTest {
         showResult.invoke(panel, result, null);
     }
 
+    private static ShaftMcpSetupPanel setupPanel(ShaftToolWindowPanel toolWindow) {
+        if (toolWindow == null) {
+            return null;
+        }
+        for (Component component : toolWindow.getComponents()) {
+            if (component instanceof ShaftMcpSetupPanel setup) {
+                return setup;
+            }
+        }
+        return null;
+    }
+
     private static void showAssistantResult(ShaftAssistantPanel panel, ShaftMcpToolResult result) throws Exception {
         showAssistantResult(panel, "autobot_local_agent_run", result);
     }
@@ -643,6 +701,12 @@ class ShaftPanelSetupTest {
                 "showAgentResult", ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, result, null);
+    }
+
+    private static String assistantExport(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("exportTranscriptWithEvidence");
+        method.setAccessible(true);
+        return (String) method.invoke(panel);
     }
 
     private static String mcpText(String text) {
@@ -856,15 +920,31 @@ class ShaftPanelSetupTest {
     }
 
     private static Project fakeProject() {
+        return fakeProject(new ShaftAssistantChatState());
+    }
+
+    private static Project fakeProject(ShaftAssistantChatState assistantChatState) {
         return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
                 (proxy, method, arguments) -> {
-                    return switch (method.getName()) {
-                        case "equals" -> proxy == arguments[0];
-                        case "hashCode" -> System.identityHashCode(proxy);
-                        case "getBasePath" -> "";
-                        case "getName" -> "SHAFT test project";
-                        default -> defaultValue(method.getReturnType());
-                    };
+                    switch (method.getName()) {
+                        case "equals":
+                            Object other = arguments == null || arguments.length == 0 ? null : arguments[0];
+                            return proxy == other;
+                        case "hashCode":
+                            return System.identityHashCode(proxy);
+                        case "getBasePath":
+                            return "";
+                        case "getName":
+                            return "SHAFT test project";
+                        case "getService":
+                            Class<?> type = arguments == null || arguments.length == 0 ? null : (Class<?>) arguments[0];
+                            if (type == ShaftAssistantChatState.class) {
+                                return assistantChatState;
+                            }
+                            return null;
+                        default:
+                            return defaultValue(method.getReturnType());
+                    }
                 });
     }
 

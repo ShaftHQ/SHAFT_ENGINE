@@ -13,10 +13,18 @@ final class AssistantCommand {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
     private static final int DEFAULT_BROWSER_MAX_CHARACTERS = 12_000;
     private static final int DEFAULT_BROWSER_MAX_ELEMENTS = 10;
+    private static final String AGENT_SOURCE_GUARD =
+            """
+                    Source edits are not enabled for this session.
+                    Return source-change suggestions in concise markdown and fenced code blocks only.
+                    Do not apply patches, write files, or run filesystem commands that would mutate source.
+                    The user should decide whether and how to apply any suggested edits.
+                    """.stripIndent().trim();
     private static final String SHAFT_MCP_USAGE_HINT =
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                     For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                    For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
                     """.stripIndent().trim();
     private static final String HELP = """
             Slash commands:
@@ -71,7 +79,7 @@ final class AssistantCommand {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", selection.client());
         arguments.addProperty("mode", mode);
-        arguments.addProperty("prompt", localAgentPrompt(text));
+        arguments.addProperty("prompt", localAgentPrompt(text, "AGENT".equals(mode), allowSourceMutation));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.add("command", commandArray(customCommand));
         arguments.add("environment", new JsonObject());
@@ -225,12 +233,10 @@ final class AssistantCommand {
         return array;
     }
 
-    private static String localAgentPrompt(String text) {
+    private static String localAgentPrompt(String text, boolean agentMode, boolean allowSourceMutation) {
         String lower = text.toLowerCase(Locale.ROOT);
-        if (lower.contains("shaft-mcp")) {
-            return text;
-        }
-        return SHAFT_MCP_USAGE_HINT + "\n\n" + text;
+        String withHint = lower.contains("shaft-mcp") ? text : SHAFT_MCP_USAGE_HINT + "\n\n" + text;
+        return agentMode && !allowSourceMutation ? withHint + "\n\n" + AGENT_SOURCE_GUARD : withHint;
     }
 
     private static String[] splitTargetUrlAndIntent(String rest) {
