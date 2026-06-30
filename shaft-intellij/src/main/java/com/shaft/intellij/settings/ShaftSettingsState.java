@@ -49,5 +49,6 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public String pilotAiProvider = "none";
         public String pilotAiModel = "";
         public boolean passProviderApiKeysToMcp = false;
+        public boolean advancedUiEnabled = false;
     }
 }

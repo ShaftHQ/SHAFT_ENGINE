@@ -53,13 +53,7 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private void showSetupView() {
         removeAll();
-        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, () -> {
-            ShaftAssistantChatState state = assistantState(project);
-            if (state != null && !state.activeMarkdown().isBlank()) {
-                state.newSession();
-            }
-            showMainView();
-        });
+        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::showMainView);
         preferredFocusComponent = setup.preferredFocusComponent();
         workflowSelector = null;
         workflowCards = null;
@@ -74,11 +68,25 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private void showMainView() {
         removeAll();
+        ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
+                assistantState(project), this::showSetupView);
+        preferredFocusComponent = assistant.preferredFocusComponent();
+        if (!settings.advancedUiEnabled) {
+            workflowSelector = null;
+            workflowCards = null;
+            workflowLayout = null;
+            advancedTools = null;
+            featurePanels = List.of();
+            workflowViews = List.of(new WorkflowView("Assistant", assistant));
+            add(assistant, BorderLayout.CENTER);
+            revalidate();
+            repaint();
+            return;
+        }
+
         workflowLayout = new CardLayout();
         workflowCards = new JPanel(workflowLayout);
         workflowCards.getAccessibleContext().setAccessibleName("SHAFT workflow content");
-        ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
-                assistantState(project), this::showSetupView);
         GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool);
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
         ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
@@ -97,7 +105,6 @@ public final class ShaftToolWindowPanel extends JPanel {
         featurePanels.add(evidenceTools);
         featurePanels.add(projectsTools);
         featurePanels.add(advancedTools);
-        preferredFocusComponent = assistant.preferredFocusComponent();
         workflowViews = List.of(
                 new WorkflowView("Assistant", assistant),
                 new WorkflowView("Guided", guided),
@@ -164,7 +171,7 @@ public final class ShaftToolWindowPanel extends JPanel {
      * @param arguments JSON arguments
      */
     public void prefillTool(@NotNull String toolName, @NotNull JsonObject arguments) {
-        if (workflowSelector == null) {
+        if (workflowSelector == null || !settings.advancedUiEnabled) {
             return;
         }
         for (ShaftFeaturePanel panel : featurePanels) {

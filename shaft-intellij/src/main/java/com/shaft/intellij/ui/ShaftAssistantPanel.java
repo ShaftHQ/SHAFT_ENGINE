@@ -1,5 +1,7 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
@@ -88,6 +90,11 @@ final class ShaftAssistantPanel extends JPanel {
     private int activeLocalAgentStreamToken = -1;
     private StringBuilder localAgentOutput;
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
+    private String activeCaptureRecordingPath = AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH;
+    private CaptureReview pendingCaptureReview;
+    private boolean generateCaptureReviewAfterStop;
+    private boolean captureReviewGenerationRunning;
+    private boolean captureIntegrationRunning;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -263,16 +270,28 @@ final class ShaftAssistantPanel extends JPanel {
         rerunLastPrompt.setEnabled(true);
         AssistantCommand.Selection route = selectedRoute();
         boolean agentMode = "AGENT".equals(String.valueOf(mode.getSelectedItem()));
-        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+        String workingDirectory = project == null || project.getBasePath() == null ? "" : project.getBasePath();
+        boolean approvingCaptureReview = pendingCaptureReview != null && AssistantCommand.isCaptureApproval(text);
+        AssistantCommand.Invocation invocation = approvingCaptureReview
+                ? AssistantCommand.approvedCaptureIntegration(
+                route,
+                workingDirectory,
+                customCommand.getText(),
+                pendingCaptureReview.markdown(),
+                pendingCaptureReview.rawResult())
+                : AssistantCommand.fromPrompt(
                 text,
                 route,
                 String.valueOf(mode.getSelectedItem()),
-                project == null || project.getBasePath() == null ? "" : project.getBasePath(),
+                workingDirectory,
                 customCommand.getText(),
                 allowSourceMutation.isSelected());
-        append("user", "**You (" + ShaftUiLabels.friendly(mode.getSelectedItem()) + " via " + routeLabel(route) + ")**\n\n"
-                + AssistantMarkdown.normalizeMarkdown(text), "");
-        if (agentMode && !route.cloud() && !allowSourceMutation.isSelected() && promptRequiresSourceMutation(text)) {
+        append("user", AssistantMarkdown.normalizeMarkdown(text), "");
+        if (agentMode
+                && !approvingCaptureReview
+                && !route.cloud()
+                && !allowSourceMutation.isSelected()
+                && promptRequiresSourceMutation(text)) {
             append("assistant", "To let the agent make source edits, please tick **Allow source edits** before sending.",
                     "");
         }
@@ -287,6 +306,7 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         if (AssistantLocalAgentRunner.supports(invocation)) {
+            captureIntegrationRunning = approvingCaptureReview;
             int streamToken = ++localAgentStreamToken;
             setRunning(true, "Thinking...");
             appendStreamingLocalAgentBubble(streamToken);
@@ -296,6 +316,7 @@ final class ShaftAssistantPanel extends JPanel {
                     () -> showAgentResult(streamToken, result, error)));
             return;
         }
+        rememberCaptureInvocation(text, invocation);
         setRunning(true, "Running " + invocation.toolName() + "...");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
@@ -353,9 +374,13 @@ final class ShaftAssistantPanel extends JPanel {
         boolean isMcpConnectionCheck = "mcp initialize".equals(toolName);
         setRunning(false, success ? (isMcpConnectionCheck ? "MCP test passed" : READY_STATUS) : "Failed");
         if (isMcpConnectionCheck && success) {
-            showTransientStatus("MCP test passed. You can start chatting.");
+            showTransientStatus("MCP test passed. Ready to chat.");
         }
         if (cancelled) {
+            if ("capture_code_blocks".equals(toolName) && captureReviewGenerationRunning) {
+                captureReviewGenerationRunning = false;
+                pendingCaptureReview = null;
+            }
             showResponse("**SHAFT Assistant (" + toolName + " cancelled)**", "");
             status.setText("Cancelled");
             return;
@@ -367,6 +392,24 @@ final class ShaftAssistantPanel extends JPanel {
             appendToolEvidence(toolName, output);
         }
         String markdown = AssistantMarkdown.fromMcpOutput(toolName, output);
+        if (!success && captureReviewGenerationRunning && "capture_code_blocks".equals(toolName)) {
+            captureReviewGenerationRunning = false;
+        }
+        if (success && captureReviewGenerationRunning && "capture_code_blocks".equals(toolName)) {
+            captureReviewGenerationRunning = false;
+            pendingCaptureReview = new CaptureReview(markdown, output);
+            showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n"
+                    + markdown
+                    + "\n\n**Review before writing files.** Send `approve`, `okay`, or `generate` to let the Agent create the actual Page Object Model files.",
+                    output);
+            status.setText("Awaiting approval");
+            return;
+        }
+        if (success && generateCaptureReviewAfterStop && "capture_stop".equals(toolName)) {
+            showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n" + markdown, output);
+            startCaptureCodeReview();
+            return;
+        }
         if (success && formatUnknownResponse(toolName, output, markdown)) {
             return;
         }
@@ -390,6 +433,12 @@ final class ShaftAssistantPanel extends JPanel {
             activeLocalAgentStreamToken = -1;
         }
         setRunning(false, success ? READY_STATUS : "Failed");
+        if (captureIntegrationRunning) {
+            if (success) {
+                pendingCaptureReview = null;
+            }
+            captureIntegrationRunning = false;
+        }
         if (cancelled) {
             showAgentCancelled(streamToken, currentStream);
             status.setText("Cancelled");
@@ -515,6 +564,10 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void updateControlVisibility() {
+        boolean advanced = settings.advancedUiEnabled;
+        if (!advanced && usesCloud()) {
+            providerType.setSelectedItem("LOCAL");
+        }
         boolean cloud = usesCloud();
         if (cloud && "AGENT".equals(mode.getSelectedItem())) {
             mode.setSelectedItem("PLAN");
@@ -522,27 +575,28 @@ final class ShaftAssistantPanel extends JPanel {
         boolean localCli = !cloud && "CLI".equals(assistantRuntime.getSelectedItem());
         boolean lockedRoute = configureFlow != null && mcpConfigured();
         boolean controlsEnabled = !running;
-        mode.setEnabled(controlsEnabled);
-        providerType.setVisible(!lockedRoute);
-        providerType.setEnabled(controlsEnabled && !lockedRoute);
-        assistantFamily.setVisible(!lockedRoute && !cloud);
-        assistantRuntime.setVisible(!lockedRoute && !cloud);
-        assistantFamily.setEnabled(controlsEnabled && !lockedRoute);
-        assistantRuntime.setEnabled(controlsEnabled && !lockedRoute);
+        mode.setVisible(advanced);
+        mode.setEnabled(controlsEnabled && advanced);
+        providerType.setVisible(advanced && !lockedRoute);
+        providerType.setEnabled(controlsEnabled && advanced && !lockedRoute);
+        assistantFamily.setVisible(advanced && !lockedRoute && !cloud);
+        assistantRuntime.setVisible(advanced && !lockedRoute && !cloud);
+        assistantFamily.setEnabled(controlsEnabled && advanced && !lockedRoute);
+        assistantRuntime.setEnabled(controlsEnabled && advanced && !lockedRoute);
         currentAgentConfiguration.setText(currentAgentConfigurationText());
         currentAgentConfiguration.setVisible(lockedRoute);
-        customCommand.setVisible(!lockedRoute && localCli);
-        customCommand.setEnabled(controlsEnabled && !lockedRoute && localCli);
-        cloudProvider.setVisible(!lockedRoute && cloud);
-        cloudProvider.setEnabled(controlsEnabled && !lockedRoute && cloud);
-        cloudModel.setVisible(!lockedRoute && cloud);
-        cloudModel.setEnabled(controlsEnabled && !lockedRoute && cloud);
-        cloudKeyPanel.setVisible(!lockedRoute && cloud);
-        cloudApiKey.setEnabled(controlsEnabled && !lockedRoute && cloud);
-        saveCloudApiKey.setEnabled(controlsEnabled && !lockedRoute && cloud);
+        customCommand.setVisible(advanced && !lockedRoute && localCli);
+        customCommand.setEnabled(controlsEnabled && advanced && !lockedRoute && localCli);
+        cloudProvider.setVisible(advanced && !lockedRoute && cloud);
+        cloudProvider.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
+        cloudModel.setVisible(advanced && !lockedRoute && cloud);
+        cloudModel.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
+        cloudKeyPanel.setVisible(advanced && !lockedRoute && cloud);
+        cloudApiKey.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
+        saveCloudApiKey.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
-        allowSourceMutation.setVisible(agentMode && localCli);
-        allowSourceMutation.setEnabled(controlsEnabled && agentMode && localCli);
+        allowSourceMutation.setVisible(advanced && agentMode && localCli);
+        allowSourceMutation.setEnabled(controlsEnabled && advanced && agentMode && localCli);
         configure.setVisible(lockedRoute);
         configure.setEnabled(controlsEnabled && lockedRoute);
         if (!agentMode || !localCli) {
@@ -638,6 +692,10 @@ final class ShaftAssistantPanel extends JPanel {
     private void clearTranscript() {
         chatState.clearActiveSession();
         toolEvidence.clear();
+        pendingCaptureReview = null;
+        generateCaptureReviewAfterStop = false;
+        captureReviewGenerationRunning = false;
+        captureIntegrationRunning = false;
         transcript.clear();
         lastResponse = "";
         lastRawResponse = "";
@@ -652,6 +710,10 @@ final class ShaftAssistantPanel extends JPanel {
     private void newChat() {
         chatState.newSession();
         toolEvidence.clear();
+        pendingCaptureReview = null;
+        generateCaptureReviewAfterStop = false;
+        captureReviewGenerationRunning = false;
+        captureIntegrationRunning = false;
         refreshChatSelector();
         transcript.clear();
         prompt.setText("");
@@ -672,9 +734,39 @@ final class ShaftAssistantPanel extends JPanel {
         if (selected instanceof ShaftAssistantChatState.Session session) {
             chatState.activate(session.id);
             toolEvidence.clear();
+            pendingCaptureReview = null;
+            generateCaptureReviewAfterStop = false;
+            captureReviewGenerationRunning = false;
+            captureIntegrationRunning = false;
             restoreTranscript();
             status.setText("Chat loaded");
         }
+    }
+
+    private void rememberCaptureInvocation(String promptText, AssistantCommand.Invocation invocation) {
+        if ("capture_start".equals(invocation.toolName())) {
+            activeCaptureRecordingPath = string(invocation.arguments(), "outputPath",
+                    AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH);
+            pendingCaptureReview = null;
+            generateCaptureReviewAfterStop = false;
+            captureReviewGenerationRunning = false;
+            return;
+        }
+        if ("capture_stop".equals(invocation.toolName()) && AssistantCommand.isStopRecording(promptText)) {
+            generateCaptureReviewAfterStop = true;
+        }
+    }
+
+    private void startCaptureCodeReview() {
+        generateCaptureReviewAfterStop = false;
+        captureReviewGenerationRunning = true;
+        setRunning(true, "Generating review code...");
+        AssistantCommand.Invocation invocation = AssistantCommand.Invocation.tool(
+                "capture_code_blocks",
+                AssistantCommand.captureCodeReview(activeCaptureRecordingPath));
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
+        currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                () -> showResult(invocation.toolName(), result, error)));
     }
 
     private void rerun(Project project) {
@@ -815,7 +907,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private static JPanel setupNotice(Project project, ShaftSettingsState.Settings settings) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        panel.add(new JLabel("Configure SHAFT MCP to run Assistant and Tools."));
+        panel.add(new JLabel("Configure SHAFT MCP to run Assistant."));
         JButton openSettings = new JButton("Open Settings");
         openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");
         openSettings.addActionListener(event -> {
@@ -889,7 +981,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private String currentAgentConfigurationText() {
-        if ("CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
+        if (settings.advancedUiEnabled && "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
             String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " / " + settings.cloudModel.trim();
             return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "openai")) + model;
         }
@@ -915,6 +1007,11 @@ final class ShaftAssistantPanel extends JPanel {
     private static String normalizeLower(String value, String fallback) {
         String normalized = value == null || value.isBlank() ? fallback : value.trim();
         return normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private static String string(JsonObject object, String key, String fallback) {
+        JsonElement value = object == null ? null : object.get(key);
+        return value != null && value.isJsonPrimitive() ? value.getAsString() : fallback;
     }
 
     private static final class SpinnerLabel extends JLabel {
@@ -957,5 +1054,8 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private record ToolEvidence(String toolName, String payload, String createdAt) {
+    }
+
+    private record CaptureReview(String markdown, String rawResult) {
     }
 }

@@ -204,8 +204,6 @@ class ShaftPluginScreenshotRendererTest {
             configureLookAndFeel(lookAndFeelClassName, dark);
             ShaftAssistantChatState chatState = new ShaftAssistantChatState();
             chatState.append("user", """
-                    **You (Agent via Codex CLI)**
-
                     Use shaft-mcp WebDriver tools only. Open DuckDuckGo, search for SHAFT Engine, open the first result, and validate the title.
                     """.stripIndent().trim(), "");
             chatState.append("assistant", """
@@ -306,7 +304,9 @@ class ShaftPluginScreenshotRendererTest {
 
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {
         Project project = screenshotProject();
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, defaultSettings());
+        ShaftSettingsState.Settings settings = defaultSettings();
+        settings.advancedUiEnabled = true;
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings);
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindow.workflowSelector();
         ShaftToolWindowPanel.WorkflowView selectedView = selector.getItemAt(selectedTab);
         Component selected = selectedView.component();

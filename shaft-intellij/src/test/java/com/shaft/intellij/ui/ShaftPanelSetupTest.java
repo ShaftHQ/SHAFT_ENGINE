@@ -19,10 +19,12 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import java.awt.Component;
 import java.awt.Container;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.text.JTextComponent;
 
@@ -193,8 +195,19 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void toolWindowShowsReadableWorkflowSelectorLabels() {
+    void toolWindowHidesAdvancedWorkflowsByDefault() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
+
+        JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
+        assertAll(
+                () -> assertNull(selector),
+                () -> assertFalse(containsText(toolWindow, "Workflow")),
+                () -> assertTrue(containsText(toolWindow, "Configure")));
+    }
+
+    @Test
+    void toolWindowShowsReadableWorkflowSelectorLabelsWhenAdvancedUiIsEnabled() {
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), advancedConnectedMcpSettings());
 
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
         assertNotNull(selector);
@@ -209,7 +222,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void workflowSelectorKeepsEnoughHeightForVisibleTopLabels() {
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), advancedConnectedMcpSettings());
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
 
         assertNotNull(selector);
@@ -218,7 +231,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void prefillToolSelectsMatchingWorkflowAndCategory() {
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), advancedConnectedMcpSettings());
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
         assertNotNull(selector);
         JsonObject arguments = JsonParser.parseString("{}").getAsJsonObject();
@@ -279,6 +292,51 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantCaptureCodegenResultWaitsForApprovalBeforeWritingFiles() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "captureReviewGenerationRunning", true);
+
+        showAssistantResult(panel, "capture_code_blocks", ShaftMcpToolResult.success(mcpText("""
+                {
+                  "successful": true,
+                  "codeBlocks": [
+                    {"language":"java","code":"public class RecordedFlowTest {}"}
+                  ]
+                }
+                """)));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("public class RecordedFlowTest")),
+                () -> assertTrue(markdown.contains("Review before writing files")),
+                () -> assertTrue(markdown.contains("`approve`, `okay`, or `generate`")));
+    }
+
+    @Test
+    void cancelledCaptureCodegenReviewDoesNotArmLaterApprovalFlow() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "captureReviewGenerationRunning", true);
+
+        showAssistantResult(panel, "capture_code_blocks", null, new CancellationException("cancelled"));
+        showAssistantResult(panel, "capture_code_blocks", ShaftMcpToolResult.success(mcpText("""
+                {
+                  "successful": true,
+                  "codeBlocks": [
+                    {"language":"java","code":"public class LaterGeneratedTest {}"}
+                  ]
+                }
+                """)));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("capture_code_blocks cancelled")),
+                () -> assertTrue(markdown.contains("LaterGeneratedTest")),
+                () -> assertFalse(markdown.contains("Review before writing files")),
+                () -> assertNull(getField(panel, "pendingCaptureReview")),
+                () -> assertFalse((Boolean) getField(panel, "captureReviewGenerationRunning")));
+    }
+
+    @Test
     void assistantKeepsShaftWrapperForCuratedMcpToolResponses() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
 
@@ -327,6 +385,57 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(transcriptMarkdown(reopenedPanel).contains("Second answer")),
                 () -> assertEquals(2, chatState.sessions().size()));
+    }
+
+    @Test
+    void persistedSetupOpensAssistantWithPreviousChatsInDropdown() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        Project project = fakeProject(chatState);
+        chatState.append("user", "start recording", "{}");
+        chatState.append("assistant", "Capture browser opened.", "{}");
+        chatState.newSession();
+        chatState.append("user", "generate reviewed code", "{}");
+
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings);
+        JComboBox<?> chats = findByAccessibleName(toolWindow, "Assistant chat", JComboBox.class);
+
+        assertAll(
+                () -> assertNull(setupPanel(toolWindow)),
+                () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
+                () -> assertTrue(transcriptMarkdown(toolWindow).contains("generate reviewed code")),
+                () -> assertNotNull(chats),
+                () -> assertEquals(2, chats.getItemCount()),
+                () -> assertTrue(comboContains(chats, "start recording")),
+                () -> assertTrue(comboContains(chats, "generate reviewed code")));
+    }
+
+    @Test
+    void userMessagesDoNotRenderSpeakerLabelsOrUseThemAsChatTitles() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings(), chatState);
+
+        assistantPrompt(panel).setText("start recording");
+        click(panel, "Send");
+
+        String transcript = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(transcript.contains("start recording")),
+                () -> assertFalse(transcript.contains(String.valueOf(new char[]{'Y', 'o', 'u'}))),
+                () -> assertEquals("start recording", chatState.activeSession().title));
+
+        String speaker = String.valueOf(new char[]{'Y', 'o', 'u'});
+        String localUser = System.getProperty("user.name", "");
+        ShaftAssistantChatState legacyState = new ShaftAssistantChatState();
+        legacyState.append("user", "**" + speaker + " (Agent via Codex CLI)**\n\n"
+                + localUser + " open duckduckgo", "{}");
+
+        assertAll(
+                () -> assertTrue(legacyState.activeMarkdown().contains("open duckduckgo")),
+                () -> assertFalse(legacyState.activeMarkdown().contains("Agent via")),
+                () -> assertFalse(legacyState.activeSession().title.contains(speaker)),
+                () -> assertFalse(localUser.length() > 1
+                        && legacyState.activeSession().title.contains(localUser)));
     }
 
     @Test
@@ -512,7 +621,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void firstSetupSuccessStartsFreshAssistantSession() throws Exception {
+    void setupSuccessPreservesExistingAssistantSession() throws Exception {
         ShaftSettingsState.Settings settings = blankMcpSettings();
         settings.mcpCommand = "cmd";
         settings.mcpSetupComplete = false;
@@ -528,9 +637,12 @@ class ShaftPanelSetupTest {
         assertNotNull(setupPanel);
         showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK"));
 
-        assertEquals(beforeSetupSessions + 1, state.sessions().size());
-        assertNotNull(state.activeSession());
-        assertTrue(state.activeSession().messages.isEmpty());
+        assertAll(
+                () -> assertEquals(beforeSetupSessions, state.sessions().size()),
+                () -> assertNotNull(state.activeSession()),
+                () -> assertTrue(state.activeMarkdown().contains("Previous assistant conversation")),
+                () -> assertTrue(transcriptMarkdown(toolWindow).contains("Previous assistant conversation")),
+                () -> assertNull(toolWindowWorkflowSelector(toolWindow)));
     }
 
     @Test
@@ -619,6 +731,12 @@ class ShaftPanelSetupTest {
         return settings;
     }
 
+    private static ShaftSettingsState.Settings advancedConnectedMcpSettings() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = true;
+        return settings;
+    }
+
     private static boolean containsText(Component component, String expected) {
         if (component instanceof JLabel label && label.getText() != null && label.getText().contains(expected)) {
             return true;
@@ -690,10 +808,18 @@ class ShaftPanelSetupTest {
     }
 
     private static void showAssistantResult(ShaftAssistantPanel panel, String toolName, ShaftMcpToolResult result) throws Exception {
+        showAssistantResult(panel, toolName, result, null);
+    }
+
+    private static void showAssistantResult(
+            ShaftAssistantPanel panel,
+            String toolName,
+            ShaftMcpToolResult result,
+            Throwable error) throws Exception {
         Method showResult = ShaftAssistantPanel.class.getDeclaredMethod(
                 "showResult", String.class, ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
-        showResult.invoke(panel, toolName, result, null);
+        showResult.invoke(panel, toolName, result, error);
     }
 
     private static void showAgentResult(ShaftAssistantPanel panel, ShaftMcpToolResult result) throws Exception {
@@ -701,6 +827,18 @@ class ShaftPanelSetupTest {
                 "showAgentResult", ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, result, null);
+    }
+
+    private static void setField(Object target, String name, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private static Object getField(Object target, String name) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(target);
     }
 
     private static String assistantExport(ShaftAssistantPanel panel) throws Exception {
@@ -857,6 +995,19 @@ class ShaftPanelSetupTest {
             }
         }
         return null;
+    }
+
+    private static boolean comboContains(JComboBox<?> comboBox, String expectedText) {
+        if (comboBox == null) {
+            return false;
+        }
+        for (int index = 0; index < comboBox.getItemCount(); index++) {
+            Object item = comboBox.getItemAt(index);
+            if (item != null && item.toString().contains(expectedText)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static JTextComponent assistantPrompt(Component component) {

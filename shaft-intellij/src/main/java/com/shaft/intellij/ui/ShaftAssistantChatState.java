@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Project-scoped persistent Assistant chat sessions.
@@ -20,6 +21,7 @@ import java.util.UUID;
 public final class ShaftAssistantChatState implements PersistentStateComponent<ShaftAssistantChatState.ChatState> {
     private static final int MAX_SESSIONS = 12;
     private static final int MAX_MESSAGES_PER_SESSION = 80;
+    private static final String SECOND_PERSON_LABEL = String.valueOf(new char[]{'Y', 'o', 'u'});
 
     private ChatState state = new ChatState();
 
@@ -43,6 +45,7 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     public void loadState(@NotNull ChatState loadedState) {
         XmlSerializerUtil.copyBean(loadedState, state);
         ensureActiveSession();
+        sanitizeStoredSessions();
         trim();
     }
 
@@ -81,7 +84,10 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         Session session = activeSession();
         Message message = new Message();
         message.role = role == null ? "" : role;
-        message.markdown = markdown;
+        message.markdown = "user".equals(message.role) ? stripSpeakerLabel(markdown) : markdown;
+        if (message.markdown.isBlank()) {
+            return;
+        }
         message.createdAt = now();
         session.messages.add(message);
         session.updatedAt = message.createdAt;
@@ -160,15 +166,52 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         }
     }
 
+    private void sanitizeStoredSessions() {
+        for (Session session : state.sessions) {
+            if (session.messages != null) {
+                for (Message message : session.messages) {
+                    if ("user".equals(message.role) && message.markdown != null) {
+                        message.markdown = stripSpeakerLabel(message.markdown);
+                    }
+                }
+            }
+            session.title = titleFrom(session.title);
+        }
+    }
+
     private static String titleFrom(String markdown) {
-        String text = markdown.replace("*", "")
+        String text = stripSpeakerLabel(markdown).replace("*", "")
                 .replace("`", "")
                 .replace("\n", " ")
+                .trim();
+        text = removeLocalUserName(text)
+                .replaceAll("(?iu)\\b" + Pattern.quote(SECOND_PERSON_LABEL) + "\\b", "")
+                .replaceAll("\\s{2,}", " ")
                 .trim();
         if (text.length() <= 40) {
             return text.isBlank() ? "New chat" : text;
         }
         return text.substring(0, 37).stripTrailing() + "...";
+    }
+
+    private static String stripSpeakerLabel(String markdown) {
+        if (markdown == null || markdown.isBlank()) {
+            return "";
+        }
+        String speaker = Pattern.quote(SECOND_PERSON_LABEL);
+        return markdown
+                .replaceFirst("(?iu)^\\s*\\*\\*\\s*" + speaker + "\\s*(?:\\([^)]*\\))?\\s*\\*\\*\\s*(?:\\R\\s*)*", "")
+                .replaceFirst("(?iu)^\\s*" + speaker + "\\s*(?:\\([^)]*\\))\\s*", "")
+                .replaceFirst("(?iu)^\\s*" + speaker + "\\s*[:\\-]\\s*", "")
+                .trim();
+    }
+
+    private static String removeLocalUserName(String text) {
+        String localUser = System.getProperty("user.name", "");
+        if (localUser == null || localUser.isBlank() || localUser.length() <= 1) {
+            return text;
+        }
+        return text.replaceAll("(?iu)\\b" + Pattern.quote(localUser.trim()) + "\\b", "");
     }
 
     private static String now() {

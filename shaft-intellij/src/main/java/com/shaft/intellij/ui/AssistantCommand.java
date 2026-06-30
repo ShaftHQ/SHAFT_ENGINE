@@ -13,6 +13,10 @@ final class AssistantCommand {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
     private static final int DEFAULT_BROWSER_MAX_CHARACTERS = 12_000;
     private static final int DEFAULT_BROWSER_MAX_ELEMENTS = 10;
+    static final String DEFAULT_CAPTURE_TARGET_URL = "https://duckduckgo.com/";
+    static final String DEFAULT_CAPTURE_RECORDING_PATH = "recordings/intellij-capture.json";
+    static final String DEFAULT_CAPTURE_RECORDING_PATH_PREFIX = "recordings/intellij-capture-";
+    static final String DEFAULT_CAPTURE_REVIEW_DIRECTORY = "target/shaft-capture/assistant-review";
     private static final String AGENT_SOURCE_GUARD =
             """
                     Source edits are not enabled for this session.
@@ -68,6 +72,10 @@ final class AssistantCommand {
         }
         if (text.startsWith("/")) {
             return slash(text, workingDirectory);
+        }
+        Invocation recording = recording(text);
+        if (recording != null) {
+            return recording;
         }
         if (selection.cloud()) {
             return cloud(text, selection, mode, workingDirectory);
@@ -157,6 +165,16 @@ final class AssistantCommand {
                 playwright ? playwrightRecordStart() : captureStart(rest));
     }
 
+    private static Invocation recording(String text) {
+        if (isStartRecording(text)) {
+            return record(text.replaceFirst("(?i)^start\\s+(a\\s+)?(web(driver)?\\s+)?(capture|recording|recorder)\\b", "").trim());
+        }
+        if (isStopRecording(text)) {
+            return Invocation.tool("capture_stop", stopRecording());
+        }
+        return null;
+    }
+
     private static JsonObject triage(String workingDirectory) {
         JsonObject arguments = new JsonObject();
         JsonArray allureResultPaths = new JsonArray();
@@ -189,10 +207,91 @@ final class AssistantCommand {
 
     private static JsonObject captureStart(String rest) {
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("targetUrl", parseLeadingUrl(rest));
+        String targetUrl = parseLeadingUrl(rest);
+        arguments.addProperty("targetUrl", targetUrl.isBlank() ? DEFAULT_CAPTURE_TARGET_URL : targetUrl);
         arguments.addProperty("browser", "Chrome");
-        arguments.addProperty("outputPath", "recordings/intellij-capture.json");
+        arguments.addProperty("outputPath", defaultCaptureRecordingPath());
         arguments.addProperty("headless", false);
+        return arguments;
+    }
+
+    static JsonObject captureCodeReview(String sessionPath) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath",
+                sessionPath == null || sessionPath.isBlank() ? DEFAULT_CAPTURE_RECORDING_PATH : sessionPath);
+        arguments.addProperty("outputDirectory", DEFAULT_CAPTURE_REVIEW_DIRECTORY);
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "RecordedFlowTest");
+        arguments.addProperty("overwrite", true);
+        arguments.addProperty("driverVariableName", "driver");
+        return arguments;
+    }
+
+    private static String defaultCaptureRecordingPath() {
+        return DEFAULT_CAPTURE_RECORDING_PATH_PREFIX + System.currentTimeMillis() + ".json";
+    }
+
+    static Invocation approvedCaptureIntegration(
+            Selection selection,
+            String workingDirectory,
+            String customCommand,
+            String reviewMarkdown,
+            String rawCodegenResult) {
+        if (selection.cloud() || !"CLI".equals(selection.runtime())) {
+            return Invocation.local("Switch to a Local / CLI route before approving generated Capture code.");
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("client", selection.client());
+        arguments.addProperty("mode", "AGENT");
+        arguments.addProperty("prompt", captureIntegrationPrompt(reviewMarkdown, rawCodegenResult));
+        arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
+        arguments.add("command", commandArray(customCommand));
+        arguments.add("environment", new JsonObject());
+        arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
+        arguments.addProperty("allowSourceMutation", true);
+        return Invocation.tool("autobot_local_agent_run", arguments);
+    }
+
+    static boolean isStopRecording(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("stop")
+                || normalized.equals("stop recording")
+                || normalized.equals("stop recorder")
+                || normalized.equals("stop capture")
+                || normalized.equals("finish recording")
+                || normalized.equals("end recording");
+    }
+
+    static boolean isCaptureApproval(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("generate")
+                || normalized.equals("okay")
+                || normalized.equals("ok")
+                || normalized.equals("approve")
+                || normalized.equals("approved")
+                || normalized.equals("yes")
+                || normalized.equals("go ahead")
+                || normalized.equals("looks good")
+                || normalized.equals("create files")
+                || normalized.equals("write files")
+                || normalized.equals("apply it");
+    }
+
+    private static boolean isStartRecording(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("start recording")
+                || normalized.equals("start a recording")
+                || normalized.equals("start recorder")
+                || normalized.equals("start capture")
+                || normalized.startsWith("start recording ")
+                || normalized.startsWith("start a recording ")
+                || normalized.startsWith("start recorder ")
+                || normalized.startsWith("start capture ");
+    }
+
+    private static JsonObject stopRecording() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("discard", false);
         return arguments;
     }
 
@@ -213,6 +312,30 @@ final class AssistantCommand {
         arguments.addProperty("overwrite", false);
         arguments.addProperty("driverVariableName", "driver");
         return arguments;
+    }
+
+    private static String captureIntegrationPrompt(String reviewMarkdown, String rawCodegenResult) {
+        return """
+                The user approved the reviewed SHAFT Capture code. Create the actual Java test files now.
+
+                Requirements:
+                - Use the Page Object Model where practical.
+                - Inspect the current project structure before editing.
+                - Move stable locators into page object classes.
+                - Move replay actions into intent-named page methods.
+                - Keep the TestNG test focused on scenario orchestration and final assertions.
+                - Preserve existing repository style and the smallest compiling source edit.
+                - Do not start a new recording or drive the browser again.
+                - Run the smallest relevant compile or test check if the project can do so locally.
+
+                Reviewed Capture output:
+                %s
+
+                Raw codegen result:
+                ```json
+                %s
+                ```
+                """.formatted(clip(reviewMarkdown, 12_000), clip(rawCodegenResult, 24_000)).strip();
     }
 
     private static JsonObject generatePlaywrightCodeFromRecording(String recordingPath) {
@@ -272,11 +395,28 @@ final class AssistantCommand {
     }
 
     private static String parseLeadingUrl(String rest) {
-        String[] parts = (rest == null ? "" : rest).trim().split("\\s+", 2);
-        if (parts.length > 0 && isUrl(parts[0])) {
-            return parts[0];
+        String[] parts = (rest == null ? "" : rest).trim().split("\\s+");
+        for (String part : parts) {
+            if (isUrl(part)) {
+                return part;
+            }
         }
         return "";
+    }
+
+    private static String normalizeNaturalCommand(String text) {
+        return (text == null ? "" : text)
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ")
+                .replaceAll("[.!?]+$", "");
+    }
+
+    private static String clip(String text, int maxCharacters) {
+        if (text == null || text.length() <= maxCharacters) {
+            return text == null ? "" : text;
+        }
+        return text.substring(0, maxCharacters) + "\n... truncated ...";
     }
 
     private static boolean isUrl(String value) {
