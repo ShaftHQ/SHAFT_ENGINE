@@ -16,10 +16,14 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JProgressBar;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -32,6 +36,7 @@ import javax.swing.text.JTextComponent;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,7 +49,7 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertTrue(containsText(panel, "Configure SHAFT MCP")),
-                () -> assertTrue(containsText(panel, "Open Settings")));
+                () -> assertNotNull(findByAccessibleName(panel, "Open SHAFT settings", JButton.class)));
     }
 
     @Test
@@ -84,7 +89,7 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertTrue(containsText(panel, "Configure SHAFT MCP")),
-                () -> assertTrue(containsText(panel, "Open Settings")));
+                () -> assertNotNull(findByAccessibleName(panel, "Open SHAFT settings", JButton.class)));
     }
 
     @Test
@@ -119,7 +124,7 @@ class ShaftPanelSetupTest {
         assertTrue(containsText(toolWindow, "1. Assistant family"));
         assertTrue(containsText(toolWindow, "2. Assistant runtime"));
         assertTrue(containsText(toolWindow, "3. Install or update SHAFT MCP"));
-        assertTrue(containsText(toolWindow, "Install / Update SHAFT MCP"));
+        assertNotNull(findByAccessibleName(toolWindow, "Install or update SHAFT MCP", JButton.class));
         assertTrue(containsText(toolWindow, "Test connection"));
     }
 
@@ -303,7 +308,7 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(markdown.contains("```java")),
                 () -> assertTrue(markdown.contains("public class LoginTest")),
                 () -> assertFalse(markdown.contains("\\\"content\\\"")),
-                () -> assertTrue(containsText(panel, "Copy raw")));
+                () -> assertNotNull(findButton(panel, "Copy raw")));
     }
 
     @Test
@@ -585,26 +590,115 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNotNull(commandHint),
-                () -> assertEquals("/", commandHint.getText()),
+                () -> assertEquals("", commandHint.getText()),
                 () -> assertNotNull(commandHint.getIcon()),
                 () -> assertTrue(commandHint.getIcon().getIconWidth() > 0),
                 () -> assertTrue(commandHint.getIcon().getIconHeight() > 0),
+                () -> assertTrue(commandHint.getToolTipText().contains("/help")),
                 () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
+                () -> assertTrue(commandHint.getToolTipText().contains("/record")),
                 () -> assertTrue(commandHint.getToolTipText().contains("/mobile")),
                 () -> assertTrue(commandHint.getToolTipText().contains("/doctor")),
+                () -> assertTrue(commandHint.getToolTipText().contains("/mcp")),
+                () -> assertTrue(containsText(panel, "commands (/commands)")),
                 () -> assertNotNull(spinner),
                 () -> assertTrue(spinner.isIndeterminate()),
                 () -> assertFalse(spinner.isVisible()),
                 () -> assertNotNull(sendButton),
                 () -> assertEquals("", sendButton.getText()),
-                () -> assertTrue(sendButton.getPreferredSize().width > commandHint.getPreferredSize().width),
+                () -> assertEquals(commandHint.getPreferredSize(), sendButton.getPreferredSize()),
                 () -> assertNotNull(sendButton.getIcon()),
                 () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
                 () -> assertTrue(sendButton.getIcon().getIconHeight() > 0));
     }
 
     @Test
-    void actionButtonsUseJetBrainsPlatformIcons() {
+    void assistantListedControlsAreIconOnlyAndSymmetric() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        List<String> controls = List.of(
+                "Start a new Assistant chat",
+                "Copy last assistant response",
+                "Copy last raw assistant response",
+                "Copy assistant transcript",
+                "Clear assistant transcript",
+                "Rerun last assistant prompt",
+                "Cancel assistant request",
+                "Send assistant prompt",
+                "SHAFT command hints");
+
+        assertAll(controls.stream()
+                .map(accessibleName -> () -> assertIconOnlySymmetric(
+                        findByAccessibleName(panel, accessibleName, JButton.class))));
+    }
+
+    @Test
+    void toolWindowButtonsAreIconOnlyAndSymmetric() {
+        List<Component> panels = List.of(
+                new ShaftAssistantPanel(null, blankMcpSettings()),
+                new ShaftFeaturePanel(null, blankMcpSettings()),
+                new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+                }),
+                new GuidedWorkflowPanel(null, (tool, arguments) -> {
+                }),
+                new EvidenceTriagePanel(null, (tool, arguments) -> {
+                }));
+
+        assertAll(panels.stream()
+                .flatMap(panel -> collectButtons(panel).stream())
+                .map(button -> () -> assertIconOnlySymmetric(button)));
+    }
+
+    @Test
+    void iconButtonsUseDistinctEnabledAndDisabledSurfaces() {
+        JButton active = new JButton("Run");
+        JButton inactive = new JButton("Cancel");
+        ShaftIconButtons.apply(active, ShaftIcons.SEND);
+        ShaftIconButtons.apply(inactive, ShaftIcons.CANCEL);
+
+        inactive.setEnabled(false);
+
+        assertAll(
+                () -> assertNotEquals(active.getBackground(), inactive.getBackground()),
+                () -> assertNotNull(inactive.getDisabledIcon()),
+                () -> assertEquals(inactive.getIcon().getIconWidth(), inactive.getDisabledIcon().getIconWidth()),
+                () -> assertTrue(active.isContentAreaFilled()),
+                () -> assertTrue(inactive.isContentAreaFilled()));
+    }
+
+    @Test
+    void assistantSendButtonTurnsIntoProgressAndHoverCancelWhileRunning() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
+        assertNotNull(sendButton);
+        Icon readyIcon = sendButton.getIcon();
+
+        panel.setRunning(true, "Thinking...");
+        Icon runningIcon = sendButton.getIcon();
+
+        assertAll(
+                () -> assertTrue(sendButton.isEnabled()),
+                () -> assertNotEquals(readyIcon, runningIcon),
+                () -> assertEquals("Assistant request running", sendButton.getToolTipText()));
+
+        notifyShaftMouseListener(sendButton, MouseEvent.MOUSE_ENTERED);
+        Icon hoverIcon = sendButton.getIcon();
+        assertAll(
+                () -> assertNotEquals(runningIcon, hoverIcon),
+                () -> assertEquals("Cancel assistant request", sendButton.getToolTipText()));
+
+        notifyShaftMouseListener(sendButton, MouseEvent.MOUSE_EXITED);
+        assertAll(
+                () -> assertEquals(runningIcon, sendButton.getIcon()),
+                () -> assertEquals("Assistant request running", sendButton.getToolTipText()));
+
+        panel.setRunning(false, "ready");
+        assertAll(
+                () -> assertEquals(readyIcon, sendButton.getIcon()),
+                () -> assertEquals("Send assistant prompt", sendButton.getToolTipText()));
+    }
+
+    @Test
+    void actionButtonsUseModernSvgIcons() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         ShaftFeaturePanel featurePanel = new ShaftFeaturePanel(null, blankMcpSettings());
         ShaftMcpSetupPanel setupPanel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
@@ -667,6 +761,16 @@ class ShaftPanelSetupTest {
 
         configure.doClick();
         assertTrue(openedSetup.get());
+    }
+
+    @Test
+    void assistantTranscriptInitialHintUsesCanonicalCommandsEntry() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        String html = transcript.html();
+
+        assertAll(
+                () -> assertTrue(html.contains("/commands")),
+                () -> assertFalse(html.contains("/help")));
     }
 
     @Test
@@ -1138,8 +1242,58 @@ class ShaftPanelSetupTest {
         assertTrue(button.getIcon().getIconHeight() > 0, button.getText());
     }
 
+    private static void assertIconOnlySymmetric(JButton button) {
+        assertIcon(button);
+        Dimension size = button.getPreferredSize();
+        assertAll(
+                () -> assertEquals("", button.getText()),
+                () -> assertEquals(size.width, size.height),
+                () -> assertEquals(32, size.width),
+                () -> assertNotNull(button.getToolTipText()),
+                () -> assertFalse(button.getToolTipText().isBlank()));
+    }
+
+    private static List<JButton> collectButtons(Component root) {
+        List<JButton> buttons = new ArrayList<>();
+        if (root instanceof JButton button && isShaftOwnedButton(button)) {
+            buttons.add(button);
+        }
+        if (root instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                buttons.addAll(collectButtons(child));
+            }
+        }
+        return buttons;
+    }
+
+    private static boolean isShaftOwnedButton(JButton button) {
+        return hasText(button.getText())
+                || hasText(button.getToolTipText())
+                || hasText(accessibleName(button));
+    }
+
+    private static boolean hasText(String text) {
+        return text != null && !text.isBlank();
+    }
+
+    private static void notifyShaftMouseListener(JButton button, int eventId) {
+        MouseEvent event = new MouseEvent(button, eventId, System.currentTimeMillis(), 0, 1, 1, 0, false);
+        for (MouseListener listener : button.getMouseListeners()) {
+            if (listener.getClass().getName().startsWith(ShaftAssistantPanel.class.getName())) {
+                if (eventId == MouseEvent.MOUSE_ENTERED) {
+                    listener.mouseEntered(event);
+                } else if (eventId == MouseEvent.MOUSE_EXITED) {
+                    listener.mouseExited(event);
+                }
+            }
+        }
+    }
+
     private static JButton findButton(Component component, String text) {
-        if (component instanceof JButton button && text.equals(button.getText())) {
+        if (component instanceof JButton button
+                && (text.equals(button.getText())
+                || text.equals(button.getToolTipText())
+                || text.equals(accessibleName(button)))) {
             return button;
         }
         if (component instanceof Container container) {

@@ -1,7 +1,11 @@
 package com.shaft.intellij.ui;
 
+import com.intellij.ui.JBColor;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JLabel;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,6 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftIconAssetsTest {
+    private static final String LIGHT_ACTION_COLOR = "#6C707E";
+    private static final String DARK_ACTION_COLOR = "#FFFFFF";
+
     @Test
     void toolWindowIconsUseJetBrainsNewUiSvgVariants() throws IOException {
         Path icons = Path.of("src/main/resources/icons");
@@ -25,14 +32,46 @@ class ShaftIconAssetsTest {
     }
 
     @Test
-    void composerActionIconsUseJetBrainsStyleSvgPairs() throws IOException {
+    void actionIconsUseJetBrainsStyleSvgPairs() throws IOException {
         Path actions = Path.of("src/main/resources/icons/actions");
 
         assertAll(
-                () -> assertSvgIcon(actions.resolve("help.svg"), 16, "#6C707E"),
-                () -> assertSvgIcon(actions.resolve("help_dark.svg"), 16, "#CED0D6"),
-                () -> assertSvgIcon(actions.resolve("send.svg"), 16, "#6C707E"),
-                () -> assertSvgIcon(actions.resolve("send_dark.svg"), 16, "#CED0D6"));
+                actionIconAssertions(actions, "add"),
+                actionIconAssertions(actions, "cancel"),
+                actionIconAssertions(actions, "check"),
+                actionIconAssertions(actions, "clear"),
+                actionIconAssertions(actions, "code"),
+                actionIconAssertions(actions, "copy"),
+                actionIconAssertions(actions, "download"),
+                actionIconAssertions(actions, "edit"),
+                actionIconAssertions(actions, "github"),
+                actionIconAssertions(actions, "help"),
+                actionIconAssertions(actions, "rerun"),
+                actionIconAssertions(actions, "reset"),
+                actionIconAssertions(actions, "search"),
+                actionIconAssertions(actions, "send"),
+                actionIconAssertions(actions, "settings"),
+                actionIconAssertions(actions, "view"));
+    }
+
+    @Test
+    void actionIconsPaintWhiteDarkVariantInDarkMode() {
+        boolean wasBright = JBColor.isBright();
+        try {
+            JBColor.setDark(true);
+
+            BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D graphics = image.createGraphics();
+            try {
+                ShaftIcons.SEND.paintIcon(new JLabel(), graphics, 0, 0);
+            } finally {
+                graphics.dispose();
+            }
+
+            assertTrue(hasVisibleWhitePixel(image));
+        } finally {
+            JBColor.setDark(!wasBright);
+        }
     }
 
     @Test
@@ -64,5 +103,27 @@ class ShaftIconAssetsTest {
                 () -> assertTrue(svg.contains(color), path.toString()),
                 () -> assertTrue(svg.contains("stroke-linecap=\"round\""), path.toString()),
                 () -> assertTrue(svg.contains("stroke-linejoin=\"round\""), path.toString()));
+    }
+
+    private static org.junit.jupiter.api.function.Executable actionIconAssertions(Path actions, String name) {
+        return () -> assertAll(
+                () -> assertSvgIcon(actions.resolve(name + ".svg"), 16, LIGHT_ACTION_COLOR),
+                () -> assertSvgIcon(actions.resolve(name + "_dark.svg"), 16, DARK_ACTION_COLOR));
+    }
+
+    private static boolean hasVisibleWhitePixel(BufferedImage image) {
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int argb = image.getRGB(x, y);
+                int alpha = (argb >>> 24) & 0xFF;
+                int red = (argb >>> 16) & 0xFF;
+                int green = (argb >>> 8) & 0xFF;
+                int blue = argb & 0xFF;
+                if (alpha > 32 && red > 240 && green > 240 && blue > 240) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

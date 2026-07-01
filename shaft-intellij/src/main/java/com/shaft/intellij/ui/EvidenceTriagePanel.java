@@ -2,7 +2,6 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.intellij.icons.AllIcons;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
@@ -104,10 +103,8 @@ final class EvidenceTriagePanel extends JPanel {
     }
 
     private static JButton button(String text, String description, Runnable action) {
-        JButton button = new JButton(text);
-        button.setIcon(iconFor(text));
-        button.setToolTipText(description);
-        button.getAccessibleContext().setAccessibleName(text);
+        JButton button = new JButton();
+        ShaftIconButtons.apply(button, description, text, iconFor(text));
         button.getAccessibleContext().setAccessibleDescription(description);
         button.addActionListener(event -> action.run());
         return button;
@@ -115,11 +112,11 @@ final class EvidenceTriagePanel extends JPanel {
 
     private static Icon iconFor(String text) {
         return switch (text) {
-            case "Analyze Allure", "Analyze Trace" -> AllIcons.Actions.Show;
-            case "Suggest Fix" -> AllIcons.Actions.Edit;
-            case "Run Healer" -> AllIcons.Actions.Execute;
-            case "Propose Locator" -> AllIcons.Actions.Find;
-            default -> AllIcons.General.ContextHelp;
+            case "Analyze Allure", "Analyze Trace" -> ShaftIcons.VIEW;
+            case "Suggest Fix" -> ShaftIcons.EDIT;
+            case "Run Healer" -> ShaftIcons.SEND;
+            case "Propose Locator" -> ShaftIcons.SEARCH;
+            default -> ShaftIcons.HELP;
         };
     }
 
