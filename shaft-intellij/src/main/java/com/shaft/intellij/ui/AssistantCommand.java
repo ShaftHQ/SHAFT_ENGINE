@@ -37,52 +37,75 @@ final class AssistantCommand {
                     For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
                     For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
                     """.stripIndent().trim();
-    private static final String HELP = """
-            Slash commands:
-            /guide <query> - Search the SHAFT guide.
-            /scenarios <intent> - Find automation scenarios.
-            /browser <open|dom|screenshot|title|quit> - Control WebDriver browser tools.
-            /record [playwright] - Start a WebDriver or Playwright recording session.
-            /codegen [webdriver|playwright|mobile] <recording.json> - Generate replay snippets.
-            /mobile <status|native|web|tree|screenshot> - Control mobile/Appium tools.
-            /mobile-record <start|stop|inspector> - Record mobile actions or prepare Appium Inspector.
-            /mobile-codegen <recording.json> - Generate mobile replay snippets.
-            /doctor [playwright] [allurePath] - Analyze failures and recommend fixes.
-            /inspect [url] [intent] - Open intent-driven inspection context.
-            /locator [url] [intent] - Alias for /inspect.
-            /guardrails <code> - Check generated Java code.
-            /triage - Analyze failed Allure evidence.
-            /fixTestFailure - Analyze failed Allure evidence and propose repair options.
-            /clients - List local assistant clients.
-            /generateTest [intent|recordingPath] - Suggest scenarios, or generate code from recording.
-            /mcp <toolName> [json] - Run a raw MCP tool call.
-            /help - Show this help.
-            """.stripIndent().trim();
-    private static final List<CommandHint> COMMAND_HINTS = List.of(
-            new CommandHint("/browser", "Control browser sessions",
+    private static final List<CommandDefinition> COMMANDS = List.of(
+            new CommandDefinition("/commands", "Show command help",
+                    List.of("/help", "/mcp-help", "/shaft-help"),
+                    "/commands", (command, rest, workingDirectory) -> Invocation.local(commandHelp())),
+            new CommandDefinition("/guide", "Search the SHAFT guide",
+                    List.of("/docs", "/manual"),
+                    "/guide locators", (command, rest, workingDirectory) -> Invocation.tool("shaft_guide_search", guide(rest))),
+            new CommandDefinition("/scenarios", "Find automation scenarios",
+                    List.of("/scenario", "/ideas"),
+                    "/scenarios checkout", (command, rest, workingDirectory) -> Invocation.tool("test_automation_scenarios", scenarios(rest))),
+            new CommandDefinition("/browser", "Control browser sessions",
                     List.of("/web", "/browse", "/page"),
-                    "/browser open https://example.com sign in"),
-            new CommandHint("/record", "Record browser actions",
+                    "/browser open https://example.com sign in", (command, rest, workingDirectory) -> browser(rest)),
+            new CommandDefinition("/record", "Record browser actions",
                     List.of("/rec", "/capture"),
-                    "/record playwright"),
-            new CommandHint("/codegen", "Generate code from recordings",
+                    "/record playwright", (command, rest, workingDirectory) -> record(rest)),
+            new CommandDefinition("/codegen", "Generate code from recordings",
                     List.of("/generate", "/gen", "/generateTest"),
-                    "/codegen mobile recordings/mobile.json"),
-            new CommandHint("/mobile", "Control Appium and mobile web",
+                    "/codegen mobile recordings/mobile.json", (command, rest, workingDirectory) -> generateTest(rest)),
+            new CommandDefinition("/mobile", "Control Appium and mobile web",
                     List.of("/appium", "/device", "/phone", "/emulator"),
-                    "/mobile native Android Pixel_6"),
-            new CommandHint("/mobile-record", "Record mobile actions",
+                    "/mobile native Android Pixel_6", (command, rest, workingDirectory) -> mobile(rest)),
+            new CommandDefinition("/mobile-record", "Record mobile actions",
                     List.of("/app-record", "/inspector-record"),
-                    "/mobile-record inspector Android recordings/inspector.json"),
-            new CommandHint("/doctor", "Analyze failure evidence",
-                    List.of("/allure", "/triage", "/fixTestFailure"),
-                    "/doctor target/allure-results"),
-            new CommandHint("/project", "Create or upgrade SHAFT projects",
+                    "/mobile-record inspector Android recordings/inspector.json", (command, rest, workingDirectory) -> mobileRecord(rest)),
+            new CommandDefinition("/mobile-codegen", "Generate mobile replay snippets",
+                    List.of("/app-codegen"),
+                    "/mobile-codegen recordings/mobile.json", (command, rest, workingDirectory) -> mobileCodegen(rest)),
+            new CommandDefinition("/mobile-replay", "Replay mobile recordings",
+                    List.of("/app-replay"),
+                    "/mobile-replay recordings/mobile.json", (command, rest, workingDirectory) -> mobileReplay(rest)),
+            new CommandDefinition("/doctor", "Analyze failures and recommend fixes",
+                    List.of("/allure", "/failure", "/fix"),
+                    "/doctor target/allure-results", (command, rest, workingDirectory) -> doctor(rest, workingDirectory)),
+            new CommandDefinition("/inspect", "Open intent-driven inspection context",
+                    List.of("/locator"),
+                    "/inspect https://example.com sign in", (command, rest, workingDirectory) -> Invocation.tool("browser_open_intent", inspect(rest))),
+            new CommandDefinition("/guardrails", "Check generated Java code",
+                    List.of("/checkcode"),
+                    "/guardrails driver.element().click(locator);", (command, rest, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(rest))),
+            new CommandDefinition("/triage", "Analyze failed Allure evidence",
+                    List.of("/fixTestFailure"),
+                    "/triage", (command, rest, workingDirectory) -> Invocation.tool("doctor_analyze_failed_allure", triage(workingDirectory))),
+            new CommandDefinition("/clients", "List local assistant clients",
+                    List.of("/client"),
+                    "/clients", (command, rest, workingDirectory) -> Invocation.tool("autobot_local_agent_clients", new JsonObject())),
+            new CommandDefinition("/project", "Create or upgrade SHAFT projects",
                     List.of("/newshaft", "/upgrade"),
-                    "/project upgrade ."),
-            new CommandHint("/mcp", "Run an explicit MCP tool",
+                    "/project upgrade .", AssistantCommand::project),
+            new CommandDefinition("/mcp", "Run an explicit MCP tool",
                     List.of("/tool", "/call"),
-                    "/mcp browser_get_title {}"));
+                    "/mcp browser_get_title {}", (command, rest, workingDirectory) -> rawMcp(rest)));
+    private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
+            new NaturalIntent(AssistantCommand::isCommandHelpIntent,
+                    (text, workingDirectory) -> Invocation.local(commandHelp())),
+            new NaturalIntent(AssistantCommand::isBrowserRecordingIntent,
+                    (text, workingDirectory) -> record(text)),
+            new NaturalIntent(AssistantCommand::isMobileRecordingStartIntent,
+                    (text, workingDirectory) -> mobileRecord("start " + firstJsonLikePath(text))),
+            new NaturalIntent(AssistantCommand::isMobileRecordingStopIntent,
+                    (text, workingDirectory) -> mobileRecord("stop")),
+            new NaturalIntent(AssistantCommand::isMobileCodegenIntent,
+                    (text, workingDirectory) -> mobileCodegen(firstJsonLikePath(text))),
+            new NaturalIntent(AssistantCommand::isDoctorIntent,
+                    (text, workingDirectory) -> {
+                        String path = firstPathLike(text);
+                        return doctor(path.isBlank() ? "" : path, workingDirectory);
+                    }));
+    private static final List<CommandHint> COMMAND_HINTS = commandHintsFromRegistry();
 
     private AssistantCommand() {
         throw new IllegalStateException("Utility class");
@@ -90,6 +113,10 @@ final class AssistantCommand {
 
     static List<CommandHint> commandHints() {
         return COMMAND_HINTS;
+    }
+
+    private static List<CommandHint> commandHintsFromRegistry() {
+        return COMMANDS.stream().map(CommandDefinition::hint).toList();
     }
 
     static String commandTooltip() {
@@ -105,6 +132,23 @@ final class AssistantCommand {
                     .append(hint.example());
         }
         return tooltip.append("</html>").toString();
+    }
+
+    private static String commandHelp() {
+        StringBuilder help = new StringBuilder("SHAFT Assistant commands:");
+        for (CommandDefinition definition : COMMANDS) {
+            help.append("\n")
+                    .append(definition.canonical())
+                    .append(" - ")
+                    .append(definition.summary());
+            if (!definition.aliases().isEmpty()) {
+                help.append("\n  Aliases: ")
+                        .append(String.join(", ", definition.aliases()));
+            }
+            help.append("\n  Example: ")
+                    .append(definition.example());
+        }
+        return help.toString();
     }
 
     static Invocation fromPrompt(
@@ -174,27 +218,12 @@ final class AssistantCommand {
         String[] parts = text.split("\\s+", 2);
         String command = parts[0].toLowerCase(Locale.ROOT);
         String rest = parts.length == 2 ? parts[1].trim() : "";
-        return switch (command) {
-            case "/guide", "/docs", "/manual" -> Invocation.tool("shaft_guide_search", guide(rest));
-            case "/scenarios", "/scenario", "/ideas" -> Invocation.tool("test_automation_scenarios", scenarios(rest));
-            case "/browser", "/web", "/browse", "/page" -> browser(rest);
-            case "/record", "/rec", "/capture" -> record(rest);
-            case "/codegen", "/generate", "/gen", "/generatetest" -> generateTest(rest);
-            case "/mobile", "/appium", "/device", "/phone", "/emulator" -> mobile(rest);
-            case "/mobile-record", "/app-record", "/inspector-record" -> mobileRecord(rest);
-            case "/mobile-codegen", "/app-codegen" -> mobileCodegen(rest);
-            case "/mobile-replay", "/app-replay" -> mobileReplay(rest);
-            case "/doctor", "/allure", "/failure", "/fix" -> doctor(rest, workingDirectory);
-            case "/inspect", "/locator" -> Invocation.tool("browser_open_intent", inspect(rest));
-            case "/guardrails", "/checkcode" -> Invocation.tool("test_code_guardrails_check", guardrails(rest));
-            case "/triage", "/fixtestfailure" -> Invocation.tool(
-                    "doctor_analyze_failed_allure", triage(workingDirectory));
-            case "/clients", "/client" -> Invocation.tool("autobot_local_agent_clients", new JsonObject());
-            case "/project", "/newshaft", "/upgrade" -> project(command, rest, workingDirectory);
-            case "/mcp", "/tool", "/call" -> rawMcp(rest);
-            case "/help", "/commands", "/mcp-help", "/shaft-help" -> Invocation.local(HELP);
-            default -> Invocation.local("Unknown command. Use /help for available SHAFT Assistant commands.");
-        };
+        for (CommandDefinition definition : COMMANDS) {
+            if (definition.matches(command)) {
+                return definition.invoke(command, rest, workingDirectory);
+            }
+        }
+        return Invocation.local("Unknown command. Use /commands for available SHAFT Assistant commands.");
     }
 
     private static JsonObject guide(String query) {
@@ -599,30 +628,63 @@ final class AssistantCommand {
     }
 
     private static Invocation directIntent(String text, String workingDirectory) {
-        String normalized = normalizeNaturalCommand(text);
-        if (normalized.equals("start mobile recording")
-                || normalized.equals("start app recording")
-                || normalized.startsWith("start mobile recording ")
-                || normalized.startsWith("start app recording ")) {
-            return mobileRecord("start " + firstJsonLikePath(text));
-        }
-        if (normalized.equals("stop mobile recording") || normalized.equals("stop app recording")) {
-            return mobileRecord("stop");
-        }
-        if ((normalized.startsWith("generate mobile code")
-                || normalized.startsWith("generate appium code")
-                || normalized.startsWith("create mobile code"))
-                && !firstJsonLikePath(text).isBlank()) {
-            return mobileCodegen(firstJsonLikePath(text));
-        }
-        if (normalized.startsWith("run doctor")
-                || normalized.startsWith("analyze allure")
-                || normalized.startsWith("analyse allure")
-                || normalized.startsWith("doctor ")) {
-            String path = firstPathLike(text);
-            return doctor(path.isBlank() ? "" : path, workingDirectory);
+        for (NaturalIntent intent : NATURAL_INTENTS) {
+            if (intent.matches(text)) {
+                return intent.invoke(text, workingDirectory);
+            }
         }
         return null;
+    }
+
+    private static boolean isCommandHelpIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.contains("command")
+                && (normalized.startsWith("what ")
+                || normalized.startsWith("which ")
+                || normalized.startsWith("show ")
+                || normalized.startsWith("list ")
+                || normalized.contains(" can i use"));
+    }
+
+    private static boolean isBrowserRecordingIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("start browser recording")
+                || normalized.equals("start a browser recording")
+                || normalized.equals("start webdriver recording")
+                || normalized.equals("start a webdriver recording")
+                || normalized.startsWith("start browser recording ")
+                || normalized.startsWith("start a browser recording ")
+                || normalized.startsWith("start webdriver recording ")
+                || normalized.startsWith("start a webdriver recording ");
+    }
+
+    private static boolean isMobileRecordingStartIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("start mobile recording")
+                || normalized.equals("start app recording")
+                || normalized.startsWith("start mobile recording ")
+                || normalized.startsWith("start app recording ");
+    }
+
+    private static boolean isMobileRecordingStopIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("stop mobile recording") || normalized.equals("stop app recording");
+    }
+
+    private static boolean isMobileCodegenIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return (normalized.startsWith("generate mobile code")
+                || normalized.startsWith("generate appium code")
+                || normalized.startsWith("create mobile code"))
+                && !firstJsonLikePath(text).isBlank();
+    }
+
+    private static boolean isDoctorIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.startsWith("run doctor")
+                || normalized.startsWith("analyze allure")
+                || normalized.startsWith("analyse allure")
+                || normalized.startsWith("doctor ");
     }
 
     private static JsonObject triage(String workingDirectory) {
@@ -968,6 +1030,59 @@ final class AssistantCommand {
     }
 
     record CommandHint(String canonical, String summary, List<String> synonyms, String example) {
+    }
+
+    private record CommandDefinition(
+            String canonical,
+            String summary,
+            List<String> aliases,
+            String example,
+            CommandBuilder builder) {
+        boolean matches(String command) {
+            String normalized = command == null ? "" : command.toLowerCase(Locale.ROOT);
+            if (canonical.toLowerCase(Locale.ROOT).equals(normalized)) {
+                return true;
+            }
+            for (String alias : aliases) {
+                if (alias.toLowerCase(Locale.ROOT).equals(normalized)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        Invocation invoke(String command, String rest, String workingDirectory) {
+            return builder.build(command, rest, workingDirectory);
+        }
+
+        CommandHint hint() {
+            return new CommandHint(canonical, summary, aliases, example);
+        }
+    }
+
+    @FunctionalInterface
+    private interface CommandBuilder {
+        Invocation build(String command, String rest, String workingDirectory);
+    }
+
+    private record NaturalIntent(NaturalIntentMatcher matcher, NaturalIntentBuilder builder) {
+        boolean matches(String text) {
+            return matcher.matches(text);
+        }
+
+        Invocation invoke(String text, String workingDirectory) {
+            return builder.build(text, workingDirectory);
+        }
+    }
+
+    @FunctionalInterface
+    private interface NaturalIntentMatcher {
+        boolean matches(String text);
+    }
+
+    @FunctionalInterface
+    private interface NaturalIntentBuilder {
+        Invocation build(String text, String workingDirectory);
     }
 
     record Invocation(List<ToolCall> toolCalls, String localResponse) {
