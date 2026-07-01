@@ -256,15 +256,29 @@ class AssistantCommandTest {
         String tooltip = AssistantCommand.commandTooltip();
 
         assertAll(
+                () -> assertTrue(hints.stream().anyMatch(hint -> "/commands".equals(hint.canonical()))),
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/browser".equals(hint.canonical()))),
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/record".equals(hint.canonical()))),
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/mobile".equals(hint.canonical()))),
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/doctor".equals(hint.canonical()))),
+                () -> assertTrue(tooltip.contains("/commands")),
+                () -> assertTrue(tooltip.contains("/shaft-help")),
                 () -> assertTrue(tooltip.contains("/browser")),
                 () -> assertTrue(tooltip.contains("/web")),
                 () -> assertTrue(tooltip.contains("/mobile-record")),
                 () -> assertTrue(tooltip.contains("/allure")),
                 () -> assertFalse(tooltip.contains("Slash commands:")));
+    }
+
+    @Test
+    void commandHelpUsesCanonicalCommandsEntryWithAliasesAndExamples() {
+        AssistantCommand.Invocation help = command("/commands");
+
+        assertAll(
+                () -> assertTrue(help.isLocal()),
+                () -> assertTrue(help.localResponse().contains("/commands")),
+                () -> assertTrue(help.localResponse().contains("/mcp-help")),
+                () -> assertTrue(help.localResponse().contains("/browser open https://example.com sign in")));
     }
 
     @Test
@@ -367,10 +381,14 @@ class AssistantCommandTest {
     void naturalIntentRoutesObviousMcpFeatureRequests() {
         assertAll(
                 () -> assertEquals("mobile_record_start", command("start mobile recording").toolName()),
+                () -> assertEquals("capture_start", command("start a browser recording").toolName()),
                 () -> assertEquals("doctor_analyze_failed_allure",
                         command("run doctor on target/allure-results").toolName()),
                 () -> assertEquals("mobile_recording_code_blocks",
-                        command("generate mobile code from recordings/mobile.json").toolName()));
+                        command("generate mobile code from recordings/mobile.json").toolName()),
+                () -> assertTrue(command("what commands can I use for mobile recording?").isLocal()),
+                () -> assertTrue(command("what commands can I use for mobile recording?")
+                        .localResponse().contains("/mobile-record")));
     }
 
     @Test
