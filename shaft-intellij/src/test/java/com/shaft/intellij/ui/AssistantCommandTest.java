@@ -229,6 +229,7 @@ class AssistantCommandTest {
     void slashCommandsMapToCuratedTools() {
         assertEquals("shaft_guide_search", command("/guide locators").toolName());
         assertEquals("locators", command("/guide locators").arguments().get("query").getAsString());
+        assertEquals("shaft_guide_search", command("/docs locators").toolName());
         assertEquals("test_automation_scenarios", command("/scenarios checkout").toolName());
         assertEquals("checkout", command("/scenarios checkout").arguments().get("intent").getAsString());
         assertEquals("capture_start", command("/record").toolName());
@@ -245,6 +246,131 @@ class AssistantCommandTest {
         assertEquals("test_automation_scenarios", command("/generatetest login").toolName());
         assertEquals("capture_code_blocks", command("/generatetest recordings/capture-session.json").toolName());
         assertEquals("playwright_recording_code_blocks", command("/generatetest recordings/playwright-session.json").toolName());
+        assertEquals("capture_code_blocks", command("/codegen recordings/capture-session.json").toolName());
+        assertEquals("mobile_recording_code_blocks", command("/codegen mobile recordings/mobile-session.json").toolName());
+    }
+
+    @Test
+    void commandRegistryExposesOneHintWithSynonymsAndExamples() {
+        List<AssistantCommand.CommandHint> hints = AssistantCommand.commandHints();
+        String tooltip = AssistantCommand.commandTooltip();
+
+        assertAll(
+                () -> assertTrue(hints.stream().anyMatch(hint -> "/browser".equals(hint.canonical()))),
+                () -> assertTrue(hints.stream().anyMatch(hint -> "/record".equals(hint.canonical()))),
+                () -> assertTrue(hints.stream().anyMatch(hint -> "/mobile".equals(hint.canonical()))),
+                () -> assertTrue(hints.stream().anyMatch(hint -> "/doctor".equals(hint.canonical()))),
+                () -> assertTrue(tooltip.contains("/browser")),
+                () -> assertTrue(tooltip.contains("/web")),
+                () -> assertTrue(tooltip.contains("/mobile-record")),
+                () -> assertTrue(tooltip.contains("/allure")),
+                () -> assertFalse(tooltip.contains("Slash commands:")));
+    }
+
+    @Test
+    void browserCommandsCreateOrderedToolSequencesWhenSessionSetupIsRequired() {
+        AssistantCommand.Invocation webdriver = command("/browser open https://example.com sign in");
+        AssistantCommand.Invocation playwright = command("/web playwright open https://example.com");
+
+        assertAll(
+                () -> assertTrue(webdriver.isSequence()),
+                () -> assertEquals(List.of("driver_initialize", "browser_open_intent"),
+                        webdriver.toolCalls().stream().map(AssistantCommand.ToolCall::toolName).toList()),
+                () -> assertEquals("CHROME", webdriver.toolCalls().get(0).arguments().get("targetBrowser").getAsString()),
+                () -> assertEquals("https://example.com",
+                        webdriver.toolCalls().get(1).arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("sign in", webdriver.toolCalls().get(1).arguments().get("userIntent").getAsString()),
+                () -> assertTrue(playwright.isSequence()),
+                () -> assertEquals(List.of("playwright_initialize", "playwright_browser_navigate"),
+                        playwright.toolCalls().stream().map(AssistantCommand.ToolCall::toolName).toList()),
+                () -> assertEquals("chrome", playwright.toolCalls().get(0).arguments().get("browser").getAsString()),
+                () -> assertFalse(playwright.toolCalls().get(0).arguments().get("headless").getAsBoolean()),
+                () -> assertEquals("https://example.com",
+                        playwright.toolCalls().get(1).arguments().get("targetUrl").getAsString()));
+    }
+
+    @Test
+    void browserCommandsExposeCommonDirectControls() {
+        AssistantCommand.Invocation screenshot = command("/browser screenshot target/shaft-browser/home.png");
+
+        assertAll(
+                () -> assertEquals("browser_take_screenshot", screenshot.toolName()),
+                () -> assertEquals("target/shaft-browser/home.png",
+                        screenshot.arguments().get("outputPath").getAsString()),
+                () -> assertFalse(screenshot.arguments().get("includeBase64").getAsBoolean()),
+                () -> assertEquals("browser_get_page_dom", command("/browser dom").toolName()),
+                () -> assertEquals("browser_get_title", command("/browser title").toolName()),
+                () -> assertEquals("driver_quit", command("/browser quit").toolName()));
+    }
+
+    @Test
+    void mobileCommandsMapToControlRecordingCodegenAndInspectorTools() {
+        AssistantCommand.Invocation nativeSession = command("/mobile native Android Pixel_6");
+        AssistantCommand.Invocation inspector = command("/mobile-record inspector Android recordings/inspector.json");
+
+        assertAll(
+                () -> assertEquals("mobile_toolchain_status", command("/mobile doctor Android").toolName()),
+                () -> assertEquals("Android",
+                        command("/mobile status Android").arguments().get("platformName").getAsString()),
+                () -> assertEquals("mobile_initialize_native", nativeSession.toolName()),
+                () -> assertEquals("Android", nativeSession.arguments().get("platformName").getAsString()),
+                () -> assertEquals("Pixel_6", nativeSession.arguments().get("deviceName").getAsString()),
+                () -> assertEquals("mobile_get_accessibility_tree", command("/mobile tree").toolName()),
+                () -> assertEquals("mobile_take_screenshot", command("/mobile screenshot target/mobile.png").toolName()),
+                () -> assertEquals("mobile_record_start", command("/mobile-record start recordings/mobile.json").toolName()),
+                () -> assertEquals("recordings/mobile.json",
+                        command("/mobile-record start recordings/mobile.json").arguments().get("outputPath").getAsString()),
+                () -> assertEquals("mobile_record_stop", command("/app-record stop").toolName()),
+                () -> assertEquals("mobile_inspector_record_prepare", inspector.toolName()),
+                () -> assertEquals("Android", inspector.arguments().get("platformName").getAsString()),
+                () -> assertEquals("recordings/inspector.json", inspector.arguments().get("outputPath").getAsString()),
+                () -> assertEquals("mobile_recording_code_blocks",
+                        command("/mobile-codegen recordings/mobile.json").toolName()),
+                () -> assertEquals("mobile_replay_recording",
+                        command("/mobile-replay recordings/mobile.json").toolName()));
+    }
+
+    @Test
+    void doctorCommandsMapToAllureTraceAndFixRecommendationTools() {
+        AssistantCommand.Invocation analyze = command("/doctor target/allure-results", "C:/work/project");
+        AssistantCommand.Invocation playwrightAnalyze = command("/doctor playwright target/allure-results");
+        AssistantCommand.Invocation suggest = command("/doctor fix target/shaft-doctor/doctor-report.json");
+        AssistantCommand.Invocation trace = command("/doctor trace target/shaft-traces");
+
+        assertAll(
+                () -> assertEquals("doctor_analyze_failed_allure", analyze.toolName()),
+                () -> assertEquals("target/allure-results",
+                        analyze.arguments().getAsJsonArray("allureResultPaths").get(0).getAsString()),
+                () -> assertEquals("C:/work/project", analyze.arguments().get("repositoryRoot").getAsString()),
+                () -> assertEquals("playwright_doctor_analyze_failed_allure", playwrightAnalyze.toolName()),
+                () -> assertEquals("doctor_suggest_fix", suggest.toolName()),
+                () -> assertEquals("target/shaft-doctor/doctor-report.json",
+                        suggest.arguments().get("jsonReportPath").getAsString()),
+                () -> assertEquals("doctor_analyze_trace", trace.toolName()),
+                () -> assertEquals("target/shaft-traces", trace.arguments().get("tracePath").getAsString()),
+                () -> assertEquals("webdriver", trace.arguments().get("backend").getAsString()),
+                () -> assertEquals("doctor_analyze_failed_allure", command("/allure target/allure-results").toolName()));
+    }
+
+    @Test
+    void rawMcpCommandAcceptsExplicitToolAndJsonArguments() {
+        AssistantCommand.Invocation raw = command("/mcp browser_take_screenshot {\"outputPath\":\"target/x.png\",\"includeBase64\":false}");
+
+        assertAll(
+                () -> assertEquals("browser_get_title", command("/tool browser_get_title {}").toolName()),
+                () -> assertEquals("browser_take_screenshot", raw.toolName()),
+                () -> assertEquals("target/x.png", raw.arguments().get("outputPath").getAsString()),
+                () -> assertTrue(command("/mcp browser_take_screenshot {bad json}").isLocal()));
+    }
+
+    @Test
+    void naturalIntentRoutesObviousMcpFeatureRequests() {
+        assertAll(
+                () -> assertEquals("mobile_record_start", command("start mobile recording").toolName()),
+                () -> assertEquals("doctor_analyze_failed_allure",
+                        command("run doctor on target/allure-results").toolName()),
+                () -> assertEquals("mobile_recording_code_blocks",
+                        command("generate mobile code from recordings/mobile.json").toolName()));
     }
 
     @Test

@@ -1,9 +1,13 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.shaft.intellij.mcp.ShaftCommandLine;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -17,6 +21,9 @@ final class AssistantCommand {
     static final String DEFAULT_CAPTURE_RECORDING_PATH = "recordings/intellij-capture.json";
     static final String DEFAULT_CAPTURE_RECORDING_PATH_PREFIX = "recordings/intellij-capture-";
     static final String DEFAULT_CAPTURE_REVIEW_DIRECTORY = "target/shaft-capture/assistant-review";
+    private static final String DEFAULT_MOBILE_RECORDING_PATH = "recordings/mobile-recording.json";
+    private static final String DEFAULT_MOBILE_INSPECTOR_RECORDING_PATH = "recordings/mobile-inspector.json";
+    private static final String DEFAULT_DOCTOR_REPORT_PATH = "target/shaft-doctor/doctor-report.json";
     private static final String AGENT_SOURCE_GUARD =
             """
                     Source edits are not enabled for this session.
@@ -34,7 +41,13 @@ final class AssistantCommand {
             Slash commands:
             /guide <query> - Search the SHAFT guide.
             /scenarios <intent> - Find automation scenarios.
+            /browser <open|dom|screenshot|title|quit> - Control WebDriver browser tools.
             /record [playwright] - Start a WebDriver or Playwright recording session.
+            /codegen [webdriver|playwright|mobile] <recording.json> - Generate replay snippets.
+            /mobile <status|native|web|tree|screenshot> - Control mobile/Appium tools.
+            /mobile-record <start|stop|inspector> - Record mobile actions or prepare Appium Inspector.
+            /mobile-codegen <recording.json> - Generate mobile replay snippets.
+            /doctor [playwright] [allurePath] - Analyze failures and recommend fixes.
             /inspect [url] [intent] - Open intent-driven inspection context.
             /locator [url] [intent] - Alias for /inspect.
             /guardrails <code> - Check generated Java code.
@@ -42,11 +55,56 @@ final class AssistantCommand {
             /fixTestFailure - Analyze failed Allure evidence and propose repair options.
             /clients - List local assistant clients.
             /generateTest [intent|recordingPath] - Suggest scenarios, or generate code from recording.
+            /mcp <toolName> [json] - Run a raw MCP tool call.
             /help - Show this help.
             """.stripIndent().trim();
+    private static final List<CommandHint> COMMAND_HINTS = List.of(
+            new CommandHint("/browser", "Control browser sessions",
+                    List.of("/web", "/browse", "/page"),
+                    "/browser open https://example.com sign in"),
+            new CommandHint("/record", "Record browser actions",
+                    List.of("/rec", "/capture"),
+                    "/record playwright"),
+            new CommandHint("/codegen", "Generate code from recordings",
+                    List.of("/generate", "/gen", "/generateTest"),
+                    "/codegen mobile recordings/mobile.json"),
+            new CommandHint("/mobile", "Control Appium and mobile web",
+                    List.of("/appium", "/device", "/phone", "/emulator"),
+                    "/mobile native Android Pixel_6"),
+            new CommandHint("/mobile-record", "Record mobile actions",
+                    List.of("/app-record", "/inspector-record"),
+                    "/mobile-record inspector Android recordings/inspector.json"),
+            new CommandHint("/doctor", "Analyze failure evidence",
+                    List.of("/allure", "/triage", "/fixTestFailure"),
+                    "/doctor target/allure-results"),
+            new CommandHint("/project", "Create or upgrade SHAFT projects",
+                    List.of("/newshaft", "/upgrade"),
+                    "/project upgrade ."),
+            new CommandHint("/mcp", "Run an explicit MCP tool",
+                    List.of("/tool", "/call"),
+                    "/mcp browser_get_title {}"));
 
     private AssistantCommand() {
         throw new IllegalStateException("Utility class");
+    }
+
+    static List<CommandHint> commandHints() {
+        return COMMAND_HINTS;
+    }
+
+    static String commandTooltip() {
+        StringBuilder tooltip = new StringBuilder("<html><b>SHAFT commands</b>");
+        for (CommandHint hint : COMMAND_HINTS) {
+            tooltip.append("<br><code>")
+                    .append(hint.canonical())
+                    .append("</code> - ")
+                    .append(hint.summary())
+                    .append("<br>&nbsp;&nbsp;Aliases: ")
+                    .append(String.join(", ", hint.synonyms()))
+                    .append("<br>&nbsp;&nbsp;Example: ")
+                    .append(hint.example());
+        }
+        return tooltip.append("</html>").toString();
     }
 
     static Invocation fromPrompt(
@@ -76,6 +134,10 @@ final class AssistantCommand {
         Invocation recording = recording(text);
         if (recording != null) {
             return recording;
+        }
+        Invocation directIntent = directIntent(text, workingDirectory);
+        if (directIntent != null) {
+            return directIntent;
         }
         if (selection.cloud()) {
             return cloud(text, selection, mode, workingDirectory);
@@ -113,16 +175,24 @@ final class AssistantCommand {
         String command = parts[0].toLowerCase(Locale.ROOT);
         String rest = parts.length == 2 ? parts[1].trim() : "";
         return switch (command) {
-            case "/guide" -> Invocation.tool("shaft_guide_search", guide(rest));
-            case "/scenarios" -> Invocation.tool("test_automation_scenarios", scenarios(rest));
-            case "/record" -> record(rest);
+            case "/guide", "/docs", "/manual" -> Invocation.tool("shaft_guide_search", guide(rest));
+            case "/scenarios", "/scenario", "/ideas" -> Invocation.tool("test_automation_scenarios", scenarios(rest));
+            case "/browser", "/web", "/browse", "/page" -> browser(rest);
+            case "/record", "/rec", "/capture" -> record(rest);
+            case "/codegen", "/generate", "/gen", "/generatetest" -> generateTest(rest);
+            case "/mobile", "/appium", "/device", "/phone", "/emulator" -> mobile(rest);
+            case "/mobile-record", "/app-record", "/inspector-record" -> mobileRecord(rest);
+            case "/mobile-codegen", "/app-codegen" -> mobileCodegen(rest);
+            case "/mobile-replay", "/app-replay" -> mobileReplay(rest);
+            case "/doctor", "/allure", "/failure", "/fix" -> doctor(rest, workingDirectory);
             case "/inspect", "/locator" -> Invocation.tool("browser_open_intent", inspect(rest));
-            case "/guardrails" -> Invocation.tool("test_code_guardrails_check", guardrails(rest));
+            case "/guardrails", "/checkcode" -> Invocation.tool("test_code_guardrails_check", guardrails(rest));
             case "/triage", "/fixtestfailure" -> Invocation.tool(
                     "doctor_analyze_failed_allure", triage(workingDirectory));
-            case "/clients" -> Invocation.tool("autobot_local_agent_clients", new JsonObject());
-            case "/generatetest" -> generateTest(rest);
-            case "/help" -> Invocation.local(HELP);
+            case "/clients", "/client" -> Invocation.tool("autobot_local_agent_clients", new JsonObject());
+            case "/project", "/newshaft", "/upgrade" -> project(command, rest, workingDirectory);
+            case "/mcp", "/tool", "/call" -> rawMcp(rest);
+            case "/help", "/commands", "/mcp-help", "/shaft-help" -> Invocation.local(HELP);
             default -> Invocation.local("Unknown command. Use /help for available SHAFT Assistant commands.");
         };
     }
@@ -159,6 +229,359 @@ final class AssistantCommand {
         return arguments;
     }
 
+    private static Invocation browser(String rest) {
+        String trimmed = text(rest);
+        if (trimmed.isBlank()) {
+            return Invocation.local("Use `/browser open <url> [intent]`, `/browser dom`, `/browser screenshot`, or `/browser quit`.");
+        }
+        String action = firstWord(trimmed).toLowerCase(Locale.ROOT);
+        String remainder = afterFirstWord(trimmed);
+        if (commandIs(action, "playwright", "pw")) {
+            return playwrightBrowser(remainder);
+        }
+        if (commandIs(action, "open", "navigate", "visit", "go") || isUrl(firstWord(trimmed))) {
+            return webdriverOpen(commandIs(action, "open", "navigate", "visit", "go") ? remainder : trimmed);
+        }
+        if (commandIs(action, "screenshot", "shot", "capture")) {
+            return Invocation.tool("browser_take_screenshot",
+                    screenshot(firstTokenOrDefault(remainder, "target/shaft-browser/screenshot.png")));
+        }
+        if (commandIs(action, "dom", "source", "tree")) {
+            JsonObject arguments = new JsonObject();
+            arguments.addProperty("maxCharacters", DEFAULT_BROWSER_MAX_CHARACTERS);
+            return Invocation.tool("browser_get_page_dom", arguments);
+        }
+        if (commandIs(action, "title")) {
+            return Invocation.tool("browser_get_title", new JsonObject());
+        }
+        if (commandIs(action, "url")) {
+            return Invocation.tool("browser_get_current_url", new JsonObject());
+        }
+        if (commandIs(action, "refresh", "reload")) {
+            return Invocation.tool("browser_refresh", new JsonObject());
+        }
+        if (commandIs(action, "back")) {
+            return Invocation.tool("browser_navigate_back", new JsonObject());
+        }
+        if (commandIs(action, "forward")) {
+            return Invocation.tool("browser_navigate_forward", new JsonObject());
+        }
+        if (commandIs(action, "maximize")) {
+            return Invocation.tool("browser_maximize_window", new JsonObject());
+        }
+        if (commandIs(action, "fullscreen")) {
+            return Invocation.tool("browser_fullscreen_window", new JsonObject());
+        }
+        if (commandIs(action, "quit", "close", "stop")) {
+            return Invocation.tool("driver_quit", new JsonObject());
+        }
+        return webdriverOpen(trimmed);
+    }
+
+    private static Invocation playwrightBrowser(String rest) {
+        String trimmed = text(rest);
+        if (trimmed.isBlank()) {
+            return Invocation.local("Use `/browser playwright open <url>`, `/browser playwright dom`, or `/browser playwright screenshot`.");
+        }
+        String action = firstWord(trimmed).toLowerCase(Locale.ROOT);
+        String remainder = afterFirstWord(trimmed);
+        if (commandIs(action, "open", "navigate", "visit", "go") || isUrl(firstWord(trimmed))) {
+            String targetUrl = commandIs(action, "open", "navigate", "visit", "go") ? firstTokenOrDefault(remainder, "") : firstWord(trimmed);
+            if (targetUrl.isBlank()) {
+                return Invocation.local("Provide a URL for Playwright browser navigation.");
+            }
+            return Invocation.sequence(List.of(
+                    new ToolCall("playwright_initialize", playwrightInitialize()),
+                    new ToolCall("playwright_browser_navigate", targetUrl("targetUrl", targetUrl))));
+        }
+        if (commandIs(action, "screenshot", "shot", "capture")) {
+            return Invocation.tool("playwright_browser_take_screenshot",
+                    screenshot(firstTokenOrDefault(remainder, "target/shaft-playwright/screenshot.png")));
+        }
+        if (commandIs(action, "dom", "source", "tree")) {
+            JsonObject arguments = new JsonObject();
+            arguments.addProperty("maxCharacters", DEFAULT_BROWSER_MAX_CHARACTERS);
+            return Invocation.tool("playwright_browser_get_page_dom", arguments);
+        }
+        if (commandIs(action, "title")) {
+            return Invocation.tool("playwright_browser_get_title", new JsonObject());
+        }
+        if (commandIs(action, "url")) {
+            return Invocation.tool("playwright_browser_get_current_url", new JsonObject());
+        }
+        if (commandIs(action, "quit", "close", "stop")) {
+            return Invocation.tool("playwright_quit", new JsonObject());
+        }
+        return Invocation.local("Unknown Playwright browser command. Use `/browser playwright open <url>`.");
+    }
+
+    private static Invocation webdriverOpen(String rest) {
+        return Invocation.sequence(List.of(
+                new ToolCall("driver_initialize", driverInitialize()),
+                new ToolCall("browser_open_intent", inspect(rest))));
+    }
+
+    private static JsonObject driverInitialize() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetBrowser", "CHROME");
+        return arguments;
+    }
+
+    private static JsonObject playwrightInitialize() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("browser", "chrome");
+        arguments.addProperty("headless", false);
+        return arguments;
+    }
+
+    private static Invocation mobile(String rest) {
+        String trimmed = text(rest);
+        String action = firstWord(trimmed).toLowerCase(Locale.ROOT);
+        String remainder = afterFirstWord(trimmed);
+        if (trimmed.isBlank() || commandIs(action, "status", "doctor", "toolchain", "check")) {
+            return Invocation.tool("mobile_toolchain_status", platform(commandIs(action, "status", "doctor", "toolchain", "check") ? remainder : trimmed));
+        }
+        if (commandIs(action, "native", "app", "init", "initialize")) {
+            return Invocation.tool("mobile_initialize_native", mobileNative(remainder));
+        }
+        if (commandIs(action, "web", "emulation", "emulate")) {
+            return Invocation.tool("mobile_initialize_web_emulation", mobileWeb(remainder));
+        }
+        if (commandIs(action, "tree", "source", "dom", "accessibility")) {
+            JsonObject arguments = new JsonObject();
+            arguments.addProperty("maxCharacters", DEFAULT_BROWSER_MAX_CHARACTERS);
+            return Invocation.tool("mobile_get_accessibility_tree", arguments);
+        }
+        if (commandIs(action, "contexts", "context")) {
+            JsonObject arguments = new JsonObject();
+            arguments.addProperty("maxCharacters", DEFAULT_BROWSER_MAX_CHARACTERS);
+            return Invocation.tool("mobile_get_contexts", arguments);
+        }
+        if (commandIs(action, "screenshot", "shot", "capture")) {
+            return Invocation.tool("mobile_take_screenshot",
+                    screenshot(firstTokenOrDefault(remainder, "target/shaft-mobile/screenshot.png")));
+        }
+        if (commandIs(action, "record", "recording")) {
+            return mobileRecord(remainder);
+        }
+        if (commandIs(action, "codegen", "generate")) {
+            return mobileCodegen(remainder);
+        }
+        if (commandIs(action, "replay")) {
+            return mobileReplay(remainder);
+        }
+        if (commandIs(action, "quit", "close", "stop")) {
+            return Invocation.tool("driver_quit", new JsonObject());
+        }
+        return Invocation.local("Unknown mobile command. Use `/mobile status`, `/mobile native Android <device>`, or `/mobile tree`.");
+    }
+
+    private static JsonObject mobileNative(String rest) {
+        String trimmed = text(rest);
+        String platformName = platformName(firstWord(trimmed));
+        String deviceName = platformName.equalsIgnoreCase(firstWord(trimmed)) ? afterFirstWord(trimmed) : trimmed;
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("platformName", platformName);
+        arguments.addProperty("deviceName", deviceName);
+        arguments.addProperty("appiumServerUrl", "");
+        arguments.addProperty("automationName", "");
+        arguments.addProperty("platformVersion", "");
+        arguments.addProperty("udid", "");
+        arguments.addProperty("app", "");
+        arguments.addProperty("appPackage", "");
+        arguments.addProperty("appActivity", "");
+        arguments.addProperty("bundleId", "");
+        return arguments;
+    }
+
+    private static JsonObject mobileWeb(String rest) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetUrl", parseLeadingUrl(rest));
+        arguments.addProperty("browser", "CHROME");
+        arguments.addProperty("deviceName", "Pixel 5");
+        arguments.addProperty("width", 0);
+        arguments.addProperty("height", 0);
+        arguments.addProperty("pixelRatio", 1.0);
+        arguments.addProperty("userAgent", "");
+        arguments.addProperty("headless", false);
+        return arguments;
+    }
+
+    private static Invocation mobileRecord(String rest) {
+        String trimmed = text(rest);
+        String action = firstWord(trimmed).toLowerCase(Locale.ROOT);
+        String remainder = afterFirstWord(trimmed);
+        if (trimmed.isBlank() || commandIs(action, "start", "begin", "record")) {
+            return Invocation.tool("mobile_record_start",
+                    mobileRecordingStart(firstJsonLikePath(trimmed).isBlank()
+                            ? DEFAULT_MOBILE_RECORDING_PATH
+                            : firstJsonLikePath(trimmed)));
+        }
+        if (commandIs(action, "status")) {
+            return Invocation.tool("mobile_record_status", new JsonObject());
+        }
+        if (commandIs(action, "stop", "finish", "end")) {
+            return Invocation.tool("mobile_record_stop", discard(remainder));
+        }
+        if (commandIs(action, "inspector", "inspect", "appium")) {
+            return Invocation.tool("mobile_inspector_record_prepare", mobileInspectorRecordPrepare(remainder));
+        }
+        if (commandIs(action, "inspector-status")) {
+            return Invocation.tool("mobile_inspector_record_status", new JsonObject());
+        }
+        return Invocation.local("Use `/mobile-record start <path>`, `/mobile-record stop`, or `/mobile-record inspector Android <path>`.");
+    }
+
+    private static JsonObject mobileRecordingStart(String outputPath) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("outputPath", outputPath);
+        arguments.addProperty("mode", "default");
+        arguments.addProperty("includeSensitiveValues", false);
+        return arguments;
+    }
+
+    private static JsonObject mobileInspectorRecordPrepare(String rest) {
+        String platformName = platformName(firstWord(rest));
+        String outputPath = firstJsonLikePath(rest);
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("platformName", platformName);
+        arguments.addProperty("outputPath", outputPath.isBlank() ? DEFAULT_MOBILE_INSPECTOR_RECORDING_PATH : outputPath);
+        arguments.addProperty("includeSensitiveValues", false);
+        arguments.addProperty("app", "");
+        arguments.addProperty("appPackage", "");
+        arguments.addProperty("appActivity", "");
+        arguments.addProperty("bundleId", "");
+        arguments.addProperty("udid", "");
+        arguments.addProperty("deviceName", "");
+        arguments.addProperty("platformVersion", "");
+        arguments.addProperty("selectedAndroidAvdName", "");
+        arguments.addProperty("androidApiLevel", 0);
+        arguments.addProperty("androidDeviceProfile", "pixel_6");
+        arguments.addProperty("androidImageTag", "google_apis");
+        arguments.addProperty("androidAbi", "x86_64");
+        arguments.addProperty("androidRamMb", 2048);
+        arguments.addProperty("androidCores", 2);
+        arguments.addProperty("provisionAndroidEmulator", false);
+        return arguments;
+    }
+
+    private static Invocation mobileCodegen(String rest) {
+        return Invocation.tool("mobile_recording_code_blocks", mobileRecordingPath(rest));
+    }
+
+    private static Invocation mobileReplay(String rest) {
+        return Invocation.tool("mobile_replay_recording", mobileRecordingPath(rest));
+    }
+
+    private static JsonObject mobileRecordingPath(String rest) {
+        JsonObject arguments = new JsonObject();
+        String path = firstJsonLikePath(rest);
+        arguments.addProperty("recordingPath", path.isBlank() ? DEFAULT_MOBILE_RECORDING_PATH : path);
+        arguments.addProperty("driverVariableName", "driver");
+        return arguments;
+    }
+
+    private static Invocation doctor(String rest, String workingDirectory) {
+        String trimmed = text(rest);
+        boolean playwright = "playwright".equalsIgnoreCase(firstWord(trimmed));
+        if (playwright) {
+            trimmed = afterFirstWord(trimmed);
+        }
+        String action = firstWord(trimmed).toLowerCase(Locale.ROOT);
+        String remainder = afterFirstWord(trimmed);
+        if (commandIs(action, "fix", "suggest", "recommend", "repair")) {
+            return Invocation.tool(playwright ? "playwright_doctor_suggest_fix" : "doctor_suggest_fix",
+                    doctorSuggestFix(firstTokenOrDefault(remainder, DEFAULT_DOCTOR_REPORT_PATH), workingDirectory));
+        }
+        if (commandIs(action, "trace", "traces")) {
+            return Invocation.tool("doctor_analyze_trace",
+                    doctorTrace(firstTokenOrDefault(remainder, "target/shaft-traces"), playwright ? "playwright" : "webdriver"));
+        }
+        String allurePath = trimmed.isBlank() ? "allure-results" : firstTokenOrDefault(trimmed, "allure-results");
+        return Invocation.tool(playwright ? "playwright_doctor_analyze_failed_allure" : "doctor_analyze_failed_allure",
+                triage(workingDirectory, allurePath));
+    }
+
+    private static JsonObject doctorSuggestFix(String reportPath, String workingDirectory) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("jsonReportPath", reportPath);
+        arguments.addProperty("repositoryRoot", workingDirectory == null ? "" : workingDirectory);
+        arguments.add("allowedSourcePaths", new JsonArray());
+        arguments.addProperty("useAi", false);
+        arguments.addProperty("allowLocalAi", false);
+        arguments.addProperty("allowRemoteAi", false);
+        arguments.addProperty("driverVariableName", "driver");
+        return arguments;
+    }
+
+    private static JsonObject doctorTrace(String tracePath, String backend) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("tracePath", tracePath);
+        arguments.addProperty("backend", backend);
+        return arguments;
+    }
+
+    private static Invocation project(String command, String rest, String workingDirectory) {
+        String action = "/newshaft".equals(command) ? "create"
+                : "/upgrade".equals(command) ? "upgrade"
+                : firstWord(rest).toLowerCase(Locale.ROOT);
+        String remainder = "/project".equals(command) ? afterFirstWord(rest) : rest;
+        if (commandIs(action, "upgrade", "migrate")) {
+            return Invocation.tool("shaft_project_upgrade",
+                    projectUpgrade(firstTokenOrDefault(remainder, workingDirectory == null || workingDirectory.isBlank() ? "." : workingDirectory)));
+        }
+        return Invocation.tool("shaft_project_create", projectCreate(firstTokenOrDefault(remainder, "shaft-demo")));
+    }
+
+    private static JsonObject projectCreate(String outputDirectory) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("outputDirectory", outputDirectory);
+        arguments.addProperty("runner", "TestNG");
+        arguments.addProperty("platform", "web");
+        arguments.addProperty("groupId", "io.github.yourUsername");
+        arguments.addProperty("artifactId", outputDirectory);
+        arguments.addProperty("version", "1.0.0");
+        arguments.add("optionalModules", new JsonArray());
+        arguments.addProperty("includeGithubActions", true);
+        arguments.addProperty("includeDependabot", true);
+        arguments.addProperty("overwrite", false);
+        return arguments;
+    }
+
+    private static JsonObject projectUpgrade(String projectRoot) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("projectRoot", projectRoot);
+        arguments.addProperty("upgradeType", "basic");
+        arguments.addProperty("dryRun", true);
+        arguments.addProperty("approve", false);
+        arguments.addProperty("shaftVersion", "");
+        arguments.addProperty("compileCommand", "");
+        arguments.addProperty("compileTimeout", 900);
+        arguments.addProperty("skipBaselineCompile", false);
+        arguments.addProperty("allowAiRepair", false);
+        return arguments;
+    }
+
+    private static Invocation rawMcp(String rest) {
+        String toolName = firstWord(rest);
+        if (toolName.isBlank()) {
+            return Invocation.local("Use `/mcp <toolName> [json]`.");
+        }
+        String rawJson = afterFirstWord(rest);
+        if (rawJson.isBlank()) {
+            return Invocation.tool(toolName, new JsonObject());
+        }
+        try {
+            JsonElement parsed = JsonParser.parseString(rawJson);
+            if (!parsed.isJsonObject()) {
+                return Invocation.local("Raw MCP arguments must be a JSON object.");
+            }
+            return Invocation.tool(toolName, parsed.getAsJsonObject());
+        } catch (JsonParseException exception) {
+            return Invocation.local("Raw MCP arguments are not valid JSON: " + exception.getMessage());
+        }
+    }
+
     private static Invocation record(String rest) {
         boolean playwright = rest.toLowerCase(Locale.ROOT).contains("playwright");
         return Invocation.tool(playwright ? "playwright_record_start" : "capture_start",
@@ -175,10 +598,41 @@ final class AssistantCommand {
         return null;
     }
 
+    private static Invocation directIntent(String text, String workingDirectory) {
+        String normalized = normalizeNaturalCommand(text);
+        if (normalized.equals("start mobile recording")
+                || normalized.equals("start app recording")
+                || normalized.startsWith("start mobile recording ")
+                || normalized.startsWith("start app recording ")) {
+            return mobileRecord("start " + firstJsonLikePath(text));
+        }
+        if (normalized.equals("stop mobile recording") || normalized.equals("stop app recording")) {
+            return mobileRecord("stop");
+        }
+        if ((normalized.startsWith("generate mobile code")
+                || normalized.startsWith("generate appium code")
+                || normalized.startsWith("create mobile code"))
+                && !firstJsonLikePath(text).isBlank()) {
+            return mobileCodegen(firstJsonLikePath(text));
+        }
+        if (normalized.startsWith("run doctor")
+                || normalized.startsWith("analyze allure")
+                || normalized.startsWith("analyse allure")
+                || normalized.startsWith("doctor ")) {
+            String path = firstPathLike(text);
+            return doctor(path.isBlank() ? "" : path, workingDirectory);
+        }
+        return null;
+    }
+
     private static JsonObject triage(String workingDirectory) {
+        return triage(workingDirectory, "allure-results");
+    }
+
+    private static JsonObject triage(String workingDirectory, String allurePath) {
         JsonObject arguments = new JsonObject();
         JsonArray allureResultPaths = new JsonArray();
-        allureResultPaths.add("allure-results");
+        allureResultPaths.add(allurePath == null || allurePath.isBlank() ? "allure-results" : allurePath);
         arguments.add("allureResultPaths", allureResultPaths);
         arguments.add("historicalBundlePaths", new JsonArray());
         arguments.addProperty("outputDirectory", "target/shaft-doctor");
@@ -199,7 +653,11 @@ final class AssistantCommand {
         if (recordingPath.isBlank()) {
             return Invocation.tool("test_automation_scenarios", scenarios(rest));
         }
-        if (recordingPath.toLowerCase(Locale.ROOT).contains("playwright")) {
+        String lower = text(rest).toLowerCase(Locale.ROOT);
+        if (lower.contains("mobile") || lower.contains("appium")) {
+            return mobileCodegen(recordingPath);
+        }
+        if (lower.contains("playwright") || recordingPath.toLowerCase(Locale.ROOT).contains("playwright")) {
             return Invocation.tool("playwright_recording_code_blocks", generatePlaywrightCodeFromRecording(recordingPath));
         }
         return Invocation.tool("capture_code_blocks", generateCaptureCodeFromRecording(recordingPath));
@@ -394,6 +852,22 @@ final class AssistantCommand {
         return "";
     }
 
+    private static String firstPathLike(String rest) {
+        if (rest == null || rest.isBlank()) {
+            return "";
+        }
+        for (String token : rest.split("\\s+")) {
+            String lower = token.toLowerCase(Locale.ROOT);
+            if (lower.contains("allure-results")
+                    || lower.contains("shaft-doctor")
+                    || lower.contains("shaft-traces")
+                    || lower.endsWith(".json")) {
+                return token;
+            }
+        }
+        return "";
+    }
+
     private static String parseLeadingUrl(String rest) {
         String[] parts = (rest == null ? "" : rest).trim().split("\\s+");
         for (String part : parts) {
@@ -404,12 +878,78 @@ final class AssistantCommand {
         return "";
     }
 
+    private static JsonObject screenshot(String outputPath) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("outputPath", outputPath);
+        arguments.addProperty("includeBase64", false);
+        return arguments;
+    }
+
+    private static JsonObject targetUrl(String key, String value) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty(key, value);
+        return arguments;
+    }
+
+    private static JsonObject platform(String rest) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("platformName", platformName(firstWord(rest)));
+        return arguments;
+    }
+
+    private static JsonObject discard(String rest) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("discard", text(rest).toLowerCase(Locale.ROOT).contains("discard"));
+        return arguments;
+    }
+
+    private static String platformName(String candidate) {
+        String value = text(candidate);
+        if ("ios".equalsIgnoreCase(value)) {
+            return "iOS";
+        }
+        return value.isBlank() || "android".equalsIgnoreCase(value) ? "Android" : value;
+    }
+
+    private static String firstTokenOrDefault(String value, String fallback) {
+        String token = firstWord(value);
+        return token.isBlank() ? fallback : token;
+    }
+
+    private static String firstWord(String value) {
+        String trimmed = text(value);
+        if (trimmed.isBlank()) {
+            return "";
+        }
+        int firstSpace = trimmed.indexOf(' ');
+        return firstSpace < 0 ? trimmed : trimmed.substring(0, firstSpace);
+    }
+
+    private static String afterFirstWord(String value) {
+        String trimmed = text(value);
+        int firstSpace = trimmed.indexOf(' ');
+        return firstSpace < 0 ? "" : trimmed.substring(firstSpace + 1).trim();
+    }
+
+    private static boolean commandIs(String action, String... candidates) {
+        for (String candidate : candidates) {
+            if (action.equals(candidate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String normalizeNaturalCommand(String text) {
         return (text == null ? "" : text)
                 .trim()
                 .toLowerCase(Locale.ROOT)
                 .replaceAll("\\s+", " ")
                 .replaceAll("[.!?]+$", "");
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private static String clip(String text, int maxCharacters) {
@@ -424,17 +964,42 @@ final class AssistantCommand {
         return candidate.startsWith("http://") || candidate.startsWith("https://") || candidate.startsWith("file:");
     }
 
-    record Invocation(String toolName, JsonObject arguments, String localResponse) {
+    record ToolCall(String toolName, JsonObject arguments) {
+    }
+
+    record CommandHint(String canonical, String summary, List<String> synonyms, String example) {
+    }
+
+    record Invocation(List<ToolCall> toolCalls, String localResponse) {
         static Invocation tool(String toolName, JsonObject arguments) {
-            return new Invocation(toolName, arguments, null);
+            return new Invocation(List.of(new ToolCall(toolName, arguments == null ? new JsonObject() : arguments)), null);
+        }
+
+        static Invocation sequence(List<ToolCall> toolCalls) {
+            if (toolCalls == null || toolCalls.isEmpty()) {
+                return local("No MCP tools were selected.");
+            }
+            return new Invocation(List.copyOf(toolCalls), null);
         }
 
         static Invocation local(String response) {
-            return new Invocation("", new JsonObject(), response);
+            return new Invocation(List.of(), response);
         }
 
         boolean isLocal() {
             return localResponse != null;
+        }
+
+        boolean isSequence() {
+            return toolCalls.size() > 1;
+        }
+
+        String toolName() {
+            return toolCalls.isEmpty() ? "" : toolCalls.get(0).toolName();
+        }
+
+        JsonObject arguments() {
+            return toolCalls.isEmpty() ? new JsonObject() : toolCalls.get(0).arguments();
         }
     }
 

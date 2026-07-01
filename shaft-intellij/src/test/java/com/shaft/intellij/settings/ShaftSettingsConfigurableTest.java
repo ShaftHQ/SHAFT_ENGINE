@@ -64,22 +64,26 @@ class ShaftSettingsConfigurableTest {
 
         JButton testMcp = (JButton) findByAccessibleName(panel, "Test MCP");
         assertNotNull(testMcp);
+        assertIcon(testMcp);
         assertNotNull(testMcp.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, testMcp.getAccessibleContext().getAccessibleDescription().length());
 
         JButton installMcp = (JButton) findByAccessibleName(panel, "Install or update SHAFT MCP");
         assertNotNull(installMcp);
+        assertIcon(installMcp);
         assertNotNull(installMcp.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, installMcp.getAccessibleContext().getAccessibleDescription().length());
 
         JButton connectCopilot = (JButton) findByAccessibleName(panel, "Connect GitHub Copilot MCP");
         assertNotNull(connectCopilot);
+        assertIcon(connectCopilot);
         assertTrue(connectCopilot.isVisible());
         assertNotNull(connectCopilot.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, connectCopilot.getAccessibleContext().getAccessibleDescription().length());
 
         JButton connectRuntime = (JButton) findByAccessibleName(panel, "Connect selected runtime MCP");
         assertNotNull(connectRuntime);
+        assertIcon(connectRuntime);
         assertTrue(connectRuntime.isVisible());
         assertNotNull(connectRuntime.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, connectRuntime.getAccessibleContext().getAccessibleDescription().length());
@@ -94,6 +98,7 @@ class ShaftSettingsConfigurableTest {
                 "Clear stored Gemini API key".equals(button.getAccessibleContext().getAccessibleName())));
         assertTrue(clearButtons.stream().anyMatch(button ->
                 "Clear stored GitHub API key".equals(button.getAccessibleContext().getAccessibleName())));
+        clearButtons.forEach(ShaftSettingsConfigurableTest::assertIcon);
 
         assertNotNull(findByAccessibleName(panel, "OpenAI key storage status"));
         assertNotNull(findByAccessibleName(panel, "Anthropic key storage status"));
@@ -220,6 +225,13 @@ class ShaftSettingsConfigurableTest {
             }
         }
         return buttons;
+    }
+
+    private static void assertIcon(JButton button) {
+        assertNotNull(button);
+        assertNotNull(button.getIcon(), button.getText());
+        assertTrue(button.getIcon().getIconWidth() > 0, button.getText());
+        assertTrue(button.getIcon().getIconHeight() > 0, button.getText());
     }
 
     private static Component findByAccessibleName(Component root, String accessibleName) {

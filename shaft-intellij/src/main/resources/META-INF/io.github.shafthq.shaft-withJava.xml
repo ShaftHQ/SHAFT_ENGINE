@@ -4,8 +4,8 @@
                 class="com.shaft.intellij.actions.RecordShaftFlowHereAction"
                 text="Record SHAFT Flow Here"
                 description="Prepare a SHAFT record-at-target MCP request for the current Java context"
-                icon="/icons/shaftToolWindow.png"
-                iconDark="/icons/shaftToolWindow_dark.png">
+                icon="/icons/shaftToolWindow.svg"
+                iconDark="/icons/shaftToolWindow_dark.svg">
             <add-to-group group-id="Shaft.ToolsMenu" anchor="last"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>

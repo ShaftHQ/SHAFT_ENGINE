@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
@@ -9,6 +10,7 @@ import com.shaft.intellij.mcp.ShaftCommandLine;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
@@ -103,11 +105,22 @@ final class EvidenceTriagePanel extends JPanel {
 
     private static JButton button(String text, String description, Runnable action) {
         JButton button = new JButton(text);
+        button.setIcon(iconFor(text));
         button.setToolTipText(description);
         button.getAccessibleContext().setAccessibleName(text);
         button.getAccessibleContext().setAccessibleDescription(description);
         button.addActionListener(event -> action.run());
         return button;
+    }
+
+    private static Icon iconFor(String text) {
+        return switch (text) {
+            case "Analyze Allure", "Analyze Trace" -> AllIcons.Actions.Show;
+            case "Suggest Fix" -> AllIcons.Actions.Edit;
+            case "Run Healer" -> AllIcons.Actions.Execute;
+            case "Propose Locator" -> AllIcons.Actions.Find;
+            default -> AllIcons.General.ContextHelp;
+        };
     }
 
     private void analyzeAllure() {

@@ -17,6 +17,7 @@ import javax.swing.JComponent;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JProgressBar;
 import java.awt.Component;
 import java.awt.Container;
 import java.lang.reflect.Field;
@@ -478,7 +479,7 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings(), chatState);
 
         assistantPrompt(panel).setText("start recording");
-        click(panel, "Send");
+        clickAccessible(panel, "Send assistant prompt");
 
         String transcript = transcriptMarkdown(panel);
         assertAll(
@@ -518,7 +519,7 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         assistantPrompt(panel).setText("/help");
-        click(panel, "Send");
+        clickAccessible(panel, "Send assistant prompt");
         assertAll(
                 () -> assertTrue(findButton(panel, "Rerun").isEnabled()),
                 () -> assertTrue(findButton(panel, "Copy response").isEnabled()));
@@ -544,18 +545,71 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantTextButtonsDoNotReserveInvisibleIconSpace() {
+    void assistantComposerUsesCompactCommandHintAndModernThinkingIndicator() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        JButton commandHint = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
+        JProgressBar spinner = findByAccessibleName(panel, "Assistant thinking spinner", JProgressBar.class);
+        JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
+
+        assertAll(
+                () -> assertNotNull(commandHint),
+                () -> assertEquals("/", commandHint.getText()),
+                () -> assertNotNull(commandHint.getIcon()),
+                () -> assertTrue(commandHint.getIcon().getIconWidth() > 0),
+                () -> assertTrue(commandHint.getIcon().getIconHeight() > 0),
+                () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
+                () -> assertTrue(commandHint.getToolTipText().contains("/mobile")),
+                () -> assertTrue(commandHint.getToolTipText().contains("/doctor")),
+                () -> assertNotNull(spinner),
+                () -> assertTrue(spinner.isIndeterminate()),
+                () -> assertFalse(spinner.isVisible()),
+                () -> assertNotNull(sendButton),
+                () -> assertEquals("", sendButton.getText()),
+                () -> assertTrue(sendButton.getPreferredSize().width > commandHint.getPreferredSize().width),
+                () -> assertNotNull(sendButton.getIcon()),
+                () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
+                () -> assertTrue(sendButton.getIcon().getIconHeight() > 0));
+    }
+
+    @Test
+    void actionButtonsUseJetBrainsPlatformIcons() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        ShaftFeaturePanel featurePanel = new ShaftFeaturePanel(null, blankMcpSettings());
+        ShaftMcpSetupPanel setupPanel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        GuidedWorkflowPanel guidedPanel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        EvidenceTriagePanel triagePanel = new EvidenceTriagePanel(null, (tool, arguments) -> {
+        });
 
         assertAll(
                 () -> assertNull(findButton(panel, "Test connection and start chatting")),
-                () -> assertNull(findButton(panel, "Copy response").getIcon()),
-                () -> assertNull(findButton(panel, "Copy raw").getIcon()),
-                () -> assertNull(findButton(panel, "Copy all").getIcon()),
-                () -> assertNull(findButton(panel, "Clear").getIcon()),
-                () -> assertNull(findButton(panel, "Rerun").getIcon()),
-                () -> assertNull(findButton(panel, "Cancel").getIcon()),
-                () -> assertNull(findButton(panel, "Send").getIcon()));
+                () -> assertIcon(findButton(panel, "New chat")),
+                () -> assertIcon(findButton(panel, "Copy response")),
+                () -> assertIcon(findButton(panel, "Copy raw")),
+                () -> assertIcon(findButton(panel, "Copy all")),
+                () -> assertIcon(findButton(panel, "Clear")),
+                () -> assertIcon(findButton(panel, "Rerun")),
+                () -> assertIcon(findButton(panel, "Cancel")),
+                () -> assertIcon(findByAccessibleName(panel, "Send assistant prompt", JButton.class)),
+                () -> assertIcon(findButton(featurePanel, "Run")),
+                () -> assertIcon(findButton(featurePanel, "Cancel")),
+                () -> assertIcon(findButton(featurePanel, "Restore defaults")),
+                () -> assertIcon(findButton(featurePanel, "Copy output")),
+                () -> assertIcon(findButton(featurePanel, "Refresh tools")),
+                () -> assertIcon(findButton(setupPanel, "Install / Update SHAFT MCP")),
+                () -> assertIcon(findButton(setupPanel, "Test connection and start chatting")),
+                () -> assertIcon(findButton(guidedPanel, "Start recording")),
+                () -> assertIcon(findButton(guidedPanel, "Stop recording")),
+                () -> assertIcon(findButton(guidedPanel, "Generate code")),
+                () -> assertIcon(findButton(guidedPanel, "Inspect locator")),
+                () -> assertIcon(findButton(guidedPanel, "Guardrail check")),
+                () -> assertIcon(findButton(triagePanel, "Analyze Allure")),
+                () -> assertIcon(findButton(triagePanel, "Analyze Trace")),
+                () -> assertIcon(findButton(triagePanel, "Suggest Fix")),
+                () -> assertIcon(findButton(triagePanel, "Run Healer")),
+                () -> assertIcon(findButton(triagePanel, "Propose Locator")));
     }
 
     @Test
@@ -641,7 +695,7 @@ class ShaftPanelSetupTest {
         assertNotNull(blockedMode);
         blockedMode.setSelectedItem("AGENT");
         assistantPrompt(blockedPanel).setText("edit this test");
-        click(blockedPanel, "Send");
+        clickAccessible(blockedPanel, "Send assistant prompt");
         assertTrue(transcriptMarkdown(blockedPanel).contains("tick **Allow source edits**"));
 
         ShaftAssistantPanel approvedPanel = new ShaftAssistantPanel(null, blankMcpSettings());
@@ -654,7 +708,7 @@ class ShaftPanelSetupTest {
         approvedMode.setSelectedItem("AGENT");
         allowEdits.setSelected(true);
         assistantPrompt(approvedPanel).setText("edit this test");
-        click(approvedPanel, "Send");
+        clickAccessible(approvedPanel, "Send assistant prompt");
         assertFalse(transcriptMarkdown(approvedPanel).contains("tick **Allow source edits**"));
     }
 
@@ -665,7 +719,7 @@ class ShaftPanelSetupTest {
         assertNotNull(blockedMode);
         blockedMode.setSelectedItem("AGENT");
         assistantPrompt(panel).setText("open https://example.com and update me on the login form");
-        click(panel, "Send");
+        clickAccessible(panel, "Send assistant prompt");
 
         assertFalse(transcriptMarkdown(panel).contains("tick **Allow source edits**"));
     }
@@ -1038,6 +1092,19 @@ class ShaftPanelSetupTest {
         JButton button = findButton(component, text);
         assertNotNull(button, text);
         button.doClick();
+    }
+
+    private static void clickAccessible(Component component, String accessibleName) {
+        JButton button = findByAccessibleName(component, accessibleName, JButton.class);
+        assertNotNull(button, accessibleName);
+        button.doClick();
+    }
+
+    private static void assertIcon(JButton button) {
+        assertNotNull(button);
+        assertNotNull(button.getIcon(), button.getText());
+        assertTrue(button.getIcon().getIconWidth() > 0, button.getText());
+        assertTrue(button.getIcon().getIconHeight() > 0, button.getText());
     }
 
     private static JButton findButton(Component component, String text) {
