@@ -14,7 +14,8 @@ import java.awt.event.ActionListener;
  */
 public final class ShaftIconButtons {
     public static final int SIZE = 32;
-    private static final JBColor BACKGROUND = new JBColor(new Color(0xF4F6F8), new Color(0x4A4F55));
+    private static final JBColor ENABLED_BACKGROUND = new JBColor(new Color(0xF4F6F8), new Color(0x4E5963));
+    private static final JBColor DISABLED_BACKGROUND = new JBColor(new Color(0xEAEDF1), new Color(0x3F444A));
 
     private ShaftIconButtons() {
         throw new IllegalStateException("Utility class");
@@ -45,6 +46,11 @@ public final class ShaftIconButtons {
         button.setMargin(JBUI.emptyInsets());
         button.setOpaque(true);
         button.setContentAreaFilled(true);
-        button.setBackground(BACKGROUND);
+        button.setBackground(backgroundFor(button));
+        button.addPropertyChangeListener("enabled", event -> button.setBackground(backgroundFor(button)));
+    }
+
+    private static JBColor backgroundFor(JButton button) {
+        return button.isEnabled() ? ENABLED_BACKGROUND : DISABLED_BACKGROUND;
     }
 }

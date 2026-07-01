@@ -11,6 +11,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftIconAssetsTest {
+    private static final String LIGHT_ACTION_COLOR = "#6C707E";
+    private static final String DARK_ACTION_COLOR = "#F5F7FA";
+
     @Test
     void toolWindowIconsUseJetBrainsNewUiSvgVariants() throws IOException {
         Path icons = Path.of("src/main/resources/icons");
@@ -80,7 +83,7 @@ class ShaftIconAssetsTest {
 
     private static org.junit.jupiter.api.function.Executable actionIconAssertions(Path actions, String name) {
         return () -> assertAll(
-                () -> assertSvgIcon(actions.resolve(name + ".svg"), 16, "#6C707E"),
-                () -> assertSvgIcon(actions.resolve(name + "_dark.svg"), 16, "#CED0D6"));
+                () -> assertSvgIcon(actions.resolve(name + ".svg"), 16, LIGHT_ACTION_COLOR),
+                () -> assertSvgIcon(actions.resolve(name + "_dark.svg"), 16, DARK_ACTION_COLOR));
     }
 }

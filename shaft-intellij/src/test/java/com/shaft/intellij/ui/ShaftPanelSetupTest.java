@@ -649,6 +649,21 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void iconButtonsUseDistinctEnabledAndDisabledSurfaces() {
+        JButton active = new JButton("Run");
+        JButton inactive = new JButton("Cancel");
+        ShaftIconButtons.apply(active, ShaftIcons.SEND);
+        ShaftIconButtons.apply(inactive, ShaftIcons.CANCEL);
+
+        inactive.setEnabled(false);
+
+        assertAll(
+                () -> assertNotEquals(active.getBackground(), inactive.getBackground()),
+                () -> assertTrue(active.isContentAreaFilled()),
+                () -> assertTrue(inactive.isContentAreaFilled()));
+    }
+
+    @Test
     void assistantSendButtonTurnsIntoProgressAndHoverCancelWhileRunning() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
