@@ -48,6 +48,37 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantMcpSetupGateIgnoresBroadLocalCliPrompts() {
+        AssistantCommand.Invocation broadLocal = AssistantCommand.fromPrompt(
+                "Plan a browser recording workflow",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation broadCloud = AssistantCommand.fromPrompt(
+                "Plan a browser recording workflow",
+                AssistantCommand.Selection.cloud("github", "openai/gpt-4.1"),
+                "PLAN",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation mcpFeature = AssistantCommand.fromPrompt(
+                "/guide locators",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false);
+
+        assertAll(
+                () -> assertFalse(ShaftAssistantPanel.requiresMcpSetup(broadLocal, false)),
+                () -> assertFalse(ShaftAssistantPanel.requiresMcpSetup(broadCloud, false)),
+                () -> assertTrue(ShaftAssistantPanel.requiresMcpSetup(mcpFeature, false)),
+                () -> assertFalse(ShaftAssistantPanel.requiresMcpSetup(mcpFeature, true)));
+    }
+
+    @Test
     void toolsExplainMissingMcpConfiguration() {
         ShaftFeaturePanel panel = new ShaftFeaturePanel(null, blankMcpSettings());
 

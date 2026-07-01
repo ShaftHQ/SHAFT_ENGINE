@@ -80,9 +80,9 @@ final class AssistantCommand {
             new CommandDefinition("/triage", "Analyze failed Allure evidence",
                     List.of("/fixTestFailure"),
                     "/triage", (command, rest, workingDirectory) -> Invocation.tool("doctor_analyze_failed_allure", triage(workingDirectory))),
-            new CommandDefinition("/clients", "List local assistant clients",
-                    List.of("/client"),
-                    "/clients", (command, rest, workingDirectory) -> Invocation.tool("autobot_local_agent_clients", new JsonObject())),
+            new CommandDefinition("/assistant", "List assistant clients",
+                    List.of("/agent", "/ask", "/plan", "/clients", "/client"),
+                    "/assistant", (command, rest, workingDirectory) -> Invocation.tool("autobot_local_agent_clients", new JsonObject())),
             new CommandDefinition("/project", "Create or upgrade SHAFT projects",
                     List.of("/newshaft", "/upgrade"),
                     "/project upgrade .", AssistantCommand::project),
@@ -1086,6 +1086,9 @@ final class AssistantCommand {
     }
 
     record Invocation(List<ToolCall> toolCalls, String localResponse) {
+        private static final String LOCAL_AGENT_TOOL = "autobot_local_agent_run";
+        private static final String PROVIDER_CHAT_TOOL = "autobot_provider_chat";
+
         static Invocation tool(String toolName, JsonObject arguments) {
             return new Invocation(List.of(new ToolCall(toolName, arguments == null ? new JsonObject() : arguments)), null);
         }
@@ -1107,6 +1110,16 @@ final class AssistantCommand {
 
         boolean isSequence() {
             return toolCalls.size() > 1;
+        }
+
+        boolean requiresMcpConfiguration() {
+            return !isLocal() && toolCalls.stream().anyMatch(Invocation::isDirectMcpFeatureTool);
+        }
+
+        private static boolean isDirectMcpFeatureTool(ToolCall call) {
+            return call != null
+                    && !LOCAL_AGENT_TOOL.equals(call.toolName())
+                    && !PROVIDER_CHAT_TOOL.equals(call.toolName());
         }
 
         String toolName() {
