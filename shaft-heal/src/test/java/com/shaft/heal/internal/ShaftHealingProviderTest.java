@@ -1,6 +1,6 @@
 package com.shaft.heal.internal;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.internal.healing.HealingActionOutcome;
 import com.shaft.gui.internal.healing.HealingExplanation;

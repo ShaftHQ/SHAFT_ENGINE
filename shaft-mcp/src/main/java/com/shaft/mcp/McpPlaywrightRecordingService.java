@@ -1,6 +1,6 @@
 package com.shaft.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.generate.CaptureGenerationResult;
 
 import java.io.IOException;
@@ -174,7 +174,7 @@ final class McpPlaywrightRecordingService {
     private McpMobileRecording read(Path path) {
         try {
             return mapper.readValue(path.toFile(), McpMobileRecording.class);
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalArgumentException("Playwright recording could not be read.", exception);
         }
     }

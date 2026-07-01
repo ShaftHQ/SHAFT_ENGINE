@@ -21,7 +21,7 @@ import com.shaft.doctor.repair.RepairPublicationResult;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
 import com.shaft.pilot.config.PilotConfiguration;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;

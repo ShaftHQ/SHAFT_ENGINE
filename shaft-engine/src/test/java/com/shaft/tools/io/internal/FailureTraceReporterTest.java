@@ -257,7 +257,7 @@ public class FailureTraceReporterTest {
             BrowserObservabilityRecorder.recordWarning("network", "Network capture is not supported by this driver.");
 
             String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
-            new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+            new tools.jackson.databind.ObjectMapper().readTree(json);
 
             Assert.assertTrue(json.contains("\"network\": ["), json);
             Assert.assertTrue(json.contains("\"method\": \"POST\""), json);

@@ -1,6 +1,6 @@
 package com.shaft.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.pilot.ai.AiResponseStatus;

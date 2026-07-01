@@ -14,16 +14,10 @@
       "sha256": "3a6278740807c49f25ebe39172f4912a247187b5d1d57b05cd35dfaad04d4628"
     },
     {
-      "coordinate": "com.deque.html.axe-core:dequeutilites:jar:4.11.3",
+      "coordinate": "com.deque.html.axe-core:dequeutilites:jar:4.12.0",
       "scope": "compile",
-      "compressedBytes": 23942,
-      "sha256": "151b17bd5e557e558ff36dd4ce1ad810fa4af7a3b92c681d9879e63eed543e29"
-    },
-    {
-      "coordinate": "com.deque.html.axe-core:selenium:jar:4.11.3",
-      "scope": "compile",
-      "compressedBytes": 176113,
-      "sha256": "4a73d985434b8e9a296479c6bd5da24ee4acf153e003ec36337adda909b982ec"
+      "compressedBytes": 23943,
+      "sha256": "5b87cfbbfa2f01b87e8c63e5f2fd85ff27580eca978728920d627a9f28ccd88a"
     },
     {
       "coordinate": "com.epam.healenium:healenium-web:jar:3.6.0",
@@ -62,40 +56,40 @@
       "sha256": "5cf40ab0cc77828ab2b875b1f3ecd71c8295d7721933476abc2e08fddcea164a"
     },
     {
-      "coordinate": "com.fasterxml.jackson.core:jackson-annotations:jar:2.21",
+      "coordinate": "com.fasterxml.jackson.core:jackson-annotations:jar:2.22",
       "scope": "compile",
-      "compressedBytes": 82104,
-      "sha256": "53ca085f4a150f703f49e1aabd935bd03b43e1ea3d55d135438292af22cef56b"
+      "compressedBytes": 84211,
+      "sha256": "21ddb598807d3a51a876704eb979d9296e1c6a6f47ab1826ff88c6d6a127a2d0"
     },
     {
-      "coordinate": "com.fasterxml.jackson.core:jackson-core:jar:2.22.0",
+      "coordinate": "com.fasterxml.jackson.core:jackson-core:jar:2.21.4",
       "scope": "compile",
-      "compressedBytes": 594162,
-      "sha256": "d2e8dd4df1e0f61b786ea06792f5bf4235d8278f158f3be6e997e955931c0c98"
+      "compressedBytes": 594183,
+      "sha256": "4b40a06396f239f8de2da57419adde6e94e5edc18a2171d471ea05eeed4e5c2d"
     },
     {
-      "coordinate": "com.fasterxml.jackson.core:jackson-databind:jar:2.21.2",
+      "coordinate": "com.fasterxml.jackson.core:jackson-databind:jar:2.21.4",
       "scope": "compile",
-      "compressedBytes": 1701926,
-      "sha256": "8c982f01f148d805f0aaac2339011244757e0df7c6ff8951f2fa3f433b8ed849"
+      "compressedBytes": 1702879,
+      "sha256": "3888e9e69ab66fbacaacc9aea0e9ffbf15368288e4aca468b024dba11c09fbf9"
     },
     {
-      "coordinate": "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar:2.18.3",
+      "coordinate": "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar:2.21.4",
       "scope": "compile",
-      "compressedBytes": 55579,
-      "sha256": "3ca00e47cfcb43e79438ddcfc8fc735e9ebac3824fb7769138609be6bd56e483"
+      "compressedBytes": 60606,
+      "sha256": "055eb4c008ab12f0cb63e93a6454463d032fde0fca85943d69f8dc7469489e4b"
     },
     {
-      "coordinate": "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:jar:2.22.0",
+      "coordinate": "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:jar:2.21.4",
       "scope": "compile",
-      "compressedBytes": 36036,
-      "sha256": "f1051ed0938aa5edb7567ab19c2c7e1fade58f7fbad43d99a74cb506389c1ac5"
+      "compressedBytes": 36040,
+      "sha256": "2dde4a8f1aad3306c040f56ff40da81c6d58dcef3434c00849c9bce09f56a074"
     },
     {
-      "coordinate": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.21.1",
+      "coordinate": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.21.4",
       "scope": "compile",
-      "compressedBytes": 136580,
-      "sha256": "4d63378b0a6b53733f086ebd301023ba211b9387e417bd584a5400320cd08b8d"
+      "compressedBytes": 136585,
+      "sha256": "d1ac4b98b70304e56448423589fde5e775b100889643ad1ead62cc7811633684"
     },
     {
       "coordinate": "com.github.ben-manes.caffeine:caffeine:jar:3.2.4",

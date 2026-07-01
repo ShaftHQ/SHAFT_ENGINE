@@ -1,8 +1,8 @@
 package com.shaft.mcp;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Confidence;
@@ -488,7 +488,7 @@ public class TraceService {
             node.set("networkFindings", JSON.valueToTree(summary.networkFindings()));
             node.set("consoleFindings", JSON.valueToTree(summary.consoleFindings()));
             return JSON.writeValueAsString(node);
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             return findingDetail(summary);
         }
     }
@@ -605,7 +605,7 @@ public class TraceService {
     private static JsonNode redactedJson(JsonNode node) {
         try {
             return JSON.readTree(redact(JSON.writeValueAsString(node)));
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             return JSON.createObjectNode();
         }
     }

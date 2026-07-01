@@ -1,7 +1,7 @@
 package com.shaft.mcp;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.awt.Desktop;
 import java.io.IOException;
@@ -406,7 +406,7 @@ final class McpMobileInspectorRecordingService {
     private String capabilitiesJson(McpMobileInspectorPlan plan) {
         try {
             return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(plan.appiumCapabilities());
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             return "{}";
         }
     }

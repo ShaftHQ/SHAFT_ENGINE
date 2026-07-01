@@ -1,9 +1,9 @@
 package com.shaft.ai.provider;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.pilot.ai.AiCapabilities;
 import com.shaft.pilot.ai.AiProvider;
 import com.shaft.pilot.ai.AiProviderAvailability;
@@ -115,7 +115,7 @@ public abstract class AbstractHttpAiProvider implements AiProvider {
             return AiResponse.failure(AiResponseStatus.ERROR, id(), configuration.model(),
                     "Provider request was interrupted.", Duration.between(started, Instant.now()),
                     request.deterministicFallback());
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             return AiResponse.failure(AiResponseStatus.INVALID_RESPONSE, id(), configuration.model(),
                     "Provider returned malformed JSON.", Duration.between(started, Instant.now()),
                     request.deterministicFallback());
@@ -140,7 +140,7 @@ public abstract class AbstractHttpAiProvider implements AiProvider {
 
     protected abstract ObjectNode buildPayload(AiRequest request, ProviderConfiguration configuration);
 
-    protected abstract JsonNode parseStructuredPayload(JsonNode response) throws JsonProcessingException;
+    protected abstract JsonNode parseStructuredPayload(JsonNode response) throws JacksonException;
 
     protected URI endpoint(ProviderConfiguration configuration) {
         return configuration.endpoint();

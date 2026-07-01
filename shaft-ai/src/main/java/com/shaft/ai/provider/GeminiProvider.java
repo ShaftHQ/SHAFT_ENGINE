@@ -1,9 +1,9 @@
 package com.shaft.ai.provider;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.pilot.ai.AiCapabilities;
 import com.shaft.pilot.ai.AiImage;
 import com.shaft.pilot.ai.AiRequest;
@@ -77,10 +77,10 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
     }
 
     @Override
-    protected JsonNode parseStructuredPayload(JsonNode response) throws JsonProcessingException {
+    protected JsonNode parseStructuredPayload(JsonNode response) throws JacksonException {
         JsonNode text = response.path("candidates").path(0).path("content").path("parts").path(0).path("text");
         if (!text.isTextual()) {
-            throw new JsonProcessingException("Missing candidate text") {
+            throw new JacksonException("Missing candidate text") {
             };
         }
         return JSON.readTree(text.asText());

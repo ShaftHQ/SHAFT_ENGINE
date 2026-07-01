@@ -1,8 +1,8 @@
 package com.shaft.ai.provider;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.shaft.driver.SHAFT;
@@ -249,7 +249,7 @@ class ProviderConformanceTest {
                 .put("type", "object")
                 .set("properties", JSON.createObjectNode()
                         .set("answer", JSON.createObjectNode().put("type", "string")));
-        ((com.fasterxml.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
+        ((tools.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
         boolean local = "ollama".equals(providerId);
         ApprovalPolicy approval = new ApprovalPolicy(local, !local, EnumSet.allOf(EvidenceCategory.class));
         return AiRequest.builder("provider-conformance", schema)
@@ -266,7 +266,7 @@ class ProviderConformanceTest {
                 .put("type", "object")
                 .set("properties", JSON.createObjectNode()
                         .set("answer", JSON.createObjectNode().put("type", "string")));
-        ((com.fasterxml.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
+        ((tools.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
         return AiRequest.builder("provider-conformance", schema)
                 .text("bounded evidence")
                 .budget(new AiBudget(1_000, 100, java.math.BigDecimal.ONE))
@@ -310,7 +310,7 @@ class ProviderConformanceTest {
                 Arguments.of(providerId, FailureCase.SCHEMA_VIOLATION, AiResponseStatus.INVALID_RESPONSE)));
     }
 
-    private static String doctorPayload() throws JsonProcessingException {
+    private static String doctorPayload() throws JacksonException {
         return JSON.writeValueAsString(Map.of(
                 "schemaVersion", "1.0",
                 "observations", List.of(Map.of(

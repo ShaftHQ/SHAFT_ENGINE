@@ -1,7 +1,7 @@
 package com.shaft.capture.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.NullNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.NullNode;
 
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;

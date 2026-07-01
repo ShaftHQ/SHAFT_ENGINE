@@ -1,6 +1,6 @@
 package com.shaft.pilot.json;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -102,7 +102,7 @@ public final class JsonSchemaValidator {
             }
             if (schema.path("additionalProperties").isBoolean()
                     && !schema.path("additionalProperties").asBoolean()) {
-                value.fieldNames().forEachRemaining(name -> {
+                value.forEachEntry((name, ignored) -> {
                     if (!properties.has(name)) {
                         errors.add(path + "." + name + " is not allowed.");
                     }

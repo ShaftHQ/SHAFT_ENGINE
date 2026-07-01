@@ -1,11 +1,12 @@
 package com.shaft.tools.io.internal;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.tools.io.ReportManager;
@@ -42,9 +43,9 @@ public final class HttpContractRecorder {
     private static final String MASKED = "********";
     private static final String NORMALIZED = "<normalized>";
     private static final String SCHEMA_VERSION = "1.0";
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .enable(SerializationFeature.INDENT_OUTPUT)
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .enable(SerializationFeature.INDENT_OUTPUT, SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
     private static final Pattern UUID_PATTERN = Pattern.compile(
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
     private static final ThreadLocal<RecordingSession> RECORDING = new ThreadLocal<>();
@@ -355,7 +356,7 @@ public final class HttpContractRecorder {
             Contract contract = MAPPER.readValue(path.toFile(), Contract.class);
             return new Contract(value(contract.schemaVersion()).isBlank() ? SCHEMA_VERSION : contract.schemaVersion(),
                     contract.interactions() == null ? List.of() : contract.interactions());
-        } catch (IOException e) {
+        } catch (RuntimeException e) {
             throw new IllegalStateException("Could not read HTTP contract from " + path, e);
         }
     }
@@ -539,7 +540,7 @@ public final class HttpContractRecorder {
         try {
             JsonNode parsed = MAPPER.readTree(value);
             return MAPPER.writeValueAsString(redactJson("", parsed));
-        } catch (IOException e) {
+        } catch (RuntimeException e) {
             return FailureTraceReporter.redact(value);
         }
     }
@@ -563,7 +564,7 @@ public final class HttpContractRecorder {
     private static JsonNode redactObject(JsonNode node) {
         ObjectNode object = MAPPER.createObjectNode();
         TreeMap<String, JsonNode> fields = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        node.fields().forEachRemaining(entry -> fields.put(entry.getKey(), entry.getValue()));
+        node.forEachEntry(fields::put);
         fields.forEach((fieldName, fieldValue) -> object.set(fieldName, redactJson(fieldName, fieldValue)));
         return object;
     }

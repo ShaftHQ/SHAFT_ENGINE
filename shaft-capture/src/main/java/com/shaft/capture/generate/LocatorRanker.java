@@ -1,6 +1,6 @@
 package com.shaft.capture.generate;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.shaft.capture.model.ElementSnapshot;
 import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.LocatorCandidate;

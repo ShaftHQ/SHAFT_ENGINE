@@ -1,7 +1,7 @@
 package com.shaft.heal.internal;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.heal.HealingConfiguration;
 import com.shaft.heal.ShaftHeal;
 import com.shaft.heal.model.HealingReport;
@@ -27,7 +27,7 @@ final class HealingReportWriter {
         String content;
         try {
             content = JSON.writerWithDefaultPrettyPrinter().writeValueAsString(report) + "\n";
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             ReportManager.logDiscrete("SHAFT Heal report serialization failed.");
             return;
         }

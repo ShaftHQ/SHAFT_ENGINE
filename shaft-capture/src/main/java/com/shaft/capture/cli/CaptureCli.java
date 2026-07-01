@@ -1,8 +1,7 @@
 package com.shaft.capture.cli;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.capture.control.CaptureControlClient;
 import com.shaft.capture.control.CaptureControlFiles;
 import com.shaft.capture.control.CaptureControlServer;
@@ -60,9 +59,7 @@ public final class CaptureCli {
     private static final DateTimeFormatter FILE_TIME = DateTimeFormatter
             .ofPattern("yyyyMMdd-HHmmss")
             .withZone(ZoneOffset.UTC);
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private static final PrintWriter OUTPUT = new PrintWriter(
             new OutputStreamWriter(new FileOutputStream(FileDescriptor.out), StandardCharsets.UTF_8), true);
     private static final PrintWriter ERROR = new PrintWriter(
@@ -420,7 +417,7 @@ public final class CaptureCli {
     private static void printJson(Object value, String failureMessage) {
         try {
             OUTPUT.println(MAPPER.writeValueAsString(value));
-        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+        } catch (tools.jackson.core.JacksonException exception) {
             throw new IllegalStateException(failureMessage, exception);
         }
     }

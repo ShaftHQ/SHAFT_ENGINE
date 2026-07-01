@@ -1,6 +1,6 @@
 package com.shaft.doctor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.doctor.cli.DoctorCli;
 import com.shaft.doctor.ai.DoctorAiAnalysisService;
 import com.shaft.doctor.analysis.DeterministicRuleEngine;
@@ -128,7 +128,7 @@ class DoctorAnalyzerTest {
         writeResult(input.resolve("secret-result.json"), "failed",
                 "NoSuchElementException token=" + canary, "Authorization: Bearer " + canary,
                 "privacy", 1);
-        var resultTree = (com.fasterxml.jackson.databind.node.ObjectNode) MAPPER.readTree(
+        var resultTree = (tools.jackson.databind.node.ObjectNode) MAPPER.readTree(
                 input.resolve("secret-result.json").toFile());
         resultTree.set("parameters", MAPPER.valueToTree(List.of(
                 Map.of("name", "password", "value", canary))));
@@ -334,7 +334,7 @@ class DoctorAnalyzerTest {
                 StandardCharsets.UTF_8);
         Path resultPath = input.resolve("attachment-result.json");
         writeResult(resultPath, "failed", "", "", "attachment", 1);
-        var tree = (com.fasterxml.jackson.databind.node.ObjectNode) MAPPER.readTree(resultPath.toFile());
+        var tree = (tools.jackson.databind.node.ObjectNode) MAPPER.readTree(resultPath.toFile());
         tree.set("attachments", MAPPER.valueToTree(List.of(
                 Map.of(
                         "name", "SHAFT action history log",
@@ -375,7 +375,7 @@ class DoctorAnalyzerTest {
                 """);
         Path resultPath = input.resolve("diagnostics-result.json");
         writeResult(resultPath, "failed", "", "", "diagnostics", 1);
-        var tree = (com.fasterxml.jackson.databind.node.ObjectNode) MAPPER.readTree(resultPath.toFile());
+        var tree = (tools.jackson.databind.node.ObjectNode) MAPPER.readTree(resultPath.toFile());
         tree.set("attachments", MAPPER.valueToTree(List.of(Map.of(
                 "name", "shaft-diagnostics",
                 "source", "shaft-diagnostics.zip",

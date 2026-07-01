@@ -1,9 +1,9 @@
 package com.shaft.ai.provider;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.pilot.ai.AiCapabilities;
 import com.shaft.pilot.ai.AiImage;
 import com.shaft.pilot.ai.AiRequest;
@@ -73,13 +73,13 @@ public final class AnthropicProvider extends AbstractHttpAiProvider {
     }
 
     @Override
-    protected JsonNode parseStructuredPayload(JsonNode response) throws JsonProcessingException {
+    protected JsonNode parseStructuredPayload(JsonNode response) throws JacksonException {
         for (JsonNode content : response.path("content")) {
             if ("text".equals(content.path("type").asText())) {
                 return JSON.readTree(content.path("text").asText());
             }
         }
-        throw new JsonProcessingException("Missing content text") {
+        throw new JacksonException("Missing content text") {
         };
     }
 

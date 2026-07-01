@@ -1,7 +1,7 @@
 package testPackage.legacy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.driver.SHAFT;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONCompare;

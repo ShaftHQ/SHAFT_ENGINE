@@ -1,7 +1,8 @@
 package com.shaft.heal.internal;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.heal.HealingConfiguration;
 import com.shaft.heal.model.HealingContext;
 import com.shaft.heal.model.HealingPlatform;
@@ -27,8 +28,9 @@ import java.util.function.Supplier;
 final class HealingHistoryStore {
     private static final Object LOCK = new Object();
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final ObjectMapper CHECKSUM_JSON = new ObjectMapper()
-            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+    private static final ObjectMapper CHECKSUM_JSON = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
     private final HealingConfiguration configuration;
 
     HealingHistoryStore(HealingConfiguration configuration) {
@@ -116,7 +118,7 @@ final class HealingHistoryStore {
             }
             quarantine(path);
             return empty();
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             quarantine(path);
             return empty();
         }
@@ -145,7 +147,7 @@ final class HealingHistoryStore {
             } catch (AtomicMoveNotSupportedException exception) {
                 Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
             }
-        } catch (IOException ignored) {
+        } catch (IOException | RuntimeException ignored) {
             // Optional history must never change the action result.
         } finally {
             if (temporary != null) {
@@ -185,7 +187,7 @@ final class HealingHistoryStore {
             content.put("visualReference", record.visualReference());
             content.put("updatedAt", record.updatedAt());
             return HealingSupport.sha256(CHECKSUM_JSON.writeValueAsString(content));
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             return "";
         }
     }
@@ -281,7 +283,7 @@ final class HealingHistoryStore {
             content.put("visualReference", record.visualReference());
             content.put("updatedAt", record.updatedAt());
             return HealingSupport.sha256(JSON.writeValueAsString(content));
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             return "";
         }
     }

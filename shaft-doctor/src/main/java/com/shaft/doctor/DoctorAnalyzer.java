@@ -1,7 +1,8 @@
 package com.shaft.doctor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.doctor.ai.DoctorAiAnalysisService;
 import com.shaft.doctor.analysis.DeterministicRuleEngine;
 import com.shaft.doctor.collect.EvidenceCollector;
@@ -33,8 +34,9 @@ import java.util.Set;
  * Offline deterministic SHAFT evidence analyzer.
  */
 public final class DoctorAnalyzer {
-    private static final ObjectMapper JSON = new ObjectMapper()
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
     private static final Set<String> FAILURE_STATUSES = Set.of("failed", "broken");
     private static final Set<String> NON_FINAL_ISSUE_STATUSES = Set.of("failed", "broken", "skipped");
 

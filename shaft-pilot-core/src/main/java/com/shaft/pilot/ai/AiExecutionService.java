@@ -1,7 +1,7 @@
 package com.shaft.pilot.ai;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.pilot.audit.AiAuditEvent;
 import com.shaft.pilot.audit.AiAuditSink;
 import com.shaft.pilot.audit.ShaftAiAuditSink;
@@ -268,7 +268,7 @@ public final class AiExecutionService {
         }
         try {
             size += JSON.writeValueAsBytes(request.desiredResponseSchema()).length;
-        } catch (JsonProcessingException ignored) {
+        } catch (JacksonException ignored) {
             size += request.desiredResponseSchema().toString().getBytes(StandardCharsets.UTF_8).length;
         }
         return size;

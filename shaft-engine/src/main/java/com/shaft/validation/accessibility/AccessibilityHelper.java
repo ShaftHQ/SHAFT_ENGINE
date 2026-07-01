@@ -1,8 +1,8 @@
 package com.shaft.validation.accessibility;
 
+import com.deque.html.axecore.results.CheckedNode;
 import com.deque.html.axecore.results.Results;
 import com.deque.html.axecore.results.Rule;
-import com.deque.html.axecore.selenium.AxeBuilder;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.LoadState;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 /**
  * Internal helper that drives WCAG-based accessibility analysis using the
  * <a href="https://github.com/dequelabs/axe-core">axe-core</a> engine via
- * {@link com.deque.html.axecore.selenium.AxeBuilder}.
+ * the bundled axe JavaScript runner.
  *
  * <p>The class exposes static methods that run an axe scan against a live
  * {@link WebDriver} session, persist the results as JSON and an interactive HTML
@@ -264,13 +264,7 @@ public class AccessibilityHelper {
 
             waitForDomStability(driver, DOM_STABLE_MILLIS, DOM_TIMEOUT_SECONDS);
 
-            AxeBuilder axeBuilder = new AxeBuilder()
-                    .withTags(config.getTags())
-                    .include(config.getContext());
-            axeBuilder.setOptions("{ \"resultTypes\": [\"violations\", \"incomplete\", \"inapplicable\", \"passes\"] }");
-
-            Results results = axeBuilder.analyze(driver);
-            JSONObject responseJSON = convertResultsToJSON(results);
+            JSONObject responseJSON = runSeleniumAxe(driver, config);
 
             String timestamp = DATE_FORMAT.format(ZonedDateTime.now());
             Files.createDirectories(Paths.get(config.getReportsDir()));
@@ -360,8 +354,8 @@ public class AccessibilityHelper {
      */
     public static boolean hasCriticalViolations(WebDriver driver, String pageName) {
         try {
-            Results results = new AxeBuilder().analyze(driver);
-            return !results.getViolations().isEmpty();
+            JSONObject responseJSON = runSeleniumAxe(driver, new AccessibilityConfig());
+            return length(responseJSON, "violations") > 0;
         } catch (Exception e) {
             logger.error("Could not check critical accessibility violations for page '{}'.", pageName, e);
             throw new RuntimeException("Could not check critical accessibility violations", e);
@@ -387,8 +381,8 @@ public class AccessibilityHelper {
      */
     public static Map<String, Integer> getViolationsByType(WebDriver driver) {
         try {
-            Results results = new AxeBuilder().analyze(driver);
-            return results.getViolations().stream()
+            JSONObject responseJSON = runSeleniumAxe(driver, new AccessibilityConfig());
+            return rulesFrom(responseJSON.optJSONArray("violations")).stream()
                     .collect(Collectors.groupingBy(
                             rule -> getWcagModelFromTags(rule.getTags()),
                             Collectors.summingInt(rule -> rule.getNodes().size())
@@ -414,8 +408,8 @@ public class AccessibilityHelper {
      */
     public static boolean isAccessible(WebDriver driver) {
         try {
-            Results results = new AxeBuilder().analyze(driver);
-            return results.getViolations().isEmpty();
+            JSONObject responseJSON = runSeleniumAxe(driver, new AccessibilityConfig());
+            return length(responseJSON, "violations") == 0;
         } catch (Exception e) {
             logger.error("Could not perform quick accessibility check.", e);
             return false;
@@ -478,20 +472,13 @@ public class AccessibilityHelper {
         try {
             logger.debug("Running accessibility analysis for page '{}'.", pageName);
 
-            AxeBuilder axeBuilder = new AxeBuilder()
-                    .withTags(config.getTags())
-                    .include(config.getContext());
-            if (config.isIncludePasses()) {
-                axeBuilder.setOptions("{ \"resultTypes\": [\"violations\", \"incomplete\", \"inapplicable\", \"passes\"] }");
-            }
-
-            Results results = axeBuilder.analyze(driver);
+            JSONObject responseJSON = runSeleniumAxe(driver, config);
 
             // --- Handle context not found or empty results ---
-            if ((results.getViolations() == null || results.getViolations().isEmpty())
-                    && (results.getIncomplete() == null || results.getIncomplete().isEmpty())
-                    && (results.getPasses() == null || results.getPasses().isEmpty())
-                    && (results.getInapplicable() == null || results.getInapplicable().isEmpty())) {
+            if (length(responseJSON, "violations") == 0
+                    && length(responseJSON, "incomplete") == 0
+                    && length(responseJSON, "passes") == 0
+                    && length(responseJSON, "inapplicable") == 0) {
 
                 throw new IllegalArgumentException(
                         "Accessibility analysis failed: the provided context selector '"
@@ -499,26 +486,21 @@ public class AccessibilityHelper {
                                 + pageName + "'.");
             }
 
-            // Ensure lists are not null
-            if (results.getViolations() == null) results.setViolations(new ArrayList<>());
-            if (results.getIncomplete() == null) results.setIncomplete(new ArrayList<>());
-            if (results.getPasses() == null) results.setPasses(new ArrayList<>());
-            if (results.getInapplicable() == null) results.setInapplicable(new ArrayList<>());
-
-            JSONObject responseJSON = convertResultsToJSON(results);
-
             // Calculate accessibility score.
-            int violationsCount = results.getViolations().size();
-            int passesCount = results.getPasses().size();
+            List<Rule> violations = rulesFrom(responseJSON.optJSONArray("violations"));
+            List<Rule> passes = rulesFrom(responseJSON.optJSONArray("passes"));
+            int violationsCount = violations.size();
+            int passesCount = passes.size();
             int totalChecks = violationsCount + passesCount;
             double accessibilityScore = totalChecks > 0 ? ((double) passesCount / totalChecks) * 100.0 : 0.0;
 
             // Prepare result object
             AccessibilityResult result = new AccessibilityResult()
                     .setPageName(pageName)
-                    .setViolations(results.getViolations())
+                    .setViolations(violations)
                     .setViolationsCount(violationsCount)
                     .setPassesCount(passesCount)
+                    .setPasses(passes)
                     .setScore(accessibilityScore)
                     .setTimestamp(LocalDateTime.now().toString());
 
@@ -867,6 +849,37 @@ public class AccessibilityHelper {
         }
     }
 
+    private static JSONObject runSeleniumAxe(WebDriver driver, AccessibilityConfig config) throws IOException {
+        if (!(driver instanceof JavascriptExecutor executor)) {
+            throw new IllegalArgumentException("WebDriver must support JavaScript execution.");
+        }
+        executor.executeScript(readAxeScript());
+        Map<String, Object> request = new HashMap<>();
+        request.put("context", config.getContext());
+        request.put("tags", config.getTags());
+        request.put("includePasses", config.isIncludePasses());
+        Object rawResults = executor.executeAsyncScript("""
+                const done = arguments[arguments.length - 1];
+                const request = arguments[0] || {};
+                const options = {
+                  resultTypes: request.includePasses
+                    ? ['violations', 'incomplete', 'inapplicable', 'passes']
+                    : ['violations', 'incomplete', 'inapplicable']
+                };
+                if (request.tags && request.tags.length) {
+                  options.runOnly = { type: 'tag', values: request.tags };
+                }
+                window.axe.run(request.context || document, options)
+                  .then(done)
+                  .catch(error => done({ error: error && error.message ? error.message : String(error) }));
+                """, request);
+        JSONObject responseJSON = normalizePlaywrightAxeJson(rawResults);
+        if (responseJSON.has("error")) {
+            throw new IllegalArgumentException(responseJSON.optString("error"));
+        }
+        return responseJSON;
+    }
+
     @SuppressWarnings("unchecked")
     private static JSONObject normalizePlaywrightAxeJson(Object rawResults) {
         JSONObject json = rawResults instanceof Map<?, ?> map
@@ -913,8 +926,25 @@ public class AccessibilityHelper {
             rule.setHelpUrl(object.optString("helpUrl"));
             rule.setImpact(object.optString("impact", "none"));
             rule.setTags(toStringList(object.optJSONArray("tags")));
-            rule.setNodes(new ArrayList<>());
+            rule.setNodes(checkedNodesFrom(object.optJSONArray("nodes")));
             converted.add(rule);
+        }
+        return converted;
+    }
+
+    private static List<CheckedNode> checkedNodesFrom(JSONArray nodes) {
+        if (nodes == null) {
+            return new ArrayList<>();
+        }
+        List<CheckedNode> converted = new ArrayList<>();
+        for (int i = 0; i < nodes.length(); i++) {
+            JSONObject object = nodes.getJSONObject(i);
+            CheckedNode node = new CheckedNode();
+            node.setHtml(object.optString("html"));
+            node.setImpact(object.optString("impact", null));
+            node.setTarget(object.has("target") ? object.get("target") : new ArrayList<>());
+            node.setFailureSummary(object.optString("failureSummary"));
+            converted.add(node);
         }
         return converted;
     }

@@ -1,13 +1,13 @@
 package com.shaft.api;
 
 import com.shaft.api.internal.OpenApiCoverageReporter;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
@@ -320,7 +320,7 @@ public class RestActions {
         String body = getJsonResponseBody(response, responseType.getName());
         try {
             return JACKSON_MAPPER.readValue(body, responseType);
-        } catch (JsonProcessingException rootCauseException) {
+        } catch (JacksonException rootCauseException) {
             String message = "Failed to map response body to " + responseType.getName() + ".";
             ReportManager.log(message, Level.ERROR);
             throw new IllegalArgumentException(message, rootCauseException);
@@ -344,9 +344,10 @@ public class RestActions {
 
         String targetType = typeReference.getType().getTypeName();
         String body = getJsonResponseBody(response, targetType);
+        JavaType javaType = JACKSON_MAPPER.getTypeFactory().constructType(typeReference.getType());
         try {
-            return JACKSON_MAPPER.readValue(body, typeReference);
-        } catch (JsonProcessingException rootCauseException) {
+            return JACKSON_MAPPER.readValue(body, javaType);
+        } catch (JacksonException rootCauseException) {
             String message = "Failed to map response body to " + targetType + ".";
             ReportManager.log(message, Level.ERROR);
             throw new IllegalArgumentException(message, rootCauseException);
@@ -373,7 +374,7 @@ public class RestActions {
         JavaType listType = JACKSON_MAPPER.getTypeFactory().constructCollectionType(List.class, elementType);
         try {
             return JACKSON_MAPPER.readValue(body, listType);
-        } catch (JsonProcessingException rootCauseException) {
+        } catch (JacksonException rootCauseException) {
             String message = "Failed to map response body to " + targetType + ".";
             ReportManager.log(message, Level.ERROR);
             throw new IllegalArgumentException(message, rootCauseException);
@@ -543,9 +544,9 @@ public class RestActions {
             List<Object> jsonList = null;
             try {
                 JSONArray jsonArray = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
-                jsonList = JACKSON_MAPPER.readValue(Objects.requireNonNull(jsonArray).toString(), new TypeReference<>() {
-                });
-            } catch (JSONException | JsonProcessingException rootCauseException) {
+                JavaType listType = JACKSON_MAPPER.getTypeFactory().constructCollectionType(List.class, Object.class);
+                jsonList = JACKSON_MAPPER.readValue(Objects.requireNonNull(jsonArray).toString(), listType);
+            } catch (JSONException | JacksonException rootCauseException) {
                 ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
                 failAction(jsonPath, rootCauseException);
             }

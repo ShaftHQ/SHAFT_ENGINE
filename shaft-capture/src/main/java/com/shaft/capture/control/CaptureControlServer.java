@@ -1,9 +1,8 @@
 package com.shaft.capture.control;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStatus;
@@ -28,9 +27,7 @@ public final class CaptureControlServer implements AutoCloseable {
     private final CaptureControlFiles files;
     private final String token;
     private final Runnable stoppedCallback;
-    private final ObjectMapper mapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    private final ObjectMapper mapper = JsonMapper.builder().build();
     private final HttpServer server;
 
     /**
@@ -151,7 +148,7 @@ public final class CaptureControlServer implements AutoCloseable {
                 throw new BadRequestException("Capture control request is too large.");
             }
             return mapper.readValue(body, type);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new BadRequestException("Capture control request is invalid.");
         } catch (IOException exception) {
             throw new BadRequestException("Capture control request could not be read.");

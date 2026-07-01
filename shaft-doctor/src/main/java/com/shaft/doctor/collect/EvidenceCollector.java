@@ -1,11 +1,12 @@
 package com.shaft.doctor.collect;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.util.DefaultIndenter;
+import tools.jackson.core.util.DefaultPrettyPrinter;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.doctor.DoctorAnalysisRequest;
 import com.shaft.doctor.format.DoctorFormatException;
 import com.shaft.doctor.format.DoctorJsonCodec;
@@ -46,8 +47,9 @@ public final class EvidenceCollector {
     private static final Set<String> SCREENSHOT_EXTENSIONS = Set.of(
             ".png", ".jpg", ".jpeg", ".gif", ".webp");
 
-    private final ObjectMapper mapper = new ObjectMapper()
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    private final ObjectMapper mapper = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
     private final DoctorJsonCodec codec = new DoctorJsonCodec();
     private final DefaultPrettyPrinter printer = prettyPrinter();
 
@@ -212,7 +214,7 @@ public final class EvidenceCollector {
                 throw new IllegalArgumentException("Allure result root is not an object.");
             }
             JsonNode sanitized = redactor.redact(parsed);
-            byte[] retained = mapper.writer(printer)
+            byte[] retained = mapper.writer().with(printer)
                     .writeValueAsBytes(sanitized);
             retained = limit(retained, request.maxItemBytes());
             Map<String, String> attributes = allureAttributes(sanitized);
@@ -234,7 +236,7 @@ public final class EvidenceCollector {
                         "allure-exception-chain", items, state, request.maxBundleBytes());
             }
             collectAllureAttachments(parsed, file, roots, request, redactor, items, state);
-        } catch (IOException | IllegalArgumentException exception) {
+        } catch (RuntimeException exception) {
             byte[] retained = "Malformed or truncated Allure result JSON."
                     .getBytes(StandardCharsets.UTF_8);
             addTextItem(sourceReference, EvidenceCategory.ALLURE_RESULT, "text/plain",
@@ -258,9 +260,9 @@ public final class EvidenceCollector {
         String sanitized;
         if ("application/json".equals(mediaType)) {
             try {
-                sanitized = mapper.writer(printer)
+                sanitized = mapper.writer().with(printer)
                         .writeValueAsString(redactor.redact(mapper.readTree(text)));
-            } catch (JsonProcessingException exception) {
+            } catch (JacksonException exception) {
                 sanitized = redactor.redact(text);
             }
         } else {
@@ -327,7 +329,7 @@ public final class EvidenceCollector {
             }
         }
         for (JsonNode child : node) {
-            if (child.isContainerNode()) {
+            if (child.isObject() || child.isArray()) {
                 collectAllureAttachments(child, resultFile, roots, request, redactor, items, state);
             }
         }
@@ -381,8 +383,8 @@ public final class EvidenceCollector {
         try {
             JsonNode redacted = redactor.redact(mapper.readTree(text));
             schemaVersion = redacted.path("schemaVersion").asText("");
-            sanitized = mapper.writer(printer).writeValueAsString(redacted);
-        } catch (JsonProcessingException exception) {
+            sanitized = mapper.writer().with(printer).writeValueAsString(redacted);
+        } catch (JacksonException exception) {
             sanitized = redactor.redact(text);
             invalid = true;
         }

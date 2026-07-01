@@ -1,6 +1,6 @@
 package com.shaft.capture.generate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.CaptureFixtures;
 import com.shaft.capture.model.ElementSnapshot;
 import com.shaft.capture.model.EventContext;
@@ -68,7 +68,7 @@ class LocatorRankerTest {
 
     @Test
     void replayAndShadowContextAffectRankingDeterministically() {
-        var extensions = Map.<String, com.fasterxml.jackson.databind.JsonNode>of(
+        var extensions = Map.<String, tools.jackson.databind.JsonNode>of(
                 "shadowHosts", JSON.valueToTree(List.of("#host")),
                 "locatorReplay", JSON.valueToTree(Map.of(
                         "#username", "PASSED",

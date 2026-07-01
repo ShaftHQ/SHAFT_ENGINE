@@ -1,0 +1,5 @@
+# Temporary exception: SHAFT code uses tools.jackson 3.x, but Healenium 3.6.x
+# still requires com.fasterxml.jackson.databind at runtime. Remove this when
+# Healenium migrates or Jackson 2.x patched artifacts are available.
+allow-ghsas:
+  - GHSA-5jmj-h7xm-6q6v

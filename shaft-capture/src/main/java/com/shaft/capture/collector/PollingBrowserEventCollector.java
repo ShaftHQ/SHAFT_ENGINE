@@ -1,7 +1,6 @@
 package com.shaft.capture.collector;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;
@@ -145,7 +144,7 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
             Consumer<String> warningConsumer) {
         try {
             signalConsumer.accept(BrowserSignal.fromJson(mapper.writeValueAsString(item), contextId));
-        } catch (JsonProcessingException | RuntimeException exception) {
+        } catch (RuntimeException exception) {
             warningConsumer.accept("A malformed browser interaction signal was ignored.");
         }
     }

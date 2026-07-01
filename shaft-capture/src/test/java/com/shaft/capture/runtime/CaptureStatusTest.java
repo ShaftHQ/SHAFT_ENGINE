@@ -1,7 +1,6 @@
 package com.shaft.capture.runtime;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.model.CaptureReadiness;
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +37,7 @@ class CaptureStatusTest {
                 123,
                 Instant.parse("2026-01-02T03:04:05Z"));
 
-        String json = new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(risky);
+        String json = new ObjectMapper().writeValueAsString(risky);
 
         assertEquals(CaptureReadiness.State.READY, oldStyle.readiness());
         assertEquals(CaptureReadiness.State.RISKY, risky.readiness());

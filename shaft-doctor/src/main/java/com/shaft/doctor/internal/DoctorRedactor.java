@@ -1,8 +1,8 @@
 package com.shaft.doctor.internal;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.pilot.security.Redactor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -104,8 +104,7 @@ public final class DoctorRedactor {
         if (node instanceof ObjectNode object) {
             redactNamedValue(object);
             List<String> names = new ArrayList<>();
-            Iterator<String> iterator = object.fieldNames();
-            iterator.forEachRemaining(names::add);
+            object.forEachEntry((name, ignored) -> names.add(name));
             for (String name : names) {
                 JsonNode child = object.get(name);
                 if (isSensitive(name)) {

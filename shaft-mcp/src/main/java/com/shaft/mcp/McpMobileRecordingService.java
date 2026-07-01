@@ -1,6 +1,6 @@
 package com.shaft.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -164,7 +164,7 @@ final class McpMobileRecordingService {
     private McpMobileRecording read(Path path) {
         try {
             return mapper.readValue(path.toFile(), McpMobileRecording.class);
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalArgumentException("Mobile recording could not be read.", exception);
         }
     }

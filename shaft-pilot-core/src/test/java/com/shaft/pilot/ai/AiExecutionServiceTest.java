@@ -1,7 +1,7 @@
 package com.shaft.pilot.ai;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.pilot.config.PilotConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -229,7 +229,7 @@ class AiExecutionServiceTest {
                 .put("type", "object")
                 .set("properties", JSON.createObjectNode()
                         .set("answer", JSON.createObjectNode().put("type", "string")));
-        ((com.fasterxml.jackson.databind.node.ObjectNode) schema)
+        ((tools.jackson.databind.node.ObjectNode) schema)
                 .putArray("required").add("answer");
         return AiRequest.builder("unit-test", schema)
                 .text("password=top-secret")

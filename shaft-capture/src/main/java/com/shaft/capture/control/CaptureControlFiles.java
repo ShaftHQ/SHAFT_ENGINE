@@ -1,9 +1,8 @@
 package com.shaft.capture.control;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.capture.runtime.CaptureStartRequest;
 import com.shaft.capture.runtime.CaptureStatus;
 
@@ -20,9 +19,7 @@ import java.util.Set;
  * Atomic local state files used by the detached capture process.
  */
 public final class CaptureControlFiles {
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
 
     private final Path runtimeDirectory;
 
@@ -197,7 +194,7 @@ public final class CaptureControlFiles {
     private static void writeJson(Path path, Object value, boolean restricted) {
         try {
             writeText(path, MAPPER.writeValueAsString(value) + "\n", restricted);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("SHAFT Capture local control state could not be serialized.", exception);
         }
     }

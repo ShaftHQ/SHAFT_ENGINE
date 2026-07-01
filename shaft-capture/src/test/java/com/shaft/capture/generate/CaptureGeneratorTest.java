@@ -1,7 +1,7 @@
 package com.shaft.capture.generate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.CaptureFixtures;
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
