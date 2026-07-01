@@ -659,6 +659,8 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNotEquals(active.getBackground(), inactive.getBackground()),
+                () -> assertNotNull(inactive.getDisabledIcon()),
+                () -> assertEquals(inactive.getIcon().getIconWidth(), inactive.getDisabledIcon().getIconWidth()),
                 () -> assertTrue(active.isContentAreaFilled()),
                 () -> assertTrue(inactive.isContentAreaFilled()));
     }

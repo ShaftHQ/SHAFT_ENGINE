@@ -1,8 +1,11 @@
 package com.shaft.intellij.ui;
 
 import com.intellij.openapi.util.IconLoader;
+import com.intellij.ui.JBColor;
 
 import javax.swing.Icon;
+import java.awt.Component;
+import java.awt.Graphics;
 
 public final class ShaftIcons {
     public static final Icon ADD = load("add");
@@ -27,6 +30,29 @@ public final class ShaftIcons {
     }
 
     private static Icon load(String name) {
-        return IconLoader.getIcon("/icons/actions/" + name + ".svg", ShaftIcons.class);
+        Icon light = IconLoader.getIcon("/icons/actions/" + name + ".svg", ShaftIcons.class);
+        Icon dark = IconLoader.getIcon("/icons/actions/" + name + "_dark.svg", ShaftIcons.class);
+        return new ThemeIcon(light, dark);
+    }
+
+    private record ThemeIcon(Icon light, Icon dark) implements Icon {
+        @Override
+        public void paintIcon(Component component, Graphics graphics, int x, int y) {
+            icon().paintIcon(component, graphics, x, y);
+        }
+
+        @Override
+        public int getIconWidth() {
+            return icon().getIconWidth();
+        }
+
+        @Override
+        public int getIconHeight() {
+            return icon().getIconHeight();
+        }
+
+        private Icon icon() {
+            return JBColor.isBright() ? light : dark;
+        }
     }
 }

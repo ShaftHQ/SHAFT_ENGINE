@@ -5,8 +5,12 @@ import com.intellij.util.ui.JBUI;
 
 import javax.swing.JButton;
 import javax.swing.Icon;
+import java.awt.AlphaComposite;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.event.ActionListener;
 
 /**
@@ -16,6 +20,7 @@ public final class ShaftIconButtons {
     public static final int SIZE = 32;
     private static final JBColor ENABLED_BACKGROUND = new JBColor(new Color(0xF4F6F8), new Color(0x4E5963));
     private static final JBColor DISABLED_BACKGROUND = new JBColor(new Color(0xEAEDF1), new Color(0x3F444A));
+    private static final float DISABLED_ICON_OPACITY = 0.72F;
 
     private ShaftIconButtons() {
         throw new IllegalStateException("Utility class");
@@ -38,6 +43,7 @@ public final class ShaftIconButtons {
         Dimension size = JBUI.size(SIZE, SIZE);
         button.setText("");
         button.setIcon(icon);
+        button.setDisabledIcon(new OpacityIcon(icon, DISABLED_ICON_OPACITY));
         button.setToolTipText(tooltip);
         button.getAccessibleContext().setAccessibleName(accessibleName);
         button.setPreferredSize(size);
@@ -52,5 +58,28 @@ public final class ShaftIconButtons {
 
     private static JBColor backgroundFor(JButton button) {
         return button.isEnabled() ? ENABLED_BACKGROUND : DISABLED_BACKGROUND;
+    }
+
+    private record OpacityIcon(Icon delegate, float opacity) implements Icon {
+        @Override
+        public void paintIcon(Component component, Graphics graphics, int x, int y) {
+            Graphics2D copy = (Graphics2D) graphics.create();
+            try {
+                copy.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
+                delegate.paintIcon(component, copy, x, y);
+            } finally {
+                copy.dispose();
+            }
+        }
+
+        @Override
+        public int getIconWidth() {
+            return delegate.getIconWidth();
+        }
+
+        @Override
+        public int getIconHeight() {
+            return delegate.getIconHeight();
+        }
     }
 }
