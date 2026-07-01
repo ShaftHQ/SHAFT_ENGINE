@@ -10,6 +10,7 @@ import javax.swing.JLabel;
 import javax.swing.JPasswordField;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -109,6 +110,8 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(findByAccessibleName(panel, "Assistant provider type"));
         assertNotNull(findByAccessibleName(panel, "Assistant family"));
         assertNotNull(findByAccessibleName(panel, "Assistant runtime"));
+
+        collectAllButtons(panel).forEach(ShaftSettingsConfigurableTest::assertIconOnlySymmetric);
     }
 
     @Test
@@ -227,11 +230,45 @@ class ShaftSettingsConfigurableTest {
         return buttons;
     }
 
+    private static List<JButton> collectAllButtons(Component root) {
+        List<JButton> buttons = new ArrayList<>();
+        if (root instanceof JButton button && isShaftOwnedButton(button)) {
+            buttons.add(button);
+        }
+        if (root instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                buttons.addAll(collectAllButtons(child));
+            }
+        }
+        return buttons;
+    }
+
+    private static boolean isShaftOwnedButton(JButton button) {
+        return hasText(button.getText())
+                || hasText(button.getToolTipText())
+                || hasText(button.getAccessibleContext().getAccessibleName());
+    }
+
+    private static boolean hasText(String text) {
+        return text != null && !text.isBlank();
+    }
+
     private static void assertIcon(JButton button) {
         assertNotNull(button);
         assertNotNull(button.getIcon(), button.getText());
         assertTrue(button.getIcon().getIconWidth() > 0, button.getText());
         assertTrue(button.getIcon().getIconHeight() > 0, button.getText());
+    }
+
+    private static void assertIconOnlySymmetric(JButton button) {
+        assertIcon(button);
+        Dimension size = button.getPreferredSize();
+        assertAll(
+                () -> assertEquals("", button.getText()),
+                () -> assertEquals(size.width, size.height),
+                () -> assertEquals(32, size.width),
+                () -> assertNotNull(button.getToolTipText()),
+                () -> assertFalse(button.getToolTipText().isBlank()));
     }
 
     private static Component findByAccessibleName(Component root, String accessibleName) {

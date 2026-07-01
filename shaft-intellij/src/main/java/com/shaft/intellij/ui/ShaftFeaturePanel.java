@@ -2,7 +2,6 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.intellij.icons.AllIcons;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
@@ -117,26 +116,26 @@ final class ShaftFeaturePanel extends JPanel {
         progress.setVisible(false);
 
         runButton = new JButton("Run");
-        runButton.setIcon(AllIcons.Actions.Execute);
         runButton.getAccessibleContext().setAccessibleName("Run SHAFT tool");
+        ShaftIconButtons.apply(runButton, ShaftIcons.SEND);
         runButton.addActionListener(event -> run(project));
         cancelButton = new JButton("Cancel");
-        cancelButton.setIcon(AllIcons.Actions.Cancel);
         cancelButton.getAccessibleContext().setAccessibleName("Cancel SHAFT tool");
+        ShaftIconButtons.apply(cancelButton, ShaftIcons.CANCEL);
         cancelButton.setEnabled(false);
         cancelButton.addActionListener(event -> cancelCurrent());
         restoreDefaultsButton = new JButton("Restore defaults");
-        restoreDefaultsButton.setIcon(AllIcons.General.Reset);
         restoreDefaultsButton.getAccessibleContext().setAccessibleName("Restore default SHAFT tool arguments");
+        ShaftIconButtons.apply(restoreDefaultsButton, ShaftIcons.RESET);
         restoreDefaultsButton.addActionListener(event -> restoreDefaults());
         copyOutputButton = new JButton("Copy output");
-        copyOutputButton.setIcon(AllIcons.Actions.Copy);
         copyOutputButton.getAccessibleContext().setAccessibleName("Copy SHAFT tool output");
+        ShaftIconButtons.apply(copyOutputButton, ShaftIcons.COPY);
         copyOutputButton.setEnabled(false);
         copyOutputButton.addActionListener(event -> copyOutput());
         refreshCatalogButton = new JButton("Refresh tools");
-        refreshCatalogButton.setIcon(AllIcons.Actions.ForceRefresh);
         refreshCatalogButton.getAccessibleContext().setAccessibleName("Refresh SHAFT MCP tool catalog");
+        ShaftIconButtons.apply(refreshCatalogButton, ShaftIcons.RERUN);
         refreshCatalogButton.setVisible(catalogRefreshEnabled);
         refreshCatalogButton.addActionListener(event -> refreshCatalog(project));
         search.getDocument().addDocumentListener(new SimpleDocumentListener(this::refreshTools));
@@ -463,8 +462,8 @@ final class ShaftFeaturePanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panel.add(new JLabel("Configure SHAFT MCP to run Assistant and Tools."));
         JButton openSettings = new JButton("Open Settings");
-        openSettings.setIcon(AllIcons.General.Settings);
         openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");
+        ShaftIconButtons.apply(openSettings, ShaftIcons.SETTINGS);
         openSettings.addActionListener(event -> {
             if (project != null) {
                 ShowSettingsUtil.getInstance().showSettingsDialog(project, "SHAFT");

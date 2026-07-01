@@ -3,7 +3,6 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.intellij.icons.AllIcons;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
@@ -64,8 +63,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         setBorder(JBUI.Borders.empty(12));
 
         install = new JButton("Install / Update SHAFT MCP");
-        install.setIcon(AllIcons.Actions.Download);
         install.getAccessibleContext().setAccessibleName("Install or update SHAFT MCP");
+        ShaftIconButtons.apply(install, ShaftIcons.DOWNLOAD);
         install.addActionListener(event -> installMcp());
         installProgress = new JProgressBar();
         installProgress.setIndeterminate(true);
@@ -80,8 +79,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         runtime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
         runtime.getAccessibleContext().setAccessibleName("Assistant runtime");
         test = new JButton("Test connection and start chatting");
-        test.setIcon(AllIcons.Actions.Execute);
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
+        ShaftIconButtons.apply(test, ShaftIcons.SEND);
         test.addActionListener(event -> testConnection());
         installStatus = new JLabel();
         installStatus.getAccessibleContext().setAccessibleName("SHAFT MCP install status");

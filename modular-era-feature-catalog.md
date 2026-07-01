@@ -5,8 +5,8 @@ SHAFT is now a modular Java 25 automation framework with a lean core, opt-in pow
 This catalog is written for framework users who want to know what changed, what they can adopt now, and which command or API gets them started.
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
-- Catalog source: current PR branch based on `origin/main` at `35eedca6e3`
-- Fresh evidence captured: `2026-06-30`
+- Catalog source: current PR branch based on `origin/main` at `902bc60dbe`
+- Fresh evidence captured: `2026-07-01`
 
 ## Start Here
 
@@ -264,7 +264,7 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 | Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Recorder` tab |
 | Editor action | Start from the current Java caret context through the `Record SHAFT Flow Here` action in Tools or the editor popup menu. | `Record SHAFT Flow Here` |
 
-The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps mode and provider/runtime selectors in the bottom composer, uses JetBrains-style action icons for the submit and compact `/` command hint, and runs ordered MCP tool sequences when a feature needs setup before action. The Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
+The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps mode and provider/runtime selectors in the bottom composer, uses symmetric JetBrains-style icon buttons across the tool window and settings screens, turns the submit control into an animated spinner with hover-to-cancel while running, and exposes `/commands` through the compact command-help affordance. The Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
 
 Assistant command examples:
 

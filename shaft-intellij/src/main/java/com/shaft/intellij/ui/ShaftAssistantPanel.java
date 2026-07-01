@@ -2,12 +2,11 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.intellij.icons.AllIcons;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.IconLoader;
+import com.intellij.ui.AnimatedIcon;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
@@ -38,6 +37,8 @@ import java.awt.FlowLayout;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,6 +95,7 @@ final class ShaftAssistantPanel extends JPanel {
     private Timer transientStatusTimer;
     private Timer captureStartDiagnosticTimer;
     private boolean running;
+    private boolean sendCancelHover;
     private boolean refreshingChats;
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
@@ -137,7 +139,7 @@ final class ShaftAssistantPanel extends JPanel {
         chatSelector.getAccessibleContext().setAccessibleName("Assistant chat");
         chatSelector.addActionListener(event -> switchChat());
         newChat = button("New chat", "Start a new Assistant chat", event -> newChat());
-        newChat.setIcon(AllIcons.General.Add);
+        ShaftIconButtons.apply(newChat, ShaftIcons.ADD);
         mode = combo("Assistant mode", "ASK", "PLAN", "AGENT");
         mode.setSelectedItem(normalize(settings.defaultAutobotMode, "ASK"));
         providerType = combo("Assistant provider type", "LOCAL", "CLOUD");
@@ -165,8 +167,8 @@ final class ShaftAssistantPanel extends JPanel {
         cloudApiKey = new JPasswordField(16);
         cloudApiKey.getAccessibleContext().setAccessibleName("Assistant cloud API key");
         saveCloudApiKey = new JButton("Save key");
-        saveCloudApiKey.setIcon(AllIcons.Actions.Checked);
         saveCloudApiKey.getAccessibleContext().setAccessibleName("Save Assistant cloud API key");
+        ShaftIconButtons.apply(saveCloudApiKey, ShaftIcons.CHECK);
         saveCloudApiKey.addActionListener(event -> saveCloudApiKey());
         cloudKeyStatus = new JLabel();
         cloudKeyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -192,32 +194,35 @@ final class ShaftAssistantPanel extends JPanel {
         progress.setPreferredSize(JBUI.size(88, 12));
         progress.setVisible(false);
 
-        send = button("Send", "Send assistant prompt", event -> send(project));
-        send.setIcon(IconLoader.getIcon("/icons/actions/send.svg", ShaftAssistantPanel.class));
-        send.setText("");
-        send.setToolTipText("Send assistant prompt");
-        send.setMargin(JBUI.insets(2, 12));
-        send.setPreferredSize(JBUI.size(58, 28));
+        send = button("Send", "Send assistant prompt", event -> {
+            if (running) {
+                cancelCurrent();
+            } else {
+                send(project);
+            }
+        });
+        ShaftIconButtons.apply(send, ShaftIcons.SEND);
+        bindSendHover();
         cancel = button("Cancel", "Cancel assistant request", event -> cancelCurrent());
-        cancel.setIcon(AllIcons.Actions.Cancel);
+        ShaftIconButtons.apply(cancel, ShaftIcons.CANCEL);
         cancel.setEnabled(false);
         copyLastResponse = button("Copy response", "Copy last assistant response", event -> copyLastResponse());
-        copyLastResponse.setIcon(AllIcons.Actions.Copy);
+        ShaftIconButtons.apply(copyLastResponse, ShaftIcons.COPY);
         copyLastResponse.setEnabled(false);
         copyRawResponse = button("Copy raw", "Copy last raw assistant response", event -> copyRawResponse());
-        copyRawResponse.setIcon(AllIcons.Actions.Copy);
+        ShaftIconButtons.apply(copyRawResponse, ShaftIcons.CODE);
         copyRawResponse.setEnabled(false);
         copyTranscript = button("Copy all", "Copy assistant transcript",
                 event -> copy(exportTranscriptWithEvidence(), "Copied transcript"));
-        copyTranscript.setIcon(AllIcons.Actions.Copy);
+        ShaftIconButtons.apply(copyTranscript, ShaftIcons.COPY);
         captureReviewStatus = new JLabel("Capture review ready");
         captureReviewStatus.getAccessibleContext().setAccessibleName("Capture review status");
         approveCaptureReview = button("Approve", "Approve Capture review", event -> approvePendingCaptureReview());
-        approveCaptureReview.setIcon(AllIcons.Actions.Checked);
+        ShaftIconButtons.apply(approveCaptureReview, ShaftIcons.CHECK);
         copyCaptureReview = button("Copy review", "Copy Capture review", event -> copyPendingCaptureReview());
-        copyCaptureReview.setIcon(AllIcons.Actions.Copy);
+        ShaftIconButtons.apply(copyCaptureReview, ShaftIcons.COPY);
         dismissCaptureReview = button("Dismiss", "Dismiss Capture review", event -> dismissPendingCaptureReview());
-        dismissCaptureReview.setIcon(AllIcons.Actions.Cancel);
+        ShaftIconButtons.apply(dismissCaptureReview, ShaftIcons.CANCEL);
         JPanel captureReviewActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         captureReviewActions.add(approveCaptureReview);
         captureReviewActions.add(copyCaptureReview);
@@ -231,12 +236,12 @@ final class ShaftAssistantPanel extends JPanel {
         captureReviewPanel.add(captureReviewActions, BorderLayout.EAST);
         captureReviewPanel.setVisible(false);
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
-        clearTranscript.setIcon(AllIcons.Actions.GC);
+        ShaftIconButtons.apply(clearTranscript, ShaftIcons.CLEAR);
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
-        rerunLastPrompt.setIcon(AllIcons.Actions.Rerun);
+        ShaftIconButtons.apply(rerunLastPrompt, ShaftIcons.RERUN);
         rerunLastPrompt.setEnabled(false);
         this.configure = button("Configure", "Open SHAFT MCP setup", event -> openSetup());
-        this.configure.setIcon(AllIcons.General.Settings);
+        ShaftIconButtons.apply(this.configure, ShaftIcons.SETTINGS);
 
         mode.addActionListener(event -> updateControlVisibility());
         providerType.addActionListener(event -> updateControlVisibility());
@@ -278,23 +283,22 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(allowSourceMutation);
 
         JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        JButton commandHint = button("/", "SHAFT command hints", event -> status.setText("Hover / for commands"));
-        commandHint.setIcon(IconLoader.getIcon("/icons/actions/help.svg", ShaftAssistantPanel.class));
+        JButton commandHint = button("/commands", "SHAFT command hints",
+                event -> status.setText("Hover /commands for command aliases"));
+        ShaftIconButtons.apply(commandHint, ShaftIcons.HELP);
         commandHint.setToolTipText(AssistantCommand.commandTooltip());
-        commandHint.setMargin(JBUI.insets(2, 8));
-        commandHint.setPreferredSize(JBUI.size(48, 28));
         promptActions.add(commandHint);
         promptActions.add(send);
 
         JPanel composerFooter = new JPanel(new BorderLayout(4, 4));
         composerFooter.add(routeRow, BorderLayout.CENTER);
-        composerFooter.add(promptActions, BorderLayout.EAST);
+        composerFooter.add(promptActions, BorderLayout.SOUTH);
 
         JPanel composer = new JPanel(new BorderLayout(4, 4));
         composer.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createEtchedBorder(),
                 JBUI.Borders.empty(6)));
-        composer.add(new JLabel("Add context (#), extensions (@), commands (/)"), BorderLayout.NORTH);
+        composer.add(new JLabel("Add context (#), extensions (@), commands (/commands)"), BorderLayout.NORTH);
         composer.add(new JBScrollPane(prompt), BorderLayout.CENTER);
         composer.add(cloudKeyPanel, BorderLayout.WEST);
         composer.add(composerFooter, BorderLayout.SOUTH);
@@ -654,7 +658,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     void setRunning(boolean running, String message) {
         this.running = running;
-        send.setEnabled(!running);
+        send.setEnabled(true);
         chatSelector.setEnabled(!running);
         newChat.setEnabled(!running);
         configure.setEnabled(!running);
@@ -674,11 +678,43 @@ final class ShaftAssistantPanel extends JPanel {
         cancel.setEnabled(running);
         progress.setVisible(running);
         status.setText(message);
+        updateSendButtonState();
         stopTransientStatus();
         updateControlVisibility();
         if (!running) {
             currentInvocation = null;
         }
+    }
+
+    private void bindSendHover() {
+        send.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent event) {
+                if (running) {
+                    sendCancelHover = true;
+                    updateSendButtonState();
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent event) {
+                if (running) {
+                    sendCancelHover = false;
+                    updateSendButtonState();
+                }
+            }
+        });
+    }
+
+    private void updateSendButtonState() {
+        if (!running) {
+            sendCancelHover = false;
+            send.setIcon(ShaftIcons.SEND);
+            send.setToolTipText("Send assistant prompt");
+            return;
+        }
+        send.setIcon(sendCancelHover ? ShaftIcons.CANCEL : AnimatedIcon.Default.INSTANCE);
+        send.setToolTipText(sendCancelHover ? "Cancel assistant request" : "Assistant request running");
     }
 
     private void showTransientStatus(String message) {
@@ -1206,8 +1242,8 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panel.add(new JLabel("Configure SHAFT MCP to run Assistant feature commands."));
         JButton openSettings = new JButton("Open Settings");
-        openSettings.setIcon(AllIcons.General.Settings);
         openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");
+        ShaftIconButtons.apply(openSettings, ShaftIcons.SETTINGS);
         openSettings.addActionListener(event -> {
             if (project != null) {
                 ShowSettingsUtil.getInstance().showSettingsDialog(project, "SHAFT");

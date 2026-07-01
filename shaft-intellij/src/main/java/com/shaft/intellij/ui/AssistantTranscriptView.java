@@ -19,7 +19,7 @@ import java.util.List;
  * Markdown-rendered Assistant transcript with copyable source text.
  */
 final class AssistantTranscriptView extends JPanel {
-    private static final String INITIAL_MESSAGE = "Type a question or use `/help` for SHAFT commands.";
+    private static final String INITIAL_MESSAGE = "Type a question or use `/commands` for SHAFT commands.";
     private static final Parser MARKDOWN = Parser.builder().build();
     private static final HtmlRenderer HTML = HtmlRenderer.builder().escapeHtml(true).build();
     private static final String USER_ROLE = "user";

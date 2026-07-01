@@ -1,7 +1,6 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
-import com.intellij.icons.AllIcons;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
@@ -96,10 +95,8 @@ final class GuidedWorkflowPanel extends JPanel {
     }
 
     private static JButton button(String text, String description, Runnable action) {
-        JButton button = new JButton(text);
-        button.setIcon(iconFor(text));
-        button.setToolTipText(description);
-        button.getAccessibleContext().setAccessibleName(text);
+        JButton button = new JButton();
+        ShaftIconButtons.apply(button, description, text, iconFor(text));
         button.getAccessibleContext().setAccessibleDescription(description);
         button.addActionListener(event -> action.run());
         return button;
@@ -107,12 +104,12 @@ final class GuidedWorkflowPanel extends JPanel {
 
     private static Icon iconFor(String text) {
         return switch (text) {
-            case "Start recording" -> AllIcons.Actions.Execute;
-            case "Stop recording" -> AllIcons.Actions.Cancel;
-            case "Generate code" -> AllIcons.Actions.ShowCode;
-            case "Inspect locator" -> AllIcons.Actions.Find;
-            case "Guardrail check" -> AllIcons.Actions.Checked;
-            default -> AllIcons.General.ContextHelp;
+            case "Start recording" -> ShaftIcons.SEND;
+            case "Stop recording" -> ShaftIcons.CANCEL;
+            case "Generate code" -> ShaftIcons.CODE;
+            case "Inspect locator" -> ShaftIcons.SEARCH;
+            case "Guardrail check" -> ShaftIcons.CHECK;
+            default -> ShaftIcons.HELP;
         };
     }
 

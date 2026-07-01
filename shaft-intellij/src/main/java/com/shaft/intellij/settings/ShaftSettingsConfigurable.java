@@ -1,6 +1,5 @@
 package com.shaft.intellij.settings;
 
-import com.intellij.icons.AllIcons;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
@@ -13,6 +12,8 @@ import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpInstallResult;
 import com.shaft.intellij.mcp.ShaftMcpInstaller;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.ui.ShaftIconButtons;
+import com.shaft.intellij.ui.ShaftIcons;
 import com.shaft.intellij.ui.ShaftUiLabels;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
@@ -134,28 +135,28 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         mcpCommand.getAccessibleContext().setAccessibleName("MCP stdio command");
         mcpCommand.getAccessibleContext().setAccessibleDescription("Command used to start SHAFT MCP in stdio mode.");
         installMcp = new JButton("Install / Update SHAFT MCP");
-        installMcp.setIcon(AllIcons.Actions.Download);
         installMcp.getAccessibleContext().setAccessibleName("Install or update SHAFT MCP");
         installMcp.getAccessibleContext().setAccessibleDescription(
                 "Install or update shaft-mcp, fill the plugin stdio command, and connect the selected local assistant.");
+        ShaftIconButtons.apply(installMcp, ShaftIcons.DOWNLOAD);
         installMcp.addActionListener(event -> installMcp());
         testMcp = new JButton("Test MCP");
-        testMcp.setIcon(AllIcons.Actions.Execute);
         testMcp.getAccessibleContext().setAccessibleName("Test MCP");
         testMcp.getAccessibleContext().setAccessibleDescription(
                 "Run a one-time SHAFT MCP connection check with current settings.");
+        ShaftIconButtons.apply(testMcp, ShaftIcons.SEND);
         testMcp.addActionListener(event -> testMcpConnection());
         configureRuntimeMcp = new JButton("Connect selected runtime MCP");
-        configureRuntimeMcp.setIcon(AllIcons.General.Settings);
         configureRuntimeMcp.getAccessibleContext().setAccessibleName("Connect selected runtime MCP");
         configureRuntimeMcp.getAccessibleContext().setAccessibleDescription(
                 "Install or update shaft-mcp and configure the selected local assistant runtime.");
+        ShaftIconButtons.apply(configureRuntimeMcp, ShaftIcons.SETTINGS);
         configureRuntimeMcp.addActionListener(event -> configureRuntimeMcp());
         configureCopilotMcp = new JButton("Connect GitHub Copilot MCP");
-        configureCopilotMcp.setIcon(AllIcons.Vcs.Vendors.Github);
         configureCopilotMcp.getAccessibleContext().setAccessibleName("Connect GitHub Copilot MCP");
         configureCopilotMcp.getAccessibleContext().setAccessibleDescription(
                 "Install or update shaft-mcp and configure GitHub Copilot for IntelliJ IDEA.");
+        ShaftIconButtons.apply(configureCopilotMcp, ShaftIcons.GITHUB);
         configureCopilotMcp.addActionListener(event -> configureCopilotMcp());
         testStatus = help("Not tested");
         currentAgentConfiguration = new JLabel();
@@ -163,10 +164,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
                 "Read-only assistant agent configuration saved after the MCP setup check.");
         configureAgent = new JButton("Configure");
-        configureAgent.setIcon(AllIcons.General.Settings);
         configureAgent.getAccessibleContext().setAccessibleName("Configure assistant agent");
         configureAgent.getAccessibleContext().setAccessibleDescription(
                 "Edit the assistant agent configuration used by the SHAFT plugin.");
+        ShaftIconButtons.apply(configureAgent, ShaftIcons.SETTINGS);
         configureAgent.addActionListener(event -> {
             editingAgentConfiguration = true;
             updateAgentConfigurationControls();
@@ -506,9 +507,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                                                JPasswordField field,
                                                JLabel statusLabel,
                                                Runnable clearRequestedSetter) {
-        button.setIcon(AllIcons.General.Remove);
         button.getAccessibleContext().setAccessibleName(accessibleName);
         button.getAccessibleContext().setAccessibleDescription("Mark this provider key as ready to clear on apply.");
+        ShaftIconButtons.apply(button, ShaftIcons.CLEAR);
         button.addActionListener(event -> {
             clearRequestedSetter.run();
             clear(field);

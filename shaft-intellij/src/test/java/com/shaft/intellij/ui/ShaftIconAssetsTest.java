@@ -25,14 +25,26 @@ class ShaftIconAssetsTest {
     }
 
     @Test
-    void composerActionIconsUseJetBrainsStyleSvgPairs() throws IOException {
+    void actionIconsUseJetBrainsStyleSvgPairs() throws IOException {
         Path actions = Path.of("src/main/resources/icons/actions");
 
         assertAll(
-                () -> assertSvgIcon(actions.resolve("help.svg"), 16, "#6C707E"),
-                () -> assertSvgIcon(actions.resolve("help_dark.svg"), 16, "#CED0D6"),
-                () -> assertSvgIcon(actions.resolve("send.svg"), 16, "#6C707E"),
-                () -> assertSvgIcon(actions.resolve("send_dark.svg"), 16, "#CED0D6"));
+                actionIconAssertions(actions, "add"),
+                actionIconAssertions(actions, "cancel"),
+                actionIconAssertions(actions, "check"),
+                actionIconAssertions(actions, "clear"),
+                actionIconAssertions(actions, "code"),
+                actionIconAssertions(actions, "copy"),
+                actionIconAssertions(actions, "download"),
+                actionIconAssertions(actions, "edit"),
+                actionIconAssertions(actions, "github"),
+                actionIconAssertions(actions, "help"),
+                actionIconAssertions(actions, "rerun"),
+                actionIconAssertions(actions, "reset"),
+                actionIconAssertions(actions, "search"),
+                actionIconAssertions(actions, "send"),
+                actionIconAssertions(actions, "settings"),
+                actionIconAssertions(actions, "view"));
     }
 
     @Test
@@ -64,5 +76,11 @@ class ShaftIconAssetsTest {
                 () -> assertTrue(svg.contains(color), path.toString()),
                 () -> assertTrue(svg.contains("stroke-linecap=\"round\""), path.toString()),
                 () -> assertTrue(svg.contains("stroke-linejoin=\"round\""), path.toString()));
+    }
+
+    private static org.junit.jupiter.api.function.Executable actionIconAssertions(Path actions, String name) {
+        return () -> assertAll(
+                () -> assertSvgIcon(actions.resolve(name + ".svg"), 16, "#6C707E"),
+                () -> assertSvgIcon(actions.resolve(name + "_dark.svg"), 16, "#CED0D6"));
     }
 }
