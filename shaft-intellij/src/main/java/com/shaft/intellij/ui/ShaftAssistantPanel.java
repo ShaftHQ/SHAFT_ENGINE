@@ -313,6 +313,10 @@ final class ShaftAssistantPanel extends JPanel {
         return prompt;
     }
 
+    static boolean requiresMcpSetup(AssistantCommand.Invocation invocation, boolean mcpConfigured) {
+        return invocation != null && invocation.requiresMcpConfiguration() && !mcpConfigured;
+    }
+
     private void send(Project project) {
         String text = prompt.getText().trim();
         if (text.isBlank()) {
@@ -358,8 +362,8 @@ final class ShaftAssistantPanel extends JPanel {
             showLocalResponse(invocation.localResponse());
             return;
         }
-        if (!mcpConfigured()) {
-            showLocalResponse("Configure SHAFT MCP in Settings before sending Assistant requests.");
+        if (requiresMcpSetup(invocation, mcpConfigured())) {
+            showLocalResponse("Configure SHAFT MCP in Settings before running this Assistant feature command.");
             status.setText("Configure MCP");
             return;
         }
@@ -1200,7 +1204,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private static JPanel setupNotice(Project project, ShaftSettingsState.Settings settings) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        panel.add(new JLabel("Configure SHAFT MCP to run Assistant."));
+        panel.add(new JLabel("Configure SHAFT MCP to run Assistant feature commands."));
         JButton openSettings = new JButton("Open Settings");
         openSettings.setIcon(AllIcons.General.Settings);
         openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");

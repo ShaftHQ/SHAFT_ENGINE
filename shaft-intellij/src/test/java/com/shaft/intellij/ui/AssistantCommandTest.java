@@ -242,6 +242,10 @@ class AssistantCommandTest {
         assertEquals("sign in", command("/inspect https://example.com sign in").arguments().get("userIntent").getAsString());
         assertEquals("test_code_guardrails_check", command("/guardrails driver.element().click(locator);").toolName());
         assertEquals("java", command("/guardrails code").arguments().get("language").getAsString());
+        assertEquals("autobot_local_agent_clients", command("/assistant").toolName());
+        assertEquals("autobot_local_agent_clients", command("/agent").toolName());
+        assertEquals("autobot_local_agent_clients", command("/ask").toolName());
+        assertEquals("autobot_local_agent_clients", command("/plan").toolName());
         assertEquals("autobot_local_agent_clients", command("/clients").toolName());
         assertEquals("test_automation_scenarios", command("/generatetest login").toolName());
         assertEquals("capture_code_blocks", command("/generatetest recordings/capture-session.json").toolName());
@@ -257,11 +261,14 @@ class AssistantCommandTest {
 
         assertAll(
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/commands".equals(hint.canonical()))),
+                () -> assertTrue(hints.stream().anyMatch(hint -> "/assistant".equals(hint.canonical()))),
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/browser".equals(hint.canonical()))),
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/record".equals(hint.canonical()))),
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/mobile".equals(hint.canonical()))),
                 () -> assertTrue(hints.stream().anyMatch(hint -> "/doctor".equals(hint.canonical()))),
                 () -> assertTrue(tooltip.contains("/commands")),
+                () -> assertTrue(tooltip.contains("/assistant")),
+                () -> assertTrue(tooltip.contains("/clients")),
                 () -> assertTrue(tooltip.contains("/shaft-help")),
                 () -> assertTrue(tooltip.contains("/browser")),
                 () -> assertTrue(tooltip.contains("/web")),
@@ -278,7 +285,38 @@ class AssistantCommandTest {
                 () -> assertTrue(help.isLocal()),
                 () -> assertTrue(help.localResponse().contains("/commands")),
                 () -> assertTrue(help.localResponse().contains("/mcp-help")),
+                () -> assertTrue(help.localResponse().contains("/assistant")),
                 () -> assertTrue(help.localResponse().contains("/browser open https://example.com sign in")));
+    }
+
+    @Test
+    void setupGateOnlyAppliesToDirectMcpFeatureInvocations() {
+        AssistantCommand.Invocation broadLocal = AssistantCommand.fromPrompt(
+                "Plan how to use mobile recording in this project",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation broadCloud = AssistantCommand.fromPrompt(
+                "Plan how to use mobile recording in this project",
+                AssistantCommand.Selection.cloud("github", "openai/gpt-4.1"),
+                "PLAN",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation explicitFeature = command("start mobile recording");
+        AssistantCommand.Invocation slashFeature = command("/guide locators");
+        AssistantCommand.Invocation localHelp = command("/help");
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", broadLocal.toolName()),
+                () -> assertFalse(broadLocal.requiresMcpConfiguration()),
+                () -> assertEquals("autobot_provider_chat", broadCloud.toolName()),
+                () -> assertFalse(broadCloud.requiresMcpConfiguration()),
+                () -> assertTrue(explicitFeature.requiresMcpConfiguration()),
+                () -> assertTrue(slashFeature.requiresMcpConfiguration()),
+                () -> assertFalse(localHelp.requiresMcpConfiguration()));
     }
 
     @Test
