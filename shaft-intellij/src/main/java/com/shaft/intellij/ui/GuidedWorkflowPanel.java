@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
@@ -11,6 +12,7 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.Icon;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -95,11 +97,23 @@ final class GuidedWorkflowPanel extends JPanel {
 
     private static JButton button(String text, String description, Runnable action) {
         JButton button = new JButton(text);
+        button.setIcon(iconFor(text));
         button.setToolTipText(description);
         button.getAccessibleContext().setAccessibleName(text);
         button.getAccessibleContext().setAccessibleDescription(description);
         button.addActionListener(event -> action.run());
         return button;
+    }
+
+    private static Icon iconFor(String text) {
+        return switch (text) {
+            case "Start recording" -> AllIcons.Actions.Execute;
+            case "Stop recording" -> AllIcons.Actions.Cancel;
+            case "Generate code" -> AllIcons.Actions.ShowCode;
+            case "Inspect locator" -> AllIcons.Actions.Find;
+            case "Guardrail check" -> AllIcons.Actions.Checked;
+            default -> AllIcons.General.ContextHelp;
+        };
     }
 
     private void startRecording() {

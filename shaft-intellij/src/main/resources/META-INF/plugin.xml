@@ -11,8 +11,8 @@
     <extensions defaultExtensionNs="com.intellij">
                     <toolWindow id="SHAFT"
                     anchor="right"
-                    icon="/icons/shaftToolWindow.png"
-                    iconDark="/icons/shaftToolWindow_dark.png"
+                    icon="/icons/shaftToolWindow.svg"
+                    iconDark="/icons/shaftToolWindow_dark.svg"
                     factoryClass="com.shaft.intellij.ShaftToolWindowFactory"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftSettingsState"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftCredentialService"/>
@@ -31,8 +31,8 @@
                     class="com.shaft.intellij.actions.OpenShaftToolWindowAction"
                     text="Open SHAFT"
                     description="Open the SHAFT tool window"
-                    icon="/icons/shaftToolWindow.png"
-                    iconDark="/icons/shaftToolWindow_dark.png"/>
+                    icon="/icons/shaftToolWindow.svg"
+                    iconDark="/icons/shaftToolWindow_dark.svg"/>
         </group>
     </actions>
 </idea-plugin>

@@ -2,10 +2,12 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.IconLoader;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
@@ -28,6 +30,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JProgressBar;
 import javax.swing.KeyStroke;
 import javax.swing.Timer;
 import java.awt.BorderLayout;
@@ -80,7 +83,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
     private final JButton configure;
-    private final SpinnerLabel progress;
+    private final JProgressBar progress;
     private final JLabel status;
     private final ShaftSettingsState.Settings settings;
     private final Runnable configureFlow;
@@ -101,6 +104,9 @@ final class ShaftAssistantPanel extends JPanel {
     private boolean generateCaptureReviewAfterStop;
     private boolean captureReviewGenerationRunning;
     private boolean captureIntegrationRunning;
+    private List<AssistantCommand.ToolCall> currentToolSequence = List.of();
+    private StringBuilder sequenceMarkdown;
+    private StringBuilder sequenceRawOutput;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -131,6 +137,7 @@ final class ShaftAssistantPanel extends JPanel {
         chatSelector.getAccessibleContext().setAccessibleName("Assistant chat");
         chatSelector.addActionListener(event -> switchChat());
         newChat = button("New chat", "Start a new Assistant chat", event -> newChat());
+        newChat.setIcon(AllIcons.General.Add);
         mode = combo("Assistant mode", "ASK", "PLAN", "AGENT");
         mode.setSelectedItem(normalize(settings.defaultAutobotMode, "ASK"));
         providerType = combo("Assistant provider type", "LOCAL", "CLOUD");
@@ -158,6 +165,7 @@ final class ShaftAssistantPanel extends JPanel {
         cloudApiKey = new JPasswordField(16);
         cloudApiKey.getAccessibleContext().setAccessibleName("Assistant cloud API key");
         saveCloudApiKey = new JButton("Save key");
+        saveCloudApiKey.setIcon(AllIcons.Actions.Checked);
         saveCloudApiKey.getAccessibleContext().setAccessibleName("Save Assistant cloud API key");
         saveCloudApiKey.addActionListener(event -> saveCloudApiKey());
         cloudKeyStatus = new JLabel();
@@ -178,23 +186,38 @@ final class ShaftAssistantPanel extends JPanel {
         }
         status = new JLabel(READY_STATUS);
         status.setFont(status.getFont().deriveFont(Math.max(10.0F, status.getFont().getSize2D() - 1.0F)));
-        progress = new SpinnerLabel();
+        progress = new JProgressBar();
+        progress.setIndeterminate(true);
+        progress.getAccessibleContext().setAccessibleName("Assistant thinking spinner");
+        progress.setPreferredSize(JBUI.size(88, 12));
         progress.setVisible(false);
 
         send = button("Send", "Send assistant prompt", event -> send(project));
+        send.setIcon(IconLoader.getIcon("/icons/actions/send.svg", ShaftAssistantPanel.class));
+        send.setText("");
+        send.setToolTipText("Send assistant prompt");
+        send.setMargin(JBUI.insets(2, 12));
+        send.setPreferredSize(JBUI.size(58, 28));
         cancel = button("Cancel", "Cancel assistant request", event -> cancelCurrent());
+        cancel.setIcon(AllIcons.Actions.Cancel);
         cancel.setEnabled(false);
         copyLastResponse = button("Copy response", "Copy last assistant response", event -> copyLastResponse());
+        copyLastResponse.setIcon(AllIcons.Actions.Copy);
         copyLastResponse.setEnabled(false);
         copyRawResponse = button("Copy raw", "Copy last raw assistant response", event -> copyRawResponse());
+        copyRawResponse.setIcon(AllIcons.Actions.Copy);
         copyRawResponse.setEnabled(false);
         copyTranscript = button("Copy all", "Copy assistant transcript",
                 event -> copy(exportTranscriptWithEvidence(), "Copied transcript"));
+        copyTranscript.setIcon(AllIcons.Actions.Copy);
         captureReviewStatus = new JLabel("Capture review ready");
         captureReviewStatus.getAccessibleContext().setAccessibleName("Capture review status");
         approveCaptureReview = button("Approve", "Approve Capture review", event -> approvePendingCaptureReview());
+        approveCaptureReview.setIcon(AllIcons.Actions.Checked);
         copyCaptureReview = button("Copy review", "Copy Capture review", event -> copyPendingCaptureReview());
+        copyCaptureReview.setIcon(AllIcons.Actions.Copy);
         dismissCaptureReview = button("Dismiss", "Dismiss Capture review", event -> dismissPendingCaptureReview());
+        dismissCaptureReview.setIcon(AllIcons.Actions.Cancel);
         JPanel captureReviewActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         captureReviewActions.add(approveCaptureReview);
         captureReviewActions.add(copyCaptureReview);
@@ -208,9 +231,12 @@ final class ShaftAssistantPanel extends JPanel {
         captureReviewPanel.add(captureReviewActions, BorderLayout.EAST);
         captureReviewPanel.setVisible(false);
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
+        clearTranscript.setIcon(AllIcons.Actions.GC);
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
+        rerunLastPrompt.setIcon(AllIcons.Actions.Rerun);
         rerunLastPrompt.setEnabled(false);
         this.configure = button("Configure", "Open SHAFT MCP setup", event -> openSetup());
+        this.configure.setIcon(AllIcons.General.Settings);
 
         mode.addActionListener(event -> updateControlVisibility());
         providerType.addActionListener(event -> updateControlVisibility());
@@ -252,6 +278,12 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(allowSourceMutation);
 
         JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        JButton commandHint = button("/", "SHAFT command hints", event -> status.setText("Hover / for commands"));
+        commandHint.setIcon(IconLoader.getIcon("/icons/actions/help.svg", ShaftAssistantPanel.class));
+        commandHint.setToolTipText(AssistantCommand.commandTooltip());
+        commandHint.setMargin(JBUI.insets(2, 8));
+        commandHint.setPreferredSize(JBUI.size(48, 28));
+        promptActions.add(commandHint);
         promptActions.add(send);
 
         JPanel composerFooter = new JPanel(new BorderLayout(4, 4));
@@ -343,10 +375,81 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         rememberCaptureInvocation(text, invocation);
+        startMcpInvocation(invocation);
+    }
+
+    private void startMcpInvocation(AssistantCommand.Invocation invocation) {
+        if (invocation.isSequence()) {
+            startToolSequence(invocation.toolCalls());
+            return;
+        }
         setRunning(true, "Running " + invocation.toolName() + "...");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(invocation.toolName(), result, error)));
+    }
+
+    private void startToolSequence(List<AssistantCommand.ToolCall> toolCalls) {
+        currentToolSequence = List.copyOf(toolCalls);
+        sequenceMarkdown = new StringBuilder();
+        sequenceRawOutput = new StringBuilder();
+        runNextSequenceCall(0);
+    }
+
+    private void runNextSequenceCall(int index) {
+        if (index >= currentToolSequence.size()) {
+            setRunning(false, READY_STATUS);
+            showResponse("**SHAFT Assistant sequence OK**\n\n" + sequenceMarkdown, sequenceRawOutput.toString());
+            clearSequenceState();
+            return;
+        }
+        AssistantCommand.ToolCall toolCall = currentToolSequence.get(index);
+        setRunning(true, "Running " + toolCall.toolName() + " (" + (index + 1) + "/" + currentToolSequence.size() + ")...");
+        currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(toolCall.toolName(), toolCall.arguments());
+        currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
+                () -> showSequenceResult(index, toolCall, result, error)));
+    }
+
+    private void showSequenceResult(
+            int index,
+            AssistantCommand.ToolCall toolCall,
+            ShaftMcpToolResult result,
+            Throwable error) {
+        boolean cancelled = error instanceof CancellationException;
+        boolean success = error == null && result != null && result.success();
+        String output = error != null ? error.getMessage()
+                : result == null ? "No result returned."
+                : result.output();
+        if (!output.isBlank()) {
+            appendToolEvidence(toolCall.toolName(), output);
+        }
+        String statusText = cancelled ? "cancelled" : success ? "OK" : "failed";
+        sequenceMarkdown.append("### ")
+                .append(toolCall.toolName())
+                .append(" ")
+                .append(statusText)
+                .append("\n\n")
+                .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
+                .append("\n\n");
+        sequenceRawOutput.append("### ")
+                .append(toolCall.toolName())
+                .append("\n")
+                .append(output)
+                .append("\n\n");
+        if (cancelled || !success) {
+            setRunning(false, cancelled ? "Cancelled" : "Failed");
+            showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
+                    sequenceRawOutput.toString());
+            clearSequenceState();
+            return;
+        }
+        runNextSequenceCall(index + 1);
+    }
+
+    private void clearSequenceState() {
+        currentToolSequence = List.of();
+        sequenceMarkdown = null;
+        sequenceRawOutput = null;
     }
 
     private static boolean promptRequiresSourceMutation(String text) {
@@ -565,11 +668,6 @@ final class ShaftAssistantPanel extends JPanel {
         copyCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         dismissCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         cancel.setEnabled(running);
-        if (running) {
-            progress.start();
-        } else {
-            progress.stop();
-        }
         progress.setVisible(running);
         status.setText(message);
         stopTransientStatus();
@@ -1104,6 +1202,7 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panel.add(new JLabel("Configure SHAFT MCP to run Assistant."));
         JButton openSettings = new JButton("Open Settings");
+        openSettings.setIcon(AllIcons.General.Settings);
         openSettings.getAccessibleContext().setAccessibleName("Open SHAFT settings");
         openSettings.addActionListener(event -> {
             if (project != null) {
@@ -1207,45 +1306,6 @@ final class ShaftAssistantPanel extends JPanel {
     private static String string(JsonObject object, String key, String fallback) {
         JsonElement value = object == null ? null : object.get(key);
         return value != null && value.isJsonPrimitive() ? value.getAsString() : fallback;
-    }
-
-    private static final class SpinnerLabel extends JLabel {
-        private static final String[] FRAMES = {"|", "/", "-", "\\"};
-        private final Timer timer;
-        private int frameIndex;
-
-        private SpinnerLabel() {
-            super(FRAMES[0]);
-            getAccessibleContext().setAccessibleName("Assistant thinking spinner");
-            setFont(getFont().deriveFont(java.awt.Font.BOLD));
-            timer = new Timer(120, event -> advance());
-            timer.setRepeats(true);
-        }
-
-        private void start() {
-            frameIndex = 0;
-            setText(FRAMES[frameIndex]);
-            setVisible(true);
-            timer.start();
-        }
-
-        private void stop() {
-            timer.stop();
-            frameIndex = 0;
-            setText(FRAMES[frameIndex]);
-            setVisible(false);
-        }
-
-        private void advance() {
-            frameIndex = (frameIndex + 1) % FRAMES.length;
-            setText(FRAMES[frameIndex]);
-        }
-
-        @Override
-        public void removeNotify() {
-            stop();
-            super.removeNotify();
-        }
     }
 
     private record ToolEvidence(String toolName, String payload, String createdAt) {

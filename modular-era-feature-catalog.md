@@ -156,7 +156,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
   <tr>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" alt="shaft-mcp tool manifest and tool families" width="620">
-      <br><strong>125 registered MCP tools</strong>
+      <br><strong>126 registered MCP tools</strong>
       <br>WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, scenario catalog, and guardrails in one manifest.
     </td>
     <td width="50%">
@@ -260,11 +260,27 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 | Triage | Prepare failed Allure analysis, trace analysis, Doctor fix suggestions, Healer runs, and locator proposal requests. | `Triage` tab |
 | Evidence and healing | Run failed-test analysis, trace lookup, trace analysis, and healer templates from the IDE. | `Evidence Tools` tab |
 | Mobile Inspector | Check mobile tooling, prepare Inspector recording, inspect status, read accessibility trees, and take mobile screenshots. | `Inspector` tab |
-| Agent helpers | Ask, plan, or run guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; Ask/Plan can route to OpenAI, Anthropic, Gemini, or GitHub Models with a stored key; slash commands search docs, scenarios, guardrails, recording, locators, triage, and clients. | `Assistant` tab |
+| Agent helpers | Ask, plan, or run guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; Ask/Plan can route to OpenAI, Anthropic, Gemini, or GitHub Models with a stored key; direct commands and natural intent trigger browser, recording, mobile, Doctor, projects, docs, scenarios, guardrails, clients, and raw MCP calls from chat. | `Assistant` tab |
 | Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Recorder` tab |
 | Editor action | Start from the current Java caret context through the `Record SHAFT Flow Here` action in Tools or the editor popup menu. | `Record SHAFT Flow Here` |
 
-The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps mode and provider/runtime selectors in the bottom composer, while the Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
+The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps mode and provider/runtime selectors in the bottom composer, uses JetBrains-style action icons for the submit and compact `/` command hint, and runs ordered MCP tool sequences when a feature needs setup before action. The Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
+
+Assistant command examples:
+
+```text
+/browser open https://example.com sign in
+/browser playwright open https://example.com
+/record https://example.com
+/codegen recordings/intellij-capture.json
+/mobile status Android
+/mobile native Android emulator-5554
+/mobile-record inspector Android recordings/inspector.json
+/mobile-codegen recordings/mobile.json
+/doctor target/allure-results
+/doctor fix target/shaft-doctor/doctor-report.json
+/mcp browser_get_title {}
+```
 
 <table>
   <tr>
@@ -304,7 +320,7 @@ The plugin rides as a right-side IntelliJ panel, similar to assistant tools such
     <td width="50%"></td>
   </tr>
   <tr>
-    <td colspan="2">Screenshots show the 860 px right-side panel, 360 px narrow Assistant view, first-run MCP setup states, live assistant output, and SHAFT settings panel captured on `2026-06-30` in standard IntelliJ light and dark themes.</td>
+    <td colspan="2">Screenshots show the 860 px right-side panel, 360 px narrow Assistant view, first-run MCP setup states, live assistant output, command hint affordance, and SHAFT settings panel captured on the current plugin branch in standard IntelliJ light and dark themes.</td>
   </tr>
 </table>
 
@@ -570,7 +586,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    A[125 registered MCP tools] --> B[WebDriver browser + element]
+    A[126 registered MCP tools] --> B[WebDriver browser + element]
     A --> C[Playwright browser + element + semantic]
     A --> D[Capture start/status/stop/generate]
     A --> E[Mobile native, web emulation, inspector, screenshots]

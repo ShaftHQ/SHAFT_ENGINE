@@ -1,5 +1,6 @@
 package com.shaft.intellij.settings;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
@@ -133,21 +134,25 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         mcpCommand.getAccessibleContext().setAccessibleName("MCP stdio command");
         mcpCommand.getAccessibleContext().setAccessibleDescription("Command used to start SHAFT MCP in stdio mode.");
         installMcp = new JButton("Install / Update SHAFT MCP");
+        installMcp.setIcon(AllIcons.Actions.Download);
         installMcp.getAccessibleContext().setAccessibleName("Install or update SHAFT MCP");
         installMcp.getAccessibleContext().setAccessibleDescription(
                 "Install or update shaft-mcp, fill the plugin stdio command, and connect the selected local assistant.");
         installMcp.addActionListener(event -> installMcp());
         testMcp = new JButton("Test MCP");
+        testMcp.setIcon(AllIcons.Actions.Execute);
         testMcp.getAccessibleContext().setAccessibleName("Test MCP");
         testMcp.getAccessibleContext().setAccessibleDescription(
                 "Run a one-time SHAFT MCP connection check with current settings.");
         testMcp.addActionListener(event -> testMcpConnection());
         configureRuntimeMcp = new JButton("Connect selected runtime MCP");
+        configureRuntimeMcp.setIcon(AllIcons.General.Settings);
         configureRuntimeMcp.getAccessibleContext().setAccessibleName("Connect selected runtime MCP");
         configureRuntimeMcp.getAccessibleContext().setAccessibleDescription(
                 "Install or update shaft-mcp and configure the selected local assistant runtime.");
         configureRuntimeMcp.addActionListener(event -> configureRuntimeMcp());
         configureCopilotMcp = new JButton("Connect GitHub Copilot MCP");
+        configureCopilotMcp.setIcon(AllIcons.Vcs.Vendors.Github);
         configureCopilotMcp.getAccessibleContext().setAccessibleName("Connect GitHub Copilot MCP");
         configureCopilotMcp.getAccessibleContext().setAccessibleDescription(
                 "Install or update shaft-mcp and configure GitHub Copilot for IntelliJ IDEA.");
@@ -158,6 +163,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
                 "Read-only assistant agent configuration saved after the MCP setup check.");
         configureAgent = new JButton("Configure");
+        configureAgent.setIcon(AllIcons.General.Settings);
         configureAgent.getAccessibleContext().setAccessibleName("Configure assistant agent");
         configureAgent.getAccessibleContext().setAccessibleDescription(
                 "Edit the assistant agent configuration used by the SHAFT plugin.");
@@ -500,6 +506,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                                                JPasswordField field,
                                                JLabel statusLabel,
                                                Runnable clearRequestedSetter) {
+        button.setIcon(AllIcons.General.Remove);
         button.getAccessibleContext().setAccessibleName(accessibleName);
         button.getAccessibleContext().setAccessibleDescription("Mark this provider key as ready to clear on apply.");
         button.addActionListener(event -> {
