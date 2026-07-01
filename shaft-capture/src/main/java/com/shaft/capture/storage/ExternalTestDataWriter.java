@@ -1,10 +1,11 @@
 package com.shaft.capture.storage;
 
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.util.DefaultIndenter;
+import tools.jackson.core.util.DefaultPrettyPrinter;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.format.CaptureFormatException;
 import com.shaft.capture.model.RedactionSummary;
 import com.shaft.capture.privacy.ClassifiedValue;
@@ -23,8 +24,9 @@ import java.util.Comparator;
  * Writes ordinary captured values to deterministic external JSON while excluding secrets.
  */
 public final class ExternalTestDataWriter {
-    private final ObjectMapper mapper = new ObjectMapper()
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    private final ObjectMapper mapper = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
 
     /**
      * Atomically writes persistable classified values.
@@ -63,9 +65,9 @@ public final class ExternalTestDataWriter {
         printer.indentArraysWith(indenter);
         printer.indentObjectsWith(indenter);
         try {
-            String json = mapper.writer(printer).writeValueAsString(root) + "\n";
+            String json = mapper.writer().with(printer).writeValueAsString(root) + "\n";
             atomicWrite(destination, json);
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             throw new CaptureFormatException("External capture test data could not be serialized.", exception);
         }
     }

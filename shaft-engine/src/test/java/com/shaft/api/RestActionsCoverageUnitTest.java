@@ -1,9 +1,9 @@
 package com.shaft.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.properties.internal.Properties;

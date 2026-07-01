@@ -1,7 +1,7 @@
 package com.shaft.pilot.ai;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.NullNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.NullNode;
 
 import java.time.Duration;
 import java.util.List;

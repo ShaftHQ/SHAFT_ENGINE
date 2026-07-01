@@ -1,14 +1,14 @@
 package com.shaft.capture.format;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.util.DefaultIndenter;
+import tools.jackson.core.util.DefaultPrettyPrinter;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.pilot.json.JsonSchemaValidator;
 
@@ -35,13 +35,12 @@ public final class CaptureJsonCodec {
      * Creates the default deterministic codec.
      */
     public CaptureJsonCodec() {
-        mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.disable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
-        mapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
-        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        mapper = JsonMapper.builder()
+                .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .changeDefaultPropertyInclusion(value -> JsonInclude.Value.construct(
+                        JsonInclude.Include.NON_NULL, JsonInclude.Include.NON_NULL))
+                .build();
         printer = new DefaultPrettyPrinter();
         DefaultIndenter indenter = new DefaultIndenter("  ", "\n");
         printer.indentArraysWith(indenter);
@@ -66,8 +65,8 @@ public final class CaptureJsonCodec {
         try {
             JsonNode tree = mapper.valueToTree(session);
             validate(tree);
-            return mapper.writer(printer).writeValueAsString(tree) + "\n";
-        } catch (IllegalArgumentException | JsonProcessingException exception) {
+            return mapper.writer().with(printer).writeValueAsString(tree) + "\n";
+        } catch (IllegalArgumentException | JacksonException exception) {
             if (exception instanceof CaptureFormatException captureFormatException) {
                 throw captureFormatException;
             }
@@ -89,7 +88,7 @@ public final class CaptureJsonCodec {
             return mapper.treeToValue(migrated, CaptureSession.class);
         } catch (CaptureFormatException exception) {
             throw exception;
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new CaptureFormatException("Capture JSON is malformed, truncated, or semantically invalid.",
                     exception);
         } catch (IllegalArgumentException exception) {

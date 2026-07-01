@@ -1,14 +1,14 @@
 package com.shaft.doctor.format;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.util.DefaultIndenter;
+import tools.jackson.core.util.DefaultPrettyPrinter;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.doctor.model.Diagnosis;
 import com.shaft.doctor.model.DoctorAdvisory;
 import com.shaft.doctor.model.EvidenceBundle;
@@ -43,12 +43,12 @@ public final class DoctorJsonCodec {
      * Creates the stable codec.
      */
     public DoctorJsonCodec() {
-        mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
-        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        mapper.setSerializationInclusion(JsonInclude.Include.ALWAYS);
+        mapper = JsonMapper.builder()
+                .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .changeDefaultPropertyInclusion(value -> JsonInclude.Value.construct(
+                        JsonInclude.Include.ALWAYS, JsonInclude.Include.ALWAYS))
+                .build();
         printer = new DefaultPrettyPrinter();
         DefaultIndenter indenter = new DefaultIndenter("  ", "\n");
         printer.indentArraysWith(indenter);
@@ -90,7 +90,7 @@ public final class DoctorJsonCodec {
             return mapper.treeToValue(tree, EvidenceBundle.class);
         } catch (DoctorFormatException exception) {
             throw exception;
-        } catch (JsonProcessingException | IllegalArgumentException exception) {
+        } catch (JacksonException | IllegalArgumentException exception) {
             throw new DoctorFormatException("Evidence bundle is malformed, truncated, or invalid.", exception);
         }
     }
@@ -140,10 +140,10 @@ public final class DoctorJsonCodec {
         try {
             JsonNode bundleTree = mapper.readTree(write(bundle));
             JsonNode diagnosisTree = mapper.readTree(write(diagnosis));
-            String json = mapper.writer(printer).writeValueAsString(
+            String json = mapper.writer().with(printer).writeValueAsString(
                     Map.of("bundle", bundleTree, "diagnosis", diagnosisTree)) + "\n";
             atomicWrite(path, json);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new DoctorFormatException("Doctor report could not be serialized.", exception);
         }
     }
@@ -168,10 +168,10 @@ public final class DoctorJsonCodec {
             JsonNode bundleTree = mapper.readTree(write(bundle));
             JsonNode diagnosisTree = mapper.readTree(write(diagnosis));
             JsonNode advisoryTree = mapper.valueToTree(advisory);
-            String json = mapper.writer(printer).writeValueAsString(
+            String json = mapper.writer().with(printer).writeValueAsString(
                     Map.of("bundle", bundleTree, "diagnosis", diagnosisTree, "advisory", advisoryTree)) + "\n";
             atomicWrite(path, json);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new DoctorFormatException("Doctor advisory report could not be serialized.", exception);
         }
     }
@@ -183,10 +183,10 @@ public final class DoctorJsonCodec {
         try {
             JsonNode tree = mapper.valueToTree(value);
             validate(schema, tree, label);
-            return mapper.writer(printer).writeValueAsString(tree) + "\n";
+            return mapper.writer().with(printer).writeValueAsString(tree) + "\n";
         } catch (DoctorFormatException exception) {
             throw exception;
-        } catch (IllegalArgumentException | JsonProcessingException exception) {
+        } catch (IllegalArgumentException | JacksonException exception) {
             throw new DoctorFormatException(label + " could not be serialized.", exception);
         }
     }

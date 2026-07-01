@@ -1,12 +1,13 @@
 package com.shaft.capture.generate;
 
-import com.fasterxml.jackson.core.JsonPointer;
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JsonPointer;
+import tools.jackson.core.util.DefaultIndenter;
+import tools.jackson.core.util.DefaultPrettyPrinter;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureReadiness;
@@ -66,8 +67,9 @@ public final class CaptureGenerator {
     private static final Pattern INDEXED_LOCATOR = Pattern.compile("\\[\\d+]|:nth-(?:child|of-type)\\(");
     private static final Pattern EVIDENCE_ID = Pattern.compile(
             "\\b(?:event-\\d+|checkpoint-[A-Za-z0-9._-]+|action-\\d+)\\b");
-    private static final ObjectMapper JSON = new ObjectMapper()
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
     private static final DefaultPrettyPrinter PRINTER = printer();
 
     private final CaptureJsonCodec codec;
@@ -790,7 +792,7 @@ public final class CaptureGenerator {
                     JsonNode value = sourceRoot.at(JsonPointer.compile(reference.jsonPointer()));
                     if (value.isMissingNode() || value.isNull()) {
                         required.add(reference.id() + ": provide JSON test data for " + reference.logicalName() + ".");
-                    } else if (value.isContainerNode()) {
+                    } else if (value.isObject() || value.isArray()) {
                         unsupported.add(reference.id() + ": generated test data values must be scalar.");
                     } else {
                         values.set(key, value.deepCopy());
@@ -1965,8 +1967,8 @@ public final class CaptureGenerator {
 
     private static String writeJson(Object value) {
         try {
-            return JSON.writer(PRINTER).writeValueAsString(value) + "\n";
-        } catch (IOException exception) {
+            return JSON.writer().with(PRINTER).writeValueAsString(value) + "\n";
+        } catch (RuntimeException exception) {
             throw new IllegalStateException("Generated JSON could not be serialized.", exception);
         }
     }

@@ -1,9 +1,8 @@
 package com.shaft.capture.control;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.runtime.CaptureStatus;
 
@@ -26,9 +25,7 @@ public final class CaptureControlClient {
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(TIMEOUT)
             .build();
-    private final ObjectMapper mapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    private final ObjectMapper mapper = JsonMapper.builder().build();
 
     /**
      * Creates a client for one runtime directory.
@@ -116,7 +113,7 @@ public final class CaptureControlClient {
     private CaptureStatus sendJson(String method, String path, Object body) {
         try {
             return send(method, path, mapper.writeValueAsString(body));
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("SHAFT Capture control request could not be serialized.", exception);
         }
     }

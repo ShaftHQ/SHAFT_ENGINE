@@ -1,7 +1,7 @@
 package com.shaft.mcp;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -180,11 +180,11 @@ public class GuideService {
                 continue;
             }
             JsonNode fields = posting.get(1);
-            for (Iterator<String> fieldNames = fields.fieldNames(); fieldNames.hasNext();) {
-                String field = fieldNames.next();
-                JsonNode ids = fields.path(field);
-                for (Iterator<String> documentIds = ids.fieldNames(); documentIds.hasNext();) {
-                    String id = documentIds.next();
+            for (Map.Entry<String, JsonNode> fieldEntry : fields.properties()) {
+                String field = fieldEntry.getKey();
+                JsonNode ids = fieldEntry.getValue();
+                for (Map.Entry<String, JsonNode> documentEntry : ids.properties()) {
+                    String id = documentEntry.getKey();
                     if (index.documents().containsKey(id)) {
                         scores.merge(id, fieldWeight(field), Double::sum);
                     }

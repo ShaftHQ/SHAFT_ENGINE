@@ -1,6 +1,6 @@
 package example;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.JsonNodeFactory;
 import com.shaft.pilot.ai.AiRequest;
 
 /**

@@ -1,8 +1,8 @@
 package com.shaft.doctor.repair;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.doctor.internal.DoctorRedactor;
 import com.shaft.doctor.model.Diagnosis;
 import com.shaft.pilot.ai.AiExecutionService;
@@ -150,7 +150,7 @@ public final class DoctorRepairAiService {
             }
             return new DoctorRepairPatchResult(
                     AiResponseStatus.SUCCESS, response.provider(), response.model(), patches, "");
-        } catch (RuntimeException | IOException exception) {
+        } catch (RuntimeException exception) {
             return fallback(AiResponseStatus.INVALID_RESPONSE, response.provider(), response.model(),
                     "Provider patch output could not be validated.");
         }
@@ -216,7 +216,7 @@ public final class DoctorRepairAiService {
                     """.formatted(
                     String.join("\n", allowedPaths == null ? List.of() : allowedPaths),
                     JSON.writeValueAsString(diagnosis));
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalArgumentException("Doctor diagnosis could not be serialized.", exception);
         }
     }

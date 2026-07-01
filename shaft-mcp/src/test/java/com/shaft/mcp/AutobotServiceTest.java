@@ -95,7 +95,7 @@ class AutobotServiceTest {
                 new LocalAgentService(client -> true, new CapturingRunner()), request -> {
                     capturedText.set(request.text());
                     return AiResponse.success("github", "openai/gpt-4.1",
-                            com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("answer", "ok"),
+                            tools.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("answer", "ok"),
                             Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(), request.deterministicFallback());
                 });
 

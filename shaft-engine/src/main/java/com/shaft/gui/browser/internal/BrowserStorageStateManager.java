@@ -1,7 +1,8 @@
 package com.shaft.gui.browser.internal;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -20,7 +21,9 @@ import java.util.Map;
  * Saves and restores browser cookies, localStorage, and sessionStorage for one WebDriver context.
  */
 public final class BrowserStorageStateManager {
-    private static final ObjectMapper JSON = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .enable(SerializationFeature.INDENT_OUTPUT)
+            .build();
     private static final String STORAGE_SNAPSHOT_SCRIPT = "return {localStorage: Object.fromEntries(Object.entries(window.localStorage)), "
             + "sessionStorage: Object.fromEntries(Object.entries(window.sessionStorage))};";
     private static final String LOAD_STORAGE_SCRIPT = "window.localStorage.clear(); window.sessionStorage.clear(); "
@@ -81,7 +84,7 @@ public final class BrowserStorageStateManager {
             javascript(driver).executeScript(LOAD_STORAGE_SCRIPT,
                     origin.localStorage == null ? Map.of() : origin.localStorage,
                     origin.sessionStorage == null ? Map.of() : origin.sessionStorage);
-        } catch (IOException e) {
+        } catch (RuntimeException e) {
             throw new IllegalStateException("Could not load browser storage state from `" + path + "`.", e);
         }
     }

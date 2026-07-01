@@ -1,9 +1,9 @@
 package com.shaft.mcp;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Diagnosis;
@@ -398,7 +398,7 @@ final class McpDoctorRemediationService {
                     Deterministic diagnosis:
                     %s
                     """.formatted(JSON.writeValueAsString(diagnosis));
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalArgumentException("Doctor diagnosis could not be serialized.", exception);
         }
     }

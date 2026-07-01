@@ -1,6 +1,6 @@
 package com.shaft.capture.model;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.CaptureFixtures;
 import org.junit.jupiter.api.Test;
 

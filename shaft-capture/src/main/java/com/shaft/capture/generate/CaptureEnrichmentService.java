@@ -1,10 +1,10 @@
 package com.shaft.capture.generate;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.pilot.ai.AiBudget;
@@ -125,7 +125,7 @@ public final class CaptureEnrichmentService {
         }
         try {
             return JSON.writeValueAsString(root);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("Sanitized enrichment context could not be serialized.", exception);
         }
     }
@@ -159,8 +159,8 @@ public final class CaptureEnrichmentService {
 
     private static CaptureEnrichmentPreview.Proposal parseProposal(JsonNode payload) {
         Map<String, String> elementNames = new LinkedHashMap<>();
-        payload.path("elementNames").fields().forEachRemaining(entry ->
-                elementNames.put(entry.getKey(), entry.getValue().asText("")));
+        payload.path("elementNames").forEachEntry((name, value) ->
+                elementNames.put(name, value.asText("")));
         List<CaptureEnrichmentPreview.AssertionSuggestion> assertions = new ArrayList<>();
         for (JsonNode item : payload.path("assertions")) {
             assertions.add(new CaptureEnrichmentPreview.AssertionSuggestion(

@@ -1,10 +1,11 @@
 package com.shaft.doctor.ai;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.doctor.DoctorAiAnalysisRequest;
 import com.shaft.doctor.format.DoctorFormatException;
 import com.shaft.doctor.format.DoctorJsonCodec;
@@ -48,8 +49,9 @@ import java.util.function.Supplier;
 public final class DoctorAiAnalysisService {
     private static final String SCHEMA_RESOURCE = "/schema/shaft-doctor-advisory-1.0.schema.json";
     private static final int MAX_TEXT_LENGTH = 2_000;
-    private static final ObjectMapper JSON = new ObjectMapper()
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    private static final ObjectMapper JSON = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
     private static final JsonNode RESPONSE_SCHEMA = loadSchema();
 
     private final Function<AiRequest, AiResponse> executor;
@@ -117,7 +119,7 @@ public final class DoctorAiAnalysisService {
                 validateCached(cached, evidence, identity);
                 return new DoctorAdvisory(cached.schemaVersion(), cached.status(), cached.analysis(),
                         cached.metadata().asCacheHit());
-            } catch (IOException | RuntimeException ignored) {
+            } catch (RuntimeException ignored) {
                 ignoredCacheEntry = true;
             }
         }
@@ -185,7 +187,7 @@ public final class DoctorAiAnalysisService {
                 writeCache(cachePath, advisory);
             }
             return advisory;
-        } catch (JsonProcessingException | IllegalArgumentException exception) {
+        } catch (JacksonException | IllegalArgumentException exception) {
             return fallback(AiResponseStatus.INVALID_RESPONSE, safe(response.provider()), safe(response.model()),
                     identity.identifier(), response.duration(), response.usage(),
                     "Provider output failed Doctor advisory validation.", cacheWarning(ignoredCacheEntry));

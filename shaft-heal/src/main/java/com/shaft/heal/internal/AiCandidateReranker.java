@@ -1,9 +1,9 @@
 package com.shaft.heal.internal;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.heal.HealingConfiguration;
 import com.shaft.heal.model.HealingCandidate;
 import com.shaft.heal.model.HealingReport;
@@ -64,7 +64,7 @@ final class AiCandidateReranker {
                         EvidenceCategory.DOM,
                         "application/json",
                         JSON.writeValueAsString(candidate.report())));
-            } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            } catch (tools.jackson.core.JacksonException exception) {
                 return fallback(candidates, "Candidate evidence could not be serialized.");
             }
         }

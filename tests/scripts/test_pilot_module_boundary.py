@@ -45,6 +45,7 @@ class PilotModuleBoundaryTest(unittest.TestCase):
             [
                 "com.shaft.ai.provider.AnthropicProvider",
                 "com.shaft.ai.provider.GeminiProvider",
+                "com.shaft.ai.provider.GitHubModelsProvider",
                 "com.shaft.ai.provider.OllamaProvider",
                 "com.shaft.ai.provider.OpenAiProvider",
             ],
@@ -52,6 +53,7 @@ class PilotModuleBoundaryTest(unittest.TestCase):
         self.assertTrue(all("openai" not in artifact.lower() for artifact in ai_dependencies))
         self.assertTrue(all("anthropic" not in artifact.lower() for artifact in ai_dependencies))
         self.assertTrue(all("gemini" not in artifact.lower() for artifact in ai_dependencies))
+        self.assertTrue(all("github" not in artifact.lower() for artifact in ai_dependencies))
         self.assertTrue(all("ollama" not in artifact.lower() for artifact in ai_dependencies))
 
     def test_bom_and_consumer_fixture_expose_provider_neutral_core(self):

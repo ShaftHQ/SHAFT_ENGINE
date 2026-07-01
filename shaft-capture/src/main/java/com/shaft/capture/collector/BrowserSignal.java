@@ -1,8 +1,8 @@
 package com.shaft.capture.collector;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.format.CaptureFormatException;
 
 import java.time.Instant;
@@ -60,7 +60,7 @@ public record BrowserSignal(
                     map(payload.get("page")),
                     map(payload.get("target")),
                     map(payload.get("data")));
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new CaptureFormatException("Browser capture signal is malformed.", exception);
         }
     }

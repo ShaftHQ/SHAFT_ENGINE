@@ -1,7 +1,7 @@
 package com.shaft.tools.io.internal;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 import io.qameta.allure.model.Status;
@@ -133,7 +133,7 @@ public final class FailureBriefReporter {
             html.append("</tbody></table></div></section>");
             html.append("</main></div></body></html>");
             return html.toString();
-        } catch (IOException e) {
+        } catch (RuntimeException e) {
             throw new IllegalArgumentException("Could not render failure brief HTML.", e);
         }
     }

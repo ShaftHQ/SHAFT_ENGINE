@@ -1,6 +1,6 @@
 package com.shaft.doctor.repair;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Confidence;
 import com.shaft.doctor.model.Diagnosis;

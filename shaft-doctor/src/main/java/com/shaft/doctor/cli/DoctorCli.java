@@ -1,7 +1,8 @@
 package com.shaft.doctor.cli;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import com.shaft.doctor.DoctorAiAnalysisRequest;
 import com.shaft.doctor.DoctorAnalysisRequest;
 import com.shaft.doctor.DoctorAnalyzer;
@@ -38,8 +39,9 @@ import java.util.Set;
  * Executable local CLI for SHAFT Doctor.
  */
 public final class DoctorCli {
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+            .build();
     private static final PrintWriter OUTPUT = new PrintWriter(
             new OutputStreamWriter(new FileOutputStream(FileDescriptor.out), StandardCharsets.UTF_8), true);
     private static final PrintWriter ERROR = new PrintWriter(
@@ -101,7 +103,7 @@ public final class DoctorCli {
     }
 
     private static int analyze(Arguments options, PrintWriter output)
-            throws com.fasterxml.jackson.core.JsonProcessingException {
+            throws tools.jackson.core.JacksonException {
             if (options.flag("ai-cache") && !options.flag("ai")) {
                 throw new IllegalArgumentException("Doctor option --ai-cache requires --ai.");
             }
@@ -191,7 +193,7 @@ public final class DoctorCli {
     }
 
     private static int publishDraft(Arguments options, PrintWriter output)
-            throws com.fasterxml.jackson.core.JsonProcessingException {
+            throws tools.jackson.core.JacksonException {
         var result = new DoctorRepairService().publishDraft(new DoctorRepairPublicationRequest(
                 options.pathRequired("manifest"),
                 options.flag("approve"),

@@ -1,7 +1,7 @@
 package com.shaft.doctor.repair;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.shaft.doctor.format.DoctorJsonCodec;
 import com.shaft.doctor.internal.DoctorHashing;
 import com.shaft.doctor.model.Diagnosis;
@@ -477,7 +477,7 @@ public final class DoctorRepairService {
                     value.path("url").asText(),
                     value.path("isDraft").asBoolean(),
                     value.path("state").asText());
-        } catch (IOException exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalStateException("GitHub pull-request response was malformed.", exception);
         }
     }

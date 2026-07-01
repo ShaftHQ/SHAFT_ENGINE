@@ -1,7 +1,7 @@
 package com.shaft.capture.runtime;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.StringNode;
 import com.shaft.capture.collector.BrowserSignal;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.Checkpoint;
@@ -655,7 +655,7 @@ final class CaptureEventPipeline implements AutoCloseable {
 
     private Map<String, JsonNode> verificationExtensions(BrowserSignal signal) {
         String attribute = privacy.sanitizeText(signal.dataString("attributeName")).value();
-        return attribute.isBlank() ? Map.of() : Map.of("attributeName", TextNode.valueOf(attribute));
+        return attribute.isBlank() ? Map.of() : Map.of("attributeName", StringNode.valueOf(attribute));
     }
 
     private void ensureOpen() {

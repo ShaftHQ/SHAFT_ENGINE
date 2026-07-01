@@ -1,9 +1,9 @@
 package com.shaft.ai.provider;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.shaft.pilot.ai.AiCapabilities;
 import com.shaft.pilot.ai.AiImage;
 import com.shaft.pilot.ai.AiRequest;
@@ -74,7 +74,7 @@ public final class OpenAiProvider extends AbstractHttpAiProvider {
     }
 
     @Override
-    protected JsonNode parseStructuredPayload(JsonNode response) throws JsonProcessingException {
+    protected JsonNode parseStructuredPayload(JsonNode response) throws JacksonException {
         for (JsonNode output : response.path("output")) {
             for (JsonNode content : output.path("content")) {
                 if ("output_text".equals(content.path("type").asText())) {
@@ -82,7 +82,7 @@ public final class OpenAiProvider extends AbstractHttpAiProvider {
                 }
             }
         }
-        throw new JsonProcessingException("Missing output text") {
+        throw new JacksonException("Missing output text") {
         };
     }
 
