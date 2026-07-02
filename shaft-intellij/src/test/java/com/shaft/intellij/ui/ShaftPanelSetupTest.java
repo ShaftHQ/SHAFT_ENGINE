@@ -84,6 +84,72 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantRoutesRecordingCommandsForWebDriverAndPlaywright() throws Exception {
+        AssistantCommand.Invocation webStart = AssistantCommand.fromPrompt(
+                "/record https://example.com",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation playwrightStart = AssistantCommand.fromPrompt(
+                "/record playwright",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation explicitPlaywrightStop = AssistantCommand.fromPrompt(
+                "stop playwright recording",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false);
+
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Object playwrightBackend = recordingBackend("PLAYWRIGHT");
+        setField(panel, "activeRecordingBackend", playwrightBackend);
+        AssistantCommand.Invocation naturalStop = AssistantCommand.fromPrompt(
+                "stop recording",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false);
+        Method route = ShaftAssistantPanel.class.getDeclaredMethod(
+                "routeNaturalStopToActiveRecorder", String.class, AssistantCommand.Invocation.class);
+        route.setAccessible(true);
+        AssistantCommand.Invocation routedStop = (AssistantCommand.Invocation) route.invoke(
+                panel, "stop recording", naturalStop);
+
+        assertAll(
+                () -> assertEquals("capture_start", webStart.toolName()),
+                () -> assertEquals("https://example.com", webStart.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("playwright_record_start", playwrightStart.toolName()),
+                () -> assertEquals("playwright_record_stop", explicitPlaywrightStop.toolName()),
+                () -> assertEquals("playwright_record_stop", routedStop.toolName()));
+    }
+
+    @Test
+    void assistantBuildsPlaywrightReviewFromActiveRecordingPath() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Object playwrightBackend = recordingBackend("PLAYWRIGHT");
+        setField(panel, "activeRecordingBackend", playwrightBackend);
+        setField(panel, "activePlaywrightRecordingPath", "recordings/custom-playwright.json");
+
+        Method review = ShaftAssistantPanel.class.getDeclaredMethod(
+                "recordingCodeReviewInvocation", Class.forName("com.shaft.intellij.ui.ShaftAssistantPanel$RecordingBackend"));
+        review.setAccessible(true);
+        AssistantCommand.Invocation invocation = (AssistantCommand.Invocation) review.invoke(panel, playwrightBackend);
+
+        assertAll(
+                () -> assertEquals("playwright_recording_code_blocks", invocation.toolName()),
+                () -> assertEquals("recordings/custom-playwright.json",
+                        invocation.arguments().get("recordingPath").getAsString()));
+    }
+
+    @Test
     void toolsExplainMissingMcpConfiguration() {
         ShaftFeaturePanel panel = new ShaftFeaturePanel(null, blankMcpSettings());
 
@@ -1105,6 +1171,13 @@ class ShaftPanelSetupTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.get(target);
+    }
+
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static Object recordingBackend(String name) throws ClassNotFoundException {
+        return Enum.valueOf((Class<Enum>) (Class) Class.forName(
+                "com.shaft.intellij.ui.ShaftAssistantPanel$RecordingBackend"), name);
     }
 
     private static String assistantExport(ShaftAssistantPanel panel) throws Exception {

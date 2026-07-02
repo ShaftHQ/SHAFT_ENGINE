@@ -102,6 +102,8 @@ final class ShaftAssistantPanel extends JPanel {
     private StringBuilder localAgentOutput;
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
     private String activeCaptureRecordingPath = AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH;
+    private String activePlaywrightRecordingPath = AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH;
+    private RecordingBackend activeRecordingBackend = RecordingBackend.WEBDRIVER;
     private CaptureReview pendingCaptureReview;
     private boolean generateCaptureReviewAfterStop;
     private boolean captureReviewGenerationRunning;
@@ -352,6 +354,7 @@ final class ShaftAssistantPanel extends JPanel {
                 workingDirectory,
                 customCommand.getText(),
                 allowSourceMutation.isSelected());
+        invocation = routeNaturalStopToActiveRecorder(text, invocation);
         append("user", AssistantMarkdown.normalizeMarkdown(text), "");
         if (agentMode
                 && !approvingCaptureReview
@@ -514,7 +517,7 @@ final class ShaftAssistantPanel extends JPanel {
             showTransientStatus("MCP test passed. Ready to chat.");
         }
         if (cancelled) {
-            if ("capture_code_blocks".equals(toolName) && captureReviewGenerationRunning) {
+            if (isRecordingCodeReviewTool(toolName) && captureReviewGenerationRunning) {
                 captureReviewGenerationRunning = false;
                 clearPendingCaptureReview();
             }
@@ -529,10 +532,10 @@ final class ShaftAssistantPanel extends JPanel {
             appendToolEvidence(toolName, output);
         }
         String markdown = AssistantMarkdown.fromMcpOutput(toolName, output);
-        if (!success && captureReviewGenerationRunning && "capture_code_blocks".equals(toolName)) {
+        if (!success && captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
             captureReviewGenerationRunning = false;
         }
-        if (success && captureReviewGenerationRunning && "capture_code_blocks".equals(toolName)) {
+        if (success && captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
             captureReviewGenerationRunning = false;
             pendingCaptureReview = new CaptureReview(markdown, output);
             showPendingCaptureReview();
@@ -543,7 +546,8 @@ final class ShaftAssistantPanel extends JPanel {
             status.setText("Awaiting approval");
             return;
         }
-        if (success && generateCaptureReviewAfterStop && "capture_stop".equals(toolName)) {
+        if (success && generateCaptureReviewAfterStop
+                && ("capture_stop".equals(toolName) || "playwright_record_stop".equals(toolName))) {
             stopCaptureStartDiagnostic();
             showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n" + markdown, output);
             startCaptureCodeReview();
@@ -918,8 +922,18 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
+    private AssistantCommand.Invocation routeNaturalStopToActiveRecorder(String promptText, AssistantCommand.Invocation invocation) {
+        if (activeRecordingBackend == RecordingBackend.PLAYWRIGHT
+                && "capture_stop".equals(invocation.toolName())
+                && AssistantCommand.isStopRecording(promptText)) {
+            return AssistantCommand.stopPlaywrightRecording();
+        }
+        return invocation;
+    }
+
     private void rememberCaptureInvocation(String promptText, AssistantCommand.Invocation invocation) {
         if ("capture_start".equals(invocation.toolName())) {
+            activeRecordingBackend = RecordingBackend.WEBDRIVER;
             activeCaptureRecordingPath = string(invocation.arguments(), "outputPath",
                     AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH);
             clearPendingCaptureReview();
@@ -928,7 +942,20 @@ final class ShaftAssistantPanel extends JPanel {
             captureReviewGenerationRunning = false;
             return;
         }
-        if ("capture_stop".equals(invocation.toolName()) && AssistantCommand.isStopRecording(promptText)) {
+        if ("playwright_record_start".equals(invocation.toolName())) {
+            activeRecordingBackend = RecordingBackend.PLAYWRIGHT;
+            activePlaywrightRecordingPath = string(
+                    invocation.arguments(), "outputPath", AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH);
+            clearPendingCaptureReview();
+            generateCaptureReviewAfterStop = false;
+            captureReviewGenerationRunning = false;
+            return;
+        }
+        if (("capture_stop".equals(invocation.toolName()) || "playwright_record_stop".equals(invocation.toolName()))
+                && AssistantCommand.isStopRecording(promptText)) {
+            if ("playwright_record_stop".equals(invocation.toolName())) {
+                activeRecordingBackend = RecordingBackend.PLAYWRIGHT;
+            }
             stopCaptureStartDiagnostic();
             generateCaptureReviewAfterStop = true;
         }
@@ -938,12 +965,25 @@ final class ShaftAssistantPanel extends JPanel {
         generateCaptureReviewAfterStop = false;
         captureReviewGenerationRunning = true;
         setRunning(true, "Generating review code...");
-        AssistantCommand.Invocation invocation = AssistantCommand.Invocation.tool(
-                "capture_code_blocks",
-                AssistantCommand.captureCodeReview(activeCaptureRecordingPath));
+        RecordingBackend reviewBackend = activeRecordingBackend;
+        AssistantCommand.Invocation invocation = recordingCodeReviewInvocation(reviewBackend);
+        activeRecordingBackend = RecordingBackend.WEBDRIVER;
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(invocation.toolName(), result, error)));
+    }
+
+    private AssistantCommand.Invocation recordingCodeReviewInvocation(RecordingBackend backend) {
+        boolean playwright = backend == RecordingBackend.PLAYWRIGHT;
+        return AssistantCommand.Invocation.tool(
+                playwright ? "playwright_recording_code_blocks" : "capture_code_blocks",
+                playwright
+                        ? AssistantCommand.playwrightCodeReview(activePlaywrightRecordingPath)
+                        : AssistantCommand.captureCodeReview(activeCaptureRecordingPath));
+    }
+
+    private static boolean isRecordingCodeReviewTool(String toolName) {
+        return "capture_code_blocks".equals(toolName) || "playwright_recording_code_blocks".equals(toolName);
     }
 
     private void showPendingCaptureReview() {
@@ -1346,6 +1386,11 @@ final class ShaftAssistantPanel extends JPanel {
     private static String string(JsonObject object, String key, String fallback) {
         JsonElement value = object == null ? null : object.get(key);
         return value != null && value.isJsonPrimitive() ? value.getAsString() : fallback;
+    }
+
+    private enum RecordingBackend {
+        WEBDRIVER,
+        PLAYWRIGHT
     }
 
     private record ToolEvidence(String toolName, String payload, String createdAt) {
