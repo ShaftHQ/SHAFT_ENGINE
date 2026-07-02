@@ -293,6 +293,43 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void formatsDoctorAnalysisReportWithActionsSnippetsAndReportPaths() {
+        String markdown = AssistantMarkdown.fromMcpOutput("doctor_analyze_failed_allure", mcpText("""
+                {
+                  "schemaVersion": "1.0",
+                  "status": "DETERMINISTIC",
+                  "bundleId": "bundle-123",
+                  "primaryCause": "LOCATOR",
+                  "confidence": "HIGH",
+                  "summary": "Button locator no longer matches the page.",
+                  "actions": [
+                    {"title":"Update locator","action":"Replace the stale CSS selector.","status":"SUGGESTED"}
+                  ],
+                  "codeBlocks": [
+                    {"title":"Locator fix","language":"java","code":"By login = By.id(\\"login\\");","copyPasteReady":true}
+                  ],
+                  "providerFallback": {"used":false,"reason":"AI advisory disabled by default."},
+                  "bundlePath": "target/shaft-doctor/evidence-bundle.json",
+                  "jsonReportPath": "target/shaft-doctor/doctor-report.json",
+                  "markdownReportPath": "target/shaft-doctor/doctor-report.md",
+                  "warnings": []
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**Doctor:** DETERMINISTIC")),
+                () -> assertTrue(markdown.contains("**Primary cause:** LOCATOR")),
+                () -> assertTrue(markdown.contains("Button locator no longer matches the page.")),
+                () -> assertTrue(markdown.contains("**Recommended actions**")),
+                () -> assertTrue(markdown.contains("Replace the stale CSS selector.")),
+                () -> assertTrue(markdown.contains("**Fix snippets**")),
+                () -> assertTrue(markdown.contains("```java")),
+                () -> assertTrue(markdown.contains("target/shaft-doctor/doctor-report.json")),
+                () -> assertTrue(markdown.contains("AI advisory disabled by default.")),
+                () -> assertFalse(markdown.contains("\"schemaVersion\"")));
+    }
+
+    @Test
     void unknownJsonCanUseAgentFormatterButKnownResponsesDoNot() {
         assertAll(
                 () -> assertTrue(AssistantMarkdown.shouldFormatWithAgent("browser_unknown", "{\"unexpected\":true}")),
