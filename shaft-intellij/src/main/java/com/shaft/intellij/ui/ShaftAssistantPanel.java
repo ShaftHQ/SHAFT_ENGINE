@@ -184,7 +184,7 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
-        transcript = new AssistantTranscriptView();
+        transcript = new AssistantTranscriptView(project);
         if (!chatState.activeMarkdown().isBlank()) {
             transcript.setMessages(chatState.activeMessages());
         }
@@ -432,6 +432,20 @@ final class ShaftAssistantPanel extends JPanel {
         String output = error != null ? error.getMessage()
                 : result == null ? "No result returned."
                 : result.output();
+        boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
+        if (rejectedGeneratedJava) {
+            sequenceMarkdown.append("### ")
+                    .append(toolCall.toolName())
+                    .append(" rejected")
+                    .append("\n\n")
+                    .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
+                    .append("\n\n");
+            setRunning(false, "Rejected generated code");
+            showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
+                    sequenceRawOutput.toString());
+            clearSequenceState();
+            return;
+        }
         if (!output.isBlank()) {
             appendToolEvidence(toolCall.toolName(), output);
         }
@@ -529,10 +543,19 @@ final class ShaftAssistantPanel extends JPanel {
         String output = error != null ? error.getMessage()
                 : result == null ? "No result returned."
                 : result.output();
-        if (!output.isBlank()) {
+        boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
+        if (!output.isBlank() && !rejectedGeneratedJava) {
             appendToolEvidence(toolName, output);
         }
         String markdown = AssistantMarkdown.fromMcpOutput(toolName, output);
+        if (rejectedGeneratedJava) {
+            if (captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
+                captureReviewGenerationRunning = false;
+            }
+            showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "");
+            status.setText("Rejected generated code");
+            return;
+        }
         if (!success && captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
             captureReviewGenerationRunning = false;
         }
@@ -594,11 +617,17 @@ final class ShaftAssistantPanel extends JPanel {
         String output = error != null ? error.getMessage()
                 : result == null ? "No response returned."
                 : result.output();
-        if (!output.isBlank()) {
+        boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
+        if (!output.isBlank() && !rejectedGeneratedJava) {
             appendToolEvidence("autobot_local_agent_run", output);
         }
-        String response = AssistantMarkdown.normalizeMarkdown(output);
-        showAgentResponse(streamToken, currentStream, response, output);
+        String response = rejectedGeneratedJava
+                ? AssistantMarkdown.nativeSeleniumRejectionMarkdown()
+                : AssistantMarkdown.normalizeMarkdown(output);
+        if (rejectedGeneratedJava) {
+            status.setText("Rejected generated code");
+        }
+        showAgentResponse(streamToken, currentStream, response, rejectedGeneratedJava ? "" : output);
     }
 
     private void showAgentCancelled(int streamToken, boolean currentStream) {

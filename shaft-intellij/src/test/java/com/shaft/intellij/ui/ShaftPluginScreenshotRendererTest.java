@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
@@ -51,6 +52,19 @@ class ShaftPluginScreenshotRendererTest {
     private static final Color DARK_FIELD = new Color(0x45494A);
     private static final Color DARK_TEXT = new Color(0xDADADA);
     private static final Color DARK_BORDER = new Color(0x6B6F72);
+    private static final String ASSISTANT_SHAFT_CODE_SAMPLE = """
+            ```java
+            public class SignInTest {
+                private final SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+
+                @Test
+                void opensSignInPage() {
+                    driver.browser().navigateToURL("https://example.com");
+                    driver.element().click(SHAFT.GUI.Locator.clickableField("Sign in"));
+                }
+            }
+            ```
+            """.stripIndent().trim();
     private static final Map<Class<?>, Object> PRIMITIVE_DEFAULTS = Map.of(
             boolean.class, false,
             byte.class, (byte) 0,
@@ -161,7 +175,12 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.mismatch(settingsScreenshot, settingsDarkScreenshot) >= 0,
                         "Settings light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(advancedToolsLightScreenshot, advancedToolsDarkScreenshot) >= 0,
-                        "Advanced Tools light and dark screenshots should differ"));
+                        "Advanced Tools light and dark screenshots should differ"),
+                () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("SHAFT.GUI.WebDriver")),
+                () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.browser().navigateToURL")),
+                () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.element().click")),
+                () -> assertFalse(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.get(")),
+                () -> assertFalse(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.findElement(")));
     }
 
     private static BufferedImage renderToolWindow(int selectedTab, String toolsCategory, String lookAndFeelClassName, boolean dark)
@@ -218,13 +237,8 @@ class ShaftPluginScreenshotRendererTest {
             chatState.append("assistant", """
                     _Running local assistant..._
 
-                    ```text
-                    Running driver_initialize (1/2) OK
-                    Running browser_open_intent (2/2) OK
-                    URL: https://example.com
-                    Locator candidates: linkText=Sign in, css=a[href*='signin']
-                    ```
-                    """.stripIndent().trim(), "");
+                    %s
+                    """.formatted(ASSISTANT_SHAFT_CODE_SAMPLE).stripIndent().trim(), "");
             ShaftSettingsState.Settings settings = defaultSettings();
             settings.defaultAutobotMode = "AGENT";
             ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,

@@ -58,8 +58,12 @@ public class TestAutomationService {
             "Place executable TestNG scenarios under src/test/java and reuse the main-package API or page objects.",
             "For GUI work, use Page Object Model plus fluent SHAFT actions by default.",
             "Use WebDriver MCP tools by default; use playwright_* tools when the project or user asks for SHAFT Playwright.",
-            "After driver_initialize, call browser_open_intent when the prompt includes a URL and desired action;"
+            "When web code generation names a site, product, or environment without an explicit URL, ask the user"
+                    + " to confirm the exact target URL; do not infer canonical URLs.",
+            "After driver_initialize, call browser_open_intent when the prompt includes a confirmed URL and desired action;"
                     + " use returned capture-ranked locator candidates before element_* or natural_act.",
+            "Before returning web login, form, or navigation code, perform the actual action with element_type,"
+                    + " element_click, or natural_act and only publish locators that worked.",
             "For code generation from automated or user-performed actions, start capture/recording first and generate"
                     + " code blocks only after stopping the session.",
             "For Allure, trace, or locator-flakiness failures, prefer Doctor/Trace/Heal evidence before source edits.",
@@ -383,13 +387,18 @@ public class TestAutomationService {
                 s("web-pom-fluent-test", "Create web GUI tests with POM and fluent SHAFT actions", a("web", "gui"),
                         "Use SHAFT MCP to inspect this page and write maintainable web UI tests.",
                         t("shaft_guide_search", "driver_initialize", "browser_open_intent", "browser_navigate",
-                                "browser_get_page_dom", "browser_take_screenshot", "test_code_guardrails_check"),
-                        t("Call browser_open_intent when the prompt includes a URL and action intent",
-                                "Inspect DOM and screenshot", "Create or extend page objects",
+                                "browser_get_page_dom", "browser_take_screenshot", "element_type", "element_click",
+                                "natural_act", "test_code_guardrails_check"),
+                        t("Ask the user to confirm the exact target URL when the prompt names a site without one",
+                                "Call browser_open_intent when the prompt includes a confirmed URL and action intent",
+                                "Inspect DOM and screenshot", "Perform the actual requested action with the selected locator",
+                                "Create or extend page objects",
                                 "Write fluent SHAFT actions and assertions in tests"),
                         t("Page objects under src/main/java/<basePackage>/pages; tests under src/test/java"),
-                        t(NO_SLEEP, NO_ABSOLUTE_XPATH, "No @FindBy or PageFactory"),
-                        t("Headless focused GUI test passes and page object methods stay reusable")),
+                        t(NO_SLEEP, NO_ABSOLUTE_XPATH, "No @FindBy or PageFactory",
+                                "Do not infer target URLs or publish unverified locators"),
+                        t("Headless focused GUI test passes, selected locators were proven by element actions,"
+                                + " and page object methods stay reusable")),
                 s("web-url-intent-orientation", "Open a URL, infer the requested action, and choose stable locators",
                         a("web", "gui", "locator", "capture"),
                         "Open this URL, perform the requested action, and generate SHAFT code from the flow.",
@@ -397,13 +406,17 @@ public class TestAutomationService {
                                 "element_type", "natural_act", "capture_start", "capture_status", "capture_stop",
                                 "capture_code_blocks", "test_code_guardrails_check"),
                         t("Search official guide patterns for the requested action",
+                                "Ask the user to confirm the exact target URL when the prompt names a site without one",
                                 "Initialize the WebDriver session",
                                 "Call browser_open_intent with targetUrl and userIntent",
                                 "Use the returned capture-ranked locator candidates or SHAFT locator code",
+                                "Perform the actual action with element_type, element_click, or natural_act"
+                                        + " to prove the selected locator works",
                                 "Start capture before user-performed actions when code generation is requested"),
                         t("Page objects under src/main/java/<basePackage>/pages; reviewed generated snippets under"
                                 + " src/test/java or existing page/test classes"),
                         t(NO_SLEEP, NO_ABSOLUTE_XPATH, "Do not paste raw DOM into source",
+                                "Do not infer target URLs or publish unverified locators",
                                 "Do not use coordinate-only clicks when locator candidates exist",
                                 "Do not include sensitive typed values unless explicitly allowed"),
                         t("Agent reports current URL, selected locator, action result, codegen path, and validation"
