@@ -135,3 +135,7 @@
 {"actor":"agent","event":"memory.created","id":"workflow.intellij-ui-prs-need-refreshed-catalog-and-guide-screenshots","timestamp":"2026-07-02T19:16:30+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.record-shaft-intellij-idea-plugin-onboarding-video","timestamp":"2026-07-02T21:42:01+03:00"}
 {"actor":"agent","event":"memory.superseded","id":"workflow.record-shaft-intellij-plugin-onboarding-video","reason":"The July 2026 workflow update keeps the original recording steps and adds Windows JDK Packages and clean sandbox lessons.","timestamp":"2026-07-02T21:42:42+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-rejects-native-selenium-generated-java","timestamp":"2026-07-02T23:32:22+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.assistant-code-generation-must-verify-live-web-locators","timestamp":"2026-07-02T23:32:22+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.assistant-markdown-copy-controls-are-icon-only","timestamp":"2026-07-02T23:32:22+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.assistant-transcript-fallback-paints-real-rounded-bubbles","timestamp":"2026-07-02T23:32:22+03:00"}

@@ -1,0 +1,35 @@
+{
+  "body_path": "memory/decisions/assistant-markdown-copy-controls-are-icon-only.md",
+  "content_hash": "sha256:8d4cd9140bc57f71d8df4e501e51c46a9b786310d06f66f53c542d4726149a14",
+  "created_at": "2026-07-02T23:32:22+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantTranscriptView.java",
+      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPanelSetupTest.java",
+      "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPluginScreenshotRendererTest.java"
+    ],
+    "category": "decision-rationale"
+  },
+  "id": "decision.assistant-markdown-copy-controls-are-icon-only",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Enforce SHAFT-only generated code in IntelliJ Assistant"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "assistant",
+    "markdown",
+    "copy-button"
+  ],
+  "title": "Assistant Markdown copy controls are icon-only",
+  "type": "decision",
+  "updated_at": "2026-07-02T23:32:22+03:00"
+}
