@@ -163,8 +163,17 @@ class ToolTemplatesTest {
         assertTrue(browserOpenIntent.contextTypes().contains("browser-session-management"));
 
         ToolTemplate mobileGetElement = templateByName("mobile_get_accessibility_tree");
+        ToolTemplate mobileContexts = templateByName("mobile_get_contexts");
+        ToolTemplate mobileSwitchContext = templateByName("mobile_switch_context");
+        ToolTemplate mobileScreenshot = templateByName("mobile_take_screenshot");
         assertNotNull(mobileGetElement);
+        assertNotNull(mobileContexts);
+        assertNotNull(mobileSwitchContext);
+        assertNotNull(mobileScreenshot);
         assertTrue(mobileGetElement.contextTypes().contains("mobile"));
+        assertTrue(mobileContexts.arguments().contains("8000"));
+        assertTrue(mobileSwitchContext.arguments().contains("contextName"));
+        assertTrue(mobileScreenshot.arguments().contains("includeBase64"));
 
         ToolTemplate traceRead = templateByName("trace_read");
         assertNotNull(traceRead);

@@ -16,6 +16,7 @@ import java.util.Locale;
 final class AssistantCommand {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
     private static final int DEFAULT_BROWSER_MAX_CHARACTERS = 12_000;
+    private static final int DEFAULT_MOBILE_MAX_CHARACTERS = 8_000;
     private static final int DEFAULT_BROWSER_MAX_ELEMENTS = 10;
     static final String DEFAULT_CAPTURE_TARGET_URL = "https://duckduckgo.com/";
     static final String DEFAULT_CAPTURE_RECORDING_PATH = "recordings/intellij-capture.json";
@@ -94,6 +95,8 @@ final class AssistantCommand {
                     (text, workingDirectory) -> browser(text)),
             new NaturalIntent(AssistantCommand::isBrowserRecordingIntent,
                     (text, workingDirectory) -> record(text)),
+            new NaturalIntent(AssistantCommand::isMobileControlIntent,
+                    (text, workingDirectory) -> mobile(naturalMobileCommand(text))),
             new NaturalIntent(AssistantCommand::isMobileRecordingStartIntent,
                     (text, workingDirectory) -> mobileRecord("start " + firstJsonLikePath(text))),
             new NaturalIntent(AssistantCommand::isMobileRecordingStopIntent,
@@ -383,19 +386,34 @@ final class AssistantCommand {
         if (commandIs(action, "web", "emulation", "emulate")) {
             return Invocation.tool("mobile_initialize_web_emulation", mobileWeb(remainder));
         }
-        if (commandIs(action, "tree", "source", "dom", "accessibility")) {
+        if (commandIs(action, "tree", "source", "dom", "accessibility", "inspect")) {
             JsonObject arguments = new JsonObject();
-            arguments.addProperty("maxCharacters", DEFAULT_BROWSER_MAX_CHARACTERS);
+            arguments.addProperty("maxCharacters", DEFAULT_MOBILE_MAX_CHARACTERS);
             return Invocation.tool("mobile_get_accessibility_tree", arguments);
         }
         if (commandIs(action, "contexts", "context")) {
+            String contextName = firstWord(remainder);
+            if (!contextName.isBlank() && !commandIs(contextName.toLowerCase(Locale.ROOT), "list", "show", "get")) {
+                JsonObject arguments = new JsonObject();
+                arguments.addProperty("contextName", contextName);
+                return Invocation.tool("mobile_switch_context", arguments);
+            }
             JsonObject arguments = new JsonObject();
-            arguments.addProperty("maxCharacters", DEFAULT_BROWSER_MAX_CHARACTERS);
+            arguments.addProperty("maxCharacters", DEFAULT_MOBILE_MAX_CHARACTERS);
             return Invocation.tool("mobile_get_contexts", arguments);
+        }
+        if (commandIs(action, "switch")) {
+            String contextName = firstTokenOrDefault(remainder, "");
+            if (contextName.isBlank()) {
+                return Invocation.local("Provide an Appium context name, for example `/mobile switch WEBVIEW_chrome`.");
+            }
+            JsonObject arguments = new JsonObject();
+            arguments.addProperty("contextName", contextName);
+            return Invocation.tool("mobile_switch_context", arguments);
         }
         if (commandIs(action, "screenshot", "shot", "capture")) {
             return Invocation.tool("mobile_take_screenshot",
-                    screenshot(firstTokenOrDefault(remainder, "target/shaft-mobile/screenshot.png")));
+                    mobileScreenshot(firstTokenOrDefault(remainder, "target/shaft-mobile/screenshot.png")));
         }
         if (commandIs(action, "record", "recording")) {
             return mobileRecord(remainder);
@@ -409,7 +427,13 @@ final class AssistantCommand {
         if (commandIs(action, "quit", "close", "stop")) {
             return Invocation.tool("driver_quit", new JsonObject());
         }
-        return Invocation.local("Unknown mobile command. Use `/mobile status`, `/mobile native Android <device>`, or `/mobile tree`.");
+        return Invocation.local("Unknown mobile command. Use `/mobile status`, `/mobile native Android <device>`, `/mobile web <url>`, `/mobile tree`, `/mobile contexts`, `/mobile switch <context>`, `/mobile screenshot <path>`, or `/mobile quit`.");
+    }
+
+    private static JsonObject mobileScreenshot(String outputPath) {
+        JsonObject arguments = screenshot(outputPath);
+        arguments.addProperty("includeBase64", false);
+        return arguments;
     }
 
     private static JsonObject mobileNative(String rest) {
@@ -692,6 +716,36 @@ final class AssistantCommand {
                 || normalized.startsWith("start a webdriver recording ");
     }
 
+    private static boolean isMobileControlIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.contains("mobile")
+                && (containsAny(normalized, "toolchain", "appium", "adb", "emulator", "sdk", "inspector")
+                || containsAny(normalized, "accessibility tree", "current mobile screen", "mobile screen", "contexts",
+                "context switch", "switch context", "screenshot", "quit mobile", "close mobile"));
+    }
+
+    private static String naturalMobileCommand(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        String path = firstImageLikePath(text);
+        if (containsAny(normalized, "screenshot", "screen shot")) {
+            return "screenshot " + (path.isBlank() ? "target/shaft-mobile/screenshot.png" : path);
+        }
+        if (containsAny(normalized, "contexts", "context list")) {
+            return "contexts";
+        }
+        if (containsAny(normalized, "switch context", "context switch")) {
+            String contextName = lastAllCapsToken(text);
+            return contextName.isBlank() ? "switch" : "switch " + contextName;
+        }
+        if (containsAny(normalized, "accessibility tree", "current mobile screen", "mobile screen", "inspect")) {
+            return "tree";
+        }
+        if (containsAny(normalized, "quit mobile", "close mobile", "stop mobile session")) {
+            return "quit";
+        }
+        return "status " + (normalized.contains("ios") ? "iOS" : "Android");
+    }
+
     private static boolean isMobileRecordingStartIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
         return normalized.equals("start mobile recording")
@@ -957,6 +1011,32 @@ final class AssistantCommand {
             }
         }
         return "";
+    }
+
+    private static String firstImageLikePath(String rest) {
+        if (rest == null || rest.isBlank()) {
+            return "";
+        }
+        for (String token : rest.split("\\s+")) {
+            String lower = token.toLowerCase(Locale.ROOT);
+            if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+                return token;
+            }
+        }
+        return "";
+    }
+
+    private static String lastAllCapsToken(String rest) {
+        if (rest == null || rest.isBlank()) {
+            return "";
+        }
+        String match = "";
+        for (String token : rest.split("\\s+")) {
+            if (token.matches("[A-Z][A-Z0-9_*.-]*")) {
+                match = token;
+            }
+        }
+        return match;
     }
 
     private static String firstPathLike(String rest) {
