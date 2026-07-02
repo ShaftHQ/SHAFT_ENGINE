@@ -421,6 +421,8 @@ class AssistantCommandTest {
         AssistantCommand.Invocation playwrightAnalyze = command("/doctor playwright target/allure-results");
         AssistantCommand.Invocation suggest = command("/doctor fix target/shaft-doctor/doctor-report.json");
         AssistantCommand.Invocation trace = command("/doctor trace target/shaft-traces");
+        AssistantCommand.Invocation triageAlias = command("/triage target/custom-results", "C:/work/project");
+        AssistantCommand.Invocation fixAlias = command("/fixTestFailure target/custom-results", "C:/work/project");
 
         assertAll(
                 () -> assertEquals("doctor_analyze_failed_allure", analyze.toolName()),
@@ -434,7 +436,11 @@ class AssistantCommandTest {
                 () -> assertEquals("doctor_analyze_trace", trace.toolName()),
                 () -> assertEquals("target/shaft-traces", trace.arguments().get("tracePath").getAsString()),
                 () -> assertEquals("webdriver", trace.arguments().get("backend").getAsString()),
-                () -> assertEquals("doctor_analyze_failed_allure", command("/allure target/allure-results").toolName()));
+                () -> assertEquals("doctor_analyze_failed_allure", command("/allure target/allure-results").toolName()),
+                () -> assertEquals("target/custom-results",
+                        triageAlias.arguments().getAsJsonArray("allureResultPaths").get(0).getAsString()),
+                () -> assertEquals("target/custom-results",
+                        fixAlias.arguments().getAsJsonArray("allureResultPaths").get(0).getAsString()));
     }
 
     @Test

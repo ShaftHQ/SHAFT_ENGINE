@@ -204,6 +204,10 @@ final class AssistantMarkdown {
             if (!screenshot.isBlank()) {
                 return screenshot;
             }
+            String doctor = doctorMarkdown(object);
+            if (!doctor.isBlank()) {
+                return doctor;
+            }
             if (object.has("tools") && object.get("tools").isJsonArray()) {
                 return toolsMarkdown(object.getAsJsonArray("tools"));
             }
@@ -218,6 +222,75 @@ final class AssistantMarkdown {
             }
         }
         return "";
+    }
+
+    private static String doctorMarkdown(JsonObject object) {
+        if (!object.has("schemaVersion") || !object.has("primaryCause") || !object.has("codeBlocks")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Doctor", string(object, "status", ""),
+                "Primary cause", string(object, "primaryCause", ""),
+                "Confidence", string(object, "confidence", ""),
+                "Bundle", string(object, "bundleId", "")));
+        String summary = string(object, "summary", "");
+        if (!summary.isBlank()) {
+            sections.add("**Diagnosis:** " + summary);
+        }
+        String reports = metadataLine(
+                "JSON report", string(object, "jsonReportPath", ""),
+                "Markdown report", string(object, "markdownReportPath", ""),
+                "Evidence bundle", string(object, "bundlePath", ""));
+        if (!reports.isBlank()) {
+            sections.add(reports);
+        }
+        if (object.has("actions") && object.get("actions").isJsonArray()) {
+            String actions = doctorActionsMarkdown(object.getAsJsonArray("actions"));
+            if (!actions.isBlank()) {
+                sections.add(actions);
+            }
+        }
+        String blocks = codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
+        if (!blocks.isBlank()) {
+            sections.add("**Fix snippets**\n\n" + blocks);
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        if (object.has("providerFallback") && object.get("providerFallback").isJsonObject()) {
+            JsonObject fallback = object.getAsJsonObject("providerFallback");
+            String reason = string(fallback, "reason", "");
+            if (!reason.isBlank()) {
+                sections.add("**AI advisory:** " + (booleanValue(fallback, "used") ? "used" : "off") + " — " + reason);
+            }
+        }
+        return joinSections(sections);
+    }
+
+    private static String doctorActionsMarkdown(JsonArray actions) {
+        if (actions.isEmpty()) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("**Recommended actions**");
+        for (JsonElement item : actions) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject action = item.getAsJsonObject();
+            String title = string(action, "title", "Action");
+            String text = string(action, "action", "");
+            String status = string(action, "status", "");
+            markdown.append("\n- **").append(title).append("**");
+            if (!status.isBlank()) {
+                markdown.append(" (`").append(status).append("`)");
+            }
+            if (!text.isBlank()) {
+                markdown.append(": ").append(text);
+            }
+        }
+        return markdown.toString();
     }
 
     private static String mobileMarkdown(JsonObject object) {
