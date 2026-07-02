@@ -1,6 +1,5 @@
 package com.shaft.intellij.ui;
 
-import com.intellij.icons.AllIcons;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -13,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftIconAssetsTest {
     private static final String LIGHT_ACTION_COLOR = "#6C707E";
-    private static final String DARK_ACTION_COLOR = "#FFFFFF";
+    private static final String DARK_ACTION_COLOR = "#CED0D6";
 
     @Test
     void toolWindowIconsUseJetBrainsNewUiSvgVariants() throws IOException {
@@ -49,17 +48,6 @@ class ShaftIconAssetsTest {
                 actionIconAssertions(actions, "send"),
                 actionIconAssertions(actions, "settings"),
                 actionIconAssertions(actions, "view"));
-    }
-
-    @Test
-    void applicableActionIconsUseIntellijPlatformCatalog() {
-        assertAll(
-                () -> assertTrue(ShaftIcons.ADD == AllIcons.General.Add),
-                () -> assertTrue(ShaftIcons.CANCEL == AllIcons.Actions.Cancel),
-                () -> assertTrue(ShaftIcons.COPY == AllIcons.Actions.Copy),
-                () -> assertTrue(ShaftIcons.HELP == AllIcons.Actions.Help),
-                () -> assertTrue(ShaftIcons.SEND == AllIcons.Actions.Execute),
-                () -> assertTrue(ShaftIcons.SETTINGS == AllIcons.General.Settings));
     }
 
     @Test

@@ -51,3 +51,13 @@ Reject and rewrite these unless the brief explicitly requires them and the choic
 - User guide pages must keep one canonical page per concept and verify commands, APIs, properties, dependencies, and compatibility against engine source.
 - Public docs changes that alter behavior need the matching docs PR; pure agent-guidance changes do not.
 - PR evidence must include the smallest useful validation plus real screenshot links/paths for any UI or reporting enhancement.
+
+## IntelliJ Plugin UI
+
+- Follow JetBrains IntelliJ icon standards first: https://intellij-icons.jetbrains.design/ and https://plugins.jetbrains.com/docs/intellij/icons.html.
+- Reuse IntelliJ Platform icons from `AllIcons` when they render correctly in runtime and screenshot evidence. Use plugin-owned SVGs only when platform icons do not satisfy the UI, licensing, theme, or deterministic screenshot need.
+- Keep action icons as 16x16 SVGs under `shaft-intellij/src/main/resources/icons/actions`, with matching `_dark.svg` variants when needed. Use the IntelliJ New UI action colors: light `#6C707E`, dark `#CED0D6`.
+- Tool window icons must keep the existing 16x16 and 20x20 SVG light/dark variants registered in `plugin.xml`.
+- Do not hand-draw replacement glyphs in screenshot renderers or paint fake icons over components. If screenshots show blank or broken icons, fix the shared icon source (`ShaftIcons` or assets) so runtime UI and screenshots use the same real icon.
+- Preserve icon-only button shape, size, tooltip, and accessible-name behavior through `ShaftIconButtons`; do not add one-off button styling in individual panels.
+- Validate IntelliJ icon/UI changes with the smallest relevant set: `ShaftIconAssetsTest`, focused panel tests that assert icons paint visible pixels, screenshot renderer output, and visual inspection of light, dark, and narrow states.

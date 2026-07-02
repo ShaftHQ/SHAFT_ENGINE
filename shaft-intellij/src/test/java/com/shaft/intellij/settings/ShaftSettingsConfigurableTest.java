@@ -63,6 +63,12 @@ class ShaftSettingsConfigurableTest {
                 settings, new InMemoryCredentials());
         JComponent panel = (JComponent) configurable.createComponent();
 
+        assertAll(
+                () -> assertTrue(containsText(panel, "Connection")),
+                () -> assertTrue(containsText(panel, "Execution")),
+                () -> assertTrue(containsText(panel, "Credentials")),
+                () -> assertTrue(containsText(panel, "Advanced")));
+
         JButton testMcp = (JButton) findByAccessibleName(panel, "Test MCP");
         assertNotNull(testMcp);
         assertIcon(testMcp);
@@ -304,6 +310,23 @@ class ShaftSettingsConfigurableTest {
             }
         }
         return null;
+    }
+
+    private static boolean containsText(Component component, String expected) {
+        if (component instanceof JLabel label && label.getText() != null && label.getText().contains(expected)) {
+            return true;
+        }
+        if (component instanceof JButton button && button.getText() != null && button.getText().contains(expected)) {
+            return true;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                if (containsText(child, expected)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static final class InMemoryCredentials implements ShaftSettingsConfigurable.CredentialAccess {

@@ -22,8 +22,10 @@ import javax.swing.JProgressBar;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -187,9 +189,23 @@ class ShaftPanelSetupTest {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), blankMcpSettings());
 
         assertNull(toolWindowWorkflowSelector(toolWindow));
-        assertTrue(containsText(toolWindow, "1. Assistant family"));
-        assertTrue(containsText(toolWindow, "2. Assistant runtime"));
-        assertTrue(containsText(toolWindow, "3. Install or update SHAFT MCP"));
+        assertTrue(containsText(toolWindow, "Project"));
+        assertTrue(containsText(toolWindow, "MCP"));
+        assertTrue(containsText(toolWindow, "Runtime"));
+        assertTrue(containsText(toolWindow, "Assist"));
+        assertTrue(containsText(toolWindow, "Project: Configured"));
+        assertTrue(containsText(toolWindow, "MCP: Not configured"));
+        assertTrue(containsText(toolWindow, "Runtime: Configured"));
+        assertTrue(containsText(toolWindow, "Assist: Not configured"));
+        assertNotNull(findByAccessibleName(toolWindow, "Project setup section", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "MCP setup section", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "Runtime setup section", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "Assist setup section", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "Project setup status", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP install status", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "Assistant connection setup status", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP setup next step", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "Install or update SHAFT MCP", JButton.class));
         assertTrue(containsText(toolWindow, "Test connection"));
     }
@@ -237,7 +253,8 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(containsText(panel, "SUCCESS: Installation completed successfully.")),
                 () -> assertTrue(containsText(panel, "Test connection and start chatting")),
-                () -> assertTrue(containsText(panel, "Installed")),
+                () -> assertTrue(containsText(panel, "MCP: Configured")),
+                () -> assertTrue(containsText(panel, "Assist: Not configured")),
                 () -> assertFalse(findButton(panel, "Install / Update SHAFT MCP").isEnabled()),
                 () -> assertTrue(findButton(panel, "Test connection and start chatting").isEnabled()));
     }
@@ -268,19 +285,19 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(install.isEnabled()),
                 () -> assertFalse(test.isEnabled()),
-                () -> assertFalse(containsText(panel, "Installed")));
+                () -> assertTrue(containsText(panel, "MCP: Not configured")));
 
         family.setSelectedItem("CODEX");
         assertAll(
                 () -> assertFalse(install.isEnabled()),
                 () -> assertTrue(test.isEnabled()),
-                () -> assertTrue(containsText(panel, "Installed")));
+                () -> assertTrue(containsText(panel, "MCP: Configured")));
 
         runtime.setSelectedItem("DESKTOP_APP");
         assertAll(
                 () -> assertTrue(install.isEnabled()),
                 () -> assertFalse(test.isEnabled()),
-                () -> assertFalse(containsText(panel, "Installed")));
+                () -> assertTrue(containsText(panel, "MCP: Not configured")));
     }
 
     @Test
@@ -295,6 +312,28 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(panel, "SUCCESS: Connected to SHAFT MCP.")),
                 () -> assertTrue(containsText(panel, "Connected")),
                 () -> assertTrue(connected.get()));
+    }
+
+    @Test
+    void setupPanelShowsInlineErrorStatesAndKeepsRetryEnabled() throws Exception {
+        ShaftMcpSetupPanel installPanel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        showInstallError(installPanel, new IllegalStateException("installer unavailable"));
+
+        assertAll(
+                () -> assertTrue(containsText(installPanel, "MCP: Error")),
+                () -> assertTrue(containsText(installPanel, "installer unavailable")),
+                () -> assertTrue(findButton(installPanel, "Install / Update SHAFT MCP").isEnabled()),
+                () -> assertFalse(findButton(installPanel, "Test connection and start chatting").isEnabled()));
+
+        ShaftMcpSetupPanel testPanel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> {
+        });
+        showTestResult(testPanel, ShaftMcpToolResult.failure("Probe failed"));
+
+        assertAll(
+                () -> assertTrue(containsText(testPanel, "Assist: Error")),
+                () -> assertTrue(containsText(testPanel, "Probe failed")),
+                () -> assertTrue(findButton(testPanel, "Test connection and start chatting").isEnabled()));
     }
 
     @Test
@@ -1113,6 +1152,13 @@ class ShaftPanelSetupTest {
         showResult.invoke(panel, result, null);
     }
 
+    private static void showInstallError(ShaftMcpSetupPanel panel, Throwable error) throws Exception {
+        Method showResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                "showInstallResult", ShaftMcpInstallResult.class, Throwable.class);
+        showResult.setAccessible(true);
+        showResult.invoke(panel, null, error);
+    }
+
     private static void showTestResult(ShaftMcpSetupPanel panel, ShaftMcpToolResult result) throws Exception {
         Method showResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
                 "showTestResult", ShaftMcpToolResult.class, Throwable.class);
@@ -1325,6 +1371,25 @@ class ShaftPanelSetupTest {
         assertNotNull(button.getIcon(), button.getText());
         assertTrue(button.getIcon().getIconWidth() > 0, button.getText());
         assertTrue(button.getIcon().getIconHeight() > 0, button.getText());
+        assertTrue(paintsVisiblePixels(button.getIcon(), button), button.getToolTipText());
+    }
+
+    private static boolean paintsVisiblePixels(Icon icon, JButton button) {
+        BufferedImage image = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            icon.paintIcon(button, graphics, 0, 0);
+        } finally {
+            graphics.dispose();
+        }
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if ((image.getRGB(x, y) >>> 24) > 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static void assertIconOnlySymmetric(JButton button) {
