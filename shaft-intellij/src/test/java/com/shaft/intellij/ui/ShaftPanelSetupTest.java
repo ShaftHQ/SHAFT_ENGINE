@@ -656,10 +656,11 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNotNull(commandHint),
-                () -> assertEquals("", commandHint.getText()),
+                () -> assertEquals("/", commandHint.getText()),
                 () -> assertNotNull(commandHint.getIcon()),
                 () -> assertTrue(commandHint.getIcon().getIconWidth() > 0),
                 () -> assertTrue(commandHint.getIcon().getIconHeight() > 0),
+                () -> assertTrue(commandHint.getToolTipText().contains("/commands")),
                 () -> assertTrue(commandHint.getToolTipText().contains("/help")),
                 () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
                 () -> assertTrue(commandHint.getToolTipText().contains("/record")),
@@ -672,7 +673,7 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(spinner.isVisible()),
                 () -> assertNotNull(sendButton),
                 () -> assertEquals("", sendButton.getText()),
-                () -> assertEquals(commandHint.getPreferredSize(), sendButton.getPreferredSize()),
+                () -> assertTrue(sendButton.getPreferredSize().width > commandHint.getPreferredSize().width),
                 () -> assertNotNull(sendButton.getIcon()),
                 () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
                 () -> assertTrue(sendButton.getIcon().getIconHeight() > 0));
@@ -688,9 +689,7 @@ class ShaftPanelSetupTest {
                 "Copy assistant transcript",
                 "Clear assistant transcript",
                 "Rerun last assistant prompt",
-                "Cancel assistant request",
-                "Send assistant prompt",
-                "SHAFT command hints");
+                "Cancel assistant request");
 
         assertAll(controls.stream()
                 .map(accessibleName -> () -> assertIconOnlySymmetric(
@@ -729,6 +728,21 @@ class ShaftPanelSetupTest {
                 () -> assertEquals(inactive.getIcon().getIconWidth(), inactive.getDisabledIcon().getIconWidth()),
                 () -> assertTrue(active.isContentAreaFilled()),
                 () -> assertTrue(inactive.isContentAreaFilled()));
+    }
+
+    @Test
+    void assistantCommandHintKeepsVisibleSlashAndIconMetadata() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JButton commandHint = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
+
+        assertAll(
+                () -> assertIcon(commandHint),
+                () -> assertEquals("/", commandHint.getText()),
+                () -> assertTrue(commandHint.getMargin().left > 0),
+                () -> assertNotNull(commandHint.getToolTipText()),
+                () -> assertTrue(commandHint.getToolTipText().contains("/commands")),
+                () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
+                () -> assertTrue(commandHint.getToolTipText().contains("/mcp")));
     }
 
     @Test
@@ -1340,6 +1354,12 @@ class ShaftPanelSetupTest {
     }
 
     private static boolean isShaftOwnedButton(JButton button) {
+        if ("SHAFT command hints".equals(accessibleName(button))) {
+            return false;
+        }
+        if ("Send assistant prompt".equals(accessibleName(button))) {
+            return false;
+        }
         return hasText(button.getText())
                 || hasText(button.getToolTipText())
                 || hasText(accessibleName(button));

@@ -56,6 +56,29 @@ public final class ShaftIconButtons {
         button.addPropertyChangeListener("enabled", event -> button.setBackground(backgroundFor(button)));
     }
 
+    public static void applyIconForward(JButton button, String tooltip, String accessibleName, Icon icon) {
+        Dimension size = JBUI.size(SIZE + 24, SIZE);
+        button.setIcon(icon);
+        button.setDisabledIcon(new OpacityIcon(icon, DISABLED_ICON_OPACITY));
+        button.setToolTipText(tooltip);
+        button.getAccessibleContext().setAccessibleName(accessibleName);
+        button.setPreferredSize(size);
+        button.setMinimumSize(size);
+        button.setMaximumSize(size);
+        button.setMargin(JBUI.insets(0, 8));
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBackground(backgroundFor(button));
+        button.addPropertyChangeListener("enabled", event -> button.setBackground(backgroundFor(button)));
+    }
+
+    public static void widen(JButton button, int width) {
+        Dimension size = JBUI.size(width, SIZE);
+        button.setPreferredSize(size);
+        button.setMinimumSize(size);
+        button.setMaximumSize(size);
+    }
+
     private static JBColor backgroundFor(JButton button) {
         return button.isEnabled() ? ENABLED_BACKGROUND : DISABLED_BACKGROUND;
     }
