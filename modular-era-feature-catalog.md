@@ -6,7 +6,7 @@ This catalog is written for framework users who want to know what changed, what 
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
 - Catalog source: current PR branch based on `origin/main` at `902bc60dbe`
-- Fresh evidence captured: `2026-07-01`
+- Fresh evidence captured: `2026-07-02`
 
 ## Start Here
 
@@ -14,10 +14,16 @@ This catalog is written for framework users who want to know what changed, what 
 | --- | --- | --- |
 | Upgrade without pulling every optional integration into the core artifact. | [Modular adoption](#modular-adoption) | `shaft-engine` stays lean while BrowserStack, visual, video, AI, Doctor, Heal, and Capture remain available as opt-in modules. |
 | Let an agent inspect pages, choose locators, record flows, and review generated code. | [MCP and agent workflows](#mcp-and-agent-workflows) | `shaft-mcp` exposes WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, and guardrail tools through one automation surface. |
-| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The stable plugin uses right-side workflow tabs (Assistant, Guided, Recorder, Inspector, Triage, Evidence Tools, Projects, Advanced Tools) so prompts, sessions, and MCP templates stay close to the editor. |
+| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The stable plugin uses Assistant browser control plus right-side workflow tabs (Guided, Recorder, Inspector, Triage, Evidence Tools, Projects, Advanced Tools) so prompts, sessions, and MCP templates stay close to the editor. |
 | Turn exploratory browser or mobile sessions into maintainable Java tests. | [Capture and code generation](#capture-and-code-generation) | Recorder sessions preserve actions, checkpoints, locators, context, privacy, and replay snippets. |
 | Make Android/Appium setup and recording less coordinate-driven. | [Mobile automation](#mobile-automation) | Toolchain diagnostics and locator-first Inspector recording show the exact device, locator, and fallback state. |
 | Debug failed tests from evidence instead of guessing. | [Doctor, Heal, Trace, and reporting](#doctor-heal-trace-and-reporting) | Failure briefs, traces, locator health, healing decisions, and report UI give a shorter path from failure to fix. |
+
+### IntelliJ Assistant browser control
+
+Assistant chat now routes browser-control requests directly to sequenced SHAFT MCP tools. WebDriver is the default for `/browser`, `/web`, `/browse`, `/page`, `/inspect`, `/locator`, and natural prompts such as `open https://example.com and inspect the sign in link`. The generated sequence calls `driver_initialize` before `browser_open_intent`, keeps DOM output bounded, and returns locator candidates with evidence.
+
+Common WebDriver commands include `/browser dom`, `/browser title`, `/browser url`, `/browser screenshot target/shaft-browser/home.png`, `/browser refresh`, `/browser back`, `/browser forward`, `/browser maximize`, `/browser fullscreen`, and `/browser quit`. Screenshot commands write workspace evidence files and omit base64 by default. Playwright remains available only through explicit wording such as `/browser playwright open https://example.com`.
 
 ## Screenshot Proof Gallery
 

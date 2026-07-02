@@ -235,11 +235,16 @@ class AssistantCommandTest {
         assertEquals("capture_start", command("/record").toolName());
         assertEquals("Chrome", command("/record").arguments().get("browser").getAsString());
         assertEquals("playwright_record_start", command("/record playwright").toolName());
-        assertEquals("browser_open_intent", command("/inspect").toolName());
-        assertEquals("browser_open_intent", command("/locator").toolName());
-        assertEquals("", command("/inspect").arguments().get("targetUrl").getAsString());
-        assertEquals("https://example.com", command("/inspect https://example.com sign in").arguments().get("targetUrl").getAsString());
-        assertEquals("sign in", command("/inspect https://example.com sign in").arguments().get("userIntent").getAsString());
+        assertTrue(command("/inspect").isLocal());
+        assertTrue(command("/locator").isLocal());
+        assertTrue(command("/inspect https://example.com sign in").isSequence());
+        assertEquals(List.of("driver_initialize", "browser_open_intent"),
+                command("/inspect https://example.com sign in").toolCalls().stream()
+                        .map(AssistantCommand.ToolCall::toolName).toList());
+        assertEquals("https://example.com", command("/inspect https://example.com sign in")
+                .toolCalls().get(1).arguments().get("targetUrl").getAsString());
+        assertEquals("sign in", command("/inspect https://example.com sign in")
+                .toolCalls().get(1).arguments().get("userIntent").getAsString());
         assertEquals("test_code_guardrails_check", command("/guardrails driver.element().click(locator);").toolName());
         assertEquals("java", command("/guardrails code").arguments().get("language").getAsString());
         assertEquals("autobot_local_agent_clients", command("/assistant").toolName());
@@ -272,6 +277,8 @@ class AssistantCommandTest {
                 () -> assertTrue(tooltip.contains("/shaft-help")),
                 () -> assertTrue(tooltip.contains("/browser")),
                 () -> assertTrue(tooltip.contains("/web")),
+                () -> assertTrue(tooltip.contains("/inspect")),
+                () -> assertTrue(tooltip.contains("/locator")),
                 () -> assertTrue(tooltip.contains("/mobile-record")),
                 () -> assertTrue(tooltip.contains("/allure")),
                 () -> assertFalse(tooltip.contains("Slash commands:")));
@@ -322,6 +329,8 @@ class AssistantCommandTest {
     @Test
     void browserCommandsCreateOrderedToolSequencesWhenSessionSetupIsRequired() {
         AssistantCommand.Invocation webdriver = command("/browser open https://example.com sign in");
+        AssistantCommand.Invocation inspectAlias = command("/locator https://example.com sign in");
+        AssistantCommand.Invocation natural = command("open https://example.com and inspect the sign in link");
         AssistantCommand.Invocation playwright = command("/web playwright open https://example.com");
 
         assertAll(
@@ -332,6 +341,10 @@ class AssistantCommandTest {
                 () -> assertEquals("https://example.com",
                         webdriver.toolCalls().get(1).arguments().get("targetUrl").getAsString()),
                 () -> assertEquals("sign in", webdriver.toolCalls().get(1).arguments().get("userIntent").getAsString()),
+                () -> assertEquals(List.of("driver_initialize", "browser_open_intent"),
+                        inspectAlias.toolCalls().stream().map(AssistantCommand.ToolCall::toolName).toList()),
+                () -> assertEquals(List.of("driver_initialize", "browser_open_intent"),
+                        natural.toolCalls().stream().map(AssistantCommand.ToolCall::toolName).toList()),
                 () -> assertTrue(playwright.isSequence()),
                 () -> assertEquals(List.of("playwright_initialize", "playwright_browser_navigate"),
                         playwright.toolCalls().stream().map(AssistantCommand.ToolCall::toolName).toList()),
@@ -352,6 +365,11 @@ class AssistantCommandTest {
                 () -> assertFalse(screenshot.arguments().get("includeBase64").getAsBoolean()),
                 () -> assertEquals("browser_get_page_dom", command("/browser dom").toolName()),
                 () -> assertEquals("browser_get_title", command("/browser title").toolName()),
+                () -> assertEquals("browser_refresh", command("/browser refresh").toolName()),
+                () -> assertEquals("browser_navigate_back", command("/browser back").toolName()),
+                () -> assertEquals("browser_navigate_forward", command("/browser forward").toolName()),
+                () -> assertEquals("browser_maximize_window", command("/browser maximize").toolName()),
+                () -> assertEquals("browser_fullscreen_window", command("/browser fullscreen").toolName()),
                 () -> assertEquals("driver_quit", command("/browser quit").toolName()));
     }
 
