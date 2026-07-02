@@ -20,6 +20,7 @@ final class AssistantCommand {
     static final String DEFAULT_CAPTURE_TARGET_URL = "https://duckduckgo.com/";
     static final String DEFAULT_CAPTURE_RECORDING_PATH = "recordings/intellij-capture.json";
     static final String DEFAULT_CAPTURE_RECORDING_PATH_PREFIX = "recordings/intellij-capture-";
+    static final String DEFAULT_PLAYWRIGHT_RECORDING_PATH = "recordings/playwright-recording.json";
     static final String DEFAULT_CAPTURE_REVIEW_DIRECTORY = "target/shaft-capture/assistant-review";
     private static final String DEFAULT_MOBILE_RECORDING_PATH = "recordings/mobile-recording.json";
     private static final String DEFAULT_MOBILE_INSPECTOR_RECORDING_PATH = "recordings/mobile-inspector.json";
@@ -628,7 +629,9 @@ final class AssistantCommand {
             return record(text.replaceFirst("(?i)^start\\s+(a\\s+)?(web(driver)?\\s+)?(capture|recording|recorder)\\b", "").trim());
         }
         if (isStopRecording(text)) {
-            return Invocation.tool("capture_stop", stopRecording());
+            return text.toLowerCase(Locale.ROOT).contains("playwright")
+                    ? Invocation.tool("playwright_record_stop", stopRecording())
+                    : Invocation.tool("capture_stop", stopRecording());
         }
         return null;
     }
@@ -778,6 +781,15 @@ final class AssistantCommand {
         return arguments;
     }
 
+    static JsonObject playwrightCodeReview(String recordingPath) {
+        return generatePlaywrightCodeFromRecording(
+                recordingPath == null || recordingPath.isBlank() ? DEFAULT_PLAYWRIGHT_RECORDING_PATH : recordingPath);
+    }
+
+    static Invocation stopPlaywrightRecording() {
+        return Invocation.tool("playwright_record_stop", stopRecording());
+    }
+
     private static String defaultCaptureRecordingPath() {
         return DEFAULT_CAPTURE_RECORDING_PATH_PREFIX + System.currentTimeMillis() + ".json";
     }
@@ -807,6 +819,8 @@ final class AssistantCommand {
         String normalized = normalizeNaturalCommand(text);
         return normalized.equals("stop")
                 || normalized.equals("stop recording")
+                || normalized.equals("stop playwright recording")
+                || normalized.equals("stop playwright recorder")
                 || normalized.equals("stop recorder")
                 || normalized.equals("stop capture")
                 || normalized.equals("finish recording")
@@ -848,7 +862,7 @@ final class AssistantCommand {
 
     private static JsonObject playwrightRecordStart() {
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("outputPath", "recordings/playwright-recording.json");
+        arguments.addProperty("outputPath", DEFAULT_PLAYWRIGHT_RECORDING_PATH);
         arguments.addProperty("mode", "default");
         arguments.addProperty("includeSensitiveValues", false);
         return arguments;
