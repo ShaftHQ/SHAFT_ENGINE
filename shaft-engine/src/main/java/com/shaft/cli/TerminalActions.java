@@ -16,6 +16,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.BooleanSupplier;
@@ -64,6 +65,7 @@ public class TerminalActions implements AutoCloseable {
     private ScheduledFuture<?> reusableSessionTimeoutTask;
     private final List<Integer> activeLocalPortForwards = new ArrayList<>();
     private final List<Integer> activeRemotePortForwards = new ArrayList<>();
+    private final List<SshShellSession> activeShellSessions = new ArrayList<>();
 
     private static final Pattern TERMINAL_LOG_SECRET_PATTERN = Pattern.compile(
             "(?i)(?<![A-Za-z0-9_])(password|passwd|token|secret|api[-_]?key|access[-_]?token|authorization)\\s*[=:]\\s*(?!\\*\\*\\*)\\S+");
@@ -564,12 +566,40 @@ public class TerminalActions implements AutoCloseable {
     }
 
     /**
+     * Opens an experimental interactive shell channel on the reusable remote SSH session.
+     *
+     * <p>Use {@link SshShellSession#readUntil(Pattern)} and {@link SshShellSession#sendLine(String)}
+     * for prompt-driven flows. Prefer {@link #performTerminalCommand(String)} or
+     * {@link #performSshCommand(String)} for one-shot remote commands.</p>
+     *
+     * @param options shell and PTY options
+     * @return a managed shell session that should be closed when finished
+     */
+    public SshShellSession openShell(SshShellOptions options) {
+        verifyReusableRemoteSessionFeature();
+        if (options == null) {
+            failAction("SSH shell", new IllegalArgumentException("SSH shell options must not be null."));
+        }
+        try {
+            SshShellSession shellSession = connectShellSession(options);
+            synchronized (this) {
+                activeShellSessions.add(shellSession);
+            }
+            return shellSession;
+        } catch (JSchException | IOException exception) {
+            failAction("SSH shell", exception);
+            return null;
+        }
+    }
+
+    /**
      * Disconnects any reusable SSH session owned by this terminal actions instance.
      *
      * <p>This method is safe to call before the first remote command is executed and is a no-op
      * for local terminals or ephemeral remote terminals.</p>
      */
     public synchronized void quit() {
+        closeOpenShellSessions();
         cancelReusableSessionTimeoutTask();
         if (reusableRemoteSession != null && reusableRemoteSession.isConnected()) {
             clearPortForwards(reusableRemoteSession);
@@ -888,6 +918,64 @@ public class TerminalActions implements AutoCloseable {
             failAction("Reusable remote SSH feature", new IllegalStateException(
                     "This feature requires a reusable remote terminal. Use SHAFT.CLI.remoteTerminal(...)."));
         }
+    }
+
+    private SshShellSession connectShellSession(SshShellOptions options) throws JSchException, IOException {
+        Session remoteSession = getRemoteSession();
+        int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
+        remoteSession.setTimeout(sessionTimeout);
+        ChannelShell shellChannel = (ChannelShell) remoteSession.openChannel("shell");
+        applyShellOptions(shellChannel, options);
+        shellChannel.connect(sessionTimeout);
+        ReportManager.logDiscrete("Opened SSH shell on " + sshUsername + "@" + sshHostName + ":" + sshPortNumber + ".");
+        return new SshShellSession(this, shellChannel, options);
+    }
+
+    private void applyShellOptions(ChannelShell shellChannel, SshShellOptions options) {
+        shellChannel.setPty(options.isPty());
+        if (options.isPty()) {
+            shellChannel.setPtyType(options.getPtyType());
+            shellChannel.setPtySize(options.getColumns(), options.getRows(), options.getColumns() * 8, options.getRows() * 16);
+        }
+        options.getEnvironment().forEach(shellChannel::setEnv);
+    }
+
+    private void closeOpenShellSessions() {
+        List<SshShellSession> sessionsToClose;
+        synchronized (this) {
+            sessionsToClose = new ArrayList<>(activeShellSessions);
+            activeShellSessions.clear();
+        }
+        for (SshShellSession shellSession : sessionsToClose) {
+            shellSession.closeSilently();
+        }
+    }
+
+    void unregisterShellSession(SshShellSession shellSession) {
+        synchronized (this) {
+            activeShellSessions.remove(shellSession);
+        }
+    }
+
+    void failShellAction(String actionName, Exception cause) {
+        failAction(actionName, cause);
+    }
+
+    void failShellReadTimeout(Pattern pattern, Duration timeout) {
+        failAction("SSH shell read", new TimeoutException(
+                "Timed out after " + timeout.toMillis() + " ms waiting for shell output matching pattern: "
+                        + pattern.pattern()));
+    }
+
+    void logShellOutput(String chunk) {
+        if (!verbose || chunk == null || chunk.isEmpty()) {
+            return;
+        }
+        ReportManager.logDiscrete(redactTerminalLogForReporting(chunk));
+    }
+
+    String redactShellLog(String value) {
+        return redactTerminalLogForReporting(value);
     }
 
     private void clearPortForwards(Session session) {
