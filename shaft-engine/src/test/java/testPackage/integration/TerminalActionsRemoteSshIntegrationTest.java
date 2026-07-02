@@ -157,9 +157,16 @@ public class TerminalActionsRemoteSshIntegrationTest {
                 host.trim(),
                 Integer.parseInt(port.trim()),
                 username.trim(),
-                keyFolder.trim(),
+                normalizeKeyFolder(keyFolder.trim()),
                 keyName.trim(),
                 remoteTempDir.trim()));
+    }
+
+    private static String normalizeKeyFolder(String keyFolder) {
+        if (keyFolder.endsWith("/") || keyFolder.endsWith("\\")) {
+            return keyFolder;
+        }
+        return keyFolder + java.io.File.separator;
     }
 
     private static TerminalActions createRemoteTerminal(SshConfig config) {
