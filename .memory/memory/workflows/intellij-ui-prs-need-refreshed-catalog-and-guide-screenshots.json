@@ -1,0 +1,47 @@
+{
+  "body_path": "memory/workflows/intellij-ui-prs-need-refreshed-catalog-and-guide-screenshots.md",
+  "content_hash": "sha256:a1102f9aaec5a0641ee3db462eba22dee345ca1ec807e08c103bb1017f285a79",
+  "created_at": "2026-07-02T19:16:30+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#3229",
+      "kind": "source"
+    },
+    {
+      "id": "ShaftHQ/shafthq.github.io#679",
+      "kind": "source"
+    },
+    {
+      "id": "modular-era-feature-catalog.md",
+      "kind": "file"
+    },
+    {
+      "id": "docs/agentic/intellij.md",
+      "kind": "source"
+    }
+  ],
+  "facets": {
+    "category": "testing"
+  },
+  "id": "workflow.intellij-ui-prs-need-refreshed-catalog-and-guide-screenshots",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Finalize IntelliJ Assistant icon-only controls for issue #3204"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "screenshots",
+    "docs",
+    "user-guide"
+  ],
+  "title": "IntelliJ UI PRs need refreshed catalog and guide screenshots",
+  "type": "workflow",
+  "updated_at": "2026-07-02T19:16:30+03:00"
+}

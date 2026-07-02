@@ -1,0 +1,1 @@
+Visible SHAFT IntelliJ UI changes should regenerate ShaftPluginScreenshotRendererTest output, replace modular-era intellij-plugin PNG evidence, update modular-era-feature-catalog metadata, and sync public guide screenshots when docs reference the changed surfaces.

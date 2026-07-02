@@ -268,7 +268,9 @@ class ShaftSettingsConfigurableTest {
                 () -> assertEquals(size.width, size.height),
                 () -> assertEquals(32, size.width),
                 () -> assertNotNull(button.getToolTipText()),
-                () -> assertFalse(button.getToolTipText().isBlank()));
+                () -> assertFalse(button.getToolTipText().isBlank()),
+                () -> assertNotNull(button.getAccessibleContext().getAccessibleName()),
+                () -> assertFalse(button.getAccessibleContext().getAccessibleName().isBlank()));
     }
 
     private static Component findByAccessibleName(Component root, String accessibleName) {

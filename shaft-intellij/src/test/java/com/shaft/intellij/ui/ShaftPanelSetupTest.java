@@ -656,7 +656,6 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNotNull(commandHint),
-                () -> assertEquals("/", commandHint.getText()),
                 () -> assertNotNull(commandHint.getIcon()),
                 () -> assertTrue(commandHint.getIcon().getIconWidth() > 0),
                 () -> assertTrue(commandHint.getIcon().getIconHeight() > 0),
@@ -672,6 +671,7 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(spinner.isIndeterminate()),
                 () -> assertFalse(spinner.isVisible()),
                 () -> assertNotNull(sendButton),
+                () -> assertEquals("", commandHint.getText()),
                 () -> assertEquals("", sendButton.getText()),
                 () -> assertTrue(sendButton.getPreferredSize().width > commandHint.getPreferredSize().width),
                 () -> assertNotNull(sendButton.getIcon()),
@@ -731,14 +731,12 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantCommandHintKeepsVisibleSlashAndIconMetadata() {
+    void assistantCommandHintKeepsIconOnlyMetadata() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JButton commandHint = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
 
         assertAll(
-                () -> assertIcon(commandHint),
-                () -> assertEquals("/", commandHint.getText()),
-                () -> assertTrue(commandHint.getMargin().left > 0),
+                () -> assertIconOnlySymmetric(commandHint),
                 () -> assertNotNull(commandHint.getToolTipText()),
                 () -> assertTrue(commandHint.getToolTipText().contains("/commands")),
                 () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
@@ -1337,7 +1335,9 @@ class ShaftPanelSetupTest {
                 () -> assertEquals(size.width, size.height),
                 () -> assertEquals(32, size.width),
                 () -> assertNotNull(button.getToolTipText()),
-                () -> assertFalse(button.getToolTipText().isBlank()));
+                () -> assertFalse(button.getToolTipText().isBlank()),
+                () -> assertNotNull(accessibleName(button)),
+                () -> assertFalse(accessibleName(button).isBlank()));
     }
 
     private static List<JButton> collectButtons(Component root) {
@@ -1354,9 +1354,6 @@ class ShaftPanelSetupTest {
     }
 
     private static boolean isShaftOwnedButton(JButton button) {
-        if ("SHAFT command hints".equals(accessibleName(button))) {
-            return false;
-        }
         if ("Send assistant prompt".equals(accessibleName(button))) {
             return false;
         }

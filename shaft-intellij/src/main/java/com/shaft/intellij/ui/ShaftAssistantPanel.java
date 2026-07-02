@@ -288,9 +288,8 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         JButton commandHint = button("/", "SHAFT command hints",
                 event -> status.setText("Hover /commands for command aliases"));
-        ShaftIconButtons.applyIconForward(commandHint, AssistantCommand.commandTooltip(),
+        ShaftIconButtons.apply(commandHint, AssistantCommand.commandTooltip(),
                 "SHAFT command hints", ShaftIcons.HELP);
-        commandHint.setToolTipText(AssistantCommand.commandTooltip());
         promptActions.add(commandHint);
         promptActions.add(send);
 
