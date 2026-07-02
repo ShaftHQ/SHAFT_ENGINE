@@ -232,6 +232,67 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void formatsMobileRecordingAndInspectorResponsesWithoutRawJson() {
+        String recording = AssistantMarkdown.fromMcpOutput("mobile_record_start", mcpText("""
+                {
+                  "active": true,
+                  "outputPath": "recordings/mobile.json",
+                  "mode": "default",
+                  "actionCount": 0,
+                  "includeSensitiveValues": false,
+                  "warnings": []
+                }
+                """));
+        String plan = AssistantMarkdown.fromMcpOutput("mobile_inspector_record_prepare", mcpText("""
+                {
+                  "confirmationToken": "confirm-123",
+                  "platformName": "Android",
+                  "readyToStart": true,
+                  "confirmationRequired": true,
+                  "willProvisionAndroidEmulator": false,
+                  "realDeviceAvailable": true,
+                  "selectedDeviceId": "emulator-5554",
+                  "selectedAndroidAvdName": "Pixel_6",
+                  "outputPath": "recordings/inspector.json",
+                  "includeSensitiveValues": false,
+                  "appiumCapabilities": {},
+                  "codeBlocks": [],
+                  "nextSteps": ["Review the plan, then call mobile_inspector_record_start with the confirmation token."],
+                  "warnings": ["Inspector is not opened until start is explicitly confirmed."]
+                }
+                """));
+        String status = AssistantMarkdown.fromMcpOutput("mobile_inspector_record_status", mcpText("""
+                {
+                  "active": true,
+                  "paused": false,
+                  "platformName": "Android",
+                  "deviceId": "emulator-5554",
+                  "androidAvdName": "Pixel_6",
+                  "managedEmulator": false,
+                  "outputPath": "recordings/inspector.json",
+                  "inspectorUrl": "http://127.0.0.1:4723/inspector",
+                  "appiumServerUrl": "http://127.0.0.1:4723",
+                  "actionCount": 2,
+                  "codeBlocks": [],
+                  "warnings": []
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(recording.contains("**Recording:** active")),
+                () -> assertTrue(recording.contains("**Sensitive values:** excluded")),
+                () -> assertTrue(recording.contains("`recordings/mobile.json`")),
+                () -> assertFalse(recording.contains("\"includeSensitiveValues\"")),
+                () -> assertTrue(plan.contains("**Inspector plan:** ready")),
+                () -> assertTrue(plan.contains("**Confirmation token:** `confirm-123`")),
+                () -> assertTrue(plan.contains("Inspector is not opened until start is explicitly confirmed.")),
+                () -> assertFalse(plan.contains("\"appiumCapabilities\"")),
+                () -> assertTrue(status.contains("**Inspector recording:** active")),
+                () -> assertTrue(status.contains("http://127.0.0.1:4723/inspector")),
+                () -> assertFalse(status.contains("\"managedEmulator\"")));
+    }
+
+    @Test
     void unknownJsonCanUseAgentFormatterButKnownResponsesDoNot() {
         assertAll(
                 () -> assertTrue(AssistantMarkdown.shouldFormatWithAgent("browser_unknown", "{\"unexpected\":true}")),

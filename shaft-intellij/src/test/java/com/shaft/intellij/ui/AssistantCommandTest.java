@@ -403,6 +403,7 @@ class AssistantCommandTest {
                         command("/mobile-record start recordings/mobile.json").arguments().get("outputPath").getAsString()),
                 () -> assertEquals("mobile_record_stop", command("/app-record stop").toolName()),
                 () -> assertEquals("mobile_inspector_record_prepare", inspector.toolName()),
+                () -> assertEquals("mobile_inspector_record_prepare", command("/inspector-record Android recordings/inspector.json").toolName()),
                 () -> assertEquals("Android", inspector.arguments().get("platformName").getAsString()),
                 () -> assertEquals("recordings/inspector.json", inspector.arguments().get("outputPath").getAsString()),
                 () -> assertEquals("mobile_recording_code_blocks",

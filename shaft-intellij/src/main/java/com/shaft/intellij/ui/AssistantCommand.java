@@ -63,7 +63,7 @@ final class AssistantCommand {
                     "/mobile native Android Pixel_6", (command, rest, workingDirectory) -> mobile(rest)),
             new CommandDefinition("/mobile-record", "Record mobile actions",
                     List.of("/app-record", "/inspector-record"),
-                    "/mobile-record inspector Android recordings/inspector.json", (command, rest, workingDirectory) -> mobileRecord(rest)),
+                    "/mobile-record inspector Android recordings/inspector.json", (command, rest, workingDirectory) -> mobileRecord("/inspector-record".equals(command) ? "inspector " + rest : rest)),
             new CommandDefinition("/mobile-codegen", "Generate mobile replay snippets",
                     List.of("/app-codegen"),
                     "/mobile-codegen recordings/mobile.json", (command, rest, workingDirectory) -> mobileCodegen(rest)),

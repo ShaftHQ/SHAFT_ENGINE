@@ -53,6 +53,24 @@ Screenshot commands write workspace evidence paths and omit base64 payloads by d
 6. Approve generation with `approve`, `okay`, or `generate`.
 7. Confirm the local agent writes Page Object Model automation files after approval.
 
+## Assistant Mobile Recording
+
+The Assistant exposes the mobile recording path from chat without opening Appium Inspector or any external UI on its own. Recording commands default to workspace-contained JSON paths and keep typed values out of persisted actions unless `includeSensitiveValues` is explicitly enabled in the reviewed MCP arguments.
+
+Examples:
+
+- `/mobile-record start recordings/mobile.json` starts an MCP mobile action recording.
+- `/app-record stop` stops the active recording without discarding it; use a reviewed `discard=true` argument only when the recording should be deleted.
+- `/mobile-codegen recordings/mobile.json` and `/mobile-replay recordings/mobile.json` render reusable SHAFT mobile replay snippets from the saved recording path.
+- `/mobile-record inspector Android recordings/inspector.json` prepares a confirmation-ready wrapped Appium Inspector recording plan. The returned confirmation token must be passed to `mobile_inspector_record_start` before Inspector can run.
+- `/inspector-record Android recordings/inspector.json` is an alias for Inspector preparation, not an implicit request to open a browser or desktop Inspector window.
+
+Expected chat output:
+
+- Mobile recording status is summarized with active/stopped state, action count, output path, and whether sensitive values are excluded.
+- Inspector preparation shows readiness, confirmation requirement, device/AVD selection, output path, next steps, warnings, and code blocks without exposing raw capability JSON unless the user asks for raw MCP output.
+- Inspector status shows active/paused state, Appium/Inspector URLs, output path, action count, warnings, and generated replay snippets after stop.
+
 ## Expected Behavior
 
 - `start recording` uses a fresh capture output path for each session.
