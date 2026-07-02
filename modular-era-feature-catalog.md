@@ -5,7 +5,7 @@ SHAFT is now a modular Java 25 automation framework with a lean core, opt-in pow
 This catalog is written for framework users who want to know what changed, what they can adopt now, and which command or API gets them started.
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
-- Catalog source: current PR branch based on `origin/main` at `902bc60dbe`
+- Catalog source: current PR branch based on `origin/main` at `68eb53b381`
 - Fresh evidence captured: `2026-07-02`
 
 ## Start Here
