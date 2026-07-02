@@ -10,7 +10,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -49,9 +48,7 @@ public class SshShellSessionUnitTest {
     @Test(description = "readUntil should fail with a timeout message that includes the pattern")
     public void readUntilShouldFailWhenTimeoutExpires() throws Exception {
         PipedInputStream commandInput = new PipedInputStream();
-        PipedOutputStream commandOutput = new PipedOutputStream(commandInput);
-        PipedInputStream shellInput = new PipedInputStream();
-        PipedOutputStream shellOutput = new PipedOutputStream(shellInput);
+        PipedOutputStream shellOutput = new PipedOutputStream(new PipedInputStream());
 
         TerminalActions terminal = SHAFT.CLI.remoteTerminal("host.example.com", 22, "user", "", "");
         SshShellSession shellSession = new SshShellSession(terminal, commandInput, shellOutput,
@@ -69,9 +66,7 @@ public class SshShellSessionUnitTest {
     @Test(description = "close should be idempotent")
     public void closeShouldBeIdempotent() throws Exception {
         PipedInputStream commandInput = new PipedInputStream();
-        PipedOutputStream commandOutput = new PipedOutputStream(commandInput);
-        PipedInputStream shellInput = new PipedInputStream();
-        PipedOutputStream shellOutput = new PipedOutputStream(shellInput);
+        PipedOutputStream shellOutput = new PipedOutputStream(new PipedInputStream());
 
         TerminalActions terminal = SHAFT.CLI.remoteTerminal("host.example.com", 22, "user", "", "");
         SshShellSession shellSession = new SshShellSession(terminal, commandInput, shellOutput, SshShellOptions.builder().build());
@@ -111,12 +106,9 @@ public class SshShellSessionUnitTest {
     }
 
     @Test(description = "sendSecret should redact shell logs used for reporting")
-    public void sendSecretShouldUseShellRedactionPath() throws Exception {
+    public void sendSecretShouldUseShellRedactionPath() {
         TerminalActions terminal = SHAFT.CLI.remoteTerminal("host.example.com", 22, "user", "", "");
-        Method redactShellLog = TerminalActions.class.getDeclaredMethod("redactShellLog", String.class);
-        redactShellLog.setAccessible(true);
-
-        String redacted = (String) redactShellLog.invoke(terminal, "password=super-secret");
+        String redacted = terminal.redactShellLog("password=super-secret");
         Assert.assertFalse(redacted.contains("super-secret"));
         Assert.assertTrue(redacted.contains("password=***"));
     }
@@ -124,22 +116,15 @@ public class SshShellSessionUnitTest {
     @Test(description = "quit should close tracked shell sessions before disconnecting the SSH session")
     public void quitShouldCloseTrackedShellSessions() throws Exception {
         PipedInputStream commandInput = new PipedInputStream();
-        PipedOutputStream commandOutput = new PipedOutputStream(commandInput);
-        PipedInputStream shellInput = new PipedInputStream();
-        PipedOutputStream shellOutput = new PipedOutputStream(shellInput);
+        PipedOutputStream shellOutput = new PipedOutputStream(new PipedInputStream());
 
         TerminalActions terminal = SHAFT.CLI.remoteTerminal("host.example.com", 22, "user", "", "");
         SshShellSession shellSession = new SshShellSession(terminal, commandInput, shellOutput, SshShellOptions.builder().build());
-
-        java.lang.reflect.Field activeShellSessionsField = TerminalActions.class.getDeclaredField("activeShellSessions");
-        activeShellSessionsField.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        java.util.List<SshShellSession> activeShellSessions =
-                (java.util.List<SshShellSession>) activeShellSessionsField.get(terminal);
-        activeShellSessions.add(shellSession);
+        terminal.registerShellSession(shellSession);
+        Assert.assertEquals(terminal.countActiveShellSessions(), 1);
 
         terminal.quit();
         shellOutput.close();
-        Assert.assertTrue(activeShellSessions.isEmpty(), "quit() should clear tracked shell sessions");
+        Assert.assertEquals(terminal.countActiveShellSessions(), 0);
     }
 }

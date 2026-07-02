@@ -1,6 +1,8 @@
 package com.shaft.cli;
 
 import com.jcraft.jsch.ChannelShell;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 import com.shaft.tools.io.ReportManager;
 
 import java.io.IOException;
@@ -26,6 +28,16 @@ public final class SshShellSession implements AutoCloseable {
     private final ExecutorService outputReader;
     private volatile boolean closed;
 
+    static SshShellSession openOnSession(TerminalActions parent, Session remoteSession, SshShellOptions options,
+                                         int sessionTimeoutMillis) throws JSchException, IOException {
+        remoteSession.setTimeout(sessionTimeoutMillis);
+        ChannelShell shellChannel = (ChannelShell) remoteSession.openChannel("shell");
+        configureChannel(shellChannel, options);
+        shellChannel.connect(sessionTimeoutMillis);
+        parent.logShellOpened();
+        return new SshShellSession(parent, shellChannel, options);
+    }
+
     SshShellSession(TerminalActions parent, ChannelShell channel, SshShellOptions options) throws IOException {
         this(parent, channel, channel.getInputStream(), channel.getOutputStream(), options);
     }
@@ -41,7 +53,7 @@ public final class SshShellSession implements AutoCloseable {
         this.shellInput = shellInput;
         this.shellOutput = shellOutput;
         this.options = options;
-        this.outputReader = Executors.newSingleThreadExecutor(threadFactory());
+        this.outputReader = Executors.newSingleThreadExecutor(SshShellSession::newReaderThread);
         startOutputReader();
     }
 
@@ -85,6 +97,34 @@ public final class SshShellSession implements AutoCloseable {
      */
     public String readUntil(Pattern pattern, Duration timeout) {
         verifyOpen();
+        Duration effectiveTimeout = resolveReadTimeout(pattern, timeout);
+        return waitForPatternMatch(pattern, effectiveTimeout);
+    }
+
+    /**
+     * Closes the shell channel and removes it from the parent terminal session.
+     */
+    @Override
+    public synchronized void close() {
+        closeChannel(true);
+    }
+
+    synchronized void closeSilently() {
+        closeChannel(false);
+    }
+
+    private static void configureChannel(ChannelShell shellChannel, SshShellOptions options) {
+        shellChannel.setPty(options.isPty());
+        if (!options.isPty()) {
+            options.getEnvironment().forEach(shellChannel::setEnv);
+            return;
+        }
+        shellChannel.setPtyType(options.getPtyType());
+        shellChannel.setPtySize(options.getColumns(), options.getRows(), options.getColumns() * 8, options.getRows() * 16);
+        options.getEnvironment().forEach(shellChannel::setEnv);
+    }
+
+    private Duration resolveReadTimeout(Pattern pattern, Duration timeout) {
         if (pattern == null) {
             parent.failShellAction("SSH shell read", new IllegalArgumentException("Shell read pattern must not be null."));
         }
@@ -92,7 +132,10 @@ public final class SshShellSession implements AutoCloseable {
         if (effectiveTimeout.isZero() || effectiveTimeout.isNegative()) {
             parent.failShellAction("SSH shell read", new IllegalArgumentException("Shell read timeout must be positive."));
         }
+        return effectiveTimeout;
+    }
 
+    private String waitForPatternMatch(Pattern pattern, Duration effectiveTimeout) {
         long deadlineNanos = System.nanoTime() + effectiveTimeout.toNanos();
         while (System.nanoTime() < deadlineNanos) {
             String matchedOutput = takeMatchedOutput(pattern);
@@ -105,27 +148,16 @@ public final class SshShellSession implements AutoCloseable {
         return "";
     }
 
-    /**
-     * Closes the shell channel and removes it from the parent terminal session.
-     */
-    @Override
-    public synchronized void close() {
+    private synchronized void closeChannel(boolean unregister) {
         if (closed) {
             return;
         }
         closed = true;
         shutdownReader();
         disconnectChannel();
-        parent.unregisterShellSession(this);
-    }
-
-    synchronized void closeSilently() {
-        if (closed) {
-            return;
+        if (unregister) {
+            parent.unregisterShellSession(this);
         }
-        closed = true;
-        shutdownReader();
-        disconnectChannel();
     }
 
     private void verifyOpen() {
@@ -166,23 +198,29 @@ public final class SshShellSession implements AutoCloseable {
     }
 
     private void startOutputReader() {
-        outputReader.submit(() -> {
-            byte[] buffer = new byte[1024];
-            try {
-                int read;
-                while (!closed && (read = shellInput.read(buffer)) != -1) {
-                    String chunk = new String(buffer, 0, read, StandardCharsets.UTF_8);
-                    synchronized (outputLock) {
-                        outputBuffer.append(chunk);
-                    }
-                    parent.logShellOutput(chunk);
-                }
-            } catch (IOException exception) {
-                if (!closed) {
-                    parent.failShellAction("SSH shell read", exception);
-                }
+        outputReader.submit(this::drainShellOutput);
+    }
+
+    private void drainShellOutput() {
+        byte[] buffer = new byte[1024];
+        try {
+            int read;
+            while (!closed && (read = shellInput.read(buffer)) != -1) {
+                appendShellOutput(buffer, read);
             }
-        });
+        } catch (IOException exception) {
+            if (!closed) {
+                parent.failShellAction("SSH shell read", exception);
+            }
+        }
+    }
+
+    private void appendShellOutput(byte[] buffer, int read) {
+        String chunk = new String(buffer, 0, read, StandardCharsets.UTF_8);
+        synchronized (outputLock) {
+            outputBuffer.append(chunk);
+        }
+        parent.logShellOutput(chunk);
     }
 
     private void shutdownReader() {
@@ -195,11 +233,9 @@ public final class SshShellSession implements AutoCloseable {
         }
     }
 
-    private static java.util.concurrent.ThreadFactory threadFactory() {
-        return runnable -> {
-            Thread thread = new Thread(runnable, "SHAFT-SSH-Shell-Reader");
-            thread.setDaemon(true);
-            return thread;
-        };
+    private static Thread newReaderThread(Runnable runnable) {
+        Thread thread = new Thread(runnable, "SHAFT-SSH-Shell-Reader");
+        thread.setDaemon(true);
+        return thread;
     }
 }

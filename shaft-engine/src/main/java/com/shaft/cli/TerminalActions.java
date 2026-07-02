@@ -581,10 +581,9 @@ public class TerminalActions implements AutoCloseable {
             failAction("SSH shell", new IllegalArgumentException("SSH shell options must not be null."));
         }
         try {
-            SshShellSession shellSession = connectShellSession(options);
-            synchronized (this) {
-                activeShellSessions.add(shellSession);
-            }
+            SshShellSession shellSession = SshShellSession.openOnSession(
+                    this, getRemoteSession(), options, getRemoteSessionTimeoutMillis());
+            registerShellSession(shellSession);
             return shellSession;
         } catch (JSchException | IOException exception) {
             failAction("SSH shell", exception);
@@ -920,24 +919,24 @@ public class TerminalActions implements AutoCloseable {
         }
     }
 
-    private SshShellSession connectShellSession(SshShellOptions options) throws JSchException, IOException {
-        Session remoteSession = getRemoteSession();
-        int sessionTimeout = Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
-        remoteSession.setTimeout(sessionTimeout);
-        ChannelShell shellChannel = (ChannelShell) remoteSession.openChannel("shell");
-        applyShellOptions(shellChannel, options);
-        shellChannel.connect(sessionTimeout);
-        ReportManager.logDiscrete("Opened SSH shell on " + sshUsername + "@" + sshHostName + ":" + sshPortNumber + ".");
-        return new SshShellSession(this, shellChannel, options);
+    private int getRemoteSessionTimeoutMillis() {
+        return Math.toIntExact(TimeUnit.MINUTES.toMillis(SHAFT.Properties.timeouts.shellSessionTimeout()));
     }
 
-    private void applyShellOptions(ChannelShell shellChannel, SshShellOptions options) {
-        shellChannel.setPty(options.isPty());
-        if (options.isPty()) {
-            shellChannel.setPtyType(options.getPtyType());
-            shellChannel.setPtySize(options.getColumns(), options.getRows(), options.getColumns() * 8, options.getRows() * 16);
+    void registerShellSession(SshShellSession shellSession) {
+        synchronized (this) {
+            activeShellSessions.add(shellSession);
         }
-        options.getEnvironment().forEach(shellChannel::setEnv);
+    }
+
+    int countActiveShellSessions() {
+        synchronized (this) {
+            return activeShellSessions.size();
+        }
+    }
+
+    void logShellOpened() {
+        ReportManager.logDiscrete("Opened SSH shell on " + sshUsername + "@" + sshHostName + ":" + sshPortNumber + ".");
     }
 
     private void closeOpenShellSessions() {

@@ -36,12 +36,24 @@ public final class SshShellOptions {
     }
 
     public void validate() {
+        validatePtyType();
+        validateDimensions();
+        validateTimeout();
+    }
+
+    private void validatePtyType() {
         if (ptyType == null || ptyType.isBlank()) {
             throw new IllegalArgumentException("SSH shell options require a non-blank PTY type.");
         }
+    }
+
+    private void validateDimensions() {
         if (columns <= 0 || rows <= 0) {
             throw new IllegalArgumentException("SSH shell PTY columns and rows must be positive.");
         }
+    }
+
+    private void validateTimeout() {
         if (defaultTimeout == null || defaultTimeout.isZero() || defaultTimeout.isNegative()) {
             throw new IllegalArgumentException("SSH shell options require a positive default timeout.");
         }
