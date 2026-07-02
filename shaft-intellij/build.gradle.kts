@@ -17,6 +17,7 @@ dependencies {
     intellijPlatform {
         intellijIdea(providers.gradleProperty("platformVersion").get())
         bundledPlugin("com.intellij.java")
+        bundledPlugin("org.intellij.plugins.markdown")
     }
     implementation("com.google.code.gson:gson:2.14.0")
     implementation("org.commonmark:commonmark:0.29.0")

@@ -572,6 +572,98 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantRejectsNativeSeleniumLocalAgentCodeAndNamesShaftPracticeTools() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        showAgentResult(panel, ShaftMcpToolResult.success("""
+                ```java
+                public class BadGeneratedTest {
+                    @Test
+                    void login() {
+                        driver.get("https://example.com");
+                        driver.findElement(By.id("login")).click();
+                    }
+                }
+                ```
+                """.stripIndent().trim()));
+
+        String markdown = transcriptMarkdown(panel);
+        String exported = assistantExport(panel);
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**Generated code rejected**")),
+                () -> assertTrue(markdown.contains("Ask the agent to regenerate")),
+                () -> assertTrue(markdown.contains("`shaft_guide_search`")),
+                () -> assertTrue(markdown.contains("`test_automation_scenarios`")),
+                () -> assertTrue(markdown.contains("`test_code_guardrails_check`")),
+                () -> assertFalse(markdown.contains("driver.get")),
+                () -> assertFalse(markdown.contains("driver.findElement")),
+                () -> assertFalse(exported.contains("driver.get")),
+                () -> assertFalse(exported.contains("driver.findElement")),
+                () -> assertFalse(exported.contains("autobot_local_agent_run")));
+    }
+
+    @Test
+    void assistantRejectsNativeSeleniumMcpCodeBlocksBeforeApproval() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        setField(panel, "captureReviewGenerationRunning", true);
+
+        showAssistantResult(panel, "capture_code_blocks", ShaftMcpToolResult.success(mcpText("""
+                {
+                  "codeBlocks": [
+                    {"language":"java","code":"driver.get(\\"https://example.com\\");\\ndriver.findElement(By.id(\\"login\\")).click();"}
+                  ]
+                }
+                """)));
+
+        String markdown = transcriptMarkdown(panel);
+        String exported = assistantExport(panel);
+
+        assertAll(
+                () -> assertTrue(markdown.contains("capture_code_blocks rejected")),
+                () -> assertTrue(markdown.contains("**Generated code rejected**")),
+                () -> assertTrue(markdown.contains("`shaft_guide_search`")),
+                () -> assertFalse(markdown.contains("Review before writing files")),
+                () -> assertFalse(markdown.contains("driver.get")),
+                () -> assertFalse(markdown.contains("driver.findElement")),
+                () -> assertNull(getField(panel, "pendingCaptureReview")),
+                () -> assertFalse((Boolean) getField(panel, "captureReviewGenerationRunning")),
+                () -> assertFalse(exported.contains("driver.get")),
+                () -> assertFalse(exported.contains("driver.findElement")));
+    }
+
+    @Test
+    void assistantRejectsNativeSeleniumSequenceCodeBlocksBeforeEvidenceExport() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        setField(panel, "sequenceMarkdown", new StringBuilder());
+        setField(panel, "sequenceRawOutput", new StringBuilder());
+
+        showSequenceResult(
+                panel,
+                new AssistantCommand.ToolCall("capture_code_blocks", new JsonObject()),
+                ShaftMcpToolResult.success(mcpText("""
+                        {
+                          "codeBlocks": [
+                            {"language":"java","code":"driver.get(\\"https://example.com\\");\\ndriver.findElement(By.id(\\"login\\")).click();"}
+                          ]
+                        }
+                        """)));
+
+        String markdown = transcriptMarkdown(panel);
+        String exported = assistantExport(panel);
+
+        assertAll(
+                () -> assertTrue(markdown.contains("SHAFT Assistant sequence rejected")),
+                () -> assertTrue(markdown.contains("capture_code_blocks rejected")),
+                () -> assertTrue(markdown.contains("**Generated code rejected**")),
+                () -> assertFalse(markdown.contains("driver.get")),
+                () -> assertFalse(markdown.contains("driver.findElement")),
+                () -> assertFalse(exported.contains("driver.get")),
+                () -> assertFalse(exported.contains("driver.findElement")),
+                () -> assertFalse(exported.contains("Tool evidence")));
+    }
+
+    @Test
     void assistantPersistsActiveChatAndCanStartNewContext() throws Exception {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
         ShaftSettingsState.Settings settings = blankMcpSettings();
@@ -893,26 +985,80 @@ class ShaftPanelSetupTest {
     @Test
     void assistantTranscriptRendersRoleBasedMessageBubbles() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
-        transcript.append("user", "Hello assistant");
+        transcript.append("user", "Hello assistant\n\n```java\nclass UserPrompt {}\n```");
         transcript.append("assistant", "Hi user");
 
         String html = transcript.html();
         assertAll(
-                () -> assertTrue(html.contains("class=\"message-row user\"")),
-                () -> assertTrue(html.contains("class=\"message-row assistant\"")),
-                () -> assertTrue(html.contains("class=\"message-bubble user\"")),
-                () -> assertTrue(html.contains("class=\"message-bubble assistant\"")),
-                () -> assertTrue(html.contains("cellpadding=\"8\"")),
-                () -> assertTrue(html.contains("border=\"0\"")),
-                () -> assertTrue(html.contains("bgcolor=")),
+                () -> assertTrue(html.contains("class=\"shaft-chat-row user ")),
+                () -> assertTrue(html.contains("class=\"shaft-chat-row assistant ")),
+                () -> assertTrue(html.contains("class=\"shaft-chat-bubble user ")),
+                () -> assertTrue(html.contains("class=\"shaft-chat-bubble assistant ")),
+                () -> assertTrue(html.contains("shaft-chat-row-user")),
+                () -> assertTrue(html.contains("shaft-chat-bubble-user")),
                 () -> assertTrue(html.contains("background-color:")),
-                () -> assertFalse(html.contains("border=\"1\"")),
-                () -> assertTrue(html.contains("class=\"message-hint\"")),
-                () -> assertFalse(html.contains("border-radius")),
+                () -> assertTrue(html.contains("border-radius")),
+                () -> assertTrue(html.contains("class=\"shaft-chat-hint\"")),
+                () -> assertTrue(html.contains("class=\"shaft-code-copy\"")),
+                () -> assertTrue(html.contains("data-copy-code=\"class UserPrompt")),
+                () -> assertTrue(html.contains("aria-label=\"Copy code\"")),
+                () -> assertTrue(html.contains("<svg width=\"16\" height=\"16\"")),
+                () -> assertTrue(html.contains("class=\"shaft-code-copy-icon\"")),
+                () -> assertTrue(html.contains("&#x2398;")),
+                () -> assertTrue(html.contains("class=\"shaft-code-highlighted language-java\""), html),
+                () -> assertTrue(html.contains("<span style=\""), html),
+                () -> assertFalse(html.contains(">Copy code<")),
                 () -> assertTrue(html.contains("Hello assistant")),
                 () -> assertTrue(html.contains("Hi user")),
                 () -> assertTrue(html.indexOf("Hi user") < html.indexOf("Type a question")),
-                () -> assertTrue(html.contains("align=\"left\"")));
+                () -> assertFalse(html.contains("cellpadding=\"8\"")),
+                () -> assertFalse(html.contains("border=\"1\"")));
+    }
+
+    @Test
+    void assistantTranscriptUsesStandardMarkdownForHeadersRulesAndCodeBlocks() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("user", """
+                ## User payload
+
+                ---
+
+                ```json
+                {"browser":"chrome"}
+                ```
+                """.stripIndent().trim());
+        transcript.append("assistant", """
+                ## Agent response
+
+                ```java
+                public class LoginTest {
+                    void signsIn() {}
+                }
+                ```
+
+                ```xml
+                <suite name="smoke"/>
+                ```
+                """.stripIndent().trim());
+
+        String html = transcript.html();
+
+        assertAll(
+                () -> assertTrue(html.contains("<h2")),
+                () -> assertTrue(html.contains("<hr")),
+                () -> assertTrue(html.contains("language-json")),
+                () -> assertTrue(html.contains("language-java")),
+                () -> assertTrue(html.contains("language-xml")),
+                () -> assertEquals(3, countOccurrences(html, "class=\"shaft-code-copy\"")),
+                () -> assertTrue(html.contains("data-copy-code=\"public class LoginTest")),
+                () -> assertTrue(html.contains("href=\"shaft-copy-code:public+class+LoginTest")),
+                () -> assertTrue(html.contains("aria-label=\"Copy code\"")),
+                () -> assertTrue(html.contains("<svg width=\"16\" height=\"16\"")),
+                () -> assertTrue(html.contains("class=\"shaft-code-copy-icon\"")),
+                () -> assertTrue(html.contains("&#x2398;")),
+                () -> assertTrue(html.contains("class=\"shaft-code-highlighted language-java\""), html),
+                () -> assertTrue(html.contains("<span style=\""), html),
+                () -> assertFalse(html.contains(">Copy code<")));
     }
 
     @Test
@@ -1197,6 +1343,20 @@ class ShaftPanelSetupTest {
         showResult.invoke(panel, toolName, result, error);
     }
 
+    private static void showSequenceResult(
+            ShaftAssistantPanel panel,
+            AssistantCommand.ToolCall toolCall,
+            ShaftMcpToolResult result) throws Exception {
+        Method showResult = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showSequenceResult",
+                int.class,
+                AssistantCommand.ToolCall.class,
+                ShaftMcpToolResult.class,
+                Throwable.class);
+        showResult.setAccessible(true);
+        showResult.invoke(panel, 0, toolCall, result, null);
+    }
+
     private static void showCaptureStartDiagnostic(
             ShaftAssistantPanel panel,
             String expectedOutputPath,
@@ -1242,6 +1402,16 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("exportTranscriptWithEvidence");
         method.setAccessible(true);
         return (String) method.invoke(panel);
+    }
+
+    private static int countOccurrences(String value, String needle) {
+        int count = 0;
+        int offset = 0;
+        while ((offset = value.indexOf(needle, offset)) >= 0) {
+            count++;
+            offset += needle.length();
+        }
+        return count;
     }
 
     private static String mcpText(String text) {

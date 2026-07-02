@@ -306,7 +306,7 @@ class AssistantMarkdownTest {
                     {"title":"Update locator","action":"Replace the stale CSS selector.","status":"SUGGESTED"}
                   ],
                   "codeBlocks": [
-                    {"title":"Locator fix","language":"java","code":"By login = By.id(\\"login\\");","copyPasteReady":true}
+                    {"title":"Locator fix","language":"java","code":"driver.element().click(SHAFT.GUI.Locator.id(\\"login\\"));","copyPasteReady":true}
                   ],
                   "providerFallback": {"used":false,"reason":"AI advisory disabled by default."},
                   "bundlePath": "target/shaft-doctor/evidence-bundle.json",
@@ -324,9 +324,32 @@ class AssistantMarkdownTest {
                 () -> assertTrue(markdown.contains("Replace the stale CSS selector.")),
                 () -> assertTrue(markdown.contains("**Fix snippets**")),
                 () -> assertTrue(markdown.contains("```java")),
+                () -> assertTrue(markdown.contains("driver.element().click(SHAFT.GUI.Locator.id")),
+                () -> assertFalse(markdown.contains("driver.findElement")),
                 () -> assertTrue(markdown.contains("target/shaft-doctor/doctor-report.json")),
                 () -> assertTrue(markdown.contains("AI advisory disabled by default.")),
                 () -> assertFalse(markdown.contains("\"schemaVersion\"")));
+    }
+
+    @Test
+    void rejectsNativeSeleniumGeneratedJavaSnippetsWithRegenerationTools() {
+        String markdown = AssistantMarkdown.fromMcpOutput("capture_code_blocks", mcpText("""
+                {
+                  "codeBlocks": [
+                    {"language":"java","code":"driver.get(\\"https://example.com\\");\\ndriver.findElement(By.id(\\"login\\")).click();"}
+                  ]
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**Generated code rejected**")),
+                () -> assertTrue(markdown.contains("Ask the agent to regenerate")),
+                () -> assertTrue(markdown.contains("`shaft_guide_search`")),
+                () -> assertTrue(markdown.contains("`test_automation_scenarios`")),
+                () -> assertTrue(markdown.contains("`test_code_guardrails_check`")),
+                () -> assertTrue(markdown.contains("SHAFT-only Java")),
+                () -> assertFalse(markdown.contains("driver.get")),
+                () -> assertFalse(markdown.contains("driver.findElement")));
     }
 
     @Test

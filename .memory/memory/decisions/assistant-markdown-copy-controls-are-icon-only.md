@@ -1,0 +1,1 @@
+Per-code-block copy controls in the IntelliJ Assistant transcript follow the plugin icon-button standard: no visible text label, accessible label/tooltip remain, and screenshot evidence must show a visual-only copy affordance next to rendered SHAFT Java.

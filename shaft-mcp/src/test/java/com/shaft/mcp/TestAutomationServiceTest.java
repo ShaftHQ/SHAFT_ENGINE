@@ -38,6 +38,9 @@ class TestAutomationServiceTest {
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("Thread.sleep")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("absolute XPath")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("driver.findElement")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("confirm the exact target URL")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("do not infer canonical URLs")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("only publish locators that worked")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("hard-coded secrets")));
     }
 
@@ -49,6 +52,28 @@ class TestAutomationServiceTest {
         assertTrue(result.scenarios().stream().anyMatch(scenario -> scenario.id().equals("api-openapi-contract-suite")));
         assertTrue(result.scenarios().stream().allMatch(scenario -> scenario.areas().contains("api")));
         assertTrue(result.scenarios().size() <= 3);
+    }
+
+    @Test
+    void webScenarioRequiresUrlConfirmationAndLiveLocatorProof() {
+        McpScenarioCatalogResult result = service.testAutomationScenarios("web", "saucedemo login code", 5);
+
+        McpTestAutomationScenario scenario = result.scenarios().stream()
+                .filter(candidate -> candidate.id().equals("web-url-intent-orientation"))
+                .findFirst()
+                .orElseThrow();
+
+        assertTrue(scenario.mcpTools().contains("browser_open_intent"));
+        assertTrue(scenario.mcpTools().contains("element_type"));
+        assertTrue(scenario.mcpTools().contains("element_click"));
+        assertTrue(scenario.agentActions().stream()
+                .anyMatch(action -> action.contains("confirm the exact target URL")));
+        assertTrue(scenario.agentActions().stream()
+                .anyMatch(action -> action.contains("Perform the actual action")));
+        assertTrue(scenario.guardrails().stream()
+                .anyMatch(guardrail -> guardrail.contains("Do not infer target URLs")));
+        assertTrue(scenario.guardrails().stream()
+                .anyMatch(guardrail -> guardrail.contains("publish unverified locators")));
     }
 
     @Test

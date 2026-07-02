@@ -582,10 +582,52 @@ final class AssistantMarkdown {
             String language = string(block, "language", "java");
             String code = firstTextProperty(block, "code", "content", "text");
             if (!code.isBlank()) {
+                if (isRejectedGeneratedJava(language, code)) {
+                    sections.add(nativeSeleniumRejectionMarkdown());
+                    continue;
+                }
                 sections.add(fence(language.isBlank() ? "text" : language, code));
             }
         }
         return joinSections(sections);
+    }
+
+    static boolean containsRejectedGeneratedJava(String output) {
+        String unwrapped = unwrapMcpText(output);
+        JsonElement parsed = parse(unwrapped);
+        if (parsed != null && parsed.isJsonObject()) {
+            JsonObject object = parsed.getAsJsonObject();
+            if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()) {
+                for (JsonElement item : object.getAsJsonArray("codeBlocks")) {
+                    if (!item.isJsonObject()) {
+                        continue;
+                    }
+                    JsonObject block = item.getAsJsonObject();
+                    String language = string(block, "language", "java");
+                    String code = firstTextProperty(block, "code", "content", "text");
+                    if (isRejectedGeneratedJava(language, code)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return containsRejectedJavaFence(unwrapped)
+                || (!containsCodeFence(unwrapped) && looksLikeJava(unwrapped) && isRejectedGeneratedJava("java", unwrapped));
+    }
+
+    static String nativeSeleniumRejectionMarkdown() {
+        return """
+                **Generated code rejected**
+
+                The assistant returned Java that uses native Selenium APIs. SHAFT IntelliJ Assistant only accepts generated Java that uses SHAFT syntax.
+
+                Ask the agent to regenerate the answer with SHAFT-only Java:
+                - Call `shaft_guide_search` with a query for SHAFT GUI WebDriver, page objects, locators, `driver.browser()`, and `driver.element()`.
+                - For broad test or page-object design, call `test_automation_scenarios` to learn the matching SHAFT coding pattern.
+                - Call `test_code_guardrails_check` on the final Java snippet before returning it.
+                - Use `SHAFT.GUI.WebDriver`, `driver.browser()`, `driver.element()`, `driver.element().touch()`, and `SHAFT.GUI.Locator`.
+                - Do not return native navigation calls, direct element lookup calls, WebElement actions, browser-driver constructors, or other raw Selenium code.
+                """.strip();
     }
 
     private static String unwrapMcpText(String output) {
@@ -805,6 +847,55 @@ final class AssistantMarkdown {
                 || lower.startsWith("import ")
                 || lower.contains("@test")
                 || lower.contains("webDriver.element()");
+    }
+
+    private static boolean isJava(String language) {
+        return language == null || language.isBlank() || "java".equalsIgnoreCase(language.trim());
+    }
+
+    private static boolean isRejectedGeneratedJava(String language, String code) {
+        String snippet = code == null ? "" : code;
+        return isJava(language) && !snippet.isBlank() && looksLikeNativeSelenium(snippet);
+    }
+
+    private static boolean containsRejectedJavaFence(String markdown) {
+        if (markdown == null || markdown.isBlank()) {
+            return false;
+        }
+        int offset = 0;
+        while (offset < markdown.length()) {
+            int fenceStart = markdown.indexOf("```", offset);
+            if (fenceStart < 0) {
+                return false;
+            }
+            int languageStart = fenceStart + 3;
+            int firstLineEnd = markdown.indexOf('\n', languageStart);
+            if (firstLineEnd < 0) {
+                return false;
+            }
+            String language = markdown.substring(languageStart, firstLineEnd).trim();
+            int fenceEnd = markdown.indexOf("```", firstLineEnd + 1);
+            if (fenceEnd < 0) {
+                return false;
+            }
+            String code = markdown.substring(firstLineEnd + 1, fenceEnd);
+            if (isRejectedGeneratedJava(language, code)) {
+                return true;
+            }
+            offset = fenceEnd + 3;
+        }
+        return false;
+    }
+
+    private static boolean looksLikeNativeSelenium(String code) {
+        return code.contains("org.openqa.selenium.WebDriver")
+                || code.contains("new ChromeDriver(")
+                || code.contains("new FirefoxDriver(")
+                || code.contains("new EdgeDriver(")
+                || code.contains("driver.get(")
+                || code.contains("driver.findElement(")
+                || code.contains("driver.findElements(")
+                || code.contains("WebElement ");
     }
 
     private static String fence(String language, String text) {

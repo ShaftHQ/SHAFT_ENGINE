@@ -37,7 +37,20 @@ final class AssistantCommand {
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                     For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                    Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
+                    Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                     For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
+                    """.stripIndent().trim();
+    private static final String SHAFT_CODEGEN_TOOL_GUIDANCE =
+            """
+                    This is a code-generation request. Before returning Java:
+                    - Call shaft_guide_search for the relevant SHAFT guide examples and cite the official guide URLs.
+                    - Call test_automation_scenarios for broad test/page-object design to learn the matching SHAFT coding pattern.
+                    - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
+                    - For web login, form, or navigation code, call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
+                    - Verify each selected locator by performing the actual action with shaft-mcp element_type, element_click, or natural_act before returning it. Do not publish unverified locators.
+                    - Call test_code_guardrails_check on the final Java snippet.
+                    - Return only SHAFT-syntax Java; never return raw Selenium code.
                     """.stripIndent().trim();
     private static final List<CommandDefinition> COMMANDS = List.of(
             new CommandDefinition("/commands", "Show command help",
@@ -1097,8 +1110,37 @@ final class AssistantCommand {
 
     private static String localAgentPrompt(String text, boolean agentMode, boolean allowSourceMutation) {
         String lower = text.toLowerCase(Locale.ROOT);
-        String withHint = lower.contains("shaft-mcp") ? text : SHAFT_MCP_USAGE_HINT + "\n\n" + text;
+        boolean codeGenerationRequest = isCodeGenerationRequest(text);
+        String hint = SHAFT_MCP_USAGE_HINT
+                + (codeGenerationRequest ? "\n" + SHAFT_CODEGEN_TOOL_GUIDANCE : "");
+        String withHint = lower.contains("shaft-mcp")
+                ? (codeGenerationRequest ? SHAFT_CODEGEN_TOOL_GUIDANCE + "\n\n" + text : text)
+                : hint + "\n\n" + text;
         return agentMode && !allowSourceMutation ? withHint + "\n\n" + AGENT_SOURCE_GUARD : withHint;
+    }
+
+    private static boolean isCodeGenerationRequest(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return containsAny(normalized,
+                "generate code",
+                "generate java",
+                "generate test",
+                "generate tests",
+                "create test",
+                "create tests",
+                "write test",
+                "write tests",
+                "implement test",
+                "add test",
+                "page object",
+                "pom",
+                "codegen",
+                "code gen",
+                "rewrite code",
+                "fix code",
+                "fix this code",
+                "java code",
+                "generated code");
     }
 
     private static String[] splitTargetUrlAndIntent(String rest) {

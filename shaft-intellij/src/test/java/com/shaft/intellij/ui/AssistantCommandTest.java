@@ -80,6 +80,8 @@ class AssistantCommandTest {
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
+                Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                 For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
 
                 open duckduckgo and search for SHAFT Engine""",
@@ -88,9 +90,75 @@ class AssistantCommandTest {
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
+                Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                 For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
 
                 Explain the current test failure""", plain.arguments().get("prompt").getAsString());
+    }
+
+    @Test
+    void localAgentCodeGenerationPromptsNameShaftMcpPracticeToolsBeforeGeneration() {
+        AssistantCommand.Invocation generatedTest = AssistantCommand.fromPrompt(
+                "generate a Java login test with a page object",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation explicitMcp = AssistantCommand.fromPrompt(
+                "use shaft-mcp to generate Java code for this login flow",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String generatedPrompt = generatedTest.arguments().get("prompt").getAsString();
+        String explicitPrompt = explicitMcp.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(generatedPrompt.contains("This is a code-generation request. Before returning Java:"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Call shaft_guide_search"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Call test_automation_scenarios"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Do not infer canonical URLs"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("call driver_initialize and browser_open_intent"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("element_type, element_click, or natural_act"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Do not publish unverified locators"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Call test_code_guardrails_check"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Return only SHAFT-syntax Java"), generatedPrompt),
+                () -> assertTrue(explicitPrompt.contains("Call shaft_guide_search"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("ask the user to confirm the exact target URL"),
+                        explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("browser_open_intent"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("Call test_code_guardrails_check"), explicitPrompt));
+    }
+
+    @Test
+    void localAgentLoginCodeGenerationRequiresUrlConfirmationAndLiveLocatorProof() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate code to login to saucedemo",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(prompt.contains("generate code to login to saucedemo"), prompt),
+                () -> assertTrue(prompt.contains("ask the user to confirm the exact target URL"), prompt),
+                () -> assertTrue(prompt.contains("Do not infer canonical URLs"), prompt),
+                () -> assertTrue(prompt.contains("browser_open_intent"), prompt),
+                () -> assertTrue(prompt.contains("element_type, element_click, or natural_act"), prompt),
+                () -> assertTrue(prompt.contains("Do not publish unverified locators"), prompt),
+                () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
     }
 
     @Test
