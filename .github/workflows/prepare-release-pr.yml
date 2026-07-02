@@ -1,0 +1,98 @@
+name: Prepare Release Pull Request
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_date:
+        description: "Release date in YYYY-MM-DD; version becomes {major}.{quarter}.{YYYYMMDD}"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prepare-release-pr-${{ inputs.release_date }}
+  cancel-in-progress: false
+
+jobs:
+  prepare-release-pr:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Default Branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Update Release Metadata
+        id: prepare
+        shell: bash
+        env:
+          RELEASE_DATE: ${{ inputs.release_date }}
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/prepare_release_pr.py \
+            --release-date "${RELEASE_DATE}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+          if git diff --quiet; then
+            echo "changes=false" >> "${GITHUB_OUTPUT}"
+            echo "Release metadata is already up to date."
+            exit 0
+          fi
+
+          echo "changes=true" >> "${GITHUB_OUTPUT}"
+          {
+            echo "files<<EOF"
+            git diff --name-only | sed 's/^/- `/;s/$/`/'
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Reject Existing Maven Central Version
+        if: steps.prepare.outputs.changes == 'true'
+        run: python3 scripts/ci/check_maven_release_version.py
+
+      - name: Validate Release Metadata
+        if: steps.prepare.outputs.changes == 'true'
+        run: |
+          python3 scripts/ci/validate_reactor_versions.py
+          python3 scripts/ci/validate_modular_documentation.py
+          python3 scripts/ci/validate_shaft_pilot_release.py
+          python3 scripts/ci/validate_maven_publication.py
+
+      - name: Create Pull Request
+        if: steps.prepare.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Prepare SHAFT Engine release ${{ steps.prepare.outputs.release_version }}"
+          branch: release/${{ steps.prepare.outputs.release_version }}
+          delete-branch: true
+          title: "Prepare SHAFT Engine release ${{ steps.prepare.outputs.release_version }}"
+          body: |
+            ## Summary
+            Prepare SHAFT Engine release `${{ steps.prepare.outputs.release_version }}`.
+
+            Version formula: `{major}.{quarter}.{YYYYMMDD}` from `${{ inputs.release_date }}`.
+
+            ### Updated Files
+            ${{ steps.prepare.outputs.files }}
+
+            ## Validation
+            - `python3 scripts/ci/check_maven_release_version.py`
+            - `python3 scripts/ci/validate_reactor_versions.py`
+            - `python3 scripts/ci/validate_modular_documentation.py`
+            - `python3 scripts/ci/validate_shaft_pilot_release.py`
+            - `python3 scripts/ci/validate_maven_publication.py`
+
+            Merging this PR to `main` triggers Maven Central delivery.
+          labels: |
+            automated
+            release
