@@ -91,6 +91,16 @@ final class AssistantCommand {
     private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
             new NaturalIntent(AssistantCommand::isCommandHelpIntent,
                     (text, workingDirectory) -> Invocation.local(commandHelp())),
+            new NaturalIntent(AssistantCommand::isGuideSearchIntent,
+                    (text, workingDirectory) -> Invocation.tool("shaft_guide_search", guide(naturalQuery(text)))),
+            new NaturalIntent(AssistantCommand::isScenarioSearchIntent,
+                    (text, workingDirectory) -> Invocation.tool("test_automation_scenarios", scenarios(naturalQuery(text)))),
+            new NaturalIntent(AssistantCommand::isGuardrailsCheckIntent,
+                    (text, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(naturalCode(text)))),
+            new NaturalIntent(AssistantCommand::isProjectCreateIntent,
+                    (text, workingDirectory) -> Invocation.tool("shaft_project_create", projectCreate(naturalProjectName(text)))),
+            new NaturalIntent(AssistantCommand::isProjectUpgradeIntent,
+                    (text, workingDirectory) -> Invocation.tool("shaft_project_upgrade", projectUpgrade(naturalProjectRoot(text, workingDirectory)))),
             new NaturalIntent(AssistantCommand::isBrowserControlIntent,
                     (text, workingDirectory) -> browser(text)),
             new NaturalIntent(AssistantCommand::isBrowserRecordingIntent,
@@ -679,6 +689,55 @@ final class AssistantCommand {
                 || normalized.contains(" can i use"));
     }
 
+    private static boolean isGuideSearchIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return (normalized.startsWith("search shaft docs ")
+                || normalized.startsWith("search the shaft docs ")
+                || normalized.startsWith("search shaft guide ")
+                || normalized.startsWith("search the shaft guide ")
+                || normalized.startsWith("find shaft docs ")
+                || normalized.startsWith("find shaft guide ")
+                || normalized.startsWith("guide me on ")
+                || normalized.startsWith("docs for "))
+                && !naturalQuery(text).isBlank();
+    }
+
+    private static boolean isScenarioSearchIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return (normalized.startsWith("find scenarios ")
+                || normalized.startsWith("find automation scenarios ")
+                || normalized.startsWith("show scenarios ")
+                || normalized.startsWith("automation scenarios for ")
+                || normalized.startsWith("scenario ideas for "))
+                && !naturalQuery(text).isBlank();
+    }
+
+    private static boolean isGuardrailsCheckIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return (normalized.startsWith("check generated java code ")
+                || normalized.startsWith("check this java code ")
+                || normalized.startsWith("run guardrails ")
+                || normalized.startsWith("guardrails check "))
+                && !naturalCode(text).isBlank();
+    }
+
+    private static boolean isProjectCreateIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.startsWith("create shaft project ")
+                || normalized.startsWith("create a shaft project ")
+                || normalized.startsWith("new shaft project ")
+                || normalized.startsWith("scaffold shaft project ");
+    }
+
+    private static boolean isProjectUpgradeIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.startsWith("preview shaft upgrade")
+                || normalized.startsWith("preview upgrade")
+                || normalized.startsWith("dry run shaft upgrade")
+                || normalized.startsWith("upgrade shaft project")
+                || normalized.startsWith("upgrade this shaft project");
+    }
+
     private static boolean containsAny(String text, String... needles) {
         if (text == null || needles == null) {
             return false;
@@ -773,6 +832,67 @@ final class AssistantCommand {
                 || normalized.startsWith("analyze allure")
                 || normalized.startsWith("analyse allure")
                 || normalized.startsWith("doctor ");
+    }
+
+    private static String naturalQuery(String text) {
+        String trimmed = text(text);
+        String[] prefixes = {
+                "search the shaft docs", "search shaft docs", "search the shaft guide", "search shaft guide",
+                "find shaft docs", "find shaft guide", "guide me on", "docs for",
+                "find automation scenarios", "find scenarios", "show scenarios", "automation scenarios for",
+                "scenario ideas for", "run guardrails", "guardrails check"
+        };
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        for (String prefix : prefixes) {
+            if (lower.startsWith(prefix)) {
+                return trimmed.substring(prefix.length()).trim();
+            }
+        }
+        return trimmed;
+    }
+
+    private static String naturalCode(String text) {
+        String query = naturalQuery(text);
+        String lower = query.toLowerCase(Locale.ROOT);
+        String[] prefixes = {"check generated java code", "check this java code"};
+        for (String prefix : prefixes) {
+            if (lower.startsWith(prefix)) {
+                return query.substring(prefix.length()).trim();
+            }
+        }
+        return query;
+    }
+
+    private static String naturalProjectName(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        String[] prefixes = {"create a shaft project", "create shaft project", "new shaft project", "scaffold shaft project"};
+        for (String prefix : prefixes) {
+            if (normalized.startsWith(prefix)) {
+                String name = text(text).substring(Math.min(prefix.length(), text(text).length())).trim();
+                return firstTokenOrDefault(name, "shaft-demo");
+            }
+        }
+        return "shaft-demo";
+    }
+
+    private static String naturalProjectRoot(String text, String workingDirectory) {
+        String trimmed = text(text);
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        String[] prefixes = {"preview shaft upgrade", "preview upgrade", "dry run shaft upgrade",
+                "upgrade this shaft project", "upgrade shaft project"};
+        for (String prefix : prefixes) {
+            if (lower.startsWith(prefix)) {
+                String root = firstTokenOrDefault(trimmed.substring(prefix.length()).trim(), "");
+                if (!root.isBlank()) {
+                    return root;
+                }
+            }
+        }
+        String path = firstPathLike(text);
+        if (!path.isBlank()) {
+            return path;
+        }
+        return workingDirectory == null || workingDirectory.isBlank() ? "." : workingDirectory;
     }
 
     private static JsonObject triage(String workingDirectory) {
