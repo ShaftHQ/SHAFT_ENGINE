@@ -595,7 +595,7 @@ final class ShaftAssistantPanel extends JPanel {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
         boolean currentStream = streamToken == activeLocalAgentStreamToken;
-        if (streamToken > 0 && !currentStream) {
+        if (streamToken > 0 && !currentStream && activeLocalAgentStreamToken != -1) {
             return;
         }
         localAgentOutput = null;

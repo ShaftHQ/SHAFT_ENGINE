@@ -614,7 +614,13 @@ class AssistantCommandTest {
                 () -> assertEquals("AGENT", apply.arguments().get("mode").getAsString()),
                 () -> assertTrue(apply.arguments().get("allowSourceMutation").getAsBoolean()),
                 () -> assertTrue(apply.arguments().get("prompt").getAsString().contains("Page Object Model")),
-                () -> assertTrue(apply.arguments().get("prompt").getAsString().contains("Do not start a new recording")));
+                () -> assertTrue(apply.arguments().get("prompt").getAsString().contains("Do not start a new recording")),
+                () -> assertTrue(apply.arguments().get("prompt").getAsString()
+                        .contains("Preserve the recorded browser journey")),
+                () -> assertTrue(apply.arguments().get("prompt").getAsString()
+                        .contains("open the first result")),
+                () -> assertTrue(apply.arguments().get("prompt").getAsString()
+                        .contains("assert the final page title")));
     }
 
     @Test
