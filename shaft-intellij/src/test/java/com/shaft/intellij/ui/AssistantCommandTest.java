@@ -456,7 +456,23 @@ class AssistantCommandTest {
 
     @Test
     void naturalIntentRoutesObviousMcpFeatureRequests() {
+        AssistantCommand.Invocation projectUpgrade = command("preview shaft upgrade .", "C:/work/project");
+
         assertAll(
+                () -> assertEquals("shaft_guide_search", command("search SHAFT docs locators").toolName()),
+                () -> assertEquals("locators", command("search SHAFT docs locators").arguments().get("query").getAsString()),
+                () -> assertEquals("test_automation_scenarios", command("find automation scenarios checkout").toolName()),
+                () -> assertEquals("checkout", command("find automation scenarios checkout").arguments().get("intent").getAsString()),
+                () -> assertEquals("test_code_guardrails_check",
+                        command("check generated Java code driver.element().click(locator);").toolName()),
+                () -> assertEquals("driver.element().click(locator);",
+                        command("check generated Java code driver.element().click(locator);").arguments().get("code").getAsString()),
+                () -> assertEquals("shaft_project_create", command("create SHAFT project demo-web").toolName()),
+                () -> assertEquals("demo-web", command("create SHAFT project demo-web").arguments().get("outputDirectory").getAsString()),
+                () -> assertEquals("shaft_project_upgrade", projectUpgrade.toolName()),
+                () -> assertTrue(projectUpgrade.arguments().get("dryRun").getAsBoolean()),
+                () -> assertFalse(projectUpgrade.arguments().get("approve").getAsBoolean()),
+                () -> assertEquals(".", projectUpgrade.arguments().get("projectRoot").getAsString()),
                 () -> assertEquals("mobile_record_start", command("start mobile recording").toolName()),
                 () -> assertEquals("capture_start", command("start a browser recording").toolName()),
                 () -> assertEquals("doctor_analyze_failed_allure",
