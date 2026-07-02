@@ -376,7 +376,9 @@ class AssistantCommandTest {
     @Test
     void mobileCommandsMapToControlRecordingCodegenAndInspectorTools() {
         AssistantCommand.Invocation nativeSession = command("/mobile native Android Pixel_6");
+        AssistantCommand.Invocation webSession = command("/mobile web https://example.com");
         AssistantCommand.Invocation inspector = command("/mobile-record inspector Android recordings/inspector.json");
+        AssistantCommand.Invocation unknown = command("/mobile calibrate");
 
         assertAll(
                 () -> assertEquals("mobile_toolchain_status", command("/mobile doctor Android").toolName()),
@@ -385,6 +387,10 @@ class AssistantCommandTest {
                 () -> assertEquals("mobile_initialize_native", nativeSession.toolName()),
                 () -> assertEquals("Android", nativeSession.arguments().get("platformName").getAsString()),
                 () -> assertEquals("Pixel_6", nativeSession.arguments().get("deviceName").getAsString()),
+                () -> assertEquals("mobile_initialize_web_emulation", webSession.toolName()),
+                () -> assertEquals("https://example.com", webSession.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("CHROME", webSession.arguments().get("browser").getAsString()),
+                () -> assertFalse(webSession.arguments().get("headless").getAsBoolean()),
                 () -> assertEquals("mobile_get_accessibility_tree", command("/mobile tree").toolName()),
                 () -> assertEquals("mobile_take_screenshot", command("/mobile screenshot target/mobile.png").toolName()),
                 () -> assertFalse(command("/mobile screenshot target/mobile.png").arguments().get("includeBase64").getAsBoolean()),
@@ -402,7 +408,10 @@ class AssistantCommandTest {
                 () -> assertEquals("mobile_recording_code_blocks",
                         command("/mobile-codegen recordings/mobile.json").toolName()),
                 () -> assertEquals("mobile_replay_recording",
-                        command("/mobile-replay recordings/mobile.json").toolName()));
+                        command("/mobile-replay recordings/mobile.json").toolName()),
+                () -> assertEquals("driver_quit", command("/mobile quit").toolName()),
+                () -> assertTrue(unknown.isLocal()),
+                () -> assertTrue(unknown.localResponse().contains("Unknown mobile command")));
     }
 
     @Test

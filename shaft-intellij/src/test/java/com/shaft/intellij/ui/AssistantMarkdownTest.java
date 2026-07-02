@@ -151,6 +151,86 @@ class AssistantMarkdownTest {
                 () -> assertFalse(markdown.contains("\"processId\"")));
     }
 
+
+    @Test
+    void formatsMobileToolchainSessionInspectionAndScreenshotResponses() {
+        String toolchain = AssistantMarkdown.fromMcpOutput("mobile_toolchain_status", mcpText("""
+                {
+                  "platformName": "Android",
+                  "nodeAvailable": true,
+                  "npmAvailable": true,
+                  "appiumAvailable": false,
+                  "appiumInspectorAvailable": true,
+                  "adbAvailable": true,
+                  "emulatorAvailable": false,
+                  "sdkManagerAvailable": true,
+                  "avdManagerAvailable": true,
+                  "appiumVersion": "",
+                  "appiumInspectorPluginVersion": "2025.3.1",
+                  "androidDevices": [{"id":"emulator-5554","state":"device","type":"emulator"}],
+                  "cachedAndroidEmulators": ["Pixel_6"],
+                  "missingDependencies": ["appium"],
+                  "warnings": ["Install the managed Appium toolchain."],
+                  "diagnostics": []
+                }
+                """));
+        String session = AssistantMarkdown.fromMcpOutput("mobile_initialize_web_emulation", mcpText("""
+                {
+                  "mode": "web-emulation",
+                  "platformName": "",
+                  "deviceName": "Pixel 5",
+                  "browserName": "CHROME",
+                  "active": true,
+                  "codeBlocks": [],
+                  "warnings": [],
+                  "deviceProfile": {"width":"393","height":"851"}
+                }
+                """));
+        String tree = AssistantMarkdown.fromMcpOutput("mobile_get_accessibility_tree", mcpText("""
+                {
+                  "currentContext": "NATIVE_APP",
+                  "source": "<hierarchy><node text='Sign in'/></hierarchy>",
+                  "characterCount": 44,
+                  "truncated": false,
+                  "warnings": []
+                }
+                """));
+        String contexts = AssistantMarkdown.fromMcpOutput("mobile_get_contexts", mcpText("""
+                {
+                  "currentContext": "WEBVIEW_chrome",
+                  "contexts": ["NATIVE_APP", "WEBVIEW_chrome"],
+                  "pageSource": "<html><body>Home</body></html>",
+                  "sourceCharacterCount": 30,
+                  "truncated": false,
+                  "warnings": []
+                }
+                """));
+        String screenshot = AssistantMarkdown.fromMcpOutput("mobile_take_screenshot", mcpText("""
+                {
+                  "mediaType": "image/png",
+                  "byteLength": 128,
+                  "base64": null,
+                  "outputPath": "target/shaft-mobile/home.png",
+                  "warnings": ["Base64 omitted; set includeBase64=true to return inline PNG bytes."]
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(toolchain.contains("**Platform:** Android")),
+                () -> assertTrue(toolchain.contains("**Missing dependencies**")),
+                () -> assertTrue(toolchain.contains("| `emulator-5554` | device | emulator |")),
+                () -> assertFalse(toolchain.contains("\"nodeAvailable\"")),
+                () -> assertTrue(session.contains("**Mode:** web-emulation")),
+                () -> assertTrue(session.contains("**Device profile**")),
+                () -> assertTrue(tree.contains("**Accessibility tree**")),
+                () -> assertTrue(tree.contains("<node text='Sign in'/>")),
+                () -> assertTrue(contexts.contains("**Contexts**")),
+                () -> assertTrue(contexts.contains("WEBVIEW_chrome")),
+                () -> assertTrue(screenshot.contains("**Screenshot:** image/png")),
+                () -> assertTrue(screenshot.contains("target/shaft-mobile/home.png")),
+                () -> assertFalse(screenshot.contains("\"base64\"")));
+    }
+
     @Test
     void unknownJsonCanUseAgentFormatterButKnownResponsesDoNot() {
         assertAll(

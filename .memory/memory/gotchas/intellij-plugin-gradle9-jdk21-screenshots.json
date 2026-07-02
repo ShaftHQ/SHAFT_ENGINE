@@ -25,11 +25,11 @@
     },
     {
       "id": "gradle-9.0.0",
-      "kind": "tool"
+      "kind": "source"
     },
     {
       "id": "Temurin-21.0.11",
-      "kind": "tool"
+      "kind": "source"
     }
   ],
   "facets": {
