@@ -233,7 +233,107 @@ final class AssistantMarkdown {
         if (object.has("currentContext") && object.has("source") && object.has("characterCount")) {
             return mobileAccessibilityMarkdown(object);
         }
+        if (object.has("confirmationToken") && object.has("readyToStart") && object.has("confirmationRequired")) {
+            return mobileInspectorPlanMarkdown(object);
+        }
+        if (object.has("inspectorUrl") && object.has("appiumServerUrl") && object.has("actionCount")) {
+            return mobileInspectorRecordingStatusMarkdown(object);
+        }
+        if (object.has("active") && object.has("outputPath") && object.has("actionCount")) {
+            return mobileRecordingStatusMarkdown(object);
+        }
         return "";
+    }
+
+    private static String mobileRecordingStatusMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Recording", booleanValue(object, "active") ? "active" : "stopped",
+                "Mode", string(object, "mode", ""),
+                "Actions", string(object, "actionCount", ""),
+                "Sensitive values", booleanValue(object, "includeSensitiveValues") ? "included" : "excluded"));
+        String outputPath = string(object, "outputPath", "");
+        if (!outputPath.isBlank()) {
+            sections.add("**Output:** `" + outputPath + "`");
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
+    }
+
+    private static String mobileInspectorPlanMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Inspector plan", booleanValue(object, "readyToStart") ? "ready" : "not ready",
+                "Platform", string(object, "platformName", ""),
+                "Confirmation", booleanValue(object, "confirmationRequired") ? "required" : "not required",
+                "Sensitive values", booleanValue(object, "includeSensitiveValues") ? "included" : "excluded"));
+        String token = string(object, "confirmationToken", "");
+        if (!token.isBlank()) {
+            sections.add("**Confirmation token:** `" + token + "`");
+        }
+        sections.add(metadataLine(
+                "Device", string(object, "selectedDeviceId", ""),
+                "AVD", string(object, "selectedAndroidAvdName", ""),
+                "Provision emulator", booleanValue(object, "willProvisionAndroidEmulator") ? "yes" : "no",
+                "Real device", booleanValue(object, "realDeviceAvailable") ? "available" : "not detected"));
+        String outputPath = string(object, "outputPath", "");
+        if (!outputPath.isBlank()) {
+            sections.add("**Recording output:** `" + outputPath + "`");
+        }
+        String nextSteps = bulletList("Next steps", object, "nextSteps");
+        if (!nextSteps.isBlank()) {
+            sections.add(nextSteps);
+        }
+        if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()) {
+            String blocks = codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
+            if (!blocks.isBlank()) {
+                sections.add(blocks);
+            }
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
+    }
+
+    private static String mobileInspectorRecordingStatusMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Inspector recording", booleanValue(object, "active") ? "active" : "stopped",
+                "Paused", booleanValue(object, "paused") ? "yes" : "no",
+                "Platform", string(object, "platformName", ""),
+                "Actions", string(object, "actionCount", "")));
+        sections.add(metadataLine(
+                "Device", string(object, "deviceId", ""),
+                "AVD", string(object, "androidAvdName", ""),
+                "Managed emulator", booleanValue(object, "managedEmulator") ? "yes" : "no"));
+        String outputPath = string(object, "outputPath", "");
+        if (!outputPath.isBlank()) {
+            sections.add("**Output:** `" + outputPath + "`");
+        }
+        String inspectorUrl = string(object, "inspectorUrl", "");
+        if (!inspectorUrl.isBlank()) {
+            sections.add("**Inspector URL:** " + inspectorUrl);
+        }
+        String appiumServerUrl = string(object, "appiumServerUrl", "");
+        if (!appiumServerUrl.isBlank()) {
+            sections.add("**Appium server:** " + appiumServerUrl);
+        }
+        if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()) {
+            String blocks = codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
+            if (!blocks.isBlank()) {
+                sections.add(blocks);
+            }
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
     }
 
     private static String mobileToolchainMarkdown(JsonObject object) {
