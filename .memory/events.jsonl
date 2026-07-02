@@ -131,3 +131,5 @@
 {"actor":"agent","event":"memory.updated","id":"workflow.record-shaft-intellij-plugin-onboarding-video","timestamp":"2026-06-30T10:10:23+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.record-shaft-intellij-plugin-onboarding-video","timestamp":"2026-06-30T10:43:38+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.intellij-agent-readonly-without-source-approval","timestamp":"2026-06-30T17:49:33+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-assistant-shaft-owned-jbuttons-are-icon-only","timestamp":"2026-07-02T19:16:30+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.intellij-ui-prs-need-refreshed-catalog-and-guide-screenshots","timestamp":"2026-07-02T19:16:30+03:00"}
