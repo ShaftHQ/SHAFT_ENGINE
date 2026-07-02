@@ -249,10 +249,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         cloudProviderLabel = label("Cloud provider", 'V', cloudProvider);
         cloudModelLabel = label("Cloud model", 'W', cloudModel);
         defaultModeLabel = label("Default assistant mode", 'D', defaultMode);
-        shaftAiSection = section("SHAFT AI provider");
+        shaftAiSection = section("Advanced");
         shaftAiProviderLabel = label("Provider", 'P', pilotAiProvider);
         shaftAiModelLabel = label("Model", 'L', pilotAiModel);
-        providerKeysSection = section("Provider keys");
+        providerKeysSection = section("Credentials");
         shaftAiHelp = help("Provider settings apply only to MCP tools that explicitly request configured SHAFT AI assistance.");
         providerKeysHelp = help("Passing keys exposes them only to the SHAFT MCP process. Disable to keep provider credentials local to IntelliJ only.");
         providerKeysStorageHelp = help("Provider keys are stored in IntelliJ Password Safe. Use 'Clear' only to remove a stored key.");
@@ -262,12 +262,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         githubKeyLabel = label("GitHub API key", 'G', githubKey);
 
         panel = FormBuilder.createFormBuilder()
-                .addComponent(section("MCP"))
+                .addComponent(section("Connection"))
                 .addComponent(actionRow(installMcp, configureRuntimeMcp, configureCopilotMcp))
                 .addLabeledComponent(label("MCP stdio command", 'M', mcpCommand), mcpCommand)
                 .addLabeledComponent(testMcp, testStatus)
                 .addComponent(help("The command is filled by the installer. Edit it only for a custom local shaft-mcp runtime."))
-                .addComponent(section("Assistant"))
+                .addComponent(section("Execution"))
                 .addLabeledComponent(currentAgentConfigurationTitle, currentAgentConfigurationRow)
                 .addLabeledComponent(assistantProviderTypeLabel, assistantProviderType)
                 .addLabeledComponent(assistantFamilyLabel, assistantFamily)

@@ -15,6 +15,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.plaf.ColorUIResource;
 import javax.swing.text.JTextComponent;
 import java.awt.Color;
 import java.awt.Component;
@@ -84,7 +85,9 @@ class ShaftPluginScreenshotRendererTest {
         Path toolsLightScreenshot = outputPath.resolve("intellij-plugin-tools.png");
         Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
         Path mcpSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup.png");
+        Path mcpSetupNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-narrow-dark.png");
         Path mcpSetupSuccessScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-success.png");
+        Path mcpSetupErrorScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-error-dark.png");
         Path settingsScreenshot = outputPath.resolve("intellij-plugin-settings.png");
         Path settingsDarkScreenshot = outputPath.resolve("intellij-plugin-settings-dark.png");
         Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
@@ -104,7 +107,9 @@ class ShaftPluginScreenshotRendererTest {
         Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
+        write(mcpSetupNarrowDarkScreenshot, renderSetup(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(mcpSetupSuccessScreenshot, renderSetupSuccess(LIGHT_THEME, false));
+        write(mcpSetupErrorScreenshot, renderSetupError(DARK_THEME, true));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         write(settingsDarkScreenshot, renderSettings(DARK_THEME, true));
         write(mcpGuideScreenshot, renderToolWindow(7, "Guide", LIGHT_THEME, false));
@@ -124,7 +129,9 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupScreenshot) > 0, mcpSetupScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupNarrowDarkScreenshot) > 0, mcpSetupNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupSuccessScreenshot) > 0, mcpSetupSuccessScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupErrorScreenshot) > 0, mcpSetupErrorScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsScreenshot) > 0, settingsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsDarkScreenshot) > 0, settingsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
@@ -143,7 +150,9 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(toolsLightScreenshot),
                 () -> assertDimensions(toolsDarkScreenshot),
                 () -> assertDimensions(mcpSetupScreenshot),
+                () -> assertDimensions(mcpSetupNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(mcpSetupSuccessScreenshot),
+                () -> assertDimensions(mcpSetupErrorScreenshot),
                 () -> assertDimensions(settingsScreenshot),
                 () -> assertDimensions(settingsDarkScreenshot),
                 () -> assertDimensions(mcpGuideScreenshot),
@@ -235,16 +244,21 @@ class ShaftPluginScreenshotRendererTest {
 
     private static BufferedImage renderSetup(String lookAndFeelClassName, boolean dark)
             throws InterruptedException, InvocationTargetException {
+        return renderSetup(lookAndFeelClassName, dark, WIDTH, HEIGHT);
+    }
+
+    private static BufferedImage renderSetup(String lookAndFeelClassName, boolean dark, int width, int height)
+            throws InterruptedException, InvocationTargetException {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
             JComponent component = new ShaftToolWindowPanel(screenshotProject(), new ShaftSettingsState.Settings());
-            component.setSize(new Dimension(WIDTH, HEIGHT));
-            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            component.setSize(new Dimension(width, height));
+            component.setPreferredSize(new Dimension(width, height));
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             layout(component, !dark);
-            image.set(render(component, WIDTH, HEIGHT));
+            image.set(render(component, width, height));
         });
         return image.get();
     }
@@ -264,6 +278,25 @@ class ShaftPluginScreenshotRendererTest {
                             Installing io.github.shafthq:shaft-mcp:10.2.20260630
                             {"client":"codex","server":"shaft-mcp","version":"10.2.20260630","command":"java","args":["@target/shaft-mcp.args"]}
                             """.stripIndent().trim()));
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static BufferedImage renderSetupError(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), new ShaftSettingsState.Settings(),
+                    () -> {
+                    });
+            invokeShowInstallError(component, new IllegalStateException("Installer unavailable. Check local Java and retry."));
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
@@ -300,6 +333,10 @@ class ShaftPluginScreenshotRendererTest {
 
     private static void invokeShowInstallResult(ShaftMcpSetupPanel component, ShaftMcpInstallResult result) {
         component.showInstallResult(result, null);
+    }
+
+    private static void invokeShowInstallError(ShaftMcpSetupPanel component, Throwable error) {
+        component.showInstallResult(null, error);
     }
 
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {
@@ -411,7 +448,9 @@ class ShaftPluginScreenshotRendererTest {
             textComponent.setForeground(text);
             textComponent.setCaretColor(text);
         } else if (component instanceof JLabel label) {
-            label.setForeground(text);
+            if (label.getForeground() instanceof ColorUIResource) {
+                label.setForeground(text);
+            }
         } else if (component instanceof JComponent jComponent) {
             jComponent.setBackground(panel);
         }
