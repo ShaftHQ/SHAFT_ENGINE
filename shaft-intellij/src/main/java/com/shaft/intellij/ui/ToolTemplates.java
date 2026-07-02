@@ -333,15 +333,36 @@ final class ToolTemplates {
                 template("Get Accessibility Tree", "mobile_get_accessibility_tree",
                         """
                         {
-                          "maxCharacters": 12000
+                          "maxCharacters": 8000
                         }
-                        """),
+                        """,
+                        "Returns bounded native accessibility XML or mobile web source.",
+                        false),
+                template("Get Mobile Contexts", "mobile_get_contexts",
+                        """
+                        {
+                          "maxCharacters": 8000
+                        }
+                        """,
+                        "Lists Appium contexts and bounded current source.",
+                        false),
+                template("Switch Mobile Context", "mobile_switch_context",
+                        """
+                        {
+                          "contextName": "NATIVE_APP"
+                        }
+                        """,
+                        "Switches native, hybrid, or mobile web Appium context.",
+                        true),
                 template("Take Mobile Screenshot", "mobile_take_screenshot",
                         """
                         {
-                          "outputPath": "target/shaft-mobile/screenshot.png"
+                          "outputPath": "target/shaft-mobile/screenshot.png",
+                          "includeBase64": false
                         }
-                        """),
+                        """,
+                        "Writes mobile screenshot evidence without inline base64 by default.",
+                        true),
                 template("Playwright Get Page DOM", "playwright_browser_get_page_dom",
                         """
                         {

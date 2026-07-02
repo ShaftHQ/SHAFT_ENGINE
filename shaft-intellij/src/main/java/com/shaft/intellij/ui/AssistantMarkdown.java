@@ -196,6 +196,14 @@ final class AssistantMarkdown {
             if (object.has("state") && object.has("outputPath") && object.has("processId")) {
                 return captureStatusMarkdown(object);
             }
+            String mobile = mobileMarkdown(object);
+            if (!mobile.isBlank()) {
+                return mobile;
+            }
+            String screenshot = screenshotMarkdown(object);
+            if (!screenshot.isBlank()) {
+                return screenshot;
+            }
             if (object.has("tools") && object.get("tools").isJsonArray()) {
                 return toolsMarkdown(object.getAsJsonArray("tools"));
             }
@@ -210,6 +218,140 @@ final class AssistantMarkdown {
             }
         }
         return "";
+    }
+
+    private static String mobileMarkdown(JsonObject object) {
+        if (object.has("nodeAvailable") && object.has("appiumAvailable") && object.has("missingDependencies")) {
+            return mobileToolchainMarkdown(object);
+        }
+        if (object.has("mode") && object.has("active") && object.has("deviceName")) {
+            return mobileSessionMarkdown(object);
+        }
+        if (object.has("currentContext") && object.has("contexts") && object.has("pageSource")) {
+            return mobileContextsMarkdown(object);
+        }
+        if (object.has("currentContext") && object.has("source") && object.has("characterCount")) {
+            return mobileAccessibilityMarkdown(object);
+        }
+        return "";
+    }
+
+    private static String mobileToolchainMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Platform", string(object, "platformName", ""),
+                "Node", availability(object, "nodeAvailable"),
+                "npm", availability(object, "npmAvailable"),
+                "Appium", availability(object, "appiumAvailable"),
+                "Inspector", availability(object, "appiumInspectorAvailable"),
+                "adb", availability(object, "adbAvailable"),
+                "emulator", availability(object, "emulatorAvailable")));
+        String versions = metadataLine(
+                "Appium version", string(object, "appiumVersion", ""),
+                "Inspector plugin", string(object, "appiumInspectorPluginVersion", ""));
+        if (!versions.isBlank()) {
+            sections.add(versions);
+        }
+        String missing = bulletList("Missing dependencies", object, "missingDependencies");
+        if (!missing.isBlank()) {
+            sections.add(missing);
+        }
+        String devices = object.has("androidDevices") && object.get("androidDevices").isJsonArray()
+                ? mobileDevicesMarkdown(object.getAsJsonArray("androidDevices"))
+                : "";
+        if (!devices.isBlank()) {
+            sections.add(devices);
+        }
+        String emulators = bulletList("Cached Android emulators", object, "cachedAndroidEmulators");
+        if (!emulators.isBlank()) {
+            sections.add(emulators);
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
+    }
+
+    private static String mobileSessionMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Mode", string(object, "mode", ""),
+                "Platform", string(object, "platformName", ""),
+                "Device", string(object, "deviceName", ""),
+                "Browser", string(object, "browserName", ""),
+                "Active", booleanValue(object, "active") ? "yes" : "no"));
+        if (object.has("deviceProfile") && object.get("deviceProfile").isJsonObject()) {
+            String profile = mobileDeviceProfileMarkdown(object.getAsJsonObject("deviceProfile"));
+            if (!profile.isBlank()) {
+                sections.add(profile);
+            }
+        }
+        if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()) {
+            String blocks = codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
+            if (!blocks.isBlank()) {
+                sections.add(blocks);
+            }
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
+    }
+
+    private static String mobileContextsMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Current context", string(object, "currentContext", ""),
+                "Source characters", string(object, "sourceCharacterCount", ""),
+                "Truncated", booleanValue(object, "truncated") ? "yes" : "no"));
+        String contexts = bulletList("Contexts", object, "contexts");
+        if (!contexts.isBlank()) {
+            sections.add(contexts);
+        }
+        String pageSource = string(object, "pageSource", "");
+        if (!pageSource.isBlank()) {
+            sections.add("**Source preview**\n\n" + fence("xml", clip(pageSource, 4_000)));
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
+    }
+
+    private static String mobileAccessibilityMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Current context", string(object, "currentContext", ""),
+                "Characters", string(object, "characterCount", ""),
+                "Truncated", booleanValue(object, "truncated") ? "yes" : "no"));
+        String source = string(object, "source", "");
+        if (!source.isBlank()) {
+            sections.add("**Accessibility tree**\n\n" + fence("xml", clip(source, 4_000)));
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
+    }
+
+    private static String screenshotMarkdown(JsonObject object) {
+        if (!object.has("mediaType") || !object.has("byteLength") || !object.has("outputPath")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Screenshot", string(object, "mediaType", ""),
+                "Bytes", string(object, "byteLength", ""),
+                "Output", string(object, "outputPath", "")));
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
     }
 
     private static String captureStatusMarkdown(JsonObject object) {
@@ -352,6 +494,59 @@ final class AssistantMarkdown {
             }
         }
         return "";
+    }
+
+    private static String availability(JsonObject object, String key) {
+        return booleanValue(object, key) ? "available" : "missing";
+    }
+
+    private static String bulletList(String title, JsonObject object, String key) {
+        JsonElement value = object.get(key);
+        if (value == null || !value.isJsonArray() || value.getAsJsonArray().isEmpty()) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("**").append(title).append("**");
+        for (JsonElement item : value.getAsJsonArray()) {
+            if (item.isJsonPrimitive()) {
+                markdown.append("\n- ").append(item.getAsString());
+            }
+        }
+        return markdown.toString();
+    }
+
+    private static String mobileDevicesMarkdown(JsonArray devices) {
+        if (devices.isEmpty()) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("""
+                | Device | State | Type |
+                | --- | --- | --- |
+                """);
+        for (JsonElement item : devices) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject device = item.getAsJsonObject();
+            markdown.append("| `")
+                    .append(table(string(device, "id", "")))
+                    .append("` | ")
+                    .append(table(string(device, "state", "")))
+                    .append(" | ")
+                    .append(table(string(device, "type", "")))
+                    .append(" |\n");
+        }
+        return markdown.toString().trim();
+    }
+
+    private static String mobileDeviceProfileMarkdown(JsonObject profile) {
+        if (profile.isEmpty()) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("**Device profile**");
+        for (String key : profile.keySet().stream().sorted().toList()) {
+            markdown.append("\n- ").append(key).append(": `").append(string(profile, key, "")).append("`");
+        }
+        return markdown.toString();
     }
 
     private static String warnings(JsonObject object) {

@@ -376,7 +376,9 @@ class AssistantCommandTest {
     @Test
     void mobileCommandsMapToControlRecordingCodegenAndInspectorTools() {
         AssistantCommand.Invocation nativeSession = command("/mobile native Android Pixel_6");
+        AssistantCommand.Invocation webSession = command("/mobile web https://example.com");
         AssistantCommand.Invocation inspector = command("/mobile-record inspector Android recordings/inspector.json");
+        AssistantCommand.Invocation unknown = command("/mobile calibrate");
 
         assertAll(
                 () -> assertEquals("mobile_toolchain_status", command("/mobile doctor Android").toolName()),
@@ -385,8 +387,17 @@ class AssistantCommandTest {
                 () -> assertEquals("mobile_initialize_native", nativeSession.toolName()),
                 () -> assertEquals("Android", nativeSession.arguments().get("platformName").getAsString()),
                 () -> assertEquals("Pixel_6", nativeSession.arguments().get("deviceName").getAsString()),
+                () -> assertEquals("mobile_initialize_web_emulation", webSession.toolName()),
+                () -> assertEquals("https://example.com", webSession.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("CHROME", webSession.arguments().get("browser").getAsString()),
+                () -> assertFalse(webSession.arguments().get("headless").getAsBoolean()),
                 () -> assertEquals("mobile_get_accessibility_tree", command("/mobile tree").toolName()),
                 () -> assertEquals("mobile_take_screenshot", command("/mobile screenshot target/mobile.png").toolName()),
+                () -> assertFalse(command("/mobile screenshot target/mobile.png").arguments().get("includeBase64").getAsBoolean()),
+                () -> assertEquals("mobile_get_contexts", command("/mobile contexts").toolName()),
+                () -> assertEquals("mobile_switch_context", command("/mobile switch WEBVIEW_chrome").toolName()),
+                () -> assertEquals("WEBVIEW_chrome", command("/mobile switch WEBVIEW_chrome").arguments().get("contextName").getAsString()),
+                () -> assertEquals("mobile_switch_context", command("/mobile context NATIVE_APP").toolName()),
                 () -> assertEquals("mobile_record_start", command("/mobile-record start recordings/mobile.json").toolName()),
                 () -> assertEquals("recordings/mobile.json",
                         command("/mobile-record start recordings/mobile.json").arguments().get("outputPath").getAsString()),
@@ -397,7 +408,10 @@ class AssistantCommandTest {
                 () -> assertEquals("mobile_recording_code_blocks",
                         command("/mobile-codegen recordings/mobile.json").toolName()),
                 () -> assertEquals("mobile_replay_recording",
-                        command("/mobile-replay recordings/mobile.json").toolName()));
+                        command("/mobile-replay recordings/mobile.json").toolName()),
+                () -> assertEquals("driver_quit", command("/mobile quit").toolName()),
+                () -> assertTrue(unknown.isLocal()),
+                () -> assertTrue(unknown.localResponse().contains("Unknown mobile command")));
     }
 
     @Test
@@ -442,6 +456,20 @@ class AssistantCommandTest {
                         command("run doctor on target/allure-results").toolName()),
                 () -> assertEquals("mobile_recording_code_blocks",
                         command("generate mobile code from recordings/mobile.json").toolName()),
+                () -> assertEquals("mobile_toolchain_status",
+                        command("check my Android mobile toolchain").toolName()),
+                () -> assertEquals("Android",
+                        command("check my Android mobile toolchain").arguments().get("platformName").getAsString()),
+                () -> assertEquals("mobile_get_accessibility_tree",
+                        command("inspect the current mobile screen").toolName()),
+                () -> assertEquals(8000,
+                        command("inspect the current mobile screen").arguments().get("maxCharacters").getAsInt()),
+                () -> assertEquals("mobile_get_contexts",
+                        command("show mobile contexts").toolName()),
+                () -> assertEquals("mobile_take_screenshot",
+                        command("take a mobile screenshot target/shaft-mobile/home.png").toolName()),
+                () -> assertFalse(command("take a mobile screenshot target/shaft-mobile/home.png")
+                        .arguments().get("includeBase64").getAsBoolean()),
                 () -> assertTrue(command("what commands can I use for mobile recording?").isLocal()),
                 () -> assertTrue(command("what commands can I use for mobile recording?")
                         .localResponse().contains("/mobile-record")));
