@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/record-shaft-intellij-plugin-onboarding-video.md",
-  "content_hash": "sha256:b49997f3df31f7ecb374935feedafce380ab3c425521c793b64a503a1f9cc78f",
+  "content_hash": "sha256:d408467ad1f0ba5fc841051de0432a938cdb112d419c1f2d416bfb8683d47027",
   "created_at": "2026-06-30T09:06:03+03:00",
   "evidence": [
     {
@@ -34,9 +34,10 @@
     "kind": "agent",
     "task": "Document live SHAFT IntelliJ IDEA plugin recording workflow"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "workflow.record-shaft-intellij-idea-plugin-onboarding-video",
   "tags": [],
   "title": "Record SHAFT IntelliJ IDEA plugin onboarding video",
   "type": "workflow",
-  "updated_at": "2026-06-30T10:43:38+03:00"
+  "updated_at": "2026-07-02T21:42:42+03:00"
 }

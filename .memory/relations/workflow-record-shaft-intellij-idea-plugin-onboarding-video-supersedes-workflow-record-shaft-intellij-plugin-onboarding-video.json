@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:ffc554b349027ebe31c0193dcb431c874a28c441d883d6ed333ba9649d692a35",
+  "created_at": "2026-07-02T21:42:42+03:00",
+  "from": "workflow.record-shaft-intellij-idea-plugin-onboarding-video",
+  "id": "rel.workflow-record-shaft-intellij-idea-plugin-onboarding-video-supersedes-workflow-record-shaft-intellij-plugin-onboarding-video",
+  "predicate": "supersedes",
+  "status": "active",
+  "to": "workflow.record-shaft-intellij-plugin-onboarding-video",
+  "updated_at": "2026-07-02T21:42:42+03:00"
+}
