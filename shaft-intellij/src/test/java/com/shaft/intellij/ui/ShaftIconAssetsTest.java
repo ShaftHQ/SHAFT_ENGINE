@@ -1,11 +1,8 @@
 package com.shaft.intellij.ui;
 
-import com.intellij.ui.JBColor;
+import com.intellij.icons.AllIcons;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.JLabel;
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,23 +52,14 @@ class ShaftIconAssetsTest {
     }
 
     @Test
-    void actionIconsPaintWhiteDarkVariantInDarkMode() {
-        boolean wasBright = JBColor.isBright();
-        try {
-            JBColor.setDark(true);
-
-            BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D graphics = image.createGraphics();
-            try {
-                ShaftIcons.SEND.paintIcon(new JLabel(), graphics, 0, 0);
-            } finally {
-                graphics.dispose();
-            }
-
-            assertTrue(hasVisibleWhitePixel(image));
-        } finally {
-            JBColor.setDark(!wasBright);
-        }
+    void applicableActionIconsUseIntellijPlatformCatalog() {
+        assertAll(
+                () -> assertTrue(ShaftIcons.ADD == AllIcons.General.Add),
+                () -> assertTrue(ShaftIcons.CANCEL == AllIcons.Actions.Cancel),
+                () -> assertTrue(ShaftIcons.COPY == AllIcons.Actions.Copy),
+                () -> assertTrue(ShaftIcons.HELP == AllIcons.Actions.Help),
+                () -> assertTrue(ShaftIcons.SEND == AllIcons.Actions.Execute),
+                () -> assertTrue(ShaftIcons.SETTINGS == AllIcons.General.Settings));
     }
 
     @Test
@@ -111,19 +99,4 @@ class ShaftIconAssetsTest {
                 () -> assertSvgIcon(actions.resolve(name + "_dark.svg"), 16, DARK_ACTION_COLOR));
     }
 
-    private static boolean hasVisibleWhitePixel(BufferedImage image) {
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                int argb = image.getRGB(x, y);
-                int alpha = (argb >>> 24) & 0xFF;
-                int red = (argb >>> 16) & 0xFF;
-                int green = (argb >>> 8) & 0xFF;
-                int blue = argb & 0xFF;
-                if (alpha > 32 && red > 240 && green > 240 && blue > 240) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
 }

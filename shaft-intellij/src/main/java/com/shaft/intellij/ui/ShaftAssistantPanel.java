@@ -204,6 +204,7 @@ final class ShaftAssistantPanel extends JPanel {
             }
         });
         ShaftIconButtons.apply(send, ShaftIcons.SEND);
+        ShaftIconButtons.widen(send, 64);
         bindSendHover();
         cancel = button("Cancel", "Cancel assistant request", event -> cancelCurrent());
         ShaftIconButtons.apply(cancel, ShaftIcons.CANCEL);
@@ -285,9 +286,10 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(allowSourceMutation);
 
         JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        JButton commandHint = button("/commands", "SHAFT command hints",
+        JButton commandHint = button("/", "SHAFT command hints",
                 event -> status.setText("Hover /commands for command aliases"));
-        ShaftIconButtons.apply(commandHint, ShaftIcons.HELP);
+        ShaftIconButtons.applyIconForward(commandHint, AssistantCommand.commandTooltip(),
+                "SHAFT command hints", ShaftIcons.HELP);
         commandHint.setToolTipText(AssistantCommand.commandTooltip());
         promptActions.add(commandHint);
         promptActions.add(send);
