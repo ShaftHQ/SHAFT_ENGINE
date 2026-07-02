@@ -26,6 +26,19 @@ The default assistant route is local. The advanced UI flag is disabled by defaul
 5. Click `Test MCP`.
 6. Confirm the setup view closes and SHAFT Assistant opens after a successful test.
 
+## Assistant Browser Control
+
+The Assistant accepts deterministic browser-control prompts from chat. WebDriver is the default backend for `/browser`, `/web`, `/browse`, `/page`, `/inspect`, and `/locator`; Playwright is only used when the prompt explicitly includes `playwright` or `pw`.
+
+Examples:
+
+- `/browser open https://example.com sign in` initializes WebDriver with Chrome, opens the target URL, and returns bounded DOM plus locator candidates.
+- `open https://example.com and inspect the sign in link` follows the same WebDriver sequence from natural language.
+- `/web dom`, `/browse screenshot target/shaft-browser/home.png`, `/browser title`, `/browser url`, `/browser refresh`, `/browser back`, `/browser forward`, `/browser maximize`, `/browser fullscreen`, and `/browser quit` map to the matching WebDriver MCP tools.
+- `/browser playwright open https://example.com` initializes Playwright and navigates only because Playwright was explicitly requested.
+
+Screenshot commands write workspace evidence paths and omit base64 payloads by default.
+
 ## Capture Scenario
 
 1. Send `start recording` in Assistant.

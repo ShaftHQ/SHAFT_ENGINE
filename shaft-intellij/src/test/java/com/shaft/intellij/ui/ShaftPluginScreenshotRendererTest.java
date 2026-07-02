@@ -204,16 +204,16 @@ class ShaftPluginScreenshotRendererTest {
             configureLookAndFeel(lookAndFeelClassName, dark);
             ShaftAssistantChatState chatState = new ShaftAssistantChatState();
             chatState.append("user", """
-                    Use shaft-mcp WebDriver tools only. Open DuckDuckGo, search for SHAFT Engine, open the first result, and validate the title.
+                    /browser open https://example.com sign in
                     """.stripIndent().trim(), "");
             chatState.append("assistant", """
                     _Running local assistant..._
 
                     ```text
-                    codex exec started
-                    Calling driver_initialize for Chrome
-                    Opening https://duckduckgo.com
-                    Searching for SHAFT Engine
+                    Running driver_initialize (1/2) OK
+                    Running browser_open_intent (2/2) OK
+                    URL: https://example.com
+                    Locator candidates: linkText=Sign in, css=a[href*='signin']
                     ```
                     """.stripIndent().trim(), "");
             ShaftSettingsState.Settings settings = defaultSettings();

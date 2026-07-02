@@ -48,7 +48,7 @@ final class AssistantCommand {
                     List.of("/scenario", "/ideas"),
                     "/scenarios checkout", (command, rest, workingDirectory) -> Invocation.tool("test_automation_scenarios", scenarios(rest))),
             new CommandDefinition("/browser", "Control browser sessions",
-                    List.of("/web", "/browse", "/page"),
+                    List.of("/web", "/browse", "/page", "/inspect", "/locator"),
                     "/browser open https://example.com sign in", (command, rest, workingDirectory) -> browser(rest)),
             new CommandDefinition("/record", "Record browser actions",
                     List.of("/rec", "/capture"),
@@ -71,9 +71,6 @@ final class AssistantCommand {
             new CommandDefinition("/doctor", "Analyze failures and recommend fixes",
                     List.of("/allure", "/failure", "/fix"),
                     "/doctor target/allure-results", (command, rest, workingDirectory) -> doctor(rest, workingDirectory)),
-            new CommandDefinition("/inspect", "Open intent-driven inspection context",
-                    List.of("/locator"),
-                    "/inspect https://example.com sign in", (command, rest, workingDirectory) -> Invocation.tool("browser_open_intent", inspect(rest))),
             new CommandDefinition("/guardrails", "Check generated Java code",
                     List.of("/checkcode"),
                     "/guardrails driver.element().click(locator);", (command, rest, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(rest))),
@@ -92,6 +89,8 @@ final class AssistantCommand {
     private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
             new NaturalIntent(AssistantCommand::isCommandHelpIntent,
                     (text, workingDirectory) -> Invocation.local(commandHelp())),
+            new NaturalIntent(AssistantCommand::isBrowserControlIntent,
+                    (text, workingDirectory) -> browser(text)),
             new NaturalIntent(AssistantCommand::isBrowserRecordingIntent,
                     (text, workingDirectory) -> record(text)),
             new NaturalIntent(AssistantCommand::isMobileRecordingStartIntent,
@@ -268,8 +267,15 @@ final class AssistantCommand {
         if (commandIs(action, "playwright", "pw")) {
             return playwrightBrowser(remainder);
         }
+        if (commandIs(action, "inspect", "locator", "locate")) {
+            return webdriverOpen(remainder);
+        }
         if (commandIs(action, "open", "navigate", "visit", "go") || isUrl(firstWord(trimmed))) {
-            return webdriverOpen(commandIs(action, "open", "navigate", "visit", "go") ? remainder : trimmed);
+            String target = commandIs(action, "open", "navigate", "visit", "go") ? remainder : trimmed;
+            if (firstWord(target).isBlank()) {
+                return Invocation.local("Provide a URL for WebDriver browser navigation.");
+            }
+            return webdriverOpen(target);
         }
         if (commandIs(action, "screenshot", "shot", "capture")) {
             return Invocation.tool("browser_take_screenshot",
@@ -644,6 +650,31 @@ final class AssistantCommand {
                 || normalized.startsWith("show ")
                 || normalized.startsWith("list ")
                 || normalized.contains(" can i use"));
+    }
+
+    private static boolean containsAny(String text, String... needles) {
+        if (text == null || needles == null) {
+            return false;
+        }
+        for (String needle : needles) {
+            if (needle != null && !needle.isBlank() && text.contains(needle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isBrowserControlIntent(String text) {
+        String lower = text == null ? "" : text.toLowerCase(Locale.ROOT);
+        if (isBrowserRecordingIntent(lower) || isCommandHelpIntent(lower)) {
+            return false;
+        }
+        boolean mentionsBrowserAction = containsAny(lower,
+                "open ", "navigate", "visit", "refresh", "reload", "back", "forward",
+                "maximize", "fullscreen", "quit", "close browser", "screenshot", "dom", "page source",
+                "title", "current url", "inspect", "locator");
+        boolean mentionsWebTarget = containsAny(lower, "http://", "https://", "file:");
+        return mentionsBrowserAction && mentionsWebTarget;
     }
 
     private static boolean isBrowserRecordingIntent(String text) {
