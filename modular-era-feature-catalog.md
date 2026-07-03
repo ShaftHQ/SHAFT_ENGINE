@@ -5,8 +5,8 @@ SHAFT is now a modular Java 25 automation framework with a lean core, opt-in pow
 This catalog is written for framework users who want to know what changed, what they can adopt now, and which command or API gets them started.
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
-- Catalog source: current PR branch based on `origin/main` at `c3c7cc780c`
-- Fresh evidence captured: `2026-07-02`
+- Catalog source: current PR branch based on `origin/main` at `a95e891cbd`
+- Fresh evidence captured: `2026-07-03`
 
 ## Start Here
 
@@ -117,7 +117,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png" alt="SHAFT IntelliJ IDEA plugin first-run MCP setup flow" width="620">
       <br><strong>First-run MCP setup</strong>
-      <br>Setup exposes Project, MCP, Runtime, and Assist status rows before opening the Assistant.
+      <br>Setup exposes Project, Runtime, Install, MCP, and Assist steps with a target command builder and inferred stdio command.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="SHAFT IntelliJ IDEA plugin Settings panel with MCP and provider controls" width="620">
@@ -129,7 +129,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-success.png" alt="SHAFT IntelliJ IDEA plugin MCP setup success flow" width="620">
       <br><strong>MCP setup success</strong>
-      <br>The setup flow shows the pasted stdio command, successful probe output, and the transition into the Assistant.
+      <br>The setup flow shows the inferred or pasted stdio command, successful probe output, and the transition into the Assistant.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-error-dark.png" alt="SHAFT IntelliJ IDEA plugin MCP setup error state in dark theme" width="620">
@@ -217,7 +217,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, SikuliX desktop image automation, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | First-run MCP setup now accepts a local stdio command, uses explicit Project/MCP/Runtime/Assist status rows with categorized retry diagnostics, and avoids running installer scripts in the plugin; the Assistant restores safe project chats, shows a run timeline, exposes the tested command families and working `@`/`#` context insertion, while Guided templates, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools remain first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-success.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-mcp-setup-narrow-dark.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
+| IntelliJ IDEA plugin | First-run MCP setup now guides users through runtime selection, an explicit Codex/Claude/Copilot/SHAFT IntelliJ plugin command builder, and inferred installed `java @shaft-mcp.args` stdio command, keeps explicit Project/Runtime/Install/MCP/Assist flow with categorized retry diagnostics, and avoids running installer scripts in the plugin; the Assistant restores safe project chats, shows a run timeline, exposes the tested command families and working `@`/`#` context insertion, while Guided templates, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools remain first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-success.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-mcp-setup-narrow-dark.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
 | IntelliJ Assistant fix for issue #3188 | Chat transcript messages are now role-rendered (user/assistant bubbles), sessions persist and restore correctly, and the route/runtime controls lock with a visible configure recovery path once MCP is configured. | `intellij-plugin-assistant.png`, `intellij-plugin-mcp-setup.png` |
 | IntelliJ Assistant fix for issue #3237 | Local Agent completion callbacks now clear the running state even when the streaming token was already reset, and approved capture generation tells the Agent to preserve the recorded journey, open the first search result, and assert the final page title or page-specific text. | `intellij-plugin-assistant-live-output-dark.png`, `intellij-plugin-assistant-narrow-dark.png` |
 | IntelliJ Assistant chat polish | Newly sent user prompts scroll into view immediately, while SHAFT-owned icon buttons and Assistant bubbles use borderless surfaces so chat feedback reads clearly in light, dark, and narrow tool windows. | `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-assistant-narrow-dark.png` |
@@ -344,7 +344,7 @@ Assistant command examples:
     <td width="50%"></td>
   </tr>
   <tr>
-    <td colspan="2">Screenshots show the 860 px right-side panel, 360 px narrow Assistant and setup views, first-run MCP default/success/error states, live assistant output with run timeline, Guided starter templates, command hint affordance, and SHAFT settings panel captured on the current plugin branch in standard IntelliJ light and dark themes.</td>
+    <td colspan="2">Screenshots show the 860 px right-side panel, 360 px narrow Assistant and setup views, first-run MCP installer/default/success/error states, live assistant output with run timeline, Guided starter templates, command hint affordance, and SHAFT settings panel captured on the current plugin branch in standard IntelliJ light and dark themes.</td>
   </tr>
 </table>
 

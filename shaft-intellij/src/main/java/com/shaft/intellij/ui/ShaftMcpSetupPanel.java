@@ -30,18 +30,31 @@ import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.datatransfer.StringSelection;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * First-run SHAFT MCP setup panel.
  */
 final class ShaftMcpSetupPanel extends JPanel {
+    private static final String INSTALLER_REF = "a95e891cbd3d79cdaaaf4b0d608fd56d09b8c69b";
+    private static final String[] INSTALLER_TARGETS = {
+            "CODEX",
+            "CLAUDE_CODE",
+            "CLAUDE_DESKTOP",
+            "COPILOT_CLI",
+            "COPILOT_INTELLIJ",
+            "INTELLIJ_PLUGIN"
+    };
     private static final String GUIDE_SETUP_STEP =
-            "Visit the SHAFT MCP user guide, install the MCP integration, then paste the stdio command.";
+            "Select target, run installer, infer command, test.";
 
     @FunctionalInterface
     interface AgentReadinessProbe {
@@ -52,9 +65,13 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final ShaftSettingsState.Settings settings;
     private final Runnable connected;
     private final AgentReadinessProbe readinessProbe;
+    private final JBTextField installerCommand;
     private final JBTextField mcpCommand;
     private final JComboBox<String> family;
     private final JComboBox<String> runtime;
+    private final JComboBox<String> installerTarget;
+    private final JButton copyInstallerCommand;
+    private final JButton inferCommand;
     private final JButton test;
     private final JProgressBar progress;
     private final JLabel projectStatus;
@@ -83,6 +100,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         this.readinessProbe = readinessProbe;
         setBorder(JBUI.Borders.empty(12));
 
+        installerCommand = new JBTextField();
+        installerCommand.setEditable(false);
+        installerCommand.getAccessibleContext().setAccessibleName("MCP installer command");
+        installerCommand.getAccessibleContext().setAccessibleDescription(
+                "Terminal command that installs SHAFT MCP for the selected assistant client.");
         mcpCommand = new JBTextField();
         mcpCommand.getEmptyText().setText("java -jar path/to/shaft-mcp.jar stdio");
         mcpCommand.setText(settings.mcpCommand == null ? "" : settings.mcpCommand);
@@ -118,6 +140,21 @@ final class ShaftMcpSetupPanel extends JPanel {
         ShaftUiLabels.applyFriendlyRenderer(runtime);
         runtime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
         runtime.getAccessibleContext().setAccessibleName("Assistant runtime");
+        installerTarget = new JComboBox<>(INSTALLER_TARGETS);
+        ShaftUiLabels.applyFriendlyRenderer(installerTarget);
+        installerTarget.setSelectedItem(suggestedInstallerTarget());
+        installerTarget.getAccessibleContext().setAccessibleName("MCP installer target");
+        installerTarget.getAccessibleContext().setAccessibleDescription(
+                "MCP client or plugin target used to build the installer command.");
+        installerCommand.setText(installerCommand());
+        copyInstallerCommand = new JButton("Copy MCP installer command");
+        copyInstallerCommand.getAccessibleContext().setAccessibleName("Copy MCP installer command");
+        ShaftIconButtons.apply(copyInstallerCommand, ShaftIcons.COPY);
+        copyInstallerCommand.addActionListener(event -> copyInstallerCommand());
+        inferCommand = new JButton("Use inferred MCP command");
+        inferCommand.getAccessibleContext().setAccessibleName("Use inferred MCP command");
+        ShaftIconButtons.apply(inferCommand, ShaftIcons.SEARCH);
+        inferCommand.addActionListener(event -> useInferredMcpCommand());
         test = new JButton("Test connection and start chatting");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
         ShaftIconButtons.apply(test, ShaftIcons.SEND);
@@ -148,6 +185,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         details.setForeground(UIManagerColors.foreground());
         details.setBorder(JBUI.Borders.compound(JBUI.Borders.empty(6), JBUI.Borders.customLine(UIManagerColors.border(), 1)));
 
+        JPanel installRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        installRow.add(copyInstallerCommand);
+        installRow.add(inferCommand);
         JPanel testRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         testRow.add(progress);
         testRow.add(test);
@@ -157,6 +197,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         diagnosticRow.add(copyOutput);
         family.addActionListener(event -> assistantSelectionChanged());
         runtime.addActionListener(event -> assistantSelectionChanged());
+        installerTarget.addActionListener(event -> installerTargetChanged());
         showProjectConfigured();
         updateCommandStatus();
         showRuntimeConfigured();
@@ -172,14 +213,19 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel form = FormBuilder.createFormBuilder()
                 .addComponent(section("Project"))
                 .addComponent(projectStatus)
-                .addComponent(section("MCP"))
-                .addLabeledComponent("MCP stdio command", mcpCommand)
-                .addComponent(commandStatus)
-                .addComponent(new JLabel(GUIDE_SETUP_STEP))
                 .addComponent(section("Runtime"))
                 .addLabeledComponent("Assistant family", family)
                 .addLabeledComponent("Assistant runtime", runtime)
                 .addComponent(runtimeStatus)
+                .addComponent(section("Install"))
+                .addLabeledComponent("Install target", installerTarget)
+                .addLabeledComponent("Installer command", installerCommand)
+                .addComponent(installRow)
+                .addComponent(new JLabel("Run the installer command in a terminal."))
+                .addComponent(section("MCP"))
+                .addLabeledComponent("MCP stdio command", mcpCommand)
+                .addComponent(commandStatus)
+                .addComponent(new JLabel(GUIDE_SETUP_STEP))
                 .addComponent(section("Assist"))
                 .addComponent(new JLabel("Test connection"))
                 .addComponent(testRow)
@@ -272,6 +318,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void setRunning(boolean running, String text) {
         updateActionState(running);
         progress.setVisible(running);
+        installerCommand.setEnabled(!running);
+        copyInstallerCommand.setEnabled(!running);
+        inferCommand.setEnabled(!running);
+        installerTarget.setEnabled(!running);
         mcpCommand.setEnabled(!running);
         family.setEnabled(!running);
         runtime.setEnabled(!running);
@@ -296,6 +346,16 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void assistantSelectionChanged() {
         showRuntimeConfigured();
+        String suggestedTarget = suggestedInstallerTarget();
+        if (!suggestedTarget.equals(String.valueOf(installerTarget.getSelectedItem()))) {
+            installerTarget.setSelectedItem(suggestedTarget);
+            return;
+        }
+        installerTargetChanged();
+    }
+
+    private void installerTargetChanged() {
+        installerCommand.setText(installerCommand());
         updateCommandStatus();
         showAssistNotConfigured();
         settings.mcpSetupComplete = false;
@@ -332,6 +392,180 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "COPILOT" -> "COPILOT_CLI";
             default -> "CODEX";
         };
+    }
+
+    private String installerCommand() {
+        return installerCommandFor(installerArgumentFor(String.valueOf(installerTarget.getSelectedItem())));
+    }
+
+    private String suggestedInstallerTarget() {
+        return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
+            case "CLAUDE" -> "DESKTOP_APP".equals(normalize(String.valueOf(runtime.getSelectedItem()), "CLI"))
+                    ? "CLAUDE_DESKTOP"
+                    : "CLAUDE_CODE";
+            case "COPILOT" -> "IDE_PLUGIN".equals(normalize(String.valueOf(runtime.getSelectedItem()), "CLI"))
+                    ? "COPILOT_INTELLIJ"
+                    : "COPILOT_CLI";
+            default -> "CODEX";
+        };
+    }
+
+    private static String installerArgumentFor(String target) {
+        return switch (normalize(target, "CODEX")) {
+            case "CLAUDE_CODE" -> "claude";
+            case "CLAUDE_DESKTOP" -> "claude-desktop";
+            case "COPILOT_CLI" -> "copilot";
+            case "COPILOT_INTELLIJ" -> "copilot-intellij";
+            case "INTELLIJ_PLUGIN" -> "intellij-plugin";
+            default -> "codex";
+        };
+    }
+
+    private static String installerCommandFor(String target) {
+        String url = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/" + INSTALLER_REF
+                + "/scripts/mcp/install-shaft-mcp";
+        if (isWindows()) {
+            return "powershell -NoProfile -ExecutionPolicy Bypass -Command '$env:SHAFT_MCP_INSTALLER_REF=\""
+                    + INSTALLER_REF + "\"; $installer=Join-Path $env:TEMP \"install-shaft-mcp.ps1\"; "
+                    + "Invoke-WebRequest -UseBasicParsing \"" + url
+                    + ".ps1\" -OutFile $installer; & $installer -Client " + target + "'";
+        }
+        return "ref=" + INSTALLER_REF + "; tmp=\"${TMPDIR:-/tmp}/install-shaft-mcp.sh\"; curl -fL " + url
+                + ".sh -o \"$tmp\" && SHAFT_MCP_INSTALLER_REF=\"$ref\" sh \"$tmp\" --" + target;
+    }
+
+    private void copyInstallerCommand() {
+        copy(installerCommand(), "Copied MCP installer command");
+    }
+
+    private void useInferredMcpCommand() {
+        String command = inferInstalledStdioCommand();
+        if (command.isBlank()) {
+            status.setText("Run installer command first.");
+            setDiagnosticText(troubleshootingDetails("Setup command not found",
+                    "No installed shaft-mcp argfile was found under " + applicationDataRoot() + ".",
+                    installerCommand(), false), installerCommand());
+            return;
+        }
+        mcpCommand.setText(command);
+        status.setText("Press Test connection next.");
+    }
+
+    private static String inferInstalledStdioCommand() {
+        return inferInstalledStdioCommand(applicationDataRoot(), bootstrapRoot());
+    }
+
+    static String inferInstalledStdioCommand(Path applicationDataRoot, Path bootstrapRoot) {
+        Path argsFile = latestArgsFile(applicationDataRoot);
+        if (argsFile == null) {
+            return "";
+        }
+        Path java = installerJava(bootstrapRoot);
+        return quote(java == null ? "java" : java.toString()) + " " + quote("@" + argsFile);
+    }
+
+    private static Path latestArgsFile(Path applicationDataRoot) {
+        Path versions = applicationDataRoot.resolve("versions");
+        if (!Files.isDirectory(versions)) {
+            return null;
+        }
+        try (Stream<Path> entries = Files.list(versions)) {
+            return entries.map(path -> path.resolve("shaft-mcp.args"))
+                    .filter(Files::isRegularFile)
+                    .max(Comparator.comparingLong(ShaftMcpSetupPanel::lastModified))
+                    .orElse(null);
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private static Path installerJava(Path bootstrapRoot) {
+        Path jdkRoot = bootstrapRoot.resolve("tools").resolve("jdk");
+        if (!Files.isDirectory(jdkRoot)) {
+            return null;
+        }
+        String executable = isWindows() ? "java.exe" : "java";
+        try (Stream<Path> entries = Files.walk(jdkRoot, 8)) {
+            return entries.filter(Files::isRegularFile)
+                    .filter(path -> executable.equals(path.getFileName().toString()))
+                    .filter(path -> path.getParent() != null && "bin".equals(path.getParent().getFileName().toString()))
+                    .max(Comparator.comparingLong(ShaftMcpSetupPanel::lastModified))
+                    .orElse(null);
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private static long lastModified(Path path) {
+        try {
+            return Files.getLastModifiedTime(path).toMillis();
+        } catch (IOException ignored) {
+            return 0L;
+        }
+    }
+
+    private static Path applicationDataRoot() {
+        String override = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
+        if (override != null && !override.isBlank()) {
+            return Path.of(override);
+        }
+        Path home = Path.of(System.getProperty("user.home", "."));
+        if (isWindows()) {
+            String localAppData = System.getenv("LOCALAPPDATA");
+            Path base = localAppData == null || localAppData.isBlank()
+                    ? home.resolve("AppData").resolve("Local")
+                    : Path.of(localAppData);
+            return base.resolve("ShaftHQ").resolve("shaft-mcp");
+        }
+        if (isMac()) {
+            return home.resolve("Library").resolve("Application Support").resolve("ShaftHQ").resolve("shaft-mcp");
+        }
+        String dataHome = System.getenv("XDG_DATA_HOME");
+        Path base = dataHome == null || dataHome.isBlank()
+                ? home.resolve(".local").resolve("share")
+                : Path.of(dataHome);
+        return base.resolve("shafthq").resolve("shaft-mcp");
+    }
+
+    private static Path bootstrapRoot() {
+        String override = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
+        if (override != null && !override.isBlank()) {
+            return Path.of(override);
+        }
+        Path home = Path.of(System.getProperty("user.home", "."));
+        if (isWindows()) {
+            String localAppData = System.getenv("LOCALAPPDATA");
+            Path base = localAppData == null || localAppData.isBlank()
+                    ? home.resolve("AppData").resolve("Local")
+                    : Path.of(localAppData);
+            return base.resolve("ShaftHQ").resolve("shaft-mcp").resolve("bootstrap");
+        }
+        if (isMac()) {
+            return home.resolve("Library").resolve("Caches").resolve("ShaftHQ").resolve("shaft-mcp-bootstrap");
+        }
+        String cacheHome = System.getenv("XDG_CACHE_HOME");
+        Path base = cacheHome == null || cacheHome.isBlank()
+                ? home.resolve(".cache")
+                : Path.of(cacheHome);
+        return base.resolve("shafthq").resolve("shaft-mcp-bootstrap");
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static boolean isMac() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
+    }
+
+    private static String quote(String value) {
+        if (value.isBlank()) {
+            return "\"\"";
+        }
+        if (value.chars().noneMatch(Character::isWhitespace) && !value.contains("\"")) {
+            return value;
+        }
+        return "\"" + value.replace("\"", "\\\"") + "\"";
     }
 
     private String mcpCommand() {
@@ -413,7 +647,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private List<String> troubleshootingSteps(String category, boolean probeFailure) {
         List<String> steps = new ArrayList<>();
         switch (category) {
-            case "MCP command" -> steps.add("Visit the SHAFT MCP user guide, install the MCP integration, then paste the stdio command.");
+            case "MCP command" -> steps.add("Run the installer command, use the inferred command, or paste a manual stdio command.");
             case "Java/runtime" -> steps.add("Install or select a Java runtime that can run shaft-mcp, then retry.");
             case "Maven artifact resolution" -> steps.add(
                     "Check Maven Central/network access and retry once artifact resolution is available.");
