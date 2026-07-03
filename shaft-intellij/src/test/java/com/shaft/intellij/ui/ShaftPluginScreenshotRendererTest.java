@@ -102,6 +102,7 @@ class ShaftPluginScreenshotRendererTest {
         Files.createDirectories(outputPath);
 
         Path assistantLightScreenshot = outputPath.resolve("intellij-plugin-assistant.png");
+        Path assistantEmptyScreenshot = outputPath.resolve("intellij-plugin-assistant-empty.png");
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
         Path assistantNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-narrow-dark.png");
         Path assistantLiveDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-live-output-dark.png");
@@ -124,6 +125,7 @@ class ShaftPluginScreenshotRendererTest {
         Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
 
         write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
+        write(assistantEmptyScreenshot, renderAssistantEmpty(LIGHT_THEME, false));
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
         write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
@@ -146,6 +148,7 @@ class ShaftPluginScreenshotRendererTest {
         write(mcpGuideScreenshot, renderToolWindow(7, "Guide", LIGHT_THEME, false));
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantEmptyScreenshot) > 0, assistantEmptyScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantNarrowDarkScreenshot) > 0, assistantNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantLiveDarkScreenshot) > 0, assistantLiveDarkScreenshot + " should be non-empty"),
@@ -167,6 +170,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(settingsDarkScreenshot) > 0, settingsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
+                () -> assertDimensions(assistantEmptyScreenshot),
                 () -> assertDimensions(assistantDarkScreenshot),
                 () -> assertDimensions(assistantNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(assistantLiveDarkScreenshot),
@@ -235,6 +239,25 @@ class ShaftPluginScreenshotRendererTest {
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
             JComponent component = settingsPanel();
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static BufferedImage renderAssistantEmpty(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.advancedUiEnabled = true;
+            JComponent component = new ShaftToolWindowPanel(
+                    screenshotProject(), settings, AssistantLocalAgentRunner::readiness, new ShaftAssistantChatState());
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
