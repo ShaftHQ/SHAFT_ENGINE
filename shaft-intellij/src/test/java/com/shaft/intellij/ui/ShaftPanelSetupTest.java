@@ -43,6 +43,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import javax.swing.text.JTextComponent;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -339,6 +341,10 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertTrue(containsText(panel, "Assist: Error")),
+                () -> assertTrue(containsText(panel, "Client readiness failed")),
+                () -> assertTrue(containsText(panel, "Category: Client runtime")),
+                () -> assertTrue(containsText(panel, "Install the selected client CLI or add it to PATH")),
+                () -> assertTrue(containsText(panel, "codex --version")),
                 () -> assertTrue(containsText(panel, "Agent readiness failed: Codex CLI executable is not available on PATH.")),
                 () -> assertFalse(connected.get()),
                 () -> assertFalse(settings.mcpSetupComplete),
@@ -383,21 +389,43 @@ class ShaftPanelSetupTest {
     void setupPanelShowsInlineErrorStatesAndKeepsRetryEnabled() throws Exception {
         ShaftMcpSetupPanel installPanel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
-        showInstallError(installPanel, new IllegalStateException("installer unavailable"));
+        AtomicReference<String> copied = new AtomicReference<>();
+        setField(installPanel, "copySink", (Consumer<String>) copied::set);
+        showInstallError(installPanel, new IllegalStateException("java: command not found"));
 
         assertAll(
                 () -> assertTrue(containsText(installPanel, "MCP: Error")),
-                () -> assertTrue(containsText(installPanel, "installer unavailable")),
+                () -> assertTrue(containsText(installPanel, "Install failed")),
+                () -> assertTrue(containsText(installPanel, "Category: Java/runtime")),
+                () -> assertTrue(containsText(installPanel, "For Codex, run `codex mcp list`")),
+                () -> assertTrue(containsText(installPanel, "Diagnostic command")),
+                () -> assertTrue(containsText(installPanel, "Install-ShaftMcp -Client codex")),
+                () -> assertTrue(containsText(installPanel, "java: command not found")),
+                () -> assertTrue(findByAccessibleName(installPanel, "Copy setup diagnostic command", JButton.class).isEnabled()),
+                () -> assertTrue(findByAccessibleName(installPanel, "Copy setup diagnostic output", JButton.class).isEnabled()),
                 () -> assertTrue(findButton(installPanel, "Install / Update SHAFT MCP").isEnabled()),
                 () -> assertFalse(findButton(installPanel, "Test connection and start chatting").isEnabled()));
+        clickAccessible(installPanel, "Copy setup diagnostic command");
+        assertTrue(copied.get().contains("Install-ShaftMcp -Client codex"));
+        clickAccessible(installPanel, "Copy setup diagnostic output");
+        assertTrue(copied.get().contains("Category: Java/runtime"));
 
-        ShaftMcpSetupPanel testPanel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> {
+        ShaftSettingsState.Settings copilotSettings = connectedMcpSettings();
+        copilotSettings.assistantFamily = "COPILOT";
+        copilotSettings.assistantRuntime = "IDE_PLUGIN";
+        ShaftMcpSetupPanel testPanel = new ShaftMcpSetupPanel(fakeProject(), copilotSettings, () -> {
         });
-        showTestResult(testPanel, ShaftMcpToolResult.failure("Probe failed"));
+        showTestResult(testPanel, ShaftMcpToolResult.failure(
+                "Could not resolve artifact io.github.shafthq:shaft-mcp:jar:1.0.0"));
 
         assertAll(
                 () -> assertTrue(containsText(testPanel, "Assist: Error")),
                 () -> assertTrue(containsText(testPanel, "Probe failed")),
+                () -> assertTrue(containsText(testPanel, "Category: Maven artifact resolution")),
+                () -> assertTrue(containsText(testPanel, "Client: GitHub Copilot")),
+                () -> assertTrue(containsText(testPanel, "For GitHub Copilot, check the Copilot MCP client configuration")),
+                () -> assertTrue(containsText(testPanel, "Diagnostic command")),
+                () -> assertTrue(containsText(testPanel, "\"java\" \"@target/shaft-mcp.args\"")),
                 () -> assertTrue(findButton(testPanel, "Test connection and start chatting").isEnabled()));
     }
 
@@ -1161,6 +1189,8 @@ class ShaftPanelSetupTest {
                 () -> assertIcon(findButton(featurePanel, "Refresh tools")),
                 () -> assertIcon(findButton(setupPanel, "Install / Update SHAFT MCP")),
                 () -> assertIcon(findButton(setupPanel, "Test connection and start chatting")),
+                () -> assertIcon(findButton(setupPanel, "Copy command")),
+                () -> assertIcon(findButton(setupPanel, "Copy output")),
                 () -> assertIcon(findButton(guidedPanel, "Start recording")),
                 () -> assertIcon(findButton(guidedPanel, "Stop recording")),
                 () -> assertIcon(findButton(guidedPanel, "Generate code")),

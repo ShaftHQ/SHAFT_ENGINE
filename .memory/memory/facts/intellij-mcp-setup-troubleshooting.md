@@ -1,0 +1,1 @@
+The IntelliJ MCP setup panel formats install, probe, and client-readiness failures into categorized details with client/runtime context, client-specific next steps, a copy-safe diagnostic command, and copyable formatted output. The panel reuses ShaftMcpInstaller.diagnosticInstallCommand() so copied installer commands match the real installer command builder.

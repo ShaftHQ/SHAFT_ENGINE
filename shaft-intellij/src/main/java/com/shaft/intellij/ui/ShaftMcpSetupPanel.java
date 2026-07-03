@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.FormBuilder;
@@ -34,6 +35,7 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
+import java.awt.datatransfer.StringSelection;
 import java.util.function.Consumer;
 
 /**
@@ -59,9 +61,14 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JLabel runtimeStatus;
     private final JLabel assistStatus;
     private final JLabel status;
+    private final JButton copyCommand;
+    private final JButton copyOutput;
     private final JTextPane details;
     private boolean installing;
     private String installedSelectionKey = "";
+    private String diagnosticCommand = "";
+    private String diagnosticOutput = "";
+    private Consumer<String> copySink = ShaftMcpSetupPanel::copyToClipboard;
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected) {
@@ -106,6 +113,16 @@ final class ShaftMcpSetupPanel extends JPanel {
         status = new JLabel("Install SHAFT MCP first.");
         status.setPreferredSize(JBUI.size(320, 22));
         status.getAccessibleContext().setAccessibleName("SHAFT MCP setup next step");
+        copyCommand = new JButton("Copy command");
+        copyCommand.getAccessibleContext().setAccessibleName("Copy setup diagnostic command");
+        ShaftIconButtons.apply(copyCommand, ShaftIcons.CODE);
+        copyCommand.setEnabled(false);
+        copyCommand.addActionListener(event -> copyDiagnosticCommand());
+        copyOutput = new JButton("Copy output");
+        copyOutput.getAccessibleContext().setAccessibleName("Copy setup diagnostic output");
+        ShaftIconButtons.apply(copyOutput, ShaftIcons.COPY);
+        copyOutput.setEnabled(false);
+        copyOutput.addActionListener(event -> copyDiagnosticOutput());
         details = new JTextPane();
         details.setPreferredSize(JBUI.size(560, 180));
         details.getAccessibleContext().setAccessibleName("SHAFT MCP setup output");
@@ -122,6 +139,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel testRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         testRow.add(test);
         testRow.add(assistStatus);
+        JPanel diagnosticRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        diagnosticRow.add(copyCommand);
+        diagnosticRow.add(copyOutput);
         family.addActionListener(event -> assistantSelectionChanged());
         runtime.addActionListener(event -> assistantSelectionChanged());
         showProjectConfigured();
@@ -151,8 +171,11 @@ final class ShaftMcpSetupPanel extends JPanel {
                 .addComponent(status)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
+        JPanel detailsPanel = new JPanel(new BorderLayout(4, 4));
+        detailsPanel.add(diagnosticRow, BorderLayout.NORTH);
+        detailsPanel.add(new JBScrollPane(details), BorderLayout.CENTER);
         add(form, BorderLayout.NORTH);
-        add(new JBScrollPane(details), BorderLayout.CENTER);
+        add(detailsPanel, BorderLayout.CENTER);
     }
 
     JComponent preferredFocusComponent() {
@@ -164,7 +187,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         showMcpConnecting();
         showAssistNotConfigured();
         setRunning(true, "Installing...");
-        setConsoleText("SHAFT MCP installation\n\n- Starting installer...");
+        setDiagnosticText("SHAFT MCP installation\n\n- Starting installer...", installerDiagnosticCommand());
         ShaftMcpInstaller.installForPluginAndClient(installerClientForSelection(), createInstallerOutputHandler())
                 .whenComplete((result, error) ->
                         ApplicationManager.getApplication().invokeLater(() -> showInstallResult(result, error)));
@@ -176,16 +199,18 @@ final class ShaftMcpSetupPanel extends JPanel {
         setRunning(false, success ? "Press Test connection next." : "Install failed. Retry install.");
         if (error != null) {
             showMcpError();
-            setConsoleText(error.getMessage());
+            setDiagnosticText(troubleshootingDetails("Install failed", error.getMessage(), installerDiagnosticCommand(), false),
+                    installerDiagnosticCommand());
             return;
         }
         if (result == null) {
             showMcpError();
-            setConsoleText("No installer result returned.");
+            setDiagnosticText(troubleshootingDetails("Install failed", "No installer result returned.",
+                    installerDiagnosticCommand(), false), installerDiagnosticCommand());
             return;
         }
-        setConsoleText(formatInstallOutput(result.output()));
         if (result.success()) {
+            setDiagnosticText(formatInstallOutput(result.output()), result.commandLine());
             appendConsoleSuccess("Installation completed successfully. Next: press \"Test connection and start chatting\".");
             settings.mcpCommand = result.commandLine();
             settings.mcpSetupComplete = false;
@@ -195,6 +220,8 @@ final class ShaftMcpSetupPanel extends JPanel {
             updateActionState(false);
         } else {
             showMcpError();
+            setDiagnosticText(troubleshootingDetails("Install failed", result.output(), installerDiagnosticCommand(), false),
+                    installerDiagnosticCommand());
         }
     }
 
@@ -218,6 +245,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         if (command.isBlank()) {
             showAssistError();
             status.setText("Install first");
+            setDiagnosticText(troubleshootingDetails("Probe failed",
+                    "No SHAFT MCP command is configured yet.", installerDiagnosticCommand(), true),
+                    installerDiagnosticCommand());
             return;
         }
         settings.assistantProviderType = "LOCAL";
@@ -239,13 +269,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         setRunning(false, success ? "Connected" : "Test failed. Retry test.");
         if (error != null) {
             showAssistError();
-            setConsoleText(error.getMessage());
+            setDiagnosticText(troubleshootingDetails("Probe failed", error.getMessage(), mcpCommand(), true), mcpCommand());
         } else if (result == null) {
             showAssistError();
-            setConsoleText("No test result returned.");
+            setDiagnosticText(troubleshootingDetails("Probe failed", "No test result returned.", mcpCommand(), true),
+                    mcpCommand());
         } else {
-            setConsoleText(result.output());
             if (result.success()) {
+                setDiagnosticText(result.output(), mcpCommand());
                 ShaftMcpToolResult readiness = readinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
                 if (readiness.success()) {
                     showAssistConfigured();
@@ -255,10 +286,14 @@ final class ShaftMcpSetupPanel extends JPanel {
                     success = false;
                     showAssistError();
                     status.setText("Agent not ready. Retry test.");
-                    appendLine("Agent readiness failed: " + readiness.output(), false);
+                    setDiagnosticText(troubleshootingDetails("Client readiness failed",
+                            "MCP probe output:\n" + result.output() + "\n\nAgent readiness failed: " + readiness.output(),
+                            readinessDiagnosticCommand(), true), readinessDiagnosticCommand());
                 }
             } else {
                 showAssistError();
+                setDiagnosticText(troubleshootingDetails("Probe failed", result.output(), mcpCommand(), true),
+                        mcpCommand());
             }
         }
         if (success) {
@@ -354,6 +389,116 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "COPILOT" -> "IDE_PLUGIN".equals(normalize(selectedRuntime, "CLI")) ? "copilot-intellij" : "copilot";
             default -> "codex";
         };
+    }
+
+    private String installerDiagnosticCommand() {
+        return ShaftMcpInstaller.diagnosticInstallCommand(installerClientForSelection());
+    }
+
+    private String mcpCommand() {
+        return settings.mcpCommand == null ? "" : settings.mcpCommand.trim();
+    }
+
+    private String readinessDiagnosticCommand() {
+        return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
+            case "CLAUDE" -> "claude --version";
+            case "COPILOT" -> "copilot --version";
+            default -> "codex --version";
+        };
+    }
+
+    private String troubleshootingDetails(String title, String output, String command, boolean probeFailure) {
+        String detailsOutput = output == null || output.isBlank() ? "No diagnostic output returned." : output.trim();
+        String category = failureCategory(detailsOutput, probeFailure);
+        String commandText = command == null || command.isBlank() ? "No command available." : command;
+        StringBuilder formatted = new StringBuilder(title).append("\n\n")
+                .append("What failed\n")
+                .append("- Category: ").append(category).append('\n')
+                .append("- Client: ").append(clientDisplayName()).append('\n')
+                .append("- Runtime: ").append(runtimeDisplayName()).append("\n\n")
+                .append("Next steps\n");
+        for (String step : troubleshootingSteps(category, probeFailure)) {
+            formatted.append("- ").append(step).append('\n');
+        }
+        return formatted.append("\nDiagnostic command\n")
+                .append(commandText)
+                .append("\n\nOutput\n")
+                .append(detailsOutput)
+                .toString();
+    }
+
+    private String failureCategory(String output, boolean probeFailure) {
+        String text = output == null ? "" : output.toLowerCase(Locale.ROOT);
+        if (text.contains("unsupportedclassversionerror")
+                || text.contains("java_home")
+                || text.contains("could not find or load main class")
+                || text.contains("cannot run program \"java\"")
+                || text.contains("java: command not found")
+                || text.contains("java is not recognized")
+                || text.contains("java runtime")
+                || text.contains("local java")) {
+            return "Java/runtime";
+        }
+        if (text.contains("could not resolve")
+                || text.contains("could not find artifact")
+                || text.contains("failed to collect dependencies")
+                || text.contains("could not transfer artifact")
+                || text.contains("io.github.shafthq:shaft-mcp")) {
+            return "Maven artifact resolution";
+        }
+        if (text.contains("mcp.json")
+                || text.contains("config.toml")
+                || text.contains("client configuration")
+                || text.contains("failed to write")
+                || text.contains("permission denied")) {
+            return "Client configuration";
+        }
+        if (text.contains("not available on path")
+                || text.contains("executable is not available")
+                || text.contains("cli executable")
+                || text.contains("client executable")
+                || text.contains("command not found")) {
+            return "Client runtime";
+        }
+        return probeFailure ? "MCP probe" : "MCP installer";
+    }
+
+    private List<String> troubleshootingSteps(String category, boolean probeFailure) {
+        List<String> steps = new ArrayList<>();
+        switch (category) {
+            case "Java/runtime" -> steps.add("Install or select a Java runtime that can run shaft-mcp, then retry.");
+            case "Maven artifact resolution" -> steps.add(
+                    "Check Maven Central/network access and retry once artifact resolution is available.");
+            case "Client configuration" -> steps.add(
+                    "Check that the selected client can write and read its MCP configuration file.");
+            case "Client runtime" -> steps.add(
+                    "Install the selected client CLI or add it to PATH, then retry.");
+            default -> steps.add(probeFailure
+                    ? "Run the diagnostic command in a terminal to confirm the MCP stdio command starts outside IntelliJ."
+                    : "Retry the installer after fixing the output shown below.");
+        }
+        steps.add(clientSpecificStep());
+        return steps;
+    }
+
+    private String clientSpecificStep() {
+        return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
+            case "CLAUDE" -> "For Claude, run `claude mcp list` for Claude Code or restart Claude Desktop after desktop config changes.";
+            case "COPILOT" -> "For GitHub Copilot, check the Copilot MCP client configuration and any organization MCP policy.";
+            default -> "For Codex, run `codex mcp list` and verify the SHAFT MCP server in the Codex config.";
+        };
+    }
+
+    private String clientDisplayName() {
+        return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
+            case "CLAUDE" -> "Claude";
+            case "COPILOT" -> "GitHub Copilot";
+            default -> "Codex";
+        };
+    }
+
+    private String runtimeDisplayName() {
+        return String.valueOf(runtime.getSelectedItem()).replace('_', ' ');
     }
 
     static String formatInstallOutput(String output) {
@@ -493,9 +638,32 @@ final class ShaftMcpSetupPanel extends JPanel {
         label.setForeground(color);
     }
 
-    private void setConsoleText(String text) {
-        details.setText(text == null ? "" : text);
+    private void setDiagnosticText(String text, String command) {
+        diagnosticOutput = text == null ? "" : text;
+        diagnosticCommand = command == null ? "" : command;
+        copyCommand.setEnabled(!diagnosticCommand.isBlank());
+        copyOutput.setEnabled(!diagnosticOutput.isBlank());
+        details.setText(diagnosticOutput);
         details.setCaretPosition(details.getDocument().getLength());
+    }
+
+    private void copyDiagnosticCommand() {
+        copy(diagnosticCommand, "Copied diagnostic command");
+    }
+
+    private void copyDiagnosticOutput() {
+        copy(diagnosticOutput, "Copied diagnostic output");
+    }
+
+    private void copy(String value, String message) {
+        if (value != null && !value.isBlank()) {
+            copySink.accept(value);
+            status.setText(message);
+        }
+    }
+
+    private static void copyToClipboard(String value) {
+        CopyPasteManager.getInstance().setContents(new StringSelection(value));
     }
 
     private void appendInstallerLine(String line) {
@@ -519,6 +687,8 @@ final class ShaftMcpSetupPanel extends JPanel {
             } catch (BadLocationException ignored) {
                 // noop: console append is best-effort.
             }
+            diagnosticOutput = details.getText();
+            copyOutput.setEnabled(!diagnosticOutput.isBlank());
             details.setCaretPosition(document.getLength());
         }
     }

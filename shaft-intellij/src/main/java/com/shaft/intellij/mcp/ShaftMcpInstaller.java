@@ -78,6 +78,19 @@ public final class ShaftMcpInstaller {
         return CompletableFuture.supplyAsync(() -> run(installCommand(client, false), false));
     }
 
+    /**
+     * Returns the JSON installer command text shown in setup diagnostics.
+     *
+     * @param client installer client target
+     * @return display command for reproducing installer diagnostics
+     */
+    public static String diagnosticInstallCommand(String client) {
+        String target = client == null || client.isBlank() ? "intellij-plugin" : client;
+        return installCommand(target, true).stream()
+                .map(ShaftMcpInstaller::quoteForDisplay)
+                .collect(java.util.stream.Collectors.joining(" "));
+    }
+
     static List<String> installCommand(String client, boolean json) {
         if (isWindows()) {
             String arguments = json ? " -Arguments @('--json')" : "";
@@ -183,6 +196,13 @@ public final class ShaftMcpInstaller {
 
     private static boolean isWindows() {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static String quoteForDisplay(String value) {
+        if (value.matches("[A-Za-z0-9._:/=@+\\-]+")) {
+            return value;
+        }
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private static String installerRef() {
