@@ -76,32 +76,49 @@ final class AssistantCommand {
             List.of(),
             "/doctor target/allure-results",
             (command, rest, workingDirectory) -> doctor(rest, workingDirectory));
+    private static final CommandDefinition GUIDE_COMMAND = new CommandDefinition("/guide", "Search the SHAFT guide",
+            List.of("/docs", "/manual"),
+            "/guide locators", (command, rest, workingDirectory) -> Invocation.tool("shaft_guide_search", guide(rest)));
+    private static final CommandDefinition BROWSER_COMMAND = new CommandDefinition("/browser", "Inspect browser state",
+            List.of("/web", "/browse", "/page", "/inspect", "/locator"),
+            "/browser open https://example.com sign in", (command, rest, workingDirectory) -> browser(rest));
+    private static final CommandDefinition MOBILE_COMMAND = new CommandDefinition("/mobile", "Inspect mobile state",
+            List.of("/appium", "/device", "/phone", "/emulator"),
+            "/mobile native Android Pixel_6", (command, rest, workingDirectory) -> mobile(rest));
+    private static final CommandDefinition GUARDRAILS_COMMAND = new CommandDefinition("/guardrails",
+            "Check generated Java code",
+            List.of("/checkcode"),
+            "/guardrails driver.element().click(locator);",
+            (command, rest, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(rest)));
+    private static final CommandDefinition PROJECT_COMMAND = new CommandDefinition("/project",
+            "Create or upgrade SHAFT projects",
+            List.of("/newshaft", "/upgrade"),
+            "/project upgrade .", AssistantCommand::project);
     private static final List<CommandDefinition> VISIBLE_COMMANDS = List.of(
             CODEGEN_COMMAND,
             RECORD_WEB_COMMAND,
             RECORD_MOBILE_COMMAND,
-            DOCTOR_COMMAND);
+            DOCTOR_COMMAND,
+            GUIDE_COMMAND,
+            GUARDRAILS_COMMAND,
+            BROWSER_COMMAND,
+            MOBILE_COMMAND,
+            PROJECT_COMMAND);
     private static final List<CommandDefinition> COMMANDS = List.of(
             COMMAND_HELP,
             CODEGEN_COMMAND,
             RECORD_WEB_COMMAND,
             RECORD_MOBILE_COMMAND,
             DOCTOR_COMMAND,
-            new CommandDefinition("/guide", "Search the SHAFT guide",
-                    List.of("/docs", "/manual"),
-                    "/guide locators", (command, rest, workingDirectory) -> Invocation.tool("shaft_guide_search", guide(rest))),
+            GUIDE_COMMAND,
             new CommandDefinition("/scenarios", "Find automation scenarios",
                     List.of("/scenario", "/ideas"),
                     "/scenarios checkout", (command, rest, workingDirectory) -> Invocation.tool("test_automation_scenarios", scenarios(rest))),
-            new CommandDefinition("/browser", "Control browser sessions",
-                    List.of("/web", "/browse", "/page", "/inspect", "/locator"),
-                    "/browser open https://example.com sign in", (command, rest, workingDirectory) -> browser(rest)),
+            BROWSER_COMMAND,
             new CommandDefinition("/record", "Record browser actions",
                     List.of("/rec", "/capture"),
                     "/record playwright", (command, rest, workingDirectory) -> record(rest)),
-            new CommandDefinition("/mobile", "Control Appium and mobile web",
-                    List.of("/appium", "/device", "/phone", "/emulator"),
-                    "/mobile native Android Pixel_6", (command, rest, workingDirectory) -> mobile(rest)),
+            MOBILE_COMMAND,
             new CommandDefinition("/mobile-record", "Record mobile actions",
                     List.of("/app-record", "/inspector-record"),
                     "/mobile-record inspector Android recordings/inspector.json",
@@ -115,15 +132,11 @@ final class AssistantCommand {
             new CommandDefinition("/allure", "Analyze failed Allure evidence",
                     List.of("/triage", "/fixTestFailure", "/failure", "/fix"),
                     "/allure target/allure-results", (command, rest, workingDirectory) -> doctor(rest, workingDirectory)),
-            new CommandDefinition("/guardrails", "Check generated Java code",
-                    List.of("/checkcode"),
-                    "/guardrails driver.element().click(locator);", (command, rest, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(rest))),
+            GUARDRAILS_COMMAND,
             new CommandDefinition("/assistant", "List assistant clients",
                     List.of("/agent", "/ask", "/plan", "/clients", "/client"),
                     "/assistant", (command, rest, workingDirectory) -> Invocation.tool("autobot_local_agent_clients", new JsonObject())),
-            new CommandDefinition("/project", "Create or upgrade SHAFT projects",
-                    List.of("/newshaft", "/upgrade"),
-                    "/project upgrade .", AssistantCommand::project),
+            PROJECT_COMMAND,
             new CommandDefinition("/mcp", "Run an explicit MCP tool",
                     List.of("/tool", "/call"),
                     "/mcp browser_get_title {}", (command, rest, workingDirectory) -> rawMcp(rest)),
@@ -141,7 +154,7 @@ final class AssistantCommand {
             new NaturalIntent(AssistantCommand::isGuardrailsCheckIntent,
                     (text, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(naturalCode(text)))),
             new NaturalIntent(AssistantCommand::isProjectCreateIntent,
-                    (text, workingDirectory) -> Invocation.tool("shaft_project_create", projectCreate(naturalProjectName(text)))),
+                    (text, workingDirectory) -> projectCreateReview(naturalProjectName(text))),
             new NaturalIntent(AssistantCommand::isProjectUpgradeIntent,
                     (text, workingDirectory) -> Invocation.tool("shaft_project_upgrade", projectUpgrade(naturalProjectRoot(text, workingDirectory)))),
             new NaturalIntent(AssistantCommand::isBrowserControlIntent,
@@ -695,23 +708,14 @@ final class AssistantCommand {
             return Invocation.tool("shaft_project_upgrade",
                     projectUpgrade(firstTokenOrDefault(remainder, workingDirectory == null || workingDirectory.isBlank() ? "." : workingDirectory)));
         }
-        return Invocation.tool("shaft_project_create", projectCreate(firstTokenOrDefault(remainder, "shaft-demo")));
+        return projectCreateReview(firstTokenOrDefault(remainder, "shaft-demo"));
     }
 
-    private static JsonObject projectCreate(String outputDirectory) {
-        JsonObject arguments = new JsonObject();
-        arguments.addProperty("outputDirectory", outputDirectory);
-        arguments.addProperty("runner", "TestNG");
-        arguments.addProperty("platform", "web");
-        arguments.addProperty("groupId", "io.github.yourUsername");
-        arguments.addProperty("artifactId", outputDirectory);
-        arguments.addProperty("version", "1.0.0");
-        arguments.addProperty("shaftVersion", "");
-        arguments.add("optionalModules", new JsonArray());
-        arguments.addProperty("includeGithubActions", true);
-        arguments.addProperty("includeDependabot", true);
-        arguments.addProperty("overwrite", false);
-        return arguments;
+    private static Invocation projectCreateReview(String outputDirectory) {
+        String target = outputDirectory == null || outputDirectory.isBlank() ? "shaft-demo" : outputDirectory.trim();
+        return Invocation.local("""
+                Creating a SHAFT project writes files. Open the Projects workflow, choose Create SHAFT Project, set `outputDirectory` to `%s`, then press Run and confirm.
+                """.formatted(target).strip());
     }
 
     private static JsonObject projectUpgrade(String projectRoot) {

@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBTextArea;
@@ -21,6 +22,7 @@ import java.awt.GridLayout;
  */
 final class GuidedWorkflowPanel extends JPanel {
     private final JComboBox<String> backend;
+    private final JComboBox<WorkflowTemplate> templateSelector;
     private final JBTextField targetUrl;
     private final JBTextField intent;
     private final JBTextField sessionPath;
@@ -34,16 +36,24 @@ final class GuidedWorkflowPanel extends JPanel {
 
         backend = new JComboBox<>(new String[]{"WebDriver", "Playwright"});
         backend.getAccessibleContext().setAccessibleName("Guided workflow backend");
+        templateSelector = new JComboBox<>(WorkflowTemplate.values());
+        templateSelector.setPrototypeDisplayValue(WorkflowTemplate.CREATE_NEW_SHAFT_PROJECT);
+        templateSelector.getAccessibleContext().setAccessibleName("Workflow template");
+        templateSelector.addActionListener(event -> updateTemplateDescription());
         targetUrl = field("Target URL", "");
         intent = field("Intent", "Log in as a valid user");
         sessionPath = field("Session path", "recordings/intellij-capture.json");
         codeSnippet = new JBTextArea(6, 32);
         codeSnippet.getAccessibleContext().setAccessibleName("Generated code or guardrail input");
+        codeSnippet.getAccessibleContext().setAccessibleDescription(
+                "Paste Java code for review-only guardrail checks.");
         codeSnippet.setLineWrap(true);
         codeSnippet.setWrapStyleWord(true);
+        updateTemplateDescription();
 
         JPanel fields = new JPanel(new GridLayout(0, 1, 4, 4));
         fields.add(row("Backend", 'B', backend));
+        fields.add(row("Template", 'T', templateControls(), templateSelector));
         fields.add(row("Target URL", 'U', targetUrl));
         fields.add(row("Intent", 'I', intent));
         fields.add(row("Session path", 'S', sessionPath));
@@ -76,13 +86,25 @@ final class GuidedWorkflowPanel extends JPanel {
     }
 
     private static JPanel row(String labelText, char mnemonic, JComponent component) {
+        return row(labelText, mnemonic, component, component);
+    }
+
+    private static JPanel row(String labelText, char mnemonic, JComponent component, JComponent labelFor) {
         JPanel row = new JPanel(new BorderLayout(4, 4));
         JLabel label = new JLabel(labelText);
         label.setDisplayedMnemonic(mnemonic);
-        label.setLabelFor(component);
+        label.setLabelFor(labelFor);
         row.add(label, BorderLayout.WEST);
         row.add(component, BorderLayout.CENTER);
         return row;
+    }
+
+    private JPanel templateControls() {
+        JPanel controls = new JPanel(new BorderLayout(4, 0));
+        controls.add(templateSelector, BorderLayout.CENTER);
+        controls.add(button("Use template", "Prefill the selected workflow template", this::applyTemplate),
+                BorderLayout.EAST);
+        return controls;
     }
 
     private static JPanel section(String title, JButton... buttons) {
@@ -107,10 +129,105 @@ final class GuidedWorkflowPanel extends JPanel {
             case "Start recording" -> ShaftIcons.SEND;
             case "Stop recording" -> ShaftIcons.CANCEL;
             case "Generate code" -> ShaftIcons.CODE;
+            case "Use template" -> ShaftIcons.SEND;
             case "Inspect locator" -> ShaftIcons.SEARCH;
             case "Guardrail check" -> ShaftIcons.CHECK;
             default -> ShaftIcons.HELP;
         };
+    }
+
+    private void updateTemplateDescription() {
+        WorkflowTemplate template = selectedTemplate();
+        if (template != null) {
+            templateSelector.getAccessibleContext().setAccessibleDescription(template.description);
+        }
+    }
+
+    private void applyTemplate() {
+        WorkflowTemplate template = selectedTemplate();
+        if (template == null) {
+            return;
+        }
+        switch (template) {
+            case RECORD_BROWSER_FLOW -> prefill.prefill("test_automation_scenarios", capturePageObjectWorkflow());
+            case ANALYZE_FAILED_ALLURE -> prefill.prefill("doctor_analyze_failed_allure", failedAllureAnalysis());
+            case CONVERT_SELENIUM_SNIPPET -> prefill.prefill("test_automation_scenarios", seleniumConversionWorkflow());
+            case CREATE_NEW_SHAFT_PROJECT -> prefill.prefill("shaft_project_create", newShaftProject());
+            case INSPECT_CURRENT_PAGE_LOCATORS -> prefill.prefill("browser_get_page_dom", currentPageDomInspection());
+            default -> throw new IllegalStateException("Unsupported workflow template: " + template);
+        }
+    }
+
+    private WorkflowTemplate selectedTemplate() {
+        Object selected = templateSelector.getSelectedItem();
+        return selected instanceof WorkflowTemplate template ? template : null;
+    }
+
+    private static JsonObject capturePageObjectWorkflow() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("area", "capture");
+        arguments.addProperty("intent",
+                "Record a browser flow and generate review-only Page Object SHAFT code from the capture. "
+                        + "Do not write source files before explicit approval.");
+        arguments.addProperty("maxResults", 5);
+        return arguments;
+    }
+
+    private static JsonObject seleniumConversionWorkflow() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("area", "web");
+        arguments.addProperty("intent",
+                "Convert a pasted Selenium WebDriver Java snippet to SHAFT syntax using SHAFT.GUI.WebDriver, "
+                        + "driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator. "
+                        + "Return review-only code and do not write source files.");
+        arguments.addProperty("maxResults", 5);
+        return arguments;
+    }
+
+    private static JsonObject failedAllureAnalysis() {
+        JsonObject arguments = new JsonObject();
+        arguments.add("allureResultPaths", array("allure-results"));
+        arguments.add("historicalBundlePaths", array());
+        arguments.addProperty("outputDirectory", "target/shaft-doctor");
+        arguments.addProperty("includeScreenshots", true);
+        arguments.addProperty("includePageSnapshots", true);
+        arguments.addProperty("minimumAllureResults", 1);
+        arguments.addProperty("repositoryRoot", ".");
+        arguments.add("allowedSourcePaths", array());
+        arguments.addProperty("useAi", false);
+        arguments.addProperty("allowLocalAi", false);
+        arguments.addProperty("allowRemoteAi", false);
+        arguments.addProperty("driverVariableName", "driver");
+        return arguments;
+    }
+
+    private static JsonObject newShaftProject() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("outputDirectory", "shaft-web-testng");
+        arguments.addProperty("runner", "TestNG");
+        arguments.addProperty("platform", "web");
+        arguments.addProperty("groupId", "io.github.yourUsername");
+        arguments.addProperty("artifactId", "shaft-web-testng");
+        arguments.addProperty("version", "1.0.0");
+        arguments.add("optionalModules", array());
+        arguments.addProperty("includeGithubActions", true);
+        arguments.addProperty("includeDependabot", true);
+        arguments.addProperty("overwrite", false);
+        return arguments;
+    }
+
+    private static JsonObject currentPageDomInspection() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("maxCharacters", 12_000);
+        return arguments;
+    }
+
+    private static JsonArray array(String... values) {
+        JsonArray array = new JsonArray();
+        for (String value : values) {
+            array.add(value);
+        }
+        return array;
     }
 
     private void startRecording() {
@@ -174,5 +291,36 @@ final class GuidedWorkflowPanel extends JPanel {
     @FunctionalInterface
     interface ToolPrefill {
         void prefill(String toolName, JsonObject arguments);
+    }
+
+    private enum WorkflowTemplate {
+        RECORD_BROWSER_FLOW(
+                "Record browser flow and generate Page Object code",
+                "Prefills a review-only capture workflow plan for Page Object code generation."),
+        ANALYZE_FAILED_ALLURE(
+                "Analyze failed Allure results",
+                "Prefills deterministic Doctor analysis with AI and source edits disabled."),
+        CONVERT_SELENIUM_SNIPPET(
+                "Convert Selenium snippet to SHAFT syntax",
+                "Prefills a review-only SHAFT syntax conversion workflow."),
+        CREATE_NEW_SHAFT_PROJECT(
+                "Create a new SHAFT project",
+                "Prefills a new project request with overwrite disabled."),
+        INSPECT_CURRENT_PAGE_LOCATORS(
+                "Inspect current page locators",
+                "Prefills a bounded current-page DOM inspection.");
+
+        private final String label;
+        private final String description;
+
+        WorkflowTemplate(String label, String description) {
+            this.label = label;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 }

@@ -26,16 +26,20 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JProgressBar;
+import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
@@ -44,9 +48,12 @@ import java.awt.Component;
 import java.awt.FontMetrics;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,6 +98,8 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton approveCaptureReview;
     private final JButton copyCaptureReview;
     private final JButton dismissCaptureReview;
+    private final DefaultListModel<String> timelineModel;
+    private final JList<String> timeline;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
@@ -124,6 +133,7 @@ final class ShaftAssistantPanel extends JPanel {
     private List<AssistantCommand.ToolCall> currentToolSequence = List.of();
     private StringBuilder sequenceMarkdown;
     private StringBuilder sequenceRawOutput;
+    private JPopupMenu contextPopup;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -300,6 +310,14 @@ final class ShaftAssistantPanel extends JPanel {
         captureReviewPanel.add(captureReviewStatus, BorderLayout.CENTER);
         captureReviewPanel.add(captureReviewActions, BorderLayout.EAST);
         captureReviewPanel.setVisible(false);
+        timelineModel = new DefaultListModel<>();
+        timeline = new JList<>(timelineModel);
+        timeline.getAccessibleContext().setAccessibleName("Assistant execution timeline");
+        timeline.getAccessibleContext().setAccessibleDescription(
+                "Status timeline for the current Assistant or MCP request.");
+        timeline.setFocusable(false);
+        timeline.setVisibleRowCount(3);
+        addTimeline("Ready");
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         ShaftIconButtons.apply(clearTranscript, ShaftIcons.CLEAR);
         rerunLastPrompt = button("Rerun", "Rerun last assistant prompt", event -> rerun(project));
@@ -314,6 +332,7 @@ final class ShaftAssistantPanel extends JPanel {
         cloudProvider.addActionListener(event -> updateControlVisibility());
         updateControlVisibility();
         bindKeyboard(project);
+        bindContextInsertion();
 
         JPanel transcriptPanel = new JPanel(new BorderLayout(4, 4));
         transcriptPanel.add(transcript, BorderLayout.CENTER);
@@ -322,6 +341,14 @@ final class ShaftAssistantPanel extends JPanel {
         transcriptStatus.add(status);
         JPanel transcriptBottom = new JPanel(new BorderLayout(4, 4));
         transcriptBottom.add(captureReviewPanel, BorderLayout.NORTH);
+        JPanel timelinePanel = new JPanel(new BorderLayout(2, 2));
+        JLabel timelineLabel = new JLabel("Run timeline");
+        timelineLabel.setLabelFor(timeline);
+        timelinePanel.add(timelineLabel, BorderLayout.NORTH);
+        JBScrollPane timelineScroll = new JBScrollPane(timeline);
+        timelineScroll.setPreferredSize(JBUI.size(240, 58));
+        timelinePanel.add(timelineScroll, BorderLayout.CENTER);
+        transcriptBottom.add(timelinePanel, BorderLayout.CENTER);
         transcriptBottom.add(transcriptStatus, BorderLayout.SOUTH);
         transcriptPanel.add(transcriptBottom, BorderLayout.SOUTH);
 
@@ -432,6 +459,151 @@ final class ShaftAssistantPanel extends JPanel {
         updateControlVisibility();
     }
 
+    private void resetTimeline(String firstStep) {
+        timelineModel.clear();
+        addTimeline(firstStep);
+    }
+
+    private void addTimeline(String step) {
+        if (step == null || step.isBlank()) {
+            return;
+        }
+        if (!timelineModel.isEmpty() && step.equals(timelineModel.lastElement())) {
+            return;
+        }
+        timelineModel.addElement(step);
+        while (timelineModel.size() > 8) {
+            timelineModel.remove(0);
+        }
+        timeline.ensureIndexIsVisible(timelineModel.size() - 1);
+    }
+
+    List<ContextSuggestion> contextSuggestionsForTest(char trigger) {
+        return contextSuggestions(trigger, project, openFileContext(project));
+    }
+
+    private List<ContextSuggestion> contextSuggestions(
+            char trigger,
+            Project project,
+            AssistantCommand.OpenFileContext openFileContext) {
+        if (trigger == '@') {
+            return workflowContextSuggestions();
+        }
+        if (trigger == '#') {
+            return projectContextSuggestions(project, openFileContext);
+        }
+        return List.of();
+    }
+
+    private static List<ContextSuggestion> workflowContextSuggestions() {
+        return List.of(
+                new ContextSuggestion("@workflow:record-web", "/record-web "),
+                new ContextSuggestion("@workflow:record-mobile", "/record-mobile "),
+                new ContextSuggestion("@workflow:codegen", "/codegen "),
+                new ContextSuggestion("@workflow:doctor", "/doctor "),
+                new ContextSuggestion("@tool:guide-search", "/guide "),
+                new ContextSuggestion("@tool:guardrails", "/guardrails "),
+                new ContextSuggestion("@project:create-or-upgrade", "/project "));
+    }
+
+    private static List<ContextSuggestion> projectContextSuggestions(
+            Project project,
+            AssistantCommand.OpenFileContext openFileContext) {
+        List<ContextSuggestion> suggestions = new ArrayList<>();
+        if (openFileContext != null && openFileContext.present()) {
+            suggestions.add(new ContextSuggestion("#file:" + fileName(openFileContext.path()),
+                    "#file:" + openFileContext.path() + " "));
+        }
+        addProjectArtifact(suggestions, project, "#allure-results", "target/allure-results ",
+                "target", "allure-results");
+        addProjectArtifact(suggestions, project, "#shaft-traces", "target/shaft-traces ",
+                "target", "shaft-traces");
+        addProjectArtifact(suggestions, project, "#recordings", "recordings ",
+                "recordings");
+        return suggestions;
+    }
+
+    private void bindContextInsertion() {
+        prompt.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent event) {
+                char trigger = event.getKeyChar();
+                if (trigger == '@' || trigger == '#') {
+                    SwingUtilities.invokeLater(() -> showContextSuggestions(trigger));
+                }
+            }
+        });
+    }
+
+    private void showContextSuggestions(char trigger) {
+        hideContextPopup();
+        List<ContextSuggestion> suggestions = contextSuggestionsForTest(trigger);
+        if (suggestions.isEmpty()) {
+            status.setText(trigger == '#'
+                    ? "No project context available"
+                    : "No Assistant context available");
+            return;
+        }
+        if (!prompt.isShowing()) {
+            return;
+        }
+        contextPopup = new JPopupMenu("Assistant context suggestions");
+        contextPopup.getAccessibleContext().setAccessibleName("Assistant context suggestions");
+        for (ContextSuggestion suggestion : suggestions) {
+            JMenuItem item = new JMenuItem(suggestion.label());
+            item.getAccessibleContext().setAccessibleName("Insert " + suggestion.label());
+            item.addActionListener(event -> insertContextSuggestion(trigger, suggestion));
+            contextPopup.add(item);
+        }
+        contextPopup.show(prompt, JBUI.scale(8), Math.max(JBUI.scale(18), prompt.getHeight() - JBUI.scale(4)));
+    }
+
+    private void insertContextSuggestion(char trigger, ContextSuggestion suggestion) {
+        hideContextPopup();
+        int caret = prompt.getCaretPosition();
+        String text = prompt.getText();
+        int start = caret > 0 && caret <= text.length() && text.charAt(caret - 1) == trigger ? caret - 1 : caret;
+        if (start < caret) {
+            prompt.replaceRange(suggestion.insertion(), start, caret);
+        } else {
+            prompt.insert(suggestion.insertion(), caret);
+        }
+        prompt.setCaretPosition(start + suggestion.insertion().length());
+        prompt.requestFocusInWindow();
+        status.setText("Inserted " + suggestion.label());
+    }
+
+    private void hideContextPopup() {
+        if (contextPopup != null) {
+            contextPopup.setVisible(false);
+            contextPopup = null;
+        }
+    }
+
+    private static void addProjectArtifact(
+            List<ContextSuggestion> suggestions,
+            Project project,
+            String label,
+            String insertion,
+            String firstSegment,
+            String... moreSegments) {
+        if (project == null || project.getBasePath() == null || project.getBasePath().isBlank()) {
+            return;
+        }
+        Path candidate = Path.of(project.getBasePath(), firstSegment).resolve(Path.of("", moreSegments));
+        if (Files.exists(candidate)) {
+            suggestions.add(new ContextSuggestion(label, insertion));
+        }
+    }
+
+    private static String fileName(String path) {
+        if (path == null || path.isBlank()) {
+            return "current";
+        }
+        int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return slash >= 0 && slash + 1 < path.length() ? path.substring(slash + 1) : path;
+    }
+
     private void send(Project project) {
         String text = prompt.getText().trim();
         if (text.isBlank()) {
@@ -445,6 +617,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         lastPrompt = text;
         rerunLastPrompt.setEnabled(true);
+        resetTimeline("Prompt received");
         AssistantCommand.Selection route = selectedRoute();
         boolean agentMode = "AGENT".equals(String.valueOf(mode.getSelectedItem()));
         String workingDirectory = project == null || project.getBasePath() == null ? "" : project.getBasePath();
@@ -476,10 +649,12 @@ final class ShaftAssistantPanel extends JPanel {
         }
         prompt.setText("");
         if (invocation.isLocal()) {
+            addTimeline("Completed");
             showLocalResponse(invocation.localResponse());
             return;
         }
         if (requiresMcpSetup(invocation, mcpConfigured())) {
+            addTimeline("Failed");
             showLocalResponse("Configure SHAFT MCP in Settings before running this Assistant feature command.");
             status.setText("Configure MCP");
             return;
@@ -487,6 +662,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (AssistantLocalAgentRunner.supports(invocation)) {
             captureIntegrationRunning = approvingCaptureReview;
             int streamToken = ++localAgentStreamToken;
+            addTimeline("Tool selected: local assistant");
+            addTimeline("Running");
             setRunning(true, "Thinking...");
             appendStreamingLocalAgentBubble(streamToken);
             currentInvocation = AssistantLocalAgentRunner.start(invocation, output -> ApplicationManager.getApplication().invokeLater(
@@ -501,9 +678,12 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void startMcpInvocation(AssistantCommand.Invocation invocation) {
         if (invocation.isSequence()) {
+            addTimeline("Tool selected: sequence");
             startToolSequence(invocation.toolCalls());
             return;
         }
+        addTimeline("Tool selected: " + invocation.toolName());
+        addTimeline("Running");
         setRunning(true, "Running " + invocation.toolName() + "...");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
@@ -519,6 +699,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void runNextSequenceCall(int index) {
         if (index >= currentToolSequence.size()) {
+            addTimeline("Completed");
             setRunning(false, READY_STATUS);
             showResponse("**SHAFT Assistant sequence OK**\n\n" + sequenceMarkdown, sequenceRawOutput.toString());
             clearSequenceState();
@@ -550,6 +731,7 @@ final class ShaftAssistantPanel extends JPanel {
                     .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
                     .append("\n\n");
             setRunning(false, "Rejected generated code");
+            addTimeline("Failed");
             showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
                     sequenceRawOutput.toString());
             clearSequenceState();
@@ -573,6 +755,7 @@ final class ShaftAssistantPanel extends JPanel {
                 .append("\n\n");
         if (cancelled || !success) {
             setRunning(false, cancelled ? "Cancelled" : "Failed");
+            addTimeline(cancelled ? "Cancelled" : "Failed");
             showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
                     sequenceRawOutput.toString());
             clearSequenceState();
@@ -641,6 +824,7 @@ final class ShaftAssistantPanel extends JPanel {
             showTransientStatus("MCP test passed. Ready to chat.");
         }
         if (cancelled) {
+            addTimeline("Cancelled");
             if (isRecordingCodeReviewTool(toolName) && captureReviewGenerationRunning) {
                 captureReviewGenerationRunning = false;
                 clearPendingCaptureReview();
@@ -663,6 +847,7 @@ final class ShaftAssistantPanel extends JPanel {
             }
             showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "");
             status.setText("Rejected generated code");
+            addTimeline("Failed");
             return;
         }
         if (!success && captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
@@ -677,6 +862,7 @@ final class ShaftAssistantPanel extends JPanel {
                     + "\n\n**Review before writing files.** Send `approve`, `okay`, or `generate` to let the Agent create the actual Page Object Model files.",
                     output);
             status.setText("Awaiting approval");
+            addTimeline("Waiting for approval");
             return;
         }
         if (success && generateCaptureReviewAfterStop
@@ -687,10 +873,12 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         if (success && formatUnknownResponse(toolName, output, markdown)) {
+            addTimeline("Completed");
             return;
         }
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
                 + markdown, output);
+        addTimeline(success ? "Completed" : "Failed");
         if (success && "capture_start".equals(toolName)) {
             scheduleCaptureStartDiagnostic(output);
         }
@@ -719,6 +907,7 @@ final class ShaftAssistantPanel extends JPanel {
             captureIntegrationRunning = false;
         }
         if (cancelled) {
+            addTimeline("Cancelled");
             showAgentCancelled(streamToken, currentStream);
             status.setText("Cancelled");
             return;
@@ -735,8 +924,12 @@ final class ShaftAssistantPanel extends JPanel {
                 : AssistantMarkdown.normalizeMarkdown(output);
         if (rejectedGeneratedJava) {
             status.setText("Rejected generated code");
+            addTimeline("Failed");
         }
         showAgentResponse(streamToken, currentStream, response, rejectedGeneratedJava ? "" : output);
+        if (!rejectedGeneratedJava) {
+            addTimeline(success ? "Completed" : "Failed");
+        }
     }
 
     private void showAgentCancelled(int streamToken, boolean currentStream) {
@@ -1279,10 +1472,12 @@ final class ShaftAssistantPanel extends JPanel {
             if (cancelRequested) {
                 currentInvocation.kill();
                 status.setText("Killing...");
+                addTimeline("Killed");
             } else {
                 currentInvocation.cancel();
                 cancelRequested = true;
                 status.setText("Cancelling...");
+                addTimeline("Cancelled");
             }
             updateSendButtonState();
             updateCancelButtonState();
@@ -1564,7 +1759,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private static ShaftAssistantChatState chatState(Project project) {
-        return new ShaftAssistantChatState();
+        return ShaftAssistantChatState.getInstance(project);
     }
 
     private static String resolveFamily(ShaftSettingsState.Settings settings) {
@@ -1641,6 +1836,9 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private record ToolEvidence(String toolName, String payload, String createdAt) {
+    }
+
+    record ContextSuggestion(String label, String insertion) {
     }
 
     private record CaptureReview(String markdown, String rawResult) {
