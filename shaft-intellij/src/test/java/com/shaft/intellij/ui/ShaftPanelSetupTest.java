@@ -933,7 +933,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void iconButtonsUseDistinctEnabledAndDisabledSurfaces() {
+    void iconButtonsUseBorderlessIconOnlySurfaces() {
         JButton active = new JButton("Run");
         JButton inactive = new JButton("Cancel");
         ShaftIconButtons.apply(active, ShaftIcons.SEND);
@@ -942,11 +942,16 @@ class ShaftPanelSetupTest {
         inactive.setEnabled(false);
 
         assertAll(
-                () -> assertNotEquals(active.getBackground(), inactive.getBackground()),
                 () -> assertNotNull(inactive.getDisabledIcon()),
                 () -> assertEquals(inactive.getIcon().getIconWidth(), inactive.getDisabledIcon().getIconWidth()),
-                () -> assertTrue(active.isContentAreaFilled()),
-                () -> assertTrue(inactive.isContentAreaFilled()));
+                () -> assertFalse(active.isContentAreaFilled()),
+                () -> assertFalse(inactive.isContentAreaFilled()),
+                () -> assertFalse(active.isOpaque()),
+                () -> assertFalse(inactive.isOpaque()),
+                () -> assertFalse(active.isBorderPainted()),
+                () -> assertFalse(inactive.isBorderPainted()),
+                () -> assertFalse(active.isFocusPainted()),
+                () -> assertFalse(inactive.isFocusPainted()));
     }
 
     @Test
@@ -1101,6 +1106,45 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(html.indexOf("Hi user") < html.indexOf("Type a question")),
                 () -> assertFalse(html.contains("cellpadding=\"8\"")),
                 () -> assertFalse(html.contains("border=\"1\"")));
+    }
+
+    @Test
+    void assistantTranscriptKeepsLatestMessageInView() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("user", "Show the sent prompt");
+
+        assertTrue(transcript.html().contains("window.scrollTo(0, document.body.scrollHeight)"));
+    }
+
+    @Test
+    void assistantTranscriptBubblesDoNotPaintRectangularOutlines() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("assistant", "Assistant response");
+
+        String html = transcript.html();
+        String assistantBubbleCss = html.substring(
+                html.indexOf(".shaft-chat-bubble.assistant"),
+                html.indexOf(".shaft-chat-hint"));
+        assertFalse(assistantBubbleCss.contains("border:"));
+    }
+
+    @Test
+    void assistantTranscriptCodeCopyControlDoesNotPaintRectangularOutline() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("assistant", """
+                ```java
+                class AssistantResponse {}
+                ```
+                """.stripIndent().trim());
+
+        String html = transcript.html();
+        String copyControlCss = html.substring(
+                html.indexOf(".shaft-code-copy {"),
+                html.indexOf(".shaft-code-copy svg"));
+        assertAll(
+                () -> assertFalse(copyControlCss.contains("border:")),
+                () -> assertFalse(copyControlCss.contains("background:")),
+                () -> assertFalse(html.contains(";border:1px solid ")));
     }
 
     @Test

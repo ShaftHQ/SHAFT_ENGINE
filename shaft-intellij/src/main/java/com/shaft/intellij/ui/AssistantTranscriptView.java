@@ -29,8 +29,10 @@ import org.intellij.plugins.markdown.ui.preview.jcef.MarkdownJCEFHtmlPanel;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollBar;
 import javax.swing.UIManager;
 import javax.swing.BoxLayout;
+import javax.swing.SwingUtilities;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.text.html.HTMLEditorKit;
 import javax.swing.JLabel;
@@ -75,6 +77,7 @@ final class AssistantTranscriptView extends JPanel {
     private final Project project;
     private final JEditorPane pane;
     private final JPanel fallbackPanel;
+    private final JBScrollPane fallbackScrollPane;
     private final MarkdownJCEFHtmlPanel markdownPanel;
     private final LightVirtualFile markdownFile;
     private final List<ShaftAssistantChatState.Message> messages = new ArrayList<>();
@@ -107,8 +110,9 @@ final class AssistantTranscriptView extends JPanel {
         pane.setBackground(transcriptBackground);
         fallbackPanel.setBackground(transcriptBackground);
         fallbackPanel.setOpaque(true);
+        fallbackScrollPane = createFallbackScrollPane(transcriptBackground);
         markdownPanel = createMarkdownPanel(project, markdownFile);
-        JComponent component = markdownPanel == null ? fallbackScrollPane(transcriptBackground) : markdownPanel.getComponent();
+        JComponent component = markdownPanel == null ? fallbackScrollPane : markdownPanel.getComponent();
         component.getAccessibleContext().setAccessibleName("Assistant transcript");
         add(component, BorderLayout.CENTER);
         refresh();
@@ -171,13 +175,23 @@ final class AssistantTranscriptView extends JPanel {
         refresh();
     }
 
-    private JComponent fallbackScrollPane(Color transcriptBackground) {
+    private JBScrollPane createFallbackScrollPane(Color transcriptBackground) {
         JBScrollPane scrollPane = new JBScrollPane(fallbackPanel);
         scrollPane.setBorder(JBUI.Borders.empty());
         scrollPane.setBackground(transcriptBackground);
         scrollPane.getViewport().setOpaque(true);
         scrollPane.getViewport().setBackground(transcriptBackground);
         return scrollPane;
+    }
+
+    private void scrollLatestIntoView() {
+        if (markdownPanel != null) {
+            return;
+        }
+        SwingUtilities.invokeLater(() -> {
+            JScrollBar vertical = fallbackScrollPane.getVerticalScrollBar();
+            vertical.setValue(vertical.getMaximum());
+        });
     }
 
     private static MarkdownJCEFHtmlPanel createMarkdownPanel(Project project, VirtualFile markdownFile) {
@@ -240,7 +254,6 @@ final class AssistantTranscriptView extends JPanel {
                     .shaft-chat-bubble.assistant, .shaft-chat-bubble-assistant {
                         color: %s;
                         background-color: %s;
-                        border: 1px solid %s;
                     }
                     .shaft-chat-hint {
                         clear: both;
@@ -271,10 +284,8 @@ final class AssistantTranscriptView extends JPanel {
                         width: 24px;
                         height: 24px;
                         padding: 3px;
-                        border: 1px solid %s;
                         border-radius: 6px;
                         color: %s;
-                        background: %s;
                         cursor: pointer;
                         text-decoration: none;
                         text-align: center;
@@ -293,7 +304,7 @@ final class AssistantTranscriptView extends JPanel {
                         line-height: 16px;
                     }
                     .shaft-code-copy[data-copied="true"] {
-                        border-color: %s;
+                        color: %s;
                     }
                     pre {
                         margin: 0;
@@ -326,6 +337,9 @@ final class AssistantTranscriptView extends JPanel {
                       textarea.remove();
                       done();
                     });
+                    window.addEventListener('load', function() {
+                      window.scrollTo(0, document.body.scrollHeight);
+                    });
                   </script>
                 </head>
                 <body><div class="shaft-chat">%s</div></body>
@@ -340,16 +354,13 @@ final class AssistantTranscriptView extends JPanel {
                 userBackground,
                 foreground,
                 assistantBackground,
-                border,
                 foreground,
                 transcriptBackground,
                 border,
                 border,
                 codeBackground,
                 border,
-                border,
                 foreground,
-                assistantBackground,
                 foreground,
                 foreground,
                 codeBackground,
@@ -374,6 +385,7 @@ final class AssistantTranscriptView extends JPanel {
         } else {
             renderFallbackTranscript();
         }
+        scrollLatestIntoView();
     }
 
     private void renderFallbackTranscript() {
@@ -396,11 +408,10 @@ final class AssistantTranscriptView extends JPanel {
         Color foreground = user
                 ? resolvedColor("Panel.selectionForeground", Color.WHITE)
                 : resolvedColor("TextArea.foreground", new Color(0x202020));
-        Color border = user ? null : resolvedColor("Component.borderColor", new Color(0xD0D7DE));
         JPanel row = new JPanel(new BorderLayout());
         row.setOpaque(false);
         row.setBorder(JBUI.Borders.emptyBottom(10));
-        RoundedBubblePanel bubble = new RoundedBubblePanel(background, border, 18);
+        RoundedBubblePanel bubble = new RoundedBubblePanel(background, null, 18);
         bubble.setLayout(new BorderLayout());
         bubble.setBorder(JBUI.Borders.empty(9, 11));
         bubble.add(user && isPlainSingleLine(markdown)
@@ -470,8 +481,6 @@ final class AssistantTranscriptView extends JPanel {
                         height: 24px;
                         padding: 3px;
                         color: %s;
-                        background: %s;
-                        border: 1px solid %s;
                         text-decoration: none;
                         text-align: center;
                         line-height: 16px;
@@ -492,8 +501,6 @@ final class AssistantTranscriptView extends JPanel {
                 codeBackground,
                 border,
                 color("Button.foreground", "#202020"),
-                color("Button.background", "#f6f8fa"),
-                border,
                 color("TextArea.foreground", "#202020"),
                 codeBackground,
                 value);
@@ -517,12 +524,10 @@ final class AssistantTranscriptView extends JPanel {
         String foreground = user
                 ? color("Panel.selectionForeground", "#ffffff")
                 : color("TextArea.foreground", "#202020");
-        String border = user ? "" : "border:1px solid " + color("Component.borderColor", "#d0d7de") + ";";
         String rowStyle = "clear:both;margin:0 0 10px 0;width:100%;text-align:" + alignment + ";";
         String bubbleStyle = "color:" + foreground
                 + ";background-color:" + background
-                + ";" + border
-                + "border-radius:16px;padding:9px 11px;text-align:left;";
+                + ";border-radius:16px;padding:9px 11px;text-align:left;";
         String bubble = user
                 ? renderUserBubble(markdown, background, bubbleStyle, roleClass)
                 : "<table cellspacing=\"0\" cellpadding=\"0\"><tr><td bgcolor=\"" + background
@@ -551,8 +556,6 @@ final class AssistantTranscriptView extends JPanel {
     private String addCodeCopyButtons(String html) {
         StringBuilder result = new StringBuilder();
         String buttonStyle = "color:" + color("Button.foreground", "#202020")
-                + ";background-color:" + color("Button.background", "#f6f8fa")
-                + ";border:1px solid " + color("Component.borderColor", "#d0d7de")
                 + ";display:inline-block;width:24px;height:24px;padding:3px;text-decoration:none;"
                 + "text-align:center;line-height:16px;vertical-align:middle;";
         int offset = 0;
