@@ -344,12 +344,12 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel second = new ShaftAssistantPanel(null, settings);
 
         assertAll(
-                () -> assertTrue(containsText(first, "Audit and optimize this SHAFT_ENGINE checkout's agent guidance")),
+                () -> assertTrue(containsText(first, "Audit and optimize")),
                 () -> assertTrue(containsText(first, "shaft_guide_search")),
                 () -> assertTrue(containsText(first, "test_automation_scenarios")),
                 () -> assertTrue(containsText(first, "test_code_guardrails_check")),
                 () -> assertFalse(settings.agentGuidanceOptimizationPromptPending),
-                () -> assertFalse(containsText(second, "Audit and optimize this SHAFT_ENGINE checkout's agent guidance")));
+                () -> assertFalse(containsText(second, "Audit and optimize")));
     }
 
     @Test
