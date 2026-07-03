@@ -21,6 +21,7 @@ import com.shaft.doctor.repair.RepairPublicationResult;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
 import com.shaft.pilot.config.PilotConfiguration;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import org.springframework.ai.tool.annotation.Tool;
@@ -457,7 +458,7 @@ public class DoctorService {
         try {
             var root = JSON.readTree(Files.readString(path, StandardCharsets.UTF_8));
             return JSON.treeToValue(root.has("diagnosis") ? root.path("diagnosis") : root, Diagnosis.class);
-        } catch (IOException exception) {
+        } catch (IOException | JacksonException exception) {
             throw new IllegalArgumentException("Doctor diagnosis could not be read.", exception);
         }
     }
@@ -477,7 +478,7 @@ public class DoctorService {
                     bundlePath,
                     path.toString(),
                     parent == null ? "" : parent.resolve("doctor-report.md").toString());
-        } catch (IOException exception) {
+        } catch (IOException | JacksonException exception) {
             throw new IllegalArgumentException("Doctor report could not be read.", exception);
         }
     }
