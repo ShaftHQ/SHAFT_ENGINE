@@ -23,10 +23,12 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JProgressBar;
@@ -35,6 +37,8 @@ import javax.swing.Timer;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Component;
+import java.awt.FontMetrics;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -142,6 +146,29 @@ final class ShaftAssistantPanel extends JPanel {
 
         chatSelector = new JComboBox<>();
         chatSelector.getAccessibleContext().setAccessibleName("Assistant chat");
+        chatSelector.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list,
+                                                          Object value,
+                                                          int index,
+                                                          boolean isSelected,
+                                                          boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                String title = value instanceof ShaftAssistantChatState.Session session
+                        ? session.toString()
+                        : String.valueOf(value == null ? "" : value);
+                int availableWidth = index >= 0 ? list.getWidth() : chatSelector.getWidth();
+                if (availableWidth <= 0) {
+                    availableWidth = JBUI.scale(240);
+                }
+                label.setText(trimChatTitleForWidth(title, label.getFontMetrics(label.getFont()),
+                        Math.max(32, availableWidth - JBUI.scale(38))));
+                label.setToolTipText(title);
+                label.setBorder(JBUI.Borders.empty(2, 6));
+                return label;
+            }
+        });
         chatSelector.addActionListener(event -> switchChat());
         newChat = button("New chat", "Start a new Assistant chat", event -> newChat());
         ShaftIconButtons.apply(newChat, ShaftIcons.ADD);
@@ -1438,6 +1465,26 @@ final class ShaftAssistantPanel extends JPanel {
         return new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
     }
 
+    static String trimChatTitleForWidth(String title, FontMetrics metrics, int maxWidth) {
+        String value = title == null || title.isBlank() ? "New chat" : title.strip();
+        if (metrics == null || maxWidth <= 0 || metrics.stringWidth(value) <= maxWidth) {
+            return value;
+        }
+        String ellipsis = "...";
+        if (metrics.stringWidth(ellipsis) >= maxWidth) {
+            return ellipsis;
+        }
+        int end = value.length();
+        while (end > 0) {
+            String candidate = value.substring(0, end).stripTrailing() + ellipsis;
+            if (metrics.stringWidth(candidate) <= maxWidth) {
+                return candidate;
+            }
+            end--;
+        }
+        return ellipsis;
+    }
+
     private static JButton button(String text, String accessibleName, java.awt.event.ActionListener action) {
         JButton button = new JButton(text);
         button.getAccessibleContext().setAccessibleName(accessibleName);
@@ -1446,11 +1493,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private static ShaftAssistantChatState chatState(Project project) {
-        if (project == null) {
-            return new ShaftAssistantChatState();
-        }
-        ShaftAssistantChatState state = ShaftAssistantChatState.getInstance(project);
-        return state == null ? new ShaftAssistantChatState() : state;
+        return new ShaftAssistantChatState();
     }
 
     private static String resolveFamily(ShaftSettingsState.Settings settings) {

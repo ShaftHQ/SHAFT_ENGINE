@@ -17,10 +17,8 @@ dependencies {
     intellijPlatform {
         intellijIdea(providers.gradleProperty("platformVersion").get())
         bundledPlugin("com.intellij.java")
-        bundledPlugin("org.intellij.plugins.markdown")
     }
     implementation("com.google.code.gson:gson:2.14.0")
-    implementation("org.commonmark:commonmark:0.29.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
     testRuntimeOnly("junit:junit:4.13.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -32,7 +30,9 @@ java {
 }
 
 intellijPlatform {
-    buildSearchableOptions = true
+    // IntelliJ's traverseUI searchable-options process hangs after emitting JSON on Windows.
+    // The plugin verifier still validates the built ZIP; track re-enabling this task separately.
+    buildSearchableOptions = false
     instrumentCode = true
 
     pluginConfiguration {

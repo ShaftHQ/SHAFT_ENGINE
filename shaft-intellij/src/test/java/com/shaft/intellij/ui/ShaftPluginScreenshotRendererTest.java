@@ -354,12 +354,14 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {
-        Project project = selectedTab == 0
-                ? screenshotProject(populatedAssistantChatState())
-                : screenshotProject();
+        Project project = screenshotProject();
         ShaftSettingsState.Settings settings = defaultSettings();
         settings.advancedUiEnabled = true;
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings);
+        ShaftAssistantChatState chatState = selectedTab == 0
+                ? populatedAssistantChatState()
+                : new ShaftAssistantChatState();
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
+                project, settings, AssistantLocalAgentRunner::readiness, chatState);
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindow.workflowSelector();
         ShaftToolWindowPanel.WorkflowView selectedView = selector.getItemAt(selectedTab);
         Component selected = selectedView.component();
@@ -371,10 +373,6 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static Project screenshotProject() {
-        return screenshotProject(null);
-    }
-
-    private static Project screenshotProject(ShaftAssistantChatState assistantChatState) {
         return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
                 (proxy, method, arguments) -> switch (method.getName()) {
                     case "equals" -> proxy == arguments[0];
@@ -382,10 +380,6 @@ class ShaftPluginScreenshotRendererTest {
                     case "toString" -> "SHAFT screenshot project";
                     case "getBasePath" -> "";
                     case "getName" -> "SHAFT";
-                    case "getService" -> {
-                        Class<?> type = arguments == null || arguments.length == 0 ? null : (Class<?>) arguments[0];
-                        yield type == ShaftAssistantChatState.class ? assistantChatState : null;
-                    }
                     default -> defaultValue(method.getReturnType());
                 });
     }
