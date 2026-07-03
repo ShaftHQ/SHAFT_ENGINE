@@ -21,6 +21,7 @@ import javax.swing.JEditorPane;
 import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.ListCellRenderer;
 import javax.swing.JProgressBar;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -208,9 +209,10 @@ class ShaftPanelSetupTest {
         assertTrue(containsText(toolWindow, "Runtime"));
         assertTrue(containsText(toolWindow, "Assist"));
         assertTrue(containsText(toolWindow, "1 Choose assistant"));
-        assertTrue(containsText(toolWindow, "2 Install MCP"));
+        assertTrue(containsText(toolWindow, "2 Install MCP - next"));
         assertTrue(containsText(toolWindow, "3 Detect command"));
-        assertTrue(containsText(toolWindow, "4 Test connection"));
+        assertTrue(containsText(toolWindow, "4 Test connection - wait"));
+        assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
         assertTrue(containsText(toolWindow, "Project: Configured"));
         assertTrue(containsText(toolWindow, "MCP: Not configured"));
         assertTrue(containsText(toolWindow, "Runtime: Codex CLI selected"));
@@ -1066,12 +1068,18 @@ class ShaftPanelSetupTest {
 
         JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
         JButton commandInfo = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
+        JButton contextInfo = findByAccessibleName(panel, "Assistant context suggestions", JButton.class);
         JProgressBar spinner = findByAccessibleName(panel, "Assistant thinking spinner", JProgressBar.class);
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
+        JTextComponent prompt = assistantPrompt(panel);
+        ListCellRenderer renderer = commandAutocomplete.getRenderer();
+        Component renderedGuide = renderer.getListCellRendererComponent(new JList<>(), "/guide", 0, false, false);
+        String renderedText = renderedGuide instanceof JLabel label ? label.getText() : "";
 
         assertAll(
                 () -> assertNotNull(commandAutocomplete),
                 () -> assertTrue(commandAutocomplete.isEditable()),
+                () -> assertTrue(commandAutocomplete.getToolTipText().contains("tested commands")),
                 () -> assertFalse(comboContains(commandAutocomplete, "/commands")),
                 () -> assertTrue(comboContains(commandAutocomplete, "/codegen")),
                 () -> assertTrue(comboContains(commandAutocomplete, "/record-web")),
@@ -1082,8 +1090,12 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(comboContains(commandAutocomplete, "/browser")),
                 () -> assertTrue(comboContains(commandAutocomplete, "/mobile")),
                 () -> assertTrue(comboContains(commandAutocomplete, "/project")),
+                () -> assertTrue(renderedText.contains("Search the SHAFT guide")),
+                () -> assertTrue(prompt.getAccessibleContext().getAccessibleDescription().contains("guarded local Agent")),
                 () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)")),
                 () -> assertNotNull(commandInfo),
+                () -> assertNotNull(contextInfo),
+                () -> assertTrue(contextInfo.getToolTipText().contains("@workflow")),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/codegen")),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/record-web")),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/record-mobile")),
@@ -1096,6 +1108,8 @@ class ShaftPanelSetupTest {
                 () -> assertEquals(commandAutocomplete.getParent(), commandInfo.getParent()),
                 () -> assertTrue(componentIndex(commandAutocomplete.getParent(), commandInfo)
                         > componentIndex(commandAutocomplete.getParent(), commandAutocomplete)),
+                () -> assertTrue(componentIndex(commandAutocomplete.getParent(), contextInfo)
+                        > componentIndex(commandAutocomplete.getParent(), commandInfo)),
                 () -> assertNotNull(spinner),
                 () -> assertTrue(spinner.isIndeterminate()),
                 () -> assertFalse(spinner.isVisible()),
@@ -1107,6 +1121,24 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(sendButton.getIcon()),
                 () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
                 () -> assertTrue(sendButton.getIcon().getIconHeight() > 0));
+    }
+
+    @Test
+    void assistantStarterActionsPrefillCommonFirstTasks() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "/guide locators")),
+                () -> assertTrue(containsText(panel, "/browser open")),
+                () -> assertTrue(containsText(panel, "/record-web")),
+                () -> assertTrue(containsText(panel, "/doctor")),
+                () -> assertNotNull(findByAccessibleName(panel, "Assistant starter actions", JComponent.class)));
+
+        clickAccessible(panel, "Start guide search");
+
+        assertAll(
+                () -> assertEquals("/guide locators ", assistantPrompt(panel).getText()),
+                () -> assertTrue(containsText(panel, "Ready: /guide locators")));
     }
 
     @Test
@@ -2158,9 +2190,10 @@ class ShaftPanelSetupTest {
 
     private static void assertIcon(JButton button) {
         assertNotNull(button);
-        assertNotNull(button.getIcon(), button.getText());
-        assertTrue(button.getIcon().getIconWidth() > 0, button.getText());
-        assertTrue(button.getIcon().getIconHeight() > 0, button.getText());
+        String name = button.getText() + "/" + accessibleName(button);
+        assertNotNull(button.getIcon(), name);
+        assertTrue(button.getIcon().getIconWidth() > 0, name);
+        assertTrue(button.getIcon().getIconHeight() > 0, name);
         assertTrue(paintsVisiblePixels(button.getIcon(), button), button.getToolTipText());
     }
 
@@ -2229,8 +2262,8 @@ class ShaftPanelSetupTest {
             return false;
         }
         return hasText(button.getText())
-                || hasText(button.getToolTipText())
-                || hasText(accessibleName(button));
+                || hasText(accessibleName(button))
+                || (button.getIcon() != null && hasText(button.getToolTipText()));
     }
 
     private static boolean hasText(String text) {

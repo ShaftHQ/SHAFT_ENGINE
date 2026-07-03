@@ -74,6 +74,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton newChat;
     private final JComboBox<String> commandAutocomplete;
     private final JButton commandInfo;
+    private final JButton contextInfo;
     private final JComboBox<String> mode;
     private final JComboBox<String> providerType;
     private final JComboBox<String> assistantFamily;
@@ -101,6 +102,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final DefaultListModel<String> timelineModel;
     private final JList<String> timeline;
     private final JPanel timelinePanel;
+    private final JPanel starterPanel;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
@@ -193,11 +195,27 @@ final class ShaftAssistantPanel extends JPanel {
         commandAutocomplete.setEditable(true);
         commandAutocomplete.setSelectedItem("");
         commandAutocomplete.setPrototypeDisplayValue("/record-mobile inspector Android recordings/inspector.json");
+        commandAutocomplete.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list,
+                                                          Object value,
+                                                          int index,
+                                                          boolean isSelected,
+                                                          boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                label.setText(commandPickerText(String.valueOf(value == null ? "" : value)));
+                label.setBorder(JBUI.Borders.empty(3, 6));
+                return label;
+            }
+        });
         commandAutocomplete.setPreferredSize(JBUI.size(220, ShaftIconButtons.SIZE));
         commandAutocomplete.setMinimumSize(JBUI.size(150, ShaftIconButtons.SIZE));
         commandAutocomplete.getAccessibleContext().setAccessibleName("Assistant command autocomplete");
+        commandAutocomplete.setToolTipText("Insert /guide, /browser, /record, /doctor, and other tested commands");
         if (commandAutocomplete.getEditor().getEditorComponent() instanceof JTextComponent editor) {
             editor.getAccessibleContext().setAccessibleName("Assistant command autocomplete text");
+            editor.setToolTipText("Insert a tested SHAFT command");
         }
         commandAutocomplete.addActionListener(event -> insertSelectedCommand());
         updatingCommandAutocomplete = true;
@@ -212,14 +230,24 @@ final class ShaftAssistantPanel extends JPanel {
                 "Shows the supported SHAFT Assistant command families in the command menu.");
         ShaftIconButtons.apply(commandInfo, ShaftIcons.HELP);
         commandInfo.setToolTipText(AssistantCommand.commandTooltip());
+        contextInfo = button("Context", "Assistant context suggestions",
+                event -> showContextSuggestions('@'));
+        contextInfo.getAccessibleContext().setAccessibleDescription(
+                "Shows workflow and project context insertions for the Assistant prompt.");
+        ShaftIconButtons.apply(contextInfo, ShaftIcons.ADD);
+        contextInfo.setToolTipText("Insert @workflow and #project context");
         mode = combo("Assistant mode", "ASK", "PLAN", "AGENT");
         mode.setSelectedItem(normalize(settings.defaultAutobotMode, "ASK"));
+        mode.setToolTipText("Ask answers, Plan outlines steps, Agent can run local CLI tasks");
         providerType = combo("Assistant provider type", "LOCAL", "CLOUD");
         providerType.setSelectedItem(normalize(settings.assistantProviderType, "LOCAL"));
+        providerType.setToolTipText("Use Local for CLI agents; Cloud for provider Ask and Plan");
         assistantFamily = combo("Assistant family", "CODEX", "CLAUDE", "COPILOT");
         assistantFamily.setSelectedItem(resolveFamily(settings));
+        assistantFamily.setToolTipText("Local assistant client");
         assistantRuntime = combo("Assistant runtime", "CLI", "IDE_PLUGIN", "DESKTOP_APP");
         assistantRuntime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
+        assistantRuntime.setToolTipText("How the selected local assistant is installed");
         currentAgentConfiguration = new JLabel();
         currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
@@ -230,11 +258,13 @@ final class ShaftAssistantPanel extends JPanel {
         cloudModel.setColumns(16);
         cloudModel.getEmptyText().setText("model");
         cloudModel.getAccessibleContext().setAccessibleName("Assistant cloud model");
+        cloudModel.setToolTipText("Optional provider model override");
         cloudModel.setText(settings.cloudModel == null ? "" : settings.cloudModel);
         customCommand = new JBTextField();
         customCommand.setColumns(18);
         customCommand.getEmptyText().setText("Optional local agent command");
         customCommand.getAccessibleContext().setAccessibleName("Optional local agent command");
+        customCommand.setToolTipText("Use only when the selected local CLI needs a custom command");
 
         cloudApiKey = new JPasswordField(16);
         cloudApiKey.getAccessibleContext().setAccessibleName("Assistant cloud API key");
@@ -250,8 +280,12 @@ final class ShaftAssistantPanel extends JPanel {
 
         allowSourceMutation = new JBCheckBox("Allow source edits");
         allowSourceMutation.getAccessibleContext().setAccessibleName("Approve source mutation for Agent mode");
+        allowSourceMutation.setToolTipText("Enable only when Agent mode should edit local source files");
         prompt = new JBTextArea(5, 32);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
+        prompt.getAccessibleContext().setAccessibleDescription(
+                "Ask for help, choose a tested command, or request guarded local Agent work.");
+        prompt.getEmptyText().setText("Ask a question, /guide locators, /record a flow, or /doctor a failure");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView(project);
@@ -348,7 +382,11 @@ final class ShaftAssistantPanel extends JPanel {
         JBScrollPane timelineScroll = new JBScrollPane(timeline);
         timelineScroll.setPreferredSize(JBUI.size(240, 58));
         timelinePanel.add(timelineScroll, BorderLayout.CENTER);
-        transcriptBottom.add(timelinePanel, BorderLayout.CENTER);
+        starterPanel = starterPanel();
+        JPanel transcriptCenterChrome = new JPanel(new BorderLayout(4, 4));
+        transcriptCenterChrome.add(starterPanel, BorderLayout.NORTH);
+        transcriptCenterChrome.add(timelinePanel, BorderLayout.CENTER);
+        transcriptBottom.add(transcriptCenterChrome, BorderLayout.CENTER);
         transcriptBottom.add(transcriptStatus, BorderLayout.SOUTH);
         transcriptPanel.add(transcriptBottom, BorderLayout.SOUTH);
 
@@ -383,6 +421,7 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel commandActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         commandActions.add(commandAutocomplete);
         commandActions.add(commandInfo);
+        commandActions.add(contextInfo);
         JPanel sendActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         sendActions.add(send);
         JPanel promptActions = new JPanel(new BorderLayout(6, 0));
@@ -1146,7 +1185,8 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void updateActionChrome() {
         if (copyLastResponse == null || copyRawResponse == null || copyTranscript == null
-                || clearTranscript == null || rerunLastPrompt == null || cancel == null || timelinePanel == null) {
+                || clearTranscript == null || rerunLastPrompt == null || cancel == null
+                || timelinePanel == null || starterPanel == null) {
             return;
         }
         boolean hasResponse = !lastResponse.isBlank();
@@ -1165,6 +1205,7 @@ final class ShaftAssistantPanel extends JPanel {
         rerunLastPrompt.setEnabled(canRerun && !running);
         cancel.setVisible(running);
         cancel.setEnabled(running);
+        starterPanel.setVisible(!hasTranscript && !running);
         timelinePanel.setVisible(running || timelineModel.size() > 1);
         timelinePanel.revalidate();
     }
@@ -1185,6 +1226,32 @@ final class ShaftAssistantPanel extends JPanel {
         } finally {
             updatingCommandAutocomplete = false;
         }
+    }
+
+    private JPanel starterPanel() {
+        JPanel panel = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 2));
+        panel.getAccessibleContext().setAccessibleName("Assistant starter actions");
+        addStarter(panel, "/guide locators", ShaftIcons.HELP, "Start guide search", "/guide locators ");
+        addStarter(panel, "/browser open", ShaftIcons.VIEW, "Start browser control", "/browser open ");
+        addStarter(panel, "/record-web", ShaftIcons.ADD, "Start web recording", "/record-web ");
+        addStarter(panel, "/doctor", ShaftIcons.SEARCH, "Start failure analysis", "/doctor ");
+        return panel;
+    }
+
+    private void addStarter(JPanel panel, String label, javax.swing.Icon icon, String accessibleName, String insertion) {
+        JLabel text = new JLabel(label);
+        JButton action = button(label, accessibleName, event -> prefillStarter(insertion));
+        ShaftIconButtons.apply(action, icon);
+        action.setToolTipText("Insert " + label);
+        panel.add(text);
+        panel.add(action);
+    }
+
+    private void prefillStarter(String insertion) {
+        prompt.setText(insertion);
+        prompt.setCaretPosition(prompt.getDocument().getLength());
+        prompt.requestFocusInWindow();
+        status.setText("Ready: " + insertion.trim());
     }
 
     private void updateCloudKeyStatus() {
@@ -1745,6 +1812,29 @@ final class ShaftAssistantPanel extends JPanel {
         return AssistantCommand.commandHints().stream()
                 .map(AssistantCommand.CommandHint::canonical)
                 .toArray(String[]::new);
+    }
+
+    private static String commandPickerText(String command) {
+        if (command == null || command.isBlank()) {
+            return "";
+        }
+        for (AssistantCommand.CommandHint hint : AssistantCommand.commandHints()) {
+            if (hint.canonical().equals(command)) {
+                return "<html><b>" + escapeHtml(command) + "</b> - "
+                        + escapeHtml(hint.summary())
+                        + "<br><span style='color:#6A737D'>"
+                        + escapeHtml(hint.example())
+                        + "</span></html>";
+            }
+        }
+        return escapeHtml(command);
+    }
+
+    private static String escapeHtml(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private static String canonicalCommand(String value) {

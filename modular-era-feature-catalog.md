@@ -32,6 +32,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 ### IntelliJ plugin screenshots
 
 - `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png`
+- `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-empty.png`
 - `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-live-output-dark.png`
 - `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-narrow-dark.png`
 - `shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png`
@@ -217,7 +218,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, SikuliX desktop image automation, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | First-run MCP setup now guides users through `Choose assistant`, `Install MCP`, `Detect command`, and `Test connection`, defaults to Codex CLI, shows the installer command as multi-line terminal text, keeps the manual install target hidden until requested, and lets users start the Assistant after a verified connection instead of redirecting immediately; the Assistant restores safe project chats, uses a compact `Codex CLI` agent label with the full agent tooltip, keeps action/timeline chrome hidden until useful, and suggests `/guide`, `/browser`, `/record`, and `/doctor` in an empty transcript, while Guided templates, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools remain first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-success.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-mcp-setup-narrow-dark.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
+| IntelliJ IDEA plugin | First-run MCP setup now opens with a `Connect SHAFT Assistant` summary, stateful `done` / `next` / `wait` setup steps, clearer next-action copy, and explicit action tooltips while still defaulting to Codex CLI, showing the installer command as multi-line terminal text, hiding manual install targets until requested, and revealing `Start chatting with SHAFT Assistant` after a verified connection; the Assistant restores safe project chats, uses a compact `Codex CLI` agent label with the full agent tooltip, keeps action/timeline chrome hidden until useful, adds empty-chat starter actions for `/guide`, `/browser`, `/record`, and `/doctor`, makes the prompt placeholder and command/context controls self-explanatory, and keeps Guided templates, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-success.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-mcp-setup-narrow-dark.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-empty.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
 | IntelliJ Assistant fix for issue #3188 | Chat transcript messages are now role-rendered (user/assistant bubbles), sessions persist and restore correctly, and the route/runtime controls lock with a visible configure recovery path once MCP is configured. | `intellij-plugin-assistant.png`, `intellij-plugin-mcp-setup.png` |
 | IntelliJ Assistant fix for issue #3237 | Local Agent completion callbacks now clear the running state even when the streaming token was already reset, and approved capture generation tells the Agent to preserve the recorded journey, open the first search result, and assert the final page title or page-specific text. | `intellij-plugin-assistant-live-output-dark.png`, `intellij-plugin-assistant-narrow-dark.png` |
 | IntelliJ Assistant chat polish | Newly sent user prompts scroll into view immediately, while SHAFT-owned icon buttons and Assistant bubbles use borderless surfaces so chat feedback reads clearly in light, dark, and narrow tool windows. | `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-assistant-narrow-dark.png` |
@@ -275,7 +276,7 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 | Surface | What users get | Entry point |
 | --- | --- | --- |
 | Tool window | Right-side SHAFT assistant panel with dedicated workflow tabs for Assistant, Guided, Recorder, Inspector, Triage, Evidence Tools, Projects, and Advanced Tools. | `Tools -> SHAFT -> Open SHAFT` |
-| First-run setup | If a tested MCP command is already configured, the tool window opens the Assistant directly. Otherwise, setup defaults to Codex CLI with `Runtime: Codex CLI selected`, asks users to copy the multi-line installer command, run it in a terminal, detect the stdio command, and test. The manual MCP install target stays behind `Show manual MCP install target`; success shows `Runtime: Codex CLI verified` and reveals `Start chatting with SHAFT Assistant`. Retry actions stay enabled after failures. | `Tools -> SHAFT -> Open SHAFT` |
+| First-run setup | If a tested MCP command is already configured, the tool window opens the Assistant directly. Otherwise, setup opens with `Connect SHAFT Assistant`, defaults to Codex CLI with `Runtime: Codex CLI selected`, marks each step as `done`, `next`, or `wait`, asks users to copy the multi-line installer command, run it in a terminal, detect the stdio command, and test. The manual MCP install target stays behind `Show manual MCP install target`; success shows `Runtime: Codex CLI verified` and reveals `Start chatting with SHAFT Assistant`. Retry actions stay enabled after failures. | `Tools -> SHAFT -> Open SHAFT` |
 | Settings and providers | Retest MCP, change Local/Cloud routing, select the cloud provider/model, and store or clear OpenAI, Anthropic, Gemini, and GitHub keys. Only the selected cloud provider key is passed to MCP. | `Settings -> SHAFT` |
 | Guided workflows | Pick starter templates for browser capture to Page Objects, failed Allure analysis, Selenium-to-SHAFT conversion, confirmed new SHAFT projects, and locator inspection without editing JSON first. | `Guided` tab |
 | Recorder | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` tab |
@@ -283,11 +284,11 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 | Triage | Prepare failed Allure analysis, trace analysis, Doctor fix suggestions, Healer runs, and locator proposal requests. | `Triage` tab |
 | Evidence and healing | Run failed-test analysis, trace lookup, trace analysis, and healer templates from the IDE. | `Evidence Tools` tab |
 | Mobile Inspector | Check mobile tooling, prepare Inspector recording, inspect status, read accessibility trees, and take mobile screenshots. | `Inspector` tab |
-| Agent helpers | Switch the Assistant composer between Ask, Plan, and guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; Ask/Plan can route to OpenAI, Anthropic, Gemini, or GitHub Models with a stored key; Cloud Agent is demoted to Plan because provider chat cannot mutate the local workspace; project chats persist rendered messages without raw payloads; code writing and conversion prompts are scoped to the current editor file; the compact `Codex CLI` label exposes `Agent: Local / Codex / CLI` as a tooltip; empty chats suggest `/guide`, `/browser`, `/record`, and `/doctor`; action and timeline chrome stays hidden until useful; `@` and `#` insert supported workflow/project context when available. | `Assistant` tab |
+| Agent helpers | Switch the Assistant composer between Ask, Plan, and guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; Ask/Plan can route to OpenAI, Anthropic, Gemini, or GitHub Models with a stored key; Cloud Agent is demoted to Plan because provider chat cannot mutate the local workspace; project chats persist rendered messages without raw payloads; code writing and conversion prompts are scoped to the current editor file; the compact `Codex CLI` label exposes `Agent: Local / Codex / CLI` as a tooltip; empty chats expose one-click starter insertions for `/guide`, `/browser`, `/record`, and `/doctor`; the command picker shows summaries/examples and the context button exposes `@` and `#` workflow/project context; action and timeline chrome stays hidden until useful. | `Assistant` tab |
 | Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Recorder` tab |
 | Editor action | Start from the current Java caret context through the `Record SHAFT Flow Here` action in Tools or the editor popup menu. | `Record SHAFT Flow Here` |
 
-The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps Ask/Plan/Agent mode switching in the bottom composer, gates source mutation behind the local Agent approval checkbox, restores project chat sessions without persisting raw MCP payloads, scrolls newly sent prompts into view before long-running responses finish, uses symmetric borderless JetBrains-style icon buttons and chat bubbles across the tool window and settings screens, turns the submit control into an animated spinner with hover-to-cancel while running, changes Cancel into Kill after the first cancellation request so a second click terminates the active process immediately, clears the running state when a local Agent result arrives, keeps dark-mode code blocks visually distinct from chat bubbles, anchors Send at the bottom-right with Ctrl+Enter and Ctrl+click shortcuts, shows `/guide`, `/browser`, `/record`, and `/doctor` as empty-transcript starters, and exposes the selected local agent as compact text such as `Codex CLI` with `Agent: Local / Codex / CLI` in the tooltip. The run timeline and action chrome stay hidden until a prompt, tool run, approval, completion, cancellation, or failure gives them useful state. The Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
+The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps Ask/Plan/Agent mode switching in the bottom composer, gates source mutation behind the local Agent approval checkbox, restores project chat sessions without persisting raw MCP payloads, scrolls newly sent prompts into view before long-running responses finish, uses symmetric borderless JetBrains-style icon buttons and chat bubbles across the tool window and settings screens, turns the submit control into an animated spinner with hover-to-cancel while running, changes Cancel into Kill after the first cancellation request so a second click terminates the active process immediately, clears the running state when a local Agent result arrives, keeps dark-mode code blocks visually distinct from chat bubbles, anchors Send at the bottom-right with Ctrl+Enter and Ctrl+click shortcuts, shows `/guide`, `/browser`, `/record`, and `/doctor` as empty-chat starter insertions, renders command summaries/examples in the picker, exposes `@workflow` and `#project` context through a dedicated context button, and exposes the selected local agent as compact text such as `Codex CLI` with `Agent: Local / Codex / CLI` in the tooltip. The run timeline and action chrome stay hidden until a prompt, tool run, approval, completion, cancellation, or failure gives them useful state. The Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
 
 Assistant command examples:
 
@@ -305,46 +306,46 @@ Assistant command examples:
 <table>
   <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png" alt="IntelliJ plugin Assistant tab" width="620"></td>
+    <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-empty.png" alt="IntelliJ plugin Assistant empty chat starter actions" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-dark.png" alt="IntelliJ plugin Assistant tab in dark theme" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-live-output-dark.png" alt="IntelliJ plugin Assistant tab while a local agent is running" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-narrow-dark.png" alt="IntelliJ plugin Assistant tab in a narrow dark tool window" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-guided.png" alt="IntelliJ plugin Guided tab" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-triage.png" alt="IntelliJ plugin Triage tab" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-recorder.png" alt="IntelliJ plugin Recorder tab" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-inspector.png" alt="IntelliJ plugin Inspector tab" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-evidence.png" alt="IntelliJ plugin Evidence Tools tab" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-projects.png" alt="IntelliJ plugin Projects tab" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-advanced-tools.png" alt="IntelliJ plugin Advanced Tools tab" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-advanced-tools-dark.png" alt="IntelliJ plugin Advanced Tools tab in dark theme" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup.png" alt="IntelliJ plugin first-run MCP setup flow" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-success.png" alt="IntelliJ plugin MCP setup success flow" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-error-dark.png" alt="IntelliJ plugin MCP setup error state in dark theme" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-narrow-dark.png" alt="IntelliJ plugin MCP setup flow in a narrow dark tool window" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings.png" alt="IntelliJ plugin Settings panel" width="620"></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-settings-dark.png" alt="IntelliJ plugin Settings panel in dark theme" width="620"></td>
-  </tr>
-  <tr>
     <td width="50%"><img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-guide.png" alt="IntelliJ plugin Guide MCP category" width="620"></td>
-    <td width="50%"></td>
   </tr>
   <tr>
-    <td colspan="2">Screenshots show the 860 px right-side panel, 360 px narrow Assistant and setup views, first-run MCP installer/default/success/error states, live assistant output with run timeline, Guided starter templates, command hint affordance, and SHAFT settings panel captured on the current plugin branch in standard IntelliJ light and dark themes.</td>
+    <td colspan="2">Screenshots show the 860 px right-side panel, 360 px narrow Assistant and setup views, first-run MCP installer/default/success/error states, empty Assistant starter actions, live assistant output with run timeline, Guided starter templates, command hint affordance, and SHAFT settings panel captured on the current plugin branch in standard IntelliJ light and dark themes.</td>
   </tr>
 </table>
 
