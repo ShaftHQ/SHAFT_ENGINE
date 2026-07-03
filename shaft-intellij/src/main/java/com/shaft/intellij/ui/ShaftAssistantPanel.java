@@ -314,6 +314,7 @@ final class ShaftAssistantPanel extends JPanel {
         add(transcriptPanel, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
         refreshChatSelector();
+        showPendingAgentGuidanceOptimizationPrompt();
     }
 
     JComponent preferredFocusComponent() {
@@ -322,6 +323,42 @@ final class ShaftAssistantPanel extends JPanel {
 
     static boolean requiresMcpSetup(AssistantCommand.Invocation invocation, boolean mcpConfigured) {
         return invocation != null && invocation.requiresMcpConfiguration() && !mcpConfigured;
+    }
+
+    static String agentGuidanceOptimizationPrompt(ShaftSettingsState.Settings settings) {
+        String family = resolveFamily(settings);
+        String surfaces = switch (family) {
+            case "CLAUDE" -> "CLAUDE.md, AGENTS.md, .agents/skills/**, .memory/**";
+            case "COPILOT" -> ".github/copilot-instructions.md, AGENTS.md, .github/instructions/**, .github/skills/**, .memory/**";
+            default -> "AGENTS.md, .codex/config.toml, .agents/skills/**, .memory/**";
+        };
+        return """
+                Audit and optimize this SHAFT_ENGINE checkout's agent guidance for %s.
+
+                Use SHAFT MCP tools before proposing guidance edits:
+                - shaft_guide_search for official user-guide facts and URLs.
+                - test_automation_scenarios for workflow expectations.
+                - test_code_guardrails_check for code-generation guardrails.
+
+                Review only these guidance and memory surfaces: %s.
+                Keep AGENTS.md canonical, host adapters thin, and memories durable, evidence-backed, and non-duplicative.
+                Do not edit product code, tests, workflows, manifests, dependencies, generated reports, binaries, or secrets.
+
+                If source edits are not enabled, return a concise patch plan only. If edits are enabled, make the smallest guidance or memory updates and rerun `py -3 scripts/ci/validate_agent_setup.py --skip-external` on Windows or `python3 scripts/ci/validate_agent_setup.py --skip-external` elsewhere.
+                """.formatted(ShaftUiLabels.friendly(family), surfaces).strip();
+    }
+
+    private void showPendingAgentGuidanceOptimizationPrompt() {
+        if (!settings.agentGuidanceOptimizationPromptPending || !mcpReady(settings)) {
+            return;
+        }
+        settings.agentGuidanceOptimizationPromptPending = false;
+        mode.setSelectedItem("PLAN");
+        allowSourceMutation.setSelected(false);
+        prompt.setText(agentGuidanceOptimizationPrompt(settings));
+        prompt.setCaretPosition(0);
+        status.setText("Review setup optimization prompt");
+        updateControlVisibility();
     }
 
     private void send(Project project) {

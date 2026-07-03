@@ -334,6 +334,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         String command = mcpCommand.getText().trim();
         if (!Objects.equals(state.mcpCommand, command)) {
             state.mcpSetupComplete = false;
+            state.agentGuidanceOptimizationPromptPending = false;
         }
         state.mcpCommand = command;
         state.advancedUiEnabled = advancedUiEnabled.isSelected();
@@ -661,6 +662,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             ShaftSettingsState.Settings state = settingsProvider.get();
             state.mcpCommand = result.commandLine();
             state.mcpSetupComplete = false;
+            state.agentGuidanceOptimizationPromptPending = false;
             testStatus.setText("Installed");
             updateAgentConfigurationControls();
         } else {
