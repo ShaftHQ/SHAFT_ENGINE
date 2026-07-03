@@ -6,7 +6,6 @@ import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
-import com.shaft.intellij.mcp.ShaftMcpInstallResult;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -215,102 +214,83 @@ class ShaftPanelSetupTest {
         assertNotNull(findByAccessibleName(toolWindow, "Runtime setup section", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "Assist setup section", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "Project setup status", JLabel.class));
-        assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP install status", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP command status", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "Assistant connection setup status", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP setup next step", JLabel.class));
-        assertNotNull(findByAccessibleName(toolWindow, "Install or update SHAFT MCP", JButton.class));
+        assertNotNull(findByAccessibleName(toolWindow, "MCP stdio command", JTextComponent.class));
+        assertNull(findByAccessibleName(toolWindow, "Install or update SHAFT MCP", JButton.class));
+        assertTrue(containsText(toolWindow,
+                "Visit the SHAFT MCP user guide, install the MCP integration, then paste the stdio command."));
         assertTrue(containsText(toolWindow, "Test connection"));
     }
 
     @Test
-    void setupPanelFormatsInstallerOutputForHumans() {
-        String formatted = ShaftMcpSetupPanel.formatInstallOutput("""
-                ===================
-                SHAFT MCP installer
-                ===================
-                  ____  __  __
-                 / __ \\/ / / /
-                MCP installer
-                27.6%
-                ########
-                Client target: intellij-plugin
-                Resolving io.github.shafthq:shaft-mcp:LATEST...
-                {"client":"intellij-plugin","server":"shaft-mcp","version":"1.0.0","command":"C:\\\\Java\\\\bin\\\\java.exe","args":["@C:\\\\shaft-mcp.args"]}
-                """);
+    void toolWindowRedirectsToAssistantWhenMcpIsConfigured() {
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 
         assertAll(
-                () -> assertTrue(formatted.startsWith("SHAFT MCP installation")),
-                () -> assertTrue(formatted.contains("Summary")),
-                () -> assertTrue(formatted.contains("- Client: intellij-plugin")),
-                () -> assertTrue(formatted.contains("- Version: 1.0.0")),
-                () -> assertTrue(formatted.contains("Installation log")),
-                () -> assertTrue(formatted.contains("- Client target: intellij-plugin")),
-                () -> assertFalse(formatted.contains("===================")),
-                () -> assertFalse(formatted.contains("MCP installer")),
-                () -> assertFalse(formatted.contains("27.6%")),
-                () -> assertFalse(formatted.contains("########")));
+                () -> assertNull(setupPanel(toolWindow)),
+                () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class)),
+                () -> assertTrue(containsText(toolWindow, "Agent: Local / Codex / CLI")));
     }
 
     @Test
-    void setupPanelShowsClearGreenInstallSuccessNextStep() throws Exception {
-        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+    void setupPanelPrefillsManualCommandAndKeepsTestEnabledForSelectionChanges() {
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = false;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         });
-        ShaftMcpInstallResult result = new ShaftMcpInstallResult(true, "\"java\" \"@target/shaft-mcp.args\"", """
-                Client target: codex
-                {"client":"codex","server":"shaft-mcp","version":"1.0.0","command":"java","args":["@target/shaft-mcp.args"]}
-                """);
-
-        showInstallResult(panel, result);
-
-        assertAll(
-                () -> assertTrue(containsText(panel, "SUCCESS: Installation completed successfully.")),
-                () -> assertTrue(containsText(panel, "Test connection and start chatting")),
-                () -> assertTrue(containsText(panel, "MCP: Configured")),
-                () -> assertTrue(containsText(panel, "Assist: Not configured")),
-                () -> assertFalse(findButton(panel, "Install / Update SHAFT MCP").isEnabled()),
-                () -> assertTrue(findButton(panel, "Test connection and start chatting").isEnabled()));
-    }
-
-    @Test
-    void setupPanelReenablesInstallOnlyWhenAssistantSelectionChanges() throws Exception {
-        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
-        });
-        ShaftMcpInstallResult result = new ShaftMcpInstallResult(true, "\"java\" \"@target/shaft-mcp.args\"", """
-                {"client":"codex","server":"shaft-mcp","version":"1.0.0","command":"java","args":["@target/shaft-mcp.args"]}
-                """);
-
-        showInstallResult(panel, result);
-        JButton install = findButton(panel, "Install / Update SHAFT MCP");
+        JTextComponent command = findByAccessibleName(panel, "MCP stdio command", JTextComponent.class);
         JButton test = findButton(panel, "Test connection and start chatting");
         JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
         JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
 
         assertAll(
-                () -> assertNotNull(install),
+                () -> assertNotNull(command),
                 () -> assertNotNull(test),
                 () -> assertNotNull(family),
                 () -> assertNotNull(runtime),
-                () -> assertFalse(install.isEnabled()),
+                () -> assertEquals("\"java\" \"@target/shaft-mcp.args\"", command.getText()),
+                () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")),
+                () -> assertTrue(containsText(panel, "MCP: Configured")),
+                () -> assertTrue(containsText(panel, "Assist: Not configured")),
                 () -> assertTrue(test.isEnabled()));
 
         family.setSelectedItem("CLAUDE");
         assertAll(
-                () -> assertTrue(install.isEnabled()),
-                () -> assertFalse(test.isEnabled()),
-                () -> assertTrue(containsText(panel, "MCP: Not configured")));
-
-        family.setSelectedItem("CODEX");
-        assertAll(
-                () -> assertFalse(install.isEnabled()),
                 () -> assertTrue(test.isEnabled()),
                 () -> assertTrue(containsText(panel, "MCP: Configured")));
 
         runtime.setSelectedItem("DESKTOP_APP");
         assertAll(
-                () -> assertTrue(install.isEnabled()),
-                () -> assertFalse(test.isEnabled()),
-                () -> assertTrue(containsText(panel, "MCP: Not configured")));
+                () -> assertTrue(test.isEnabled()),
+                () -> assertTrue(containsText(panel, "MCP: Configured")));
+    }
+
+    @Test
+    void setupPanelShowsBlankManualCommandDiagnostic() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        AtomicReference<String> copied = new AtomicReference<>();
+        setField(panel, "copySink", (Consumer<String>) copied::set);
+
+        click(panel, "Test connection and start chatting");
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Assist: Error")),
+                () -> assertTrue(containsText(panel, "Probe failed")),
+                () -> assertTrue(containsText(panel, "No SHAFT MCP command configured.")),
+                () -> assertTrue(containsText(panel,
+                        "Visit the SHAFT MCP user guide, install the MCP integration, then paste the stdio command.")),
+                () -> assertFalse(findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class).isEnabled()),
+                () -> assertTrue(findByAccessibleName(panel, "Copy setup diagnostic output", JButton.class).isEnabled()),
+                () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")),
+                () -> assertTrue(findButton(panel, "Test connection and start chatting").isEnabled()));
+        clickAccessible(panel, "Copy setup diagnostic output");
+        assertTrue(copied.get().contains("No SHAFT MCP command configured."));
     }
 
     @Test
@@ -387,37 +367,15 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupPanelShowsInlineErrorStatesAndKeepsRetryEnabled() throws Exception {
-        ShaftMcpSetupPanel installPanel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
-        });
-        AtomicReference<String> copied = new AtomicReference<>();
-        setField(installPanel, "copySink", (Consumer<String>) copied::set);
-        showInstallError(installPanel, new IllegalStateException("java: command not found"));
-
-        assertAll(
-                () -> assertTrue(containsText(installPanel, "MCP: Error")),
-                () -> assertTrue(containsText(installPanel, "Install failed")),
-                () -> assertTrue(containsText(installPanel, "Category: Java/runtime")),
-                () -> assertTrue(containsText(installPanel, "For Codex, run `codex mcp list`")),
-                () -> assertTrue(containsText(installPanel, "Diagnostic command")),
-                () -> assertTrue(containsText(installPanel, "--json")),
-                () -> assertTrue(containsText(installPanel, "java: command not found")),
-                () -> assertTrue(findByAccessibleName(installPanel, "Copy setup diagnostic command", JButton.class).isEnabled()),
-                () -> assertTrue(findByAccessibleName(installPanel, "Copy setup diagnostic output", JButton.class).isEnabled()),
-                () -> assertTrue(findButton(installPanel, "Install / Update SHAFT MCP").isEnabled()),
-                () -> assertFalse(findButton(installPanel, "Test connection and start chatting").isEnabled()));
-        clickAccessible(installPanel, "Copy setup diagnostic command");
-        assertAll(
-                () -> assertTrue(copied.get().contains("codex")),
-                () -> assertTrue(copied.get().contains("--json")));
-        clickAccessible(installPanel, "Copy setup diagnostic output");
-        assertTrue(copied.get().contains("Category: Java/runtime"));
-
+    void setupPanelShowsInlineProbeErrorStatesAndKeepsRetryEnabled() throws Exception {
         ShaftSettingsState.Settings copilotSettings = connectedMcpSettings();
         copilotSettings.assistantFamily = "COPILOT";
         copilotSettings.assistantRuntime = "IDE_PLUGIN";
         ShaftMcpSetupPanel testPanel = new ShaftMcpSetupPanel(fakeProject(), copilotSettings, () -> {
         });
+        AtomicReference<String> copied = new AtomicReference<>();
+        setField(testPanel, "copySink", (Consumer<String>) copied::set);
+
         showTestResult(testPanel, ShaftMcpToolResult.failure(
                 "Could not resolve artifact io.github.shafthq:shaft-mcp:jar:1.0.0"));
 
@@ -429,7 +387,13 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(testPanel, "For GitHub Copilot, check the Copilot MCP client configuration")),
                 () -> assertTrue(containsText(testPanel, "Diagnostic command")),
                 () -> assertTrue(containsText(testPanel, "\"java\" \"@target/shaft-mcp.args\"")),
+                () -> assertTrue(findByAccessibleName(testPanel, "Copy setup diagnostic command", JButton.class).isEnabled()),
+                () -> assertTrue(findByAccessibleName(testPanel, "Copy setup diagnostic output", JButton.class).isEnabled()),
                 () -> assertTrue(findButton(testPanel, "Test connection and start chatting").isEnabled()));
+        clickAccessible(testPanel, "Copy setup diagnostic command");
+        assertEquals("\"java\" \"@target/shaft-mcp.args\"", copied.get());
+        clickAccessible(testPanel, "Copy setup diagnostic output");
+        assertTrue(copied.get().contains("Category: Maven artifact resolution"));
     }
 
     @Test
@@ -1272,7 +1236,6 @@ class ShaftPanelSetupTest {
                 () -> assertIcon(findButton(featurePanel, "Restore defaults")),
                 () -> assertIcon(findButton(featurePanel, "Copy output")),
                 () -> assertIcon(findButton(featurePanel, "Refresh tools")),
-                () -> assertIcon(findButton(setupPanel, "Install / Update SHAFT MCP")),
                 () -> assertIcon(findButton(setupPanel, "Test connection and start chatting")),
                 () -> assertIcon(findButton(setupPanel, "Copy command")),
                 () -> assertIcon(findButton(setupPanel, "Copy output")),
@@ -1768,20 +1731,6 @@ class ShaftPanelSetupTest {
                 "showResult", ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, result, null);
-    }
-
-    private static void showInstallResult(ShaftMcpSetupPanel panel, ShaftMcpInstallResult result) throws Exception {
-        Method showResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
-                "showInstallResult", ShaftMcpInstallResult.class, Throwable.class);
-        showResult.setAccessible(true);
-        showResult.invoke(panel, result, null);
-    }
-
-    private static void showInstallError(ShaftMcpSetupPanel panel, Throwable error) throws Exception {
-        Method showResult = ShaftMcpSetupPanel.class.getDeclaredMethod(
-                "showInstallResult", ShaftMcpInstallResult.class, Throwable.class);
-        showResult.setAccessible(true);
-        showResult.invoke(panel, null, error);
     }
 
     private static void showTestResult(ShaftMcpSetupPanel panel, ShaftMcpToolResult result) throws Exception {

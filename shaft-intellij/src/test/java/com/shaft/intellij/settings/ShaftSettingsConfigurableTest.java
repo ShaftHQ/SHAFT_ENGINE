@@ -1,5 +1,6 @@
 package com.shaft.intellij.settings;
 
+import com.intellij.ui.components.JBTextField;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
@@ -23,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftSettingsConfigurableTest {
@@ -36,9 +38,10 @@ class ShaftSettingsConfigurableTest {
         assertTrue(source.contains("Clear stored Anthropic API key"));
         assertTrue(source.contains("Clear stored Gemini API key"));
         assertTrue(source.contains("Clear stored GitHub API key"));
-        assertTrue(source.contains("Install or update SHAFT MCP"));
-        assertTrue(source.contains("Connect selected runtime MCP"));
-        assertTrue(source.contains("Connect GitHub Copilot MCP"));
+        assertFalse(source.contains("ShaftMcpInstaller"));
+        assertFalse(source.contains("Install or update SHAFT MCP"));
+        assertFalse(source.contains("Connect selected runtime MCP"));
+        assertFalse(source.contains("Connect GitHub Copilot MCP"));
         assertTrue(source.contains("Assistant provider type"));
         assertTrue(source.contains("Assistant family"));
         assertTrue(source.contains("Assistant runtime"));
@@ -48,8 +51,8 @@ class ShaftSettingsConfigurableTest {
         assertTrue(source.contains("github"));
         assertTrue(source.contains("SHAFT AI provider"));
         assertTrue(source.contains("setAccessibleDescription(\"Mark this provider key as ready to clear on apply.\")"));
-        assertTrue(source.contains("fill the plugin stdio command, and connect the selected local assistant"));
-        assertTrue(source.contains("installForPluginAndClient(installerClientForSelection())"));
+        assertTrue(source.contains("Visit the SHAFT MCP user guide, install the MCP integration"));
+        assertFalse(source.contains("installForPluginAndClient"));
         assertTrue(source.contains("Passing keys exposes them only to the SHAFT MCP process."));
         assertTrue(source.contains("key storage status"));
         assertTrue(source.contains("Stored in Password Safe."));
@@ -75,25 +78,13 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(testMcp.getAccessibleContext().getAccessibleDescription());
         assertNotEquals(0, testMcp.getAccessibleContext().getAccessibleDescription().length());
 
-        JButton installMcp = (JButton) findByAccessibleName(panel, "Install or update SHAFT MCP");
-        assertNotNull(installMcp);
-        assertIcon(installMcp);
-        assertNotNull(installMcp.getAccessibleContext().getAccessibleDescription());
-        assertNotEquals(0, installMcp.getAccessibleContext().getAccessibleDescription().length());
-
-        JButton connectCopilot = (JButton) findByAccessibleName(panel, "Connect GitHub Copilot MCP");
-        assertNotNull(connectCopilot);
-        assertIcon(connectCopilot);
-        assertTrue(connectCopilot.isVisible());
-        assertNotNull(connectCopilot.getAccessibleContext().getAccessibleDescription());
-        assertNotEquals(0, connectCopilot.getAccessibleContext().getAccessibleDescription().length());
-
-        JButton connectRuntime = (JButton) findByAccessibleName(panel, "Connect selected runtime MCP");
-        assertNotNull(connectRuntime);
-        assertIcon(connectRuntime);
-        assertTrue(connectRuntime.isVisible());
-        assertNotNull(connectRuntime.getAccessibleContext().getAccessibleDescription());
-        assertNotEquals(0, connectRuntime.getAccessibleContext().getAccessibleDescription().length());
+        JBTextField command = findByAccessibleName(panel, "MCP stdio command", JBTextField.class);
+        assertNotNull(command);
+        assertNull(findByAccessibleName(panel, "Install or update SHAFT MCP"));
+        assertNull(findByAccessibleName(panel, "Connect GitHub Copilot MCP"));
+        assertNull(findByAccessibleName(panel, "Connect selected runtime MCP"));
+        assertTrue(containsText(panel,
+                "Visit the SHAFT MCP user guide, install the MCP integration, paste the stdio command, then test the connection."));
 
         List<JButton> clearButtons = collectButtons(panel);
         assertEquals(4, clearButtons.size());
@@ -127,8 +118,6 @@ class ShaftSettingsConfigurableTest {
         JComponent panel = (JComponent) configurable.createComponent();
 
         JCheckBox advanced = findByAccessibleName(panel, "Enable advanced SHAFT UI", JCheckBox.class);
-        JButton connectRuntime = findByAccessibleName(panel, "Connect selected runtime MCP", JButton.class);
-        JButton connectCopilot = findByAccessibleName(panel, "Connect GitHub Copilot MCP", JButton.class);
         JComboBox<?> providerType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
         JComboBox<?> shaftAiProvider = findByAccessibleName(panel, "SHAFT AI provider", JComboBox.class);
         JPasswordField openAiField = findByAccessibleName(panel, "OpenAI API key", JPasswordField.class);
@@ -138,8 +127,8 @@ class ShaftSettingsConfigurableTest {
                 () -> assertNotNull(advanced),
                 () -> assertFalse(advanced.isSelected()),
                 () -> assertTrue(advanced.isVisible()),
-                () -> assertFalse(connectRuntime.isVisible()),
-                () -> assertFalse(connectCopilot.isVisible()),
+                () -> assertNull(findByAccessibleName(panel, "Connect selected runtime MCP", JButton.class)),
+                () -> assertNull(findByAccessibleName(panel, "Connect GitHub Copilot MCP", JButton.class)),
                 () -> assertFalse(providerType.isVisible()),
                 () -> assertFalse(shaftAiProvider.isVisible()),
                 () -> assertFalse(openAiField.isVisible()),

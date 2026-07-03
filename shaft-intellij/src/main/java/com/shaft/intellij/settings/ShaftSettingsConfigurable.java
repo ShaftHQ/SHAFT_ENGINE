@@ -9,8 +9,6 @@ import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
-import com.shaft.intellij.mcp.ShaftMcpInstallResult;
-import com.shaft.intellij.mcp.ShaftMcpInstaller;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.ui.ShaftIconButtons;
 import com.shaft.intellij.ui.ShaftIcons;
@@ -46,10 +44,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private final Supplier<CredentialAccess> credentialsProvider;
     private JPanel panel;
     private JBTextField mcpCommand;
-    private JButton installMcp;
     private JButton testMcp;
-    private JButton configureRuntimeMcp;
-    private JButton configureCopilotMcp;
     private JLabel testStatus;
     private JLabel currentAgentConfigurationTitle;
     private JLabel currentAgentConfiguration;
@@ -134,30 +129,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         mcpCommand.getEmptyText().setText("java -jar path/to/shaft-mcp.jar stdio");
         mcpCommand.getAccessibleContext().setAccessibleName("MCP stdio command");
         mcpCommand.getAccessibleContext().setAccessibleDescription("Command used to start SHAFT MCP in stdio mode.");
-        installMcp = new JButton("Install / Update SHAFT MCP");
-        installMcp.getAccessibleContext().setAccessibleName("Install or update SHAFT MCP");
-        installMcp.getAccessibleContext().setAccessibleDescription(
-                "Install or update shaft-mcp, fill the plugin stdio command, and connect the selected local assistant.");
-        ShaftIconButtons.apply(installMcp, ShaftIcons.DOWNLOAD);
-        installMcp.addActionListener(event -> installMcp());
         testMcp = new JButton("Test MCP");
         testMcp.getAccessibleContext().setAccessibleName("Test MCP");
         testMcp.getAccessibleContext().setAccessibleDescription(
                 "Run a one-time SHAFT MCP connection check with current settings.");
         ShaftIconButtons.apply(testMcp, ShaftIcons.SEND);
         testMcp.addActionListener(event -> testMcpConnection());
-        configureRuntimeMcp = new JButton("Connect selected runtime MCP");
-        configureRuntimeMcp.getAccessibleContext().setAccessibleName("Connect selected runtime MCP");
-        configureRuntimeMcp.getAccessibleContext().setAccessibleDescription(
-                "Install or update shaft-mcp and configure the selected local assistant runtime.");
-        ShaftIconButtons.apply(configureRuntimeMcp, ShaftIcons.SETTINGS);
-        configureRuntimeMcp.addActionListener(event -> configureRuntimeMcp());
-        configureCopilotMcp = new JButton("Connect GitHub Copilot MCP");
-        configureCopilotMcp.getAccessibleContext().setAccessibleName("Connect GitHub Copilot MCP");
-        configureCopilotMcp.getAccessibleContext().setAccessibleDescription(
-                "Install or update shaft-mcp and configure GitHub Copilot for IntelliJ IDEA.");
-        ShaftIconButtons.apply(configureCopilotMcp, ShaftIcons.GITHUB);
-        configureCopilotMcp.addActionListener(event -> configureCopilotMcp());
         testStatus = help("Not tested");
         currentAgentConfiguration = new JLabel();
         currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
@@ -263,10 +240,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
 
         panel = FormBuilder.createFormBuilder()
                 .addComponent(section("Connection"))
-                .addComponent(actionRow(installMcp, configureRuntimeMcp, configureCopilotMcp))
                 .addLabeledComponent(label("MCP stdio command", 'M', mcpCommand), mcpCommand)
                 .addLabeledComponent(testMcp, testStatus)
-                .addComponent(help("The command is filled by the installer. Edit it only for a custom local shaft-mcp runtime."))
+                .addComponent(help("Visit the SHAFT MCP user guide, install the MCP integration, paste the stdio command, then test the connection."))
                 .addComponent(section("Execution"))
                 .addLabeledComponent(currentAgentConfigurationTitle, currentAgentConfigurationRow)
                 .addLabeledComponent(assistantProviderTypeLabel, assistantProviderType)
@@ -398,10 +374,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     public void disposeUIResources() {
         panel = null;
         mcpCommand = null;
-        installMcp = null;
         testMcp = null;
-        configureRuntimeMcp = null;
-        configureCopilotMcp = null;
         testStatus = null;
         currentAgentConfigurationTitle = null;
         currentAgentConfiguration = null;
@@ -542,14 +515,6 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         return row;
     }
 
-    private static JPanel actionRow(JButton... buttons) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        for (JButton button : buttons) {
-            row.add(button);
-        }
-        return row;
-    }
-
     private static boolean hasPassword(JPasswordField field) {
         return field != null && field.getPassword().length > 0;
     }
@@ -637,102 +602,6 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
     }
 
-    private void installMcp() {
-        JButton button = installMcp;
-        if (button == null || testStatus == null) {
-            return;
-        }
-        button.setEnabled(false);
-        testStatus.setText("Installing...");
-        ShaftMcpInstaller.installForPluginAndClient(installerClientForSelection()).whenComplete((result, error) ->
-                ApplicationManager.getApplication().invokeLater(() -> showInstallResult(button, result, error)));
-    }
-
-    private void showInstallResult(JButton button, ShaftMcpInstallResult result, Throwable error) {
-        if (button != null) {
-            button.setEnabled(true);
-        }
-        if (error != null) {
-            testStatus.setText("Install failed");
-            Messages.showErrorDialog(panel, error.getMessage(), "SHAFT MCP");
-            return;
-        }
-        if (result != null && result.success()) {
-            mcpCommand.setText(result.commandLine());
-            ShaftSettingsState.Settings state = settingsProvider.get();
-            state.mcpCommand = result.commandLine();
-            state.mcpSetupComplete = false;
-            state.agentGuidanceOptimizationPromptPending = false;
-            testStatus.setText("Installed");
-            updateAgentConfigurationControls();
-        } else {
-            testStatus.setText("Install failed");
-            Messages.showErrorDialog(panel, result == null ? "No installer result returned." : result.output(),
-                    "SHAFT MCP");
-        }
-    }
-
-    private void configureCopilotMcp() {
-        JButton button = configureCopilotMcp;
-        if (button == null || testStatus == null) {
-            return;
-        }
-        button.setEnabled(false);
-        testStatus.setText("Configuring Copilot...");
-        ShaftMcpInstaller.configureCopilotIntellij().whenComplete((result, error) ->
-                ApplicationManager.getApplication().invokeLater(() -> showCopilotResult(button, result, error)));
-    }
-
-    private void configureRuntimeMcp() {
-        JButton button = configureRuntimeMcp;
-        if (button == null || testStatus == null) {
-            return;
-        }
-        String client = installerClientForSelection();
-        button.setEnabled(false);
-        testStatus.setText("Configuring " + client + "...");
-        ShaftMcpInstaller.configureClient(client).whenComplete((result, error) ->
-                ApplicationManager.getApplication().invokeLater(() -> showRuntimeResult(button, client, result, error)));
-    }
-
-    private void showRuntimeResult(JButton button, String client, ShaftMcpInstallResult result, Throwable error) {
-        if (button != null) {
-            button.setEnabled(true);
-        }
-        if (error == null && result != null && result.success()) {
-            testStatus.setText(client + " configured");
-        } else {
-            testStatus.setText("Runtime failed");
-            Messages.showErrorDialog(panel,
-                    error != null ? error.getMessage() : result == null ? "No installer result returned." : result.output(),
-                    "SHAFT MCP");
-        }
-    }
-
-    private String installerClientForSelection() {
-        String family = String.valueOf(assistantFamily.getSelectedItem());
-        String runtime = String.valueOf(assistantRuntime.getSelectedItem());
-        return switch (normalize(family, "CODEX")) {
-            case "CLAUDE" -> "DESKTOP_APP".equals(normalize(runtime, "CLI")) ? "claude-desktop" : "claude";
-            case "COPILOT" -> "IDE_PLUGIN".equals(normalize(runtime, "CLI")) ? "copilot-intellij" : "copilot";
-            default -> "codex";
-        };
-    }
-
-    private void showCopilotResult(JButton button, ShaftMcpInstallResult result, Throwable error) {
-        if (button != null) {
-            button.setEnabled(true);
-        }
-        if (error == null && result != null && result.success()) {
-            testStatus.setText("Copilot configured");
-        } else {
-            testStatus.setText("Copilot failed");
-            Messages.showErrorDialog(panel,
-                    error != null ? error.getMessage() : result == null ? "No installer result returned." : result.output(),
-                    "SHAFT MCP");
-        }
-    }
-
     private ShaftSettingsState.Settings formSettings() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
@@ -782,8 +651,6 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         boolean showSummary = mcpReady(state) && !editingAgentConfiguration;
         boolean cloud = advanced && "CLOUD".equals(assistantProviderType.getSelectedItem());
-        configureRuntimeMcp.setVisible(advanced);
-        configureCopilotMcp.setVisible(advanced);
         currentAgentConfigurationTitle.setVisible(showSummary);
         currentAgentConfigurationRow.setVisible(showSummary);
         currentAgentConfiguration.setVisible(showSummary);
