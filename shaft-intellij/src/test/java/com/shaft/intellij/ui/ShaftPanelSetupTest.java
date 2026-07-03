@@ -37,6 +37,8 @@ import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -221,7 +223,7 @@ class ShaftPanelSetupTest {
         assertNotNull(findByAccessibleName(toolWindow, "MCP stdio command", JTextComponent.class));
         assertNull(findByAccessibleName(toolWindow, "Install or update SHAFT MCP", JButton.class));
         assertTrue(containsText(toolWindow,
-                "Visit the SHAFT MCP user guide, install the MCP integration, then paste the stdio command."));
+                "Select target, run installer, infer command, test."));
         assertTrue(containsText(toolWindow, "Test connection"));
     }
 
@@ -271,6 +273,93 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelShowsInstallerCommandAndInfersInstalledStdioCommand() throws Exception {
+        Path appData = Files.createTempDirectory("shaft-mcp-app-data");
+        Path bootstrap = Files.createTempDirectory("shaft-mcp-bootstrap");
+        Path argsFile = appData.resolve("versions").resolve("10.3.20260703").resolve("shaft-mcp.args");
+        Path java = bootstrap.resolve("tools").resolve("jdk").resolve("temurin-25-test").resolve("bin")
+                .resolve(javaExecutableName());
+        Files.createDirectories(argsFile.getParent());
+        Files.writeString(argsFile, "-cp\nshaft-mcp.jar\ncom.shaft.mcp.ShaftMcpApplication\n");
+        Files.createDirectories(java.getParent());
+        Files.writeString(java, "");
+        String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
+        String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
+        System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
+        System.setProperty("shaft.intellij.mcp.bootstrapRoot", bootstrap.toString());
+        try {
+            ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+            });
+            AtomicReference<String> copied = new AtomicReference<>();
+            setField(panel, "copySink", (Consumer<String>) copied::set);
+            JTextComponent command = findByAccessibleName(panel, "MCP stdio command", JTextComponent.class);
+
+            assertAll(
+                    () -> assertNotNull(findByAccessibleName(panel, "MCP installer command", JTextComponent.class)),
+                    () -> assertNotNull(findByAccessibleName(panel, "MCP installer target", JComboBox.class)),
+                    () -> assertNotNull(findByAccessibleName(panel, "Copy MCP installer command", JButton.class)),
+                    () -> assertNotNull(findByAccessibleName(panel, "Use inferred MCP command", JButton.class)),
+                    () -> assertTrue(containsText(panel, "Run the installer command in a terminal.")),
+                    () -> assertTrue(command.getText().isBlank()),
+                    () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")));
+
+            clickAccessible(panel, "Copy MCP installer command");
+            assertAll(
+                    () -> assertTrue(copied.get().contains("install-shaft-mcp")),
+                    () -> assertTrue(copied.get().contains("codex")),
+                    () -> assertTrue(copied.get().contains("a95e891cbd3d79cdaaaf4b0d608fd56d09b8c69b")),
+                    () -> assertFalse(copied.get().contains("/main/")));
+            if (isWindowsOs()) {
+                assertAll(
+                        () -> assertTrue(copied.get().contains("-Command '$env:SHAFT_MCP_INSTALLER_REF")),
+                        () -> assertFalse(copied.get().contains("-Command \"$installer")));
+            } else {
+                assertTrue(copied.get().contains("SHAFT_MCP_INSTALLER_REF=\"$ref\""));
+            }
+
+            clickAccessible(panel, "Use inferred MCP command");
+
+            assertAll(
+                    () -> assertTrue(command.getText().contains(java.toString())),
+                    () -> assertTrue(command.getText().contains("@" + argsFile)),
+                    () -> assertTrue(containsText(panel, "MCP: Configured")),
+                    () -> assertTrue(containsText(panel, "Press Test connection next.")));
+        } finally {
+            restoreProperty("shaft.intellij.mcp.applicationDataRoot", oldAppData);
+            restoreProperty("shaft.intellij.mcp.bootstrapRoot", oldBootstrap);
+        }
+    }
+
+    @Test
+    void setupPanelUpdatesInstallerCommandForSelectedAssistantClient() {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        JTextComponent installer = findByAccessibleName(panel, "MCP installer command", JTextComponent.class);
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
+        JComboBox<?> target = findByAccessibleName(panel, "MCP installer target", JComboBox.class);
+
+        assertAll(
+                () -> assertEquals("CODEX", target.getSelectedItem()),
+                () -> assertTrue(installer.getText().contains("codex")));
+
+        family.setSelectedItem("CLAUDE");
+        runtime.setSelectedItem("DESKTOP_APP");
+        assertAll(
+                () -> assertEquals("CLAUDE_DESKTOP", target.getSelectedItem()),
+                () -> assertTrue(installer.getText().contains("claude-desktop")));
+
+        family.setSelectedItem("COPILOT");
+        runtime.setSelectedItem("IDE_PLUGIN");
+        assertAll(
+                () -> assertEquals("COPILOT_INTELLIJ", target.getSelectedItem()),
+                () -> assertTrue(installer.getText().contains("copilot-intellij")));
+
+        target.setSelectedItem("INTELLIJ_PLUGIN");
+        assertTrue(installer.getText().contains("intellij-plugin"));
+    }
+
+    @Test
     void setupPanelShowsBlankManualCommandDiagnostic() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
@@ -284,7 +373,7 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(panel, "Probe failed")),
                 () -> assertTrue(containsText(panel, "No SHAFT MCP command configured.")),
                 () -> assertTrue(containsText(panel,
-                        "Visit the SHAFT MCP user guide, install the MCP integration, then paste the stdio command.")),
+                        "Run the installer command, use the inferred command, or paste a manual stdio command.")),
                 () -> assertFalse(findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class).isEnabled()),
                 () -> assertTrue(findByAccessibleName(panel, "Copy setup diagnostic output", JButton.class).isEnabled()),
                 () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")),
@@ -1231,6 +1320,8 @@ class ShaftPanelSetupTest {
                 () -> assertIcon(findButton(panel, "Rerun")),
                 () -> assertIcon(findButton(panel, "Cancel")),
                 () -> assertIcon(findByAccessibleName(panel, "Send assistant prompt", JButton.class)),
+                () -> assertIcon(findButton(setupPanel, "Copy MCP installer command")),
+                () -> assertIcon(findButton(setupPanel, "Use inferred MCP command")),
                 () -> assertIcon(findButton(featurePanel, "Run")),
                 () -> assertIcon(findButton(featurePanel, "Cancel")),
                 () -> assertIcon(findButton(featurePanel, "Restore defaults")),
@@ -2021,6 +2112,22 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(button.getToolTipText().isBlank()),
                 () -> assertNotNull(accessibleName(button)),
                 () -> assertFalse(accessibleName(button).isBlank()));
+    }
+
+    private static String javaExecutableName() {
+        return isWindowsOs() ? "java.exe" : "java";
+    }
+
+    private static boolean isWindowsOs() {
+        return System.getProperty("os.name", "").toLowerCase().contains("win");
+    }
+
+    private static void restoreProperty(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, value);
+        }
     }
 
     private static List<JButton> collectButtons(Component root) {
