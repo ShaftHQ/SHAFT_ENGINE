@@ -100,6 +100,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton dismissCaptureReview;
     private final DefaultListModel<String> timelineModel;
     private final JList<String> timeline;
+    private final JPanel timelinePanel;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
@@ -330,7 +331,6 @@ final class ShaftAssistantPanel extends JPanel {
         providerType.addActionListener(event -> updateControlVisibility());
         assistantRuntime.addActionListener(event -> updateControlVisibility());
         cloudProvider.addActionListener(event -> updateControlVisibility());
-        updateControlVisibility();
         bindKeyboard(project);
         bindContextInsertion();
 
@@ -341,7 +341,7 @@ final class ShaftAssistantPanel extends JPanel {
         transcriptStatus.add(status);
         JPanel transcriptBottom = new JPanel(new BorderLayout(4, 4));
         transcriptBottom.add(captureReviewPanel, BorderLayout.NORTH);
-        JPanel timelinePanel = new JPanel(new BorderLayout(2, 2));
+        timelinePanel = new JPanel(new BorderLayout(2, 2));
         JLabel timelineLabel = new JLabel("Run timeline");
         timelineLabel.setLabelFor(timeline);
         timelinePanel.add(timelineLabel, BorderLayout.NORTH);
@@ -413,6 +413,7 @@ final class ShaftAssistantPanel extends JPanel {
         add(south, BorderLayout.SOUTH);
         refreshChatSelector();
         showPendingAgentGuidanceOptimizationPrompt();
+        updateControlVisibility();
     }
 
     JComponent preferredFocusComponent() {
@@ -476,6 +477,7 @@ final class ShaftAssistantPanel extends JPanel {
             timelineModel.remove(0);
         }
         timeline.ensureIndexIsVisible(timelineModel.size() - 1);
+        updateActionChrome();
     }
 
     List<ContextSuggestion> contextSuggestionsForTest(char trigger) {
@@ -646,6 +648,9 @@ final class ShaftAssistantPanel extends JPanel {
                 && promptRequiresSourceMutation(text)) {
             append("assistant", "To let the agent make source edits, please tick **Allow source edits** before sending.",
                     "");
+            addTimeline("Failed");
+            setRunning(false, "Approve source edits");
+            return;
         }
         prompt.setText("");
         if (invocation.isLocal()) {
@@ -971,6 +976,7 @@ final class ShaftAssistantPanel extends JPanel {
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
+        updateActionChrome();
     }
 
     private void showLocalResponse(String response) {
@@ -990,6 +996,7 @@ final class ShaftAssistantPanel extends JPanel {
         transcript.append(role, text);
         chatState.append(role, text, rawResponse);
         refreshChatSelector();
+        updateActionChrome();
     }
 
     void setRunning(boolean running, String message) {
@@ -1112,6 +1119,7 @@ final class ShaftAssistantPanel extends JPanel {
         assistantFamily.setEnabled(controlsEnabled && advanced && !lockedRoute);
         assistantRuntime.setEnabled(controlsEnabled && advanced && !lockedRoute);
         currentAgentConfiguration.setText(currentAgentConfigurationText());
+        currentAgentConfiguration.setToolTipText(currentAgentConfigurationTooltip());
         currentAgentConfiguration.setVisible(lockedRoute);
         customCommand.setVisible(advanced && !lockedRoute && localCli);
         customCommand.setEnabled(controlsEnabled && advanced && !lockedRoute && localCli);
@@ -1133,6 +1141,32 @@ final class ShaftAssistantPanel extends JPanel {
         if (cloud) {
             updateCloudKeyStatus();
         }
+        updateActionChrome();
+    }
+
+    private void updateActionChrome() {
+        if (copyLastResponse == null || copyRawResponse == null || copyTranscript == null
+                || clearTranscript == null || rerunLastPrompt == null || cancel == null || timelinePanel == null) {
+            return;
+        }
+        boolean hasResponse = !lastResponse.isBlank();
+        boolean hasRawResponse = !lastRawResponse.isBlank();
+        boolean hasTranscript = !transcript.markdown().isBlank() || !toolEvidence.isEmpty();
+        boolean canRerun = !lastPrompt.isBlank();
+        copyLastResponse.setVisible(hasResponse);
+        copyLastResponse.setEnabled(hasResponse);
+        copyRawResponse.setVisible(hasRawResponse);
+        copyRawResponse.setEnabled(hasRawResponse);
+        copyTranscript.setVisible(hasTranscript);
+        copyTranscript.setEnabled(hasTranscript);
+        clearTranscript.setVisible(hasTranscript);
+        clearTranscript.setEnabled(hasTranscript && !running);
+        rerunLastPrompt.setVisible(canRerun);
+        rerunLastPrompt.setEnabled(canRerun && !running);
+        cancel.setVisible(running);
+        cancel.setEnabled(running);
+        timelinePanel.setVisible(running || timelineModel.size() > 1);
+        timelinePanel.revalidate();
     }
 
     private void insertSelectedCommand() {
@@ -1261,6 +1295,7 @@ final class ShaftAssistantPanel extends JPanel {
         rerunLastPrompt.setEnabled(false);
         refreshChatSelector();
         status.setText("Cleared");
+        updateActionChrome();
     }
 
     private void newChat() {
@@ -1281,6 +1316,7 @@ final class ShaftAssistantPanel extends JPanel {
         copyRawResponse.setEnabled(false);
         rerunLastPrompt.setEnabled(false);
         status.setText("New chat");
+        updateActionChrome();
     }
 
     private void switchChat() {
@@ -1572,6 +1608,7 @@ final class ShaftAssistantPanel extends JPanel {
         copyLastResponse.setEnabled(false);
         copyRawResponse.setEnabled(false);
         rerunLastPrompt.setEnabled(false);
+        updateActionChrome();
     }
 
     private void copy(String value, String message) {
@@ -1797,6 +1834,15 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private String currentAgentConfigurationText() {
+        if (settings.advancedUiEnabled && "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
+            String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " " + settings.cloudModel.trim();
+            return ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "openai")) + model;
+        }
+        return ShaftUiLabels.friendly(resolveFamily(settings)) + " "
+                + ShaftUiLabels.friendly(normalize(settings.assistantRuntime, "CLI"));
+    }
+
+    private String currentAgentConfigurationTooltip() {
         if (settings.advancedUiEnabled && "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
             String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " / " + settings.cloudModel.trim();
             return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "openai")) + model;

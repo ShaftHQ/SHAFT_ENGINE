@@ -207,9 +207,13 @@ class ShaftPanelSetupTest {
         assertTrue(containsText(toolWindow, "MCP"));
         assertTrue(containsText(toolWindow, "Runtime"));
         assertTrue(containsText(toolWindow, "Assist"));
+        assertTrue(containsText(toolWindow, "1 Choose assistant"));
+        assertTrue(containsText(toolWindow, "2 Install MCP"));
+        assertTrue(containsText(toolWindow, "3 Detect command"));
+        assertTrue(containsText(toolWindow, "4 Test connection"));
         assertTrue(containsText(toolWindow, "Project: Configured"));
         assertTrue(containsText(toolWindow, "MCP: Not configured"));
-        assertTrue(containsText(toolWindow, "Runtime: Configured"));
+        assertTrue(containsText(toolWindow, "Runtime: Codex CLI selected"));
         assertTrue(containsText(toolWindow, "Assist: Not configured"));
         assertNotNull(findByAccessibleName(toolWindow, "Project setup section", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "MCP setup section", JLabel.class));
@@ -221,9 +225,10 @@ class ShaftPanelSetupTest {
         assertNotNull(findByAccessibleName(toolWindow, "Assistant connection setup status", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP setup next step", JLabel.class));
         assertNotNull(findByAccessibleName(toolWindow, "MCP stdio command", JTextComponent.class));
+        assertNotNull(findByAccessibleName(toolWindow, "Show manual MCP install target", JCheckBox.class));
         assertNull(findByAccessibleName(toolWindow, "Install or update SHAFT MCP", JButton.class));
-        assertTrue(containsText(toolWindow,
-                "Select target, run installer, infer command, test."));
+        assertTrue(containsText(toolWindow, "Copy the installer command"));
+        assertTrue(containsText(toolWindow, "detect the stdio command"));
         assertTrue(containsText(toolWindow, "Test connection"));
     }
 
@@ -235,7 +240,7 @@ class ShaftPanelSetupTest {
                 () -> assertNull(setupPanel(toolWindow)),
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
                 () -> assertNotNull(findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class)),
-                () -> assertTrue(containsText(toolWindow, "Agent: Local / Codex / CLI")));
+                () -> assertTrue(containsText(toolWindow, "Codex CLI")));
     }
 
     @Test
@@ -258,6 +263,7 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("\"java\" \"@target/shaft-mcp.args\"", command.getText()),
                 () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")),
                 () -> assertTrue(containsText(panel, "MCP: Configured")),
+                () -> assertTrue(containsText(panel, "Runtime: Codex CLI selected")),
                 () -> assertTrue(containsText(panel, "Assist: Not configured")),
                 () -> assertTrue(test.isEnabled()));
 
@@ -295,11 +301,14 @@ class ShaftPanelSetupTest {
             JTextComponent command = findByAccessibleName(panel, "MCP stdio command", JTextComponent.class);
 
             assertAll(
-                    () -> assertNotNull(findByAccessibleName(panel, "MCP installer command", JTextComponent.class)),
-                    () -> assertNotNull(findByAccessibleName(panel, "MCP installer target", JComboBox.class)),
+                    () -> assertTrue(findByAccessibleName(panel, "MCP installer command", JTextComponent.class)
+                            instanceof JBTextArea),
+                    () -> assertFalse(findByAccessibleName(panel, "MCP installer target", JComboBox.class).isVisible()),
+                    () -> assertNotNull(findByAccessibleName(panel, "Show manual MCP install target", JCheckBox.class)),
                     () -> assertNotNull(findByAccessibleName(panel, "Copy MCP installer command", JButton.class)),
                     () -> assertNotNull(findByAccessibleName(panel, "Use inferred MCP command", JButton.class)),
-                    () -> assertTrue(containsText(panel, "Run the installer command in a terminal.")),
+                    () -> assertTrue(containsText(panel, "Run the installer command")),
+                    () -> assertTrue(containsText(panel, "detect the stdio command")),
                     () -> assertTrue(command.getText().isBlank()),
                     () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")));
 
@@ -338,8 +347,11 @@ class ShaftPanelSetupTest {
         JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
         JComboBox<?> runtime = findByAccessibleName(panel, "Assistant runtime", JComboBox.class);
         JComboBox<?> target = findByAccessibleName(panel, "MCP installer target", JComboBox.class);
+        JCheckBox manualTarget = findByAccessibleName(panel, "Show manual MCP install target", JCheckBox.class);
 
         assertAll(
+                () -> assertNotNull(manualTarget),
+                () -> assertFalse(target.isVisible()),
                 () -> assertEquals("CODEX", target.getSelectedItem()),
                 () -> assertTrue(installer.getText().contains("codex")));
 
@@ -355,6 +367,7 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("COPILOT_INTELLIJ", target.getSelectedItem()),
                 () -> assertTrue(installer.getText().contains("copilot-intellij")));
 
+        manualTarget.doClick();
         target.setSelectedItem("INTELLIJ_PLUGIN");
         assertTrue(installer.getText().contains("intellij-plugin"));
     }
@@ -394,10 +407,14 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(panel, "Probe OK")),
                 () -> assertTrue(containsText(panel, "SUCCESS: Connected to SHAFT MCP.")),
                 () -> assertTrue(containsText(panel, "SUCCESS: Codex CLI executable is available on PATH.")),
+                () -> assertTrue(containsText(panel, "Runtime: Codex CLI verified")),
                 () -> assertTrue(containsText(panel, "Connected")),
-                () -> assertTrue(connected.get()),
+                () -> assertFalse(connected.get()),
+                () -> assertTrue(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class).isVisible()),
                 () -> assertTrue(settings.mcpSetupComplete),
                 () -> assertTrue(settings.agentGuidanceOptimizationPromptPending));
+        clickAccessible(panel, "Start chatting with SHAFT Assistant");
+        assertTrue(connected.get());
     }
 
     @Test
@@ -1180,6 +1197,43 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantActionChromeAppearsOnlyWhenUseful() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        JButton copyResponse = findByAccessibleName(panel, "Copy last assistant response", JButton.class);
+        JButton copyRaw = findByAccessibleName(panel, "Copy last raw assistant response", JButton.class);
+        JButton copyAll = findByAccessibleName(panel, "Copy assistant transcript", JButton.class);
+        JButton clear = findByAccessibleName(panel, "Clear assistant transcript", JButton.class);
+        JButton rerun = findByAccessibleName(panel, "Rerun last assistant prompt", JButton.class);
+        JButton cancel = findByAccessibleName(panel, "Cancel assistant request", JButton.class);
+        JComponent timelinePanel = (JComponent) getField(panel, "timelinePanel");
+
+        assertAll(
+                () -> assertFalse(copyResponse.isVisible()),
+                () -> assertFalse(copyRaw.isVisible()),
+                () -> assertFalse(copyAll.isVisible()),
+                () -> assertFalse(clear.isVisible()),
+                () -> assertFalse(rerun.isVisible()),
+                () -> assertFalse(cancel.isVisible()),
+                () -> assertFalse(timelinePanel.isVisible()));
+
+        showAssistantResult(panel, ShaftMcpToolResult.success("Rendered assistant output"));
+
+        assertAll(
+                () -> assertTrue(copyResponse.isVisible()),
+                () -> assertTrue(copyAll.isVisible()),
+                () -> assertTrue(clear.isVisible()),
+                () -> assertTrue(copyRaw.isVisible()),
+                () -> assertFalse(cancel.isVisible()));
+
+        panel.setRunning(true, "Thinking...");
+
+        assertAll(
+                () -> assertTrue(cancel.isVisible()),
+                () -> assertTrue(timelinePanel.isVisible()));
+    }
+
+    @Test
     void toolWindowButtonsAreIconOnlyAndSymmetric() {
         List<Component> panels = List.of(
                 new ShaftAssistantPanel(null, blankMcpSettings()),
@@ -1360,7 +1414,9 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(configure.isVisible()),
                 () -> assertFalse(family.isVisible()),
                 () -> assertFalse(runtime.isVisible()),
-                () -> assertTrue(containsText(panel, "Agent: Local / Codex / CLI")),
+                () -> assertTrue(containsText(panel, "Codex CLI")),
+                () -> assertEquals("Agent: Local / Codex / CLI",
+                        findByAccessibleName(panel, "Current agent configuration", JLabel.class).getToolTipText()),
                 () -> assertNull(findButton(panel, "Test connection and start chatting")),
                 () -> assertFalse(openedSetup.get()));
 
@@ -1373,9 +1429,11 @@ class ShaftPanelSetupTest {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
 
         assertAll(
-                () -> assertTrue(containsText(transcript, "command menu")),
-                () -> assertFalse(containsText(transcript, "/commands")),
-                () -> assertFalse(containsText(transcript, "/help")));
+                () -> assertTrue(containsText(transcript, "Start with")),
+                () -> assertTrue(containsText(transcript, "/guide")),
+                () -> assertTrue(containsText(transcript, "/browser")),
+                () -> assertTrue(containsText(transcript, "/record")),
+                () -> assertTrue(containsText(transcript, "/doctor")));
     }
 
     @Test
@@ -1426,10 +1484,32 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(rendered.contains(">Copy code<")),
                 () -> assertTrue(containsText(transcript, "Hello assistant")),
                 () -> assertTrue(containsText(transcript, "Hi user")),
-                () -> assertTrue(containsText(transcript, "Type a question")),
+                () -> assertFalse(containsText(transcript, "Start with")),
                 () -> assertFalse(rendered.contains("cellpadding=\"8\"")),
                 () -> assertFalse(rendered.contains("border=\"1\"")),
                 () -> assertFalse(rendered.contains("<table")));
+    }
+
+    @Test
+    void assistantTranscriptKeepsBubblesInsideNarrowToolWindow() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.setSize(new Dimension(360, 520));
+        transcript.append("user", "generate code that opens DuckDuckGo, searches SHAFT Engine, and opens the first result");
+        transcript.append("assistant", """
+                Confirmed target: https://duckduckgo.com/
+
+                ```java
+                public class DuckDuckGoSearchTest {
+                    private final SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+                }
+                ```
+                """.stripIndent().trim());
+        transcript.doLayout();
+
+        for (JComponent bubble : transcriptBubbles(transcript)) {
+            assertTrue(bubble.getPreferredSize().width <= 336,
+                    "Narrow transcript bubble should fit inside 360 px tool window: " + bubble.getPreferredSize());
+        }
     }
 
     @Test
@@ -1638,6 +1718,7 @@ class ShaftPanelSetupTest {
         ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
         assertNotNull(setupPanel);
         showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK"));
+        clickAccessible(setupPanel, "Start chatting with SHAFT Assistant");
 
         assertAll(
                 () -> assertTrue(transcriptMarkdown(toolWindow).contains("Previous assistant conversation")),
