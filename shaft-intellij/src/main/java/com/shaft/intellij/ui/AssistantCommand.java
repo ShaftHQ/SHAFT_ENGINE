@@ -1076,6 +1076,9 @@ final class AssistantCommand {
                 - Move stable locators into page object classes.
                 - Move replay actions into intent-named page methods.
                 - Keep the TestNG test focused on scenario orchestration and final assertions.
+                - Preserve the recorded browser journey; do not collapse it to only opening the start page or a generic title check.
+                - When the capture searched results, open the first result with a scoped first-result locator before asserting.
+                - assert the final page title or final page-specific text from the recorded destination.
                 - Preserve existing repository style and the smallest compiling source edit.
                 - Do not start a new recording or drive the browser again.
                 - Run the smallest relevant compile or test check if the project can do so locally.

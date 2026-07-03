@@ -572,6 +572,39 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantLocalAgentStaleCompletionClearsThinkingState() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        panel.setRunning(true, "Thinking...");
+        setField(panel, "activeLocalAgentStreamToken", -1);
+
+        showAgentResult(panel, 42, ShaftMcpToolResult.success("Created Page Object files."));
+
+        JLabel status = (JLabel) getField(panel, "status");
+        JProgressBar progress = (JProgressBar) getField(panel, "progress");
+        assertAll(
+                () -> assertEquals("ready", status.getText()),
+                () -> assertFalse(progress.isVisible()),
+                () -> assertTrue(transcriptMarkdown(panel).contains("Created Page Object files.")),
+                () -> assertFalse(transcriptMarkdown(panel).contains("Running local assistant")));
+    }
+
+    @Test
+    void assistantLocalAgentStaleCompletionDoesNotInterruptActiveStream() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        panel.setRunning(true, "Thinking...");
+        setField(panel, "activeLocalAgentStreamToken", 7);
+
+        showAgentResult(panel, 42, ShaftMcpToolResult.success("Stale output"));
+
+        JLabel status = (JLabel) getField(panel, "status");
+        JProgressBar progress = (JProgressBar) getField(panel, "progress");
+        assertAll(
+                () -> assertEquals("Thinking...", status.getText()),
+                () -> assertTrue(progress.isVisible()),
+                () -> assertFalse(transcriptMarkdown(panel).contains("Stale output")));
+    }
+
+    @Test
     void assistantRejectsNativeSeleniumLocalAgentCodeAndNamesShaftPracticeTools() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
 
@@ -1377,6 +1410,14 @@ class ShaftPanelSetupTest {
                 "showAgentResult", ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, result, null);
+    }
+
+    private static void showAgentResult(ShaftAssistantPanel panel, int streamToken, ShaftMcpToolResult result)
+            throws Exception {
+        Method showResult = ShaftAssistantPanel.class.getDeclaredMethod(
+                "showAgentResult", int.class, ShaftMcpToolResult.class, Throwable.class);
+        showResult.setAccessible(true);
+        showResult.invoke(panel, streamToken, result, null);
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {
