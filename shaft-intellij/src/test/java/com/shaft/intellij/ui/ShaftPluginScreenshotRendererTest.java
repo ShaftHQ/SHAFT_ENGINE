@@ -354,7 +354,9 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {
-        Project project = screenshotProject();
+        Project project = selectedTab == 0
+                ? screenshotProject(populatedAssistantChatState())
+                : screenshotProject();
         ShaftSettingsState.Settings settings = defaultSettings();
         settings.advancedUiEnabled = true;
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings);
@@ -369,6 +371,10 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static Project screenshotProject() {
+        return screenshotProject(null);
+    }
+
+    private static Project screenshotProject(ShaftAssistantChatState assistantChatState) {
         return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
                 (proxy, method, arguments) -> switch (method.getName()) {
                     case "equals" -> proxy == arguments[0];
@@ -376,8 +382,23 @@ class ShaftPluginScreenshotRendererTest {
                     case "toString" -> "SHAFT screenshot project";
                     case "getBasePath" -> "";
                     case "getName" -> "SHAFT";
+                    case "getService" -> {
+                        Class<?> type = arguments == null || arguments.length == 0 ? null : (Class<?>) arguments[0];
+                        yield type == ShaftAssistantChatState.class ? assistantChatState : null;
+                    }
                     default -> defaultValue(method.getReturnType());
                 });
+    }
+
+    private static ShaftAssistantChatState populatedAssistantChatState() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "generate code that opens DuckDuckGo and verifies the SHAFT Engine result", "");
+        chatState.append("assistant", """
+                Confirm the exact DuckDuckGo URL before code generation.
+
+                %s
+                """.formatted(ASSISTANT_SHAFT_CODE_SAMPLE).stripIndent().trim(), "");
+        return chatState;
     }
 
     private static Object defaultValue(Class<?> returnType) {

@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.mcp.ShaftMcpInstallResult;
@@ -866,36 +867,41 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantComposerUsesCompactCommandHintAndModernThinkingIndicator() {
+    void assistantComposerUsesCommandAutocompleteAndModernThinkingIndicator() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
-        JButton commandHint = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
+        JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
         JProgressBar spinner = findByAccessibleName(panel, "Assistant thinking spinner", JProgressBar.class);
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
 
         assertAll(
-                () -> assertNotNull(commandHint),
-                () -> assertNotNull(commandHint.getIcon()),
-                () -> assertTrue(commandHint.getIcon().getIconWidth() > 0),
-                () -> assertTrue(commandHint.getIcon().getIconHeight() > 0),
-                () -> assertTrue(commandHint.getToolTipText().contains("/commands")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/help")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/record")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/mobile")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/doctor")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/mcp")),
-                () -> assertTrue(containsText(panel, "commands (/commands)")),
+                () -> assertNotNull(commandAutocomplete),
+                () -> assertTrue(commandAutocomplete.isEditable()),
+                () -> assertTrue(comboContains(commandAutocomplete, "/commands")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/browser")),
+                () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)")),
+                () -> assertNull(findByAccessibleName(panel, "SHAFT command hints", JButton.class)),
                 () -> assertNotNull(spinner),
                 () -> assertTrue(spinner.isIndeterminate()),
                 () -> assertFalse(spinner.isVisible()),
                 () -> assertNotNull(sendButton),
-                () -> assertEquals("", commandHint.getText()),
                 () -> assertEquals("", sendButton.getText()),
-                () -> assertTrue(sendButton.getPreferredSize().width > commandHint.getPreferredSize().width),
                 () -> assertNotNull(sendButton.getIcon()),
                 () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
                 () -> assertTrue(sendButton.getIcon().getIconHeight() > 0));
+    }
+
+    @Test
+    void assistantCommandAutocompleteInsertsCommandIntoPrompt() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
+        JTextComponent prompt = assistantPrompt(panel);
+
+        prompt.setText("please ");
+        prompt.setCaretPosition(prompt.getDocument().getLength());
+        commandAutocomplete.setSelectedItem("/browser");
+
+        assertEquals("please /browser ", prompt.getText());
     }
 
     @Test
@@ -933,7 +939,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void iconButtonsUseBorderlessIconOnlySurfaces() {
+    void iconButtonsUseClickableIconOnlySurfaces() {
         JButton active = new JButton("Run");
         JButton inactive = new JButton("Cancel");
         ShaftIconButtons.apply(active, ShaftIcons.SEND);
@@ -944,27 +950,12 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertNotNull(inactive.getDisabledIcon()),
                 () -> assertEquals(inactive.getIcon().getIconWidth(), inactive.getDisabledIcon().getIconWidth()),
-                () -> assertFalse(active.isContentAreaFilled()),
-                () -> assertFalse(inactive.isContentAreaFilled()),
-                () -> assertFalse(active.isOpaque()),
-                () -> assertFalse(inactive.isOpaque()),
-                () -> assertFalse(active.isBorderPainted()),
-                () -> assertFalse(inactive.isBorderPainted()),
-                () -> assertFalse(active.isFocusPainted()),
-                () -> assertFalse(inactive.isFocusPainted()));
-    }
-
-    @Test
-    void assistantCommandHintKeepsIconOnlyMetadata() {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JButton commandHint = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
-
-        assertAll(
-                () -> assertIconOnlySymmetric(commandHint),
-                () -> assertNotNull(commandHint.getToolTipText()),
-                () -> assertTrue(commandHint.getToolTipText().contains("/commands")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/mcp")));
+                () -> assertTrue(active.isContentAreaFilled()),
+                () -> assertTrue(active.isBorderPainted()),
+                () -> assertTrue(active.isFocusPainted()),
+                () -> assertTrue(active.isRolloverEnabled()),
+                () -> assertTrue(inactive.isContentAreaFilled()),
+                () -> assertTrue(inactive.isBorderPainted()));
     }
 
     @Test
@@ -1105,7 +1096,15 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(html.contains("Hi user")),
                 () -> assertTrue(html.indexOf("Hi user") < html.indexOf("Type a question")),
                 () -> assertFalse(html.contains("cellpadding=\"8\"")),
-                () -> assertFalse(html.contains("border=\"1\"")));
+                () -> assertFalse(html.contains("border=\"1\"")),
+                () -> assertFalse(html.contains("<table")));
+    }
+
+    @Test
+    void assistantTranscriptUsesReadActionForIntellijRendering() {
+        assertTrue(AssistantTranscriptView.renderReadActionForTest(
+                () -> ApplicationManager.getApplication() == null
+                        || ApplicationManager.getApplication().isReadAccessAllowed()));
     }
 
     @Test

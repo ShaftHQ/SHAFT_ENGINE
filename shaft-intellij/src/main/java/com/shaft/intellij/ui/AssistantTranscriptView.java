@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.intellij.lang.Language;
 import com.intellij.lexer.Lexer;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
@@ -14,6 +15,7 @@ import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
+import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.LightVirtualFile;
@@ -33,6 +35,7 @@ import javax.swing.JScrollBar;
 import javax.swing.UIManager;
 import javax.swing.BoxLayout;
 import javax.swing.SwingUtilities;
+import javax.swing.BorderFactory;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.text.html.HTMLEditorKit;
 import javax.swing.JLabel;
@@ -43,6 +46,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Dimension;
+import java.awt.LayoutManager;
 import java.awt.datatransfer.StringSelection;
 import java.lang.reflect.Proxy;
 import java.net.URLDecoder;
@@ -52,6 +56,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -101,6 +106,7 @@ final class AssistantTranscriptView extends JPanel {
         pane.setOpaque(true);
         pane.setBorder(JBUI.Borders.empty(8));
         pane.addHyperlinkListener(AssistantTranscriptView::copyCodeFromFallbackLink);
+        setBorder(BorderFactory.createLineBorder(resolvedColor("Component.borderColor", new Color(0xD0D7DE))));
         fallbackPanel = new JPanel();
         fallbackPanel.setLayout(new BoxLayout(fallbackPanel, BoxLayout.Y_AXIS));
         fallbackPanel.setBorder(JBUI.Borders.empty(8));
@@ -243,9 +249,11 @@ final class AssistantTranscriptView extends JPanel {
                         box-sizing: border-box;
                         max-width: 88%%;
                         padding: 9px 11px;
-                        border-radius: 16px;
+                        border-radius: 8px;
                         text-align: left;
                         vertical-align: top;
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
                     }
                     .shaft-chat-bubble.user, .shaft-chat-bubble-user {
                         color: %s;
@@ -370,9 +378,11 @@ final class AssistantTranscriptView extends JPanel {
     private String convertMarkdown(String value) {
         String safeValue = value == null ? "" : value;
         try {
-            markdownFile.setContent(this, safeValue, false);
-            String html = MarkdownUtil.INSTANCE.generateMarkdownHtml(markdownFile, safeValue, project);
-            return addCodeCopyButtons(bodyContent(html));
+            return renderReadAction(() -> {
+                markdownFile.setContent(this, safeValue, false);
+                String html = MarkdownUtil.INSTANCE.generateMarkdownHtml(markdownFile, safeValue, project);
+                return addCodeCopyButtons(bodyContent(html));
+            });
         } catch (LinkageError | RuntimeException exception) {
             return addCodeCopyButtons(COMMONMARK_HTML.render(COMMONMARK.parse(safeValue)));
         }
@@ -381,7 +391,10 @@ final class AssistantTranscriptView extends JPanel {
     private void refresh() {
         renderedHtml = toHtml(renderMessages() + renderInitialMessage());
         if (markdownPanel != null) {
-            markdownPanel.setHtml(renderedHtml, 0, markdownFile);
+            renderReadAction(() -> {
+                markdownPanel.setHtml(renderedHtml, 0, markdownFile);
+                return null;
+            });
         } else {
             renderFallbackTranscript();
         }
@@ -408,45 +421,28 @@ final class AssistantTranscriptView extends JPanel {
         Color foreground = user
                 ? resolvedColor("Panel.selectionForeground", Color.WHITE)
                 : resolvedColor("TextArea.foreground", new Color(0x202020));
-        JPanel row = new JPanel(new BorderLayout());
+        JPanel row = new PreferredHeightRow(new BorderLayout());
         row.setOpaque(false);
         row.setBorder(JBUI.Borders.emptyBottom(10));
         RoundedBubblePanel bubble = new RoundedBubblePanel(background, null, 18);
         bubble.setLayout(new BorderLayout());
         bubble.setBorder(JBUI.Borders.empty(9, 11));
-        bubble.add(user && isPlainSingleLine(markdown)
-                ? fallbackPlainLabel(markdown, foreground)
-                : fallbackHtmlPane(convertMarkdown(markdown), foreground, background), BorderLayout.CENTER);
+        bubble.add(fallbackHtmlPane(convertMarkdown(markdown), foreground, background), BorderLayout.CENTER);
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
         return row;
     }
 
-    private static boolean isPlainSingleLine(String value) {
-        return value != null
-                && !value.contains("\n")
-                && !value.contains("\r")
-                && !value.matches(".*[`*_#\\[\\]<>|!].*");
-    }
-
-    private static JLabel fallbackPlainLabel(String text, Color foreground) {
-        JLabel label = new JLabel(text);
-        label.setForeground(foreground);
-        return label;
-    }
-
     private JComponent fallbackHint() {
-        JPanel row = new JPanel(new BorderLayout());
+        JPanel row = new PreferredHeightRow(new BorderLayout());
         row.setOpaque(false);
         JLabel label = new JLabel(INITIAL_MESSAGE);
         label.setForeground(resolvedColor("TextArea.foreground", new Color(0x202020)));
         row.add(label, BorderLayout.WEST);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
         return row;
     }
 
     private JEditorPane fallbackHtmlPane(String html, Color foreground, Color background) {
-        JEditorPane htmlPane = new JEditorPane();
+        JEditorPane htmlPane = new WidthAwareHtmlPane(this::fallbackBubbleContentWidth);
         htmlPane.setContentType("text/html");
         htmlPane.setEditorKit(new HTMLEditorKit());
         htmlPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
@@ -460,6 +456,20 @@ final class AssistantTranscriptView extends JPanel {
         return htmlPane;
     }
 
+    private int fallbackBubbleContentWidth() {
+        int viewportWidth = fallbackScrollPane == null ? 0 : fallbackScrollPane.getViewport().getWidth();
+        if (viewportWidth <= 0) {
+            viewportWidth = getWidth();
+        }
+        if (viewportWidth <= 0) {
+            viewportWidth = JBUI.scale(520);
+        }
+        int rowPadding = JBUI.scale(16);
+        int bubblePadding = JBUI.scale(22);
+        int bubbleWidth = (int) Math.floor(Math.max(JBUI.scale(180), viewportWidth - rowPadding) * 0.88D);
+        return Math.max(JBUI.scale(140), bubbleWidth - bubblePadding);
+    }
+
     private String toFallbackHtml(String value, Color foreground, Color background) {
         String codeBackground = color("EditorPane.background", color("TextArea.background", "#ffffff"));
         String border = color("Component.borderColor", "#d0d7de");
@@ -468,12 +478,12 @@ final class AssistantTranscriptView extends JPanel {
                 <head>
                   <meta charset="UTF-8">
                   <style>
-                    body { font-family: '%s'; font-size: %dpt; color: %s; background: %s; margin: 0; }
+                    body { font-family: '%s'; font-size: %dpt; color: %s; background: %s; margin: 0; width: 100%%; }
                     p, ul, ol, h1, h2, h3, h4, h5, h6 { margin-top: 0; }
                     p:last-child { margin-bottom: 0; }
                     hr { border: 0; border-top: 1px solid %s; margin: 10px 0; }
                     code { font-family: 'JetBrains Mono', 'Consolas', 'Monospaced', monospace; }
-                    .shaft-code-block { margin: 8px 0; border: 1px solid %s; background: %s; }
+                    .shaft-code-block { margin: 8px 0; border: 1px solid %s; background: %s; max-width: 100%%; }
                     .shaft-code-toolbar { padding: 4px 6px; text-align: right; border-bottom: 1px solid %s; }
                     .shaft-code-copy {
                         display: inline-block;
@@ -486,7 +496,15 @@ final class AssistantTranscriptView extends JPanel {
                         line-height: 16px;
                     }
                     .shaft-code-copy-icon { font-family: Monospaced; font-size: 15px; line-height: 16px; }
-                    pre { margin: 0; padding: 9px 10px; white-space: pre-wrap; color: %s; background: %s; }
+                    pre {
+                        margin: 0;
+                        padding: 9px 10px;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                        color: %s;
+                        background: %s;
+                    }
+                    .shaft-code-highlighted { white-space: pre-wrap; word-wrap: break-word; }
                   </style>
                 </head>
                 <body>%s</body>
@@ -527,26 +545,12 @@ final class AssistantTranscriptView extends JPanel {
         String rowStyle = "clear:both;margin:0 0 10px 0;width:100%;text-align:" + alignment + ";";
         String bubbleStyle = "color:" + foreground
                 + ";background-color:" + background
-                + ";border-radius:16px;padding:9px 11px;text-align:left;";
-        String bubble = user
-                ? renderUserBubble(markdown, background, bubbleStyle, roleClass)
-                : "<table cellspacing=\"0\" cellpadding=\"0\"><tr><td bgcolor=\"" + background
-                + "\" class=\"shaft-chat-bubble " + roleClass + " shaft-chat-bubble-" + roleClass
-                + "\" style=\"" + bubbleStyle + "\">"
-                + convertMarkdown(markdown)
-                + "</td></tr></table>";
+                + ";border-radius:8px;padding:9px 11px;text-align:left;display:inline-block;box-sizing:border-box;max-width:88%;";
         return "<div class=\"shaft-chat-row " + roleClass + " shaft-chat-row-" + roleClass
-                + "\" style=\"" + rowStyle + "\">"
-                + "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"" + alignment + "\">"
-                + bubble
-                + "</td></tr></table></div>";
-    }
-
-    private String renderUserBubble(String markdown, String background, String bubbleStyle, String roleClass) {
-        return "<div class=\"shaft-chat-bubble " + roleClass + " shaft-chat-bubble-" + roleClass
-                + "\" style=\"display:inline-block;box-sizing:border-box;max-width:88%;" + bubbleStyle + "\">"
+                + "\" style=\"" + rowStyle + "\"><div class=\"shaft-chat-bubble " + roleClass
+                + " shaft-chat-bubble-" + roleClass + "\" style=\"" + bubbleStyle + "\">"
                 + convertMarkdown(markdown)
-                + "</div>";
+                + "</div></div>";
     }
 
     private String renderInitialMessage() {
@@ -595,6 +599,10 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private String highlightedCodeBlock(String originalCodeBlock, String code, String languageLabel) {
+        return renderReadAction(() -> highlightedCodeBlockInReadAction(originalCodeBlock, code, languageLabel));
+    }
+
+    private String highlightedCodeBlockInReadAction(String originalCodeBlock, String code, String languageLabel) {
         Language language = languageForFence(languageLabel);
         if (language == null) {
             String highlighted = highlightedBySyntaxHighlighter(code, languageLabel);
@@ -629,6 +637,18 @@ final class AssistantTranscriptView extends JPanel {
             }
             return originalCodeBlock;
         }
+    }
+
+    static <T> T renderReadActionForTest(Supplier<T> supplier) {
+        return renderReadAction(supplier);
+    }
+
+    private static <T> T renderReadAction(Supplier<T> supplier) {
+        if (ApplicationManager.getApplication() == null
+                || ApplicationManager.getApplication().isReadAccessAllowed()) {
+            return supplier.get();
+        }
+        return ApplicationManager.getApplication().runReadAction((Computable<T>) supplier::get);
     }
 
     private static String languageFromCodeBlock(String codeBlock) {
@@ -1010,6 +1030,43 @@ final class AssistantTranscriptView extends JPanel {
             String annotation,
             String type,
             String property) {
+    }
+
+    private static final class WidthAwareHtmlPane extends JEditorPane {
+        private final Supplier<Integer> widthSupplier;
+
+        private WidthAwareHtmlPane(Supplier<Integer> widthSupplier) {
+            this.widthSupplier = widthSupplier;
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            int preferredWidth = widthSupplier.get();
+            if (preferredWidth > 0) {
+                setSize(new Dimension(preferredWidth, Short.MAX_VALUE));
+                Dimension preferred = super.getPreferredSize();
+                preferred.width = Math.min(preferred.width, preferredWidth);
+                return preferred;
+            }
+            return super.getPreferredSize();
+        }
+
+        @Override
+        public Dimension getMaximumSize() {
+            Dimension preferred = getPreferredSize();
+            return new Dimension(preferred.width, preferred.height);
+        }
+    }
+
+    private static final class PreferredHeightRow extends JPanel {
+        private PreferredHeightRow(LayoutManager layout) {
+            super(layout);
+        }
+
+        @Override
+        public Dimension getMaximumSize() {
+            return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+        }
     }
 
     private static final class RoundedBubblePanel extends JPanel {

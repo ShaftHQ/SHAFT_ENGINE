@@ -45,12 +45,12 @@ public final class ShaftIconButtons {
         button.setPreferredSize(size);
         button.setMinimumSize(size);
         button.setMaximumSize(size);
-        button.setMargin(JBUI.emptyInsets());
+        button.setMargin(JBUI.insets(3));
         button.setOpaque(false);
-        button.setContentAreaFilled(false);
-        button.setBorder(JBUI.Borders.empty());
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(true);
+        button.setFocusPainted(true);
+        button.setRolloverEnabled(true);
     }
 
     public static void widen(JButton button, int width) {
