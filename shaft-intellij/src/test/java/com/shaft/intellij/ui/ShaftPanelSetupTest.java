@@ -400,14 +400,16 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(installPanel, "Category: Java/runtime")),
                 () -> assertTrue(containsText(installPanel, "For Codex, run `codex mcp list`")),
                 () -> assertTrue(containsText(installPanel, "Diagnostic command")),
-                () -> assertTrue(containsText(installPanel, "Install-ShaftMcp -Client codex")),
+                () -> assertTrue(containsText(installPanel, "--json")),
                 () -> assertTrue(containsText(installPanel, "java: command not found")),
                 () -> assertTrue(findByAccessibleName(installPanel, "Copy setup diagnostic command", JButton.class).isEnabled()),
                 () -> assertTrue(findByAccessibleName(installPanel, "Copy setup diagnostic output", JButton.class).isEnabled()),
                 () -> assertTrue(findButton(installPanel, "Install / Update SHAFT MCP").isEnabled()),
                 () -> assertFalse(findButton(installPanel, "Test connection and start chatting").isEnabled()));
         clickAccessible(installPanel, "Copy setup diagnostic command");
-        assertTrue(copied.get().contains("Install-ShaftMcp -Client codex"));
+        assertAll(
+                () -> assertTrue(copied.get().contains("codex")),
+                () -> assertTrue(copied.get().contains("--json")));
         clickAccessible(installPanel, "Copy setup diagnostic output");
         assertTrue(copied.get().contains("Category: Java/runtime"));
 
