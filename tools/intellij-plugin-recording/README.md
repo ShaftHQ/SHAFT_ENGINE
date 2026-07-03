@@ -23,8 +23,8 @@ The default assistant route is local. The advanced UI flag is disabled by defaul
 1. Open SHAFT.
 2. Select `Family: CODEX`.
 3. Select `Runtime: CLI`.
-4. Click `Install / Update SHAFT MCP`.
-5. Click `Test MCP`.
+4. Follow the SHAFT MCP user guide to install the MCP integration, then paste the generated stdio command.
+5. Click `Test connection and start chatting`.
 6. Confirm the setup view closes and SHAFT Assistant opens after a successful test.
 
 ## Assistant Browser Control

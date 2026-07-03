@@ -129,12 +129,12 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-success.png" alt="SHAFT IntelliJ IDEA plugin MCP setup success flow" width="620">
       <br><strong>MCP setup success</strong>
-      <br>The setup flow shows the resolved version, stdio command, install log, and next test-connection action.
+      <br>The setup flow shows the pasted stdio command, successful probe output, and the transition into the Assistant.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-mcp-setup-error-dark.png" alt="SHAFT IntelliJ IDEA plugin MCP setup error state in dark theme" width="620">
       <br><strong>MCP setup error</strong>
-      <br>Install and probe failures stay inline with categorized diagnostics, client-specific next steps, retry actions, and copyable command/output controls.
+      <br>Probe failures stay inline with categorized diagnostics, client-specific next steps, retry actions, and copyable command/output controls.
     </td>
   </tr>
   <tr>
@@ -217,7 +217,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, SikuliX desktop image automation, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
 | MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
-| IntelliJ IDEA plugin | First-run MCP installation now uses explicit Project/MCP/Runtime/Assist status rows with categorized retry diagnostics; the Assistant restores safe project chats, shows a run timeline, exposes the tested command families and working `@`/`#` context insertion, while Guided templates, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools remain first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-success.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-mcp-setup-narrow-dark.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
+| IntelliJ IDEA plugin | First-run MCP setup now accepts a local stdio command, uses explicit Project/MCP/Runtime/Assist status rows with categorized retry diagnostics, and avoids running installer scripts in the plugin; the Assistant restores safe project chats, shows a run timeline, exposes the tested command families and working `@`/`#` context insertion, while Guided templates, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools remain first-class IDE workflows. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-success.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-mcp-setup-narrow-dark.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
 | IntelliJ Assistant fix for issue #3188 | Chat transcript messages are now role-rendered (user/assistant bubbles), sessions persist and restore correctly, and the route/runtime controls lock with a visible configure recovery path once MCP is configured. | `intellij-plugin-assistant.png`, `intellij-plugin-mcp-setup.png` |
 | IntelliJ Assistant fix for issue #3237 | Local Agent completion callbacks now clear the running state even when the streaming token was already reset, and approved capture generation tells the Agent to preserve the recorded journey, open the first search result, and assert the final page title or page-specific text. | `intellij-plugin-assistant-live-output-dark.png`, `intellij-plugin-assistant-narrow-dark.png` |
 | IntelliJ Assistant chat polish | Newly sent user prompts scroll into view immediately, while SHAFT-owned icon buttons and Assistant bubbles use borderless surfaces so chat feedback reads clearly in light, dark, and narrow tool windows. | `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-assistant-narrow-dark.png` |
@@ -247,7 +247,7 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 
 | Workflow | What it gives users | Entry point |
 | --- | --- | --- |
-| Install and run | Local installers for Codex, Claude, Claude Desktop, Copilot, Copilot IntelliJ, and the SHAFT IntelliJ plugin JSON bootstrap, plus stdio and HTTP transports. | `py -3 scripts/mcp/install_shaft_mcp.py --client intellij-plugin --json` |
+| Install and run | Local installers for Codex, Claude, Claude Desktop, Copilot, Copilot IntelliJ, plus JSON stdio command output that IntelliJ plugin users can paste into the IDE. The Marketplace plugin itself does not run installer scripts. | `py -3 scripts/mcp/install_shaft_mcp.py --client intellij-plugin --json` |
 | URL intent orientation | Open a URL, bound the DOM, rank actionable elements, return SHAFT locator code, and suggest the next MCP tools. | `driver_initialize -> browser_open_intent(targetUrl, userIntent, 200000, 10)` |
 | Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
 | Semantic actions | Combine guide search, scenario catalog, guardrail checks, and `natural_act` without leaving the MCP session. | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
@@ -270,13 +270,13 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.3.20260702`). It is intentionally thin: first-run setup installs or updates SHAFT MCP, persists the stdio command, shows Project/MCP/Runtime/Assist status rows, asks the user to choose the assistant family/runtime, and opens the Assistant after a successful connection test. Settings remain available later for Local/Cloud routing, API keys, Copilot MCP configuration, and custom local MCP commands.
+`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.3.20260702`). It is intentionally thin: first-run setup accepts a local SHAFT MCP stdio command generated outside IntelliJ, persists it, shows Project/MCP/Runtime/Assist status rows, asks the user to choose the assistant family/runtime, and opens the Assistant after a successful connection test. The plugin does not download or execute installer scripts at runtime. Settings remain available later for Local/Cloud routing, API keys, and custom local MCP commands.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
 | Tool window | Right-side SHAFT assistant panel with dedicated workflow tabs for Assistant, Guided, Recorder, Inspector, Triage, Evidence Tools, Projects, and Advanced Tools. | `Tools -> SHAFT -> Open SHAFT` |
-| First-run setup | Install or update SHAFT MCP from the tool window, choose Codex, Claude, or Copilot plus CLI/plugin/app runtime, then test the connection. Project, MCP, Runtime, and Assist rows show configured, not configured, connecting, or error states; retry actions stay enabled after failures. A successful test hides setup and opens the Assistant. | `Tools -> SHAFT -> Open SHAFT` |
-| Settings and providers | Reinstall or retest MCP, change Local/Cloud routing, connect the selected local runtime MCP client, select the cloud provider/model, configure GitHub Copilot MCP, and store or clear OpenAI, Anthropic, Gemini, and GitHub keys. Only the selected cloud provider key is passed to MCP. | `Settings -> SHAFT` |
+| First-run setup | If a tested MCP command is already configured, the tool window opens the Assistant directly. Otherwise, the landing points users to the SHAFT MCP guide, asks them to install the MCP integration, accepts the generated stdio command, and tests the connection. Project, MCP, Runtime, and Assist rows show configured, not configured, connecting, or error states; retry actions stay enabled after failures. | `Tools -> SHAFT -> Open SHAFT` |
+| Settings and providers | Retest MCP, change Local/Cloud routing, select the cloud provider/model, and store or clear OpenAI, Anthropic, Gemini, and GitHub keys. Only the selected cloud provider key is passed to MCP. | `Settings -> SHAFT` |
 | Guided workflows | Pick starter templates for browser capture to Page Objects, failed Allure analysis, Selenium-to-SHAFT conversion, confirmed new SHAFT projects, and locator inspection without editing JSON first. | `Guided` tab |
 | Recorder | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` tab |
 | Project tools | Create a SHAFT project after confirmation, preview an upgrade, or apply an approved upgrade through MCP. | `Projects` tab |

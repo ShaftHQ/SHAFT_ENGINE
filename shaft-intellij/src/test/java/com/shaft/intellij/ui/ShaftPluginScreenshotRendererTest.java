@@ -2,7 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
-import com.shaft.intellij.mcp.ShaftMcpInstallResult;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsConfigurable;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Assumptions;
@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -301,16 +302,15 @@ class ShaftPluginScreenshotRendererTest {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
-            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), new ShaftSettingsState.Settings(),
+            ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+            settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), settings,
                     () -> {
-                    });
-            invokeShowInstallResult(component, new ShaftMcpInstallResult(true, "\"java\" \"@target/shaft-mcp.args\"",
-                    """
-                            Client target: codex
-                            Resolving io.github.shafthq:shaft-mcp:LATEST...
-                            Installing io.github.shafthq:shaft-mcp:10.3.20260702
-                            {"client":"codex","server":"shaft-mcp","version":"10.3.20260702","command":"java","args":["@target/shaft-mcp.args"]}
-                            """.stripIndent().trim()));
+                    }, (client, runtime) -> ShaftMcpToolResult.success("Codex CLI executable is available on PATH."));
+            invokeShowTestResult(component, ShaftMcpToolResult.success("""
+                    Initialized SHAFT MCP 10.3.20260702
+                    MCP workspace: C:\\Users\\demo\\IdeaProjects\\shop-tests
+                    """.stripIndent().trim()), null);
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
@@ -326,10 +326,13 @@ class ShaftPluginScreenshotRendererTest {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
-            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), new ShaftSettingsState.Settings(),
+            ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+            settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), settings,
                     () -> {
                     });
-            invokeShowInstallError(component, new IllegalStateException("Installer unavailable. Check local Java and retry."));
+            invokeShowTestResult(component, ShaftMcpToolResult.failure(
+                    "Could not resolve artifact io.github.shafthq:shaft-mcp:jar:10.3.20260702"), null);
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
@@ -364,12 +367,15 @@ class ShaftPluginScreenshotRendererTest {
         component.setRunning(running, message);
     }
 
-    private static void invokeShowInstallResult(ShaftMcpSetupPanel component, ShaftMcpInstallResult result) {
-        component.showInstallResult(result, null);
-    }
-
-    private static void invokeShowInstallError(ShaftMcpSetupPanel component, Throwable error) {
-        component.showInstallResult(null, error);
+    private static void invokeShowTestResult(ShaftMcpSetupPanel component, ShaftMcpToolResult result, Throwable error) {
+        try {
+            Method method = ShaftMcpSetupPanel.class.getDeclaredMethod(
+                    "showTestResult", ShaftMcpToolResult.class, Throwable.class);
+            method.setAccessible(true);
+            method.invoke(component, result, error);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to render setup probe result", exception);
+        }
     }
 
     private static JComponent toolWindow(int selectedTab, String toolsCategory) {
