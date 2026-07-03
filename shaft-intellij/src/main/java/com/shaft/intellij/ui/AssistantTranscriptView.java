@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.intellij.lang.Language;
 import com.intellij.lexer.Lexer;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
@@ -14,17 +15,9 @@ import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
-import com.intellij.openapi.util.Disposer;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.testFramework.LightVirtualFile;
+import com.intellij.openapi.util.Computable;
 import com.intellij.ui.components.JBScrollPane;
-import com.intellij.ui.jcef.JBCefApp;
 import com.intellij.util.ui.JBUI;
-import org.commonmark.parser.Parser;
-import org.commonmark.renderer.html.HtmlRenderer;
-import org.intellij.plugins.markdown.lang.MarkdownFileType;
-import org.intellij.plugins.markdown.ui.preview.html.MarkdownUtil;
-import org.intellij.plugins.markdown.ui.preview.jcef.MarkdownJCEFHtmlPanel;
 
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
@@ -33,6 +26,7 @@ import javax.swing.JScrollBar;
 import javax.swing.UIManager;
 import javax.swing.BoxLayout;
 import javax.swing.SwingUtilities;
+import javax.swing.BorderFactory;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.text.html.HTMLEditorKit;
 import javax.swing.JLabel;
@@ -43,6 +37,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Dimension;
+import java.awt.LayoutManager;
 import java.awt.datatransfer.StringSelection;
 import java.lang.reflect.Proxy;
 import java.net.URLDecoder;
@@ -52,6 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -60,9 +56,9 @@ import java.util.regex.Pattern;
  */
 final class AssistantTranscriptView extends JPanel {
     private static final String INITIAL_MESSAGE = "Type a question or use `/commands` for SHAFT commands.";
-    private static final Parser COMMONMARK = Parser.builder().build();
-    private static final HtmlRenderer COMMONMARK_HTML = HtmlRenderer.builder().escapeHtml(true).build();
     private static final Pattern LANGUAGE_CLASS = Pattern.compile("(?i)\\blanguage-([a-z0-9_+.#-]+)");
+    private static final Pattern UNORDERED_LIST_ITEM = Pattern.compile("^[-*+]\\s+(.+)$");
+    private static final Pattern ORDERED_LIST_ITEM = Pattern.compile("^\\d+[.)]\\s+(.+)$");
     private static final Set<String> JAVA_KEYWORDS = Set.of(
             "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
             "continue", "default", "do", "double", "else", "enum", "exports", "extends", "final", "finally",
@@ -73,16 +69,16 @@ final class AssistantTranscriptView extends JPanel {
             "try", "uses", "var", "void", "volatile", "while", "with", "yield", "true", "false", "null");
     private static final String USER_ROLE = "user";
     private static final String UNKNOWN_ROLE = "assistant";
+    static final String TRANSCRIPT_ROLE_PROPERTY = "shaft.transcript.role";
+    static final String TRANSCRIPT_BUBBLE_PROPERTY = "shaft.transcript.bubble";
+    static final String TRANSCRIPT_HINT_PROPERTY = "shaft.transcript.hint";
+    static final String TRANSCRIPT_RENDERED_HTML_PROPERTY = "shaft.transcript.renderedHtml";
 
     private final Project project;
-    private final JEditorPane pane;
     private final JPanel fallbackPanel;
     private final JBScrollPane fallbackScrollPane;
-    private final MarkdownJCEFHtmlPanel markdownPanel;
-    private final LightVirtualFile markdownFile;
     private final List<ShaftAssistantChatState.Message> messages = new ArrayList<>();
     private String markdown = "";
-    private String renderedHtml = "";
 
     AssistantTranscriptView() {
         this(null);
@@ -91,39 +87,23 @@ final class AssistantTranscriptView extends JPanel {
     AssistantTranscriptView(Project project) {
         super(new BorderLayout());
         this.project = project;
-        markdownFile = new LightVirtualFile("shaft-assistant-chat.md", MarkdownFileType.INSTANCE, "");
-        pane = new JEditorPane();
-        pane.setContentType("text/html");
-        pane.setEditorKit(new HTMLEditorKit());
-        pane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
-        pane.getAccessibleContext().setAccessibleName("Assistant transcript");
-        pane.setEditable(false);
-        pane.setOpaque(true);
-        pane.setBorder(JBUI.Borders.empty(8));
-        pane.addHyperlinkListener(AssistantTranscriptView::copyCodeFromFallbackLink);
+        setBorder(BorderFactory.createLineBorder(resolvedColor("Component.borderColor", new Color(0xD0D7DE))));
         fallbackPanel = new JPanel();
         fallbackPanel.setLayout(new BoxLayout(fallbackPanel, BoxLayout.Y_AXIS));
         fallbackPanel.setBorder(JBUI.Borders.empty(8));
         fallbackPanel.getAccessibleContext().setAccessibleName("Assistant transcript");
 
         Color transcriptBackground = resolvedColor("TextArea.background", Color.WHITE);
-        pane.setBackground(transcriptBackground);
         fallbackPanel.setBackground(transcriptBackground);
         fallbackPanel.setOpaque(true);
         fallbackScrollPane = createFallbackScrollPane(transcriptBackground);
-        markdownPanel = createMarkdownPanel(project, markdownFile);
-        JComponent component = markdownPanel == null ? fallbackScrollPane : markdownPanel.getComponent();
-        component.getAccessibleContext().setAccessibleName("Assistant transcript");
-        add(component, BorderLayout.CENTER);
+        fallbackScrollPane.getAccessibleContext().setAccessibleName("Assistant transcript");
+        add(fallbackScrollPane, BorderLayout.CENTER);
         refresh();
     }
 
     String markdown() {
         return markdown;
-    }
-
-    String html() {
-        return renderedHtml;
     }
 
     void clear() {
@@ -185,29 +165,10 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private void scrollLatestIntoView() {
-        if (markdownPanel != null) {
-            return;
-        }
         SwingUtilities.invokeLater(() -> {
             JScrollBar vertical = fallbackScrollPane.getVerticalScrollBar();
             vertical.setValue(vertical.getMaximum());
         });
-    }
-
-    private static MarkdownJCEFHtmlPanel createMarkdownPanel(Project project, VirtualFile markdownFile) {
-        if (project == null || Proxy.isProxyClass(project.getClass())) {
-            return null;
-        }
-        try {
-            if (!JBCefApp.isSupported()) {
-                return null;
-            }
-            MarkdownJCEFHtmlPanel panel = new MarkdownJCEFHtmlPanel(project, markdownFile);
-            Disposer.register(project, panel);
-            return panel;
-        } catch (LinkageError | RuntimeException exception) {
-            return null;
-        }
     }
 
     private void addMessage(String role, String value) {
@@ -220,171 +181,13 @@ final class AssistantTranscriptView extends JPanel {
         messages.add(message);
     }
 
-    private String toHtml(String value) {
-        String transcriptBackground = color("TextArea.background", "#ffffff");
-        String assistantBackground = color("TextArea.background", "#ffffff");
-        String foreground = color("TextArea.foreground", "#202020");
-        String border = color("Component.borderColor", "#d0d7de");
-        String userBackground = color("Panel.selectionBackground", "#2563eb");
-        String userForeground = color("Panel.selectionForeground", "#ffffff");
-        String codeBackground = color("EditorPane.background", transcriptBackground);
-        return """
-                <html>
-                <head>
-                  <meta charset="UTF-8">
-                  <style>
-                    body { font-family: '%s'; font-size: %dpt; color: %s; background: %s; margin: 0; }
-                    .shaft-chat { background: %s; padding: 8px; }
-                    .shaft-chat-row { clear: both; margin: 0 0 10px 0; width: 100%%; }
-                    .shaft-chat-row.user, .shaft-chat-row-user { text-align: right; }
-                    .shaft-chat-row.assistant, .shaft-chat-row-assistant { text-align: left; }
-                    .shaft-chat-bubble {
-                        display: inline-block;
-                        box-sizing: border-box;
-                        max-width: 88%%;
-                        padding: 9px 11px;
-                        border-radius: 16px;
-                        text-align: left;
-                        vertical-align: top;
-                    }
-                    .shaft-chat-bubble.user, .shaft-chat-bubble-user {
-                        color: %s;
-                        background-color: %s;
-                    }
-                    .shaft-chat-bubble.assistant, .shaft-chat-bubble-assistant {
-                        color: %s;
-                        background-color: %s;
-                    }
-                    .shaft-chat-hint {
-                        clear: both;
-                        margin: 2px 0 0 0;
-                        color: %s;
-                        background: %s;
-                        text-align: left;
-                    }
-                    p, ul, ol, h1, h2, h3, h4, h5, h6 { margin-top: 0; }
-                    p:last-child { margin-bottom: 0; }
-                    hr { border: 0; border-top: 1px solid %s; margin: 10px 0; }
-                    code { font-family: 'JetBrains Mono', 'Consolas', 'Monospaced', monospace; }
-                    .shaft-code-block {
-                        margin: 8px 0;
-                        border: 1px solid %s;
-                        border-radius: 8px;
-                        background: %s;
-                        overflow: hidden;
-                    }
-                    .shaft-code-toolbar {
-                        padding: 4px 6px;
-                        text-align: right;
-                        border-bottom: 1px solid %s;
-                    }
-                    .shaft-code-copy {
-                        display: inline-block;
-                        box-sizing: border-box;
-                        width: 24px;
-                        height: 24px;
-                        padding: 3px;
-                        border-radius: 6px;
-                        color: %s;
-                        cursor: pointer;
-                        text-decoration: none;
-                        text-align: center;
-                        line-height: 16px;
-                        vertical-align: middle;
-                    }
-                    .shaft-code-copy svg {
-                        width: 16px;
-                        height: 16px;
-                        stroke: currentColor;
-                        vertical-align: middle;
-                    }
-                    .shaft-code-copy-icon {
-                        font-family: 'JetBrains Mono', 'Consolas', 'Monospaced', monospace;
-                        font-size: 15px;
-                        line-height: 16px;
-                    }
-                    .shaft-code-copy[data-copied="true"] {
-                        color: %s;
-                    }
-                    pre {
-                        margin: 0;
-                        padding: 9px 10px;
-                        overflow: auto;
-                        white-space: pre-wrap;
-                        color: %s;
-                        background: %s;
-                    }
-                  </style>
-                  <script>
-                    document.addEventListener('click', function(event) {
-                      var button = event.target.closest('.shaft-code-copy');
-                      if (!button) return;
-                      event.preventDefault();
-                      var code = button.getAttribute('data-copy-code') || '';
-                      var done = function() {
-                        button.setAttribute('data-copied', 'true');
-                        window.setTimeout(function() { button.removeAttribute('data-copied'); }, 1200);
-                      };
-                      if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(code).then(done);
-                        return;
-                      }
-                      var textarea = document.createElement('textarea');
-                      textarea.value = code;
-                      document.body.appendChild(textarea);
-                      textarea.select();
-                      document.execCommand('copy');
-                      textarea.remove();
-                      done();
-                    });
-                    window.addEventListener('load', function() {
-                      window.scrollTo(0, document.body.scrollHeight);
-                    });
-                  </script>
-                </head>
-                <body><div class="shaft-chat">%s</div></body>
-                </html>
-                """.formatted(
-                cssString(fontFamily()),
-                Math.max(11, pane.getFont() == null ? 12 : pane.getFont().getSize()),
-                foreground,
-                transcriptBackground,
-                transcriptBackground,
-                userForeground,
-                userBackground,
-                foreground,
-                assistantBackground,
-                foreground,
-                transcriptBackground,
-                border,
-                border,
-                codeBackground,
-                border,
-                foreground,
-                foreground,
-                foreground,
-                codeBackground,
-                value);
-    }
-
     private String convertMarkdown(String value) {
         String safeValue = value == null ? "" : value;
-        try {
-            markdownFile.setContent(this, safeValue, false);
-            String html = MarkdownUtil.INSTANCE.generateMarkdownHtml(markdownFile, safeValue, project);
-            return addCodeCopyButtons(bodyContent(html));
-        } catch (LinkageError | RuntimeException exception) {
-            return addCodeCopyButtons(COMMONMARK_HTML.render(COMMONMARK.parse(safeValue)));
-        }
+        return addCodeCopyButtons(renderMarkdownBlocks(safeValue));
     }
 
     private void refresh() {
-        renderedHtml = toHtml(renderMessages() + renderInitialMessage());
-        if (markdownPanel != null) {
-            markdownPanel.setHtml(renderedHtml, 0, markdownFile);
-        } else {
-            renderFallbackTranscript();
-        }
+        renderFallbackTranscript();
         scrollLatestIntoView();
     }
 
@@ -401,52 +204,48 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private JComponent fallbackMessage(String role, String markdown) {
-        boolean user = USER_ROLE.equals(normalizedRole(role));
+        String normalizedRole = normalizedRole(role);
+        boolean user = USER_ROLE.equals(normalizedRole);
         Color background = user
                 ? resolvedColor("Panel.selectionBackground", new Color(0x2563EB))
-                : resolvedColor("TextArea.background", Color.WHITE);
+                : resolvedColor("Panel.background", new Color(0xF6F8FA));
         Color foreground = user
                 ? resolvedColor("Panel.selectionForeground", Color.WHITE)
                 : resolvedColor("TextArea.foreground", new Color(0x202020));
-        JPanel row = new JPanel(new BorderLayout());
+        JPanel row = new PreferredHeightRow(new BorderLayout());
         row.setOpaque(false);
         row.setBorder(JBUI.Borders.emptyBottom(10));
-        RoundedBubblePanel bubble = new RoundedBubblePanel(background, null, 18);
+        row.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
+        row.getAccessibleContext().setAccessibleName((user ? "User" : "Assistant") + " assistant message row");
+        Color stroke = user ? null : resolvedColor("Component.borderColor", new Color(0xD0D7DE));
+        RoundedBubblePanel bubble = new RoundedBubblePanel(background, stroke, 18);
         bubble.setLayout(new BorderLayout());
         bubble.setBorder(JBUI.Borders.empty(9, 11));
-        bubble.add(user && isPlainSingleLine(markdown)
-                ? fallbackPlainLabel(markdown, foreground)
-                : fallbackHtmlPane(convertMarkdown(markdown), foreground, background), BorderLayout.CENTER);
+        bubble.setBackground(background);
+        bubble.setForeground(foreground);
+        bubble.putClientProperty(TRANSCRIPT_BUBBLE_PROPERTY, normalizedRole);
+        bubble.getAccessibleContext().setAccessibleName((user ? "User" : "Assistant") + " assistant message bubble");
+        JEditorPane htmlPane = fallbackHtmlPane(convertMarkdown(markdown), foreground, background);
+        htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
+        bubble.add(htmlPane, BorderLayout.CENTER);
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
         return row;
     }
 
-    private static boolean isPlainSingleLine(String value) {
-        return value != null
-                && !value.contains("\n")
-                && !value.contains("\r")
-                && !value.matches(".*[`*_#\\[\\]<>|!].*");
-    }
-
-    private static JLabel fallbackPlainLabel(String text, Color foreground) {
-        JLabel label = new JLabel(text);
-        label.setForeground(foreground);
-        return label;
-    }
-
     private JComponent fallbackHint() {
-        JPanel row = new JPanel(new BorderLayout());
+        JPanel row = new PreferredHeightRow(new BorderLayout());
         row.setOpaque(false);
+        row.putClientProperty(TRANSCRIPT_HINT_PROPERTY, Boolean.TRUE);
+        row.getAccessibleContext().setAccessibleName("Assistant transcript hint row");
         JLabel label = new JLabel(INITIAL_MESSAGE);
         label.setForeground(resolvedColor("TextArea.foreground", new Color(0x202020)));
+        label.getAccessibleContext().setAccessibleName("Assistant transcript hint");
         row.add(label, BorderLayout.WEST);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
         return row;
     }
 
     private JEditorPane fallbackHtmlPane(String html, Color foreground, Color background) {
-        JEditorPane htmlPane = new JEditorPane();
+        JEditorPane htmlPane = new WidthAwareHtmlPane(this::fallbackBubbleContentWidth);
         htmlPane.setContentType("text/html");
         htmlPane.setEditorKit(new HTMLEditorKit());
         htmlPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
@@ -455,9 +254,25 @@ final class AssistantTranscriptView extends JPanel {
         htmlPane.setBorder(JBUI.Borders.empty());
         htmlPane.setForeground(foreground);
         htmlPane.addHyperlinkListener(AssistantTranscriptView::copyCodeFromFallbackLink);
-        htmlPane.setText(toFallbackHtml(html, foreground, background));
+        String rendered = toFallbackHtml(html, foreground, background);
+        htmlPane.putClientProperty(TRANSCRIPT_RENDERED_HTML_PROPERTY, rendered);
+        htmlPane.setText(rendered);
         htmlPane.setCaretPosition(0);
         return htmlPane;
+    }
+
+    private int fallbackBubbleContentWidth() {
+        int viewportWidth = fallbackScrollPane == null ? 0 : fallbackScrollPane.getViewport().getWidth();
+        if (viewportWidth <= 0) {
+            viewportWidth = getWidth();
+        }
+        if (viewportWidth <= 0) {
+            viewportWidth = JBUI.scale(520);
+        }
+        int rowPadding = JBUI.scale(16);
+        int bubblePadding = JBUI.scale(22);
+        int bubbleWidth = (int) Math.floor(Math.max(JBUI.scale(180), viewportWidth - rowPadding) * 0.88D);
+        return Math.max(JBUI.scale(140), bubbleWidth - bubblePadding);
     }
 
     private String toFallbackHtml(String value, Color foreground, Color background) {
@@ -468,32 +283,46 @@ final class AssistantTranscriptView extends JPanel {
                 <head>
                   <meta charset="UTF-8">
                   <style>
-                    body { font-family: '%s'; font-size: %dpt; color: %s; background: %s; margin: 0; }
+                    body { font-family: '%s'; font-size: %dpt; color: %s; background: %s; margin: 0; width: 100%%; }
                     p, ul, ol, h1, h2, h3, h4, h5, h6 { margin-top: 0; }
                     p:last-child { margin-bottom: 0; }
                     hr { border: 0; border-top: 1px solid %s; margin: 10px 0; }
                     code { font-family: 'JetBrains Mono', 'Consolas', 'Monospaced', monospace; }
-                    .shaft-code-block { margin: 8px 0; border: 1px solid %s; background: %s; }
-                    .shaft-code-toolbar { padding: 4px 6px; text-align: right; border-bottom: 1px solid %s; }
+                    .shaft-code-block { margin: 8px 0; border: 1px solid %s; background: %s; max-width: 100%%; }
+                    .shaft-code-toolbar {
+                        padding: 3px 6px;
+                        text-align: right;
+                        border-bottom: 1px solid %s;
+                        line-height: 24px;
+                    }
                     .shaft-code-copy {
                         display: inline-block;
                         width: 24px;
                         height: 24px;
-                        padding: 3px;
+                        padding: 0;
                         color: %s;
                         text-decoration: none;
                         text-align: center;
-                        line-height: 16px;
+                        line-height: 24px;
+                        vertical-align: middle;
                     }
-                    .shaft-code-copy-icon { font-family: Monospaced; font-size: 15px; line-height: 16px; }
-                    pre { margin: 0; padding: 9px 10px; white-space: pre-wrap; color: %s; background: %s; }
+                    .shaft-code-copy-icon { font-family: Monospaced; font-size: 15px; line-height: 24px; }
+                    pre {
+                        margin: 0;
+                        padding: 9px 10px;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                        color: %s;
+                        background: %s;
+                    }
+                    .shaft-code-highlighted { white-space: pre-wrap; word-wrap: break-word; }
                   </style>
                 </head>
                 <body>%s</body>
                 </html>
                 """.formatted(
                 cssString(fontFamily()),
-                Math.max(11, pane.getFont() == null ? 12 : pane.getFont().getSize()),
+                baseFontSize(),
                 hex(foreground),
                 hex(background),
                 border,
@@ -506,58 +335,265 @@ final class AssistantTranscriptView extends JPanel {
                 value);
     }
 
-    private String renderMessages() {
-        StringBuilder rendered = new StringBuilder();
-        for (ShaftAssistantChatState.Message message : messages) {
-            rendered.append(renderMessage(message.role, message.markdown));
+    private static String renderMarkdownBlocks(String value) {
+        String[] lines = value.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
+        StringBuilder html = new StringBuilder();
+        StringBuilder paragraph = new StringBuilder();
+        StringBuilder fence = new StringBuilder();
+        String fenceLanguage = "";
+        boolean inFence = false;
+        boolean inUnorderedList = false;
+        boolean inOrderedList = false;
+        for (int index = 0; index < lines.length; index++) {
+            String line = lines[index];
+            String trimmed = line.trim();
+            if (inFence) {
+                if (trimmed.startsWith("```")) {
+                    appendCodeBlock(html, fenceLanguage, fence.toString().stripTrailing());
+                    fence.setLength(0);
+                    fenceLanguage = "";
+                    inFence = false;
+                } else {
+                    fence.append(line).append('\n');
+                }
+                continue;
+            }
+            if (trimmed.startsWith("```")) {
+                appendParagraph(html, paragraph);
+                if (inUnorderedList) {
+                    html.append("</ul>");
+                    inUnorderedList = false;
+                }
+                if (inOrderedList) {
+                    html.append("</ol>");
+                    inOrderedList = false;
+                }
+                fenceLanguage = firstToken(trimmed.substring(3));
+                inFence = true;
+                continue;
+            }
+            if (trimmed.isBlank()) {
+                appendParagraph(html, paragraph);
+                if (inUnorderedList) {
+                    html.append("</ul>");
+                    inUnorderedList = false;
+                }
+                if (inOrderedList) {
+                    html.append("</ol>");
+                    inOrderedList = false;
+                }
+                continue;
+            }
+            if (isTableHeader(lines, index)) {
+                appendParagraph(html, paragraph);
+                if (inUnorderedList) {
+                    html.append("</ul>");
+                    inUnorderedList = false;
+                }
+                if (inOrderedList) {
+                    html.append("</ol>");
+                    inOrderedList = false;
+                }
+                index = appendTable(html, lines, index);
+                continue;
+            }
+            int headingLevel = headingLevel(trimmed);
+            if (headingLevel > 0) {
+                appendParagraph(html, paragraph);
+                if (inUnorderedList) {
+                    html.append("</ul>");
+                    inUnorderedList = false;
+                }
+                if (inOrderedList) {
+                    html.append("</ol>");
+                    inOrderedList = false;
+                }
+                String heading = trimmed.substring(headingLevel).trim();
+                html.append("<h").append(headingLevel).append(">")
+                        .append(renderInline(heading))
+                        .append("</h").append(headingLevel).append(">");
+                continue;
+            }
+            if (isHorizontalRule(trimmed)) {
+                appendParagraph(html, paragraph);
+                if (inUnorderedList) {
+                    html.append("</ul>");
+                    inUnorderedList = false;
+                }
+                if (inOrderedList) {
+                    html.append("</ol>");
+                    inOrderedList = false;
+                }
+                html.append("<hr>");
+                continue;
+            }
+            Matcher unordered = UNORDERED_LIST_ITEM.matcher(trimmed);
+            if (unordered.matches()) {
+                appendParagraph(html, paragraph);
+                if (inOrderedList) {
+                    html.append("</ol>");
+                    inOrderedList = false;
+                }
+                if (!inUnorderedList) {
+                    html.append("<ul>");
+                    inUnorderedList = true;
+                }
+                html.append("<li>").append(renderInline(unordered.group(1))).append("</li>");
+                continue;
+            }
+            Matcher ordered = ORDERED_LIST_ITEM.matcher(trimmed);
+            if (ordered.matches()) {
+                appendParagraph(html, paragraph);
+                if (inUnorderedList) {
+                    html.append("</ul>");
+                    inUnorderedList = false;
+                }
+                if (!inOrderedList) {
+                    html.append("<ol>");
+                    inOrderedList = true;
+                }
+                html.append("<li>").append(renderInline(ordered.group(1))).append("</li>");
+                continue;
+            }
+            if (inUnorderedList) {
+                html.append("</ul>");
+                inUnorderedList = false;
+            }
+            if (inOrderedList) {
+                html.append("</ol>");
+                inOrderedList = false;
+            }
+            if (!paragraph.isEmpty()) {
+                paragraph.append(' ');
+            }
+            paragraph.append(trimmed);
         }
-        return rendered.toString();
+        if (inFence) {
+            appendCodeBlock(html, fenceLanguage, fence.toString().stripTrailing());
+        }
+        appendParagraph(html, paragraph);
+        if (inUnorderedList) {
+            html.append("</ul>");
+        }
+        if (inOrderedList) {
+            html.append("</ol>");
+        }
+        return html.toString();
     }
 
-    private String renderMessage(String role, String markdown) {
-        boolean user = USER_ROLE.equals(normalizedRole(role));
-        String roleClass = roleClass(user);
-        String alignment = user ? "right" : "left";
-        String background = user
-                ? color("Panel.selectionBackground", "#2563eb")
-                : color("TextArea.background", "#ffffff");
-        String foreground = user
-                ? color("Panel.selectionForeground", "#ffffff")
-                : color("TextArea.foreground", "#202020");
-        String rowStyle = "clear:both;margin:0 0 10px 0;width:100%;text-align:" + alignment + ";";
-        String bubbleStyle = "color:" + foreground
-                + ";background-color:" + background
-                + ";border-radius:16px;padding:9px 11px;text-align:left;";
-        String bubble = user
-                ? renderUserBubble(markdown, background, bubbleStyle, roleClass)
-                : "<table cellspacing=\"0\" cellpadding=\"0\"><tr><td bgcolor=\"" + background
-                + "\" class=\"shaft-chat-bubble " + roleClass + " shaft-chat-bubble-" + roleClass
-                + "\" style=\"" + bubbleStyle + "\">"
-                + convertMarkdown(markdown)
-                + "</td></tr></table>";
-        return "<div class=\"shaft-chat-row " + roleClass + " shaft-chat-row-" + roleClass
-                + "\" style=\"" + rowStyle + "\">"
-                + "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"" + alignment + "\">"
-                + bubble
-                + "</td></tr></table></div>";
+    private static void appendParagraph(StringBuilder html, StringBuilder paragraph) {
+        if (paragraph.isEmpty()) {
+            return;
+        }
+        html.append("<p>").append(renderInline(paragraph.toString())).append("</p>");
+        paragraph.setLength(0);
     }
 
-    private String renderUserBubble(String markdown, String background, String bubbleStyle, String roleClass) {
-        return "<div class=\"shaft-chat-bubble " + roleClass + " shaft-chat-bubble-" + roleClass
-                + "\" style=\"display:inline-block;box-sizing:border-box;max-width:88%;" + bubbleStyle + "\">"
-                + convertMarkdown(markdown)
-                + "</div>";
+    private static void appendCodeBlock(StringBuilder html, String language, String code) {
+        String normalizedLanguage = normalizedLanguage(language);
+        html.append("<pre><code");
+        if (!normalizedLanguage.isBlank()) {
+            html.append(" class=\"language-").append(escapeAttribute(normalizedLanguage)).append("\"");
+        }
+        html.append(">").append(escapeHtml(code)).append("</code></pre>");
     }
 
-    private String renderInitialMessage() {
-        return "<div class=\"shaft-chat-hint\">" + convertMarkdown(INITIAL_MESSAGE) + "</div>";
+    private static int appendTable(StringBuilder html, String[] lines, int headerIndex) {
+        List<String> headers = tableCells(lines[headerIndex]);
+        html.append("<table><thead><tr>");
+        for (String header : headers) {
+            html.append("<th>").append(renderInline(header)).append("</th>");
+        }
+        html.append("</tr></thead><tbody>");
+        int index = headerIndex + 2;
+        while (index < lines.length && isTableLine(lines[index].trim())) {
+            List<String> cells = tableCells(lines[index]);
+            html.append("<tr>");
+            for (int cell = 0; cell < headers.size(); cell++) {
+                String value = cell < cells.size() ? cells.get(cell) : "";
+                html.append("<td>").append(renderInline(value)).append("</td>");
+            }
+            html.append("</tr>");
+            index++;
+        }
+        html.append("</tbody></table>");
+        return index - 1;
+    }
+
+    private static boolean isTableHeader(String[] lines, int index) {
+        return index + 1 < lines.length
+                && isTableLine(lines[index].trim())
+                && isTableSeparator(lines[index + 1].trim());
+    }
+
+    private static boolean isTableLine(String line) {
+        return line.startsWith("|") && line.endsWith("|") && line.indexOf('|', 1) > 0;
+    }
+
+    private static boolean isTableSeparator(String line) {
+        return isTableLine(line) && line.matches("[|:\\-\\s]+") && line.contains("---");
+    }
+
+    private static List<String> tableCells(String line) {
+        String value = line.trim();
+        if (value.startsWith("|")) {
+            value = value.substring(1);
+        }
+        if (value.endsWith("|")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        String[] cells = value.split("\\|", -1);
+        List<String> result = new ArrayList<>();
+        for (String cell : cells) {
+            result.add(cell.trim());
+        }
+        return result;
+    }
+
+    private static int headingLevel(String trimmed) {
+        int level = 0;
+        while (level < trimmed.length() && level < 6 && trimmed.charAt(level) == '#') {
+            level++;
+        }
+        return level > 0 && level < trimmed.length() && Character.isWhitespace(trimmed.charAt(level)) ? level : 0;
+    }
+
+    private static boolean isHorizontalRule(String trimmed) {
+        return trimmed.matches("[-*_]{3,}");
+    }
+
+    private static String firstToken(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        if (trimmed.isBlank()) {
+            return "";
+        }
+        return trimmed.split("\\s+", 2)[0];
+    }
+
+    private static String renderInline(String value) {
+        StringBuilder html = new StringBuilder();
+        String[] parts = value.split("`", -1);
+        for (int index = 0; index < parts.length; index++) {
+            if (index % 2 == 1) {
+                html.append("<code>").append(escapeHtml(parts[index])).append("</code>");
+            } else {
+                html.append(renderInlineEmphasis(escapeHtml(parts[index])));
+            }
+        }
+        return html.toString();
+    }
+
+    private static String renderInlineEmphasis(String escapedText) {
+        return escapedText
+                .replaceAll("\\*\\*([^*]+)\\*\\*", "<strong>$1</strong>")
+                .replaceAll("(?<!\\w)_([^_]+)_(?!\\w)", "<em>$1</em>");
     }
 
     private String addCodeCopyButtons(String html) {
         StringBuilder result = new StringBuilder();
         String buttonStyle = "color:" + color("Button.foreground", "#202020")
-                + ";display:inline-block;width:24px;height:24px;padding:3px;text-decoration:none;"
-                + "text-align:center;line-height:16px;vertical-align:middle;";
+                + ";display:inline-block;width:24px;height:24px;padding:0;text-decoration:none;"
+                + "text-align:center;line-height:24px;vertical-align:middle;";
         int offset = 0;
         while (offset < html.length()) {
             int preStart = indexOfIgnoreCase(html, "<pre", offset);
@@ -595,6 +631,10 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private String highlightedCodeBlock(String originalCodeBlock, String code, String languageLabel) {
+        return renderReadAction(() -> highlightedCodeBlockInReadAction(originalCodeBlock, code, languageLabel));
+    }
+
+    private String highlightedCodeBlockInReadAction(String originalCodeBlock, String code, String languageLabel) {
         Language language = languageForFence(languageLabel);
         if (language == null) {
             String highlighted = highlightedBySyntaxHighlighter(code, languageLabel);
@@ -629,6 +669,18 @@ final class AssistantTranscriptView extends JPanel {
             }
             return originalCodeBlock;
         }
+    }
+
+    static <T> T renderReadActionForTest(Supplier<T> supplier) {
+        return renderReadAction(supplier);
+    }
+
+    private static <T> T renderReadAction(Supplier<T> supplier) {
+        if (ApplicationManager.getApplication() == null
+                || ApplicationManager.getApplication().isReadAccessAllowed()) {
+            return supplier.get();
+        }
+        return ApplicationManager.getApplication().runReadAction((Computable<T>) supplier::get);
     }
 
     private static String languageFromCodeBlock(String codeBlock) {
@@ -679,11 +731,10 @@ final class AssistantTranscriptView extends JPanel {
             return highlightedByIntelliJPaletteFallback(code, languageLabel);
         }
         try {
-            String extension = extensionForFence(languageLabel);
             SyntaxHighlighter highlighter = SyntaxHighlighterFactory.getSyntaxHighlighter(
                     fileType,
                     null,
-                    new LightVirtualFile("snippet." + extension, fileType, code));
+                    null);
             if (highlighter == null) {
                 return highlightedByIntelliJPaletteFallback(code, languageLabel);
             }
@@ -1012,6 +1063,43 @@ final class AssistantTranscriptView extends JPanel {
             String property) {
     }
 
+    private static final class WidthAwareHtmlPane extends JEditorPane {
+        private final Supplier<Integer> widthSupplier;
+
+        private WidthAwareHtmlPane(Supplier<Integer> widthSupplier) {
+            this.widthSupplier = widthSupplier;
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            int preferredWidth = widthSupplier.get();
+            if (preferredWidth > 0) {
+                setSize(new Dimension(preferredWidth, Short.MAX_VALUE));
+                Dimension preferred = super.getPreferredSize();
+                preferred.width = Math.min(preferred.width, preferredWidth);
+                return preferred;
+            }
+            return super.getPreferredSize();
+        }
+
+        @Override
+        public Dimension getMaximumSize() {
+            Dimension preferred = getPreferredSize();
+            return new Dimension(preferred.width, preferred.height);
+        }
+    }
+
+    private static final class PreferredHeightRow extends JPanel {
+        private PreferredHeightRow(LayoutManager layout) {
+            super(layout);
+        }
+
+        @Override
+        public Dimension getMaximumSize() {
+            return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+        }
+    }
+
     private static final class RoundedBubblePanel extends JPanel {
         private final Color fill;
         private final Color stroke;
@@ -1061,21 +1149,8 @@ final class AssistantTranscriptView extends JPanel {
                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
                   <path d="M5.5 5.5H11.5V12.5H5.5V5.5ZM3.5 3.5H9.5V5.5M3.5 3.5V10.5H5.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span aria-hidden="true" class="shaft-code-copy-icon" style="font-family:Monospaced;font-size:15px;line-height:16px;">&#x2398;</span>
+                <span aria-hidden="true" class="shaft-code-copy-icon" style="font-family:Monospaced;font-size:15px;line-height:24px;">&#x2398;</span>
                 """.strip();
-    }
-
-    private static String bodyContent(String html) {
-        int bodyStart = indexOfIgnoreCase(html, "<body", 0);
-        if (bodyStart < 0) {
-            return html;
-        }
-        int bodyOpenEnd = html.indexOf('>', bodyStart);
-        int bodyEnd = indexOfIgnoreCase(html, "</body>", Math.max(bodyOpenEnd, bodyStart));
-        if (bodyOpenEnd < 0 || bodyEnd < 0) {
-            return html;
-        }
-        return html.substring(bodyOpenEnd + 1, bodyEnd);
     }
 
     private static String stripTags(String html) {
@@ -1131,10 +1206,6 @@ final class AssistantTranscriptView extends JPanel {
         return content.toString();
     }
 
-    private static String roleClass(boolean user) {
-        return user ? "user" : "assistant";
-    }
-
     private static String normalizedRole(String role) {
         if (role == null || role.isBlank()) {
             return UNKNOWN_ROLE;
@@ -1143,8 +1214,19 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private String fontFamily() {
-        Font font = pane.getFont();
+        Font font = getFont();
+        if (font == null && fallbackPanel != null) {
+            font = fallbackPanel.getFont();
+        }
         return font == null ? "Dialog" : font.getFamily();
+    }
+
+    private int baseFontSize() {
+        Font font = getFont();
+        if (font == null && fallbackPanel != null) {
+            font = fallbackPanel.getFont();
+        }
+        return Math.max(11, font == null ? 12 : font.getSize());
     }
 
     private static String color(String uiKey, String fallback) {

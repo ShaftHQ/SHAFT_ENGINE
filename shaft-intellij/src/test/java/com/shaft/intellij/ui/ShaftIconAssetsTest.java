@@ -13,16 +13,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ShaftIconAssetsTest {
     private static final String LIGHT_ACTION_COLOR = "#6C707E";
     private static final String DARK_ACTION_COLOR = "#CED0D6";
+    private static final String LIGHT_LOGO_COLOR = "#9A6A00";
+    private static final String DARK_LOGO_COLOR = "#FFFFFF";
 
     @Test
-    void toolWindowIconsUseJetBrainsNewUiSvgVariants() throws IOException {
+    void toolWindowIconsUseOfficialShaftLogoSvgVariants() throws IOException {
         Path icons = Path.of("src/main/resources/icons");
 
         assertAll(
-                () -> assertSvgIcon(icons.resolve("shaftToolWindow.svg"), 16, "#6C707E"),
-                () -> assertSvgIcon(icons.resolve("shaftToolWindow_dark.svg"), 16, "#CED0D6"),
-                () -> assertSvgIcon(icons.resolve("shaftToolWindow@20x20.svg"), 20, "#6C707E"),
-                () -> assertSvgIcon(icons.resolve("shaftToolWindow@20x20_dark.svg"), 20, "#CED0D6"),
+                () -> assertLogoIcon(icons.resolve("shaftToolWindow.svg"), 16, LIGHT_LOGO_COLOR),
+                () -> assertLogoIcon(icons.resolve("shaftToolWindow_dark.svg"), 16, DARK_LOGO_COLOR),
+                () -> assertLogoIcon(icons.resolve("shaftToolWindow@20x20.svg"), 20, LIGHT_LOGO_COLOR),
+                () -> assertLogoIcon(icons.resolve("shaftToolWindow@20x20_dark.svg"), 20, DARK_LOGO_COLOR),
                 () -> assertFalse(Files.exists(icons.resolve("shaftToolWindow.png"))),
                 () -> assertFalse(Files.exists(icons.resolve("shaftToolWindow_dark.png"))));
     }
@@ -79,6 +81,18 @@ class ShaftIconAssetsTest {
                 () -> assertTrue(svg.contains(color), path.toString()),
                 () -> assertTrue(svg.contains("stroke-linecap=\"round\""), path.toString()),
                 () -> assertTrue(svg.contains("stroke-linejoin=\"round\""), path.toString()));
+    }
+
+    private static void assertLogoIcon(Path path, int size, String color) throws IOException {
+        String svg = Files.readString(path);
+        assertAll(
+                () -> assertTrue(svg.contains("width=\"" + size + "\""), path.toString()),
+                () -> assertTrue(svg.contains("height=\"" + size + "\""), path.toString()),
+                () -> assertTrue(svg.contains("viewBox=\"0 0 " + size + " " + size + "\""), path.toString()),
+                () -> assertTrue(svg.contains("data-shaft-logo=\"official\""), path.toString()),
+                () -> assertTrue(svg.contains("fill=\"" + color + "\""), path.toString()),
+                () -> assertFalse(svg.contains("stroke=\"#6C707E\""), path.toString()),
+                () -> assertFalse(svg.contains("stroke=\"#CED0D6\""), path.toString()));
     }
 
     private static org.junit.jupiter.api.function.Executable actionIconAssertions(Path actions, String name) {

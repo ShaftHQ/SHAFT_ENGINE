@@ -4,7 +4,6 @@
     <vendor email="Mohab.MohieElDeen@outlook.com" url="https://shafthq.github.io">ShaftHQ</vendor>
 
     <depends>com.intellij.modules.platform</depends>
-    <depends>org.intellij.plugins.markdown</depends>
     <depends optional="true" config-file="io.github.shafthq.shaft-withJava.xml">com.intellij.java</depends>
 
     <resource-bundle>messages.ShaftBundle</resource-bundle>
@@ -18,7 +17,6 @@
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftSettingsState"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftCredentialService"/>
         <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpInvocationService"/>
-        <projectService serviceImplementation="com.shaft.intellij.ui.ShaftAssistantChatState"/>
         <applicationConfigurable instance="com.shaft.intellij.settings.ShaftSettingsConfigurable"
                                  id="shaft.settings"
                                  displayName="SHAFT"/>

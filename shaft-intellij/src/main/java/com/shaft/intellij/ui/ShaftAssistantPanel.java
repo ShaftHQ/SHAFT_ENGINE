@@ -23,17 +23,22 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JProgressBar;
 import javax.swing.KeyStroke;
 import javax.swing.Timer;
+import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Component;
+import java.awt.FontMetrics;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -56,6 +61,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
     private final JButton newChat;
+    private final JComboBox<String> commandAutocomplete;
     private final JComboBox<String> mode;
     private final JComboBox<String> providerType;
     private final JComboBox<String> assistantFamily;
@@ -97,6 +103,7 @@ final class ShaftAssistantPanel extends JPanel {
     private boolean running;
     private boolean sendCancelHover;
     private boolean refreshingChats;
+    private boolean updatingCommandAutocomplete;
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
     private StringBuilder localAgentOutput;
@@ -139,9 +146,49 @@ final class ShaftAssistantPanel extends JPanel {
 
         chatSelector = new JComboBox<>();
         chatSelector.getAccessibleContext().setAccessibleName("Assistant chat");
+        chatSelector.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list,
+                                                          Object value,
+                                                          int index,
+                                                          boolean isSelected,
+                                                          boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                String title = value instanceof ShaftAssistantChatState.Session session
+                        ? session.toString()
+                        : String.valueOf(value == null ? "" : value);
+                int availableWidth = index >= 0 ? list.getWidth() : chatSelector.getWidth();
+                if (availableWidth <= 0) {
+                    availableWidth = JBUI.scale(240);
+                }
+                label.setText(trimChatTitleForWidth(title, label.getFontMetrics(label.getFont()),
+                        Math.max(32, availableWidth - JBUI.scale(38))));
+                label.setToolTipText(title);
+                label.setBorder(JBUI.Borders.empty(2, 6));
+                return label;
+            }
+        });
         chatSelector.addActionListener(event -> switchChat());
         newChat = button("New chat", "Start a new Assistant chat", event -> newChat());
         ShaftIconButtons.apply(newChat, ShaftIcons.ADD);
+        commandAutocomplete = new JComboBox<>(new DefaultComboBoxModel<>(commandItems()));
+        commandAutocomplete.setEditable(true);
+        commandAutocomplete.setSelectedItem("");
+        commandAutocomplete.setPrototypeDisplayValue("/mobile-record inspector Android recordings/inspector.json");
+        commandAutocomplete.setPreferredSize(JBUI.size(220, ShaftIconButtons.SIZE));
+        commandAutocomplete.setMinimumSize(JBUI.size(150, ShaftIconButtons.SIZE));
+        commandAutocomplete.getAccessibleContext().setAccessibleName("Assistant command autocomplete");
+        if (commandAutocomplete.getEditor().getEditorComponent() instanceof JTextComponent editor) {
+            editor.getAccessibleContext().setAccessibleName("Assistant command autocomplete text");
+        }
+        commandAutocomplete.addActionListener(event -> insertSelectedCommand());
+        updatingCommandAutocomplete = true;
+        try {
+            commandAutocomplete.setSelectedItem("/commands");
+        } finally {
+            updatingCommandAutocomplete = false;
+        }
         mode = combo("Assistant mode", "ASK", "PLAN", "AGENT");
         mode.setSelectedItem(normalize(settings.defaultAutobotMode, "ASK"));
         providerType = combo("Assistant provider type", "LOCAL", "CLOUD");
@@ -263,9 +310,15 @@ final class ShaftAssistantPanel extends JPanel {
         transcriptBottom.add(transcriptStatus, BorderLayout.SOUTH);
         transcriptPanel.add(transcriptBottom, BorderLayout.SOUTH);
 
+        JPanel chatRow = new JPanel(new BorderLayout(6, 0));
+        chatRow.add(chatSelector, BorderLayout.CENTER);
+        chatRow.add(newChat, BorderLayout.EAST);
+        JPanel header = new JPanel(new BorderLayout(4, 4));
+        header.getAccessibleContext().setAccessibleName("Assistant chat header");
+        header.add(new JLabel("SHAFT"), BorderLayout.NORTH);
+        header.add(chatRow, BorderLayout.CENTER);
+
         JPanel actionRow = wrapRow();
-        actionRow.add(chatSelector);
-        actionRow.add(newChat);
         actionRow.add(copyLastResponse);
         actionRow.add(copyRawResponse);
         actionRow.add(copyTranscript);
@@ -285,12 +338,8 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(cloudModel);
         routeRow.add(allowSourceMutation);
 
-        JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        JButton commandHint = button("/", "SHAFT command hints",
-                event -> status.setText("Hover /commands for command aliases"));
-        ShaftIconButtons.apply(commandHint, AssistantCommand.commandTooltip(),
-                "SHAFT command hints", ShaftIcons.HELP);
-        promptActions.add(commandHint);
+        JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        promptActions.add(commandAutocomplete);
         promptActions.add(send);
 
         JPanel composerFooter = new JPanel(new BorderLayout(4, 4));
@@ -301,7 +350,6 @@ final class ShaftAssistantPanel extends JPanel {
         composer.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createEtchedBorder(),
                 JBUI.Borders.empty(6)));
-        composer.add(new JLabel("Add context (#), extensions (@), commands (/commands)"), BorderLayout.NORTH);
         composer.add(new JBScrollPane(prompt), BorderLayout.CENTER);
         composer.add(cloudKeyPanel, BorderLayout.WEST);
         composer.add(composerFooter, BorderLayout.SOUTH);
@@ -310,7 +358,10 @@ final class ShaftAssistantPanel extends JPanel {
         south.add(actionRow, BorderLayout.NORTH);
         south.add(composer, BorderLayout.CENTER);
 
-        add(setupNotice(project, settings), BorderLayout.NORTH);
+        JPanel north = new JPanel(new BorderLayout(4, 4));
+        north.add(setupNotice(project, settings), BorderLayout.NORTH);
+        north.add(header, BorderLayout.CENTER);
+        add(north, BorderLayout.NORTH);
         add(transcriptPanel, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
         refreshChatSelector();
@@ -741,6 +792,7 @@ final class ShaftAssistantPanel extends JPanel {
         cloudProvider.setEnabled(!running);
         cloudModel.setEnabled(!running);
         customCommand.setEnabled(!running);
+        commandAutocomplete.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
         saveCloudApiKey.setEnabled(!running);
         approveCaptureReview.setEnabled(!running && pendingCaptureReview != null);
@@ -847,6 +899,24 @@ final class ShaftAssistantPanel extends JPanel {
         }
         if (cloud) {
             updateCloudKeyStatus();
+        }
+    }
+
+    private void insertSelectedCommand() {
+        if (updatingCommandAutocomplete) {
+            return;
+        }
+        String command = canonicalCommand(String.valueOf(commandAutocomplete.getSelectedItem()));
+        if (command.isBlank()) {
+            return;
+        }
+        prompt.replaceSelection(command + " ");
+        prompt.requestFocusInWindow();
+        updatingCommandAutocomplete = true;
+        try {
+            commandAutocomplete.setSelectedItem("");
+        } finally {
+            updatingCommandAutocomplete = false;
         }
     }
 
@@ -1368,8 +1438,51 @@ final class ShaftAssistantPanel extends JPanel {
         return combo;
     }
 
+    private static String[] commandItems() {
+        return AssistantCommand.commandHints().stream()
+                .map(AssistantCommand.CommandHint::canonical)
+                .toArray(String[]::new);
+    }
+
+    private static String canonicalCommand(String value) {
+        String normalized = value == null ? "" : value.trim();
+        if (normalized.isBlank()) {
+            return "";
+        }
+        String firstToken = normalized.split("\\s+", 2)[0];
+        for (AssistantCommand.CommandHint hint : AssistantCommand.commandHints()) {
+            if (hint.canonical().equalsIgnoreCase(firstToken)) {
+                return hint.canonical();
+            }
+            if (hint.synonyms().stream().anyMatch(alias -> alias.equalsIgnoreCase(firstToken))) {
+                return hint.canonical();
+            }
+        }
+        return "";
+    }
+
     private static JPanel wrapRow() {
         return new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 4));
+    }
+
+    static String trimChatTitleForWidth(String title, FontMetrics metrics, int maxWidth) {
+        String value = title == null || title.isBlank() ? "New chat" : title.strip();
+        if (metrics == null || maxWidth <= 0 || metrics.stringWidth(value) <= maxWidth) {
+            return value;
+        }
+        String ellipsis = "...";
+        if (metrics.stringWidth(ellipsis) >= maxWidth) {
+            return ellipsis;
+        }
+        int end = value.length();
+        while (end > 0) {
+            String candidate = value.substring(0, end).stripTrailing() + ellipsis;
+            if (metrics.stringWidth(candidate) <= maxWidth) {
+                return candidate;
+            }
+            end--;
+        }
+        return ellipsis;
     }
 
     private static JButton button(String text, String accessibleName, java.awt.event.ActionListener action) {
@@ -1380,11 +1493,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private static ShaftAssistantChatState chatState(Project project) {
-        if (project == null) {
-            return new ShaftAssistantChatState();
-        }
-        ShaftAssistantChatState state = ShaftAssistantChatState.getInstance(project);
-        return state == null ? new ShaftAssistantChatState() : state;
+        return new ShaftAssistantChatState();
     }
 
     private static String resolveFamily(ShaftSettingsState.Settings settings) {

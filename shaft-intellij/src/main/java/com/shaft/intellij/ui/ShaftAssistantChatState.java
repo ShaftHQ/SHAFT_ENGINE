@@ -1,13 +1,5 @@
 package com.shaft.intellij.ui;
 
-import com.intellij.openapi.components.PersistentStateComponent;
-import com.intellij.openapi.components.State;
-import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.components.StoragePathMacros;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.xmlb.XmlSerializerUtil;
-import org.jetbrains.annotations.NotNull;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,53 +7,29 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * Project-scoped persistent Assistant chat sessions.
+ * In-memory Assistant chat sessions for the current tool-window lifetime.
  */
-@State(name = "ShaftAssistantChats", storages = @Storage(StoragePathMacros.WORKSPACE_FILE))
-public final class ShaftAssistantChatState implements PersistentStateComponent<ShaftAssistantChatState.ChatState> {
+public final class ShaftAssistantChatState {
     private static final int MAX_SESSIONS = 12;
     private static final int MAX_MESSAGES_PER_SESSION = 80;
     private static final String SECOND_PERSON_LABEL = String.valueOf(new char[]{'Y', 'o', 'u'});
 
-    private ChatState state = new ChatState();
-
-    /**
-     * Returns the project-level Assistant chat state service.
-     *
-     * @param project IntelliJ project
-     * @return chat state service
-     */
-    public static ShaftAssistantChatState getInstance(Project project) {
-        return project.getService(ShaftAssistantChatState.class);
-    }
-
-    @Override
-    public ChatState getState() {
-        ensureActiveSession();
-        return state;
-    }
-
-    @Override
-    public void loadState(@NotNull ChatState loadedState) {
-        XmlSerializerUtil.copyBean(loadedState, state);
-        ensureActiveSession();
-        sanitizeStoredSessions();
-        trim();
-    }
+    private final List<Session> sessions = new ArrayList<>();
+    private String activeSessionId = "";
 
     Session activeSession() {
         ensureActiveSession();
-        return sessionById(state.activeSessionId);
+        return sessionById(activeSessionId);
     }
 
     List<Session> sessions() {
         ensureActiveSession();
-        return List.copyOf(state.sessions);
+        return List.copyOf(sessions);
     }
 
     void activate(String sessionId) {
         if (sessionById(sessionId) != null) {
-            state.activeSessionId = sessionId;
+            activeSessionId = sessionId;
         }
     }
 
@@ -71,8 +39,8 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         session.title = "New chat";
         session.createdAt = now();
         session.updatedAt = session.createdAt;
-        state.sessions.add(0, session);
-        state.activeSessionId = session.id;
+        sessions.add(0, session);
+        activeSessionId = session.id;
         trim();
         return session;
     }
@@ -124,23 +92,20 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     }
 
     private void ensureActiveSession() {
-        if (state.sessions == null) {
-            state.sessions = new ArrayList<>();
-        }
-        if (state.sessions.isEmpty()) {
+        if (sessions.isEmpty()) {
             newSession();
             return;
         }
-        if (sessionById(state.activeSessionId) == null) {
-            state.activeSessionId = state.sessions.get(0).id;
+        if (sessionById(activeSessionId) == null) {
+            activeSessionId = sessions.get(0).id;
         }
     }
 
     private Session sessionById(String sessionId) {
-        if (sessionId == null || state.sessions == null) {
+        if (sessionId == null) {
             return null;
         }
-        for (Session session : state.sessions) {
+        for (Session session : sessions) {
             if (sessionId.equals(session.id)) {
                 return session;
             }
@@ -150,32 +115,19 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
 
     private void trim() {
         ensureMessages();
-        while (state.sessions.size() > MAX_SESSIONS) {
-            state.sessions.remove(state.sessions.size() - 1);
+        while (sessions.size() > MAX_SESSIONS) {
+            sessions.remove(sessions.size() - 1);
         }
     }
 
     private void ensureMessages() {
-        for (Session session : state.sessions) {
+        for (Session session : sessions) {
             if (session.messages == null) {
                 session.messages = new ArrayList<>();
             }
             while (session.messages.size() > MAX_MESSAGES_PER_SESSION) {
                 session.messages.remove(0);
             }
-        }
-    }
-
-    private void sanitizeStoredSessions() {
-        for (Session session : state.sessions) {
-            if (session.messages != null) {
-                for (Message message : session.messages) {
-                    if ("user".equals(message.role) && message.markdown != null) {
-                        message.markdown = stripSpeakerLabel(message.markdown);
-                    }
-                }
-            }
-            session.title = titleFrom(session.title);
         }
     }
 
@@ -219,15 +171,7 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     }
 
     /**
-     * XML-serializable chat state.
-     */
-    public static final class ChatState {
-        public String activeSessionId = "";
-        public List<Session> sessions = new ArrayList<>();
-    }
-
-    /**
-     * XML-serializable Assistant session.
+     * Assistant session retained for the active tool-window lifetime.
      */
     public static final class Session {
         public String id = "";
@@ -243,7 +187,7 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     }
 
     /**
-     * XML-serializable Assistant transcript message.
+     * Assistant transcript message retained for the active tool-window lifetime.
      */
     public static final class Message {
         public String role = "";

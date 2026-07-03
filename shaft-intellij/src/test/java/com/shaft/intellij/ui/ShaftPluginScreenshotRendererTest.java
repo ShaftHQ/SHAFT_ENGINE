@@ -357,7 +357,11 @@ class ShaftPluginScreenshotRendererTest {
         Project project = screenshotProject();
         ShaftSettingsState.Settings settings = defaultSettings();
         settings.advancedUiEnabled = true;
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings);
+        ShaftAssistantChatState chatState = selectedTab == 0
+                ? populatedAssistantChatState()
+                : new ShaftAssistantChatState();
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
+                project, settings, AssistantLocalAgentRunner::readiness, chatState);
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindow.workflowSelector();
         ShaftToolWindowPanel.WorkflowView selectedView = selector.getItemAt(selectedTab);
         Component selected = selectedView.component();
@@ -378,6 +382,17 @@ class ShaftPluginScreenshotRendererTest {
                     case "getName" -> "SHAFT";
                     default -> defaultValue(method.getReturnType());
                 });
+    }
+
+    private static ShaftAssistantChatState populatedAssistantChatState() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "generate code that opens DuckDuckGo and verifies the SHAFT Engine result", "");
+        chatState.append("assistant", """
+                Confirm the exact DuckDuckGo URL before code generation.
+
+                %s
+                """.formatted(ASSISTANT_SHAFT_CODE_SAMPLE).stripIndent().trim(), "");
+        return chatState;
     }
 
     private static Object defaultValue(Class<?> returnType) {

@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.mcp.ShaftMcpInstallResult;
@@ -16,11 +17,15 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JEditorPane;
 import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JProgressBar;
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
@@ -752,34 +757,63 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantPersistsActiveChatAndCanStartNewContext() throws Exception {
-        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
-        ShaftSettingsState.Settings settings = blankMcpSettings();
-        ShaftAssistantPanel firstPanel = new ShaftAssistantPanel(null, settings, chatState);
+    void assistantStartsFreshInsteadOfRestoringProjectServiceChat() {
+        ShaftAssistantChatState storedState = new ShaftAssistantChatState();
+        storedState.append("user", "persisted stale prompt", "{}");
+        storedState.append("assistant", "persisted stale answer", "{}");
 
-        showAssistantResult(firstPanel, ShaftMcpToolResult.success(mcpText("First answer")));
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(fakeProject(storedState), blankMcpSettings());
+        JComboBox<?> chats = findByAccessibleName(panel, "Assistant chat", JComboBox.class);
 
-        ShaftAssistantPanel reopenedPanel = new ShaftAssistantPanel(null, settings, chatState);
-        assertTrue(transcriptMarkdown(reopenedPanel).contains("First answer"));
-
-        click(reopenedPanel, "New chat");
-        assertFalse(transcriptMarkdown(reopenedPanel).contains("First answer"));
-
-        showAssistantResult(reopenedPanel, ShaftMcpToolResult.success(mcpText("Second answer")));
         assertAll(
-                () -> assertTrue(transcriptMarkdown(reopenedPanel).contains("Second answer")),
-                () -> assertEquals(2, chatState.sessions().size()));
+                () -> assertFalse(transcriptMarkdown(panel).contains("persisted stale prompt")),
+                () -> assertFalse(transcriptMarkdown(panel).contains("persisted stale answer")),
+                () -> assertNotNull(chats),
+                () -> assertEquals(1, chats.getItemCount()));
     }
 
     @Test
-    void persistedSetupOpensAssistantWithPreviousChatsInDropdown() {
-        ShaftSettingsState.Settings settings = connectedMcpSettings();
+    void assistantKeepsCurrentSessionHistoryInDropdown() {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
-        Project project = fakeProject(chatState);
-        chatState.append("user", "start recording", "{}");
-        chatState.append("assistant", "Capture browser opened.", "{}");
+        chatState.append("user", "first in-memory chat", "{}");
+        chatState.append("assistant", "first response", "{}");
         chatState.newSession();
-        chatState.append("user", "generate reviewed code", "{}");
+        chatState.append("user", "second in-memory chat", "{}");
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings(), chatState);
+
+        JComboBox<?> chats = findByAccessibleName(panel, "Assistant chat", JComboBox.class);
+        assertNotNull(chats);
+        chats.setSelectedIndex(1);
+
+        assertAll(
+                () -> assertEquals(2, chatState.sessions().size()),
+                () -> assertTrue(comboContains(chats, "first in-memory chat")),
+                () -> assertTrue(comboContains(chats, "second in-memory chat")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("first in-memory chat")),
+                () -> assertFalse(transcriptMarkdown(panel).contains("second in-memory chat")));
+    }
+
+    @Test
+    void assistantChatTitlesTrimToDropdownWidth() {
+        JLabel label = new JLabel();
+        String title = "generate a very long browser automation test from the current recording";
+        String trimmed = ShaftAssistantPanel.trimChatTitleForWidth(title, label.getFontMetrics(label.getFont()), 120);
+
+        assertAll(
+                () -> assertTrue(trimmed.endsWith("...")),
+                () -> assertTrue(trimmed.length() < title.length()),
+                () -> assertTrue(label.getFontMetrics(label.getFont()).stringWidth(trimmed) <= 120));
+    }
+
+    @Test
+    void connectedSetupStartsFreshInsteadOfRestoringProjectServiceChats() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftAssistantChatState storedState = new ShaftAssistantChatState();
+        Project project = fakeProject(storedState);
+        storedState.append("user", "start recording", "{}");
+        storedState.append("assistant", "Capture browser opened.", "{}");
+        storedState.newSession();
+        storedState.append("user", "generate reviewed code", "{}");
 
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings);
         JComboBox<?> chats = findByAccessibleName(toolWindow, "Assistant chat", JComboBox.class);
@@ -787,11 +821,10 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertNull(setupPanel(toolWindow)),
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
-                () -> assertTrue(transcriptMarkdown(toolWindow).contains("generate reviewed code")),
+                () -> assertFalse(transcriptMarkdown(toolWindow).contains("start recording")),
+                () -> assertFalse(transcriptMarkdown(toolWindow).contains("generate reviewed code")),
                 () -> assertNotNull(chats),
-                () -> assertEquals(2, chats.getItemCount()),
-                () -> assertTrue(comboContains(chats, "start recording")),
-                () -> assertTrue(comboContains(chats, "generate reviewed code")));
+                () -> assertEquals(1, chats.getItemCount()));
     }
 
     @Test
@@ -823,14 +856,29 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantTranscriptShowsSentPromptAndLiveAgentOutputInVisibleChat() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        assistantPrompt(panel).setText("visible realtime user prompt");
+        clickAccessible(panel, "Send assistant prompt");
+        appendStreamingLocalAgentBubble(panel, 77);
+        appendLocalAgentOutput(panel, 77, "visible realtime agent response");
+
+        assertAll(
+                () -> assertTrue(transcriptMarkdown(panel).contains("visible realtime user prompt")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("visible realtime agent response")),
+                () -> assertTrue(containsText(panel, "visible realtime user prompt")),
+                () -> assertTrue(containsText(panel, "visible realtime agent response")));
+    }
+
+    @Test
     void assistantDoesNotPersistRawResponsePayloads() throws Exception {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
 
         chatState.append("assistant", "Rendered response", "{\"secret\":\"raw payload\"}");
 
         assertAll(
-                () -> assertEquals("Rendered response",
-                        chatState.getState().sessions.get(0).messages.get(0).markdown),
+                () -> assertEquals("Rendered response", chatState.sessions().get(0).messages.get(0).markdown),
                 () -> assertThrows(NoSuchFieldException.class,
                         () -> ShaftAssistantChatState.Message.class.getDeclaredField("raw")));
     }
@@ -866,36 +914,41 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantComposerUsesCompactCommandHintAndModernThinkingIndicator() {
+    void assistantComposerUsesCommandAutocompleteAndModernThinkingIndicator() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
-        JButton commandHint = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
+        JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
         JProgressBar spinner = findByAccessibleName(panel, "Assistant thinking spinner", JProgressBar.class);
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
 
         assertAll(
-                () -> assertNotNull(commandHint),
-                () -> assertNotNull(commandHint.getIcon()),
-                () -> assertTrue(commandHint.getIcon().getIconWidth() > 0),
-                () -> assertTrue(commandHint.getIcon().getIconHeight() > 0),
-                () -> assertTrue(commandHint.getToolTipText().contains("/commands")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/help")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/record")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/mobile")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/doctor")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/mcp")),
-                () -> assertTrue(containsText(panel, "commands (/commands)")),
+                () -> assertNotNull(commandAutocomplete),
+                () -> assertTrue(commandAutocomplete.isEditable()),
+                () -> assertTrue(comboContains(commandAutocomplete, "/commands")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/browser")),
+                () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)")),
+                () -> assertNull(findByAccessibleName(panel, "SHAFT command hints", JButton.class)),
                 () -> assertNotNull(spinner),
                 () -> assertTrue(spinner.isIndeterminate()),
                 () -> assertFalse(spinner.isVisible()),
                 () -> assertNotNull(sendButton),
-                () -> assertEquals("", commandHint.getText()),
                 () -> assertEquals("", sendButton.getText()),
-                () -> assertTrue(sendButton.getPreferredSize().width > commandHint.getPreferredSize().width),
                 () -> assertNotNull(sendButton.getIcon()),
                 () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
                 () -> assertTrue(sendButton.getIcon().getIconHeight() > 0));
+    }
+
+    @Test
+    void assistantCommandAutocompleteInsertsCommandIntoPrompt() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
+        JTextComponent prompt = assistantPrompt(panel);
+
+        prompt.setText("please ");
+        prompt.setCaretPosition(prompt.getDocument().getLength());
+        commandAutocomplete.setSelectedItem("/browser");
+
+        assertEquals("please /browser ", prompt.getText());
     }
 
     @Test
@@ -933,7 +986,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void iconButtonsUseBorderlessIconOnlySurfaces() {
+    void iconButtonsUseClickableIconOnlySurfaces() {
         JButton active = new JButton("Run");
         JButton inactive = new JButton("Cancel");
         ShaftIconButtons.apply(active, ShaftIcons.SEND);
@@ -944,27 +997,37 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertNotNull(inactive.getDisabledIcon()),
                 () -> assertEquals(inactive.getIcon().getIconWidth(), inactive.getDisabledIcon().getIconWidth()),
-                () -> assertFalse(active.isContentAreaFilled()),
-                () -> assertFalse(inactive.isContentAreaFilled()),
-                () -> assertFalse(active.isOpaque()),
-                () -> assertFalse(inactive.isOpaque()),
-                () -> assertFalse(active.isBorderPainted()),
-                () -> assertFalse(inactive.isBorderPainted()),
-                () -> assertFalse(active.isFocusPainted()),
-                () -> assertFalse(inactive.isFocusPainted()));
+                () -> assertTrue(active.isContentAreaFilled()),
+                () -> assertTrue(active.isBorderPainted()),
+                () -> assertTrue(active.isFocusPainted()),
+                () -> assertTrue(active.isRolloverEnabled()),
+                () -> assertTrue(inactive.isContentAreaFilled()),
+                () -> assertTrue(inactive.isBorderPainted()));
     }
 
     @Test
-    void assistantCommandHintKeepsIconOnlyMetadata() {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JButton commandHint = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
+    void iconButtonsExposeVisibleHoverPressedAndDisabledFeedback() {
+        JButton button = new JButton("Run");
+        ShaftIconButtons.apply(button, ShaftIcons.SEND);
+
+        Color ready = button.getBackground();
+        button.getModel().setRollover(true);
+        Color hover = button.getBackground();
+        button.getModel().setArmed(true);
+        button.getModel().setPressed(true);
+        Color pressed = button.getBackground();
+        int enabledCursor = button.getCursor().getType();
+        button.setEnabled(false);
+        Color disabled = button.getBackground();
+        int disabledCursor = button.getCursor().getType();
 
         assertAll(
-                () -> assertIconOnlySymmetric(commandHint),
-                () -> assertNotNull(commandHint.getToolTipText()),
-                () -> assertTrue(commandHint.getToolTipText().contains("/commands")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/browser")),
-                () -> assertTrue(commandHint.getToolTipText().contains("/mcp")));
+                () -> assertTrue(button.isOpaque()),
+                () -> assertEquals(Cursor.HAND_CURSOR, enabledCursor),
+                () -> assertEquals(Cursor.DEFAULT_CURSOR, disabledCursor),
+                () -> assertNotEquals(ready, hover),
+                () -> assertNotEquals(hover, pressed),
+                () -> assertNotEquals(ready, disabled));
     }
 
     @Test
@@ -1068,11 +1131,22 @@ class ShaftPanelSetupTest {
     @Test
     void assistantTranscriptInitialHintUsesCanonicalCommandsEntry() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
-        String html = transcript.html();
 
         assertAll(
-                () -> assertTrue(html.contains("/commands")),
-                () -> assertFalse(html.contains("/help")));
+                () -> assertTrue(containsText(transcript, "/commands")),
+                () -> assertFalse(containsText(transcript, "/help")));
+    }
+
+    @Test
+    void assistantTranscriptIsSelfContainedWithoutExternalMarkdownRuntime() {
+        List<String> externalMarkdownFields = new ArrayList<>();
+        for (Field field : AssistantTranscriptView.class.getDeclaredFields()) {
+            if (field.getType().getName().startsWith("org.commonmark")) {
+                externalMarkdownFields.add(field.getName() + ":" + field.getType().getName());
+            }
+        }
+
+        assertTrue(externalMarkdownFields.isEmpty(), externalMarkdownFields.toString());
     }
 
     @Test
@@ -1081,51 +1155,71 @@ class ShaftPanelSetupTest {
         transcript.append("user", "Hello assistant\n\n```java\nclass UserPrompt {}\n```");
         transcript.append("assistant", "Hi user");
 
-        String html = transcript.html();
+        List<JComponent> bubbles = transcriptBubbles(transcript);
+        List<JEditorPane> panes = transcriptHtmlPanes(transcript);
+        String rendered = transcriptRenderedHtml(transcript);
         assertAll(
-                () -> assertTrue(html.contains("class=\"shaft-chat-row user ")),
-                () -> assertTrue(html.contains("class=\"shaft-chat-row assistant ")),
-                () -> assertTrue(html.contains("class=\"shaft-chat-bubble user ")),
-                () -> assertTrue(html.contains("class=\"shaft-chat-bubble assistant ")),
-                () -> assertTrue(html.contains("shaft-chat-row-user")),
-                () -> assertTrue(html.contains("shaft-chat-bubble-user")),
-                () -> assertTrue(html.contains("background-color:")),
-                () -> assertTrue(html.contains("border-radius")),
-                () -> assertTrue(html.contains("class=\"shaft-chat-hint\"")),
-                () -> assertTrue(html.contains("class=\"shaft-code-copy\"")),
-                () -> assertTrue(html.contains("data-copy-code=\"class UserPrompt")),
-                () -> assertTrue(html.contains("aria-label=\"Copy code\"")),
-                () -> assertTrue(html.contains("<svg width=\"16\" height=\"16\"")),
-                () -> assertTrue(html.contains("class=\"shaft-code-copy-icon\"")),
-                () -> assertTrue(html.contains("&#x2398;")),
-                () -> assertTrue(html.contains("class=\"shaft-code-highlighted language-java\""), html),
-                () -> assertTrue(html.contains("<span style=\""), html),
-                () -> assertFalse(html.contains(">Copy code<")),
-                () -> assertTrue(html.contains("Hello assistant")),
-                () -> assertTrue(html.contains("Hi user")),
-                () -> assertTrue(html.indexOf("Hi user") < html.indexOf("Type a question")),
-                () -> assertFalse(html.contains("cellpadding=\"8\"")),
-                () -> assertFalse(html.contains("border=\"1\"")));
+                () -> assertEquals(2, bubbles.size()),
+                () -> assertEquals(2, panes.size()),
+                () -> assertEquals("user",
+                        bubbles.get(0).getClientProperty(AssistantTranscriptView.TRANSCRIPT_BUBBLE_PROPERTY)),
+                () -> assertEquals("assistant",
+                        bubbles.get(1).getClientProperty(AssistantTranscriptView.TRANSCRIPT_BUBBLE_PROPERTY)),
+                () -> assertEquals(BorderLayout.EAST,
+                        ((BorderLayout) bubbles.get(0).getParent().getLayout()).getConstraints(bubbles.get(0))),
+                () -> assertEquals(BorderLayout.WEST,
+                        ((BorderLayout) bubbles.get(1).getParent().getLayout()).getConstraints(bubbles.get(1))),
+                () -> assertEquals("user",
+                        panes.get(0).getClientProperty(AssistantTranscriptView.TRANSCRIPT_ROLE_PROPERTY)),
+                () -> assertEquals("assistant",
+                        panes.get(1).getClientProperty(AssistantTranscriptView.TRANSCRIPT_ROLE_PROPERTY)),
+                () -> assertTrue(rendered.contains("background:")),
+                () -> assertTrue(rendered.contains("class=\"shaft-code-copy\"")),
+                () -> assertTrue(rendered.contains("data-copy-code=\"class UserPrompt")),
+                () -> assertTrue(rendered.contains("aria-label=\"Copy code\"")),
+                () -> assertTrue(rendered.contains("<svg width=\"16\" height=\"16\"")),
+                () -> assertTrue(rendered.contains("class=\"shaft-code-copy-icon\"")),
+                () -> assertTrue(rendered.contains("&#x2398;")),
+                () -> assertTrue(rendered.contains("class=\"shaft-code-highlighted language-java\""), rendered),
+                () -> assertTrue(rendered.contains("<span style=\""), rendered),
+                () -> assertFalse(rendered.contains(">Copy code<")),
+                () -> assertTrue(containsText(transcript, "Hello assistant")),
+                () -> assertTrue(containsText(transcript, "Hi user")),
+                () -> assertTrue(containsText(transcript, "Type a question")),
+                () -> assertFalse(rendered.contains("cellpadding=\"8\"")),
+                () -> assertFalse(rendered.contains("border=\"1\"")),
+                () -> assertFalse(rendered.contains("<table")));
     }
 
     @Test
-    void assistantTranscriptKeepsLatestMessageInView() {
+    void assistantTranscriptUsesReadActionForIntellijRendering() {
+        assertTrue(AssistantTranscriptView.renderReadActionForTest(
+                () -> ApplicationManager.getApplication() == null
+                        || ApplicationManager.getApplication().isReadAccessAllowed()));
+    }
+
+    @Test
+    void assistantTranscriptRendersLatestMessageInSwingView() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
         transcript.append("user", "Show the sent prompt");
 
-        assertTrue(transcript.html().contains("window.scrollTo(0, document.body.scrollHeight)"));
+        assertTrue(containsText(transcript, "Show the sent prompt"));
     }
 
     @Test
-    void assistantTranscriptBubblesDoNotPaintRectangularOutlines() {
+    void assistantTranscriptAssistantBubbleHasVisibleRoundedSurface() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
         transcript.append("assistant", "Assistant response");
 
-        String html = transcript.html();
-        String assistantBubbleCss = html.substring(
-                html.indexOf(".shaft-chat-bubble.assistant"),
-                html.indexOf(".shaft-chat-hint"));
-        assertFalse(assistantBubbleCss.contains("border:"));
+        List<JComponent> bubbles = transcriptBubbles(transcript);
+        assertAll(
+                () -> assertEquals(1, bubbles.size()),
+                () -> assertEquals("assistant",
+                        bubbles.get(0).getClientProperty(AssistantTranscriptView.TRANSCRIPT_BUBBLE_PROPERTY)),
+                () -> assertNotNull(bubbles.get(0).getBorder()),
+                () -> assertNotNull(bubbles.get(0).getBackground()),
+                () -> assertTrue(bubbles.get(0).getAccessibleContext().getAccessibleName().contains("Assistant")),
+                () -> assertFalse(transcriptRenderedHtml(transcript).contains("<table")));
     }
 
     @Test
@@ -1137,14 +1231,15 @@ class ShaftPanelSetupTest {
                 ```
                 """.stripIndent().trim());
 
-        String html = transcript.html();
-        String copyControlCss = html.substring(
-                html.indexOf(".shaft-code-copy {"),
-                html.indexOf(".shaft-code-copy svg"));
+        String rendered = transcriptRenderedHtml(transcript);
+        String copyControlCss = rendered.substring(
+                rendered.indexOf(".shaft-code-copy {"),
+                rendered.indexOf(".shaft-code-copy-icon"));
         assertAll(
                 () -> assertFalse(copyControlCss.contains("border:")),
                 () -> assertFalse(copyControlCss.contains("background:")),
-                () -> assertFalse(html.contains(";border:1px solid ")));
+                () -> assertTrue(copyControlCss.contains("line-height: 24px")),
+                () -> assertTrue(rendered.contains("line-height:24px")));
     }
 
     @Test
@@ -1173,24 +1268,24 @@ class ShaftPanelSetupTest {
                 ```
                 """.stripIndent().trim());
 
-        String html = transcript.html();
+        String rendered = transcriptRenderedHtml(transcript);
 
         assertAll(
-                () -> assertTrue(html.contains("<h2")),
-                () -> assertTrue(html.contains("<hr")),
-                () -> assertTrue(html.contains("language-json")),
-                () -> assertTrue(html.contains("language-java")),
-                () -> assertTrue(html.contains("language-xml")),
-                () -> assertEquals(3, countOccurrences(html, "class=\"shaft-code-copy\"")),
-                () -> assertTrue(html.contains("data-copy-code=\"public class LoginTest")),
-                () -> assertTrue(html.contains("href=\"shaft-copy-code:public+class+LoginTest")),
-                () -> assertTrue(html.contains("aria-label=\"Copy code\"")),
-                () -> assertTrue(html.contains("<svg width=\"16\" height=\"16\"")),
-                () -> assertTrue(html.contains("class=\"shaft-code-copy-icon\"")),
-                () -> assertTrue(html.contains("&#x2398;")),
-                () -> assertTrue(html.contains("class=\"shaft-code-highlighted language-java\""), html),
-                () -> assertTrue(html.contains("<span style=\""), html),
-                () -> assertFalse(html.contains(">Copy code<")));
+                () -> assertTrue(rendered.contains("<h2")),
+                () -> assertTrue(rendered.contains("<hr")),
+                () -> assertTrue(rendered.contains("language-json")),
+                () -> assertTrue(rendered.contains("language-java")),
+                () -> assertTrue(rendered.contains("language-xml")),
+                () -> assertEquals(3, countOccurrences(rendered, "class=\"shaft-code-copy\"")),
+                () -> assertTrue(rendered.contains("data-copy-code=\"public class LoginTest")),
+                () -> assertTrue(rendered.contains("href=\"shaft-copy-code:public+class+LoginTest")),
+                () -> assertTrue(rendered.contains("aria-label=\"Copy code\"")),
+                () -> assertTrue(rendered.contains("<svg width=\"16\" height=\"16\"")),
+                () -> assertTrue(rendered.contains("class=\"shaft-code-copy-icon\"")),
+                () -> assertTrue(rendered.contains("&#x2398;")),
+                () -> assertTrue(rendered.contains("class=\"shaft-code-highlighted language-java\""), rendered),
+                () -> assertTrue(rendered.contains("<span style=\""), rendered),
+                () -> assertFalse(rendered.contains(">Copy code<")));
     }
 
     @Test
@@ -1201,8 +1296,8 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertEquals("Validated DuckDuckGo title.", transcript.markdown()),
-                () -> assertFalse(transcript.html().contains("Running Codex CLI")),
-                () -> assertTrue(transcript.html().contains("Validated DuckDuckGo title.")));
+                () -> assertFalse(transcriptRenderedHtml(transcript).contains("Running Codex CLI")),
+                () -> assertTrue(transcriptRenderedHtml(transcript).contains("Validated DuckDuckGo title.")));
     }
 
     @Test
@@ -1215,7 +1310,7 @@ class ShaftPanelSetupTest {
         transcript.setMessages(state.activeMessages());
 
         assertEquals("User prompt\n\nAssistant reply", transcript.markdown());
-        assertNotNull(transcript.html());
+        assertFalse(transcriptRenderedHtml(transcript).isBlank());
     }
 
     @Test
@@ -1272,21 +1367,15 @@ class ShaftPanelSetupTest {
         settings.mcpCommand = "cmd";
         settings.mcpSetupComplete = false;
         Project project = fakeProject();
-        ShaftAssistantChatState state = ShaftAssistantChatState.getInstance(project);
-        assertNotNull(state);
-        state.newSession();
-        state.append("user", "Previous assistant conversation", "{}");
-        int beforeSetupSessions = state.sessions().size();
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "Previous assistant conversation", "{}");
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings, readyProbe(), chatState);
 
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings, readyProbe());
         ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
         assertNotNull(setupPanel);
         showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK"));
 
         assertAll(
-                () -> assertEquals(beforeSetupSessions, state.sessions().size()),
-                () -> assertNotNull(state.activeSession()),
-                () -> assertTrue(state.activeMarkdown().contains("Previous assistant conversation")),
                 () -> assertTrue(transcriptMarkdown(toolWindow).contains("Previous assistant conversation")),
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)));
     }
@@ -1409,6 +1498,50 @@ class ShaftPanelSetupTest {
         return false;
     }
 
+    private static String transcriptRenderedHtml(Component component) {
+        StringBuilder html = new StringBuilder();
+        for (JEditorPane pane : transcriptHtmlPanes(component)) {
+            Object rendered = pane.getClientProperty(AssistantTranscriptView.TRANSCRIPT_RENDERED_HTML_PROPERTY);
+            html.append(rendered instanceof String value ? value : pane.getText()).append('\n');
+        }
+        return html.toString();
+    }
+
+    private static List<JEditorPane> transcriptHtmlPanes(Component component) {
+        List<JEditorPane> panes = new ArrayList<>();
+        collectTranscriptHtmlPanes(component, panes);
+        return panes;
+    }
+
+    private static void collectTranscriptHtmlPanes(Component component, List<JEditorPane> panes) {
+        if (component instanceof JEditorPane pane
+                && pane.getClientProperty(AssistantTranscriptView.TRANSCRIPT_RENDERED_HTML_PROPERTY) != null) {
+            panes.add(pane);
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                collectTranscriptHtmlPanes(child, panes);
+            }
+        }
+    }
+
+    private static List<JComponent> transcriptBubbles(Component component) {
+        List<JComponent> bubbles = new ArrayList<>();
+        collectComponentsWithClientProperty(component, AssistantTranscriptView.TRANSCRIPT_BUBBLE_PROPERTY, bubbles);
+        return bubbles;
+    }
+
+    private static void collectComponentsWithClientProperty(Component component, String property, List<JComponent> found) {
+        if (component instanceof JComponent jComponent && jComponent.getClientProperty(property) != null) {
+            found.add(jComponent);
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                collectComponentsWithClientProperty(child, property, found);
+            }
+        }
+    }
+
     private static void collectTextAreas(Component component, List<JBTextArea> textAreas) {
         if (component instanceof JBTextArea textArea) {
             textAreas.add(textArea);
@@ -1521,6 +1654,18 @@ class ShaftPanelSetupTest {
                 "showAgentResult", int.class, ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, streamToken, result, null);
+    }
+
+    private static void appendStreamingLocalAgentBubble(ShaftAssistantPanel panel, int streamToken) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("appendStreamingLocalAgentBubble", int.class);
+        method.setAccessible(true);
+        method.invoke(panel, streamToken);
+    }
+
+    private static void appendLocalAgentOutput(ShaftAssistantPanel panel, int streamToken, String line) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("appendLocalAgentOutput", int.class, String.class);
+        method.setAccessible(true);
+        method.invoke(panel, streamToken, line);
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {

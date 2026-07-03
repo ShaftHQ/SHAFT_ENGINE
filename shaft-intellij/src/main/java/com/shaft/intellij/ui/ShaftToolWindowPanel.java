@@ -28,6 +28,7 @@ import java.util.stream.Stream;
 public final class ShaftToolWindowPanel extends JPanel {
     private final Project project;
     private final ShaftSettingsState.Settings settings;
+    private final ShaftAssistantChatState assistantChatState;
     private JComponent preferredFocusComponent;
     private JComboBox<WorkflowView> workflowSelector;
     private JPanel workflowCards;
@@ -47,10 +48,18 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     ShaftToolWindowPanel(Project project, @NotNull ShaftSettingsState.Settings settings,
                          @NotNull ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe) {
+        this(project, settings, readinessProbe, new ShaftAssistantChatState());
+    }
+
+    ShaftToolWindowPanel(Project project,
+                         @NotNull ShaftSettingsState.Settings settings,
+                         @NotNull ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe,
+                         @NotNull ShaftAssistantChatState assistantChatState) {
         super(new BorderLayout());
         this.project = project;
         this.settings = settings;
         this.readinessProbe = readinessProbe;
+        this.assistantChatState = assistantChatState;
         if (mcpReady(settings)) {
             showMainView();
         } else {
@@ -76,7 +85,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private void showMainView() {
         removeAll();
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
-                assistantState(project), this::showSetupView);
+                assistantChatState, this::showSetupView);
         preferredFocusComponent = assistant.preferredFocusComponent();
         if (!settings.advancedUiEnabled) {
             workflowSelector = null;
@@ -209,14 +218,6 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private static boolean mcpReady(ShaftSettingsState.Settings settings) {
         return settings.mcpSetupComplete && settings.mcpCommand != null && !settings.mcpCommand.isBlank();
-    }
-
-    private static ShaftAssistantChatState assistantState(Project project) {
-        if (project == null) {
-            return new ShaftAssistantChatState();
-        }
-        ShaftAssistantChatState state = ShaftAssistantChatState.getInstance(project);
-        return state == null ? new ShaftAssistantChatState() : state;
     }
 
     record WorkflowView(String label, JComponent component) {
