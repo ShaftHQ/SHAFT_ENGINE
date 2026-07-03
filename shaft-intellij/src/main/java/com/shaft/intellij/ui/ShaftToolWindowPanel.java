@@ -217,7 +217,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     private static boolean mcpReady(ShaftSettingsState.Settings settings) {
-        return settings.mcpSetupComplete && settings.mcpCommand != null && !settings.mcpCommand.isBlank();
+        return settings != null && settings.mcpReady();
     }
 
     record WorkflowView(String label, JComponent component) {

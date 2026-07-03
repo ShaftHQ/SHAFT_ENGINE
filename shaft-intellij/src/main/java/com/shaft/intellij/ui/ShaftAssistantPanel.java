@@ -24,6 +24,7 @@ import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
@@ -66,7 +67,7 @@ import java.util.concurrent.CancellationException;
 final class ShaftAssistantPanel extends JPanel {
     private static final int TRANSIENT_STATUS_MILLIS = 2300;
     private static final String READY_STATUS = "Try asking me to do something...";
-    private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter or Ctrl+click)";
+    private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
     private final Project project;
     private final ShaftAssistantChatState chatState;
@@ -102,7 +103,6 @@ final class ShaftAssistantPanel extends JPanel {
     private final DefaultListModel<String> timelineModel;
     private final JList<String> timeline;
     private final JPanel timelinePanel;
-    private final JPanel starterPanel;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
@@ -281,21 +281,28 @@ final class ShaftAssistantPanel extends JPanel {
         allowSourceMutation = new JBCheckBox("Allow source edits");
         allowSourceMutation.getAccessibleContext().setAccessibleName("Approve source mutation for Agent mode");
         allowSourceMutation.setToolTipText("Enable only when Agent mode should edit local source files");
-        prompt = new JBTextArea(5, 32);
+        prompt = new JBTextArea(6, 40);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
                 "Ask for help, choose a tested command, or request guarded local Agent work.");
-        prompt.getEmptyText().setText("Ask a question, /guide locators, /record a flow, or /doctor a failure");
+        prompt.getEmptyText().setText("Ask SHAFT, or type / for commands");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
+        prompt.setMinimumSize(JBUI.size(320, 108));
+        prompt.setPreferredSize(JBUI.size(560, 120));
         transcript = new AssistantTranscriptView(project);
         if (!chatState.activeMarkdown().isBlank()) {
             transcript.setMessages(chatState.activeMessages());
+            lastPrompt = latestUserPrompt();
         }
         status = new JLabel(READY_STATUS);
+        status.getAccessibleContext().setAccessibleName("Assistant status");
+        status.getAccessibleContext().setAccessibleDescription(READY_STATUS);
+        status.setToolTipText(READY_STATUS);
         status.setFont(status.getFont().deriveFont(Math.max(10.0F, status.getFont().getSize2D() - 1.0F)));
         status.setPreferredSize(JBUI.size(260, status.getPreferredSize().height));
         status.setMinimumSize(JBUI.size(220, status.getPreferredSize().height));
+        status.setVisible(false);
         progress = new JProgressBar();
         progress.setIndeterminate(true);
         progress.getAccessibleContext().setAccessibleName("Assistant thinking spinner");
@@ -382,9 +389,7 @@ final class ShaftAssistantPanel extends JPanel {
         JBScrollPane timelineScroll = new JBScrollPane(timeline);
         timelineScroll.setPreferredSize(JBUI.size(240, 58));
         timelinePanel.add(timelineScroll, BorderLayout.CENTER);
-        starterPanel = starterPanel();
         JPanel transcriptCenterChrome = new JPanel(new BorderLayout(4, 4));
-        transcriptCenterChrome.add(starterPanel, BorderLayout.NORTH);
         transcriptCenterChrome.add(timelinePanel, BorderLayout.CENTER);
         transcriptBottom.add(transcriptCenterChrome, BorderLayout.CENTER);
         transcriptBottom.add(transcriptStatus, BorderLayout.SOUTH);
@@ -495,7 +500,7 @@ final class ShaftAssistantPanel extends JPanel {
         allowSourceMutation.setSelected(false);
         prompt.setText(agentGuidanceOptimizationPrompt(settings));
         prompt.setCaretPosition(0);
-        status.setText("Review setup optimization prompt");
+        setStatus("Review setup optimization prompt");
         updateControlVisibility();
     }
 
@@ -580,7 +585,7 @@ final class ShaftAssistantPanel extends JPanel {
         hideContextPopup();
         List<ContextSuggestion> suggestions = contextSuggestionsForTest(trigger);
         if (suggestions.isEmpty()) {
-            status.setText(trigger == '#'
+            setStatus(trigger == '#'
                     ? "No project context available"
                     : "No Assistant context available");
             return;
@@ -611,7 +616,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         prompt.setCaretPosition(start + suggestion.insertion().length());
         prompt.requestFocusInWindow();
-        status.setText("Inserted " + suggestion.label());
+        setStatus("Inserted " + suggestion.label());
     }
 
     private void hideContextPopup() {
@@ -648,11 +653,11 @@ final class ShaftAssistantPanel extends JPanel {
     private void send(Project project) {
         String text = prompt.getText().trim();
         if (text.isBlank()) {
-            status.setText("Enter a prompt");
+            setStatus("Enter a prompt");
             return;
         }
         if (usesCloud() && !hasSelectedCloudKey()) {
-            status.setText("Enter " + ShaftUiLabels.friendly(cloudProvider.getSelectedItem()) + " key");
+            setStatus("Enter " + ShaftUiLabels.friendly(cloudProvider.getSelectedItem()) + " key");
             updateCloudKeyStatus();
             return;
         }
@@ -700,7 +705,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (requiresMcpSetup(invocation, mcpConfigured())) {
             addTimeline("Failed");
             showLocalResponse("Configure SHAFT MCP in Settings before running this Assistant feature command.");
-            status.setText("Configure MCP");
+            setStatus("Configure MCP");
             return;
         }
         if (AssistantLocalAgentRunner.supports(invocation)) {
@@ -874,7 +879,7 @@ final class ShaftAssistantPanel extends JPanel {
                 clearPendingCaptureReview();
             }
             showResponse("**SHAFT Assistant (" + toolName + " cancelled)**", "");
-            status.setText("Cancelled");
+            setStatus("Cancelled");
             return;
         }
         String output = error != null ? error.getMessage()
@@ -890,7 +895,7 @@ final class ShaftAssistantPanel extends JPanel {
                 captureReviewGenerationRunning = false;
             }
             showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "");
-            status.setText("Rejected generated code");
+            setStatus("Rejected generated code");
             addTimeline("Failed");
             return;
         }
@@ -905,7 +910,7 @@ final class ShaftAssistantPanel extends JPanel {
                     + markdown
                     + "\n\n**Review before writing files.** Send `approve`, `okay`, or `generate` to let the Agent create the actual Page Object Model files.",
                     output);
-            status.setText("Awaiting approval");
+            setStatus("Awaiting approval");
             addTimeline("Waiting for approval");
             return;
         }
@@ -953,7 +958,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (cancelled) {
             addTimeline("Cancelled");
             showAgentCancelled(streamToken, currentStream);
-            status.setText("Cancelled");
+            setStatus("Cancelled");
             return;
         }
         String output = error != null ? error.getMessage()
@@ -967,7 +972,7 @@ final class ShaftAssistantPanel extends JPanel {
                 ? AssistantMarkdown.nativeSeleniumRejectionMarkdown()
                 : AssistantMarkdown.normalizeMarkdown(output);
         if (rejectedGeneratedJava) {
-            status.setText("Rejected generated code");
+            setStatus("Rejected generated code");
             addTimeline("Failed");
         }
         showAgentResponse(streamToken, currentStream, response, rejectedGeneratedJava ? "" : output);
@@ -1019,7 +1024,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showLocalResponse(String response) {
-        status.setText(READY_STATUS);
+        setStatus(READY_STATUS);
         showResponse("**SHAFT Assistant**\n\n" + AssistantMarkdown.normalizeMarkdown(response), response);
     }
 
@@ -1065,7 +1070,7 @@ final class ShaftAssistantPanel extends JPanel {
         commandInfo.setEnabled(!running);
         cancel.setEnabled(running);
         progress.setVisible(running);
-        status.setText(message);
+        setStatus(message);
         updateSendButtonState();
         updateCancelButtonState();
         stopTransientStatus();
@@ -1121,9 +1126,9 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void showTransientStatus(String message) {
         stopTransientStatus();
-        status.setText(message);
+        setStatus(message);
         transientStatusTimer = new Timer(TRANSIENT_STATUS_MILLIS, event -> {
-            status.setText(READY_STATUS);
+            setStatus(READY_STATUS);
             stopTransientStatus();
         });
         transientStatusTimer.setRepeats(false);
@@ -1135,6 +1140,14 @@ final class ShaftAssistantPanel extends JPanel {
             transientStatusTimer.stop();
             transientStatusTimer = null;
         }
+    }
+
+    private void setStatus(String message) {
+        String value = message == null || message.isBlank() ? READY_STATUS : message;
+        status.setText(value);
+        status.setToolTipText(value);
+        status.getAccessibleContext().setAccessibleDescription(value);
+        status.setVisible(!READY_STATUS.equals(value));
     }
 
     private void updateControlVisibility() {
@@ -1186,7 +1199,7 @@ final class ShaftAssistantPanel extends JPanel {
     private void updateActionChrome() {
         if (copyLastResponse == null || copyRawResponse == null || copyTranscript == null
                 || clearTranscript == null || rerunLastPrompt == null || cancel == null
-                || timelinePanel == null || starterPanel == null) {
+                || timelinePanel == null) {
             return;
         }
         boolean hasResponse = !lastResponse.isBlank();
@@ -1205,7 +1218,6 @@ final class ShaftAssistantPanel extends JPanel {
         rerunLastPrompt.setEnabled(canRerun && !running);
         cancel.setVisible(running);
         cancel.setEnabled(running);
-        starterPanel.setVisible(!hasTranscript && !running);
         timelinePanel.setVisible(running || timelineModel.size() > 1);
         timelinePanel.revalidate();
     }
@@ -1228,32 +1240,6 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
-    private JPanel starterPanel() {
-        JPanel panel = new JPanel(new WrapLayout(FlowLayout.LEFT, 6, 2));
-        panel.getAccessibleContext().setAccessibleName("Assistant starter actions");
-        addStarter(panel, "/guide locators", ShaftIcons.HELP, "Start guide search", "/guide locators ");
-        addStarter(panel, "/browser open", ShaftIcons.VIEW, "Start browser control", "/browser open ");
-        addStarter(panel, "/record-web", ShaftIcons.ADD, "Start web recording", "/record-web ");
-        addStarter(panel, "/doctor", ShaftIcons.SEARCH, "Start failure analysis", "/doctor ");
-        return panel;
-    }
-
-    private void addStarter(JPanel panel, String label, javax.swing.Icon icon, String accessibleName, String insertion) {
-        JLabel text = new JLabel(label);
-        JButton action = button(label, accessibleName, event -> prefillStarter(insertion));
-        ShaftIconButtons.apply(action, icon);
-        action.setToolTipText("Insert " + label);
-        panel.add(text);
-        panel.add(action);
-    }
-
-    private void prefillStarter(String insertion) {
-        prompt.setText(insertion);
-        prompt.setCaretPosition(prompt.getDocument().getLength());
-        prompt.requestFocusInWindow();
-        status.setText("Ready: " + insertion.trim());
-    }
-
     private void updateCloudKeyStatus() {
         String provider = String.valueOf(cloudProvider.getSelectedItem());
         String keyName = providerKeyName(provider);
@@ -1267,14 +1253,14 @@ final class ShaftAssistantPanel extends JPanel {
     private void saveCloudApiKey() {
         String keyName = providerKeyName(String.valueOf(cloudProvider.getSelectedItem()));
         if (keyName.isBlank() || cloudApiKey.getPassword().length == 0) {
-            status.setText("Enter provider key");
+            setStatus("Enter provider key");
             return;
         }
         ShaftCredentialService.getInstance().setApiKey(keyName, cloudApiKey.getPassword());
         cloudApiKey.setText("");
         settings.passProviderApiKeysToMcp = true;
         updateCloudKeyStatus();
-        status.setText("Saved key");
+        setStatus("Saved key");
     }
 
     private boolean hasSelectedCloudKey() {
@@ -1283,13 +1269,27 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void bindKeyboard(Project project) {
+        Action cancelAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                if (running) {
+                    cancelOrKillCurrent();
+                }
+            }
+        };
         prompt.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK), "send");
+        prompt.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.META_DOWN_MASK), "send");
+        prompt.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel");
+        getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel");
         prompt.getActionMap().put("send", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent event) {
                 send(project);
             }
         });
+        prompt.getActionMap().put("cancel", cancelAction);
+        getActionMap().put("cancel", cancelAction);
         prompt.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {
@@ -1361,7 +1361,7 @@ final class ShaftAssistantPanel extends JPanel {
         copyRawResponse.setEnabled(false);
         rerunLastPrompt.setEnabled(false);
         refreshChatSelector();
-        status.setText("Cleared");
+        setStatus("Cleared");
         updateActionChrome();
     }
 
@@ -1382,7 +1382,7 @@ final class ShaftAssistantPanel extends JPanel {
         copyLastResponse.setEnabled(false);
         copyRawResponse.setEnabled(false);
         rerunLastPrompt.setEnabled(false);
-        status.setText("New chat");
+        setStatus("New chat");
         updateActionChrome();
     }
 
@@ -1400,7 +1400,7 @@ final class ShaftAssistantPanel extends JPanel {
             captureReviewGenerationRunning = false;
             captureIntegrationRunning = false;
             restoreTranscript();
-            status.setText("Chat loaded");
+            setStatus("Chat loaded");
         }
     }
 
@@ -1498,7 +1498,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void dismissPendingCaptureReview() {
         clearPendingCaptureReview();
-        status.setText(READY_STATUS);
+        setStatus(READY_STATUS);
     }
 
     private void clearPendingCaptureReview() {
@@ -1560,7 +1560,7 @@ final class ShaftAssistantPanel extends JPanel {
         String markdown = captureStartDiagnosticMarkdown(statusJson, startJson, outputPath);
         appendToolEvidence("capture_status", result.output());
         showResponse("**Capture diagnostic**\n\n" + markdown, result.output());
-        status.setText("Capture stopped");
+        setStatus("Capture stopped");
     }
 
     private void rerun(Project project) {
@@ -1574,12 +1574,12 @@ final class ShaftAssistantPanel extends JPanel {
         if (currentInvocation != null) {
             if (cancelRequested) {
                 currentInvocation.kill();
-                status.setText("Killing...");
+                setStatus("Killing...");
                 addTimeline("Killed");
             } else {
                 currentInvocation.cancel();
                 cancelRequested = true;
-                status.setText("Cancelling...");
+                setStatus("Cancelling...");
                 addTimeline("Cancelled");
             }
             updateSendButtonState();
@@ -1671,17 +1671,29 @@ final class ShaftAssistantPanel extends JPanel {
         }
         lastResponse = "";
         lastRawResponse = "";
-        lastPrompt = "";
+        lastPrompt = latestUserPrompt();
         copyLastResponse.setEnabled(false);
         copyRawResponse.setEnabled(false);
         rerunLastPrompt.setEnabled(false);
         updateActionChrome();
     }
 
+    private String latestUserPrompt() {
+        List<ShaftAssistantChatState.Message> messages = chatState.activeMessages();
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            ShaftAssistantChatState.Message message = messages.get(index);
+            if (message != null && "user".equals(message.role)
+                    && message.markdown != null && !message.markdown.isBlank()) {
+                return message.markdown.trim();
+            }
+        }
+        return "";
+    }
+
     private void copy(String value, String message) {
         if (!value.isBlank()) {
             CopyPasteManager.getInstance().setContents(new StringSelection(value));
-            status.setText(message);
+            setStatus(message);
         }
     }
 
@@ -1917,10 +1929,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private static boolean mcpReady(ShaftSettingsState.Settings settings) {
-        return settings != null
-                && settings.mcpSetupComplete
-                && settings.mcpCommand != null
-                && !settings.mcpCommand.isBlank();
+        return settings != null && settings.mcpReady();
     }
 
     private String currentAgentConfigurationText() {

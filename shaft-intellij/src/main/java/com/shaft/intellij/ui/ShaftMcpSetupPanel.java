@@ -3,6 +3,8 @@ package com.shaft.intellij.ui;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.FormBuilder;
@@ -21,6 +23,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JTextPane;
+import javax.swing.Icon;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
@@ -33,6 +36,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -56,7 +60,8 @@ final class ShaftMcpSetupPanel extends JPanel {
             "INTELLIJ_PLUGIN"
     };
     private static final String GUIDE_SETUP_STEP =
-            "Next: copy the installer, run it, infer the MCP command, then test connection.";
+            "Next: choose agent, copy command, open terminal, then check.";
+    private static final String CHECK_NEXT_STEP = "Press Check now.";
 
     @FunctionalInterface
     interface AgentReadinessProbe {
@@ -74,12 +79,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JComboBox<String> installerTarget;
     private final JCheckBox manualInstallerTarget;
     private final JButton copyInstallerCommand;
-    private final JButton inferCommand;
+    private final JButton openTerminal;
     private final JButton test;
     private final JButton startChatting;
     private final JProgressBar progress;
-    private final JLabel projectStatus;
-    private final JLabel commandStatus;
     private final JLabel runtimeStatus;
     private final JLabel assistStatus;
     private final JLabel chooseStep;
@@ -90,8 +93,17 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton copyCommand;
     private final JButton copyOutput;
     private final JTextPane details;
+    private final JPanel installerDetailsPanel;
+    private final JPanel detailsPanel;
+    private final JPanel chooseRow;
+    private final JPanel copyRow;
+    private final JPanel terminalRow;
+    private final JPanel checkRow;
+    private final JPanel chatRow;
     private String diagnosticCommand = "";
     private String diagnosticOutput = "";
+    private boolean installerCommandCopied;
+    private boolean terminalOpened;
     private Consumer<String> copySink = ShaftMcpSetupPanel::copyToClipboard;
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
@@ -112,7 +124,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         installerCommand.setEditable(false);
         installerCommand.getAccessibleContext().setAccessibleDescription(
                 "Terminal command that installs SHAFT MCP for the selected assistant client.");
-        mcpCommand = commandArea(2, "MCP stdio command");
+        mcpCommand = commandArea(4, "Managed SHAFT MCP command");
         mcpCommand.setText(settings.mcpCommand == null ? "" : settings.mcpCommand);
         mcpCommand.getAccessibleContext().setAccessibleDescription(
                 "Local command used to start SHAFT MCP in stdio mode.");
@@ -160,33 +172,31 @@ final class ShaftMcpSetupPanel extends JPanel {
             assistantSelectionChanged();
         });
         installerCommand.setText(installerCommand());
-        copyInstallerCommand = new JButton("Copy MCP installer command");
+        copyInstallerCommand = new JButton("Copy command");
         copyInstallerCommand.getAccessibleContext().setAccessibleName("Copy MCP installer command");
         copyInstallerCommand.setToolTipText("Copy the terminal installer command");
-        ShaftIconButtons.apply(copyInstallerCommand, ShaftIcons.COPY);
+        applyLabeledAction(copyInstallerCommand, ShaftIcons.COPY);
         copyInstallerCommand.addActionListener(event -> copyInstallerCommand());
-        inferCommand = new JButton("Use inferred MCP command");
-        inferCommand.getAccessibleContext().setAccessibleName("Use inferred MCP command");
-        inferCommand.setToolTipText("Use the stdio command installed by the SHAFT MCP installer");
-        ShaftIconButtons.apply(inferCommand, ShaftIcons.SEARCH);
-        inferCommand.addActionListener(event -> useInferredMcpCommand());
-        test = new JButton("Test connection and start chatting");
+        openTerminal = new JButton("Open terminal");
+        openTerminal.getAccessibleContext().setAccessibleName("Open terminal for MCP installer");
+        openTerminal.setToolTipText("Open the IntelliJ terminal after copying the installer command");
+        applyLabeledAction(openTerminal, ShaftIcons.CODE);
+        openTerminal.addActionListener(event -> openTerminalForInstaller());
+        test = new JButton("Check now");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
-        test.setToolTipText("Verify the MCP command and selected assistant runtime");
-        ShaftIconButtons.apply(test, ShaftIcons.CHECK);
+        test.setToolTipText("Infer the stdio command and verify SHAFT MCP");
+        applyLabeledAction(test, ShaftIcons.CHECK);
         test.addActionListener(event -> testConnection());
-        startChatting = new JButton("Start chatting with SHAFT Assistant");
+        startChatting = new JButton("Start chatting");
         startChatting.getAccessibleContext().setAccessibleName("Start chatting with SHAFT Assistant");
         startChatting.setToolTipText("Open the Assistant with this verified MCP command");
-        ShaftIconButtons.apply(startChatting, ShaftIcons.SEND);
+        applyLabeledAction(startChatting, ShaftIcons.SEND);
         startChatting.setVisible(false);
         startChatting.addActionListener(event -> connected.run());
-        projectStatus = setupStatusLabel("Project setup status");
-        commandStatus = setupStatusLabel("SHAFT MCP command status");
         runtimeStatus = setupStatusLabel("Assistant runtime setup status");
         assistStatus = setupStatusLabel("Assistant connection setup status");
         status = new JLabel();
-        status.setPreferredSize(JBUI.size(360, 44));
+        status.setPreferredSize(JBUI.size(560, 28));
         setStatusText(GUIDE_SETUP_STEP);
         status.getAccessibleContext().setAccessibleName("SHAFT MCP setup next step");
         copyCommand = new JButton("Copy command");
@@ -194,6 +204,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyCommand.setToolTipText("Copy the diagnostic command");
         ShaftIconButtons.apply(copyCommand, ShaftIcons.CODE);
         copyCommand.setEnabled(false);
+        copyCommand.setVisible(false);
         copyCommand.addActionListener(event -> copyDiagnosticCommand());
         copyOutput = new JButton("Copy output");
         copyOutput.getAccessibleContext().setAccessibleName("Copy setup diagnostic output");
@@ -210,23 +221,33 @@ final class ShaftMcpSetupPanel extends JPanel {
         details.setForeground(UIManagerColors.foreground());
         details.setBorder(JBUI.Borders.compound(JBUI.Borders.empty(6), JBUI.Borders.customLine(UIManagerColors.border(), 1)));
 
-        JPanel installRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        installRow.add(copyInstallerCommand);
-        installRow.add(inferCommand);
-        JPanel testRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        testRow.add(progress);
-        testRow.add(test);
-        testRow.add(startChatting);
-        testRow.add(assistStatus);
-        chooseStep = setupStepLabel("Choose assistant setup step");
-        installStep = setupStepLabel("Install MCP setup step");
-        detectStep = setupStepLabel("Detect command setup step");
-        testStep = setupStepLabel("Test connection setup step");
-        JPanel pathRow = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 0));
-        pathRow.add(chooseStep);
-        pathRow.add(installStep);
-        pathRow.add(detectStep);
-        pathRow.add(testStep);
+        chooseStep = setupStepLabel("Choose agent setup step");
+        installStep = setupStepLabel("Copy command setup step");
+        detectStep = setupStepLabel("Open terminal setup step");
+        testStep = setupStepLabel("Check now setup step");
+        JPanel agentControls = new JPanel();
+        agentControls.setLayout(new javax.swing.BoxLayout(agentControls, javax.swing.BoxLayout.Y_AXIS));
+        agentControls.add(labeledControl("Assistant family", family));
+        agentControls.add(labeledControl("Runtime", runtime));
+        JPanel checkActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        checkActions.add(test);
+        checkActions.add(progress);
+        checkActions.add(assistStatus);
+        chooseRow = stepRow(chooseStep, agentControls);
+        copyRow = stepRow(installStep, copyInstallerCommand);
+        terminalRow = stepRow(detectStep, openTerminal);
+        checkRow = stepRow(testStep, checkActions);
+        JLabel readyStep = setupStepLabel("Start chatting setup step");
+        readyStep.setText("Ready");
+        chatRow = stepRow(readyStep, startChatting);
+        chatRow.setVisible(false);
+        JPanel workflow = new JPanel();
+        workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
+        workflow.add(chooseRow);
+        workflow.add(copyRow);
+        workflow.add(terminalRow);
+        workflow.add(checkRow);
+        workflow.add(chatRow);
         JPanel targetRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         targetRow.add(manualInstallerTarget);
         targetRow.add(installerTarget);
@@ -236,77 +257,67 @@ final class ShaftMcpSetupPanel extends JPanel {
         family.addActionListener(event -> assistantSelectionChanged());
         runtime.addActionListener(event -> assistantSelectionChanged());
         installerTarget.addActionListener(event -> installerTargetChanged());
-        showProjectConfigured();
-        updateCommandStatus();
         showRuntimeSelected();
         showAssistNotConfigured();
-        if (!currentCommand().isBlank()) {
-            setStatusText("Press Test connection next.");
-        }
-        updateActionState(false);
-
         JPanel intro = new JPanel(new BorderLayout(4, 2));
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD));
-        JLabel summary = new JLabel("Codex CLI is selected by default; install SHAFT MCP once, then verify the local command.");
+        JLabel summary = new JLabel("Pick an agent. SHAFT handles the wiring.");
         intro.add(title, BorderLayout.NORTH);
         intro.add(summary, BorderLayout.CENTER);
-
-        JPanel form = FormBuilder.createFormBuilder()
-                .addComponent(intro)
-                .addComponent(pathRow)
-                .addComponent(section("Project"))
-                .addComponent(projectStatus)
-                .addComponent(section("Runtime"))
-                .addLabeledComponent("Assistant family", family)
-                .addLabeledComponent("Assistant runtime", runtime)
-                .addComponent(runtimeStatus)
-                .addComponent(section("Install"))
+        installerDetailsPanel = FormBuilder.createFormBuilder()
                 .addComponent(targetRow)
                 .addLabeledComponent("Installer command", new JBScrollPane(installerCommand))
-                .addComponent(installRow)
-                .addComponent(guidanceArea("Run the installer command in a terminal,\nthen detect the stdio command."))
-                .addComponent(section("MCP"))
-                .addLabeledComponent("MCP stdio command", new JBScrollPane(mcpCommand))
-                .addComponent(commandStatus)
-                .addComponent(guidanceArea(
-                        "Copy the installer command,\nrun it in a terminal,\ndetect the stdio command,\nthen test."))
-                .addComponent(section("Assist"))
-                .addComponent(new JLabel("Test connection"))
-                .addComponent(testRow)
+                .getPanel();
+        installerDetailsPanel.setVisible(false);
+        JPanel form = FormBuilder.createFormBuilder()
+                .addComponent(intro)
+                .addComponent(runtimeStatus)
+                .addComponent(workflow)
+                .addComponent(installerDetailsPanel)
                 .addComponent(status)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
-        JPanel detailsPanel = new JPanel(new BorderLayout(4, 4));
+        detailsPanel = new JPanel(new BorderLayout(4, 4));
         detailsPanel.add(diagnosticRow, BorderLayout.NORTH);
         detailsPanel.add(new JBScrollPane(details), BorderLayout.CENTER);
+        detailsPanel.setVisible(false);
         add(form, BorderLayout.NORTH);
         add(detailsPanel, BorderLayout.CENTER);
+        if (!currentCommand().isBlank()) {
+            setStatusText(CHECK_NEXT_STEP);
+        }
+        updateActionState(false);
     }
 
     JComponent preferredFocusComponent() {
-        return mcpCommand;
+        return family;
     }
 
     private void testConnection() {
         String command = currentCommand();
+        if (command.isBlank()) {
+            String inferred = inferInstalledStdioCommand();
+            if (!inferred.isBlank()) {
+                mcpCommand.setText(inferred);
+                command = inferred;
+            }
+        }
         settings.mcpCommand = command;
         settings.assistantProviderType = "LOCAL";
         settings.assistantFamily = String.valueOf(family.getSelectedItem());
         settings.assistantRuntime = String.valueOf(runtime.getSelectedItem());
         settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
         if (command.isBlank()) {
-            showMcpNotConfigured();
             showAssistError();
             settings.mcpSetupComplete = false;
             settings.agentGuidanceOptimizationPromptPending = false;
-            setStatusText("Paste command first.");
+            setStatusText("Run installer, then check again.");
             setDiagnosticText(troubleshootingDetails("Probe failed",
                     "No SHAFT MCP command configured.", "", true), "");
             updateActionState(false);
             return;
         }
-        showMcpConfigured();
         showAssistConnecting();
         setRunning(true, "Testing...");
         ShaftMcpConnectionProbe.test(command, settings, projectRoot()).whenComplete((result, error) ->
@@ -314,11 +325,12 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private static JBTextArea commandArea(int rows, String accessibleName) {
-        JBTextArea area = new JBTextArea(rows, 48);
+        JBTextArea area = new JBTextArea(rows, 56);
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
         area.getAccessibleContext().setAccessibleName(accessibleName);
         area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, area.getFont() == null ? 12 : area.getFont().getSize()));
+        area.setMinimumSize(JBUI.size(360, Math.max(72, rows * 24)));
         return area;
     }
 
@@ -338,14 +350,12 @@ final class ShaftMcpSetupPanel extends JPanel {
                     mcpCommand());
         } else {
             if (result.success()) {
-                showMcpConfigured();
-                setDiagnosticText(result.output(), mcpCommand());
+                clearDiagnostics();
                 ShaftMcpToolResult readiness = readinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
                 if (readiness.success()) {
                     showAssistConfigured();
                     showRuntimeVerified();
-                    appendConsoleSuccess("Connected to SHAFT MCP.");
-                    appendConsoleSuccess(readiness.output());
+                    setStatusText("Ready to chat.");
                 } else {
                     success = false;
                     showAssistError();
@@ -370,14 +380,13 @@ final class ShaftMcpSetupPanel extends JPanel {
             startChatting.setVisible(false);
             showRuntimeSelected();
         }
+        updateActionState(false);
     }
 
     private void setRunning(boolean running, String text) {
         updateActionState(running);
         progress.setVisible(running);
         installerCommand.setEnabled(!running);
-        copyInstallerCommand.setEnabled(!running);
-        inferCommand.setEnabled(!running);
         installerTarget.setEnabled(!running);
         manualInstallerTarget.setEnabled(!running);
         mcpCommand.setEnabled(!running);
@@ -387,20 +396,39 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void updateActionState(boolean running) {
-        test.setEnabled(!running);
-        copyCommand.setEnabled(!running && (!diagnosticCommand.isBlank() || !currentCommand().isBlank()));
+        boolean hasCommand = !currentCommand().isBlank();
+        boolean complete = settings.mcpSetupComplete && hasCommand;
+        boolean showCopy = !complete && !hasCommand && !installerCommandCopied;
+        boolean showTerminal = !complete && !hasCommand && installerCommandCopied && !terminalOpened;
+        boolean showTest = !complete && (hasCommand || terminalOpened);
+        copyInstallerCommand.setVisible(showCopy);
+        copyInstallerCommand.setEnabled(!running && showCopy);
+        openTerminal.setVisible(showTerminal);
+        openTerminal.setEnabled(!running && showTerminal);
+        test.setVisible(showTest);
+        test.setEnabled(!running && showTest);
+        startChatting.setVisible(complete || startChatting.isVisible());
+        startChatting.setEnabled(!running && startChatting.isVisible());
+        chatRow.setVisible(startChatting.isVisible());
+        copyCommand.setEnabled(!running && !diagnosticCommand.isBlank());
+        updateProgressivePanels();
         updateSetupSteps(running);
+        updateWorkflowRows(running);
     }
 
     private void commandChanged() {
-        updateCommandStatus();
+        clearDiagnostics();
         showAssistNotConfigured();
         startChatting.setVisible(false);
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
+        if (!currentCommand().isBlank()) {
+            installerCommandCopied = true;
+            terminalOpened = true;
+        }
         setStatusText(currentCommand().isBlank()
                 ? GUIDE_SETUP_STEP
-                : "Press Test connection next.");
+                : CHECK_NEXT_STEP);
         updateActionState(false);
     }
 
@@ -417,24 +445,18 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void installerTargetChanged() {
+        clearDiagnostics();
         installerCommand.setText(installerCommand());
-        updateCommandStatus();
+        installerCommandCopied = false;
+        terminalOpened = false;
         showAssistNotConfigured();
         startChatting.setVisible(false);
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
         setStatusText(currentCommand().isBlank()
                 ? GUIDE_SETUP_STEP
-                : "Press Test connection next.");
+                : CHECK_NEXT_STEP);
         updateActionState(false);
-    }
-
-    private void updateCommandStatus() {
-        if (currentCommand().isBlank()) {
-            showMcpNotConfigured();
-        } else {
-            showMcpConfigured();
-        }
     }
 
     private static String resolveFamily(ShaftSettingsState.Settings settings) {
@@ -499,19 +521,34 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void copyInstallerCommand() {
         copy(installerCommand(), "Copied MCP installer command");
+        installerCommandCopied = true;
+        terminalOpened = false;
+        updateActionState(false);
     }
 
-    private void useInferredMcpCommand() {
-        String command = inferInstalledStdioCommand();
-        if (command.isBlank()) {
-            setStatusText("Run installer command first.");
-            setDiagnosticText(troubleshootingDetails("Setup command not found",
-                    "No installed shaft-mcp argfile was found under " + applicationDataRoot() + ".",
-                    installerCommand(), false), installerCommand());
+    private void openTerminalForInstaller() {
+        copy(installerCommand(), "Copied installer command");
+        installerCommandCopied = true;
+        terminalOpened = true;
+        openIntellijTerminal();
+        setStatusText("Run command in terminal, then check.");
+        updateActionState(false);
+    }
+
+    private void openIntellijTerminal() {
+        if (project == null || Proxy.isProxyClass(project.getClass()) || ApplicationManager.getApplication() == null) {
             return;
         }
-        mcpCommand.setText(command);
-        setStatusText("Press Test connection next.");
+        ApplicationManager.getApplication().invokeLater(() -> {
+            try {
+                ToolWindow terminal = ToolWindowManager.getInstance(project).getToolWindow("Terminal");
+                if (terminal != null) {
+                    terminal.activate(null);
+                }
+            } catch (RuntimeException ignored) {
+                // Terminal plugin/tool window may be unavailable; the command is already copied.
+            }
+        });
     }
 
     private static String inferInstalledStdioCommand() {
@@ -650,7 +687,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private String troubleshootingDetails(String title, String output, String command, boolean probeFailure) {
         String detailsOutput = output == null || output.isBlank() ? "No diagnostic output returned." : output.trim();
         String category = failureCategory(detailsOutput);
-        String commandText = command == null || command.isBlank() ? "No command available." : command;
+        String commandText = visibleDiagnosticCommand(command);
         StringBuilder formatted = new StringBuilder(title).append("\n\n")
                 .append("What failed\n")
                 .append("- Category: ").append(category).append('\n')
@@ -710,7 +747,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private List<String> troubleshootingSteps(String category, boolean probeFailure) {
         List<String> steps = new ArrayList<>();
         switch (category) {
-            case "MCP command" -> steps.add("Run the installer command, use the inferred command, or paste a manual stdio command.");
+            case "MCP command" -> steps.add("Run the installer command, then check again. SHAFT will find the local command automatically.");
             case "Java/runtime" -> steps.add("Install or select a Java runtime that can run shaft-mcp, then retry.");
             case "Maven artifact resolution" -> steps.add(
                     "Check Maven Central/network access and retry once artifact resolution is available.");
@@ -718,7 +755,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                     "Check that the selected client can write and read its MCP configuration file.");
             case "Client runtime" -> steps.add(
                     "Install the selected client CLI or add it to PATH, then retry.");
-            default -> steps.add("Run the diagnostic command in a terminal to confirm the MCP stdio command starts outside IntelliJ.");
+            default -> steps.add("Run the installer command again, then check setup once it finishes.");
         }
         if (probeFailure) {
             steps.add(clientSpecificStep());
@@ -732,6 +769,17 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "COPILOT" -> "For GitHub Copilot, check the Copilot MCP client configuration and any organization MCP policy.";
             default -> "For Codex, run `codex mcp list` and verify the SHAFT MCP server in the Codex config.";
         };
+    }
+
+    private String visibleDiagnosticCommand(String command) {
+        if (command == null || command.isBlank()) {
+            return "Managed by SHAFT automatically.";
+        }
+        return isUserRunnableDiagnosticCommand(command) ? command : "Managed by SHAFT automatically.";
+    }
+
+    private boolean isUserRunnableDiagnosticCommand(String command) {
+        return command != null && !command.isBlank() && !command.trim().equals(mcpCommand());
     }
 
     private String clientDisplayName() {
@@ -760,38 +808,60 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private static JLabel setupStepLabel(String accessibleName) {
         JLabel label = new JLabel();
+        label.setPreferredSize(JBUI.size(132, 24));
         label.setBorder(JBUI.Borders.empty(2, 6));
         label.getAccessibleContext().setAccessibleName(accessibleName);
         return label;
     }
 
-    private static JLabel section(String text) {
-        JLabel label = new JLabel(text);
-        label.getAccessibleContext().setAccessibleName(text + " setup section");
-        return label;
+    private static void applyLabeledAction(JButton button, Icon icon) {
+        button.setIcon(icon);
+        button.setMargin(JBUI.insets(4, 8));
+        button.setFocusPainted(true);
+        button.setRolloverEnabled(true);
     }
 
     private void setStatusText(String text) {
         status.setToolTipText(text);
         if (GUIDE_SETUP_STEP.equals(text)) {
-            status.setText("<html>Next: copy installer, infer command,<br>then test connection.</html>");
+            status.setText(GUIDE_SETUP_STEP);
+            status.setVisible(false);
             return;
         }
         status.setText(escapeHtml(text));
+        status.setVisible(true);
     }
 
     private void updateSetupSteps(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
-        setStep(chooseStep, "1 Choose assistant", "done");
-        setStep(installStep, "2 Install MCP", hasCommand || complete ? "done" : "next");
-        setStep(detectStep, "3 Detect command", hasCommand || complete ? "done" : "wait");
-        setStep(testStep, "4 Test connection", running ? "checking" : complete ? "done" : hasCommand ? "next" : "wait");
+        setStep(chooseStep, "1 Pick agent", "done");
+        setStep(installStep, "2 Copy command", hasCommand || installerCommandCopied || complete ? "done" : "next");
+        setStep(detectStep, "3 Run in terminal", hasCommand || terminalOpened || complete
+                ? "done"
+                : installerCommandCopied ? "next" : "wait");
+        setStep(testStep, "4 Check setup", running ? "checking" : complete ? "done" : hasCommand || terminalOpened ? "next" : "wait");
+    }
+
+    private void updateWorkflowRows(boolean running) {
+        boolean hasCommand = !currentCommand().isBlank();
+        boolean complete = settings.mcpSetupComplete && hasCommand;
+        styleStepRow(chooseRow, "done");
+        styleStepRow(copyRow, hasCommand || installerCommandCopied || complete ? "done" : "next");
+        styleStepRow(terminalRow, hasCommand || terminalOpened || complete
+                ? "done"
+                : installerCommandCopied ? "next" : "wait");
+        styleStepRow(checkRow, running ? "checking" : complete ? "done" : hasCommand || terminalOpened ? "next" : "wait");
+        styleStepRow(chatRow, complete ? "next" : "wait");
     }
 
     private static void setStep(JLabel label, String name, String state) {
-        label.setText(name + " - " + state);
+        label.setText(name);
         label.setToolTipText(name + " is " + state);
+        label.getAccessibleContext().setAccessibleName(name + " setup step: " + state);
+        label.setFont(label.getFont().deriveFont("next".equals(state) || "checking".equals(state)
+                ? Font.BOLD
+                : Font.PLAIN));
         label.setForeground(switch (state) {
             case "done" -> UIManagerColors.success();
             case "next", "checking" -> UIManagerColors.progress();
@@ -799,18 +869,40 @@ final class ShaftMcpSetupPanel extends JPanel {
         });
     }
 
-    private static JBTextArea guidanceArea(String text) {
-        JBTextArea area = new JBTextArea(text, Math.max(2, text.split("\\R", -1).length), 32);
-        area.setLineWrap(true);
-        area.setWrapStyleWord(true);
-        area.setEditable(false);
-        area.setOpaque(false);
-        area.setFocusable(false);
-        area.setBorder(JBUI.Borders.empty());
-        area.setForeground(UIManagerColors.foreground());
-        area.getAccessibleContext().setAccessibleName("SHAFT MCP setup guidance");
-        area.getAccessibleContext().setAccessibleDescription(text);
-        return area;
+    private static JPanel stepRow(JLabel label, JComponent action) {
+        JPanel row = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 4));
+        row.setOpaque(true);
+        row.add(label);
+        row.add(action);
+        row.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(UIManagerColors.border(), 1),
+                JBUI.Borders.empty(6)));
+        return row;
+    }
+
+    private static JPanel labeledControl(String text, JComponent control) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        JLabel label = new JLabel(text);
+        label.setPreferredSize(JBUI.size(96, 24));
+        label.setLabelFor(control);
+        row.add(label);
+        row.add(control);
+        return row;
+    }
+
+    private static void styleStepRow(JPanel row, String state) {
+        row.setBackground(switch (state) {
+            case "next", "checking" -> UIManagerColors.activeBackground();
+            case "done" -> UIManagerColors.doneBackground();
+            default -> UIManagerColors.panelBackground();
+        });
+        row.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(switch (state) {
+                    case "next", "checking" -> UIManagerColors.progress();
+                    case "done" -> UIManagerColors.success();
+                    default -> UIManagerColors.border();
+                }, 1),
+                JBUI.Borders.empty(6)));
     }
 
     private static String escapeHtml(String text) {
@@ -820,24 +912,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
-    private void showProjectConfigured() {
-        showStatus(projectStatus, "Project", "Configured", UIManagerColors.success());
-    }
-
-    private void showMcpNotConfigured() {
-        showStatus(commandStatus, "MCP", "Not configured", UIManagerColors.pending());
-    }
-
-    private void showMcpConfigured() {
-        showStatus(commandStatus, "MCP", "Configured", UIManagerColors.success());
-    }
-
     private void showRuntimeSelected() {
         showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " selected", UIManagerColors.pending());
+        runtimeStatus.setVisible(false);
     }
 
     private void showRuntimeVerified() {
         showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " verified", UIManagerColors.success());
+        runtimeStatus.setVisible(true);
     }
 
     private String assistantRuntimeLabel() {
@@ -854,18 +936,22 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void showAssistNotConfigured() {
         showAssistStatus("Not configured", UIManagerColors.pending());
+        assistStatus.setVisible(false);
     }
 
     private void showAssistConnecting() {
         showAssistStatus("Connecting", UIManagerColors.progress());
+        assistStatus.setVisible(true);
     }
 
     private void showAssistConfigured() {
         showAssistStatus("Configured", UIManagerColors.success());
+        assistStatus.setVisible(true);
     }
 
     private void showAssistError() {
         showAssistStatus("Error", UIManagerColors.error());
+        assistStatus.setVisible(true);
     }
 
     private void showAssistStatus(String state, Color color) {
@@ -879,16 +965,34 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void setDiagnosticText(String text, String command) {
         diagnosticOutput = text == null ? "" : text;
-        diagnosticCommand = command == null ? "" : command;
-        copyCommand.setEnabled(!diagnosticCommand.isBlank() || !currentCommand().isBlank());
+        diagnosticCommand = isUserRunnableDiagnosticCommand(command) ? command : "";
+        copyCommand.setVisible(!diagnosticCommand.isBlank());
+        copyCommand.setEnabled(!diagnosticCommand.isBlank());
         copyOutput.setEnabled(!diagnosticOutput.isBlank());
         details.setText(diagnosticOutput);
         details.setCaretPosition(details.getDocument().getLength());
+        detailsPanel.setVisible(!diagnosticOutput.isBlank());
+        updateProgressivePanels();
+        detailsPanel.revalidate();
+    }
+
+    private void updateProgressivePanels() {
+        installerDetailsPanel.revalidate();
+    }
+
+    private void clearDiagnostics() {
+        diagnosticOutput = "";
+        diagnosticCommand = "";
+        copyCommand.setEnabled(false);
+        copyCommand.setVisible(false);
+        copyOutput.setEnabled(false);
+        details.setText("");
+        detailsPanel.setVisible(false);
+        detailsPanel.revalidate();
     }
 
     private void copyDiagnosticCommand() {
-        String value = diagnosticCommand.isBlank() ? currentCommand() : diagnosticCommand;
-        copy(value, "Copied diagnostic command");
+        copy(diagnosticCommand, "Copied diagnostic command");
     }
 
     private void copyDiagnosticOutput() {
@@ -926,6 +1030,8 @@ final class ShaftMcpSetupPanel extends JPanel {
             diagnosticOutput = details.getText();
             copyOutput.setEnabled(!diagnosticOutput.isBlank());
             details.setCaretPosition(document.getLength());
+            detailsPanel.setVisible(!diagnosticOutput.isBlank());
+            detailsPanel.revalidate();
         }
     }
 
@@ -944,6 +1050,19 @@ final class ShaftMcpSetupPanel extends JPanel {
         private static Color background() {
             Color background = javax.swing.UIManager.getColor("TextArea.background");
             return background == null ? Color.WHITE : background;
+        }
+
+        private static Color panelBackground() {
+            Color background = javax.swing.UIManager.getColor("Panel.background");
+            return background == null ? background() : background;
+        }
+
+        private static Color activeBackground() {
+            return mix(panelBackground(), progress(), 0.08D);
+        }
+
+        private static Color doneBackground() {
+            return mix(panelBackground(), success(), 0.06D);
         }
 
         private static Color border() {
@@ -973,6 +1092,19 @@ final class ShaftMcpSetupPanel extends JPanel {
         private static Color error() {
             Color foreground = javax.swing.UIManager.getColor("ValidationTooltip.errorForeground");
             return foreground == null ? new Color(0xB42318) : foreground;
+        }
+
+        private static Color mix(Color base, Color overlay, double overlayWeight) {
+            double bounded = Math.max(0.0D, Math.min(1.0D, overlayWeight));
+            double baseWeight = 1.0D - bounded;
+            return new Color(
+                    channel(base.getRed(), overlay.getRed(), baseWeight, bounded),
+                    channel(base.getGreen(), overlay.getGreen(), baseWeight, bounded),
+                    channel(base.getBlue(), overlay.getBlue(), baseWeight, bounded));
+        }
+
+        private static int channel(int base, int overlay, double baseWeight, double overlayWeight) {
+            return Math.max(0, Math.min(255, (int) Math.round(base * baseWeight + overlay * overlayWeight)));
         }
     }
 }
