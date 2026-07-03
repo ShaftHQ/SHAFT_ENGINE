@@ -33,6 +33,10 @@
                     <artifactId>opencv</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>com.sikulix</groupId>
+                    <artifactId>sikulix2tigervnc</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.ow2.asm</groupId>
                     <artifactId>asm-commons</artifactId>
                 </exclusion>
