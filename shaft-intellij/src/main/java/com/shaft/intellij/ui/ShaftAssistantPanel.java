@@ -333,7 +333,7 @@ final class ShaftAssistantPanel extends JPanel {
             default -> "AGENTS.md, .codex/config.toml, .agents/skills/**, .memory/**";
         };
         return """
-                Audit and optimize this SHAFT_ENGINE checkout's agent guidance for %s.
+                Audit and optimize this using shaft-engine test automation project checkout's agent guidance for %s.
 
                 Use SHAFT MCP tools before proposing guidance edits:
                 - shaft_guide_search for official user-guide facts and URLs.
@@ -342,7 +342,7 @@ final class ShaftAssistantPanel extends JPanel {
 
                 Review only these guidance and memory surfaces: %s.
                 Keep AGENTS.md canonical, host adapters thin, and memories durable, evidence-backed, and non-duplicative.
-                Do not edit product code, tests, workflows, manifests, dependencies, generated reports, binaries, or secrets.
+                Do not edit product code, tests, workflows, manifests, dependencies, generated reports, binaries, or secrets without explicit user approval.
 
                 If source edits are not enabled, return a concise patch plan only. If edits are enabled, make the smallest guidance or memory updates and rerun `py -3 scripts/ci/validate_agent_setup.py --skip-external` on Windows or `python3 scripts/ci/validate_agent_setup.py --skip-external` elsewhere.
                 """.formatted(ShaftUiLabels.friendly(family), surfaces).strip();
