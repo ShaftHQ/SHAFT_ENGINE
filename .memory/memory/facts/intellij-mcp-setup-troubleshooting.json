@@ -1,0 +1,40 @@
+{
+  "body_path": "memory/facts/intellij-mcp-setup-troubleshooting.md",
+  "content_hash": "sha256:b26ac71f3731ae148ecd3a82a06a02815bd9d93c6ca04865b846d5ae7ae629d0",
+  "created_at": "2026-07-03T17:15:57+03:00",
+  "evidence": [
+    {
+      "id": "469b38a0b7",
+      "kind": "commit"
+    }
+  ],
+  "facets": {
+    "applies_to": [
+      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java",
+      "shaft-intellij/src/main/java/com/shaft/intellij/mcp/ShaftMcpInstaller.java"
+    ],
+    "category": "product-feature",
+    "load_modes": [
+      "coding",
+      "debugging",
+      "review"
+    ]
+  },
+  "id": "fact.intellij-mcp-setup-troubleshooting",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "commit": "469b38a0b7",
+    "kind": "agent",
+    "task": "Ship IntelliJ MCP setup troubleshooting details for issue 3233"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "IntelliJ MCP setup has categorized troubleshooting",
+  "type": "fact",
+  "updated_at": "2026-07-03T17:15:57+03:00"
+}
