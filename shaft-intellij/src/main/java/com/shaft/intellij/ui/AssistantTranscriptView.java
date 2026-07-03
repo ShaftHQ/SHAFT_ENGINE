@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
  * Markdown-rendered Assistant transcript with copyable source text.
  */
 final class AssistantTranscriptView extends JPanel {
-    private static final String INITIAL_MESSAGE = "Type a question or use the command menu for SHAFT commands.";
+    private static final String INITIAL_MESSAGE = "Start with /guide, /browser, /record, or /doctor.";
     private static final Pattern LANGUAGE_CLASS = Pattern.compile("(?i)\\blanguage-([a-z0-9_+.#-]+)");
     private static final Pattern UNORDERED_LIST_ITEM = Pattern.compile("^[-*+]\\s+(.+)$");
     private static final Pattern ORDERED_LIST_ITEM = Pattern.compile("^\\d+[.)]\\s+(.+)$");
@@ -198,7 +198,9 @@ final class AssistantTranscriptView extends JPanel {
         for (ShaftAssistantChatState.Message message : messages) {
             fallbackPanel.add(fallbackMessage(message.role, message.markdown));
         }
-        fallbackPanel.add(fallbackHint());
+        if (messages.isEmpty()) {
+            fallbackPanel.add(fallbackHint());
+        }
         fallbackPanel.revalidate();
         fallbackPanel.repaint();
     }
