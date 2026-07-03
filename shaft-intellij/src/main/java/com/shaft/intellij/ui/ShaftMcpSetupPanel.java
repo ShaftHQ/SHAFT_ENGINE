@@ -40,9 +40,15 @@ import java.util.function.Consumer;
  * First-run SHAFT MCP setup panel.
  */
 final class ShaftMcpSetupPanel extends JPanel {
+    @FunctionalInterface
+    interface AgentReadinessProbe {
+        ShaftMcpToolResult test(String client, String runtime);
+    }
+
     private final Project project;
     private final ShaftSettingsState.Settings settings;
     private final Runnable connected;
+    private final AgentReadinessProbe readinessProbe;
     private final JButton install;
     private final JComboBox<String> family;
     private final JComboBox<String> runtime;
@@ -59,10 +65,16 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected) {
+        this(project, settings, connected, AssistantLocalAgentRunner::readiness);
+    }
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe) {
         super(new BorderLayout(8, 8));
         this.project = project;
         this.settings = settings;
         this.connected = connected;
+        this.readinessProbe = readinessProbe;
         setBorder(JBUI.Borders.empty(12));
 
         install = new JButton("Install / Update SHAFT MCP");
@@ -177,6 +189,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             appendConsoleSuccess("Installation completed successfully. Next: press \"Test connection and start chatting\".");
             settings.mcpCommand = result.commandLine();
             settings.mcpSetupComplete = false;
+            settings.agentGuidanceOptimizationPromptPending = false;
             markInstalledForCurrentSelection();
             showAssistNotConfigured();
             updateActionState(false);
@@ -233,15 +246,28 @@ final class ShaftMcpSetupPanel extends JPanel {
         } else {
             setConsoleText(result.output());
             if (result.success()) {
-                showAssistConfigured();
-                appendConsoleSuccess("Connected to SHAFT MCP.");
+                ShaftMcpToolResult readiness = readinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
+                if (readiness.success()) {
+                    showAssistConfigured();
+                    appendConsoleSuccess("Connected to SHAFT MCP.");
+                    appendConsoleSuccess(readiness.output());
+                } else {
+                    success = false;
+                    showAssistError();
+                    status.setText("Agent not ready. Retry test.");
+                    appendLine("Agent readiness failed: " + readiness.output(), false);
+                }
             } else {
                 showAssistError();
             }
         }
         if (success) {
             settings.mcpSetupComplete = true;
+            settings.agentGuidanceOptimizationPromptPending = true;
             connected.run();
+        } else {
+            settings.mcpSetupComplete = false;
+            settings.agentGuidanceOptimizationPromptPending = false;
         }
     }
 
@@ -275,6 +301,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             showMcpNotConfigured();
             showAssistNotConfigured();
             settings.mcpSetupComplete = false;
+            settings.agentGuidanceOptimizationPromptPending = false;
             status.setText("Install SHAFT MCP for the selected assistant.");
         }
         updateActionState(false);

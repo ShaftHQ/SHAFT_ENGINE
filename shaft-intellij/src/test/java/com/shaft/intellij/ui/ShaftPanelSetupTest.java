@@ -303,15 +303,70 @@ class ShaftPanelSetupTest {
     @Test
     void setupPanelShowsClearConnectionSuccess() throws Exception {
         AtomicBoolean connected = new AtomicBoolean();
-        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), connectedMcpSettings(), () -> connected.set(true));
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> connected.set(true), readyProbe());
 
         showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
 
         assertAll(
                 () -> assertTrue(containsText(panel, "Probe OK")),
                 () -> assertTrue(containsText(panel, "SUCCESS: Connected to SHAFT MCP.")),
+                () -> assertTrue(containsText(panel, "SUCCESS: Codex CLI executable is available on PATH.")),
                 () -> assertTrue(containsText(panel, "Connected")),
-                () -> assertTrue(connected.get()));
+                () -> assertTrue(connected.get()),
+                () -> assertTrue(settings.mcpSetupComplete),
+                () -> assertTrue(settings.agentGuidanceOptimizationPromptPending));
+    }
+
+    @Test
+    void setupPanelBlocksConnectionWhenSelectedAgentIsNotReady() throws Exception {
+        AtomicBoolean connected = new AtomicBoolean();
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> connected.set(true),
+                (client, runtime) -> ShaftMcpToolResult.failure("Codex CLI executable is not available on PATH."));
+
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Assist: Error")),
+                () -> assertTrue(containsText(panel, "Agent readiness failed: Codex CLI executable is not available on PATH.")),
+                () -> assertFalse(connected.get()),
+                () -> assertFalse(settings.mcpSetupComplete),
+                () -> assertFalse(settings.agentGuidanceOptimizationPromptPending));
+    }
+
+    @Test
+    void assistantConsumesPendingGuidanceOptimizationPromptOnce() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.agentGuidanceOptimizationPromptPending = true;
+
+        ShaftAssistantPanel first = new ShaftAssistantPanel(null, settings);
+        ShaftAssistantPanel second = new ShaftAssistantPanel(null, settings);
+
+        assertAll(
+                () -> assertTrue(containsText(first, "Audit and optimize")),
+                () -> assertTrue(containsText(first, "shaft_guide_search")),
+                () -> assertTrue(containsText(first, "test_automation_scenarios")),
+                () -> assertTrue(containsText(first, "test_code_guardrails_check")),
+                () -> assertFalse(settings.agentGuidanceOptimizationPromptPending),
+                () -> assertFalse(containsText(second, "Audit and optimize")));
+    }
+
+    @Test
+    void guidanceOptimizationPromptUsesSelectedAgentSurfaces() {
+        ShaftSettingsState.Settings codex = connectedMcpSettings();
+        ShaftSettingsState.Settings claude = connectedMcpSettings();
+        claude.assistantFamily = "CLAUDE";
+        ShaftSettingsState.Settings copilot = connectedMcpSettings();
+        copilot.assistantFamily = "COPILOT";
+
+        assertAll(
+                () -> assertTrue(ShaftAssistantPanel.agentGuidanceOptimizationPrompt(codex)
+                        .contains("AGENTS.md, .codex/config.toml, .agents/skills/**, .memory/**")),
+                () -> assertTrue(ShaftAssistantPanel.agentGuidanceOptimizationPrompt(claude)
+                        .contains("CLAUDE.md, AGENTS.md, .agents/skills/**, .memory/**")),
+                () -> assertTrue(ShaftAssistantPanel.agentGuidanceOptimizationPrompt(copilot)
+                        .contains(".github/copilot-instructions.md, AGENTS.md, .github/instructions/**, .github/skills/**, .memory/**")));
     }
 
     @Test
@@ -1179,7 +1234,7 @@ class ShaftPanelSetupTest {
         state.append("user", "Previous assistant conversation", "{}");
         int beforeSetupSessions = state.sessions().size();
 
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings);
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings, readyProbe());
         ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
         assertNotNull(setupPanel);
         showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK"));
@@ -1282,6 +1337,10 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.advancedUiEnabled = true;
         return settings;
+    }
+
+    private static ShaftMcpSetupPanel.AgentReadinessProbe readyProbe() {
+        return (client, runtime) -> ShaftMcpToolResult.success("Codex CLI executable is available on PATH.");
     }
 
     private static boolean containsText(Component component, String expected) {

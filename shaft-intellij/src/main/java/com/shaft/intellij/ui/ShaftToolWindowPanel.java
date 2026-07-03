@@ -32,6 +32,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private JComboBox<WorkflowView> workflowSelector;
     private JPanel workflowCards;
     private CardLayout workflowLayout;
+    private final ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe;
     private ShaftFeaturePanel advancedTools;
     private List<ShaftFeaturePanel> featurePanels = List.of();
     private List<WorkflowView> workflowViews = List.of();
@@ -41,9 +42,15 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     ShaftToolWindowPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
+        this(project, settings, AssistantLocalAgentRunner::readiness);
+    }
+
+    ShaftToolWindowPanel(Project project, @NotNull ShaftSettingsState.Settings settings,
+                         @NotNull ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe) {
         super(new BorderLayout());
         this.project = project;
         this.settings = settings;
+        this.readinessProbe = readinessProbe;
         if (mcpReady(settings)) {
             showMainView();
         } else {
@@ -53,7 +60,7 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private void showSetupView() {
         removeAll();
-        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::showMainView);
+        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::showMainView, readinessProbe);
         preferredFocusComponent = setup.preferredFocusComponent();
         workflowSelector = null;
         workflowCards = null;

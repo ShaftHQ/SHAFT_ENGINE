@@ -39,6 +39,7 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
     public static final class Settings {
         public String mcpCommand = "";
         public boolean mcpSetupComplete = true;
+        public boolean agentGuidanceOptimizationPromptPending = false;
         public String assistantProviderType = "LOCAL";
         public String assistantFamily = "";
         public String assistantRuntime = "CLI";

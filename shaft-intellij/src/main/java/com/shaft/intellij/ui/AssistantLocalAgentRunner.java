@@ -56,6 +56,21 @@ final class AssistantLocalAgentRunner {
         return new ShaftMcpInvocation(future, () -> cancel(processReference, cancellationRequested));
     }
 
+    static ShaftMcpToolResult readiness(String client, String runtime) {
+        if (!"CLI".equals(normalize(runtime))) {
+            return ShaftMcpToolResult.success("Selected agent runtime is configured by SHAFT MCP.");
+        }
+        String executable = switch (normalize(client)) {
+            case "CLAUDE_CODE" -> "claude";
+            case "COPILOT_CLI" -> "copilot";
+            default -> "codex";
+        };
+        String displayName = displayName(client);
+        return isCommandAvailable(executable)
+                ? ShaftMcpToolResult.success(displayName + " executable is available on PATH.")
+                : ShaftMcpToolResult.failure(displayName + " executable is not available on PATH.");
+    }
+
     static List<String> commandFor(JsonObject arguments) {
         List<String> custom = customCommand(arguments);
         if (!custom.isEmpty()) {
