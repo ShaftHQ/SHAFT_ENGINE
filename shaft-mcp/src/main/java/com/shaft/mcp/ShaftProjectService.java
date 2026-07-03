@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.JarURLConnection;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -22,6 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
@@ -33,6 +35,8 @@ import java.util.regex.Matcher;
 public class ShaftProjectService {
     private static final String EXAMPLES_ROOT = "META-INF/shaft-mcp/examples";
     private static final String UPGRADER_RESOURCE = "META-INF/shaft-mcp/upgrade_to_modular_shaft.py";
+    private static final String SHAFT_ENGINE_MAVEN_METADATA_URL =
+            "https://repo.maven.apache.org/maven2/io/github/shafthq/shaft-engine/maven-metadata.xml";
     private static final int DEFAULT_COMPILE_TIMEOUT_SECONDS = 900;
     private static final List<String> OPTIONAL_MODULES = List.of(
             "shaft-capture",
@@ -50,12 +54,14 @@ public class ShaftProjectService {
     private final McpProcessRunner processRunner;
     private final Path upgraderScript;
     private final List<String> pythonCommand;
+    private final Supplier<String> shaftVersionResolver;
 
     /**
      * Creates the default project lifecycle MCP service.
      */
     public ShaftProjectService() {
-        this(McpWorkspacePolicy.current(), McpProcessRunner.system(), resolveUpgraderScript(), defaultPythonCommand());
+        this(McpWorkspacePolicy.current(), McpProcessRunner.system(),
+                resolveUpgraderScript(), defaultPythonCommand(), ShaftProjectService::latestPublishedShaftEngineVersion);
     }
 
     ShaftProjectService(
@@ -63,10 +69,21 @@ public class ShaftProjectService {
             McpProcessRunner processRunner,
             Path upgraderScript,
             List<String> pythonCommand) {
+        this(workspacePolicy, processRunner, upgraderScript, pythonCommand,
+                ShaftProjectService::latestPublishedShaftEngineVersion);
+    }
+
+    ShaftProjectService(
+            McpWorkspacePolicy workspacePolicy,
+            McpProcessRunner processRunner,
+            Path upgraderScript,
+            List<String> pythonCommand,
+            Supplier<String> shaftVersionResolver) {
         this.workspacePolicy = Objects.requireNonNull(workspacePolicy, "workspacePolicy");
         this.processRunner = Objects.requireNonNull(processRunner, "processRunner");
         this.upgraderScript = Objects.requireNonNull(upgraderScript, "upgraderScript");
         this.pythonCommand = List.copyOf(Objects.requireNonNull(pythonCommand, "pythonCommand"));
+        this.shaftVersionResolver = Objects.requireNonNull(shaftVersionResolver, "shaftVersionResolver");
     }
 
     /**
@@ -78,6 +95,7 @@ public class ShaftProjectService {
      * @param groupId Maven group ID
      * @param artifactId Maven artifact ID; defaults to the guide generator artifact name when blank
      * @param version Maven project version; defaults to 1.0.0 when blank
+     * @param shaftVersion optional override for generated project <shaft.version>
      * @param optionalModules optional SHAFT module artifact IDs
      * @param includeGithubActions whether to include the generated workflow for web/api projects
      * @param includeDependabot whether to include Dependabot configuration
@@ -94,6 +112,7 @@ public class ShaftProjectService {
             String groupId,
             String artifactId,
             String version,
+            String shaftVersion,
             List<String> optionalModules,
             boolean includeGithubActions,
             boolean includeDependabot,
@@ -122,6 +141,8 @@ public class ShaftProjectService {
                     "<artifactId>" + escapeXml(projectArtifactId) + "</artifactId>");
             pom = replaceFirst(pom, "<version>1\\.0-SNAPSHOT</version>",
                     "<version>" + escapeXml(defaultText(version, "1.0.0")) + "</version>");
+            pom = replaceFirst(pom, "<shaft.version>.*?</shaft.version>",
+                    "<shaft.version>" + escapeXml(resolveShaftVersion(shaftVersion)) + "</shaft.version>");
             Files.writeString(pomPath, addOptionalDependencies(pom, modules), StandardCharsets.UTF_8);
 
             if (includeGithubActions && !"mobile".equals(selectedPlatform)) {
@@ -144,6 +165,37 @@ public class ShaftProjectService {
         } catch (IOException exception) {
             throw new IllegalStateException("SHAFT project could not be generated.", exception);
         }
+    }
+
+    /**
+     * Creates a SHAFT Maven project and resolves the generated {@code <shaft.version>} from Maven Central.
+     *
+     * @param outputDirectory workspace-relative output directory
+     * @param runner TestNG, JUnit, or Cucumber
+     * @param platform web, mobile, or api where supported by the selected runner
+     * @param groupId Maven group ID
+     * @param artifactId Maven artifact ID
+     * @param version Maven project version
+     * @param optionalModules optional SHAFT module artifact IDs
+     * @param includeGithubActions whether to include a generated GitHub Actions workflow
+     * @param includeDependabot whether to include Dependabot configuration
+     * @param overwrite whether existing files may be replaced
+     * @return generated project details
+     */
+    @SuppressWarnings("PMD.ExcessiveParameterList")
+    public McpShaftProjectGenerationResult createProject(
+            String outputDirectory,
+            String runner,
+            String platform,
+            String groupId,
+            String artifactId,
+            String version,
+            List<String> optionalModules,
+            boolean includeGithubActions,
+            boolean includeDependabot,
+            boolean overwrite) {
+        return createProject(outputDirectory, runner, platform, groupId, artifactId, version, "",
+                optionalModules, includeGithubActions, includeDependabot, overwrite);
     }
 
     /**
@@ -414,6 +466,104 @@ public class ShaftProjectService {
 
     private static String workflowName(String platform) {
         return "web".equals(platform) ? "web.yml" : "api.yml";
+    }
+
+    private String resolveShaftVersion(String requestedVersion) {
+        String requested = text(requestedVersion);
+        if (!requested.isBlank()) {
+            return requested;
+        }
+        String resolved = text(shaftVersionResolver.get());
+        if (resolved.isBlank()) {
+            throw new IllegalStateException("Latest SHAFT Engine version could not be resolved.");
+        }
+        return resolved;
+    }
+
+    private static String latestPublishedShaftEngineVersion() {
+        try {
+            String metadata = readTextFromUrl(SHAFT_ENGINE_MAVEN_METADATA_URL);
+            String release = firstXmlMatch(metadata, "<release>([^<]+)</release>");
+            if (isStableVersion(release)) {
+                return release;
+            }
+            String latest = firstXmlMatch(metadata, "<latest>([^<]+)</latest>");
+            if (isStableVersion(latest)) {
+                return latest;
+            }
+            return latestStableVersionFromVersions(metadata);
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Could not resolve latest SHAFT Engine version from Maven Central.",
+                    exception);
+        }
+    }
+
+    private static String firstXmlMatch(String metadata, String expression) {
+        Matcher matcher = java.util.regex.Pattern.compile(expression).matcher(metadata);
+        return matcher.find() ? text(matcher.group(1)) : "";
+    }
+
+    private static String latestStableVersionFromVersions(String metadata) {
+        Matcher matcher = java.util.regex.Pattern.compile("<version>([^<]+)</version>").matcher(metadata);
+        String selected = "";
+        while (matcher.find()) {
+            String candidate = text(matcher.group(1));
+            if (!isStableVersion(candidate) || candidate.isBlank()) {
+                continue;
+            }
+            if (compareVersions(candidate, selected) > 0) {
+                selected = candidate;
+            }
+        }
+        if (selected.isBlank()) {
+            throw new IllegalStateException("Could not resolve a stable SHAFT Engine version.");
+        }
+        return selected;
+    }
+
+    private static boolean isStableVersion(String version) {
+        String normalized = text(version).toLowerCase(Locale.ROOT);
+        return !normalized.isBlank()
+                && !normalized.contains("snapshot")
+                && !normalized.contains("alpha")
+                && !normalized.contains("beta")
+                && !normalized.contains("rc")
+                && !normalized.contains("milestone")
+                && !normalized.contains("preview")
+                && !normalized.contains("ea");
+    }
+
+    private static int compareVersions(String left, String right) {
+        String[] leftParts = text(left).split("\\.");
+        String[] rightParts = text(right).split("\\.");
+        int maxLength = Math.max(leftParts.length, rightParts.length);
+        for (int index = 0; index < maxLength; index++) {
+            long leftValue = index < leftParts.length ? numericPart(leftParts[index]) : 0L;
+            long rightValue = index < rightParts.length ? numericPart(rightParts[index]) : 0L;
+            if (leftValue != rightValue) {
+                return Long.compare(leftValue, rightValue);
+            }
+        }
+        return Integer.compare(leftParts.length, rightParts.length);
+    }
+
+    private static long numericPart(String part) {
+        String digits = text(part).replaceAll("[^0-9]", "");
+        if (digits.isBlank()) {
+            return 0L;
+        }
+        return Long.parseLong(digits);
+    }
+
+    private static String readTextFromUrl(String target) throws IOException {
+        URL url = new URL(target);
+        URLConnection connection = url.openConnection();
+        connection.setConnectTimeout(5000);
+        connection.setReadTimeout(5000);
+        try (var input = connection.getInputStream()) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private static String defaultArtifactId(String runner, String platform) {

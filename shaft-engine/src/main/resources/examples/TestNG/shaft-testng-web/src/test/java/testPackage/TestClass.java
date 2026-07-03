@@ -17,7 +17,7 @@ public class TestClass {
 
     By logo = By.xpath("//div[contains(@class,'container_fullWidth__1H_L8')]//img");
     By searchBox = Locator.hasAnyTagName().hasAttribute("name", "q").build(); // synonym to By.name("q");
-    By firstSearchResult = Locator.hasTagName("article").isFirst().build(); // synonym to By.xpath("(//article)[1]");
+    By firstSearchResult = By.xpath("(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']");
 
     @Test
     public void navigateToDuckDuckGoAndAssertBrowserTitleIsDisplayedCorrectly() {
@@ -35,7 +35,9 @@ public class TestClass {
     public void searchForQueryAndAssert() {
         driver.browser().navigateToURL(targetUrl)
                 .and().element().type(searchBox, testData.get("searchQuery") + Keys.ENTER)
-                .and().assertThat(firstSearchResult).text().doesNotEqual(testData.get("unexpectedInFirstResult"));
+                .and().element().click(firstSearchResult)
+                .and().assertThat().title().contains(testData.get("expectedResultTitle"))
+                .and().element().assertThat(By.tagName("body")).text().contains(testData.get("expectedResultText"));
     }
 
     @BeforeClass

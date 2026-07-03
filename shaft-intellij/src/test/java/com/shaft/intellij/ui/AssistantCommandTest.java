@@ -4,6 +4,7 @@ import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -537,6 +538,7 @@ class AssistantCommandTest {
                         command("check generated Java code driver.element().click(locator);").arguments().get("code").getAsString()),
                 () -> assertEquals("shaft_project_create", command("create SHAFT project demo-web").toolName()),
                 () -> assertEquals("demo-web", command("create SHAFT project demo-web").arguments().get("outputDirectory").getAsString()),
+                () -> assertEquals("", command("create SHAFT project demo-web").arguments().get("shaftVersion").getAsString()),
                 () -> assertEquals("shaft_project_upgrade", projectUpgrade.toolName()),
                 () -> assertTrue(projectUpgrade.arguments().get("dryRun").getAsBoolean()),
                 () -> assertFalse(projectUpgrade.arguments().get("approve").getAsBoolean()),
@@ -590,9 +592,47 @@ class AssistantCommandTest {
     }
 
     @Test
+    void naturalRecorderCommandsCanDiscardAnActiveCaptureSession() {
+        AssistantCommand.Invocation discard = command("discard recording");
+        AssistantCommand.Invocation discardAlias = command("discard capture session");
+
+        assertAll(
+                () -> assertEquals("capture_stop", discard.toolName()),
+                () -> assertEquals("capture_stop", discardAlias.toolName()),
+                () -> assertTrue(discard.arguments().get("discard").getAsBoolean()),
+                () -> assertTrue(discardAlias.arguments().get("discard").getAsBoolean()));
+    }
+
+    @Test
+    void reRecordStopsAndRestartsCaptureInASequence() {
+        AssistantCommand.Invocation reRecord = command("re-record");
+        AssistantCommand.Invocation reRecordWithUrl = command("re-record https://duckduckgo.com/");
+
+        assertAll(
+                () -> assertTrue(reRecord.isSequence()),
+                () -> assertEquals("capture_stop", reRecord.toolCalls().get(0).toolName()),
+                () -> assertEquals("capture_start", reRecord.toolCalls().get(1).toolName()),
+                () -> assertTrue(reRecord.toolCalls().get(0).arguments().get("discard").getAsBoolean()),
+                () -> assertEquals("capture_stop", reRecordWithUrl.toolCalls().get(0).toolName()),
+                () -> assertEquals("capture_start", reRecordWithUrl.toolCalls().get(1).toolName()),
+                () -> assertTrue(reRecordWithUrl.toolCalls().get(0).arguments().get("discard").getAsBoolean()),
+                () -> assertEquals("https://duckduckgo.com/",
+                        reRecordWithUrl.toolCalls().get(1).arguments().get("targetUrl").getAsString()),
+                () -> assertTrue(reRecordWithUrl.toolCalls().get(1).arguments().get("outputPath")
+                        .getAsString().startsWith(AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH_PREFIX)),
+                () -> assertEquals("chrome", reRecordWithUrl.toolCalls().get(1).arguments().get("browser").getAsString().toLowerCase(Locale.ROOT)),
+                () -> assertFalse(reRecordWithUrl.toolCalls().get(1).arguments().get("headless").getAsBoolean()));
+    }
+
+    @Test
     void captureReviewUsesIgnoredReviewDirectoryAndApprovalCreatesAgentRequest() {
         assertTrue(AssistantCommand.isCaptureApproval("okay"));
         assertTrue(AssistantCommand.isCaptureApproval("generate"));
+        assertTrue(AssistantCommand.isCaptureApproval("apply it"));
+        assertFalse(AssistantCommand.isCaptureApproval("yes"));
+        assertFalse(AssistantCommand.isCaptureApproval("go ahead"));
+        assertFalse(AssistantCommand.isCaptureApproval("looks good"));
+        assertFalse(AssistantCommand.isCaptureApproval("create files"));
         assertFalse(AssistantCommand.isCaptureApproval("generate a login test"));
 
         var review = AssistantCommand.captureCodeReview("recordings/demo.json");

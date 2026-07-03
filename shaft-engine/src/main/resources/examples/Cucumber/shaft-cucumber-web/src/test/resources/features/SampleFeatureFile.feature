@@ -21,5 +21,7 @@ Feature: Basic SHAFT_Engine Cucumber Web Steps
     When I Navigate to "https://duckduckgo.com/"
     And I Type "SHAFT_Engine" into the element found by "name": "q"
     And I Press "Enter" into the element found by "name": "q"
-    Then I Assert that the "text" attribute of the element found by "xpath": "(//article)[1]", does not equal "Nope"
+    And I Click the element found by "xpath": "(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']"
+    Then I Assert that the "title" attribute of the browser, contains "SHAFT"
+    And I Assert that the "text" attribute of the browser, contains "SHAFT"
     And I Close the current window

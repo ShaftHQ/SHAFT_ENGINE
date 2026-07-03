@@ -624,6 +624,7 @@ final class AssistantCommand {
         arguments.addProperty("groupId", "io.github.yourUsername");
         arguments.addProperty("artifactId", outputDirectory);
         arguments.addProperty("version", "1.0.0");
+        arguments.addProperty("shaftVersion", "");
         arguments.add("optionalModules", new JsonArray());
         arguments.addProperty("includeGithubActions", true);
         arguments.addProperty("includeDependabot", true);
@@ -672,6 +673,9 @@ final class AssistantCommand {
     }
 
     private static Invocation recording(String text) {
+        if (isReRecord(text)) {
+            return reRecord(text);
+        }
         if (isStartRecording(text)) {
             return record(text.replaceFirst("(?i)^start\\s+(a\\s+)?(web(driver)?\\s+)?(capture|recording|recorder)\\b", "").trim());
         }
@@ -680,7 +684,19 @@ final class AssistantCommand {
                     ? Invocation.tool("playwright_record_stop", stopRecording())
                     : Invocation.tool("capture_stop", stopRecording());
         }
+        if (isDiscardRecording(text)) {
+            return Invocation.tool("capture_stop", stopRecording(true));
+        }
         return null;
+    }
+
+    private static Invocation reRecord(String text) {
+        boolean playwright = text.toLowerCase(Locale.ROOT).contains("playwright");
+        return Invocation.sequence(List.of(
+                new ToolCall(playwright ? "playwright_record_stop" : "capture_stop", stopRecording(true)),
+                new ToolCall(playwright ? "playwright_record_start" : "capture_start",
+                        playwright ? playwrightRecordStart() : captureStart(text))
+        ));
     }
 
     private static Invocation directIntent(String text, String workingDirectory) {
@@ -1014,6 +1030,37 @@ final class AssistantCommand {
                 || normalized.equals("end recording");
     }
 
+    private static boolean isDiscardRecording(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("discard")
+                || normalized.equals("discard it")
+                || normalized.equals("discard recording")
+                || normalized.equals("discard capture")
+                || normalized.equals("discard current recording")
+                || normalized.equals("discard current capture")
+                || normalized.equals("discard recording session")
+                || normalized.equals("discard capture session")
+                || normalized.startsWith("discard recording ")
+                || normalized.startsWith("discard capture ");
+    }
+
+    private static boolean isReRecord(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("re-record")
+                || normalized.equals("re record")
+                || normalized.equals("re-record recording")
+                || normalized.equals("capture again")
+                || normalized.equals("record again")
+                || normalized.startsWith("re-record ")
+                || normalized.startsWith("re record ")
+                || normalized.startsWith("capture again")
+                || normalized.startsWith("record again ")
+                || normalized.startsWith("restart recording")
+                || normalized.startsWith("restart capture")
+                || normalized.startsWith("start recording again")
+                || normalized.startsWith("start capture again");
+    }
+
     static boolean isCaptureApproval(String text) {
         String normalized = normalizeNaturalCommand(text);
         return normalized.equals("generate")
@@ -1021,12 +1068,9 @@ final class AssistantCommand {
                 || normalized.equals("ok")
                 || normalized.equals("approve")
                 || normalized.equals("approved")
-                || normalized.equals("yes")
-                || normalized.equals("go ahead")
-                || normalized.equals("looks good")
-                || normalized.equals("create files")
-                || normalized.equals("write files")
-                || normalized.equals("apply it");
+                || normalized.equals("apply")
+                || normalized.equals("apply it")
+                || normalized.equals("apply capture");
     }
 
     private static boolean isStartRecording(String text) {
@@ -1042,8 +1086,12 @@ final class AssistantCommand {
     }
 
     private static JsonObject stopRecording() {
+        return stopRecording(false);
+    }
+
+    private static JsonObject stopRecording(boolean discard) {
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("discard", false);
+        arguments.addProperty("discard", discard);
         return arguments;
     }
 

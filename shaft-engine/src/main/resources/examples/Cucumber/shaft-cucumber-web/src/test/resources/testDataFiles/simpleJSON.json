@@ -1,5 +1,6 @@
 {
   "searchQuery": "SHAFT_Engine",
   "expectedTitle": "DuckDuckGo",
-  "unexpectedInFirstResult": "Nope"
+  "expectedResultTitle": "SHAFT",
+  "expectedResultText": "SHAFT"
 }
