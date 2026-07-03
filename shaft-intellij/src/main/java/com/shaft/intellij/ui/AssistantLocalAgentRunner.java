@@ -53,7 +53,10 @@ final class AssistantLocalAgentRunner {
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> run(arguments, processReference, cancellationRequested, outputConsumer));
-        return new ShaftMcpInvocation(future, () -> cancel(processReference, cancellationRequested));
+        return new ShaftMcpInvocation(
+                future,
+                () -> cancel(processReference, cancellationRequested, false),
+                () -> cancel(processReference, cancellationRequested, true));
     }
 
     static ShaftMcpToolResult readiness(String client, String runtime) {
@@ -112,8 +115,10 @@ final class AssistantLocalAgentRunner {
             builder.environment().putAll(environment(arguments));
             Process process = builder.start();
             processReference.set(process);
-            CompletableFuture<String> stdout = readAsync(process.getInputStream(), outputConsumer);
-            CompletableFuture<String> stderr = readAsync(process.getErrorStream(), outputConsumer);
+            InputStream stdoutStream = process.getInputStream();
+            InputStream stderrStream = process.getErrorStream();
+            CompletableFuture<String> stdout = readAsync(stdoutStream, outputConsumer);
+            CompletableFuture<String> stderr = readAsync(stderrStream, outputConsumer);
             process.getOutputStream().write(stdin.getBytes(StandardCharsets.UTF_8));
             process.getOutputStream().close();
 
@@ -124,6 +129,13 @@ final class AssistantLocalAgentRunner {
                 process.destroyForcibly();
                 return ShaftMcpToolResult.failure(agentOutput(false, stdoutNow(stdout), stderrNow(stderr),
                         "Timed out after " + timeout.toSeconds() + " seconds."));
+            }
+            if (cancellationRequested.get()) {
+                closeQuietly(stdoutStream);
+                closeQuietly(stderrStream);
+                stdoutNow(stdout);
+                stderrNow(stderr);
+                throw new CancellationException("Operation cancelled");
             }
             String output = agentOutput(process.exitValue() == 0, stdoutNow(stdout), stderrNow(stderr), "");
             return process.exitValue() == 0
@@ -145,11 +157,18 @@ final class AssistantLocalAgentRunner {
         }
     }
 
-    private static void cancel(AtomicReference<Process> processReference, AtomicBoolean cancellationRequested) {
+    private static void cancel(
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            boolean force) {
         cancellationRequested.set(true);
-        Process process = processReference.getAndSet(null);
+        Process process = force ? processReference.getAndSet(null) : processReference.get();
         if (process != null) {
-            process.destroyForcibly();
+            if (force) {
+                process.destroyForcibly();
+            } else {
+                process.destroy();
+            }
         }
     }
 
@@ -273,6 +292,14 @@ final class AssistantLocalAgentRunner {
 
     private static String stderrNow(CompletableFuture<String> future) {
         return stdoutNow(future);
+    }
+
+    private static void closeQuietly(InputStream stream) {
+        try {
+            stream.close();
+        } catch (IOException ignored) {
+            // Stream readers treat closed process streams as empty output.
+        }
     }
 
     private static boolean isCommandAvailable(String command) {

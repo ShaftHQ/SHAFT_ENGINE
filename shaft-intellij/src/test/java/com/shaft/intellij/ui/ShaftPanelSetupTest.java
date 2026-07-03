@@ -7,6 +7,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.mcp.ShaftMcpInstallResult;
+import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,9 @@ import java.awt.Container;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Graphics2D;
+import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
@@ -37,7 +40,9 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.text.JTextComponent;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -642,7 +647,7 @@ class ShaftPanelSetupTest {
         JLabel status = (JLabel) getField(panel, "status");
         JProgressBar progress = (JProgressBar) getField(panel, "progress");
         assertAll(
-                () -> assertEquals("ready", status.getText()),
+                () -> assertEquals("Try asking me to do something...", status.getText()),
                 () -> assertFalse(progress.isVisible()),
                 () -> assertTrue(transcriptMarkdown(panel).contains("Created Page Object files.")),
                 () -> assertFalse(transcriptMarkdown(panel).contains("Running local assistant")));
@@ -918,20 +923,36 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
+        JButton commandInfo = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
         JProgressBar spinner = findByAccessibleName(panel, "Assistant thinking spinner", JProgressBar.class);
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
 
         assertAll(
                 () -> assertNotNull(commandAutocomplete),
                 () -> assertTrue(commandAutocomplete.isEditable()),
-                () -> assertTrue(comboContains(commandAutocomplete, "/commands")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/browser")),
+                () -> assertFalse(comboContains(commandAutocomplete, "/commands")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/codegen")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/record-web")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/record-mobile")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/doctor")),
+                () -> assertFalse(comboContains(commandAutocomplete, "/browser")),
                 () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)")),
-                () -> assertNull(findByAccessibleName(panel, "SHAFT command hints", JButton.class)),
+                () -> assertNotNull(commandInfo),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/codegen")),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/record-web")),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/record-mobile")),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/doctor")),
+                () -> assertFalse(commandInfo.getToolTipText().contains("/browser")),
+                () -> assertEquals(commandAutocomplete.getParent(), commandInfo.getParent()),
+                () -> assertTrue(componentIndex(commandAutocomplete.getParent(), commandInfo)
+                        > componentIndex(commandAutocomplete.getParent(), commandAutocomplete)),
                 () -> assertNotNull(spinner),
                 () -> assertTrue(spinner.isIndeterminate()),
                 () -> assertFalse(spinner.isVisible()),
                 () -> assertNotNull(sendButton),
+                () -> assertTrue(sendButton.getToolTipText().contains("Ctrl+click")),
+                () -> assertTrue(sendButton.getParent().getLayout() instanceof FlowLayout),
+                () -> assertEquals(FlowLayout.RIGHT, ((FlowLayout) sendButton.getParent().getLayout()).getAlignment()),
                 () -> assertEquals("", sendButton.getText()),
                 () -> assertNotNull(sendButton.getIcon()),
                 () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
@@ -946,9 +967,32 @@ class ShaftPanelSetupTest {
 
         prompt.setText("please ");
         prompt.setCaretPosition(prompt.getDocument().getLength());
-        commandAutocomplete.setSelectedItem("/browser");
+        commandAutocomplete.setSelectedItem("/record-web");
 
-        assertEquals("please /browser ", prompt.getText());
+        assertEquals("please /record-web ", prompt.getText());
+    }
+
+    @Test
+    void assistantPromptCtrlClickSendsPrompt() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JTextComponent prompt = assistantPrompt(panel);
+        prompt.setText("/help");
+
+        notifyMouseListeners(prompt, new MouseEvent(
+                prompt,
+                MouseEvent.MOUSE_CLICKED,
+                System.currentTimeMillis(),
+                InputEvent.CTRL_DOWN_MASK,
+                4,
+                4,
+                1,
+                false,
+                MouseEvent.BUTTON1));
+
+        assertAll(
+                () -> assertEquals("", prompt.getText()),
+                () -> assertTrue(transcriptMarkdown(panel).contains("SHAFT Assistant commands:")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("/record-mobile")));
     }
 
     @Test
@@ -961,6 +1005,7 @@ class ShaftPanelSetupTest {
                 "Copy assistant transcript",
                 "Clear assistant transcript",
                 "Rerun last assistant prompt",
+                "SHAFT command hints",
                 "Cancel assistant request");
 
         assertAll(controls.stream()
@@ -1059,7 +1104,33 @@ class ShaftPanelSetupTest {
         panel.setRunning(false, "ready");
         assertAll(
                 () -> assertEquals(readyIcon, sendButton.getIcon()),
-                () -> assertEquals("Send assistant prompt", sendButton.getToolTipText()));
+                () -> assertEquals("Send assistant prompt (Ctrl+Enter or Ctrl+click)", sendButton.getToolTipText()));
+    }
+
+    @Test
+    void assistantCancelButtonArmsKillForActiveInvocation() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JButton cancelButton = findButton(panel, "Cancel");
+        AtomicInteger cancelCalls = new AtomicInteger();
+        AtomicInteger killCalls = new AtomicInteger();
+        setField(panel, "currentInvocation", new ShaftMcpInvocation(
+                new CompletableFuture<>(), cancelCalls::incrementAndGet, killCalls::incrementAndGet));
+
+        panel.setRunning(true, "Thinking...");
+        clickAccessible(panel, "Cancel assistant request");
+
+        assertAll(
+                () -> assertEquals(1, cancelCalls.get()),
+                () -> assertEquals(0, killCalls.get()),
+                () -> assertEquals("Kill assistant session", cancelButton.getToolTipText()),
+                () -> assertNotNull(findByAccessibleName(panel, "Kill assistant session", JButton.class)));
+
+        clickAccessible(panel, "Kill assistant session");
+
+        assertAll(
+                () -> assertEquals(1, cancelCalls.get()),
+                () -> assertEquals(1, killCalls.get()),
+                () -> assertTrue(containsText(panel, "Killing...")));
     }
 
     @Test
@@ -1129,11 +1200,12 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantTranscriptInitialHintUsesCanonicalCommandsEntry() {
+    void assistantTranscriptInitialHintUsesCommandMenu() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
 
         assertAll(
-                () -> assertTrue(containsText(transcript, "/commands")),
+                () -> assertTrue(containsText(transcript, "command menu")),
+                () -> assertFalse(containsText(transcript, "/commands")),
                 () -> assertFalse(containsText(transcript, "/help")));
     }
 
@@ -1347,6 +1419,29 @@ class ShaftPanelSetupTest {
         clickAccessible(panel, "Send assistant prompt");
 
         assertFalse(transcriptMarkdown(panel).contains("tick **Allow source edits**"));
+    }
+
+    @Test
+    void assistantModeSelectorCanChangeModesInDefaultComposer() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+
+        assertAll(
+                () -> assertNotNull(assistantMode),
+                () -> assertTrue(assistantMode.isVisible()),
+                () -> assertTrue(assistantMode.isEnabled()));
+
+        assistantMode.setSelectedItem("PLAN");
+        assertEquals("PLAN", assistantMode.getSelectedItem());
+
+        assistantMode.setSelectedItem("AGENT");
+        assertEquals("AGENT", assistantMode.getSelectedItem());
+
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+        assertAll(
+                () -> assertNotNull(allowEdits),
+                () -> assertTrue(allowEdits.isVisible()),
+                () -> assertTrue(allowEdits.isEnabled()));
     }
 
     @Test
@@ -1901,6 +1996,22 @@ class ShaftPanelSetupTest {
                 }
             }
         }
+    }
+
+    private static void notifyMouseListeners(Component component, MouseEvent event) {
+        for (MouseListener listener : component.getMouseListeners()) {
+            listener.mouseClicked(event);
+        }
+    }
+
+    private static int componentIndex(Container container, Component component) {
+        Component[] children = container.getComponents();
+        for (int index = 0; index < children.length; index++) {
+            if (children[index] == component) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private static JButton findButton(Component component, String text) {

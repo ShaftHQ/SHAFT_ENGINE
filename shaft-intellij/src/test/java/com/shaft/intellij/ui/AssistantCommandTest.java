@@ -126,6 +126,9 @@ class AssistantCommandTest {
                 () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not infer canonical URLs"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Never substitute a different URL, domain, or example page"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Open a real browser session"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("call driver_initialize and browser_open_intent"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("element_type, element_click, or natural_act"),
@@ -138,6 +141,58 @@ class AssistantCommandTest {
                         explicitPrompt),
                 () -> assertTrue(explicitPrompt.contains("browser_open_intent"), explicitPrompt),
                 () -> assertTrue(explicitPrompt.contains("Call test_code_guardrails_check"), explicitPrompt));
+    }
+
+    @Test
+    void localAgentCodeRequestsStayScopedToCurrentOpenFileAndMode() {
+        AssistantCommand.OpenFileContext openFile = new AssistantCommand.OpenFileContext(
+                "src/test/java/example/LoginTest.java",
+                """
+                        driver.get("https://example.com/login");
+                        driver.findElement(By.id("username")).sendKeys("standard_user");
+                        """);
+        AssistantCommand.Invocation ask = AssistantCommand.fromPrompt(
+                "convert this Selenium code to SHAFT syntax",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false,
+                openFile);
+        AssistantCommand.Invocation agent = AssistantCommand.fromPrompt(
+                "convert this Selenium code to SHAFT syntax",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true,
+                openFile);
+        AssistantCommand.Invocation cloud = AssistantCommand.fromPrompt(
+                "convert this Selenium code to SHAFT syntax",
+                AssistantCommand.Selection.cloud("github", "openai/gpt-4.1"),
+                "ASK",
+                ".",
+                "",
+                false,
+                openFile);
+
+        String askPrompt = ask.arguments().get("prompt").getAsString();
+        String agentPrompt = agent.arguments().get("prompt").getAsString();
+        String cloudPrompt = cloud.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(askPrompt.contains("Use only the currently open file"), askPrompt),
+                () -> assertTrue(askPrompt.contains("src/test/java/example/LoginTest.java"), askPrompt),
+                () -> assertTrue(askPrompt.contains("driver.findElement(By.id(\"username\"))"), askPrompt),
+                () -> assertTrue(askPrompt.contains("Ask mode: recommend migrated SHAFT-syntax code"), askPrompt),
+                () -> assertFalse(askPrompt.contains("suggest code changes directly inside the IDE"), askPrompt),
+                () -> assertTrue(agentPrompt.contains("Agent mode: suggest code changes directly inside the IDE"),
+                        agentPrompt),
+                () -> assertTrue(agentPrompt.contains("current open class only"), agentPrompt),
+                () -> assertEquals("autobot_provider_chat", cloud.toolName()),
+                () -> assertTrue(cloudPrompt.contains("Use only the currently open file"), cloudPrompt),
+                () -> assertTrue(cloudPrompt.contains("Open a real browser session"), cloudPrompt),
+                () -> assertTrue(cloudPrompt.contains("Do not publish unverified locators"), cloudPrompt));
     }
 
     @Test
@@ -156,6 +211,8 @@ class AssistantCommandTest {
                 () -> assertTrue(prompt.contains("generate code to login to saucedemo"), prompt),
                 () -> assertTrue(prompt.contains("ask the user to confirm the exact target URL"), prompt),
                 () -> assertTrue(prompt.contains("Do not infer canonical URLs"), prompt),
+                () -> assertTrue(prompt.contains("Never substitute a different URL, domain, or example page"), prompt),
+                () -> assertTrue(prompt.contains("Open a real browser session"), prompt),
                 () -> assertTrue(prompt.contains("browser_open_intent"), prompt),
                 () -> assertTrue(prompt.contains("element_type, element_click, or natural_act"), prompt),
                 () -> assertTrue(prompt.contains("Do not publish unverified locators"), prompt),
@@ -301,6 +358,9 @@ class AssistantCommandTest {
         assertEquals("shaft_guide_search", command("/docs locators").toolName());
         assertEquals("test_automation_scenarios", command("/scenarios checkout").toolName());
         assertEquals("checkout", command("/scenarios checkout").arguments().get("intent").getAsString());
+        assertEquals("capture_start", command("/record-web https://example.com").toolName());
+        assertEquals("https://example.com", command("/record-web https://example.com")
+                .arguments().get("targetUrl").getAsString());
         assertEquals("capture_start", command("/record").toolName());
         assertEquals("Chrome", command("/record").arguments().get("browser").getAsString());
         assertEquals("playwright_record_start", command("/record playwright").toolName());
@@ -326,43 +386,41 @@ class AssistantCommandTest {
         assertEquals("playwright_recording_code_blocks", command("/generatetest recordings/playwright-session.json").toolName());
         assertEquals("capture_code_blocks", command("/codegen recordings/capture-session.json").toolName());
         assertEquals("mobile_recording_code_blocks", command("/codegen mobile recordings/mobile-session.json").toolName());
+        assertEquals("mobile_inspector_record_prepare",
+                command("/record-mobile inspector Android recordings/inspector.json").toolName());
     }
 
     @Test
-    void commandRegistryExposesOneHintWithSynonymsAndExamples() {
+    void commandRegistryShowsOnlyTestedValidCommandFamilies() {
         List<AssistantCommand.CommandHint> hints = AssistantCommand.commandHints();
         String tooltip = AssistantCommand.commandTooltip();
 
         assertAll(
-                () -> assertTrue(hints.stream().anyMatch(hint -> "/commands".equals(hint.canonical()))),
-                () -> assertTrue(hints.stream().anyMatch(hint -> "/assistant".equals(hint.canonical()))),
-                () -> assertTrue(hints.stream().anyMatch(hint -> "/browser".equals(hint.canonical()))),
-                () -> assertTrue(hints.stream().anyMatch(hint -> "/record".equals(hint.canonical()))),
-                () -> assertTrue(hints.stream().anyMatch(hint -> "/mobile".equals(hint.canonical()))),
-                () -> assertTrue(hints.stream().anyMatch(hint -> "/doctor".equals(hint.canonical()))),
-                () -> assertTrue(tooltip.contains("/commands")),
-                () -> assertTrue(tooltip.contains("/assistant")),
-                () -> assertTrue(tooltip.contains("/clients")),
-                () -> assertTrue(tooltip.contains("/shaft-help")),
-                () -> assertTrue(tooltip.contains("/browser")),
-                () -> assertTrue(tooltip.contains("/web")),
-                () -> assertTrue(tooltip.contains("/inspect")),
-                () -> assertTrue(tooltip.contains("/locator")),
-                () -> assertTrue(tooltip.contains("/mobile-record")),
-                () -> assertTrue(tooltip.contains("/allure")),
+                () -> assertEquals(List.of("/codegen", "/record-web", "/record-mobile", "/doctor"),
+                        hints.stream().map(AssistantCommand.CommandHint::canonical).toList()),
+                () -> assertTrue(tooltip.contains("/codegen")),
+                () -> assertTrue(tooltip.contains("/record-web")),
+                () -> assertTrue(tooltip.contains("/record-mobile")),
+                () -> assertTrue(tooltip.contains("/doctor")),
+                () -> assertFalse(tooltip.contains("/commands")),
+                () -> assertFalse(tooltip.contains("/assistant")),
+                () -> assertFalse(tooltip.contains("/browser")),
+                () -> assertFalse(tooltip.contains("/mobile-record")),
                 () -> assertFalse(tooltip.contains("Slash commands:")));
     }
 
     @Test
-    void commandHelpUsesCanonicalCommandsEntryWithAliasesAndExamples() {
+    void commandHelpShowsOnlyTestedValidCommandFamilies() {
         AssistantCommand.Invocation help = command("/commands");
 
         assertAll(
                 () -> assertTrue(help.isLocal()),
-                () -> assertTrue(help.localResponse().contains("/commands")),
-                () -> assertTrue(help.localResponse().contains("/mcp-help")),
-                () -> assertTrue(help.localResponse().contains("/assistant")),
-                () -> assertTrue(help.localResponse().contains("/browser open https://example.com sign in")));
+                () -> assertTrue(help.localResponse().contains("/codegen")),
+                () -> assertTrue(help.localResponse().contains("/record-web")),
+                () -> assertTrue(help.localResponse().contains("/record-mobile")),
+                () -> assertTrue(help.localResponse().contains("/doctor")),
+                () -> assertFalse(help.localResponse().contains("/commands")),
+                () -> assertFalse(help.localResponse().contains("/browser open https://example.com sign in")));
     }
 
     @Test
@@ -565,7 +623,7 @@ class AssistantCommandTest {
                         .arguments().get("includeBase64").getAsBoolean()),
                 () -> assertTrue(command("what commands can I use for mobile recording?").isLocal()),
                 () -> assertTrue(command("what commands can I use for mobile recording?")
-                        .localResponse().contains("/mobile-record")));
+                        .localResponse().contains("/record-mobile")));
     }
 
     @Test

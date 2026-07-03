@@ -77,7 +77,10 @@ public final class ShaftMcpInvocationService {
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> listTools(command, settings, clientReference, cancellationRequested));
-        return new ShaftMcpInvocation(future, () -> cancel(clientReference, cancellationRequested));
+        return new ShaftMcpInvocation(
+                future,
+                () -> cancel(clientReference, cancellationRequested, false),
+                () -> cancel(clientReference, cancellationRequested, true));
     }
 
     /**
@@ -97,7 +100,10 @@ public final class ShaftMcpInvocationService {
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> invoke(command, toolName, arguments, settings, clientReference, cancellationRequested));
-        return new ShaftMcpInvocation(future, () -> cancel(clientReference, cancellationRequested));
+        return new ShaftMcpInvocation(
+                future,
+                () -> cancel(clientReference, cancellationRequested, false),
+                () -> cancel(clientReference, cancellationRequested, true));
     }
 
     /**
@@ -115,7 +121,10 @@ public final class ShaftMcpInvocationService {
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
                 () -> initialize(command, settings, clientReference, cancellationRequested));
-        return new ShaftMcpInvocation(future, () -> cancel(clientReference, cancellationRequested));
+        return new ShaftMcpInvocation(
+                future,
+                () -> cancel(clientReference, cancellationRequested, false),
+                () -> cancel(clientReference, cancellationRequested, true));
     }
 
     private ShaftMcpToolResult invoke(
@@ -210,11 +219,16 @@ public final class ShaftMcpInvocationService {
     }
 
     private static void cancel(AtomicReference<ShaftMcpStdioClient> clientReference,
-                              AtomicBoolean cancellationRequested) {
+                               AtomicBoolean cancellationRequested,
+                               boolean force) {
         cancellationRequested.set(true);
-        ShaftMcpStdioClient client = clientReference.getAndSet(null);
+        ShaftMcpStdioClient client = force ? clientReference.getAndSet(null) : clientReference.get();
         if (client != null) {
-            client.cancel();
+            if (force) {
+                client.kill();
+            } else {
+                client.cancel();
+            }
         }
     }
 

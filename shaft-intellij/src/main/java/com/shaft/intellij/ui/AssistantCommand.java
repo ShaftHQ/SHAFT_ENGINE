@@ -47,15 +47,46 @@ final class AssistantCommand {
                     - Call shaft_guide_search for the relevant SHAFT guide examples and cite the official guide URLs.
                     - Call test_automation_scenarios for broad test/page-object design to learn the matching SHAFT coding pattern.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
-                    - For web login, form, or navigation code, call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
+                    - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
+                    - For generated code that performs a specific action: Open a real browser session; call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
                     - Verify each selected locator by performing the actual action with shaft-mcp element_type, element_click, or natural_act before returning it. Do not publish unverified locators.
                     - Call test_code_guardrails_check on the final Java snippet.
                     - Return only SHAFT-syntax Java; never return raw Selenium code.
                     """.stripIndent().trim();
+    private static final CommandDefinition COMMAND_HELP = new CommandDefinition("/commands", "Show command help",
+            List.of("/help", "/mcp-help", "/shaft-help"),
+            "/commands", (command, rest, workingDirectory) -> Invocation.local(commandHelp()));
+    private static final CommandDefinition CODEGEN_COMMAND = new CommandDefinition("/codegen",
+            "Generate code from recordings",
+            List.of(),
+            "/codegen recordings/intellij-capture.json",
+            (command, rest, workingDirectory) -> generateTest(rest));
+    private static final CommandDefinition RECORD_WEB_COMMAND = new CommandDefinition("/record-web",
+            "Record web actions",
+            List.of(),
+            "/record-web https://example.com",
+            (command, rest, workingDirectory) -> record(rest));
+    private static final CommandDefinition RECORD_MOBILE_COMMAND = new CommandDefinition("/record-mobile",
+            "Record mobile actions",
+            List.of(),
+            "/record-mobile inspector Android recordings/inspector.json",
+            (command, rest, workingDirectory) -> mobileRecord(rest));
+    private static final CommandDefinition DOCTOR_COMMAND = new CommandDefinition("/doctor",
+            "Analyze failures and recommend fixes",
+            List.of(),
+            "/doctor target/allure-results",
+            (command, rest, workingDirectory) -> doctor(rest, workingDirectory));
+    private static final List<CommandDefinition> VISIBLE_COMMANDS = List.of(
+            CODEGEN_COMMAND,
+            RECORD_WEB_COMMAND,
+            RECORD_MOBILE_COMMAND,
+            DOCTOR_COMMAND);
     private static final List<CommandDefinition> COMMANDS = List.of(
-            new CommandDefinition("/commands", "Show command help",
-                    List.of("/help", "/mcp-help", "/shaft-help"),
-                    "/commands", (command, rest, workingDirectory) -> Invocation.local(commandHelp())),
+            COMMAND_HELP,
+            CODEGEN_COMMAND,
+            RECORD_WEB_COMMAND,
+            RECORD_MOBILE_COMMAND,
+            DOCTOR_COMMAND,
             new CommandDefinition("/guide", "Search the SHAFT guide",
                     List.of("/docs", "/manual"),
                     "/guide locators", (command, rest, workingDirectory) -> Invocation.tool("shaft_guide_search", guide(rest))),
@@ -68,30 +99,25 @@ final class AssistantCommand {
             new CommandDefinition("/record", "Record browser actions",
                     List.of("/rec", "/capture"),
                     "/record playwright", (command, rest, workingDirectory) -> record(rest)),
-            new CommandDefinition("/codegen", "Generate code from recordings",
-                    List.of("/generate", "/gen", "/generateTest"),
-                    "/codegen mobile recordings/mobile.json", (command, rest, workingDirectory) -> generateTest(rest)),
             new CommandDefinition("/mobile", "Control Appium and mobile web",
                     List.of("/appium", "/device", "/phone", "/emulator"),
                     "/mobile native Android Pixel_6", (command, rest, workingDirectory) -> mobile(rest)),
             new CommandDefinition("/mobile-record", "Record mobile actions",
                     List.of("/app-record", "/inspector-record"),
-                    "/mobile-record inspector Android recordings/inspector.json", (command, rest, workingDirectory) -> mobileRecord("/inspector-record".equals(command) ? "inspector " + rest : rest)),
+                    "/mobile-record inspector Android recordings/inspector.json",
+                    (command, rest, workingDirectory) -> mobileRecord("/inspector-record".equals(command) ? "inspector " + rest : rest)),
             new CommandDefinition("/mobile-codegen", "Generate mobile replay snippets",
                     List.of("/app-codegen"),
                     "/mobile-codegen recordings/mobile.json", (command, rest, workingDirectory) -> mobileCodegen(rest)),
             new CommandDefinition("/mobile-replay", "Replay mobile recordings",
                     List.of("/app-replay"),
                     "/mobile-replay recordings/mobile.json", (command, rest, workingDirectory) -> mobileReplay(rest)),
-            new CommandDefinition("/doctor", "Analyze failures and recommend fixes",
-                    List.of("/allure", "/triage", "/fixTestFailure", "/failure", "/fix"),
-                    "/doctor target/allure-results", (command, rest, workingDirectory) -> doctor(rest, workingDirectory)),
+            new CommandDefinition("/allure", "Analyze failed Allure evidence",
+                    List.of("/triage", "/fixTestFailure", "/failure", "/fix"),
+                    "/allure target/allure-results", (command, rest, workingDirectory) -> doctor(rest, workingDirectory)),
             new CommandDefinition("/guardrails", "Check generated Java code",
                     List.of("/checkcode"),
                     "/guardrails driver.element().click(locator);", (command, rest, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(rest))),
-            new CommandDefinition("/triage", "Analyze failed Allure evidence",
-                    List.of("/fixTestFailure"),
-                    "/triage target/allure-results", (command, rest, workingDirectory) -> doctor(rest, workingDirectory)),
             new CommandDefinition("/assistant", "List assistant clients",
                     List.of("/agent", "/ask", "/plan", "/clients", "/client"),
                     "/assistant", (command, rest, workingDirectory) -> Invocation.tool("autobot_local_agent_clients", new JsonObject())),
@@ -100,7 +126,11 @@ final class AssistantCommand {
                     "/project upgrade .", AssistantCommand::project),
             new CommandDefinition("/mcp", "Run an explicit MCP tool",
                     List.of("/tool", "/call"),
-                    "/mcp browser_get_title {}", (command, rest, workingDirectory) -> rawMcp(rest)));
+                    "/mcp browser_get_title {}", (command, rest, workingDirectory) -> rawMcp(rest)),
+            new CommandDefinition("/generate", "Generate code from recordings",
+                    List.of("/gen", "/generateTest"),
+                    "/generate recordings/intellij-capture.json",
+                    (command, rest, workingDirectory) -> generateTest(rest)));
     private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
             new NaturalIntent(AssistantCommand::isCommandHelpIntent,
                     (text, workingDirectory) -> Invocation.local(commandHelp())),
@@ -142,7 +172,7 @@ final class AssistantCommand {
     }
 
     private static List<CommandHint> commandHintsFromRegistry() {
-        return COMMANDS.stream().map(CommandDefinition::hint).toList();
+        return VISIBLE_COMMANDS.stream().map(CommandDefinition::hint).toList();
     }
 
     static String commandTooltip() {
@@ -151,18 +181,20 @@ final class AssistantCommand {
             tooltip.append("<br><code>")
                     .append(hint.canonical())
                     .append("</code> - ")
-                    .append(hint.summary())
-                    .append("<br>&nbsp;&nbsp;Aliases: ")
-                    .append(String.join(", ", hint.synonyms()))
-                    .append("<br>&nbsp;&nbsp;Example: ")
+                    .append(hint.summary());
+            if (!hint.synonyms().isEmpty()) {
+                tooltip.append("<br>&nbsp;&nbsp;Aliases: ")
+                        .append(String.join(", ", hint.synonyms()));
+            }
+            tooltip.append("<br>&nbsp;&nbsp;Example: ")
                     .append(hint.example());
         }
         return tooltip.append("</html>").toString();
     }
 
-    private static String commandHelp() {
+    static String commandHelp() {
         StringBuilder help = new StringBuilder("SHAFT Assistant commands:");
-        for (CommandDefinition definition : COMMANDS) {
+        for (CommandDefinition definition : VISIBLE_COMMANDS) {
             help.append("\n")
                     .append(definition.canonical())
                     .append(" - ")
@@ -177,6 +209,16 @@ final class AssistantCommand {
         return help.toString();
     }
 
+    record OpenFileContext(String path, String text) {
+        static OpenFileContext empty() {
+            return new OpenFileContext("", "");
+        }
+
+        boolean present() {
+            return path != null && !path.isBlank() && text != null && !text.isBlank();
+        }
+    }
+
     static Invocation fromPrompt(
             String prompt,
             String client,
@@ -184,7 +226,20 @@ final class AssistantCommand {
             String workingDirectory,
             String customCommand,
             boolean allowSourceMutation) {
-        return fromPrompt(prompt, Selection.fromClient(client), mode, workingDirectory, customCommand, allowSourceMutation);
+        return fromPrompt(prompt, Selection.fromClient(client), mode, workingDirectory, customCommand, allowSourceMutation,
+                OpenFileContext.empty());
+    }
+
+    static Invocation fromPrompt(
+            String prompt,
+            String client,
+            String mode,
+            String workingDirectory,
+            String customCommand,
+            boolean allowSourceMutation,
+            OpenFileContext openFileContext) {
+        return fromPrompt(prompt, Selection.fromClient(client), mode, workingDirectory, customCommand, allowSourceMutation,
+                openFileContext);
     }
 
     static Invocation fromPrompt(
@@ -194,6 +249,18 @@ final class AssistantCommand {
             String workingDirectory,
             String customCommand,
             boolean allowSourceMutation) {
+        return fromPrompt(prompt, selection, mode, workingDirectory, customCommand, allowSourceMutation,
+                OpenFileContext.empty());
+    }
+
+    static Invocation fromPrompt(
+            String prompt,
+            Selection selection,
+            String mode,
+            String workingDirectory,
+            String customCommand,
+            boolean allowSourceMutation,
+            OpenFileContext openFileContext) {
         String text = prompt == null ? "" : prompt.trim();
         if (text.isEmpty()) {
             return Invocation.local("Enter a prompt or slash command.");
@@ -210,7 +277,7 @@ final class AssistantCommand {
             return directIntent;
         }
         if (selection.cloud()) {
-            return cloud(text, selection, mode, workingDirectory);
+            return cloud(text, selection, mode, workingDirectory, openFileContext);
         }
         if (!"CLI".equals(selection.runtime())) {
             return Invocation.local("SHAFT is configured for " + selection.displayName()
@@ -219,7 +286,7 @@ final class AssistantCommand {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", selection.client());
         arguments.addProperty("mode", mode);
-        arguments.addProperty("prompt", localAgentPrompt(text, "AGENT".equals(mode), allowSourceMutation));
+        arguments.addProperty("prompt", localAgentPrompt(text, mode, allowSourceMutation, openFileContext));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.add("command", commandArray(customCommand));
         arguments.add("environment", new JsonObject());
@@ -228,16 +295,31 @@ final class AssistantCommand {
         return Invocation.tool("autobot_local_agent_run", arguments);
     }
 
-    private static Invocation cloud(String text, Selection selection, String mode, String workingDirectory) {
+    private static Invocation cloud(
+            String text,
+            Selection selection,
+            String mode,
+            String workingDirectory,
+            OpenFileContext openFileContext) {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("provider", selection.cloudProvider());
         arguments.addProperty("model", selection.cloudModel());
         arguments.addProperty("mode", mode);
-        arguments.addProperty("prompt", text);
+        arguments.addProperty("prompt", cloudPrompt(text, mode, openFileContext));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
         arguments.addProperty("allowSourceMutation", false);
         return Invocation.tool("autobot_provider_chat", arguments);
+    }
+
+    private static String cloudPrompt(String text, String mode, OpenFileContext openFileContext) {
+        if (!isCodeGenerationRequest(text)) {
+            return text;
+        }
+        return SHAFT_MCP_USAGE_HINT
+                + "\n" + SHAFT_CODEGEN_TOOL_GUIDANCE
+                + "\n" + codeRequestScope(Selection.normalize(mode, "ASK"), openFileContext)
+                + "\n\n" + text;
     }
 
     private static Invocation slash(String text, String workingDirectory) {
@@ -512,7 +594,7 @@ final class AssistantCommand {
         if (commandIs(action, "inspector-status")) {
             return Invocation.tool("mobile_inspector_record_status", new JsonObject());
         }
-        return Invocation.local("Use `/mobile-record start <path>`, `/mobile-record stop`, or `/mobile-record inspector Android <path>`.");
+        return Invocation.local("Use `/record-mobile start <path>`, `/record-mobile stop`, or `/record-mobile inspector Android <path>`.");
     }
 
     private static JsonObject mobileRecordingStart(String outputPath) {
@@ -1159,15 +1241,49 @@ final class AssistantCommand {
         return array;
     }
 
-    private static String localAgentPrompt(String text, boolean agentMode, boolean allowSourceMutation) {
+    private static String localAgentPrompt(
+            String text,
+            String mode,
+            boolean allowSourceMutation,
+            OpenFileContext openFileContext) {
         String lower = text.toLowerCase(Locale.ROOT);
+        String normalizedMode = Selection.normalize(mode, "ASK");
+        boolean agentMode = "AGENT".equals(normalizedMode);
         boolean codeGenerationRequest = isCodeGenerationRequest(text);
         String hint = SHAFT_MCP_USAGE_HINT
-                + (codeGenerationRequest ? "\n" + SHAFT_CODEGEN_TOOL_GUIDANCE : "");
+                + (codeGenerationRequest
+                ? "\n" + SHAFT_CODEGEN_TOOL_GUIDANCE + "\n" + codeRequestScope(normalizedMode, openFileContext)
+                : "");
         String withHint = lower.contains("shaft-mcp")
-                ? (codeGenerationRequest ? SHAFT_CODEGEN_TOOL_GUIDANCE + "\n\n" + text : text)
+                ? (codeGenerationRequest
+                ? SHAFT_CODEGEN_TOOL_GUIDANCE + "\n" + codeRequestScope(normalizedMode, openFileContext)
+                + "\n\n" + text
+                : text)
                 : hint + "\n\n" + text;
         return agentMode && !allowSourceMutation ? withHint + "\n\n" + AGENT_SOURCE_GUARD : withHint;
+    }
+
+    private static String codeRequestScope(String mode, OpenFileContext openFileContext) {
+        String modeGuidance = switch (mode) {
+            case "AGENT" -> "Agent mode: suggest code changes directly inside the IDE for the current open class only.";
+            case "ASK" -> "Ask mode: recommend migrated SHAFT-syntax code in markdown; do not apply IDE edits.";
+            default -> "Plan mode: outline the SHAFT migration steps before recommending code.";
+        };
+        if (openFileContext != null && openFileContext.present()) {
+            return """
+                    %s
+                    Use only the currently open file as project source context. Do not read, scan, or summarize other project files unless the user explicitly asks.
+                    Current open file: %s
+                    ```java
+                    %s
+                    ```
+                    """.formatted(modeGuidance, openFileContext.path(), clip(openFileContext.text(), 8_000))
+                    .stripIndent().trim();
+        }
+        return """
+                %s
+                Use only the currently open file for code writing or conversion. No current open file content was provided, so ask the user to open the target file or paste the code. Do not read all project files to find context.
+                """.formatted(modeGuidance).stripIndent().trim();
     }
 
     private static boolean isCodeGenerationRequest(String text) {
@@ -1187,6 +1303,14 @@ final class AssistantCommand {
                 "pom",
                 "codegen",
                 "code gen",
+                "convert code",
+                "convert this code",
+                "convert this selenium code",
+                "convert to shaft",
+                "selenium code to shaft",
+                "to shaft syntax",
+                "migrate code",
+                "migrate to shaft",
                 "rewrite code",
                 "fix code",
                 "fix this code",
