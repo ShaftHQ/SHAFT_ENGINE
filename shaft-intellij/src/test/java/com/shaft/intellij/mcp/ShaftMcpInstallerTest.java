@@ -75,9 +75,22 @@ class ShaftMcpInstallerTest {
     }
 
     @Test
+    void diagnosticInstallCommandUsesJsonInstallerCommand() {
+        String command = ShaftMcpInstaller.diagnosticInstallCommand("copilot-intellij");
+
+        assertTrue(command.contains("copilot-intellij"));
+        assertTrue(command.contains("json"));
+        assertTrue(command.contains(isWindows() ? "-Command \"irm " : "sh -c \"curl "));
+    }
+
+    @Test
     void genericClientConfigurationUsesExistingInstallerTargets() {
         String command = String.join(" ", ShaftMcpInstaller.installCommand("claude-desktop", false));
 
         assertTrue(command.contains("claude-desktop"));
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase().contains("win");
     }
 }
