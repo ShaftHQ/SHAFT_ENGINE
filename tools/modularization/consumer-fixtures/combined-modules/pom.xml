@@ -117,6 +117,7 @@
                             <ignoredResourcePatterns>
                                 <ignoredResourcePattern>draftv[34]/schema</ignoredResourcePattern>
                                 <ignoredResourcePattern>changelog[.]xml</ignoredResourcePattern>
+                                <ignoredResourcePattern>versionchanges[.]txt</ignoredResourcePattern>
                             </ignoredResourcePatterns>
                         </configuration>
                     </execution>
