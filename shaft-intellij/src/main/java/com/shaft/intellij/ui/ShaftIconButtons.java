@@ -1,12 +1,10 @@
 package com.shaft.intellij.ui;
 
-import com.intellij.ui.JBColor;
 import com.intellij.util.ui.JBUI;
 
 import javax.swing.JButton;
 import javax.swing.Icon;
 import java.awt.AlphaComposite;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -18,8 +16,6 @@ import java.awt.event.ActionListener;
  */
 public final class ShaftIconButtons {
     public static final int SIZE = 32;
-    private static final JBColor ENABLED_BACKGROUND = new JBColor(new Color(0xF4F6F8), new Color(0x4E5963));
-    private static final JBColor DISABLED_BACKGROUND = new JBColor(new Color(0xEAEDF1), new Color(0x3F444A));
     private static final float DISABLED_ICON_OPACITY = 0.72F;
 
     private ShaftIconButtons() {
@@ -50,10 +46,11 @@ public final class ShaftIconButtons {
         button.setMinimumSize(size);
         button.setMaximumSize(size);
         button.setMargin(JBUI.emptyInsets());
-        button.setOpaque(true);
-        button.setContentAreaFilled(true);
-        button.setBackground(backgroundFor(button));
-        button.addPropertyChangeListener("enabled", event -> button.setBackground(backgroundFor(button)));
+        button.setOpaque(false);
+        button.setContentAreaFilled(false);
+        button.setBorder(JBUI.Borders.empty());
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
     }
 
     public static void widen(JButton button, int width) {
@@ -61,10 +58,6 @@ public final class ShaftIconButtons {
         button.setPreferredSize(size);
         button.setMinimumSize(size);
         button.setMaximumSize(size);
-    }
-
-    private static JBColor backgroundFor(JButton button) {
-        return button.isEnabled() ? ENABLED_BACKGROUND : DISABLED_BACKGROUND;
     }
 
     private record OpacityIcon(Icon delegate, float opacity) implements Icon {
