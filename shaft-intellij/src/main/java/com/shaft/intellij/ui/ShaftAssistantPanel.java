@@ -486,20 +486,30 @@ final class ShaftAssistantPanel extends JPanel {
             char trigger,
             Project project,
             AssistantCommand.OpenFileContext openFileContext) {
-        List<ContextSuggestion> suggestions = new ArrayList<>();
         if (trigger == '@') {
-            suggestions.add(new ContextSuggestion("@workflow:record-web", "/record-web "));
-            suggestions.add(new ContextSuggestion("@workflow:record-mobile", "/record-mobile "));
-            suggestions.add(new ContextSuggestion("@workflow:codegen", "/codegen "));
-            suggestions.add(new ContextSuggestion("@workflow:doctor", "/doctor "));
-            suggestions.add(new ContextSuggestion("@tool:guide-search", "/guide "));
-            suggestions.add(new ContextSuggestion("@tool:guardrails", "/guardrails "));
-            suggestions.add(new ContextSuggestion("@project:create-or-upgrade", "/project "));
-            return suggestions;
+            return workflowContextSuggestions();
         }
-        if (trigger != '#') {
-            return suggestions;
+        if (trigger == '#') {
+            return projectContextSuggestions(project, openFileContext);
         }
+        return List.of();
+    }
+
+    private static List<ContextSuggestion> workflowContextSuggestions() {
+        return List.of(
+                new ContextSuggestion("@workflow:record-web", "/record-web "),
+                new ContextSuggestion("@workflow:record-mobile", "/record-mobile "),
+                new ContextSuggestion("@workflow:codegen", "/codegen "),
+                new ContextSuggestion("@workflow:doctor", "/doctor "),
+                new ContextSuggestion("@tool:guide-search", "/guide "),
+                new ContextSuggestion("@tool:guardrails", "/guardrails "),
+                new ContextSuggestion("@project:create-or-upgrade", "/project "));
+    }
+
+    private static List<ContextSuggestion> projectContextSuggestions(
+            Project project,
+            AssistantCommand.OpenFileContext openFileContext) {
+        List<ContextSuggestion> suggestions = new ArrayList<>();
         if (openFileContext != null && openFileContext.present()) {
             suggestions.add(new ContextSuggestion("#file:" + fileName(openFileContext.path()),
                     "#file:" + openFileContext.path() + " "));
@@ -590,14 +600,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (path == null || path.isBlank()) {
             return "current";
         }
-        try {
-            Path candidate = Path.of(path);
-            Path fileName = candidate.getFileName();
-            return fileName == null ? path : fileName.toString();
-        } catch (RuntimeException ignored) {
-            int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-            return slash >= 0 && slash + 1 < path.length() ? path.substring(slash + 1) : path;
-        }
+        int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return slash >= 0 && slash + 1 < path.length() ? path.substring(slash + 1) : path;
     }
 
     private void send(Project project) {

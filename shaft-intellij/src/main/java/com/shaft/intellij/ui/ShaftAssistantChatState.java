@@ -35,12 +35,8 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         if (project == null) {
             return new ShaftAssistantChatState();
         }
-        try {
-            ShaftAssistantChatState state = project.getService(ShaftAssistantChatState.class);
-            return state == null ? new ShaftAssistantChatState() : state;
-        } catch (RuntimeException ignored) {
-            return new ShaftAssistantChatState();
-        }
+        ShaftAssistantChatState state = project.getService(ShaftAssistantChatState.class);
+        return state == null ? new ShaftAssistantChatState() : state;
     }
 
     @Override
