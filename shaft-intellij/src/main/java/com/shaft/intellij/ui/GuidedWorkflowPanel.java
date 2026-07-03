@@ -154,6 +154,7 @@ final class GuidedWorkflowPanel extends JPanel {
             case CONVERT_SELENIUM_SNIPPET -> prefill.prefill("test_automation_scenarios", seleniumConversionWorkflow());
             case CREATE_NEW_SHAFT_PROJECT -> prefill.prefill("shaft_project_create", newShaftProject());
             case INSPECT_CURRENT_PAGE_LOCATORS -> prefill.prefill("browser_get_page_dom", currentPageDomInspection());
+            default -> throw new IllegalStateException("Unsupported workflow template: " + template);
         }
     }
 

@@ -187,20 +187,38 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
             return null;
         }
         Session copy = new Session();
-        copy.id = source.id == null || source.id.isBlank() ? UUID.randomUUID().toString() : source.id;
-        copy.title = source.title == null || source.title.isBlank() ? "New chat" : redactSecrets(source.title);
-        copy.createdAt = source.createdAt == null ? "" : source.createdAt;
-        copy.updatedAt = source.updatedAt == null ? "" : source.updatedAt;
-        copy.messages = new ArrayList<>();
-        if (source.messages != null) {
-            for (Message message : source.messages) {
-                Message normalized = normalizeMessage(message);
-                if (normalized != null) {
-                    copy.messages.add(normalized);
-                }
+        copy.id = normalizeSessionId(source.id);
+        copy.title = normalizeSessionTitle(source.title);
+        copy.createdAt = blankIfNull(source.createdAt);
+        copy.updatedAt = blankIfNull(source.updatedAt);
+        copy.messages = normalizeMessages(source.messages);
+        return copy;
+    }
+
+    private static String normalizeSessionId(String id) {
+        return id == null || id.isBlank() ? UUID.randomUUID().toString() : id;
+    }
+
+    private static String normalizeSessionTitle(String title) {
+        return title == null || title.isBlank() ? "New chat" : redactSecrets(title);
+    }
+
+    private static String blankIfNull(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static List<Message> normalizeMessages(List<Message> messages) {
+        List<Message> normalizedMessages = new ArrayList<>();
+        if (messages == null) {
+            return normalizedMessages;
+        }
+        for (Message message : messages) {
+            Message normalized = normalizeMessage(message);
+            if (normalized != null) {
+                normalizedMessages.add(normalized);
             }
         }
-        return copy;
+        return normalizedMessages;
     }
 
     private static Session copySession(Session source) {
