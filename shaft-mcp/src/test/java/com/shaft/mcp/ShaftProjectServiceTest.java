@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,6 +34,7 @@ class ShaftProjectServiceTest {
                 "com.example",
                 "shaft-api-testng",
                 "1.2.3",
+                "9.9.9",
                 List.of("shaft-heal", "shaft-sikulix"),
                 true,
                 true,
@@ -45,10 +47,90 @@ class ShaftProjectServiceTest {
         assertTrue(pom.contains("<groupId>com.example</groupId>"));
         assertTrue(pom.contains("<artifactId>shaft-api-testng</artifactId>"));
         assertTrue(pom.contains("<version>1.2.3</version>"));
+        assertTrue(pom.contains("<shaft.version>9.9.9</shaft.version>"));
         assertTrue(pom.contains("<artifactId>shaft-heal</artifactId>"));
         assertTrue(pom.contains("<artifactId>shaft-sikulix</artifactId>"));
         assertTrue(Files.exists(generated.resolve(".github/workflows/api.yml")));
         assertTrue(Files.exists(generated.resolve(".github/dependabot.yml")));
+    }
+
+    @Test
+    void createProjectUsesDefaultShaftVersionFromResolver() throws Exception {
+        AtomicBoolean resolverCalled = new AtomicBoolean();
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"),
+                () -> {
+                    resolverCalled.set(true);
+                    return "10.10.20260703";
+                });
+
+        service.createProject(
+                "generated-default",
+                "TestNG",
+                "web",
+                "com.example",
+                "",
+                "1.0.0",
+                "",
+                List.of(),
+                false,
+                false,
+                true);
+
+        Path generated = temp.resolve("generated-default");
+        String pom = Files.readString(generated.resolve("pom.xml"));
+        assertTrue(resolverCalled.get());
+        assertTrue(pom.contains("<shaft.version>10.10.20260703</shaft.version>"));
+    }
+
+    @Test
+    void generatedWebSamplesSearchFirstResultAndValidateResultPage() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"),
+                () -> "11.11.20260702");
+
+        McpShaftProjectGenerationResult testngResult = service.createProject(
+                "generated-web-ng",
+                "TestNG",
+                "web",
+                "com.example",
+                "",
+                "1.0.0",
+                null,
+                List.of(),
+                false,
+                false,
+                true);
+        String testngSample = Files.readString(
+                testngResult.projectDirectory().resolve("src/test/java/testPackage/TestClass.java"));
+        assertTrue(testngSample.contains("click(firstSearchResult)"));
+        assertTrue(testngSample.contains("expectedResultTitle"));
+        assertTrue(testngSample.contains("expectedResultText"));
+
+        McpShaftProjectGenerationResult cucumberResult = service.createProject(
+                "generated-web-cucumber",
+                "Cucumber",
+                "web",
+                "com.example",
+                "",
+                "1.0.0",
+                null,
+                List.of(),
+                false,
+                false,
+                true);
+        String cucumberFlow = Files.readString(cucumberResult.projectDirectory()
+                .resolve("src/test/resources/features/SampleFeatureFile.feature"));
+        assertTrue(cucumberFlow.contains(
+                "I Click the element found by \"xpath\": \"(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']\""));
+        assertTrue(cucumberFlow.contains("I Assert that the \"title\" attribute of the browser, contains \"SHAFT\""));
+        assertTrue(cucumberFlow.contains("I Assert that the \"text\" attribute of the browser, contains \"SHAFT\""));
     }
 
     @Test

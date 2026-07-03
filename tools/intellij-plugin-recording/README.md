@@ -7,7 +7,7 @@ Use this flow to validate the assistant-driven e2e capture path. This workflow d
 1. Build and verify the latest local IntelliJ plugin:
    - `powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\record-onboarding.ps1`
    - Equivalent: `gradle -p shaft-intellij check buildPlugin verifyPlugin`
-   - On Windows, the script creates a missing `%JAVA_HOME%\Packages` directory before Gradle runs, which avoids a local IntelliJ instrumentation failure seen with Microsoft JDK 21.
+   - On Windows, the script creates a missing `%JAVA_HOME%\Packages` directory before Gradle runs and exits with a clear error if `%JAVA_HOME%` is missing, invalid, or unwritable (this avoids local IntelliJ instrumentation failures seen with Microsoft JDK 21).
 2. Launch the recording IDE in an isolated Gradle IntelliJ sandbox:
    - `gradle -p shaft-intellij runIde --args <repo-root>`
    - Fallback: install `shaft-intellij/build/distributions/*.zip` into an isolated IntelliJ sandbox and open `Tools -> SHAFT -> Open SHAFT`.
