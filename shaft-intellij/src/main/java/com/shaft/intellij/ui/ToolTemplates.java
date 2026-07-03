@@ -429,7 +429,9 @@ final class ToolTemplates {
                           "includeDependabot": true,
                           "overwrite": false
                         }
-                        """),
+                        """,
+                        "Creates a new SHAFT project directory. Confirm the output path before running.",
+                        true),
                 template("Preview Current Project Upgrade", "shaft_project_upgrade",
                         """
                         {

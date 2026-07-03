@@ -1,5 +1,12 @@
 package com.shaft.intellij.ui;
 
+import com.intellij.openapi.components.PersistentStateComponent;
+import com.intellij.openapi.components.State;
+import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.components.StoragePathMacros;
+import com.intellij.openapi.project.Project;
+import org.jetbrains.annotations.NotNull;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,15 +14,62 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * In-memory Assistant chat sessions for the current tool-window lifetime.
+ * Project-level Assistant chat sessions persisted without raw MCP payloads.
  */
-public final class ShaftAssistantChatState {
+@State(name = "ShaftAssistantChatState", storages = @Storage(StoragePathMacros.WORKSPACE_FILE))
+public final class ShaftAssistantChatState implements PersistentStateComponent<ShaftAssistantChatState.StateData> {
     private static final int MAX_SESSIONS = 12;
     private static final int MAX_MESSAGES_PER_SESSION = 80;
     private static final String SECOND_PERSON_LABEL = String.valueOf(new char[]{'Y', 'o', 'u'});
+    private static final Pattern KEY_VALUE_SECRET = Pattern.compile(
+            "(?iu)([\"']?\\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|authorization|cookie|set-cookie)\\b[\"']?\\s*[:=]\\s*)([\"']?)[^\\s`'\",}]+([\"']?)");
+    private static final Pattern ENV_SECRET = Pattern.compile(
+            "(?iu)\\b([A-Z][A-Z0-9_]*(?:API_KEY|TOKEN|SECRET|PASSWORD))\\b\\s*=\\s*([^\\s`'\\\"]+)");
+    private static final Pattern BEARER_SECRET = Pattern.compile(
+            "(?iu)\\bBearer\\s+[A-Za-z0-9._~+/=-]+");
 
     private final List<Session> sessions = new ArrayList<>();
     private String activeSessionId = "";
+
+    public static ShaftAssistantChatState getInstance(Project project) {
+        if (project == null) {
+            return new ShaftAssistantChatState();
+        }
+        try {
+            ShaftAssistantChatState state = project.getService(ShaftAssistantChatState.class);
+            return state == null ? new ShaftAssistantChatState() : state;
+        } catch (RuntimeException ignored) {
+            return new ShaftAssistantChatState();
+        }
+    }
+
+    @Override
+    public StateData getState() {
+        StateData state = new StateData();
+        state.activeSessionId = activeSessionId;
+        for (Session session : sessions) {
+            state.sessions.add(copySession(session));
+        }
+        return state;
+    }
+
+    @Override
+    public void loadState(@NotNull StateData state) {
+        sessions.clear();
+        if (state.sessions != null) {
+            for (Session session : state.sessions) {
+                Session normalized = normalizeSession(session);
+                if (normalized != null) {
+                    sessions.add(normalized);
+                }
+            }
+        }
+        activeSessionId = state.activeSessionId == null ? "" : state.activeSessionId;
+        trim();
+        if (!sessions.isEmpty() && sessionById(activeSessionId) == null) {
+            activeSessionId = sessions.get(0).id;
+        }
+    }
 
     Session activeSession() {
         ensureActiveSession();
@@ -52,7 +106,8 @@ public final class ShaftAssistantChatState {
         Session session = activeSession();
         Message message = new Message();
         message.role = role == null ? "" : role;
-        message.markdown = "user".equals(message.role) ? stripSpeakerLabel(markdown) : markdown;
+        String renderedMarkdown = "user".equals(message.role) ? stripSpeakerLabel(markdown) : markdown;
+        message.markdown = redactSecrets(renderedMarkdown);
         if (message.markdown.isBlank()) {
             return;
         }
@@ -60,7 +115,7 @@ public final class ShaftAssistantChatState {
         session.messages.add(message);
         session.updatedAt = message.createdAt;
         if ("New chat".equals(session.title) && "user".equals(message.role)) {
-            session.title = titleFrom(markdown);
+            session.title = titleFrom(message.markdown);
         }
         trim();
     }
@@ -131,6 +186,53 @@ public final class ShaftAssistantChatState {
         }
     }
 
+    private static Session normalizeSession(Session source) {
+        if (source == null) {
+            return null;
+        }
+        Session copy = new Session();
+        copy.id = source.id == null || source.id.isBlank() ? UUID.randomUUID().toString() : source.id;
+        copy.title = source.title == null || source.title.isBlank() ? "New chat" : redactSecrets(source.title);
+        copy.createdAt = source.createdAt == null ? "" : source.createdAt;
+        copy.updatedAt = source.updatedAt == null ? "" : source.updatedAt;
+        copy.messages = new ArrayList<>();
+        if (source.messages != null) {
+            for (Message message : source.messages) {
+                Message normalized = normalizeMessage(message);
+                if (normalized != null) {
+                    copy.messages.add(normalized);
+                }
+            }
+        }
+        return copy;
+    }
+
+    private static Session copySession(Session source) {
+        Session copy = normalizeSession(source);
+        return copy == null ? new Session() : copy;
+    }
+
+    private static Message normalizeMessage(Message source) {
+        if (source == null || source.markdown == null || source.markdown.isBlank()) {
+            return null;
+        }
+        Message copy = new Message();
+        copy.role = source.role == null ? "" : source.role;
+        copy.markdown = redactSecrets(source.markdown);
+        copy.createdAt = source.createdAt == null ? "" : source.createdAt;
+        return copy;
+    }
+
+    private static String redactSecrets(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String redacted = BEARER_SECRET.matcher(value).replaceAll("Bearer <redacted>");
+        redacted = ENV_SECRET.matcher(redacted).replaceAll("$1=<redacted>");
+        redacted = KEY_VALUE_SECRET.matcher(redacted).replaceAll("$1$2<redacted>$3");
+        return redacted;
+    }
+
     private static String titleFrom(String markdown) {
         String text = stripSpeakerLabel(markdown).replace("*", "")
                 .replace("`", "")
@@ -170,8 +272,13 @@ public final class ShaftAssistantChatState {
         return Instant.now().toString();
     }
 
+    public static final class StateData {
+        public List<Session> sessions = new ArrayList<>();
+        public String activeSessionId = "";
+    }
+
     /**
-     * Assistant session retained for the active tool-window lifetime.
+     * Assistant session retained for the active project.
      */
     public static final class Session {
         public String id = "";
@@ -187,7 +294,7 @@ public final class ShaftAssistantChatState {
     }
 
     /**
-     * Assistant transcript message retained for the active tool-window lifetime.
+     * Assistant transcript message retained for the active project.
      */
     public static final class Message {
         public String role = "";

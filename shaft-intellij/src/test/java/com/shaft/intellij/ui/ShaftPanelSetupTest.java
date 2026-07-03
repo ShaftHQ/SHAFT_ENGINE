@@ -21,6 +21,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JEditorPane;
 import javax.swing.Icon;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JProgressBar;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -790,17 +791,17 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantStartsFreshInsteadOfRestoringProjectServiceChat() {
+    void assistantRestoresProjectServiceChat() {
         ShaftAssistantChatState storedState = new ShaftAssistantChatState();
-        storedState.append("user", "persisted stale prompt", "{}");
-        storedState.append("assistant", "persisted stale answer", "{}");
+        storedState.append("user", "persisted prompt", "{}");
+        storedState.append("assistant", "persisted answer", "{}");
 
         ShaftAssistantPanel panel = new ShaftAssistantPanel(fakeProject(storedState), blankMcpSettings());
         JComboBox<?> chats = findByAccessibleName(panel, "Assistant chat", JComboBox.class);
 
         assertAll(
-                () -> assertFalse(transcriptMarkdown(panel).contains("persisted stale prompt")),
-                () -> assertFalse(transcriptMarkdown(panel).contains("persisted stale answer")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("persisted prompt")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("persisted answer")),
                 () -> assertNotNull(chats),
                 () -> assertEquals(1, chats.getItemCount()));
     }
@@ -839,7 +840,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void connectedSetupStartsFreshInsteadOfRestoringProjectServiceChats() {
+    void connectedSetupRestoresProjectServiceChats() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftAssistantChatState storedState = new ShaftAssistantChatState();
         Project project = fakeProject(storedState);
@@ -855,9 +856,9 @@ class ShaftPanelSetupTest {
                 () -> assertNull(setupPanel(toolWindow)),
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
                 () -> assertFalse(transcriptMarkdown(toolWindow).contains("start recording")),
-                () -> assertFalse(transcriptMarkdown(toolWindow).contains("generate reviewed code")),
+                () -> assertTrue(transcriptMarkdown(toolWindow).contains("generate reviewed code")),
                 () -> assertNotNull(chats),
-                () -> assertEquals(1, chats.getItemCount()));
+                () -> assertEquals(2, chats.getItemCount()));
     }
 
     @Test
@@ -908,12 +909,53 @@ class ShaftPanelSetupTest {
     void assistantDoesNotPersistRawResponsePayloads() throws Exception {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
 
-        chatState.append("assistant", "Rendered response", "{\"secret\":\"raw payload\"}");
+        chatState.append("assistant", """
+                Rendered response
+                OPENAI_API_KEY=abc123
+                Authorization: Bearer secret-token
+                {"apiKey": "json-secret", "password": "json-password"}
+                Cookie: session=abc123
+                """.stripIndent(),
+                "{\"secret\":\"raw payload\"}");
+        ShaftAssistantChatState.StateData state = chatState.getState();
+        String persistedMarkdown = state.sessions.get(0).messages.get(0).markdown;
+        com.intellij.openapi.components.State annotation =
+                ShaftAssistantChatState.class.getAnnotation(com.intellij.openapi.components.State.class);
 
         assertAll(
-                () -> assertEquals("Rendered response", chatState.sessions().get(0).messages.get(0).markdown),
+                () -> assertTrue(persistedMarkdown.contains("Rendered response")),
+                () -> assertFalse(persistedMarkdown.contains("abc123")),
+                () -> assertFalse(persistedMarkdown.contains("secret-token")),
+                () -> assertFalse(persistedMarkdown.contains("json-secret")),
+                () -> assertFalse(persistedMarkdown.contains("json-password")),
+                () -> assertFalse(persistedMarkdown.contains("session=abc123")),
+                () -> assertFalse(persistedMarkdown.contains("raw payload")),
+                () -> assertTrue(persistedMarkdown.contains("<redacted>")),
+                () -> assertEquals(com.intellij.openapi.components.StoragePathMacros.WORKSPACE_FILE,
+                        annotation.storages()[0].value()),
                 () -> assertThrows(NoSuchFieldException.class,
                         () -> ShaftAssistantChatState.Message.class.getDeclaredField("raw")));
+    }
+
+    @Test
+    void assistantChatStateFallsBackFromCorruptPersistedState() {
+        ShaftAssistantChatState.StateData state = new ShaftAssistantChatState.StateData();
+        ShaftAssistantChatState.Session corrupt = new ShaftAssistantChatState.Session();
+        corrupt.id = null;
+        corrupt.title = null;
+        corrupt.messages = null;
+        state.sessions.add(null);
+        state.sessions.add(corrupt);
+        state.activeSessionId = "missing";
+
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.loadState(state);
+        chatState.append("user", "fresh prompt after fallback", "");
+
+        assertAll(
+                () -> assertEquals(1, chatState.sessions().size()),
+                () -> assertEquals("fresh prompt after fallback", chatState.activeSession().title),
+                () -> assertTrue(chatState.activeMarkdown().contains("fresh prompt after fallback")));
     }
 
     @Test
@@ -963,14 +1005,22 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(comboContains(commandAutocomplete, "/record-web")),
                 () -> assertTrue(comboContains(commandAutocomplete, "/record-mobile")),
                 () -> assertTrue(comboContains(commandAutocomplete, "/doctor")),
-                () -> assertFalse(comboContains(commandAutocomplete, "/browser")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/guide")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/guardrails")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/browser")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/mobile")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/project")),
                 () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)")),
                 () -> assertNotNull(commandInfo),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/codegen")),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/record-web")),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/record-mobile")),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/doctor")),
-                () -> assertFalse(commandInfo.getToolTipText().contains("/browser")),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/guide")),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/guardrails")),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/browser")),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/mobile")),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/project")),
                 () -> assertEquals(commandAutocomplete.getParent(), commandInfo.getParent()),
                 () -> assertTrue(componentIndex(commandAutocomplete.getParent(), commandInfo)
                         > componentIndex(commandAutocomplete.getParent(), commandAutocomplete)),
@@ -985,6 +1035,39 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(sendButton.getIcon()),
                 () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
                 () -> assertTrue(sendButton.getIcon().getIconHeight() > 0));
+    }
+
+    @Test
+    void assistantTimelineRecordsLocalPromptCompletion() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JList<?> timeline = findByAccessibleName(panel, "Assistant execution timeline", JList.class);
+
+        assistantPrompt(panel).setText("/help");
+        clickAccessible(panel, "Send assistant prompt");
+
+        assertAll(
+                () -> assertNotNull(timeline),
+                () -> assertTrue(listContains(timeline, "Prompt received")),
+                () -> assertTrue(listContains(timeline, "Completed")));
+    }
+
+    @Test
+    void assistantContextSuggestionsAppearOnlyForImplementedTriggers() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        List<ShaftAssistantPanel.ContextSuggestion> workflowSuggestions = panel.contextSuggestionsForTest('@');
+        List<ShaftAssistantPanel.ContextSuggestion> fileSuggestions = panel.contextSuggestionsForTest('#');
+        List<ShaftAssistantPanel.ContextSuggestion> unsupportedSuggestions = panel.contextSuggestionsForTest('$');
+
+        assertAll(
+                () -> assertTrue(workflowSuggestions.stream().anyMatch(
+                        suggestion -> "@workflow:record-web".equals(suggestion.label())
+                                && "/record-web ".equals(suggestion.insertion()))),
+                () -> assertTrue(workflowSuggestions.stream().anyMatch(
+                        suggestion -> "@tool:guardrails".equals(suggestion.label())
+                                && "/guardrails ".equals(suggestion.insertion()))),
+                () -> assertTrue(fileSuggestions.isEmpty()),
+                () -> assertTrue(unsupportedSuggestions.isEmpty()));
     }
 
     @Test
@@ -2087,6 +2170,19 @@ class ShaftPanelSetupTest {
         }
         for (int index = 0; index < comboBox.getItemCount(); index++) {
             Object item = comboBox.getItemAt(index);
+            if (item != null && item.toString().contains(expectedText)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean listContains(JList<?> list, String expectedText) {
+        if (list == null) {
+            return false;
+        }
+        for (int index = 0; index < list.getModel().getSize(); index++) {
+            Object item = list.getModel().getElementAt(index);
             if (item != null && item.toString().contains(expectedText)) {
                 return true;
             }

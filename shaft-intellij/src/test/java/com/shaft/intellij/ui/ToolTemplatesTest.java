@@ -58,6 +58,8 @@ class ToolTemplatesTest {
         Map<String, ToolTemplate> templates = ToolTemplates.projects().stream()
                 .collect(Collectors.toMap(ToolTemplate::label, template -> template));
 
+        assertTrue(templates.get("Create SHAFT Project").confirmationRequired());
+        assertFalse(templates.get("Create SHAFT Project").description().isBlank());
         assertFalse(templates.get("Preview Current Project Upgrade").confirmationRequired());
         assertTrue(templates.get("Apply Current Project Upgrade").confirmationRequired());
         assertFalse(templates.get("Apply Current Project Upgrade").description().isBlank());
@@ -266,6 +268,7 @@ class ToolTemplatesTest {
                 || booleanFlagSet(arguments, "dryRun", false)
                 || HIGH_RISK_MUTATION_TOOL_NAMES.contains(template.toolName())
                 || template.toolName().contains("healer")
+                || template.toolName().contains("project_create")
                 || template.toolName().contains("project_upgrade")
                 || template.label().contains("Healer")
                 || template.label().contains("Upgrade");

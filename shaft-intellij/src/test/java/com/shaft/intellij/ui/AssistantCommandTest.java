@@ -396,15 +396,28 @@ class AssistantCommandTest {
         String tooltip = AssistantCommand.commandTooltip();
 
         assertAll(
-                () -> assertEquals(List.of("/codegen", "/record-web", "/record-mobile", "/doctor"),
+                () -> assertEquals(List.of(
+                                "/codegen",
+                                "/record-web",
+                                "/record-mobile",
+                                "/doctor",
+                                "/guide",
+                                "/guardrails",
+                                "/browser",
+                                "/mobile",
+                                "/project"),
                         hints.stream().map(AssistantCommand.CommandHint::canonical).toList()),
                 () -> assertTrue(tooltip.contains("/codegen")),
                 () -> assertTrue(tooltip.contains("/record-web")),
                 () -> assertTrue(tooltip.contains("/record-mobile")),
                 () -> assertTrue(tooltip.contains("/doctor")),
+                () -> assertTrue(tooltip.contains("/guide")),
+                () -> assertTrue(tooltip.contains("/guardrails")),
+                () -> assertTrue(tooltip.contains("/browser")),
+                () -> assertTrue(tooltip.contains("/mobile")),
+                () -> assertTrue(tooltip.contains("/project")),
                 () -> assertFalse(tooltip.contains("/commands")),
                 () -> assertFalse(tooltip.contains("/assistant")),
-                () -> assertFalse(tooltip.contains("/browser")),
                 () -> assertFalse(tooltip.contains("/mobile-record")),
                 () -> assertFalse(tooltip.contains("Slash commands:")));
     }
@@ -419,8 +432,13 @@ class AssistantCommandTest {
                 () -> assertTrue(help.localResponse().contains("/record-web")),
                 () -> assertTrue(help.localResponse().contains("/record-mobile")),
                 () -> assertTrue(help.localResponse().contains("/doctor")),
+                () -> assertTrue(help.localResponse().contains("/guide")),
+                () -> assertTrue(help.localResponse().contains("/guardrails")),
+                () -> assertTrue(help.localResponse().contains("/browser")),
+                () -> assertTrue(help.localResponse().contains("/mobile")),
+                () -> assertTrue(help.localResponse().contains("/project")),
                 () -> assertFalse(help.localResponse().contains("/commands")),
-                () -> assertFalse(help.localResponse().contains("/browser open https://example.com sign in")));
+                () -> assertFalse(help.localResponse().contains("/assistant")));
     }
 
     @Test
@@ -584,6 +602,7 @@ class AssistantCommandTest {
     @Test
     void naturalIntentRoutesObviousMcpFeatureRequests() {
         AssistantCommand.Invocation projectUpgrade = command("preview shaft upgrade .", "C:/work/project");
+        AssistantCommand.Invocation projectCreate = command("create SHAFT project demo-web");
 
         assertAll(
                 () -> assertEquals("shaft_guide_search", command("search SHAFT docs locators").toolName()),
@@ -594,9 +613,9 @@ class AssistantCommandTest {
                         command("check generated Java code driver.element().click(locator);").toolName()),
                 () -> assertEquals("driver.element().click(locator);",
                         command("check generated Java code driver.element().click(locator);").arguments().get("code").getAsString()),
-                () -> assertEquals("shaft_project_create", command("create SHAFT project demo-web").toolName()),
-                () -> assertEquals("demo-web", command("create SHAFT project demo-web").arguments().get("outputDirectory").getAsString()),
-                () -> assertEquals("", command("create SHAFT project demo-web").arguments().get("shaftVersion").getAsString()),
+                () -> assertTrue(projectCreate.isLocal()),
+                () -> assertTrue(projectCreate.localResponse().contains("writes files")),
+                () -> assertTrue(projectCreate.localResponse().contains("demo-web")),
                 () -> assertEquals("shaft_project_upgrade", projectUpgrade.toolName()),
                 () -> assertTrue(projectUpgrade.arguments().get("dryRun").getAsBoolean()),
                 () -> assertFalse(projectUpgrade.arguments().get("approve").getAsBoolean()),

@@ -48,7 +48,7 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     ShaftToolWindowPanel(Project project, @NotNull ShaftSettingsState.Settings settings,
                          @NotNull ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe) {
-        this(project, settings, readinessProbe, new ShaftAssistantChatState());
+        this(project, settings, readinessProbe, ShaftAssistantChatState.getInstance(project));
     }
 
     ShaftToolWindowPanel(Project project,
