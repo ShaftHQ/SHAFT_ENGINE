@@ -3,9 +3,12 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.AnimatedIcon;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBScrollPane;
@@ -55,13 +58,15 @@ import java.util.concurrent.CancellationException;
  */
 final class ShaftAssistantPanel extends JPanel {
     private static final int TRANSIENT_STATUS_MILLIS = 2300;
-    private static final String READY_STATUS = "ready";
+    private static final String READY_STATUS = "Try asking me to do something...";
+    private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
     private final Project project;
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
     private final JButton newChat;
     private final JComboBox<String> commandAutocomplete;
+    private final JButton commandInfo;
     private final JComboBox<String> mode;
     private final JComboBox<String> providerType;
     private final JComboBox<String> assistantFamily;
@@ -102,6 +107,7 @@ final class ShaftAssistantPanel extends JPanel {
     private Timer captureStartDiagnosticTimer;
     private boolean running;
     private boolean sendCancelHover;
+    private boolean cancelRequested;
     private boolean refreshingChats;
     private boolean updatingCommandAutocomplete;
     private int localAgentStreamToken;
@@ -175,7 +181,7 @@ final class ShaftAssistantPanel extends JPanel {
         commandAutocomplete = new JComboBox<>(new DefaultComboBoxModel<>(commandItems()));
         commandAutocomplete.setEditable(true);
         commandAutocomplete.setSelectedItem("");
-        commandAutocomplete.setPrototypeDisplayValue("/mobile-record inspector Android recordings/inspector.json");
+        commandAutocomplete.setPrototypeDisplayValue("/record-mobile inspector Android recordings/inspector.json");
         commandAutocomplete.setPreferredSize(JBUI.size(220, ShaftIconButtons.SIZE));
         commandAutocomplete.setMinimumSize(JBUI.size(150, ShaftIconButtons.SIZE));
         commandAutocomplete.getAccessibleContext().setAccessibleName("Assistant command autocomplete");
@@ -185,10 +191,16 @@ final class ShaftAssistantPanel extends JPanel {
         commandAutocomplete.addActionListener(event -> insertSelectedCommand());
         updatingCommandAutocomplete = true;
         try {
-            commandAutocomplete.setSelectedItem("/commands");
+            commandAutocomplete.setSelectedItem("");
         } finally {
             updatingCommandAutocomplete = false;
         }
+        commandInfo = button("Commands", "SHAFT command hints",
+                event -> showLocalResponse(AssistantCommand.commandHelp()));
+        commandInfo.getAccessibleContext().setAccessibleDescription(
+                "Shows the supported SHAFT Assistant command families in the command menu.");
+        ShaftIconButtons.apply(commandInfo, ShaftIcons.HELP);
+        commandInfo.setToolTipText(AssistantCommand.commandTooltip());
         mode = combo("Assistant mode", "ASK", "PLAN", "AGENT");
         mode.setSelectedItem(normalize(settings.defaultAutobotMode, "ASK"));
         providerType = combo("Assistant provider type", "LOCAL", "CLOUD");
@@ -237,6 +249,8 @@ final class ShaftAssistantPanel extends JPanel {
         }
         status = new JLabel(READY_STATUS);
         status.setFont(status.getFont().deriveFont(Math.max(10.0F, status.getFont().getSize2D() - 1.0F)));
+        status.setPreferredSize(JBUI.size(260, status.getPreferredSize().height));
+        status.setMinimumSize(JBUI.size(220, status.getPreferredSize().height));
         progress = new JProgressBar();
         progress.setIndeterminate(true);
         progress.getAccessibleContext().setAccessibleName("Assistant thinking spinner");
@@ -245,15 +259,16 @@ final class ShaftAssistantPanel extends JPanel {
 
         send = button("Send", "Send assistant prompt", event -> {
             if (running) {
-                cancelCurrent();
+                cancelOrKillCurrent();
             } else {
                 send(project);
             }
         });
         ShaftIconButtons.apply(send, ShaftIcons.SEND);
         ShaftIconButtons.widen(send, 64);
+        send.setToolTipText(SEND_TOOLTIP);
         bindSendHover();
-        cancel = button("Cancel", "Cancel assistant request", event -> cancelCurrent());
+        cancel = button("Cancel", "Cancel assistant request", event -> cancelOrKillCurrent());
         ShaftIconButtons.apply(cancel, ShaftIcons.CANCEL);
         cancel.setEnabled(false);
         copyLastResponse = button("Copy response", "Copy last assistant response", event -> copyLastResponse());
@@ -338,9 +353,14 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(cloudModel);
         routeRow.add(allowSourceMutation);
 
-        JPanel promptActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        promptActions.add(commandAutocomplete);
-        promptActions.add(send);
+        JPanel commandActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        commandActions.add(commandAutocomplete);
+        commandActions.add(commandInfo);
+        JPanel sendActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        sendActions.add(send);
+        JPanel promptActions = new JPanel(new BorderLayout(6, 0));
+        promptActions.add(commandActions, BorderLayout.CENTER);
+        promptActions.add(sendActions, BorderLayout.EAST);
 
         JPanel composerFooter = new JPanel(new BorderLayout(4, 4));
         composerFooter.add(routeRow, BorderLayout.CENTER);
@@ -442,7 +462,8 @@ final class ShaftAssistantPanel extends JPanel {
                 String.valueOf(mode.getSelectedItem()),
                 workingDirectory,
                 customCommand.getText(),
-                allowSourceMutation.isSelected());
+                allowSourceMutation.isSelected(),
+                openFileContext(project));
         invocation = routeNaturalStopToActiveRecorder(text, invocation);
         append("user", AssistantMarkdown.normalizeMarkdown(text), "");
         if (agentMode
@@ -779,7 +800,11 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     void setRunning(boolean running, String message) {
+        boolean wasRunning = this.running;
         this.running = running;
+        if (running && !wasRunning) {
+            cancelRequested = false;
+        }
         send.setEnabled(true);
         chatSelector.setEnabled(!running);
         newChat.setEnabled(!running);
@@ -798,14 +823,18 @@ final class ShaftAssistantPanel extends JPanel {
         approveCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         copyCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         dismissCaptureReview.setEnabled(!running && pendingCaptureReview != null);
+        commandInfo.setEnabled(!running);
         cancel.setEnabled(running);
         progress.setVisible(running);
         status.setText(message);
         updateSendButtonState();
+        updateCancelButtonState();
         stopTransientStatus();
         updateControlVisibility();
         if (!running) {
             currentInvocation = null;
+            cancelRequested = false;
+            updateCancelButtonState();
         }
     }
 
@@ -833,11 +862,22 @@ final class ShaftAssistantPanel extends JPanel {
         if (!running) {
             sendCancelHover = false;
             send.setIcon(ShaftIcons.SEND);
-            send.setToolTipText("Send assistant prompt");
+            send.setToolTipText(SEND_TOOLTIP);
+            return;
+        }
+        if (cancelRequested) {
+            send.setIcon(ShaftIcons.CANCEL);
+            send.setToolTipText("Kill assistant session");
             return;
         }
         send.setIcon(sendCancelHover ? ShaftIcons.CANCEL : AnimatedIcon.Default.INSTANCE);
         send.setToolTipText(sendCancelHover ? "Cancel assistant request" : "Assistant request running");
+    }
+
+    private void updateCancelButtonState() {
+        String label = cancelRequested ? "Kill assistant session" : "Cancel assistant request";
+        cancel.setToolTipText(label);
+        cancel.getAccessibleContext().setAccessibleName(label);
     }
 
     private void showTransientStatus(String message) {
@@ -870,8 +910,8 @@ final class ShaftAssistantPanel extends JPanel {
         boolean localCli = !cloud && "CLI".equals(assistantRuntime.getSelectedItem());
         boolean lockedRoute = configureFlow != null && mcpConfigured();
         boolean controlsEnabled = !running;
-        mode.setVisible(advanced);
-        mode.setEnabled(controlsEnabled && advanced);
+        mode.setVisible(true);
+        mode.setEnabled(controlsEnabled);
         providerType.setVisible(advanced && !lockedRoute);
         providerType.setEnabled(controlsEnabled && advanced && !lockedRoute);
         assistantFamily.setVisible(advanced && !lockedRoute && !cloud);
@@ -890,8 +930,8 @@ final class ShaftAssistantPanel extends JPanel {
         cloudApiKey.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
         saveCloudApiKey.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
-        allowSourceMutation.setVisible(advanced && agentMode && localCli);
-        allowSourceMutation.setEnabled(controlsEnabled && advanced && agentMode && localCli);
+        allowSourceMutation.setVisible(agentMode && localCli);
+        allowSourceMutation.setEnabled(controlsEnabled && agentMode && localCli);
         configure.setVisible(lockedRoute);
         configure.setEnabled(controlsEnabled && lockedRoute);
         if (!agentMode || !localCli) {
@@ -954,6 +994,15 @@ final class ShaftAssistantPanel extends JPanel {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent event) {
                 send(project);
+            }
+        });
+        prompt.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                if (event.getButton() == MouseEvent.BUTTON1
+                        && (event.getModifiersEx() & InputEvent.CTRL_DOWN_MASK) != 0) {
+                    send(project);
+                }
             }
         });
     }
@@ -1225,11 +1274,33 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
-    private void cancelCurrent() {
+    private void cancelOrKillCurrent() {
         if (currentInvocation != null) {
-            currentInvocation.cancel();
-            status.setText("Cancelling...");
+            if (cancelRequested) {
+                currentInvocation.kill();
+                status.setText("Killing...");
+            } else {
+                currentInvocation.cancel();
+                cancelRequested = true;
+                status.setText("Cancelling...");
+            }
+            updateSendButtonState();
+            updateCancelButtonState();
         }
+    }
+
+    private static AssistantCommand.OpenFileContext openFileContext(Project project) {
+        if (project == null) {
+            return AssistantCommand.OpenFileContext.empty();
+        }
+        FileEditorManager manager = FileEditorManager.getInstance(project);
+        Editor editor = manager.getSelectedTextEditor();
+        if (editor == null) {
+            return AssistantCommand.OpenFileContext.empty();
+        }
+        VirtualFile[] selectedFiles = manager.getSelectedFiles();
+        String path = selectedFiles.length == 0 || selectedFiles[0] == null ? "" : selectedFiles[0].getPath();
+        return new AssistantCommand.OpenFileContext(path, editor.getDocument().getText());
     }
 
     private void openSetup() {

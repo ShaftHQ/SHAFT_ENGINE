@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
  * Markdown-rendered Assistant transcript with copyable source text.
  */
 final class AssistantTranscriptView extends JPanel {
-    private static final String INITIAL_MESSAGE = "Type a question or use `/commands` for SHAFT commands.";
+    private static final String INITIAL_MESSAGE = "Type a question or use the command menu for SHAFT commands.";
     private static final Pattern LANGUAGE_CLASS = Pattern.compile("(?i)\\blanguage-([a-z0-9_+.#-]+)");
     private static final Pattern UNORDERED_LIST_ITEM = Pattern.compile("^[-*+]\\s+(.+)$");
     private static final Pattern ORDERED_LIST_ITEM = Pattern.compile("^\\d+[.)]\\s+(.+)$");
@@ -276,8 +276,12 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private String toFallbackHtml(String value, Color foreground, Color background) {
-        String codeBackground = color("EditorPane.background", color("TextArea.background", "#ffffff"));
-        String border = color("Component.borderColor", "#d0d7de");
+        boolean dark = isDarkBackground(resolvedColor("TextArea.background", Color.WHITE));
+        String codeBackground = dark ? "#24272b" : color("EditorPane.background", color("TextArea.background", "#ffffff"));
+        String toolbarBackground = dark ? "#2f3338" : codeBackground;
+        String border = dark ? "#6b7078" : color("Component.borderColor", "#d0d7de");
+        String codeForeground = dark ? "#e5e7eb" : color("TextArea.foreground", "#202020");
+        String copyForeground = dark ? "#ced0d6" : color("Button.foreground", "#202020");
         return """
                 <html>
                 <head>
@@ -292,6 +296,7 @@ final class AssistantTranscriptView extends JPanel {
                     .shaft-code-toolbar {
                         padding: 3px 6px;
                         text-align: right;
+                        background: %s;
                         border-bottom: 1px solid %s;
                         line-height: 24px;
                     }
@@ -328,9 +333,10 @@ final class AssistantTranscriptView extends JPanel {
                 border,
                 border,
                 codeBackground,
+                toolbarBackground,
                 border,
-                color("Button.foreground", "#202020"),
-                color("TextArea.foreground", "#202020"),
+                copyForeground,
+                codeForeground,
                 codeBackground,
                 value);
     }

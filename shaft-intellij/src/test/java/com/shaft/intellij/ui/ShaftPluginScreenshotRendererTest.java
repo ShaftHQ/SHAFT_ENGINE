@@ -65,6 +65,22 @@ class ShaftPluginScreenshotRendererTest {
             }
             ```
             """.stripIndent().trim();
+    private static final String DUCK_DUCK_GO_SHAFT_CODE_SAMPLE = """
+            ```java
+            public class DuckDuckGoSearchTest {
+                private final SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+
+                @Test
+                void opensShaftEngineResult() {
+                    driver.browser().navigateToURL("https://duckduckgo.com/");
+                    driver.element().type(SHAFT.GUI.Locator.name("q"), "SHAFT Engine");
+                    driver.element().keyPress(SHAFT.GUI.Locator.name("q"), "ENTER");
+                    driver.element().click(SHAFT.GUI.Locator.xpath(
+                            "(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']"));
+                }
+            }
+            ```
+            """.stripIndent().trim();
     private static final Map<Class<?>, Object> PRIMITIVE_DEFAULTS = Map.of(
             boolean.class, false,
             byte.class, (byte) 0,
@@ -180,7 +196,10 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.browser().navigateToURL")),
                 () -> assertTrue(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.element().click")),
                 () -> assertFalse(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.get(")),
-                () -> assertFalse(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.findElement(")));
+                () -> assertFalse(ASSISTANT_SHAFT_CODE_SAMPLE.contains("driver.findElement(")),
+                () -> assertTrue(DUCK_DUCK_GO_SHAFT_CODE_SAMPLE.contains("https://duckduckgo.com/")),
+                () -> assertTrue(DUCK_DUCK_GO_SHAFT_CODE_SAMPLE.contains("result-title-a")),
+                () -> assertFalse(DUCK_DUCK_GO_SHAFT_CODE_SAMPLE.contains("https://example.com")));
     }
 
     private static BufferedImage renderToolWindow(int selectedTab, String toolsCategory, String lookAndFeelClassName, boolean dark)
@@ -251,7 +270,7 @@ class ShaftPluginScreenshotRendererTest {
             component.doLayout();
             layout(component, !dark);
             image.set(render(component, WIDTH, HEIGHT));
-            invokeSetRunning(component, false, "ready");
+            invokeSetRunning(component, false, "Try asking me to do something...");
         });
         return image.get();
     }
@@ -386,12 +405,13 @@ class ShaftPluginScreenshotRendererTest {
 
     private static ShaftAssistantChatState populatedAssistantChatState() {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
-        chatState.append("user", "generate code that opens DuckDuckGo and verifies the SHAFT Engine result", "");
+        chatState.append("user",
+                "generate code that opens DuckDuckGo, searches SHAFT Engine, and opens the first result", "");
         chatState.append("assistant", """
-                Confirm the exact DuckDuckGo URL before code generation.
+                Confirmed target: https://duckduckgo.com/
 
                 %s
-                """.formatted(ASSISTANT_SHAFT_CODE_SAMPLE).stripIndent().trim(), "");
+                """.formatted(DUCK_DUCK_GO_SHAFT_CODE_SAMPLE).stripIndent().trim(), "");
         return chatState;
     }
 

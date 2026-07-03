@@ -21,9 +21,9 @@ This catalog is written for framework users who want to know what changed, what 
 
 ### IntelliJ Assistant browser control
 
-Assistant chat now routes browser-control requests directly to sequenced SHAFT MCP tools. WebDriver is the default for `/browser`, `/web`, `/browse`, `/page`, `/inspect`, `/locator`, and natural prompts such as `open https://example.com and inspect the sign in link`. The generated sequence calls `driver_initialize` before `browser_open_intent`, keeps DOM output bounded, and returns locator candidates with evidence.
+Assistant chat now routes browser-control requests directly to sequenced SHAFT MCP tools. WebDriver is the default for natural prompts such as `open https://example.com and inspect the sign in link`. The generated sequence calls `driver_initialize` before `browser_open_intent`, keeps DOM output bounded, and returns locator candidates with evidence.
 
-Common WebDriver commands include `/browser dom`, `/browser title`, `/browser url`, `/browser screenshot target/shaft-browser/home.png`, `/browser refresh`, `/browser back`, `/browser forward`, `/browser maximize`, `/browser fullscreen`, and `/browser quit`. Screenshot commands write workspace evidence files and omit base64 by default. Playwright remains available only through explicit wording such as `/browser playwright open https://example.com`.
+Browser-control requests can inspect DOM, title, URL, screenshots, navigation, window state, and session cleanup. Screenshot requests write workspace evidence files and omit base64 by default. Playwright remains available only through explicit wording in natural prompts.
 
 ## Screenshot Proof Gallery
 
@@ -45,7 +45,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab" width="620">
       <br><strong>IntelliJ Assistant</strong>
-      <br>Copilot-style composer with Ask/Plan/Agent mode, Local/Cloud provider type, family/runtime, prompt, and transcript.
+      <br>Copilot-style composer with visible Ask/Plan/Agent mode switching, Local/Cloud provider type, family/runtime, prompt, and transcript.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/intellij-plugin-assistant-dark.png" alt="SHAFT IntelliJ IDEA plugin Assistant tab in dark theme" width="620">
@@ -283,26 +283,19 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 | Triage | Prepare failed Allure analysis, trace analysis, Doctor fix suggestions, Healer runs, and locator proposal requests. | `Triage` tab |
 | Evidence and healing | Run failed-test analysis, trace lookup, trace analysis, and healer templates from the IDE. | `Evidence Tools` tab |
 | Mobile Inspector | Check mobile tooling, prepare Inspector recording, inspect status, read accessibility trees, and take mobile screenshots. | `Inspector` tab |
-| Agent helpers | Ask, plan, or run guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; Ask/Plan can route to OpenAI, Anthropic, Gemini, or GitHub Models with a stored key; direct commands and natural intent trigger browser, recording, mobile, Doctor, projects, docs, scenarios, guardrails, clients, and raw MCP calls from chat. | `Assistant` tab |
+| Agent helpers | Switch the Assistant composer between Ask, Plan, and guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; Ask/Plan can route to OpenAI, Anthropic, Gemini, or GitHub Models with a stored key; Cloud Agent is demoted to Plan because provider chat cannot mutate the local workspace; code writing and conversion prompts are scoped to the currently open editor file for the selected route, Ask recommends SHAFT-syntax migrations in chat, Agent suggests open-class IDE changes, and site-action codegen must use a real WebDriver session with verified locators; the visible command list starts with `/codegen`, `/record-web`, `/record-mobile`, and `/doctor`, while supported natural feature intent can still route to MCP when configured. | `Assistant` tab |
 | Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Recorder` tab |
 | Editor action | Start from the current Java caret context through the `Record SHAFT Flow Here` action in Tools or the editor popup menu. | `Record SHAFT Flow Here` |
 
-The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps mode and provider/runtime selectors in the bottom composer, scrolls newly sent prompts into view before long-running responses finish, uses symmetric borderless JetBrains-style icon buttons and chat bubbles across the tool window and settings screens, turns the submit control into an animated spinner with hover-to-cancel while running, clears the running state when a local Agent result arrives, and exposes `/commands` through the compact command-help affordance. The Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
+The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps Ask/Plan/Agent mode switching in the bottom composer, gates source mutation behind the local Agent approval checkbox, keeps provider/runtime selectors in advanced controls, scrolls newly sent prompts into view before long-running responses finish, uses symmetric borderless JetBrains-style icon buttons and chat bubbles across the tool window and settings screens, turns the submit control into an animated spinner with hover-to-cancel while running, changes Cancel into Kill after the first cancellation request so a second click terminates the active process immediately, clears the running state when a local Agent result arrives, keeps dark-mode code blocks visually distinct from chat bubbles, anchors Send at the bottom-right with Ctrl+Enter and Ctrl+click shortcuts, shows `Try asking me to do something...` as the idle status, and exposes the four tested command families through a command info icon beside the command dropdown. The Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, and write formatted outputs to an output pane.
 
 Assistant command examples:
 
 ```text
-/browser open https://example.com sign in
-/browser playwright open https://example.com
-/record https://example.com
 /codegen recordings/intellij-capture.json
-/mobile status Android
-/mobile native Android emulator-5554
-/mobile-record inspector Android recordings/inspector.json
-/mobile-codegen recordings/mobile.json
+/record-web https://example.com
+/record-mobile inspector Android recordings/inspector.json
 /doctor target/allure-results
-/doctor fix target/shaft-doctor/doctor-report.json
-/mcp browser_get_title {}
 ```
 
 <table>

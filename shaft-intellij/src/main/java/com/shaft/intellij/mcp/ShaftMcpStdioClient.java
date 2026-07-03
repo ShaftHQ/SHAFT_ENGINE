@@ -268,12 +268,32 @@ final class ShaftMcpStdioClient implements AutoCloseable {
 
     @Override
     public void close() {
+        close(false, true);
+    }
+
+    void cancel() {
+        close(false, false);
+    }
+
+    void kill() {
+        close(true, false);
+    }
+
+    private void close(boolean force, boolean awaitExit) {
         if (!closed.compareAndSet(false, true)) {
+            if (force) {
+                process.destroyForcibly();
+                ioExecutor.shutdownNow();
+            }
             return;
         }
-        process.destroy();
+        if (force) {
+            process.destroyForcibly();
+        } else {
+            process.destroy();
+        }
         try {
-            if (!process.waitFor(2, TimeUnit.SECONDS)) {
+            if (awaitExit && !process.waitFor(2, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
             }
         } catch (InterruptedException e) {
@@ -282,10 +302,6 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         } finally {
             ioExecutor.shutdownNow();
         }
-    }
-
-    void cancel() {
-        close();
     }
 
     private static ThreadFactory daemonThreadFactory() {
