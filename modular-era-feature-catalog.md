@@ -270,7 +270,7 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.3.20260702`). It is intentionally thin: first-run setup accepts a local SHAFT MCP stdio command generated outside IntelliJ, persists it, shows Project/Runtime/Install/MCP/Assist setup steps, asks the user to choose the assistant family/runtime and installer target, and opens the Assistant after a successful connection test. The plugin does not download or execute installer scripts at runtime. Settings remain available later for Local/Cloud routing, API keys, and custom local MCP commands.
+`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.3.20260703`). It is intentionally thin: first-run setup accepts a local SHAFT MCP stdio command generated outside IntelliJ, persists it, shows Project/MCP/Runtime/Assist status rows, asks the user to choose the assistant family/runtime, and opens the Assistant after a successful connection test. The plugin does not download or execute installer scripts at runtime. Settings remain available later for Local/Cloud routing, API keys, and custom local MCP commands.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
