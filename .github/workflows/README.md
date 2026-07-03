@@ -31,6 +31,7 @@ flowchart TD
 
   MANUAL["Manual only"] --> COPILOT["Copilot Setup Steps"]
   MANUAL --> AGENTS["Refresh Agent Instructions"]
+  MANUAL --> RELEASE_PR["Prepare Release Pull Request"]
 ```
 
 `workflow_run` links use the workflow `name`, not the file name. Renaming
@@ -55,6 +56,7 @@ updating downstream workflows will break the release chain.
 | `lambdatestTests.yml` | LambdaTest E2E Tests | Nightly at 01:00 UTC, plus manual | Uploads LambdaTest mobile apps, verifies LambdaTest credentials, and runs native Android, native iOS, web app, and desktop web suites. | Serial cloud-provider workflow: later jobs depend on earlier mobile upload jobs. Delete only if LambdaTest coverage is intentionally retired. |
 | `update-selenium-grid-versions.yml` | Update Selenium Grid Docker Versions | Weekly Monday 08:00 UTC, plus manual | Reads SeleniumHQ Docker Compose references, updates SHAFT's Selenium Grid image versions, validates Docker Compose syntax, and opens an automated PR. | Maintenance bot for `shaft-engine/src/main/resources/docker-compose/selenium4.yml`, which is used by Selenium Grid E2E jobs. |
 | `sync-sample-projects-version.yml` | Sync Sample Projects SHAFT Version | Published GitHub releases, plus manual version input | Syncs sample project POM versions and plugin/dependency versions to the released SHAFT version, then opens an automated PR. | Consumes the GitHub release created by `mavenCentral_cd.yml`. |
+| `prepare-release-pr.yml` | Prepare Release Pull Request | Manual only, with release date input | Computes the dated SHAFT release version, updates release metadata, validates static release contracts, and opens an automated PR. | Creates the release PR that later feeds `Maven Central Continuous Delivery` after merge. |
 | `refresh-agent-instructions.yml` | Refresh Agent Instructions | Manual only, with reason and optional `force_ai` input | Audits agent guidance, optionally runs Codex to refresh guidance surfaces, validates the final guidance, enforces an allowlist, and opens an automated PR. | Manual maintenance bot for `AGENTS.md`, `CLAUDE.md`, `.agents`, `.github/instructions`, and related guidance files. |
 | `copilot-setup-steps.yml` | Copilot Setup Steps | Manual only | Prepares the GitHub Copilot coding-agent environment by checking out the repo, installing Java 25 and Maven, and pre-resolving Maven dependencies. | Only affects Copilot coding-agent setup. No downstream workflows depend on it. |
 
@@ -75,6 +77,7 @@ These workflows write branches and PRs instead of only reporting results:
 | --- | --- | --- |
 | `Update Selenium Grid Docker Versions` | `auto-update-selenium-grid-versions` | Update Selenium Docker image tags in the bundled Grid compose file. |
 | `Sync Sample Projects SHAFT Version` | `auto-update-sample-projects-version` | Sync sample projects to the latest or requested SHAFT version. |
+| `Prepare Release Pull Request` | `release/<version>` | Prepare dated SHAFT release metadata. |
 | `Refresh Agent Instructions` | `automation/refresh-agent-instructions` | Refresh agent guidance after a deterministic audit and optional AI review. |
 
 ## Deletion Checklist
