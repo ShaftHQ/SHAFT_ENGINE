@@ -709,7 +709,7 @@ final class ShaftAssistantPanel extends JPanel {
         invocation = routeNaturalStopToActiveRecorder(text, invocation);
         append("user", AssistantMarkdown.normalizeMarkdown(text), "");
         if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, selectedMode, invocation)) {
-            append("assistant", "This request needs MCP tool access. Switch to **Agent** mode, then send it again.",
+            showResponse("This request needs MCP tool access. Switch to **Agent** mode, then send it again.",
                     "");
             addTimeline("Failed");
             setRunning(false, "Switch to Agent mode");
@@ -720,7 +720,7 @@ final class ShaftAssistantPanel extends JPanel {
                 && !route.cloud()
                 && !allowSourceMutation.isSelected()
                 && (promptRequiresSourceMutation(text) || continuationRequiresSourceMutation(text, conversationContext))) {
-            append("assistant", "To let the agent make source edits, please enable **Allow source edits** before sending.",
+            showResponse("To let the agent make source edits, please enable **Allow source edits** before sending.",
                     "");
             addTimeline("Failed");
             setRunning(false, "Approve source edits");
@@ -1063,8 +1063,9 @@ final class ShaftAssistantPanel extends JPanel {
         if (streamToken != activeLocalAgentStreamToken && activeLocalAgentStreamToken != -1) {
             return;
         }
-        replaceLastTranscriptAndChatState("assistant", response);
-        lastResponse = response;
+        String displayResponse = withTokenUsage(response, rawResponse);
+        replaceLastTranscriptAndChatState("assistant", displayResponse);
+        lastResponse = displayResponse;
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
@@ -1077,11 +1078,35 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showResponse(String response, String rawResponse) {
-        lastResponse = response;
+        String displayResponse = withTokenUsage(response, rawResponse);
+        lastResponse = displayResponse;
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
-        append("assistant", response, rawResponse);
+        append("assistant", displayResponse, rawResponse);
+    }
+
+    private String withTokenUsage(String response, String rawResponse) {
+        String markdown = response == null ? "" : response.stripTrailing();
+        if (markdown.isBlank()
+                || LOCAL_AGENT_STREAMING_HEADER.equals(markdown)
+                || markdown.toLowerCase(Locale.ROOT).contains("tokens consumed:")) {
+            return markdown;
+        }
+        int tokens = estimatedTokenCount(lastPrompt) + estimatedTokenCount(rawResponse == null || rawResponse.isBlank()
+                ? markdown
+                : rawResponse);
+        return markdown + "\n\n**Tokens consumed:** `" + Math.max(1, tokens) + "` (estimated)";
+    }
+
+    private static int estimatedTokenCount(String value) {
+        String text = value == null ? "" : value.strip();
+        if (text.isBlank()) {
+            return 0;
+        }
+        int characters = text.codePointCount(0, text.length());
+        int words = text.split("\\s+").length;
+        return Math.max(words, (characters + 3) / 4);
     }
 
     private void append(String role, String text, String rawResponse) {

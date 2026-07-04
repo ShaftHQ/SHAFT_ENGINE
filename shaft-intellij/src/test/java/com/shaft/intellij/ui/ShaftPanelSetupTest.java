@@ -817,6 +817,31 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantLocalAgentResponsesMentionEstimatedTokenUsage() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        showAgentResult(panel, ShaftMcpToolResult.success("Opened DuckDuckGo and validated the SHAFT result."));
+
+        String markdown = transcriptMarkdown(panel);
+        assertTrue(markdown.matches("(?s).*\\*\\*Tokens consumed:\\*\\* `\\d+` \\(estimated\\).*"), markdown);
+    }
+
+    @Test
+    void assistantStreamingLocalAgentFinalResponseMentionsEstimatedTokenUsage() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 7);
+        showAgentResult(panel, 7, ShaftMcpToolResult.success("Final answer from Codex."));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("Final answer from Codex.")),
+                () -> assertTrue(markdown.matches("(?s).*\\*\\*Tokens consumed:\\*\\* `\\d+` \\(estimated\\).*"),
+                        markdown),
+                () -> assertFalse(markdown.contains("Running local assistant")));
+    }
+
+    @Test
     void assistantLocalAgentStaleCompletionClearsThinkingState() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
         panel.setRunning(true, "Thinking...");
@@ -1700,6 +1725,34 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantTranscriptWrapsLongMarkdownLinksAndPathsInsideBubble() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.setSize(new Dimension(360, 520));
+        transcript.append("assistant", """
+                Created
+                [AGENTS.md](C:/Users/Mohab/IdeaProjects/GitHub/LevelingUpRound34/AGENTS.md) captures canonical guidance surface.
+                """.stripIndent().trim());
+        transcript.doLayout();
+
+        String rendered = transcriptRenderedHtml(transcript);
+        List<JComponent> bubbles = transcriptBubbles(transcript);
+        List<JEditorPane> panes = transcriptHtmlPanes(transcript);
+
+        assertAll(
+                () -> assertEquals(1, bubbles.size()),
+                () -> assertEquals(1, panes.size()),
+                () -> assertTrue(rendered.contains("overflow-wrap: anywhere"), rendered),
+                () -> assertTrue(rendered.contains("word-wrap: break-word"), rendered),
+                () -> assertTrue(rendered.contains("C:&#8203;/&#8203;Users"), rendered),
+                () -> assertTrue(bubbles.get(0).getPreferredSize().width <= 336,
+                        "Long path bubble should fit inside 360 px tool window: "
+                                + bubbles.get(0).getPreferredSize()),
+                () -> assertTrue(panes.get(0).getPreferredSize().width <= 314,
+                        "Long path pane should fit inside bubble content width: "
+                                + panes.get(0).getPreferredSize()));
+    }
+
+    @Test
     void assistantTranscriptUsesReadActionForIntellijRendering() {
         assertTrue(AssistantTranscriptView.renderReadActionForTest(
                 () -> ApplicationManager.getApplication() == null
@@ -1842,6 +1895,21 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(copied.get().contains("install-shaft-mcp")),
                 () -> assertSingleVisiblePrimarySetupAction(panel, "Open terminal for MCP installer"),
                 () -> assertTrue(containsText(panel, "Installer command copied. Run it in terminal, then check.")));
+    }
+
+    @Test
+    void completedSetupShowsResetAndReinstallWhenReopened() {
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
+
+        clickAccessible(toolWindow, "Open SHAFT MCP setup");
+
+        JButton resetAndReinstall = findByAccessibleName(toolWindow, "Reset and reinstall SHAFT MCP", JButton.class);
+        assertAll(
+                () -> assertEquals("Reset / reinstall", resetAndReinstall.getText()),
+                () -> assertEquals("Clear the saved MCP command and copy a fresh installer command",
+                        resetAndReinstall.getToolTipText()),
+                () -> assertTrue(resetAndReinstall.isVisible()),
+                () -> assertTrue(resetAndReinstall.isEnabled()));
     }
 
     @Test

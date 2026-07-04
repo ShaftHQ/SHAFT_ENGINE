@@ -35,6 +35,17 @@ WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.workspaceRoot"
 USER_GUIDE_URL = "https://shafthq.github.io/docs/agentic/mcp"
 BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
 SHAFT_SKILLS_DIRECTORY = "shaft-skills"
+SHAFT_SKILLS_SOURCE_FILES = (
+    "evaluation-prompts.md",
+    "writing-shaft-tests/SKILL.md",
+    "writing-shaft-tests/agents/openai.yaml",
+    "choosing-shaft-locators/SKILL.md",
+    "choosing-shaft-locators/agents/openai.yaml",
+    "recording-shaft-tests-with-mcp/SKILL.md",
+    "recording-shaft-tests-with-mcp/agents/openai.yaml",
+    "analyzing-shaft-failures/SKILL.md",
+    "analyzing-shaft-failures/agents/openai.yaml",
+)
 SHAFT_SKILLS_SOURCE_MARKERS = (
     "writing-shaft-tests/SKILL.md",
     "choosing-shaft-locators/SKILL.md",
@@ -620,35 +631,27 @@ def copy_shaft_skills(source: Path, target: Path) -> Path:
     return target
 
 
-def shaft_skills_archive_url() -> str:
-    explicit = os.environ.get("SHAFT_SKILLS_ARCHIVE_URL")
-    if explicit:
-        return explicit
+def shaft_skills_raw_file_url(relative: str) -> str:
     ref = os.environ.get("SHAFT_MCP_INSTALLER_REF", "main").strip() or "main"
-    return f"https://github.com/ShaftHQ/SHAFT_ENGINE/archive/{urllib.parse.quote(ref, safe='/')}.zip"
+    quoted_ref = urllib.parse.quote(ref, safe="/")
+    quoted_relative = urllib.parse.quote(relative, safe="/")
+    return f"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/{quoted_ref}/{SHAFT_SKILLS_DIRECTORY}/{quoted_relative}"
 
 
-def extract_shaft_skills_from_archive(archive: Path, target: Path) -> Path:
+def download_shaft_skills_files(target: Path) -> Path:
     target = target.resolve()
     target.mkdir(parents=True, exist_ok=True)
-    copied = 0
-    marker = f"/{SHAFT_SKILLS_DIRECTORY}/"
-    with zipfile.ZipFile(archive) as zip_file:
-        for member in zip_file.infolist():
-            name = member.filename.replace("\\", "/")
-            if member.is_dir() or marker not in name:
-                continue
-            relative = name.split(marker, 1)[1]
-            if not relative:
-                continue
-            destination = (target / relative).resolve()
-            if target != destination and target not in destination.parents:
-                fail(f"SHAFT skills archive contains an unsafe path: {relative}", 4)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            with zip_file.open(member) as source, destination.open("wb") as output:
-                shutil.copyfileobj(source, output)
-            copied += 1
-    if copied == 0 or not is_shaft_skills_source(target):
+    for relative in SHAFT_SKILLS_SOURCE_FILES:
+        destination = (target / relative).resolve()
+        if target != destination and target not in destination.parents:
+            fail(f"SHAFT skills manifest contains an unsafe path: {relative}", 4)
+        download_file(
+            shaft_skills_raw_file_url(relative),
+            destination,
+            f"SHAFT skills {relative}",
+            show_progress=False,
+        )
+    if not is_shaft_skills_source(target):
         fail("SHAFT skills package did not contain the expected skill files.", 4)
     return target
 
@@ -658,9 +661,7 @@ def install_shaft_skills(current_directory: Path, root: Path) -> Path:
     source = local_shaft_skills_source()
     if source is not None:
         return copy_shaft_skills(source, target)
-    archive = root / "downloads" / "shaft-skills.zip"
-    download_file(shaft_skills_archive_url(), archive, "SHAFT skills package")
-    return extract_shaft_skills_from_archive(archive, target)
+    return download_shaft_skills_files(target)
 
 
 def should_install_shaft_skills(args: argparse.Namespace, current_directory: Path) -> bool:
