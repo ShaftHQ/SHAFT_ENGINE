@@ -372,7 +372,8 @@ public final class CaptureGenerator {
                         : " (" + checkpoint.description() + ")";
                 unsupported.add("checkpoint-" + checkpoint.id() + description + ": assertion checkpoints require a "
                         + "VerificationEvent at sequence " + checkpoint.sequence()
-                        + ". Record the expected target and value explicitly.");
+                        + ". Record the expected target and value explicitly so generated code uses SHAFT "
+                        + "assertion builders only.");
             }
         }
         List<TargetPlan> immutableTargets = targets.entrySet().stream()
@@ -538,21 +539,16 @@ public final class CaptureGenerator {
     }
 
     private static List<String> missingAssertionWarnings(CaptureSession session, Set<Long> verificationSequences) {
-        Set<Long> assertionSequences = new HashSet<>(verificationSequences);
-        session.checkpoints().stream()
-                .filter(checkpoint -> checkpoint.kind() == Checkpoint.CheckpointKind.ASSERTION)
-                .map(Checkpoint::sequence)
-                .forEach(assertionSequences::add);
         List<String> warnings = new ArrayList<>();
         for (CaptureEvent event : session.events()) {
-            if (!needsPostActionAssertion(event) || hasLaterAssertion(event.context().sequence(), assertionSequences)) {
+            if (!needsPostActionAssertion(event) || hasLaterAssertion(event.context().sequence(), verificationSequences)) {
                 continue;
             }
             warnings.add(reviewWarning(
                     "ASSERTION",
                     "WARNING",
                     eventId(event),
-                    "No assertion or ASSERTION checkpoint follows a navigation or form-submission action.",
+                    "No recorded SHAFT assertion-builder verification follows a navigation or form-submission action.",
                     "Record a verification for the post-action page state."));
         }
         return warnings;

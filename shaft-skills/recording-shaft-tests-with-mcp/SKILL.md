@@ -35,7 +35,7 @@ Record first, then generate reviewed SHAFT code. Treat recordings as evidence an
 
 - Ask for the exact target URL when the user names a site without one.
 - Keep secrets redacted. Use generated required-data placeholders instead of captured typed secrets.
-- Prefer recorded assertion mode or checkpoints so replay has meaningful verification.
+- Prefer recorded assertion mode for generated assertions; checkpoints should name review intent, and generated verification code must use SHAFT assertion builders only.
 - Move stable locators/actions into page objects; do not paste a generic generated class when the repo has existing structure.
 - Treat `shaft_coding_partner_plan.reuseMatches` as the insertion shortlist and `missingCodeItems` as the only code that still needs to be created.
 - Keep recording artifacts as evidence, not as source.

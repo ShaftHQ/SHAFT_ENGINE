@@ -28,8 +28,11 @@ workflows.
 - One workflow for Web, Mobile, API, CLI, Database, accessibility, reporting,
   and evidence.
 - Configuration-first defaults for local, grid, cloud, and CI execution.
-- Optional modules for BrowserStack, Capture, Doctor, Heal, MCP, AI, video, and
-  visual testing.
+- Optional modules and tools for BrowserStack, Capture, Doctor, Heal, MCP, AI,
+  IntelliJ IDEA, video, and visual testing.
+- IntelliJ IDEA is the front-door workflow for coding partners: plan from the
+  SHAFT tool window, reuse existing code, review generated blocks, and verify
+  locally.
 
 ## Feature Overview
 
@@ -40,7 +43,7 @@ workflows.
 | System coverage | CLI and Database actions for end-to-end validation beyond the browser. |
 | Test design | Assertions, validations, test data handling, and configuration overrides. |
 | Reporting | Allure-ready evidence, attachments, execution logs, and accessibility artifacts. |
-| Extensions | Optional modules for cloud execution, capture, diagnostics, healing, MCP, AI, video, and visual checks. |
+| Extensions | Optional modules and tools for cloud execution, capture, diagnostics, healing, MCP, AI, IntelliJ IDEA, video, and visual checks. |
 
 SHAFT is built for Java teams that want consistent APIs, repeatable
 configuration, and useful run artifacts across the full automation suite.
@@ -49,7 +52,7 @@ configuration, and useful run artifacts across the full automation suite.
 
 - Start: [overview](https://shafthq.github.io/docs/start/overview), [installation](https://shafthq.github.io/docs/start/installation), [upgrade](https://shafthq.github.io/docs/start/upgrade).
 - Testing: [web](https://shafthq.github.io/docs/testing/web), [mobile](https://shafthq.github.io/docs/testing/mobile), [API](https://shafthq.github.io/docs/testing/api).
-- Agentic workflows: [MCP](https://shafthq.github.io/docs/agentic/mcp), [Doctor](https://shafthq.github.io/docs/agentic/doctor), [Heal](https://shafthq.github.io/docs/agentic/heal).
+- Agentic workflows: [IntelliJ IDEA plugin](https://shafthq.github.io/docs/agentic/intellij), [MCP](https://shafthq.github.io/docs/agentic/mcp), [Doctor](https://shafthq.github.io/docs/agentic/doctor), [Heal](https://shafthq.github.io/docs/agentic/heal).
 
 ## Contributing
 

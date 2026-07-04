@@ -244,13 +244,21 @@ final class AssistantCommand {
         return help.toString();
     }
 
-    record OpenFileContext(String path, String text) {
+    record OpenFileContext(String path, String text, String selectedText) {
+        OpenFileContext(String path, String text) {
+            this(path, text, "");
+        }
+
         static OpenFileContext empty() {
-            return new OpenFileContext("", "");
+            return new OpenFileContext("", "", "");
         }
 
         boolean present() {
             return path != null && !path.isBlank() && text != null && !text.isBlank();
+        }
+
+        String selectedOrEmpty() {
+            return selectedText == null ? "" : selectedText.trim();
         }
     }
 
@@ -318,9 +326,14 @@ final class AssistantCommand {
         if (!liveCodegen.isBlank()) {
             text = liveCodegen;
         } else if (text.startsWith("/")) {
-            return slash(text, workingDirectory);
+            return slash(text, workingDirectory, openFileContext);
         }
         if (!liveCodegenRequest) {
+            if (isCodingPartnerIntent(text)) {
+                return Invocation.tool(
+                        "shaft_coding_partner_plan",
+                        codingPartnerPlan(naturalCodingPartnerIntent(text), workingDirectory, openFileContext));
+            }
             Invocation recording = recording(text);
             if (recording != null) {
                 return recording;
@@ -380,9 +393,16 @@ final class AssistantCommand {
     }
 
     private static Invocation slash(String text, String workingDirectory) {
+        return slash(text, workingDirectory, OpenFileContext.empty());
+    }
+
+    private static Invocation slash(String text, String workingDirectory, OpenFileContext openFileContext) {
         String[] parts = text.split("\\s+", 2);
         String command = parts[0].toLowerCase(Locale.ROOT);
         String rest = parts.length == 2 ? parts[1].trim() : "";
+        if (PARTNER_COMMAND.matches(command)) {
+            return Invocation.tool("shaft_coding_partner_plan", codingPartnerPlan(rest, workingDirectory, openFileContext));
+        }
         for (CommandDefinition definition : COMMANDS) {
             if (definition.matches(command)) {
                 return definition.invoke(command, rest, workingDirectory);
@@ -419,18 +439,31 @@ final class AssistantCommand {
     }
 
     private static JsonObject codingPartnerPlan(String intent, String workingDirectory) {
+        return codingPartnerPlan(intent, workingDirectory, OpenFileContext.empty());
+    }
+
+    private static JsonObject codingPartnerPlan(String intent, String workingDirectory, OpenFileContext openFileContext) {
         JsonObject arguments = new JsonObject();
         String repositoryPath = text(workingDirectory);
+        String normalizedIntent = text(intent);
         arguments.addProperty("repositoryPath", repositoryPath.isBlank() ? "." : repositoryPath);
-        arguments.addProperty("intent", text(intent));
-        arguments.addProperty("backend", text(intent).toLowerCase(Locale.ROOT).contains("playwright")
-                ? "Playwright"
-                : "WebDriver");
-        arguments.addProperty("currentSourcePath", "");
-        arguments.addProperty("selectedText", "");
+        arguments.addProperty("intent", normalizedIntent);
+        arguments.addProperty("backend", codingPartnerBackend(normalizedIntent, openFileContext));
+        arguments.addProperty("currentSourcePath", openFileContext == null ? "" : text(openFileContext.path()));
+        arguments.addProperty("selectedText", openFileContext == null ? "" : openFileContext.selectedOrEmpty());
         arguments.add("artifactPaths", new JsonArray());
         arguments.addProperty("maxResults", 10);
         return arguments;
+    }
+
+    private static String codingPartnerBackend(String intent, OpenFileContext openFileContext) {
+        String combined = (text(intent) + " "
+                + (openFileContext == null ? "" : text(openFileContext.text()) + " " + openFileContext.selectedOrEmpty()))
+                .toLowerCase(Locale.ROOT);
+        if (containsAny(combined, "mobile", "appium", "android", "ios")) {
+            return "Mobile";
+        }
+        return combined.contains("playwright") ? "Playwright" : "WebDriver";
     }
 
     private static JsonObject inspect(String rest) {

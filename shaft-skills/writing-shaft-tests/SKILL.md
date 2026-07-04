@@ -36,7 +36,8 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 ## Hard Rules
 
 - Do not use `Thread.sleep`; use SHAFT waits, actions, assertions, or condition-based waiting from the guide.
-- Do not use raw `driver.findElement`, Selenium `PageFactory`, `@FindBy`, implicit waits, or headed setup in generated tests.
+- Do not use raw `driver.findElement`, Selenium `PageFactory`, `@FindBy`, implicit waits, headed setup, or TestNG/JUnit assertions in generated tests.
+- Generate GUI assertions and checkpoint follow-ups through SHAFT assertion builders such as `driver.element().assertThat(...)`, `driver.browser().assertThat()`, or `driver.verifyThat(...)`.
 - Do not hard-code secrets, credentials, tokens, target URLs, or environment-specific paths.
 - Do not infer a target URL from a site/product name. Ask for the exact URL when it is missing.
 - Keep browser sessions fresh per test and always quit/clean up following the repo's test framework style.

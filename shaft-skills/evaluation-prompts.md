@@ -1,6 +1,6 @@
 # SHAFT Skill Evaluation Prompts
 
-Use these prompts in fresh agent sessions when subagent or model-evaluation access is approved. They are not a substitute for `quick_validate.py`; they pressure-test whether agents apply the skills under realistic drift.
+Use these prompts through IntelliJ Assistant `/partner` or Guided `Plan coding partner` first. Fresh agent sessions are fallback coverage when subagent or model-evaluation access is approved. They are not a substitute for the repo validation checks; they pressure-test whether agents apply the skills under realistic drift.
 
 ## `writing-shaft-tests`
 

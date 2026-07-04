@@ -1753,7 +1753,11 @@ final class ShaftAssistantPanel extends JPanel {
         }
         VirtualFile[] selectedFiles = manager.getSelectedFiles();
         String path = selectedFiles.length == 0 || selectedFiles[0] == null ? "" : selectedFiles[0].getPath();
-        return new AssistantCommand.OpenFileContext(path, editor.getDocument().getText());
+        String selectedText = editor.getSelectionModel().getSelectedText();
+        return new AssistantCommand.OpenFileContext(
+                path,
+                editor.getDocument().getText(),
+                selectedText == null ? "" : selectedText);
     }
 
     private void openSetup() {

@@ -100,6 +100,9 @@ final class McpJavaTargetScanner {
         if (!actions.isEmpty()) {
             score += 8;
         }
+        if (source.contains("return this;")) {
+            score += 12;
+        }
         return score;
     }
 
@@ -148,10 +151,13 @@ final class McpJavaTargetScanner {
     private static boolean actionName(String name) {
         String lower = name.toLowerCase(Locale.ROOT);
         return lower.startsWith("open")
+                || lower.startsWith("navigate")
                 || lower.startsWith("login")
                 || lower.startsWith("sign")
+                || lower.startsWith("enter")
                 || lower.startsWith("type")
                 || lower.startsWith("click")
+                || lower.startsWith("choose")
                 || lower.startsWith("select")
                 || lower.startsWith("submit")
                 || lower.startsWith("verify")

@@ -733,6 +733,39 @@ class AssistantCommandTest {
     }
 
     @Test
+    void partnerCommandIncludesOpenFileContextWhenAvailable() {
+        AssistantCommand.OpenFileContext openFile = new AssistantCommand.OpenFileContext(
+                "src/test/java/pages/LoginPage.java",
+                "class LoginPage { void login() {} }",
+                "driver.findElement(By.id(\"email\")).sendKeys(username);");
+        AssistantCommand.Invocation slash = AssistantCommand.fromPrompt(
+                "/partner Convert this login step to SHAFT",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                "C:/work/project",
+                "",
+                true,
+                openFile);
+        AssistantCommand.Invocation natural = AssistantCommand.fromPrompt(
+                "plan coding partner work for mobile login",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                "C:/work/project",
+                "",
+                true,
+                openFile);
+
+        assertAll(
+                () -> assertEquals("src/test/java/pages/LoginPage.java",
+                        slash.arguments().get("currentSourcePath").getAsString()),
+                () -> assertEquals("driver.findElement(By.id(\"email\")).sendKeys(username);",
+                        slash.arguments().get("selectedText").getAsString()),
+                () -> assertEquals("Mobile", natural.arguments().get("backend").getAsString()),
+                () -> assertEquals("src/test/java/pages/LoginPage.java",
+                        natural.arguments().get("currentSourcePath").getAsString()));
+    }
+
+    @Test
     void naturalIntentRoutesObviousMcpFeatureRequests() {
         AssistantCommand.Invocation projectUpgrade = command("preview shaft upgrade .", "C:/work/project");
         AssistantCommand.Invocation projectCreate = command("create SHAFT project demo-web");
