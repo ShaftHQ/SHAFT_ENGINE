@@ -224,6 +224,8 @@ class ShaftPanelSetupTest {
         assertTrue(containsText(toolWindow, "3 Run in terminal"));
         assertTrue(containsText(toolWindow, "4 Check setup"));
         assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
+        assertTrue(containsText(toolWindow, "Installer source: main"));
+        assertNotNull(findByAccessibleName(toolWindow, "Copy command setup state", JLabel.class));
         assertNull(findByAccessibleName(toolWindow, "SHAFT MCP command status", JLabel.class));
         assertFalse(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class).isVisible());
         assertFalse(findByAccessibleName(toolWindow, "Assistant connection setup status", JLabel.class).isVisible());
@@ -326,7 +328,9 @@ class ShaftPanelSetupTest {
             ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
             });
             AtomicReference<String> copied = new AtomicReference<>();
+            AtomicReference<String> toast = new AtomicReference<>();
             setField(panel, "copySink", (Consumer<String>) copied::set);
+            setField(panel, "toastSink", (Consumer<String>) toast::set);
             JTextComponent command = (JTextComponent) getField(panel, "mcpCommand");
             JComponent installerDetailsPanel = (JComponent) getField(panel, "installerDetailsPanel");
 
@@ -349,18 +353,19 @@ class ShaftPanelSetupTest {
             assertAll(
                     () -> assertTrue(copied.get().contains("install-shaft-mcp")),
                     () -> assertTrue(copied.get().contains("codex")),
-                    () -> assertTrue(copied.get().contains("a95e891cbd3d79cdaaaf4b0d608fd56d09b8c69b")),
-                    () -> assertFalse(copied.get().contains("/main/")),
+                    () -> assertTrue(copied.get().contains("/main/scripts/mcp/install-shaft-mcp")),
+                    () -> assertFalse(copied.get().contains("SHAFT_MCP_INSTALLER_REF")),
+                    () -> assertEquals("Command copied to clipboard", toast.get()),
                     () -> assertFalse(findByAccessibleName(panel, "Copy MCP installer command", JButton.class).isVisible()),
                     () -> assertTrue(findByAccessibleName(panel, "Open terminal for MCP installer", JButton.class).isVisible()),
                     () -> assertFalse(installerDetailsPanel.isVisible()),
                     () -> assertFalse(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isVisible()));
             if (isWindowsOs()) {
                 assertAll(
-                        () -> assertTrue(copied.get().contains("-Command '$env:SHAFT_MCP_INSTALLER_REF")),
+                        () -> assertTrue(copied.get().contains("-Command '$installer=Join-Path")),
                         () -> assertFalse(copied.get().contains("-Command \"$installer")));
             } else {
-                assertTrue(copied.get().contains("SHAFT_MCP_INSTALLER_REF=\"$ref\""));
+                assertTrue(copied.get().contains("sh \"$tmp\" --codex"));
             }
 
             clickAccessible(panel, "Open terminal for MCP installer");
@@ -414,6 +419,21 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelShowsDetectedRecommendedCliAgentWithoutChangingDefaultSelection() {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        }, (client, runtime) -> "CLAUDE_CODE".equals(client)
+                ? ShaftMcpToolResult.success("Claude Code CLI executable is available on PATH.")
+                : ShaftMcpToolResult.failure("not found"));
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        JComboBox<?> target = findByAccessibleName(panel, "MCP installer target", JComboBox.class);
+
+        assertAll(
+                () -> assertEquals("CODEX", family.getSelectedItem()),
+                () -> assertEquals("CODEX", target.getSelectedItem()),
+                () -> assertTrue(containsText(panel, "Recommended: Claude Code CLI detected")));
+    }
+
+    @Test
     void setupPanelShowsBlankManualCommandDiagnostic() throws Exception {
         Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
         Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
@@ -442,6 +462,8 @@ class ShaftPanelSetupTest {
                     () -> assertTrue(detailsPanel.isVisible()),
                     () -> assertFalse(findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class).isVisible()),
                     () -> assertTrue(findByAccessibleName(panel, "Copy setup diagnostic output", JButton.class).isEnabled()),
+                    () -> assertTrue(findByAccessibleName(panel, "Copy SHAFT MCP docs link", JButton.class).isEnabled()),
+                    () -> assertTrue(containsText(panel, "Recovery: retry Check setup")),
                     () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")),
                     () -> assertTrue(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isEnabled()));
             clickAccessible(panel, "Copy setup diagnostic output");
@@ -459,11 +481,11 @@ class ShaftPanelSetupTest {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> connected.set(true), readyProbe());
         JComponent detailsPanel = (JComponent) getField(panel, "detailsPanel");
 
-        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
 
         assertAll(
                 () -> assertTrue(containsText(panel, "Runtime: Codex CLI verified")),
-                () -> assertTrue(containsText(panel, "Ready to chat.")),
+                () -> assertTrue(containsText(panel, "Ready to chat. Verified Codex CLI for workspace C:/work/shaft.")),
                 () -> assertFalse(detailsPanel.isVisible()),
                 () -> assertNull(findByAccessibleName(panel, "MCP stdio command", JTextComponent.class)),
                 () -> assertFalse(connected.get()),
@@ -1901,7 +1923,7 @@ class ShaftPanelSetupTest {
         blockedMode.setSelectedItem("AGENT");
         assistantPrompt(blockedPanel).setText("edit this test");
         clickAccessible(blockedPanel, "Send assistant prompt");
-        assertTrue(transcriptMarkdown(blockedPanel).contains("tick **Allow source edits**"));
+        assertTrue(transcriptMarkdown(blockedPanel).contains("enable **Allow source edits**"));
 
         ShaftAssistantPanel approvedPanel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<?> approvedMode = findByAccessibleName(approvedPanel, "Assistant mode", JComboBox.class);
@@ -1914,7 +1936,35 @@ class ShaftPanelSetupTest {
         allowEdits.setSelected(true);
         assistantPrompt(approvedPanel).setText("edit this test");
         clickAccessible(approvedPanel, "Send assistant prompt");
-        assertFalse(transcriptMarkdown(approvedPanel).contains("tick **Allow source edits**"));
+        assertFalse(transcriptMarkdown(approvedPanel).contains("enable **Allow source edits**"));
+    }
+
+    @Test
+    void assistantAskOrPlanMcpPromptTellsUserToSwitchToAgentMode() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        assertNotNull(assistantMode);
+        assistantMode.setSelectedItem("PLAN");
+
+        assistantPrompt(panel).setText("open duckduckgo and search for SHAFT Engine");
+        clickAccessible(panel, "Send assistant prompt");
+
+        assertTrue(transcriptMarkdown(panel).contains("Switch to **Agent** mode"));
+    }
+
+    @Test
+    void assistantAgentModeSourceEditWarningUsesActiveContextForContinuationPrompt() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        assertNotNull(assistantMode);
+        assistantMode.setSelectedItem("AGENT");
+
+        assistantPrompt(panel).setText("fix this Java test");
+        clickAccessible(panel, "Send assistant prompt");
+        assistantPrompt(panel).setText("try again");
+        clickAccessible(panel, "Send assistant prompt");
+
+        assertEquals(2, countOccurrences(transcriptMarkdown(panel), "enable **Allow source edits**"));
     }
 
     @Test
@@ -1926,7 +1976,7 @@ class ShaftPanelSetupTest {
         assistantPrompt(panel).setText("open https://example.com and update me on the login form");
         clickAccessible(panel, "Send assistant prompt");
 
-        assertFalse(transcriptMarkdown(panel).contains("tick **Allow source edits**"));
+        assertFalse(transcriptMarkdown(panel).contains("enable **Allow source edits**"));
     }
 
     @Test

@@ -21,8 +21,8 @@ class ShaftPluginSecurityTest {
         assertFalse(source.contains("Invoke-Expression"));
         assertFalse(source.contains("| iex"));
         assertFalse(source.contains("curl -fsSL"));
-        assertFalse(setupPanel.contains("/main/"));
-        assertTrue(setupPanel.contains("SHAFT_MCP_INSTALLER_REF"));
+        assertTrue(setupPanel.contains("INSTALLER_BRANCH = \"main\""));
+        assertFalse(setupPanel.contains("SHAFT_MCP_INSTALLER_REF"));
         assertFalse(setupPanel.contains("ProcessBuilder"));
         assertFalse(setupPanel.contains("Runtime.getRuntime"));
         assertFalse(setupPanel.contains("GeneralCommandLine"));

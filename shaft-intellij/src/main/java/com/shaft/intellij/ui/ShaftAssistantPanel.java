@@ -68,6 +68,7 @@ import java.util.concurrent.CancellationException;
  */
 final class ShaftAssistantPanel extends JPanel {
     private static final int TRANSIENT_STATUS_MILLIS = 2300;
+    private static final int MAX_AGENT_CONTEXT_CHARACTERS = 16_000;
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
@@ -685,7 +686,9 @@ final class ShaftAssistantPanel extends JPanel {
         resetTimeline("Prompt received");
         AssistantCommand.Selection route = selectedRoute();
         boolean agentMode = "AGENT".equals(String.valueOf(mode.getSelectedItem()));
+        String selectedMode = String.valueOf(mode.getSelectedItem());
         String workingDirectory = project == null || project.getBasePath() == null ? "" : project.getBasePath();
+        String conversationContext = conversationContextForPrompt();
         boolean approvingCaptureReview = pendingCaptureReview != null && AssistantCommand.isCaptureApproval(text);
         AssistantCommand.Invocation invocation = approvingCaptureReview
                 ? AssistantCommand.approvedCaptureIntegration(
@@ -697,19 +700,27 @@ final class ShaftAssistantPanel extends JPanel {
                 : AssistantCommand.fromPrompt(
                 text,
                 route,
-                String.valueOf(mode.getSelectedItem()),
+                selectedMode,
                 workingDirectory,
                 customCommand.getText(),
                 allowSourceMutation.isSelected(),
-                openFileContext(project));
+                openFileContext(project),
+                conversationContext);
         invocation = routeNaturalStopToActiveRecorder(text, invocation);
         append("user", AssistantMarkdown.normalizeMarkdown(text), "");
+        if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, selectedMode, invocation)) {
+            append("assistant", "This request needs MCP tool access. Switch to **Agent** mode, then send it again.",
+                    "");
+            addTimeline("Failed");
+            setRunning(false, "Switch to Agent mode");
+            return;
+        }
         if (agentMode
                 && !approvingCaptureReview
                 && !route.cloud()
                 && !allowSourceMutation.isSelected()
-                && promptRequiresSourceMutation(text)) {
-            append("assistant", "To let the agent make source edits, please tick **Allow source edits** before sending.",
+                && (promptRequiresSourceMutation(text) || continuationRequiresSourceMutation(text, conversationContext))) {
+            append("assistant", "To let the agent make source edits, please enable **Allow source edits** before sending.",
                     "");
             addTimeline("Failed");
             setRunning(false, "Approve source edits");
@@ -856,6 +867,24 @@ final class ShaftAssistantPanel extends JPanel {
                 || lower.contains("source edit")
                 || lower.contains("change source")
                 || (sourceArtifact && (mutationVerb || lower.contains("add")));
+    }
+
+    private static boolean continuationRequiresSourceMutation(String prompt, String conversationContext) {
+        return isContinuationPrompt(prompt) && promptRequiresSourceMutation(conversationContext);
+    }
+
+    private static boolean isContinuationPrompt(String prompt) {
+        String lower = prompt == null ? "" : prompt.trim().toLowerCase(Locale.ROOT);
+        return containsAny(lower,
+                "try again",
+                "retry",
+                "continue",
+                "go ahead",
+                "do it",
+                "apply",
+                "proceed",
+                "make the change",
+                "yes");
     }
 
     private static boolean containsAny(String value, String... needles) {
@@ -1740,6 +1769,40 @@ final class ShaftAssistantPanel extends JPanel {
             }
         }
         return "";
+    }
+
+    private String conversationContextForPrompt() {
+        List<ShaftAssistantChatState.Message> messages = chatState.activeMessages();
+        if (messages.isEmpty()) {
+            return "";
+        }
+        List<String> entries = new ArrayList<>();
+        int total = 0;
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            ShaftAssistantChatState.Message message = messages.get(index);
+            if (message == null || message.markdown == null || message.markdown.isBlank()) {
+                continue;
+            }
+            String entry = contextRole(message.role) + ": " + message.markdown.trim();
+            int nextTotal = total + entry.length() + 2;
+            if (nextTotal > MAX_AGENT_CONTEXT_CHARACTERS && !entries.isEmpty()) {
+                break;
+            }
+            entries.add(0, clipContextEntry(entry, MAX_AGENT_CONTEXT_CHARACTERS));
+            total = nextTotal;
+        }
+        return String.join("\n\n", entries);
+    }
+
+    private static String contextRole(String role) {
+        return "user".equals(role) ? "User" : "Assistant";
+    }
+
+    private static String clipContextEntry(String entry, int maxCharacters) {
+        if (entry.length() <= maxCharacters) {
+            return entry;
+        }
+        return entry.substring(0, maxCharacters) + "\n... truncated ...";
     }
 
     private void copy(String value, String message) {
