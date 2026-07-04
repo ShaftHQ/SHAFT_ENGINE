@@ -24,6 +24,8 @@ class ToolTemplatesTest {
     private static final Set<String> HIGH_RISK_MUTATION_TOOL_NAMES = Set.of(
             "browser_open_intent",
             "browser_take_screenshot",
+            "capture_backend_comparison",
+            "capture_record_at_target_code_blocks",
             "playwright_browser_take_screenshot",
             "playwright_record_start",
             "playwright_record_status",
@@ -77,6 +79,10 @@ class ToolTemplatesTest {
         assertTrue(templateTools.contains("playwright_recording_code_blocks"));
         assertTrue(templateTools.contains("playwright_capture_code_blocks"));
         assertTrue(templateTools.contains("playwright_capture_generate_replay"));
+        assertTrue(templateTools.contains("capture_target_candidates"));
+        assertTrue(templateTools.contains("capture_record_at_target_code_blocks"));
+        assertTrue(templateTools.contains("capture_backend_comparison"));
+        assertTrue(templateTools.contains("capture_evidence_pack"));
         assertTrue(templateTools.contains("browser_open_intent"));
         assertTrue(templateTools.contains("browser_get_page_dom"));
         assertTrue(templateTools.contains("browser_take_screenshot"));
@@ -84,6 +90,37 @@ class ToolTemplatesTest {
         assertTrue(templateTools.contains("playwright_browser_take_screenshot"));
         assertTrue(templateTools.contains("trace_read"));
         assertTrue(templateTools.contains("trace_summarize"));
+    }
+
+    @Test
+    void recordAtTargetTemplateExplainsReviewPreviewAndVerifyFlow() {
+        ToolTemplate template = templateByName("capture_record_at_target_code_blocks");
+
+        assertNotNull(template);
+        assertEquals("Record Into Java Target", template.label());
+        assertTrue(template.confirmationRequired());
+        assertTrue(template.arguments().contains("\"targetSourcePath\""));
+        assertTrue(template.arguments().contains("\"insertAfter\""));
+        assertTrue(template.description().contains("review"));
+        assertTrue(template.description().contains("patch preview"));
+        assertTrue(template.description().contains("verify"));
+    }
+
+    @Test
+    void recorderEnhancementTemplatesKeepSafeDefaults() {
+        ToolTemplate targets = templateByName("capture_target_candidates");
+        ToolTemplate comparison = templateByName("capture_backend_comparison");
+        ToolTemplate evidence = templateByName("capture_evidence_pack");
+
+        assertNotNull(targets);
+        assertNotNull(comparison);
+        assertNotNull(evidence);
+        assertFalse(targets.confirmationRequired());
+        assertTrue(targets.arguments().contains("\"repositoryPath\": \".\""));
+        assertTrue(comparison.confirmationRequired());
+        assertTrue(comparison.arguments().contains("\"overwrite\": false"));
+        assertFalse(evidence.confirmationRequired());
+        assertTrue(evidence.arguments().contains("\"screenshotPaths\": []"));
     }
 
     @Test

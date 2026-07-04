@@ -110,16 +110,18 @@ class McpCaptureCodeBlockServiceTest {
         List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
                 .fromGeneratedSource(source, "browser", null, target, "replayCheckout");
 
-        assertFalse(blocks.stream().anyMatch(block -> block.id().equals("capture-target-locator-fields")));
+        McpCodeBlock locators = block(blocks, "capture-target-locator-fields");
+        assertEquals(McpCodeBlock.Kind.LOCATOR, locators.kind());
+        assertTrue(locators.code().contains("private final By usernameLocator"));
 
         McpCodeBlock actions = block(blocks, "capture-target-action-snippet");
         assertEquals(McpCodeBlock.Kind.ACTION, actions.kind());
-        assertTrue(actions.code().contains("browser.element().click(SHAFT.GUI.Locator.inputField(\"Username\"));"));
-        assertTrue(actions.code().contains("browser.element().type(SHAFT.GUI.Locator.inputField(\"Username\"), requiredData(\"username\"));"));
+        assertTrue(actions.code().contains("browser.element().click(usernameLocator);"));
+        assertTrue(actions.code().contains("browser.element().type(usernameLocator, requiredData(\"username\"));"));
         assertTrue(actions.placement().contains("after replayCheckout"));
         assertTrue(actions.warnings().isEmpty(), actions.warnings().toString());
 
-        assertFalse(blocks.stream().anyMatch(item -> item.id().equals("capture-target-insertion-guide")));
+        assertTrue(blocks.stream().anyMatch(item -> item.id().equals("capture-target-patch-preview")));
     }
 
     @Test
@@ -280,6 +282,69 @@ class McpCaptureCodeBlockServiceTest {
                 .contains("browser.browser().assertThat().url()"));
         assertTrue(block(blocks, "capture-control-flow-review").code()
                 .contains("--control-flow-preview"));
+    }
+
+    @Test
+    void fromGeneratedSourceAddsLocatorRiskAndValidationReviewBlocksFromReport() throws Exception {
+        Path source = writeSource("""
+                package generated.capture;
+
+                import org.testng.annotations.Test;
+
+                public class RiskyReplayTest {
+                    @Test
+                    public void replayRiskyLocator() {
+                        driver.element().click(SHAFT.GUI.Locator.xpath("/html/body/div[2]/button"));
+                    }
+                }
+                """);
+        CaptureGenerationReport report = new CaptureGenerationReport(
+                CaptureGenerationReport.CURRENT_SCHEMA_VERSION,
+                "session-1",
+                CaptureGenerationReport.Status.FAILED,
+                "src/test/java/generated/capture/RiskyReplayTest.java",
+                "",
+                CaptureReadiness.State.RISKY,
+                List.of("event-2: absolute XPath requires review before replay."),
+                List.of(new CaptureGenerationReport.LocatorDecision(
+                        List.of("event-2"),
+                        "submit-button",
+                        "XPATH",
+                        "/html/body/div[2]/button",
+                        60,
+                        List.of("position-only=10"),
+                        List.of("css=button[type=submit]"))),
+                List.of(),
+                List.of("event-2: recorded replay status is FAILED."),
+                List.of("event-2: fallback locator css=button[type=submit] is available."),
+                List.of(),
+                List.of(),
+                List.of("review/LOCATOR/WARNING event-2: Absolute XPath. Recommendation: Prefer semantic locator."),
+                new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("line 42: cannot find symbol submitButton"),
+                        0),
+                new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("trace action action-2 failed for event-2"),
+                        1),
+                CaptureGenerationReport.Enrichment.notRequested());
+
+        List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
+                .fromGeneratedSource(source, "driver", report);
+
+        McpCodeBlock locatorQueue = block(blocks, "capture-locator-confidence-queue");
+        assertEquals(McpCodeBlock.Kind.INVESTIGATION, locatorQueue.kind());
+        assertTrue(locatorQueue.code().contains("event-2"));
+        assertTrue(locatorQueue.code().contains("absolute XPath"));
+        assertTrue(locatorQueue.code().contains("css=button[type=submit]"));
+
+        McpCodeBlock validation = block(blocks, "capture-validation-back-links");
+        assertEquals(McpCodeBlock.Kind.INVESTIGATION, validation.kind());
+        assertTrue(validation.code().contains("Compilation FAILED"));
+        assertTrue(validation.code().contains("Replay FAILED"));
+        assertTrue(validation.code().contains("event-2"));
+        assertTrue(validation.code().contains("action-2"));
     }
 
     @Test

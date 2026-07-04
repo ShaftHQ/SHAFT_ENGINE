@@ -38,6 +38,7 @@ public record McpCodeBlock(
         ACTION,
         TEST_METHOD,
         FULL_CLASS,
+        PATCH_PREVIEW,
         INVESTIGATION,
         PROVIDER_ADVISORY
     }

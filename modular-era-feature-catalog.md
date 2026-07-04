@@ -177,13 +177,13 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
   <tr>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" alt="shaft-mcp tool manifest and tool families" width="620">
-      <br><strong>127 registered MCP tools</strong>
-      <br>WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, scenario catalog, and guardrails in one manifest.
+      <br><strong>MCP tool manifest</strong>
+      <br>WebDriver, Playwright, mobile, capture, target discovery, backend comparison, evidence packs, Doctor, Heal, Trace, guide search, scenario catalog, and guardrails in one manifest.
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" alt="Capture and code generation feature catalog" width="620">
-      <br><strong>46 capture/codegen capabilities</strong>
-      <br>Session storage, in-panel checkpoints, step reorder, session goals, replay generation, privacy, locator fallback, workbench review sections, and Page Object drafts are visible in source.
+      <br><strong>Capture/codegen capability map</strong>
+      <br>Session storage, in-panel checkpoints, step reorder, session goals, replay generation, privacy, locator fallback, patch previews, backend comparison, evidence manifests, workbench review sections, and Page Object drafts are visible in source.
     </td>
   </tr>
   <tr>
@@ -217,36 +217,35 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | Area | Framework-user value | Proof |
 | --- | --- | --- |
 | Lean modular core | Adopt the core engine first, then add BrowserStack, visual, video, SikuliX desktop image automation, AI, Doctor, Heal, Capture, or MCP only when a project needs them. | `module-map.png` |
-| MCP automation surface | Drive WebDriver, Playwright, mobile, recording, guide search, generated-code review, and failure triage through one local server. | `mcp-tools.png` |
+| MCP automation surface | Drive WebDriver, Playwright, mobile, recording, target discovery, guide search, generated-code review, evidence manifests, and failure triage through one local server. | `mcp-tools.png` |
 | IntelliJ IDEA plugin | First-run MCP setup now opens as a simple vertical click-through: pick the agent, copy the installer command, run it in the IntelliJ terminal, and check setup while the plugin uses installer defaults to find and persist the local stdio command automatically. The setup screen keeps one active button visible at a time, hides stdio command inputs and success logs from the user, reveals `Start chatting` only after verification, and keeps failure diagnostics inline without exposing managed commands; the Assistant restores safe project chats, uses a compact `Codex CLI` agent label with the full agent tooltip, keeps action/timeline chrome hidden until useful, uses a taller prompt composer with a concise placeholder, keeps Copy, Clear, and Rerun available as compact transcript icons when useful, renders code blocks with theme-aware light/dark palettes, keeps status text accessible, supports Ctrl+Enter / Command+Enter send plus Escape cancel, and keeps Guided templates, reviewed recorder/codegen actions, Inspector checks, Triage, Evidence Tools, project actions, settings/provider controls, and live-refresh Advanced Tools behind the same verified MCP setup gate. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-success.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-mcp-setup-narrow-dark.png`, `intellij-plugin-assistant.png`, `intellij-plugin-assistant-empty.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-guided.png`, `intellij-plugin-triage.png`, `intellij-plugin-advanced-tools.png`, `intellij-plugin-settings.png`, `intellij-plugin-settings-dark.png` |
 | IntelliJ Assistant fix for issue #3188 | Chat transcript messages are now role-rendered (user/assistant bubbles), sessions persist and restore correctly, and the route/runtime controls lock with a visible configure recovery path once MCP is configured. | `intellij-plugin-assistant.png`, `intellij-plugin-mcp-setup.png` |
 | IntelliJ Assistant fix for issue #3237 | Local Agent completion callbacks now clear the running state even when the streaming token was already reset, and approved capture generation tells the Agent to preserve the recorded journey, open the first search result, and assert the final page title or page-specific text. | `intellij-plugin-assistant-live-output-dark.png`, `intellij-plugin-assistant-narrow-dark.png` |
 | IntelliJ Assistant chat polish | Newly sent user prompts scroll into view immediately, while SHAFT-owned icon buttons and Assistant bubbles use borderless surfaces so chat feedback reads clearly in light, dark, and narrow tool windows. | `intellij-plugin-assistant.png`, `intellij-plugin-assistant-dark.png`, `intellij-plugin-assistant-narrow-dark.png` |
 | IntelliJ and MCP hardening for issue #3244 | Onboarding preflight now validates Windows JDK21 `JAVA_HOME` state and auto-creates `%JAVA_HOME%\\Packages` when possible, then reports clear missing/invalid/unwritable diagnostics; recorder re-record flows map discard to `capture_stop` with `discard=true`; and `shaft_project_create` supports optional `shaftVersion` with blank/null defaulting to the latest published stable `shaft-engine` while bundled example POMs remain reactor-versioned. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-recorder.png`, `mcp-tools.png` |
 | SikuliX desktop automation | Desktop image automation lives in `shaft-sikulix`, so projects opt into `com.sikulix:sikulixapi` only when they need image-based desktop flows. | `tools/modularization/consumer-fixtures/sikulix/pom.xml`, `tests/scripts/test_sikulix_module_boundary.py` |
-| Recorder-to-code workflow | Capture real user actions, preserve edited step intent and checkpoints, then generate TestNG replay snippets, setup/assertion/control-flow review blocks, locator alternatives, and Page Object insertions. | `web-recorder.png`, `capture-catalog.png`, `intellij-plugin-guided.png` |
+| Recorder-to-code workflow | Capture real user actions, preserve edited step intent and checkpoints, then generate TestNG replay snippets, setup/assertion/control-flow review blocks, locator alternatives, patch previews, backend comparisons, evidence manifests, and Page Object insertions. | `web-recorder.png`, `capture-catalog.png`, `intellij-plugin-guided.png` |
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree, then generate ranked locator inventories, Page Object drafts, and record-at-target snippets before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
 
-## Recorder/Codegen Top 10 Plan
+## Recorder/Codegen Top 10 Implementation
 
-The next recorder/codegen push should make the handoff from recording to a real
-repository feel obvious: preview the patch, show the risk, then verify the code.
-The implementation plan lives at
-`docs/superpowers/plans/2026-07-04-recorder-codegen-top10.md`.
+The recorder/codegen handoff now exposes deterministic review artifacts before
+any source edit: find the target, generate reviewed blocks, inspect the patch
+preview, compare backends when useful, collect evidence, then verify locally.
 
 | Rank | Enhancement | Why users feel it immediately |
 | --- | --- | --- |
-| 1 | Patch preview for record-at-target | The agent shows the exact Java diff before touching an existing Page Object or test. |
-| 2 | Existing-suite target scanner | Users stop guessing package names, driver variables, and insertion anchors. |
-| 3 | Assertion gap checklist | Generated tests tell reviewers which post-action checks are still missing. |
-| 4 | Locator confidence queue | Risky XPath, multi-match, and coordinate fallback steps are grouped before copy/paste. |
-| 5 | Fixture and secret handoff | Required environment variables, test data, and upload fixtures are listed without exposing secrets. |
-| 6 | Flow grouping assistant | Explicit checkpoints become helper-method proposals without inventing abstractions. |
-| 7 | Replay failure back-links | Compile or replay failures point back to recording step ids and generated blocks. |
-| 8 | Backend comparison blocks | WebDriver, Playwright, and mobile output differences are visible before choosing a backend. |
-| 9 | PR evidence pack | Screenshots, workbench HTML, generated source, and validation commands are ready for review. |
-| 10 | Guided IDE action copy | IntelliJ workflow labels match the real path: record, review, preview, apply, verify. |
+| 1 | Patch preview for record-at-target | `capture_record_at_target_code_blocks` and `mobile_record_at_target_code_blocks` include preview-only diff blocks with target path, anchor, imports, locator fields, and action snippets. |
+| 2 | Existing-suite target scanner | `capture_target_candidates` finds likely Java test/Page Object targets, driver variables, packages, and insertion anchors inside the workspace. |
+| 3 | Assertion gap checklist | Capture review blocks keep missing assertion guidance visible before generated code is copied. |
+| 4 | Locator confidence queue | Web and mobile code blocks group low-confidence locators, absolute XPath risk, and coordinate fallback warnings by step/action id. |
+| 5 | Fixture and secret handoff | Existing setup/review blocks keep fixture and secret replacement requirements visible without exposing captured secret values. |
+| 6 | Flow grouping assistant | Control-flow review blocks keep checkpoint and helper-method guidance advisory until a reviewer applies it. |
+| 7 | Replay failure back-links | Validation review blocks link compile/replay failures back to recording events and generated action blocks. |
+| 8 | Backend comparison blocks | `capture_backend_comparison` composes the existing WebDriver and Playwright generators into side-by-side code-block summaries. |
+| 9 | PR evidence pack | `capture_evidence_pack` returns a manifest of local source, reports, screenshots, and validation commands without zipping or uploading artifacts. |
+| 10 | Guided IDE action copy | IntelliJ Recorder templates now expose target discovery, record-at-target, backend comparison, and evidence-pack actions with review/preview/verify copy. |
 
 ## Modular Adoption
 
@@ -271,7 +270,7 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 | Install and run | Local installers for Codex, Claude, Claude Desktop, Copilot, Copilot IntelliJ, plus installer defaults that the IntelliJ plugin can use to find the generated stdio argfile automatically. The Marketplace plugin itself does not run installer scripts. | `py -3 scripts/mcp/install_shaft_mcp.py --client intellij-plugin --json` |
 | URL intent orientation | Open a URL, bound the DOM, rank actionable elements, return SHAFT locator code, and suggest the next MCP tools. | `driver_initialize -> browser_open_intent(targetUrl, userIntent, 200000, 10)` |
 | Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
-| Capture review blocks | Return setup prerequisites, assertion suggestions, locator alternatives, action sequences, and control-flow review notes as additive MCP code blocks after generation. | `capture_code_blocks`, `capture_record_at_target_code_blocks` |
+| Capture review blocks | Return setup prerequisites, assertion suggestions, locator alternatives, action sequences, locator-confidence queues, validation back-links, and control-flow review notes as additive MCP code blocks after generation. | `capture_code_blocks`, `capture_record_at_target_code_blocks` |
 | Semantic actions | Combine guide search, scenario catalog, guardrail checks, and `natural_act` without leaving the MCP session. | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
 
 ```text
@@ -300,13 +299,13 @@ nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, el
 | First-run setup | If a tested MCP command has passed setup, the tool window opens the Assistant directly. Otherwise, setup opens with `Connect SHAFT Assistant`, defaults to Codex CLI, and shows a simple stepper: `1 Pick agent`, `2 Copy command`, `3 Run in terminal`, `4 Check setup`, then `Ready`. Users never see or paste the managed stdio command; `Check setup` discovers it from the installer output paths, verifies the selected local agent, and reveals `Start chatting` on success. Retry actions stay enabled after failures, with categorized diagnostics that avoid exposing the managed command. | `Tools -> SHAFT -> Open SHAFT` |
 | Settings and providers | Retest MCP, change Local/Cloud routing, select the cloud provider/model, and store or clear OpenAI, Anthropic, Gemini, and GitHub keys. Only the selected cloud provider key is passed to MCP. | `Settings -> SHAFT` |
 | Guided workflows | Pick starter templates for browser capture to Page Objects, failed Allure analysis, Selenium-to-SHAFT conversion, confirmed new SHAFT projects, and locator inspection without editing JSON first; the recorder action now says `Review code` because it returns reviewed SHAFT code blocks. | `Guided` tab |
-| Recorder | Editable JSON templates for `capture_start`, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` tab |
+| Recorder | Editable JSON templates for `capture_start`, target discovery, record-at-target patch preview, backend comparison, evidence packs, checkpoints, replay generation, Playwright replay, and mobile replay. | `Recorder` tab |
 | Project tools | Create a SHAFT project after confirmation, preview an upgrade, or apply an approved upgrade through MCP. | `Projects` tab |
 | Triage | Prepare failed Allure analysis, trace analysis, Doctor fix suggestions, Healer runs, and locator proposal requests. | `Triage` tab |
 | Evidence and healing | Run failed-test analysis, trace lookup, trace analysis, and healer templates from the IDE. | `Evidence Tools` tab |
 | Mobile Inspector | Check mobile tooling, prepare Inspector recording, inspect status, read accessibility trees, and take mobile screenshots. | `Inspector` tab |
 | Agent helpers | Switch the Assistant composer between Ask, Plan, and guarded Agent prompts through local Codex, Claude Code, or Copilot CLI; Ask/Plan can route to OpenAI, Anthropic, Gemini, or GitHub Models with a stored key; Cloud Agent is demoted to Plan because provider chat cannot mutate the local workspace; project chats persist rendered messages without raw payloads; code writing and conversion prompts are scoped to the current editor file; the compact `Codex CLI` label exposes `Agent: Local / Codex / CLI` as a tooltip; the command picker shows summaries/examples and the context button exposes `@` and `#` workflow/project context without filling empty chats with starter text; action and timeline chrome stays hidden until useful; Assistant status text is exposed to assistive technologies. | `Assistant` tab |
-| Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, and copy the request for review. | `Recorder` tab |
+| Record at target | Open the side panel, prefill `capture_record_at_target_code_blocks` from the Java caret context, then review code blocks, inspect the patch preview, apply intentionally, and verify. | `Recorder` tab |
 | Editor action | Start from the current Java caret context through the `Record SHAFT Flow Here` action in Tools or the editor popup menu; it now uses `recordings/intellij-capture.json` instead of a placeholder session path. | `Record SHAFT Flow Here` |
 
 The plugin rides as a right-side IntelliJ panel, similar to assistant tools such as GitHub Copilot. The Assistant keeps Ask/Plan/Agent mode switching in the bottom composer, gates source mutation behind the local Agent approval checkbox, restores project chat sessions without persisting raw MCP payloads, scrolls newly sent prompts into view before long-running responses finish, uses compact JetBrains-style icons for dense controls including Copy all, Clear, and Rerun, turns the submit control into an animated spinner with hover-to-cancel while running, changes Cancel into Kill after the first cancellation request so a second click terminates the active process immediately, clears the running state when a local Agent result arrives, keeps code blocks visually distinct from chat bubbles with a light editor-style palette in light mode and a dark surface in dark mode, anchors Send at the bottom-right with Ctrl+Enter, Command+Enter, and Ctrl+click shortcuts, lets Escape cancel a running request from the Assistant view, keeps empty chats focused on the composer, renders command summaries/examples in the picker, exposes `@workflow` and `#project` context through a dedicated context button, and exposes the selected local agent as compact text such as `Codex CLI` with `Agent: Local / Codex / CLI` in the tooltip. The run timeline and action chrome stay hidden until a prompt, tool run, approval, completion, cancellation, or failure gives them useful state. The Advanced Tools and Recorder tabs still show exact JSON arguments, validate them before run, require the same verified MCP setup state as the Assistant, and write formatted outputs to an output pane.
@@ -644,7 +643,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    A[127 registered MCP tools] --> B[WebDriver browser + element]
+    A[130 registered MCP tools] --> B[WebDriver browser + element]
     A --> C[Playwright browser + element + semantic]
     A --> D[Capture start/status/stop/generate]
     A --> E[Mobile native, web emulation, inspector, screenshots]

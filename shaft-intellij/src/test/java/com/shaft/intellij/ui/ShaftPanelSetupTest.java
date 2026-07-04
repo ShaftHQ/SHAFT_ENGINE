@@ -627,6 +627,10 @@ class ShaftPanelSetupTest {
         assertEquals("Recorder", selectedWorkflow(toolWindow));
         assertEquals("Recorder", selectedCategory(toolWindow));
 
+        toolWindow.prefillTool("capture_record_at_target_code_blocks", arguments);
+        assertEquals("Recorder", selectedWorkflow(toolWindow));
+        assertEquals("Recorder", selectedCategory(toolWindow));
+
         toolWindow.prefillTool("mobile_get_accessibility_tree", arguments);
         assertEquals("Inspector", selectedWorkflow(toolWindow));
         assertEquals("Inspector", selectedCategory(toolWindow));

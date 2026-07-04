@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -161,7 +162,46 @@ final class McpCaptureCodeBlockService {
                     List.of(),
                     plan.warnings()));
         }
+        blocks.add(targetPatchPreviewBlock(plan));
         return blocks;
+    }
+
+    private static McpCodeBlock targetPatchPreviewBlock(CaptureTargetInsertionPlan plan) {
+        StringBuilder code = new StringBuilder();
+        code.append("# Preview only; MCP does not edit source files.\n");
+        code.append("Target: ").append(plan.targetSource().getFileName()).append('\n');
+        code.append("Anchor: ").append(plan.insertAfter()).append("\n\n");
+        if (!plan.imports().isEmpty()) {
+            code.append("Imports:\n");
+            for (String importName : plan.imports()) {
+                code.append("+ import ").append(importName).append(";\n");
+            }
+            code.append('\n');
+        }
+        if (!plan.locatorFields().isBlank()) {
+            code.append("Locator fields:\n");
+            for (String line : plan.locatorFields().lines().toList()) {
+                code.append("+ ").append(line).append('\n');
+            }
+            code.append('\n');
+        }
+        if (!plan.actionSnippet().isBlank()) {
+            code.append("@@ after ").append(plan.insertAfter()).append(" @@\n");
+            for (String line : plan.actionSnippet().lines().toList()) {
+                code.append("+ ").append(line).append('\n');
+            }
+        }
+        return new McpCodeBlock(
+                "capture-target-patch-preview",
+                "Record-at-target patch preview",
+                McpCodeBlock.Kind.PATCH_PREVIEW,
+                "diff",
+                plan.imports(),
+                code.toString(),
+                "Review this preview before applying snippets to " + plan.targetSource().getFileName() + ".",
+                false,
+                evidenceIds(plan.actionSnippet() + "\n" + plan.locatorFields()),
+                plan.warnings());
     }
 
     private static McpCodeBlock locatorInventoryBlock(List<String> imports, List<LocatorCandidate> locators) {
@@ -207,6 +247,12 @@ final class McpCaptureCodeBlockService {
         }
         if (!report.controlFlowSuggestions().isEmpty()) {
             blocks.add(controlFlowReviewBlock(report));
+        }
+        if (needsLocatorConfidenceQueue(report)) {
+            blocks.add(locatorConfidenceQueueBlock(report));
+        }
+        if (hasFailedValidation(report)) {
+            blocks.add(validationBackLinksBlock(report));
         }
         return List.copyOf(blocks);
     }
@@ -282,6 +328,70 @@ final class McpCaptureCodeBlockService {
                         .distinct()
                         .toList(),
                 List.of());
+    }
+
+    private static McpCodeBlock locatorConfidenceQueueBlock(CaptureGenerationReport report) {
+        LinkedHashSet<String> lines = new LinkedHashSet<>();
+        report.readinessWarnings().stream()
+                .filter(McpCaptureCodeBlockService::locatorRisk)
+                .forEach(lines::add);
+        report.flakySteps().forEach(lines::add);
+        report.fallbackLocators().forEach(lines::add);
+        report.warnings().stream()
+                .filter(warning -> warning.contains("review/LOCATOR"))
+                .forEach(lines::add);
+        report.locatorDecisions().stream()
+                .filter(McpCaptureCodeBlockService::lowConfidenceLocator)
+                .map(decision -> decision.eventIds() + ": " + decision.strategy() + " "
+                        + decision.expression() + " scored " + decision.score()
+                        + alternativesText(decision.alternatives()))
+                .forEach(lines::add);
+        StringBuilder code = new StringBuilder();
+        code.append("# Review these locator/replay risks before applying generated code\n");
+        for (String line : lines) {
+            code.append("- ").append(line).append('\n');
+        }
+        return new McpCodeBlock(
+                "capture-locator-confidence-queue",
+                "Capture locator confidence queue",
+                McpCodeBlock.Kind.INVESTIGATION,
+                "text",
+                List.of(),
+                code.toString(),
+                "Fix or accept these locator risks before making the generated code copy-paste ready.",
+                false,
+                evidenceIds(String.join("\n", lines)),
+                List.of());
+    }
+
+    private static McpCodeBlock validationBackLinksBlock(CaptureGenerationReport report) {
+        StringBuilder code = new StringBuilder();
+        appendValidation(code, "Compilation", report.compilation());
+        appendValidation(code, "Replay", report.replay());
+        return new McpCodeBlock(
+                "capture-validation-back-links",
+                "Capture validation back-links",
+                McpCodeBlock.Kind.INVESTIGATION,
+                "text",
+                List.of(),
+                code.toString(),
+                "Use diagnostics to map compile or replay failures back to recording step ids and generated blocks.",
+                false,
+                evidenceIds(code.toString()),
+                List.of());
+    }
+
+    private static void appendValidation(
+            StringBuilder code,
+            String label,
+            CaptureGenerationReport.Validation validation) {
+        if (validation.status() != CaptureGenerationReport.Validation.ValidationStatus.FAILED) {
+            return;
+        }
+        code.append(label).append(" FAILED\n");
+        for (String diagnostic : validation.diagnostics()) {
+            code.append("- ").append(diagnostic).append('\n');
+        }
     }
 
     private static McpCodeBlock actionSequenceBlock(List<ActionCandidate> actions) {
@@ -726,6 +836,40 @@ final class McpCaptureCodeBlockService {
 
     private static boolean needsAssertionSuggestion(CaptureGenerationReport report) {
         return !assertionWarnings(report).isEmpty();
+    }
+
+    private static boolean needsLocatorConfidenceQueue(CaptureGenerationReport report) {
+        return report.readinessWarnings().stream().anyMatch(McpCaptureCodeBlockService::locatorRisk)
+                || !report.flakySteps().isEmpty()
+                || !report.fallbackLocators().isEmpty()
+                || report.warnings().stream().anyMatch(warning -> warning.contains("review/LOCATOR"))
+                || report.locatorDecisions().stream().anyMatch(McpCaptureCodeBlockService::lowConfidenceLocator);
+    }
+
+    private static boolean hasFailedValidation(CaptureGenerationReport report) {
+        return report.compilation().status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED
+                || report.replay().status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED;
+    }
+
+    private static boolean locatorRisk(String warning) {
+        String normalized = warning == null ? "" : warning.toLowerCase(Locale.ROOT);
+        return normalized.contains("locator")
+                || normalized.contains("xpath")
+                || normalized.contains("coordinate")
+                || normalized.contains("fallback");
+    }
+
+    private static boolean lowConfidenceLocator(CaptureGenerationReport.LocatorDecision decision) {
+        String strategy = decision.strategy() == null ? "" : decision.strategy().toUpperCase(Locale.ROOT);
+        String expression = decision.expression() == null ? "" : decision.expression();
+        return decision.score() < 100
+                || ("XPATH".equals(strategy) && expression.startsWith("/"));
+    }
+
+    private static String alternativesText(List<String> alternatives) {
+        return alternatives == null || alternatives.isEmpty()
+                ? ""
+                : "; alternatives: " + String.join(", ", alternatives);
     }
 
     private static List<String> assertionWarnings(CaptureGenerationReport report) {

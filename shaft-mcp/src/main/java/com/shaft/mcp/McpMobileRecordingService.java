@@ -199,6 +199,9 @@ final class McpMobileRecordingService {
         if (!pom.locators().isEmpty() && !pom.actions().isEmpty()) {
             blocks.add(pageObjectDraftBlock(pom, driver, replayWarnings(stored)));
         }
+        if (!locatorReviewLines(stored).isEmpty()) {
+            blocks.add(locatorConfidenceQueueBlock(stored));
+        }
         if (targetSource != null || !text(insertAfter).isBlank()) {
             blocks.addAll(targetInsertionBlocks(targetSource, insertAfter, pom));
         }
@@ -337,6 +340,37 @@ final class McpMobileRecordingService {
                 draftWarnings);
     }
 
+    private static McpCodeBlock locatorConfidenceQueueBlock(McpMobileRecording stored) {
+        StringBuilder code = new StringBuilder();
+        code.append("# Review these mobile locator risks before applying generated code\n");
+        for (String line : locatorReviewLines(stored)) {
+            code.append("- ").append(line).append('\n');
+        }
+        return new McpCodeBlock(
+                "mobile-locator-confidence-queue",
+                "Mobile locator confidence queue",
+                McpCodeBlock.Kind.INVESTIGATION,
+                "text",
+                List.of(),
+                code.toString(),
+                "Fix or explicitly accept these mobile locator risks before replay.",
+                false,
+                stored.actions().stream()
+                        .filter(action -> !action.warnings().isEmpty())
+                        .map(action -> "action-" + action.sequence())
+                        .toList(),
+                List.of());
+    }
+
+    private static List<String> locatorReviewLines(McpMobileRecording stored) {
+        List<String> lines = new ArrayList<>();
+        stored.actions().stream()
+                .filter(action -> !action.warnings().isEmpty())
+                .forEach(action -> action.warnings().forEach(warning ->
+                        lines.add("action-" + action.sequence() + ": " + warning)));
+        return List.copyOf(lines);
+    }
+
     private static List<McpCodeBlock> targetInsertionBlocks(
             Path targetSource,
             String insertAfter,
@@ -345,7 +379,10 @@ final class McpMobileRecordingService {
             return List.of();
         }
         TargetInsertionContext context = targetInsertionContext(targetSource, insertAfter);
-        return List.of(targetLocatorFieldsBlock(context, pom), targetActionSnippetBlock(context, insertAfter, pom));
+        return List.of(
+                targetLocatorFieldsBlock(context, pom),
+                targetActionSnippetBlock(context, insertAfter, pom),
+                targetPatchPreviewBlock(context, insertAfter, pom));
     }
 
     private static boolean hasTargetInsertionCandidates(PomCandidates pom) {
@@ -433,6 +470,43 @@ final class McpMobileRecordingService {
         return text(insertAfter).isBlank()
                 ? "Paste inside the existing mobile page method after adding locator fields."
                 : "Paste after " + insertAfter + " in " + targetName + ".";
+    }
+
+    private static McpCodeBlock targetPatchPreviewBlock(
+            TargetInsertionContext context,
+            String insertAfter,
+            PomCandidates pom) {
+        StringBuilder code = new StringBuilder();
+        code.append("# Preview only; MCP does not edit source files.\n");
+        code.append("Target: ").append(context.targetName()).append('\n');
+        code.append("Anchor: ").append(text(insertAfter).isBlank() ? "<manual>" : insertAfter).append("\n\n");
+        code.append("Imports:\n");
+        code.append("+ import org.openqa.selenium.By;\n\n");
+        code.append("Locator fields:\n");
+        for (String line : targetLocatorFields(pom.locators()).lines().toList()) {
+            code.append("+ ").append(line).append('\n');
+        }
+        code.append("\n@@ ");
+        code.append(text(insertAfter).isBlank() ? "manual insertion point" : "after " + insertAfter);
+        code.append(" @@\n");
+        for (String line : targetActionSnippet(pom).lines().toList()) {
+            code.append("+ ").append(line).append('\n');
+        }
+        return new McpCodeBlock(
+                "mobile-target-patch-preview",
+                "Mobile record-at-target patch preview",
+                McpCodeBlock.Kind.PATCH_PREVIEW,
+                "diff",
+                List.of("org.openqa.selenium.By"),
+                code.toString(),
+                "Review this preview before applying snippets to " + context.targetName() + ".",
+                false,
+                java.util.stream.Stream.concat(
+                        locatorEvidenceIds(pom.locators()).stream(),
+                        actionEvidenceIds(pom.actions()).stream())
+                        .distinct()
+                        .toList(),
+                context.warnings());
     }
 
     private static List<String> locatorEvidenceIds(List<LocatorCandidate> locators) {
