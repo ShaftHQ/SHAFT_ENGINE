@@ -1,20 +1,17 @@
 package com.shaft.intellij.ui;
 
-import com.intellij.lang.Language;
 import com.intellij.lexer.Lexer;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.editor.markup.TextAttributes;
-import com.intellij.openapi.editor.richcopy.HtmlSyntaxInfoUtil;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.SyntaxHighlighter;
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.util.Computable;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
@@ -29,7 +26,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.BorderFactory;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.text.html.HTMLEditorKit;
-import javax.swing.JLabel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
@@ -39,7 +35,6 @@ import java.awt.RenderingHints;
 import java.awt.Dimension;
 import java.awt.LayoutManager;
 import java.awt.datatransfer.StringSelection;
-import java.lang.reflect.Proxy;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -55,7 +50,6 @@ import java.util.regex.Pattern;
  * Markdown-rendered Assistant transcript with copyable source text.
  */
 final class AssistantTranscriptView extends JPanel {
-    private static final String INITIAL_MESSAGE = "Start with /guide, /browser, /record, or /doctor.";
     private static final Pattern LANGUAGE_CLASS = Pattern.compile("(?i)\\blanguage-([a-z0-9_+.#-]+)");
     private static final Pattern UNORDERED_LIST_ITEM = Pattern.compile("^[-*+]\\s+(.+)$");
     private static final Pattern ORDERED_LIST_ITEM = Pattern.compile("^\\d+[.)]\\s+(.+)$");
@@ -71,7 +65,6 @@ final class AssistantTranscriptView extends JPanel {
     private static final String UNKNOWN_ROLE = "assistant";
     static final String TRANSCRIPT_ROLE_PROPERTY = "shaft.transcript.role";
     static final String TRANSCRIPT_BUBBLE_PROPERTY = "shaft.transcript.bubble";
-    static final String TRANSCRIPT_HINT_PROPERTY = "shaft.transcript.hint";
     static final String TRANSCRIPT_RENDERED_HTML_PROPERTY = "shaft.transcript.renderedHtml";
 
     private final Project project;
@@ -198,9 +191,6 @@ final class AssistantTranscriptView extends JPanel {
         for (ShaftAssistantChatState.Message message : messages) {
             fallbackPanel.add(fallbackMessage(message.role, message.markdown));
         }
-        if (messages.isEmpty()) {
-            fallbackPanel.add(fallbackHint());
-        }
         fallbackPanel.revalidate();
         fallbackPanel.repaint();
     }
@@ -231,18 +221,6 @@ final class AssistantTranscriptView extends JPanel {
         htmlPane.putClientProperty(TRANSCRIPT_ROLE_PROPERTY, normalizedRole);
         bubble.add(htmlPane, BorderLayout.CENTER);
         row.add(bubble, user ? BorderLayout.EAST : BorderLayout.WEST);
-        return row;
-    }
-
-    private JComponent fallbackHint() {
-        JPanel row = new PreferredHeightRow(new BorderLayout());
-        row.setOpaque(false);
-        row.putClientProperty(TRANSCRIPT_HINT_PROPERTY, Boolean.TRUE);
-        row.getAccessibleContext().setAccessibleName("Assistant transcript hint row");
-        JLabel label = new JLabel(INITIAL_MESSAGE);
-        label.setForeground(resolvedColor("TextArea.foreground", new Color(0x202020)));
-        label.getAccessibleContext().setAccessibleName("Assistant transcript hint");
-        row.add(label, BorderLayout.WEST);
         return row;
     }
 
@@ -279,11 +257,11 @@ final class AssistantTranscriptView extends JPanel {
 
     private String toFallbackHtml(String value, Color foreground, Color background) {
         boolean dark = isDarkBackground(resolvedColor("TextArea.background", Color.WHITE));
-        String codeBackground = dark ? "#24272b" : color("EditorPane.background", color("TextArea.background", "#ffffff"));
-        String toolbarBackground = dark ? "#2f3338" : codeBackground;
-        String border = dark ? "#6b7078" : color("Component.borderColor", "#d0d7de");
-        String codeForeground = dark ? "#e5e7eb" : color("TextArea.foreground", "#202020");
-        String copyForeground = dark ? "#ced0d6" : color("Button.foreground", "#202020");
+        String codeBackground = dark ? "#24272b" : "#f6f8fa";
+        String toolbarBackground = dark ? "#2f3338" : "#eef2f7";
+        String border = dark ? "#6b7078" : "#d0d7de";
+        String codeForeground = dark ? "#e5e7eb" : "#24292f";
+        String copyForeground = dark ? "#ced0d6" : "#57606a";
         return """
                 <html>
                 <head>
@@ -643,40 +621,16 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private String highlightedCodeBlockInReadAction(String originalCodeBlock, String code, String languageLabel) {
-        Language language = languageForFence(languageLabel);
-        if (language == null) {
-            String highlighted = highlightedBySyntaxHighlighter(code, languageLabel);
-            if (!highlighted.isBlank()) {
-                return "<pre class=\"shaft-code-highlighted language-" + escapeAttribute(languageLabel) + "\"><code>"
-                        + highlighted
-                        + "</code></pre>";
-            }
+        String highlighted = highlightedByIntelliJPaletteFallback(code, languageLabel);
+        if (highlighted.isBlank()) {
+            highlighted = highlightedBySyntaxHighlighter(code, languageLabel);
+        }
+        if (highlighted.isBlank()) {
             return originalCodeBlock;
         }
-        try {
-            StringBuilder highlighted = new StringBuilder();
-            Project highlightProject = project == null || Proxy.isProxyClass(project.getClass())
-                    ? ProjectManager.getInstance().getDefaultProject()
-                    : project;
-            HtmlSyntaxInfoUtil.appendHighlightedByLexerAndEncodedAsHtmlCodeSnippet(
-                    highlighted,
-                    highlightProject,
-                    language,
-                    code,
-                    false,
-                    1.0F);
-            return "<pre class=\"shaft-code-highlighted language-" + escapeAttribute(languageLabel) + "\"><code>"
-                    + highlighted
-                    + "</code></pre>";
-        } catch (LinkageError | RuntimeException exception) {
-            String highlighted = highlightedBySyntaxHighlighter(code, languageLabel);
-            if (!highlighted.isBlank()) {
-                return "<pre class=\"shaft-code-highlighted language-" + escapeAttribute(languageLabel) + "\"><code>"
-                        + highlighted
-                        + "</code></pre>";
-            }
-            return originalCodeBlock;
-        }
+        return "<pre class=\"shaft-code-highlighted language-" + escapeAttribute(languageLabel) + "\"><code>"
+                + highlighted
+                + "</code></pre>";
     }
 
     static <T> T renderReadActionForTest(Supplier<T> supplier) {
@@ -696,41 +650,8 @@ final class AssistantTranscriptView extends JPanel {
         return matcher.find() ? matcher.group(1).toLowerCase(Locale.ROOT) : "";
     }
 
-    private static Language languageForFence(String languageLabel) {
-        return switch (normalizedLanguage(languageLabel)) {
-            case "java", "jav" -> findLanguage("JAVA", "Java");
-            case "json" -> findLanguage("JSON");
-            case "xml" -> findLanguage("XML");
-            case "html", "xhtml" -> findLanguage("HTML", "XHTML");
-            case "js", "javascript" -> findLanguage("JavaScript", "JS");
-            case "ts", "typescript" -> findLanguage("TypeScript");
-            case "css" -> findLanguage("CSS");
-            case "yaml", "yml" -> findLanguage("yaml", "YAML");
-            case "sql" -> findLanguage("SQL");
-            case "sh", "shell", "bash" -> findLanguage("Shell Script", "Shell");
-            default -> null;
-        };
-    }
-
     private static String normalizedLanguage(String languageLabel) {
         return languageLabel == null ? "" : languageLabel.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private static Language findLanguage(String... ids) {
-        for (String id : ids) {
-            Language language = Language.findLanguageByID(id);
-            if (language != null) {
-                return language;
-            }
-        }
-        for (Language language : Language.getRegisteredLanguages()) {
-            for (String id : ids) {
-                if (language.getID().equalsIgnoreCase(id) || language.getDisplayName().equalsIgnoreCase(id)) {
-                    return language;
-                }
-            }
-        }
-        return null;
     }
 
     private String highlightedBySyntaxHighlighter(String code, String languageLabel) {
@@ -959,7 +880,7 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private static CodePalette codePalette() {
-        return isDarkBackground(resolvedColor("EditorPane.background", resolvedColor("TextArea.background", Color.WHITE)))
+        return isDarkBackground(resolvedColor("TextArea.background", Color.WHITE))
                 ? new CodePalette("#cf8e6d", "#6aab73", "#2aacb8", "#7a7e85", "#b3ae60", "#c77dbb", "#56a8f5")
                 : new CodePalette("#000080", "#067d17", "#1750eb", "#8c8c8c", "#808000", "#000000", "#871094");
     }

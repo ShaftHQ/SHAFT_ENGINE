@@ -691,10 +691,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     }
 
     private static boolean mcpReady(ShaftSettingsState.Settings state) {
-        return state != null
-                && state.mcpSetupComplete
-                && state.mcpCommand != null
-                && !state.mcpCommand.isBlank();
+        return state != null && state.mcpReady();
     }
 
     private static String currentAgentConfigurationText(ShaftSettingsState.Settings state) {

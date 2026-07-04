@@ -445,7 +445,7 @@ final class ShaftFeaturePanel extends JPanel {
     }
 
     private boolean mcpConfigured() {
-        return settings.mcpCommand != null && !settings.mcpCommand.isBlank();
+        return settings.mcpReady();
     }
 
     private boolean projectAvailable(Project project) {
@@ -470,7 +470,7 @@ final class ShaftFeaturePanel extends JPanel {
             }
         });
         panel.add(openSettings);
-        panel.setVisible(settings.mcpCommand == null || settings.mcpCommand.isBlank());
+        panel.setVisible(!settings.mcpReady());
         return panel;
     }
 

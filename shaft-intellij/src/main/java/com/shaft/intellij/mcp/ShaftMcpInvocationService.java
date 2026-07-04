@@ -69,7 +69,7 @@ public final class ShaftMcpInvocationService {
      */
     public ShaftMcpInvocation startListTools() {
         ShaftSettingsState.Settings settings = ShaftSettingsState.getInstance().getState();
-        List<String> command = command(settings);
+        List<String> command = verifiedCommand(settings);
         if (command.isEmpty()) {
             return completed(CONFIGURE_MESSAGE);
         }
@@ -92,7 +92,7 @@ public final class ShaftMcpInvocationService {
      */
     public ShaftMcpInvocation startTool(String toolName, JsonObject arguments) {
         ShaftSettingsState.Settings settings = ShaftSettingsState.getInstance().getState();
-        List<String> command = command(settings);
+        List<String> command = verifiedCommand(settings);
         if (command.isEmpty()) {
             return completed(CONFIGURE_MESSAGE);
         }
@@ -237,6 +237,10 @@ public final class ShaftMcpInvocationService {
             return List.of();
         }
         return ShaftCommandLine.parse(settings.mcpCommand);
+    }
+
+    private static List<String> verifiedCommand(ShaftSettingsState.Settings settings) {
+        return settings != null && settings.mcpReady() ? command(settings) : List.of();
     }
 
     private static String scopedMessage(String message, Path workingDirectory) {
