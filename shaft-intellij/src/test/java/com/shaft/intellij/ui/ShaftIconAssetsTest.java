@@ -30,6 +30,17 @@ class ShaftIconAssetsTest {
     }
 
     @Test
+    void marketplacePluginLogosUseOfficialShaftLogoSvgVariants() throws IOException {
+        Path metaInf = Path.of("src/main/resources/META-INF");
+
+        assertAll(
+                () -> assertLogoIcon(metaInf.resolve("pluginIcon.svg"), 40, LIGHT_LOGO_COLOR),
+                () -> assertLogoIcon(metaInf.resolve("pluginIcon_dark.svg"), 40, DARK_LOGO_COLOR),
+                () -> assertFalse(Files.exists(metaInf.resolve("pluginIcon.png"))),
+                () -> assertFalse(Files.exists(metaInf.resolve("pluginIcon_dark.png"))));
+    }
+
+    @Test
     void actionIconsUseJetBrainsStyleSvgPairs() throws IOException {
         Path actions = Path.of("src/main/resources/icons/actions");
 

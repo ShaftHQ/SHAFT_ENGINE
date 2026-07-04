@@ -267,8 +267,9 @@ final class AssistantTranscriptView extends JPanel {
                 <head>
                   <meta charset="UTF-8">
                   <style>
-                    body { font-family: '%s'; font-size: %dpt; color: %s; background: %s; margin: 0; width: 100%%; }
+                    body { font-family: '%s'; font-size: %dpt; color: %s; background: %s; margin: 0; width: 100%%; overflow-wrap: anywhere; word-wrap: break-word; }
                     p, ul, ol, h1, h2, h3, h4, h5, h6 { margin-top: 0; }
+                    p, li, code, a { overflow-wrap: anywhere; word-wrap: break-word; }
                     p:last-child { margin-bottom: 0; }
                     hr { border: 0; border-top: 1px solid %s; margin: 10px 0; }
                     code { font-family: 'JetBrains Mono', 'Consolas', 'Monospaced', monospace; }
@@ -561,9 +562,9 @@ final class AssistantTranscriptView extends JPanel {
         String[] parts = value.split("`", -1);
         for (int index = 0; index < parts.length; index++) {
             if (index % 2 == 1) {
-                html.append("<code>").append(escapeHtml(parts[index])).append("</code>");
+                html.append("<code>").append(escapeInlineHtml(parts[index])).append("</code>");
             } else {
-                html.append(renderInlineEmphasis(escapeHtml(parts[index])));
+                html.append(renderInlineEmphasis(escapeInlineHtml(parts[index])));
             }
         }
         return html.toString();
@@ -1193,5 +1194,37 @@ final class AssistantTranscriptView extends JPanel {
         return value.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
+    }
+
+    private static String escapeInlineHtml(String value) {
+        StringBuilder html = new StringBuilder(value.length() + Math.max(8, value.length() / 12));
+        int runLength = 0;
+        for (int index = 0; index < value.length(); index++) {
+            char current = value.charAt(index);
+            appendEscapedHtml(html, current);
+            if (Character.isWhitespace(current)) {
+                runLength = 0;
+                continue;
+            }
+            runLength++;
+            if (isInlineBreakOpportunity(current) || runLength >= 32) {
+                html.append("&#8203;");
+                runLength = 0;
+            }
+        }
+        return html.toString();
+    }
+
+    private static void appendEscapedHtml(StringBuilder html, char value) {
+        switch (value) {
+            case '&' -> html.append("&amp;");
+            case '<' -> html.append("&lt;");
+            case '>' -> html.append("&gt;");
+            default -> html.append(value);
+        }
+    }
+
+    private static boolean isInlineBreakOpportunity(char value) {
+        return value == '/' || value == '\\' || value == ':' || value == '.' || value == '-';
     }
 }

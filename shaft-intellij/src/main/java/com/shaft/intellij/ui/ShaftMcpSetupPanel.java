@@ -216,9 +216,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(startChatting, ShaftIcons.SEND);
         startChatting.setVisible(false);
         startChatting.addActionListener(event -> connected.run());
-        resetAndReinstall = new JButton("Reset and reinstall");
+        resetAndReinstall = new JButton("Reset / reinstall");
         resetAndReinstall.getAccessibleContext().setAccessibleName("Reset and reinstall SHAFT MCP");
-        resetAndReinstall.setToolTipText("Reset setup state and copy a fresh installer command");
+        resetAndReinstall.setToolTipText("Clear the saved MCP command and copy a fresh installer command");
         resetAndReinstall.setMnemonic(KeyEvent.VK_R);
         applyLabeledAction(resetAndReinstall, ShaftIcons.RESET);
         resetAndReinstall.setVisible(false);

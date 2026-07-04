@@ -110,20 +110,32 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
             self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
 
-    def test_extract_shaft_skills_from_archive(self):
+    def test_install_shaft_skills_downloads_raw_files_without_repo_archive(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            archive = root / "shaft-skills.zip"
-            with zipfile.ZipFile(archive, "w") as zip_file:
-                for marker in MODULE.SHAFT_SKILLS_SOURCE_MARKERS:
-                    zip_file.writestr(f"SHAFT_ENGINE-main/shaft-skills/{marker}", "skill")
-                zip_file.writestr(
-                    "SHAFT_ENGINE-main/shaft-skills/recording-shaft-tests-with-mcp/agents/openai.yaml",
-                    "openai: true",
-                )
+            calls = []
+            original_local_source = MODULE.local_shaft_skills_source
+            original_download_file = MODULE.download_file
 
-            installed = MODULE.extract_shaft_skills_from_archive(archive, root / "project" / "shaft-skills")
+            def no_local_source():
+                return None
 
+            def fake_download(url, target, label, **_kwargs):
+                calls.append(url)
+                self.assertNotIn("/archive/", url)
+                self.assertIn("/shaft-skills/", url)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(f"{label}\n", encoding="utf-8")
+
+            MODULE.local_shaft_skills_source = no_local_source
+            MODULE.download_file = fake_download
+            try:
+                installed = MODULE.install_shaft_skills(root / "project", root / "bootstrap")
+            finally:
+                MODULE.local_shaft_skills_source = original_local_source
+                MODULE.download_file = original_download_file
+
+            self.assertEqual(9, len(calls))
             self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
             self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
 
