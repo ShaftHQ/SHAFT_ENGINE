@@ -1674,7 +1674,7 @@ class ShaftPanelSetupTest {
                 () -> assertIcon(findButton(setupPanel, "Copy output")),
                 () -> assertIcon(findButton(guidedPanel, "Start recording")),
                 () -> assertIcon(findButton(guidedPanel, "Stop recording")),
-                () -> assertIcon(findButton(guidedPanel, "Generate code")),
+                () -> assertIcon(findButton(guidedPanel, "Review code")),
                 () -> assertIcon(findButton(guidedPanel, "Inspect locator")),
                 () -> assertIcon(findButton(guidedPanel, "Guardrail check")),
                 () -> assertIcon(findButton(triagePanel, "Analyze Allure")),
@@ -2213,7 +2213,7 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(inspect.arguments().has("maxCharacters")),
                 () -> assertFalse(inspect.arguments().has("intent")));
 
-        click(panel, "Generate code");
+        click(panel, "Review code");
         CapturedInvocation codegen = last(invocations);
         assertAll(
                 () -> assertEquals("capture_code_blocks", codegen.toolName()),
