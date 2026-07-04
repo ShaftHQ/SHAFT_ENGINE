@@ -287,6 +287,7 @@ class ShaftPluginScreenshotRendererTest {
             ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
                     () -> {
                     });
+            selectButton(component, "Verbose");
             invokeSetRunning(component, true, "Thinking...");
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
@@ -502,6 +503,18 @@ class ShaftPluginScreenshotRendererTest {
             container.doLayout();
             for (Component child : container.getComponents()) {
                 layout(child, light);
+            }
+        }
+    }
+
+    private static void selectButton(Component component, String text) {
+        if (component instanceof AbstractButton button && text.equals(button.getText())) {
+            button.setSelected(true);
+            return;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                selectButton(child, text);
             }
         }
     }

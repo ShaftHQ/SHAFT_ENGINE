@@ -1069,19 +1069,62 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantTranscriptShowsSentPromptAndLiveAgentOutputInVisibleChat() throws Exception {
+    void assistantTranscriptHidesLiveAgentOutputUntilFinalResultByDefault() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         assistantPrompt(panel).setText("visible realtime user prompt");
         clickAccessible(panel, "Send assistant prompt");
         appendStreamingLocalAgentBubble(panel, 77);
         appendLocalAgentOutput(panel, 77, "visible realtime agent response");
+        showAgentResult(panel, 77, ShaftMcpToolResult.success("public class GeneratedTest { void test() {} }"));
 
         assertAll(
                 () -> assertTrue(transcriptMarkdown(panel).contains("visible realtime user prompt")),
-                () -> assertTrue(transcriptMarkdown(panel).contains("visible realtime agent response")),
+                () -> assertFalse(transcriptMarkdown(panel).contains("visible realtime agent response")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("```java")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("GeneratedTest")),
                 () -> assertTrue(containsText(panel, "visible realtime user prompt")),
-                () -> assertTrue(containsText(panel, "visible realtime agent response")));
+                () -> assertFalse(containsText(panel, "visible realtime agent response")));
+    }
+
+    @Test
+    void assistantVerboseModeShowsLiveAgentOutput() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+
+        appendStreamingLocalAgentBubble(panel, 88);
+        appendLocalAgentOutput(panel, 88, "visible verbose agent response");
+
+        assertAll(
+                () -> assertTrue(transcriptMarkdown(panel).contains("visible verbose agent response")),
+                () -> assertTrue(containsText(panel, "visible verbose agent response")));
+    }
+
+    @Test
+    void assistantKillStopsLocalAgentStreamingImmediately() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        AtomicBoolean killed = new AtomicBoolean();
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(),
+                () -> {
+                },
+                () -> killed.set(true));
+        verbose.setSelected(true);
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 99);
+        appendLocalAgentOutput(panel, 99, "visible before kill");
+
+        cancelOrKillCurrent(panel);
+        cancelOrKillCurrent(panel);
+        appendLocalAgentOutput(panel, 99, "late output after kill");
+
+        assertAll(
+                () -> assertTrue(killed.get()),
+                () -> assertTrue(transcriptMarkdown(panel).contains("visible before kill")),
+                () -> assertFalse(transcriptMarkdown(panel).contains("late output after kill")));
     }
 
     @Test
@@ -1174,6 +1217,7 @@ class ShaftPanelSetupTest {
         JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
         JButton commandInfo = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
         JButton contextInfo = findByAccessibleName(panel, "Assistant context suggestions", JButton.class);
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
         JProgressBar spinner = findByAccessibleName(panel, "Assistant thinking spinner", JProgressBar.class);
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
         JLabel status = findByAccessibleName(panel, "Assistant status", JLabel.class);
@@ -1183,56 +1227,70 @@ class ShaftPanelSetupTest {
         String renderedText = renderedGuide instanceof JLabel label ? label.getText() : "";
 
         assertAll(
-                () -> assertNotNull(commandAutocomplete),
-                () -> assertTrue(commandAutocomplete.isEditable()),
-                () -> assertTrue(commandAutocomplete.getToolTipText().contains("tested commands")),
-                () -> assertFalse(comboContains(commandAutocomplete, "/commands")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/codegen")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/record-web")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/record-mobile")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/doctor")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/guide")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/guardrails")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/browser")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/mobile")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/project")),
-                () -> assertTrue(renderedText.contains("Search the SHAFT guide")),
-                () -> assertTrue(prompt.getAccessibleContext().getAccessibleDescription().contains("guarded local Agent")),
-                () -> assertTrue(prompt instanceof JBTextArea),
-                () -> assertTrue(((JBTextArea) prompt).getRows() >= 6),
-                () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)")),
-                () -> assertNotNull(commandInfo),
-                () -> assertNotNull(contextInfo),
-                () -> assertTrue(contextInfo.getToolTipText().contains("@workflow")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/codegen")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/record-web")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/record-mobile")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/doctor")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/guide")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/guardrails")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/browser")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/mobile")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/project")),
-                () -> assertEquals(commandAutocomplete.getParent(), commandInfo.getParent()),
+                () -> assertNotNull(commandAutocomplete, "command autocomplete should exist"),
+                () -> assertTrue(commandAutocomplete.isEditable(), "command autocomplete should be editable"),
+                () -> assertTrue(commandAutocomplete.getToolTipText().contains("tested commands"),
+                        "command autocomplete tooltip should mention tested commands"),
+                () -> assertFalse(comboContains(commandAutocomplete, "/commands"), "command picker should hide /commands"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/codegen"), "command picker should list /codegen"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/record-web"), "command picker should list /record-web"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/record-mobile"),
+                        "command picker should list /record-mobile"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/doctor"), "command picker should list /doctor"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/guide"), "command picker should list /guide"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/guardrails"), "command picker should list /guardrails"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/browser"), "command picker should list /browser"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/mobile"), "command picker should list /mobile"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/upgrade"), "command picker should list /upgrade"),
+                () -> assertTrue(comboContains(commandAutocomplete, "/project"), "command picker should list /project"),
+                () -> assertTrue(renderedText.contains("Search the SHAFT guide"), renderedText),
+                () -> assertTrue(prompt.getAccessibleContext().getAccessibleDescription().contains("guarded local Agent"),
+                        "prompt description should mention guarded local Agent"),
+                () -> assertTrue(prompt instanceof JBTextArea, "prompt should be a JBTextArea"),
+                () -> assertTrue(((JBTextArea) prompt).getRows() >= 6, "prompt should have at least six rows"),
+                () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)"),
+                        "old starter strip copy should stay removed"),
+                () -> assertNotNull(commandInfo, "command help button should exist"),
+                () -> assertNotNull(contextInfo, "context suggestions button should exist"),
+                () -> assertNotNull(verbose),
+                () -> assertFalse(verbose.isSelected()),
+                () -> assertTrue(verbose.getToolTipText().contains("live local agent output")),
+                () -> assertTrue(contextInfo.getToolTipText().contains("@workflow"), "context tooltip should mention @workflow"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/codegen"), "command tooltip should list /codegen"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/record-web"), "command tooltip should list /record-web"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/record-mobile"), "command tooltip should list /record-mobile"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/doctor"), "command tooltip should list /doctor"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/guide"), "command tooltip should list /guide"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/guardrails"), "command tooltip should list /guardrails"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/browser"), "command tooltip should list /browser"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/mobile"), "command tooltip should list /mobile"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/upgrade"), "command tooltip should list /upgrade"),
+                () -> assertTrue(commandInfo.getToolTipText().contains("/project"), "command tooltip should list /project"),
+                () -> assertEquals(commandAutocomplete.getParent(), commandInfo.getParent(),
+                        "command autocomplete and help should share a row"),
                 () -> assertTrue(componentIndex(commandAutocomplete.getParent(), commandInfo)
-                        > componentIndex(commandAutocomplete.getParent(), commandAutocomplete)),
+                        > componentIndex(commandAutocomplete.getParent(), commandAutocomplete),
+                        "command help should follow autocomplete"),
                 () -> assertTrue(componentIndex(commandAutocomplete.getParent(), contextInfo)
-                        > componentIndex(commandAutocomplete.getParent(), commandInfo)),
-                () -> assertNotNull(spinner),
-                () -> assertTrue(spinner.isIndeterminate()),
-                () -> assertFalse(spinner.isVisible()),
-                () -> assertNotNull(status),
-                () -> assertTrue(status.getToolTipText().contains("Try asking")),
-                () -> assertTrue(status.getAccessibleContext().getAccessibleDescription().contains("Try asking")),
-                () -> assertNotNull(sendButton),
-                () -> assertTrue(sendButton.getToolTipText().contains("Command+Enter")),
-                () -> assertTrue(sendButton.getToolTipText().contains("Ctrl+click")),
-                () -> assertTrue(sendButton.getParent().getLayout() instanceof FlowLayout),
-                () -> assertEquals(FlowLayout.RIGHT, ((FlowLayout) sendButton.getParent().getLayout()).getAlignment()),
-                () -> assertEquals("", sendButton.getText()),
-                () -> assertNotNull(sendButton.getIcon()),
-                () -> assertTrue(sendButton.getIcon().getIconWidth() > 0),
-                () -> assertTrue(sendButton.getIcon().getIconHeight() > 0));
+                        > componentIndex(commandAutocomplete.getParent(), commandInfo),
+                        "context help should follow command help"),
+                () -> assertNotNull(spinner, "spinner should exist"),
+                () -> assertTrue(spinner.isIndeterminate(), "spinner should be indeterminate"),
+                () -> assertFalse(spinner.isVisible(), "spinner should be hidden while idle"),
+                () -> assertNotNull(status, "status should exist"),
+                () -> assertTrue(status.getToolTipText().contains("Try asking"), "status tooltip should be idle copy"),
+                () -> assertTrue(status.getAccessibleContext().getAccessibleDescription().contains("Try asking"),
+                        "status accessible description should be idle copy"),
+                () -> assertNotNull(sendButton, "send button should exist"),
+                () -> assertTrue(sendButton.getToolTipText().contains("Command+Enter"), "send tooltip should mention Command+Enter"),
+                () -> assertTrue(sendButton.getToolTipText().contains("Ctrl+click"), "send tooltip should mention Ctrl+click"),
+                () -> assertTrue(sendButton.getParent().getLayout() instanceof FlowLayout, "send row should use FlowLayout"),
+                () -> assertEquals(FlowLayout.RIGHT, ((FlowLayout) sendButton.getParent().getLayout()).getAlignment(),
+                        "send row should align right"),
+                () -> assertEquals("", sendButton.getText(), "send button should stay icon-only"),
+                () -> assertNotNull(sendButton.getIcon(), "send button should have an icon"),
+                () -> assertTrue(sendButton.getIcon().getIconWidth() > 0, "send icon should have width"),
+                () -> assertTrue(sendButton.getIcon().getIconHeight() > 0, "send icon should have height"));
     }
 
     @Test
@@ -1251,6 +1309,14 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(comboContains(commandAutocomplete, "/record-mobile")),
                 () -> assertFalse(comboContains(commandAutocomplete, "/doctor")),
                 () -> assertFalse(comboContains(commandAutocomplete, "/project")));
+
+        SwingUtilities.invokeAndWait(() -> commandAutocomplete.getEditor().setItem("/up"));
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        assertAll(
+                () -> assertTrue(comboContains(commandAutocomplete, "/upgrade")),
+                () -> assertFalse(comboContains(commandAutocomplete, "/record-web")));
     }
 
     @Test
@@ -1303,34 +1369,45 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
         List<ShaftAssistantPanel.ContextSuggestion> workflowSuggestions = panel.contextSuggestionsForTest('@');
+        List<ShaftAssistantPanel.ContextSuggestion> slashSuggestions = panel.contextSuggestionsForTest('/');
         List<ShaftAssistantPanel.ContextSuggestion> fileSuggestions = panel.contextSuggestionsForTest('#');
         List<ShaftAssistantPanel.ContextSuggestion> unsupportedSuggestions = panel.contextSuggestionsForTest('$');
 
         assertAll(
                 () -> assertTrue(workflowSuggestions.stream().anyMatch(
                         suggestion -> "@workflow:record-web".equals(suggestion.label())
-                                && "/record-web ".equals(suggestion.insertion()))),
+                                && "/record-web https://example.com".equals(suggestion.insertion()))),
+                () -> assertTrue(workflowSuggestions.stream().anyMatch(
+                        suggestion -> "@workflow:record-mobile".equals(suggestion.label())
+                                && "/record-mobile inspector Android recordings/inspector.json"
+                                .equals(suggestion.insertion()))),
                 () -> assertTrue(workflowSuggestions.stream().anyMatch(
                         suggestion -> "@tool:guardrails".equals(suggestion.label())
                                 && "/guardrails ".equals(suggestion.insertion()))),
+                () -> assertTrue(slashSuggestions.stream().anyMatch(
+                        suggestion -> "/upgrade".equals(suggestion.label())
+                                && "/upgrade .".equals(suggestion.insertion()))),
+                () -> assertTrue(slashSuggestions.stream().anyMatch(
+                        suggestion -> "/record-web".equals(suggestion.label())
+                                && "/record-web https://example.com".equals(suggestion.insertion()))),
                 () -> assertTrue(fileSuggestions.isEmpty()),
                 () -> assertTrue(unsupportedSuggestions.isEmpty()));
     }
 
     @Test
-    void assistantCommandAutocompleteInsertsCommandIntoPrompt() throws Exception {
+    void assistantCommandAutocompleteInsertsCommandExampleIntoPrompt() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
         JTextComponent prompt = assistantPrompt(panel);
 
         prompt.setText("please ");
         prompt.setCaretPosition(prompt.getDocument().getLength());
-        SwingUtilities.invokeAndWait(() -> commandAutocomplete.setSelectedItem("/record-web"));
+        SwingUtilities.invokeAndWait(() -> commandAutocomplete.setSelectedItem("/upgrade"));
         SwingUtilities.invokeAndWait(() -> {
         });
 
         assertAll(
-                () -> assertEquals("please /record-web ", prompt.getText()),
+                () -> assertEquals("please /upgrade . ", prompt.getText()),
                 () -> assertEquals("/", String.valueOf(commandAutocomplete.getEditor().getItem())),
                 () -> assertTrue(comboContains(commandAutocomplete, "/doctor")));
     }
@@ -2400,6 +2477,12 @@ class ShaftPanelSetupTest {
         Method method = ShaftAssistantPanel.class.getDeclaredMethod("appendLocalAgentOutput", int.class, String.class);
         method.setAccessible(true);
         method.invoke(panel, streamToken, line);
+    }
+
+    private static void cancelOrKillCurrent(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("cancelOrKillCurrent");
+        method.setAccessible(true);
+        method.invoke(panel);
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {
