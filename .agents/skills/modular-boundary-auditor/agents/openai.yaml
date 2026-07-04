@@ -1,6 +1,6 @@
 interface:
   display_name: "Modular Boundary Auditor"
   short_description: "Check module boundaries and fixtures"
-  default_prompt: "Use $modular-boundary-auditor to review this module boundary change."
+  default_prompt: "Use $modular-boundary-auditor."
 policy:
   allow_implicit_invocation: true

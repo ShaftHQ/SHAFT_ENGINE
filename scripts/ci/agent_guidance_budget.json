@@ -68,6 +68,7 @@
   "expected_skill_names": {
     ".agents/skills": [
       "agent-guidance-boundary-guard",
+      "agentic-pdca-loop",
       "allure-extent-report-operator",
       "ci-failure-investigator",
       "flaky-test-stabilizer",
@@ -86,6 +87,7 @@
     ],
     ".github/skills": [
       "agent-guidance-boundary-guard",
+      "agentic-pdca-loop",
       "allure-extent-report-operator",
       "ci-failure-investigator",
       "flaky-test-stabilizer",

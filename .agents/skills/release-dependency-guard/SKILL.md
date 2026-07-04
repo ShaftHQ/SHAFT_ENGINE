@@ -1,8 +1,8 @@
 ---
 name: release-dependency-guard
-description: Use when preparing or reviewing a SHAFT release, version alignment, dependency or plugin updates, or Maven Central safeguards; validate metadata without deploying or publishing.
+description: Use for SHAFT releases, version alignment, dependency/plugin updates, or Maven Central safeguards; never deploy locally.
 ---
 
 # Release And Dependency Guard
 
-Read and follow the [canonical release playbook](../../../.github/skills/release-dependency-guard/SKILL.md).
+Follow the [canonical release playbook](../../../.github/skills/release-dependency-guard/SKILL.md).

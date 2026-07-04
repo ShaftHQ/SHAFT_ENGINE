@@ -12,3 +12,4 @@ Load only the matching playbook:
 - [Modular boundary auditor](modular-boundary-auditor/SKILL.md)
 - [Allure Extent report operator](allure-extent-report-operator/SKILL.md)
 - [Agent guidance boundary guard](agent-guidance-boundary-guard/SKILL.md)
+- [Agentic PDCA loop](agentic-pdca-loop/SKILL.md)

@@ -1,8 +1,8 @@
 ---
 name: modular-boundary-auditor
-description: Use when SHAFT module wiring, POMs, shaft-bom, legacy-shaft-engine, examples, or consumer fixtures change.
+description: Use for SHAFT module wiring, POMs, BOM, legacy coordinates, examples, or consumer fixtures.
 ---
 
 # Modular Boundary Auditor
 
-Read and follow the [canonical modular boundary playbook](../../../.github/skills/modular-boundary-auditor/SKILL.md).
+Follow the [canonical modular boundary playbook](../../../.github/skills/modular-boundary-auditor/SKILL.md).
