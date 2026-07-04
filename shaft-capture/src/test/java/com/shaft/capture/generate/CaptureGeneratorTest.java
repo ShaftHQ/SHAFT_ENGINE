@@ -79,6 +79,11 @@ class CaptureGeneratorTest {
         assertTrue(data.contains("\"username\" : \"alice\""));
         assertFalse(data.toLowerCase().contains("password"));
         String workbench = Files.readString(first.reviewUiPath());
+        assertTrue(workbench.contains("Review Summary"));
+        assertTrue(workbench.contains("Required inputs"));
+        assertTrue(workbench.contains("Locator decisions"));
+        assertTrue(workbench.contains("Control-flow suggestions"));
+        assertTrue(workbench.contains("Code blocks"));
         assertTrue(workbench.contains("Build record command"));
         assertTrue(workbench.contains("Playwright Codegen Feature Map"));
         assertTrue(workbench.contains("capture checkpoint"));
@@ -112,6 +117,70 @@ class CaptureGeneratorTest {
             assertTrue(recorder.contains("Browser checkpoint"));
             assertTrue(recorder.contains("Element checkpoint"));
         }
+    }
+
+    @Test
+    void generatedNamesAndCommentsUseRecorderIntentBeforeOpaqueSessionIds() throws Exception {
+        EventContext navigation = new EventContext(
+                1,
+                CaptureFixtures.STARTED.plusSeconds(1),
+                new com.shaft.capture.model.PageContext(
+                        "https://shop.example/checkout",
+                        "Checkout review",
+                        "window-1",
+                        List.of(),
+                        1440,
+                        900),
+                EventContext.ReplayStatus.NOT_REPLAYED,
+                List.of(),
+                Map.of());
+        EventContext describedClick = new EventContext(
+                2,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                navigation.page(),
+                EventContext.ReplayStatus.NOT_REPLAYED,
+                List.of(),
+                Map.of("userDescription", JSON.getNodeFactory().textNode("Click Pay now after entering card data")));
+        ElementSnapshot payButton = new ElementSnapshot(
+                "pay-button",
+                "button",
+                "button",
+                "Pay now",
+                "",
+                Map.of("type", "submit"),
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.CSS,
+                        "button[type='submit']", 1, true, true,
+                        java.util.Set.of(LocatorCandidate.LocatorSignal.ACCESSIBLE))),
+                true,
+                true,
+                false);
+        CaptureSession capture = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "2f6e9f58-9c65-45c6-bc7a-opaque",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(navigation,
+                                CaptureEvent.NavigationAction.OPEN, "https://shop.example/checkout"),
+                        new CaptureEvent.ClickEvent(describedClick, payButton,
+                                CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(new Checkpoint("checkout-flow", 2, CaptureFixtures.STARTED.plusSeconds(3),
+                        Checkpoint.CheckpointKind.USER_MARKER, "checkout happy path")),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session(capture), temp.resolve("intent-names")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(result.sourcePath().getFileName().toString().contains("CheckoutHappyPathTest.java"));
+        assertTrue(source.contains("public class CheckoutHappyPathTest"));
+        assertTrue(source.contains("public void replayCheckoutHappyPath()"));
+        assertTrue(source.contains("// Captured step: Click Pay now after entering card data"));
     }
 
     @Test

@@ -113,6 +113,7 @@ final class McpCaptureCodeBlockService {
             if (!pom.actions().isEmpty()) {
                 blocks.add(actionSequenceBlock(pom.actions()));
             }
+            blocks.addAll(reportBlocks(report, driver));
             if (targetSource != null || (insertAfter != null && !insertAfter.isBlank())) {
                 blocks.addAll(targetInsertionBlocks(sourcePath, targetSource, insertAfter, driver));
             }
@@ -171,6 +172,11 @@ final class McpCaptureCodeBlockService {
                     .append(" -> ")
                     .append(locator.expression())
                     .append('\n');
+            for (String alternative : locator.alternatives()) {
+                code.append("// alternative -> ")
+                        .append(alternativeLocatorExpression(alternative))
+                        .append('\n');
+            }
         }
         return new McpCodeBlock(
                 "capture-pom-locator-inventory",
@@ -182,6 +188,96 @@ final class McpCaptureCodeBlockService {
                 "Use these SHAFT locator expressions when extracting inline actions into page methods.",
                 false,
                 evidenceIds(locators),
+                List.of());
+    }
+
+    private static List<McpCodeBlock> reportBlocks(CaptureGenerationReport report, String driver) {
+        if (report == null) {
+            return List.of();
+        }
+        List<McpCodeBlock> blocks = new ArrayList<>();
+        if (!report.requiredUserInputs().isEmpty()) {
+            blocks.add(setupBlock(report));
+        }
+        if (needsAssertionSuggestion(report)) {
+            blocks.add(assertionSuggestionBlock(report, driver));
+        }
+        if (!report.controlFlowSuggestions().isEmpty()) {
+            blocks.add(controlFlowReviewBlock(report));
+        }
+        return List.copyOf(blocks);
+    }
+
+    private static McpCodeBlock setupBlock(CaptureGenerationReport report) {
+        StringBuilder code = new StringBuilder();
+        code.append("# Resolve these before replaying the generated Capture test\n");
+        code.append("testDataPath=").append(report.testDataPath().isBlank()
+                ? "<generated-test-data.json>"
+                : report.testDataPath()).append('\n');
+        for (String input : report.requiredUserInputs()) {
+            code.append("- ").append(input).append('\n');
+        }
+        return new McpCodeBlock(
+                "capture-data-setup",
+                "Capture replay setup inputs",
+                McpCodeBlock.Kind.SETUP,
+                "text",
+                List.of(),
+                code.toString(),
+                "Set required environment variables, JSON data, and upload fixtures before replay.",
+                false,
+                evidenceIds(String.join(" ", report.requiredUserInputs())),
+                List.of());
+    }
+
+    private static McpCodeBlock assertionSuggestionBlock(CaptureGenerationReport report, String driver) {
+        String javaDriver = javaIdentifierOrDefault(driver, "driver");
+        String code = """
+                // Add after the recorded navigation or submit action once the expected page state is known.
+                %s.browser().assertThat().url().contains("REPLACE_WITH_EXPECTED_PATH").perform();
+                %s.browser().assertThat().title().contains("REPLACE_WITH_EXPECTED_TITLE").perform();
+                """.formatted(javaDriver, javaDriver).stripIndent();
+        List<String> warnings = assertionWarnings(report);
+        return new McpCodeBlock(
+                "capture-assertion-suggestions",
+                "Post-action assertion suggestions",
+                McpCodeBlock.Kind.ASSERTION,
+                "java",
+                List.of(),
+                code,
+                "Replace placeholders with the captured destination URL, title, or page-specific text.",
+                false,
+                evidenceIds(String.join(" ", warnings)),
+                warnings);
+    }
+
+    private static McpCodeBlock controlFlowReviewBlock(CaptureGenerationReport report) {
+        StringBuilder code = new StringBuilder();
+        code.append("capture generate --session <capture.json> --control-flow-preview\n");
+        code.append("capture generate --session <capture.json> --apply-control-flow-preview ")
+                .append("target/shaft-capture/control-flow-preview.json\n\n");
+        for (CaptureGenerationReport.ControlFlowSuggestion suggestion : report.controlFlowSuggestions()) {
+            code.append("- ")
+                    .append(suggestion.id())
+                    .append(" [")
+                    .append(suggestion.kind())
+                    .append("] ")
+                    .append(suggestion.recommendation())
+                    .append('\n');
+        }
+        return new McpCodeBlock(
+                "capture-control-flow-review",
+                "Capture control-flow review",
+                McpCodeBlock.Kind.INVESTIGATION,
+                "text",
+                List.of(),
+                code.toString(),
+                "Preview, review, then explicitly apply deterministic control-flow suggestions.",
+                false,
+                report.controlFlowSuggestions().stream()
+                        .flatMap(suggestion -> suggestion.evidenceIds().stream())
+                        .distinct()
+                        .toList(),
                 List.of());
     }
 
@@ -244,7 +340,8 @@ final class McpCaptureCodeBlockService {
                         lowerCamel(sourceName),
                         expression,
                         evidenceIds(decision),
-                        description(sourceName, decision.orElse(null))));
+                        description(sourceName, decision.orElse(null)),
+                        alternatives(decision)));
             }
         }
         for (String line : method.lines().toList()) {
@@ -260,7 +357,8 @@ final class McpCaptureCodeBlockService {
                         name,
                         expression,
                         evidenceIds(decision),
-                        description("", decision.orElse(null))));
+                        description("", decision.orElse(null)),
+                        alternatives(decision)));
             }
         }
         for (CaptureGenerationReport.LocatorDecision decision : decisions) {
@@ -272,7 +370,8 @@ final class McpCaptureCodeBlockService {
                         suggestedFieldName(decision.logicalElementId()),
                         expression,
                         decision.eventIds(),
-                        description("", decision)));
+                        description("", decision),
+                        decision.alternatives()));
             }
         }
         return List.copyOf(locators.values());
@@ -481,6 +580,16 @@ final class McpCaptureCodeBlockService {
                 .toList();
     }
 
+    private static List<String> evidenceIds(String text) {
+        List<String> ids = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\\b(?:event-\\d+|checkpoint-[A-Za-z0-9._-]+|action-\\d+)\\b")
+                .matcher(text == null ? "" : text);
+        while (matcher.find()) {
+            ids.add(matcher.group());
+        }
+        return ids.stream().distinct().toList();
+    }
+
     private static List<String> locatorImports(List<String> imports, String code) {
         List<String> result = new ArrayList<>(imports);
         if (code.contains("SHAFT.GUI.") && result.stream()
@@ -509,6 +618,45 @@ final class McpCaptureCodeBlockService {
             };
         }
         return "SHAFT.GUI.Locator.xpath(\"//*[normalize-space(.)='" + expression + "']\")";
+    }
+
+    private static String alternativeLocatorExpression(String alternative) {
+        String cleaned = alternative == null ? "" : alternative.trim();
+        int score = cleaned.indexOf(" (score ");
+        if (score >= 0) {
+            cleaned = cleaned.substring(0, score).trim();
+        }
+        int space = cleaned.indexOf(' ');
+        if (space <= 0 || space == cleaned.length() - 1) {
+            return cleaned;
+        }
+        return reportLocatorExpression(new CaptureGenerationReport.LocatorDecision(
+                List.of(),
+                "",
+                cleaned.substring(0, space),
+                cleaned.substring(space + 1),
+                0,
+                List.of(),
+                List.of()));
+    }
+
+    private static boolean needsAssertionSuggestion(CaptureGenerationReport report) {
+        return !assertionWarnings(report).isEmpty();
+    }
+
+    private static List<String> assertionWarnings(CaptureGenerationReport report) {
+        List<String> warnings = new ArrayList<>();
+        report.readinessWarnings().stream()
+                .filter(warning -> warning.toLowerCase(Locale.ROOT).contains("assertion"))
+                .forEach(warnings::add);
+        report.warnings().stream()
+                .filter(warning -> warning.contains("review/ASSERTION"))
+                .forEach(warnings::add);
+        return warnings.stream().distinct().toList();
+    }
+
+    private static List<String> alternatives(Optional<CaptureGenerationReport.LocatorDecision> decision) {
+        return decision.map(CaptureGenerationReport.LocatorDecision::alternatives).orElse(List.of());
     }
 
     private static String stripTrailingSemicolon(String value) {
@@ -558,9 +706,11 @@ final class McpCaptureCodeBlockService {
             String suggestedFieldName,
             String expression,
             List<String> evidenceIds,
-            String description) {
+            String description,
+            List<String> alternatives) {
         private LocatorCandidate {
             evidenceIds = evidenceIds == null ? List.of() : List.copyOf(evidenceIds);
+            alternatives = alternatives == null ? List.of() : List.copyOf(alternatives);
         }
     }
 

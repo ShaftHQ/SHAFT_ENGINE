@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Session1Test {
+public class FormCompletedTest {
     private SHAFT.GUI.WebDriver driver;
     private SHAFT.TestData.JSON testData;
     private final Map<String, String> windows = new HashMap<>();
@@ -18,12 +18,12 @@ public class Session1Test {
     @BeforeMethod
     public void setUp() {
         driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType.CHROME);
-        testData = new SHAFT.TestData.JSON("session1-test.json");
+        testData = new SHAFT.TestData.JSON("form-completed-test.json");
         windows.put("window-1", driver.browser().getWindowHandle());
     }
 
     @Test
-    public void replaySession1() throws Exception {
+    public void replayFormCompleted() throws Exception {
         driver.browser().navigateToURL("https://example.test/form");
         driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
         driver.element().type(SHAFT.GUI.Locator.inputField("Username"), requiredData("username"));

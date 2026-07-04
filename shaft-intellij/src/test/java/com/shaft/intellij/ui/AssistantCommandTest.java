@@ -759,6 +759,8 @@ class AssistantCommandTest {
         AssistantCommand.Invocation articleStart = command("start a recording");
         AssistantCommand.Invocation start = command("start recording https://duckduckgo.com/");
         AssistantCommand.Invocation stop = command("stop");
+        AssistantCommand.Invocation review = command("review recording recordings/demo.json");
+        AssistantCommand.Invocation defaultReview = command("review recording");
 
         assertAll(
                 () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_TARGET_URL,
@@ -773,7 +775,13 @@ class AssistantCommandTest {
                 () -> assertTrue(start.arguments().get("outputPath").getAsString().endsWith(".json")),
                 () -> assertFalse(start.arguments().get("headless").getAsBoolean()),
                 () -> assertEquals("capture_stop", stop.toolName()),
-                () -> assertFalse(stop.arguments().get("discard").getAsBoolean()));
+                () -> assertFalse(stop.arguments().get("discard").getAsBoolean()),
+                () -> assertEquals("capture_code_blocks", review.toolName()),
+                () -> assertEquals("recordings/demo.json", review.arguments().get("sessionPath").getAsString()),
+                () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_REVIEW_DIRECTORY,
+                        review.arguments().get("outputDirectory").getAsString()),
+                () -> assertEquals(AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH,
+                        defaultReview.arguments().get("sessionPath").getAsString()));
     }
 
     @Test

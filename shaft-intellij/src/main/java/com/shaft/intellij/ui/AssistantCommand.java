@@ -829,6 +829,9 @@ final class AssistantCommand {
         if (isStartRecording(text)) {
             return record(text.replaceFirst("(?i)^start\\s+(a\\s+)?(web(driver)?\\s+)?(capture|recording|recorder)\\b", "").trim());
         }
+        if (isReviewRecording(text)) {
+            return reviewRecording(text);
+        }
         if (isStopRecording(text)) {
             return text.toLowerCase(Locale.ROOT).contains("playwright")
                     ? Invocation.tool("playwright_record_stop", stopRecording())
@@ -838,6 +841,15 @@ final class AssistantCommand {
             return Invocation.tool("capture_stop", stopRecording(true));
         }
         return null;
+    }
+
+    private static Invocation reviewRecording(String text) {
+        String recordingPath = firstJsonLikePath(text);
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.contains("playwright") || recordingPath.toLowerCase(Locale.ROOT).contains("playwright")) {
+            return Invocation.tool("playwright_recording_code_blocks", playwrightCodeReview(recordingPath));
+        }
+        return Invocation.tool("capture_code_blocks", captureCodeReview(recordingPath));
     }
 
     private static Invocation reRecord(String text) {
@@ -1233,6 +1245,17 @@ final class AssistantCommand {
                 || normalized.startsWith("start a recording ")
                 || normalized.startsWith("start recorder ")
                 || normalized.startsWith("start capture ");
+    }
+
+    private static boolean isReviewRecording(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return normalized.equals("review recording")
+                || normalized.equals("review capture")
+                || normalized.equals("review recorded code")
+                || normalized.startsWith("review recording ")
+                || normalized.startsWith("review capture ")
+                || normalized.startsWith("review code from recording ")
+                || normalized.startsWith("generate reviewed code from recording ");
     }
 
     private static JsonObject stopRecording() {

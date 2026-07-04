@@ -25,6 +25,8 @@ import java.awt.datatransfer.StringSelection;
  * Prepares an MCP record-at-target request from the current Java caret context.
  */
 public final class RecordShaftFlowHereAction extends AnAction implements DumbAware {
+    private static final String DEFAULT_CAPTURE_RECORDING_PATH = "recordings/intellij-capture.json";
+
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
         Project project = event.getProject();
@@ -40,7 +42,7 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
         }
 
         JsonObject arguments = new JsonObject();
-        arguments.addProperty("sessionPath", "path/to/capture-session.json");
+        arguments.addProperty("sessionPath", DEFAULT_CAPTURE_RECORDING_PATH);
         arguments.addProperty("outputDirectory", project.getBasePath() == null ? "." : project.getBasePath());
         arguments.addProperty("packageName", context.packageName());
         arguments.addProperty("className", context.className());
