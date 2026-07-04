@@ -498,6 +498,7 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertEquals(List.of(
                                 "/codegen",
+                                "/partner",
                                 "/record-web",
                                 "/record-mobile",
                                 "/doctor",
@@ -509,6 +510,7 @@ class AssistantCommandTest {
                                 "/project"),
                         hints.stream().map(AssistantCommand.CommandHint::canonical).toList()),
                 () -> assertTrue(tooltip.contains("/codegen")),
+                () -> assertTrue(tooltip.contains("/partner")),
                 () -> assertTrue(tooltip.contains("/record-web")),
                 () -> assertTrue(tooltip.contains("/record-mobile")),
                 () -> assertTrue(tooltip.contains("/doctor")),
@@ -705,6 +707,29 @@ class AssistantCommandTest {
                 () -> assertEquals("browser_take_screenshot", raw.toolName()),
                 () -> assertEquals("target/x.png", raw.arguments().get("outputPath").getAsString()),
                 () -> assertTrue(command("/mcp browser_take_screenshot {bad json}").isLocal()));
+    }
+
+    @Test
+    void partnerCommandRoutesRepositoryIntentToCodingPartnerPlan() {
+        AssistantCommand.Invocation slash = command(
+                "/partner Log in with valid credentials then verify account menu",
+                "C:/work/project");
+        AssistantCommand.Invocation natural = command(
+                "plan coding partner work for checkout happy path",
+                "C:/work/project");
+
+        assertAll(
+                () -> assertEquals("shaft_coding_partner_plan", slash.toolName()),
+                () -> assertEquals("C:/work/project", slash.arguments().get("repositoryPath").getAsString()),
+                () -> assertEquals("Log in with valid credentials then verify account menu",
+                        slash.arguments().get("intent").getAsString()),
+                () -> assertEquals("WebDriver", slash.arguments().get("backend").getAsString()),
+                () -> assertEquals("", slash.arguments().get("currentSourcePath").getAsString()),
+                () -> assertEquals("", slash.arguments().get("selectedText").getAsString()),
+                () -> assertEquals(0, slash.arguments().getAsJsonArray("artifactPaths").size()),
+                () -> assertEquals(10, slash.arguments().get("maxResults").getAsInt()),
+                () -> assertEquals("shaft_coding_partner_plan", natural.toolName()),
+                () -> assertEquals("checkout happy path", natural.arguments().get("intent").getAsString()));
     }
 
     @Test

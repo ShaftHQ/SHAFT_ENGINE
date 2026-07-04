@@ -9,6 +9,9 @@ import java.util.List;
  * @param workingSetSummary concise summary of current user intent, source context, and evidence
  * @param backend normalized SHAFT backend
  * @param reuseMatches ranked existing Java classes and anchors to reuse
+ * @param stepPlan deterministic user-step plan with reuse and proof guidance
+ * @param recommendedTargetSourcePath preferred repository-relative Java source path
+ * @param recommendedInsertionAnchor preferred existing method or textual anchor
  * @param missingCodeItems code the caller may still need to create after reuse is exhausted
  * @param suggestedMcpCalls next MCP calls that can prove locators, gather evidence, or verify code
  * @param verificationCommand smallest useful local verification command
@@ -20,6 +23,9 @@ public record McpCodingPartnerPlan(
         String workingSetSummary,
         String backend,
         List<McpJavaTargetScanner.Candidate> reuseMatches,
+        List<McpCodingPartnerStep> stepPlan,
+        String recommendedTargetSourcePath,
+        String recommendedInsertionAnchor,
         List<String> missingCodeItems,
         List<String> suggestedMcpCalls,
         String verificationCommand,
@@ -29,14 +35,44 @@ public record McpCodingPartnerPlan(
      * Creates an immutable coding partner plan.
      */
     public McpCodingPartnerPlan {
-        schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? "1.0" : schemaVersion.trim();
+        schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? "1.1" : schemaVersion.trim();
         workingSetSummary = workingSetSummary == null ? "" : workingSetSummary.trim();
         backend = backend == null || backend.isBlank() ? "WebDriver" : backend.trim();
         reuseMatches = reuseMatches == null ? List.of() : List.copyOf(reuseMatches);
+        stepPlan = stepPlan == null ? List.of() : List.copyOf(stepPlan);
+        recommendedTargetSourcePath = recommendedTargetSourcePath == null ? "" : recommendedTargetSourcePath.trim();
+        recommendedInsertionAnchor = recommendedInsertionAnchor == null ? "" : recommendedInsertionAnchor.trim();
         missingCodeItems = missingCodeItems == null ? List.of() : List.copyOf(missingCodeItems);
         suggestedMcpCalls = suggestedMcpCalls == null ? List.of() : List.copyOf(suggestedMcpCalls);
         verificationCommand = verificationCommand == null ? "" : verificationCommand.trim();
         evidencePaths = evidencePaths == null ? List.of() : List.copyOf(evidencePaths);
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
+    }
+
+    /**
+     * Compatibility constructor for callers compiled against schema 1.0 fields.
+     */
+    public McpCodingPartnerPlan(
+            String schemaVersion,
+            String workingSetSummary,
+            String backend,
+            List<McpJavaTargetScanner.Candidate> reuseMatches,
+            List<String> missingCodeItems,
+            List<String> suggestedMcpCalls,
+            String verificationCommand,
+            List<String> evidencePaths,
+            List<String> warnings) {
+        this(schemaVersion,
+                workingSetSummary,
+                backend,
+                reuseMatches,
+                List.of(),
+                "",
+                "",
+                missingCodeItems,
+                suggestedMcpCalls,
+                verificationCommand,
+                evidencePaths,
+                warnings);
     }
 }

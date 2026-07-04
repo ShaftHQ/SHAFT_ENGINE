@@ -231,19 +231,20 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 ## IntelliJ Coding Partner Top 10 Implementation
 
 The recorder/codegen handoff is now a three-iteration coding-partner loop before
-any source edit: plan the working set, reuse existing Java owners, avoid
-duplicates, prove missing browser steps, inspect the patch preview, collect
-evidence, then verify locally.
+any source edit: plan the working set and user steps, reuse the recommended Java
+owner and insertion anchor, avoid duplicate locators/actions/classes, prove
+missing browser steps, inspect the patch preview, collect evidence, then verify
+locally.
 
 | Rank | Enhancement | Why users feel it immediately |
 | --- | --- | --- |
-| 1 | Coding Partner Workspace | Guided exposes `Plan partner work` so intent, backend, current Java source, selected text, and evidence paths become one preview-only MCP request. |
+| 1 | Coding Partner Workspace | Guided exposes `Plan coding partner` and Assistant exposes `/partner`, so intent, backend, current Java source, selected text, and evidence paths become one preview-only MCP request. |
 | 2 | Repository Reuse Scanner | `shaft_coding_partner_plan` and `capture_target_candidates` return existing tests/page objects with driver variables, anchors, locator summaries, and action summaries. |
-| 3 | Duplicate Prevention Plan | The plan separates `reuseMatches` from `missingCodeItems`, so agents extend existing owners before creating new page objects or generated tests. |
-| 4 | Context Plan Generator | `workingSetSummary` records the active intent, backend, source path, candidate count, and evidence count for repeatable agent handoff. |
+| 3 | Duplicate Prevention Plan | The plan separates `reuseMatches` from `missingCodeItems` and returns `recommendedTargetSourcePath` plus `recommendedInsertionAnchor`, so agents extend existing owners before creating new page objects or generated tests. |
+| 4 | Context Plan Generator | `workingSetSummary` records the active intent, backend, source path, candidate count, and evidence count; `stepPlan` breaks the user request into proofable browser/code steps. |
 | 5 | Live Browser Step Runner | Suggested calls route WebDriver work through `browser_open_intent` and Playwright work through `playwright_browser_get_page_dom` before publishing locators. |
 | 6 | Missing-Code Generator | `missingCodeItems` calls out raw Selenium conversion, missing stable locators, missing Java targets, or absent user intent before generation. |
-| 7 | Patch Preview And Apply | `capture_record_at_target_code_blocks` and `mobile_record_at_target_code_blocks` still return preview-only diff blocks; IntelliJ remains the approval point for source edits. |
+| 7 | Patch Preview And Apply | `capture_record_at_target_code_blocks` and `mobile_record_at_target_code_blocks` still return preview-only diff blocks with apply order; existing locator fields and duplicate action lines are reused or skipped before IntelliJ approval. |
 | 8 | Focused Verification | The plan returns the smallest useful verification command, then Capture/Doctor evidence links compile or replay failures back to source and recording context. |
 | 9 | Failure Repair Loop | Failure skills now route Doctor, trace, and healer evidence through the coding-partner plan before changing shared page/test code. |
 | 10 | Evidence Pack And PR UX | `capture_evidence_pack` plus refreshed IntelliJ screenshots provide local source/report/review/screenshot evidence without zipping or uploading artifacts. |
@@ -270,7 +271,7 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 | --- | --- | --- |
 | Install and run | Local installers for Codex, Claude, Claude Desktop, Copilot, Copilot IntelliJ, plus installer defaults that the IntelliJ plugin can use to find the generated stdio argfile automatically. The Marketplace plugin itself does not run installer scripts. | `py -3 scripts/mcp/install_shaft_mcp.py --client intellij-plugin --json` |
 | URL intent orientation | Open a URL, bound the DOM, rank actionable elements, return SHAFT locator code, and suggest the next MCP tools. | `driver_initialize -> browser_open_intent(targetUrl, userIntent, 200000, 10)` |
-| Coding partner plan | Summarize the current IntelliJ/user intent, rank existing Java targets, list missing code, suggest MCP proof calls, and return a focused verification command. | `shaft_coding_partner_plan(repositoryPath=".", intent="login", currentSourcePath="src/test/java/...")` |
+| Coding partner plan | Summarize the current IntelliJ/user intent, rank existing Java targets, return a structured `stepPlan`, recommend a target source/anchor, list missing code, suggest MCP proof calls, and return a focused verification command. | `shaft_coding_partner_plan(repositoryPath=".", intent="login", currentSourcePath="src/test/java/...")` |
 | Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
 | Capture review blocks | Return setup prerequisites, assertion suggestions, locator alternatives, action sequences, locator-confidence queues, validation back-links, and control-flow review notes as additive MCP code blocks after generation. | `capture_code_blocks`, `capture_record_at_target_code_blocks` |
 | Semantic actions | Combine guide search, scenario catalog, guardrail checks, and `natural_act` without leaving the MCP session. | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |

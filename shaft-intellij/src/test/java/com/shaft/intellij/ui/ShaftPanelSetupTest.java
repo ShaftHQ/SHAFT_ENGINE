@@ -1386,6 +1386,9 @@ class ShaftPanelSetupTest {
                                 && "/record-mobile inspector Android recordings/inspector.json"
                                 .equals(suggestion.insertion()))),
                 () -> assertTrue(workflowSuggestions.stream().anyMatch(
+                        suggestion -> "@workflow:partner".equals(suggestion.label())
+                                && "/partner ".equals(suggestion.insertion()))),
+                () -> assertTrue(workflowSuggestions.stream().anyMatch(
                         suggestion -> "@tool:guardrails".equals(suggestion.label())
                                 && "/guardrails ".equals(suggestion.insertion()))),
                 () -> assertTrue(slashSuggestions.stream().anyMatch(
@@ -1676,7 +1679,7 @@ class ShaftPanelSetupTest {
                 () -> assertIcon(findButton(featurePanel, "Refresh tools")),
                 () -> assertIcon(findButton(setupPanel, "Copy command")),
                 () -> assertIcon(findButton(setupPanel, "Copy output")),
-                () -> assertIcon(findButton(guidedPanel, "Plan partner work")),
+                () -> assertIcon(findButton(guidedPanel, "Plan coding partner")),
                 () -> assertIcon(findButton(guidedPanel, "Start recording")),
                 () -> assertIcon(findButton(guidedPanel, "Stop recording")),
                 () -> assertIcon(findButton(guidedPanel, "Review code")),

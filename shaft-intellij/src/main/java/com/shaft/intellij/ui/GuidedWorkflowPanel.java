@@ -69,8 +69,8 @@ final class GuidedWorkflowPanel extends JPanel {
         fields.add(row("Evidence paths", 'E', artifactPaths));
         fields.add(row("Session path", 'S', sessionPath));
 
-        JPanel partner = section("Partner",
-                button("Plan partner work", "Plan repository-aware SHAFT reuse, missing code, proof, and validation",
+        JPanel partner = section("Coding Partner",
+                button("Plan coding partner", "Plan repository-aware SHAFT reuse, missing code, proof, and validation",
                         this::planPartnerWork),
                 button("Find reuse", "Find existing Java test and page-object anchors before generating code",
                         this::findReuse));
@@ -147,7 +147,7 @@ final class GuidedWorkflowPanel extends JPanel {
             case "Stop recording" -> ShaftIcons.CANCEL;
             case "Review code" -> ShaftIcons.CODE;
             case "Use template" -> ShaftIcons.SEND;
-            case "Plan partner work" -> ShaftIcons.CODE;
+            case "Plan coding partner" -> ShaftIcons.CODE;
             case "Find reuse" -> ShaftIcons.SEARCH;
             case "Inspect locator" -> ShaftIcons.SEARCH;
             case "Guardrail check" -> ShaftIcons.CHECK;

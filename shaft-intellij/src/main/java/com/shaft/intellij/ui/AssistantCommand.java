@@ -63,6 +63,13 @@ final class AssistantCommand {
             List.of(),
             "/codegen recordings/intellij-capture.json",
             (command, rest, workingDirectory) -> generateTest(rest));
+    private static final CommandDefinition PARTNER_COMMAND = new CommandDefinition("/partner",
+            "Plan coding partner work",
+            List.of("/coding-partner", "/reuse"),
+            "/partner log in then verify account menu",
+            (command, rest, workingDirectory) -> Invocation.tool(
+                    "shaft_coding_partner_plan",
+                    codingPartnerPlan(rest, workingDirectory)));
     private static final CommandDefinition RECORD_WEB_COMMAND = new CommandDefinition("/record-web",
             "Record web actions",
             List.of(),
@@ -102,6 +109,7 @@ final class AssistantCommand {
             "/project upgrade .", AssistantCommand::project);
     private static final List<CommandDefinition> VISIBLE_COMMANDS = List.of(
             CODEGEN_COMMAND,
+            PARTNER_COMMAND,
             RECORD_WEB_COMMAND,
             RECORD_MOBILE_COMMAND,
             DOCTOR_COMMAND,
@@ -114,6 +122,7 @@ final class AssistantCommand {
     private static final List<CommandDefinition> COMMANDS = List.of(
             COMMAND_HELP,
             CODEGEN_COMMAND,
+            PARTNER_COMMAND,
             RECORD_WEB_COMMAND,
             RECORD_MOBILE_COMMAND,
             DOCTOR_COMMAND,
@@ -155,6 +164,10 @@ final class AssistantCommand {
     private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
             new NaturalIntent(AssistantCommand::isCommandHelpIntent,
                     (text, workingDirectory) -> Invocation.local(commandHelp())),
+            new NaturalIntent(AssistantCommand::isCodingPartnerIntent,
+                    (text, workingDirectory) -> Invocation.tool(
+                            "shaft_coding_partner_plan",
+                            codingPartnerPlan(naturalCodingPartnerIntent(text), workingDirectory))),
             new NaturalIntent(AssistantCommand::isGuideSearchIntent,
                     (text, workingDirectory) -> Invocation.tool("shaft_guide_search", guide(naturalQuery(text)))),
             new NaturalIntent(AssistantCommand::isScenarioSearchIntent,
@@ -402,6 +415,21 @@ final class AssistantCommand {
         arguments.addProperty("area", "all");
         arguments.addProperty("intent", intent);
         arguments.addProperty("maxResults", 20);
+        return arguments;
+    }
+
+    private static JsonObject codingPartnerPlan(String intent, String workingDirectory) {
+        JsonObject arguments = new JsonObject();
+        String repositoryPath = text(workingDirectory);
+        arguments.addProperty("repositoryPath", repositoryPath.isBlank() ? "." : repositoryPath);
+        arguments.addProperty("intent", text(intent));
+        arguments.addProperty("backend", text(intent).toLowerCase(Locale.ROOT).contains("playwright")
+                ? "Playwright"
+                : "WebDriver");
+        arguments.addProperty("currentSourcePath", "");
+        arguments.addProperty("selectedText", "");
+        arguments.add("artifactPaths", new JsonArray());
+        arguments.addProperty("maxResults", 10);
         return arguments;
     }
 
@@ -880,6 +908,33 @@ final class AssistantCommand {
                 || normalized.contains(" can i use"));
     }
 
+    private static boolean isCodingPartnerIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return (normalized.startsWith("plan coding partner work for ")
+                || normalized.startsWith("plan partner work for ")
+                || normalized.startsWith("coding partner plan for ")
+                || normalized.startsWith("partner plan for ")
+                || normalized.startsWith("find reuse for "))
+                && !naturalCodingPartnerIntent(text).isBlank();
+    }
+
+    private static String naturalCodingPartnerIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        String[] prefixes = {
+                "plan coding partner work for ",
+                "plan partner work for ",
+                "coding partner plan for ",
+                "partner plan for ",
+                "find reuse for "
+        };
+        for (String prefix : prefixes) {
+            if (normalized.startsWith(prefix)) {
+                return normalized.substring(prefix.length()).trim();
+            }
+        }
+        return text(text);
+    }
+
     private static boolean isGuideSearchIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
         return (normalized.startsWith("search shaft docs ")
@@ -1294,9 +1349,11 @@ final class AssistantCommand {
                 Requirements:
                 - Use the Page Object Model where practical.
                 - Inspect the current project structure before editing.
+                - Call shaft_coding_partner_plan when available and reuse its recommended target source and anchor before creating new files.
                 - Move stable locators into page object classes.
                 - Move replay actions into intent-named page methods.
                 - Keep the TestNG test focused on scenario orchestration and final assertions.
+                - Do not duplicate existing locators, page actions, tests, or classes.
                 - Preserve the recorded browser journey; do not collapse it to only opening the start page or a generic title check.
                 - When the capture searched results, open the first result with a scoped first-result locator before asserting.
                 - assert the final page title or final page-specific text from the recorded destination.

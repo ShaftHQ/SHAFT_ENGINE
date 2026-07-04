@@ -581,6 +581,7 @@ final class ShaftAssistantPanel extends JPanel {
                 new ContextSuggestion("@workflow:record-web", "/record-web https://example.com"),
                 new ContextSuggestion("@workflow:record-mobile",
                         "/record-mobile inspector Android recordings/inspector.json"),
+                new ContextSuggestion("@workflow:partner", "/partner "),
                 new ContextSuggestion("@workflow:codegen", "/codegen "),
                 new ContextSuggestion("@workflow:doctor", "/doctor "),
                 new ContextSuggestion("@tool:guide-search", "/guide "),
