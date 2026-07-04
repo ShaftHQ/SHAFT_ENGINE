@@ -111,6 +111,19 @@ public final class CaptureSessionStore {
     }
 
     /**
+     * Atomically rewrites the event list.
+     *
+     * @param operation event list rewrite
+     * @return updated session
+     */
+    public CaptureSession updateEvents(java.util.function.UnaryOperator<List<CaptureEvent>> operation) {
+        if (operation == null) {
+            throw new IllegalArgumentException("Capture event update operation is required.");
+        }
+        return update(session -> session.withEvents(operation.apply(session.events())));
+    }
+
+    /**
      * Completes and atomically publishes the session.
      *
      * @param stoppedAt stop time

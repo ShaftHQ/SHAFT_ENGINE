@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,12 +59,8 @@ class CaptureServiceTest {
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.kind() == McpCodeBlock.Kind.TEST_METHOD
                         && block.placement().contains("browser")));
-        assertTrue(result.codeBlocks().stream()
-                .anyMatch(block -> block.id().equals("capture-pom-manual-mapping-warning")
-                        && block.warnings().stream().anyMatch(message -> message.contains("manual mapping"))));
-        assertTrue(result.codeBlocks().stream()
-                .anyMatch(block -> block.id().equals("capture-agent-integration")
-                        && block.code().contains("Page Object")));
+        assertFalse(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
         assertTrue(Files.readString(result.reviewUiPath()).contains("Playwright Codegen Feature Map"));
     }
 
@@ -103,9 +100,8 @@ class CaptureServiceTest {
         }
 
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
-        assertTrue(result.codeBlocks().stream()
-                .anyMatch(block -> block.id().equals("capture-target-insertion-guide")
-                        && block.code().contains("record-at-target")));
+        assertFalse(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.id().equals("capture-target-action-snippet")
                         && block.placement().contains("after replayCheckout")));
@@ -137,9 +133,8 @@ class CaptureServiceTest {
                 .anyMatch(block -> block.id().equals("capture-test-method")
                         && block.placement().contains("SHAFT.GUI.Playwright")
                         && block.placement().contains("page")));
-        assertTrue(result.codeBlocks().stream()
-                .anyMatch(block -> block.id().equals("capture-pom-manual-mapping-warning")
-                        && block.warnings().stream().anyMatch(message -> message.contains("manual mapping"))));
+        assertFalse(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
     }
 
     @Test

@@ -186,6 +186,109 @@ class CaptureEventPipelineTest {
         assertTrue(preferred.signals().contains(LocatorCandidate.LocatorSignal.USER_PROVIDED));
     }
 
+    @Test
+    void keepsSlowTypingAsOneTypeEventUntilSpecialKey(@TempDir Path temp) throws Exception {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("input", START, usernameTarget(),
+                Map.of("value", "a", "clientActionId", "ui-1"), Map.of()));
+        Thread.sleep(500);
+        pipeline.accept(signal("input", START.plusSeconds(1), usernameTarget(),
+                Map.of("value", "alice", "clientActionId", "ui-1"), Map.of()));
+        pipeline.accept(signal("keyboard", START.plusSeconds(2), usernameTarget(),
+                Map.of("keys", List.of("ENTER")), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(2, events.size());
+        assertInstanceOf(CaptureEvent.TypeEvent.class, events.get(0));
+        assertEquals("ui-1", events.get(0).context().extensions().get("clientActionId").asText());
+        assertInstanceOf(CaptureEvent.KeyboardEvent.class, events.get(1));
+        String dataJson = Files.readString(output.getParent().resolve("capture-data.json"),
+                StandardCharsets.UTF_8);
+        assertFalse(dataJson.contains("\"a\""));
+        assertTrue(dataJson.contains("alice"));
+    }
+
+    @Test
+    void writesActionsBeforeStopAndStoresSanitizedDomEvidence(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("click", START, buttonTarget(),
+                Map.of("button", 0, "clickCount", 1, "clientActionId", "ui-2"),
+                Map.of("domSnapshot", "<html><body><button id=\"submit\">Save</button>"
+                        + "<span>bearer abcdefghijklmnop</span></body></html>")));
+        pipeline.accept(signal("navigation", START.plusMillis(1), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/next")));
+
+        CaptureSession session = store.read();
+        assertEquals(2, session.events().size());
+        String dom = session.events().getFirst().context().extensions().get("domSnapshot").asText();
+        assertTrue(dom.contains("button id=\"submit\""));
+        assertFalse(dom.contains("abcdefghijklmnop"));
+    }
+
+    @Test
+    void editsAndDeletesPersistedStepsByClientActionId(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("click", START, buttonTarget(),
+                Map.of("button", 0, "clickCount", 1, "clientActionId", "ui-3"), Map.of()));
+        pipeline.accept(signal("navigation", START.plusMillis(1), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/next")));
+        pipeline.accept(signal("step_update", START.plusMillis(2), Map.of(),
+                Map.of("clientActionId", "ui-3", "description", "Click primary submit"), Map.of()));
+
+        CaptureSession updated = store.read();
+        assertEquals("Click primary submit",
+                updated.events().getFirst().context().extensions().get("userDescription").asText());
+
+        pipeline.accept(signal("step_delete", START.plusMillis(3), Map.of(),
+                Map.of("clientActionId", "ui-3"), Map.of()));
+
+        CaptureSession deleted = store.read();
+        assertEquals(1, deleted.events().size());
+        assertInstanceOf(CaptureEvent.NavigationEvent.class, deleted.events().getFirst());
+    }
+
+    @Test
+    void deletingTypedStepPrunesExternalDataReference(@TempDir Path temp) throws Exception {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("input", START, usernameTarget(),
+                Map.of("value", "alice", "clientActionId", "ui-4"), Map.of()));
+        pipeline.accept(signal("step_delete", START.plusMillis(1), Map.of(),
+                Map.of("clientActionId", "ui-4"), Map.of()));
+
+        CaptureSession deleted = store.read();
+        assertTrue(deleted.events().isEmpty());
+        assertTrue(deleted.dataReferences().isEmpty());
+        assertEquals(0, pipeline.eventCount());
+        String dataJson = Files.readString(output.getParent().resolve("capture-data.json"),
+                StandardCharsets.UTF_8);
+        assertFalse(dataJson.contains("alice"));
+    }
+
     private static CaptureSessionStore startedStore(Path output) {
         CaptureSessionStore store = new CaptureSessionStore(output);
         store.start(CaptureSession.start(

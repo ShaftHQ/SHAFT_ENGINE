@@ -172,7 +172,8 @@ class AssistantMarkdownTest {
         assertAll(
                 () -> assertTrue(markdown.contains("**State:** COMPLETED")),
                 () -> assertTrue(markdown.contains("**Output:** `recordings/intellij-capture.json`")),
-                () -> assertTrue(markdown.contains("Run `/codegen recordings/intellij-capture.json`")));
+                () -> assertTrue(markdown.contains("Run codegen next:")),
+                () -> assertTrue(markdown.contains("```text\n/codegen recordings/intellij-capture.json\n```")));
     }
 
 

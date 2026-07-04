@@ -208,16 +208,17 @@ final class AssistantCommand {
     static String commandHelp() {
         StringBuilder help = new StringBuilder("SHAFT Assistant commands:");
         for (CommandDefinition definition : VISIBLE_COMMANDS) {
-            help.append("\n")
+            help.append("\n\n**")
                     .append(definition.canonical())
-                    .append(" - ")
+                    .append("** - ")
                     .append(definition.summary());
             if (!definition.aliases().isEmpty()) {
                 help.append("\n  Aliases: ")
                         .append(String.join(", ", definition.aliases()));
             }
-            help.append("\n  Example: ")
-                    .append(definition.example());
+            help.append("\n  Example:\n```text\n")
+                    .append(definition.example())
+                    .append("\n```");
         }
         return help.toString();
     }
