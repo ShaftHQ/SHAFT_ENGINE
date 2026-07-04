@@ -95,7 +95,7 @@ public class ShaftProjectService {
      * @param groupId Maven group ID
      * @param artifactId Maven artifact ID; defaults to the guide generator artifact name when blank
      * @param version Maven project version; defaults to 1.0.0 when blank
-     * @param shaftVersion optional override for generated project <shaft.version>
+     * @param shaftVersion optional override for generated project {@code <shaft.version>}
      * @param optionalModules optional SHAFT module artifact IDs
      * @param includeGithubActions whether to include the generated workflow for web/api projects
      * @param includeDependabot whether to include Dependabot configuration

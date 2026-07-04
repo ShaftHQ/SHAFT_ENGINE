@@ -134,10 +134,10 @@ public final class CaptureGenerator {
             session = codec.read(sessionPath);
             validatePackage(request.packageName());
             String deterministicClassName = request.className().isBlank()
-                    ? javaClassName(session.sessionId()) + "Test"
+                    ? defaultClassName(session)
                     : request.className();
             validateJavaIdentifier(deterministicClassName, "Generated class name");
-            String deterministicMethodName = "replay" + javaClassName(session.sessionId());
+            String deterministicMethodName = defaultMethodName(session);
             paths = artifactPaths(outputRoot, request.packageName(), deterministicClassName);
 
             GenerationState state = analyze(session, sessionPath, targetBackend);
@@ -946,6 +946,10 @@ public final class CaptureGenerator {
             Map<Long, List<Checkpoint>> checkpoints,
             Map<Long, List<CaptureEnrichmentPreview.AssertionSuggestion>> assertions,
             Map<Long, CaptureEvent> eventsBySequence) {
+        String userDescription = extensionText(event.context(), "userDescription");
+        if (!userDescription.isBlank()) {
+            line(source, "        // Captured step: " + safeComment(userDescription));
+        }
         if (optionalGuardSequences.contains(event.context().sequence())
                 && event instanceof CaptureEvent.ClickEvent value) {
             renderOptionalGuardedClick(source, value, targets, fallbackReplay);
@@ -1351,6 +1355,42 @@ public final class CaptureGenerator {
             names.put(target.logicalElementId(), name);
         }
         return Map.copyOf(names);
+    }
+
+    private static String defaultClassName(CaptureSession session) {
+        return javaClassName(defaultNameSeed(session)) + "Test";
+    }
+
+    private static String defaultMethodName(CaptureSession session) {
+        return "replay" + javaClassName(defaultNameSeed(session));
+    }
+
+    private static String defaultNameSeed(CaptureSession session) {
+        for (Checkpoint checkpoint : session.checkpoints()) {
+            if (!checkpoint.description().isBlank()) {
+                return checkpoint.description();
+            }
+        }
+        for (CaptureEvent event : session.events()) {
+            String title = event.context().page().title();
+            if (!title.isBlank()) {
+                return title;
+            }
+            String urlSeed = urlNameSeed(event.context().page().url());
+            if (!urlSeed.isBlank()) {
+                return urlSeed;
+            }
+        }
+        return session.sessionId();
+    }
+
+    private static String urlNameSeed(String url) {
+        if (url == null || url.isBlank()) {
+            return "";
+        }
+        String path = url.replaceFirst("^[a-zA-Z][a-zA-Z0-9+.-]*://[^/]+/?", "");
+        path = path.replaceFirst("[?#].*$", "").replace('/', ' ').trim();
+        return path.isBlank() ? "" : path;
     }
 
     private static Map<String, String> mergeElementNames(

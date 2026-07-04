@@ -61,7 +61,7 @@ final class GuidedWorkflowPanel extends JPanel {
         JPanel recorder = section("Recorder",
                 button("Start recording", "Start a SHAFT recording", this::startRecording),
                 button("Stop recording", "Stop the active SHAFT recording", this::stopRecording),
-                button("Generate code", "Generate SHAFT code blocks from a recording", this::generateCode));
+                button("Review code", "Generate reviewed SHAFT code blocks from a recording", this::generateCode));
         JPanel locator = section("Locator",
                 button("Inspect locator", "Inspect the page and propose locator candidates", this::inspectLocator),
                 button("Guardrail check", "Check generated SHAFT code for automation anti-patterns", this::guardrailCheck));
@@ -128,7 +128,7 @@ final class GuidedWorkflowPanel extends JPanel {
         return switch (text) {
             case "Start recording" -> ShaftIcons.SEND;
             case "Stop recording" -> ShaftIcons.CANCEL;
-            case "Generate code" -> ShaftIcons.CODE;
+            case "Review code" -> ShaftIcons.CODE;
             case "Use template" -> ShaftIcons.SEND;
             case "Inspect locator" -> ShaftIcons.SEARCH;
             case "Guardrail check" -> ShaftIcons.CHECK;

@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.capture.generate.CaptureGenerationReport;
+import com.shaft.capture.model.CaptureReadiness;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -182,6 +183,69 @@ class McpCaptureCodeBlockServiceTest {
         assertTrue(locators.code().contains("ROLE"));
         assertTrue(locators.code().contains("Username"));
         assertTrue(locators.evidenceIds().contains("event-2"));
+    }
+
+    @Test
+    void fromGeneratedSourceAddsSetupAssertionAndControlFlowReviewBlocksFromReport() throws Exception {
+        Path source = writeSource("""
+                package generated.capture;
+
+                import org.testng.annotations.Test;
+
+                public class InlineLocatorReplayTest {
+                    @Test
+                    public void replayInlineLocator() {
+                        driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
+                    }
+                }
+                """);
+        CaptureGenerationReport report = new CaptureGenerationReport(
+                CaptureGenerationReport.CURRENT_SCHEMA_VERSION,
+                "session-1",
+                CaptureGenerationReport.Status.SUCCESS,
+                "src/test/java/generated/capture/InlineLocatorReplayTest.java",
+                "src/test/resources/InlineLocatorReplayTest.json",
+                CaptureReadiness.State.RISKY,
+                List.of("event-4: No assertion follows a navigation or form-submission action."),
+                List.of(new CaptureGenerationReport.LocatorDecision(
+                        List.of("event-2"),
+                        "username-input",
+                        "ROLE",
+                        "Username",
+                        240,
+                        List.of("role=120"),
+                        List.of("CSS #username (score 210)"))),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(new CaptureGenerationReport.ControlFlowSuggestion(
+                        "control-flow-optional-guard-event-2",
+                        CaptureGenerationReport.ControlFlowKind.OPTIONAL_GUARD,
+                        List.of("event-2"),
+                        "Cookie banner may be optional.",
+                        "Preview before applying the optional guard.",
+                        false)),
+                List.of("data.password: set environment variable SHAFT_CAPTURE_DATA_PASSWORD before replay."),
+                List.of("review/ASSERTION/WARNING event-4: Missing final assertion. Recommendation: Assert destination."),
+                CaptureGenerationReport.Validation.skipped("Compilation was not requested."),
+                CaptureGenerationReport.Validation.skipped("Replay was not requested."),
+                CaptureGenerationReport.Enrichment.notRequested());
+
+        List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
+                .fromGeneratedSource(source, "browser", report);
+
+        assertTrue(blocks.stream().map(McpCodeBlock::id).toList().containsAll(List.of(
+                "capture-data-setup",
+                "capture-assertion-suggestions",
+                "capture-control-flow-review")));
+        assertTrue(block(blocks, "capture-pom-locator-inventory").code()
+                .contains("// alternative -> SHAFT.GUI.Locator.cssSelector(\"#username\")"));
+        assertTrue(block(blocks, "capture-data-setup").code()
+                .contains("SHAFT_CAPTURE_DATA_PASSWORD"));
+        assertTrue(block(blocks, "capture-assertion-suggestions").code()
+                .contains("browser.browser().assertThat().url()"));
+        assertTrue(block(blocks, "capture-control-flow-review").code()
+                .contains("--control-flow-preview"));
     }
 
     @Test

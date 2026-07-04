@@ -87,6 +87,10 @@ final class CaptureWorkbenchHtml {
                   </header>
                   <main>
                     <section>
+                      <h2>Review Summary</h2>
+                      <pre>%s</pre>
+                    </section>
+                    <section>
                       <h2>Record</h2>
                       <div class="grid">
                         <div><label for="url">URL</label><input id="url" value="https://example.com"></div>
@@ -163,11 +167,54 @@ final class CaptureWorkbenchHtml {
                 escape(report.sessionId()),
                 review.readinessScore(),
                 escape(report.status().name()),
+                escape(reviewSummary(report, review)),
                 escape(source),
                 escape(sourcePath == null ? "" : sourcePath.toString()),
                 escape(String.join("\n", review.suggestions())),
                 rows,
                 javascriptString(sourcePath == null ? "" : sourcePath.toString()));
+    }
+
+    private static String reviewSummary(CaptureGenerationReport report, CaptureReview review) {
+        StringBuilder summary = new StringBuilder();
+        summary.append("Status: ").append(report.status()).append('\n');
+        summary.append("Readiness: ").append(report.readiness()).append(" (score ")
+                .append(review.readinessScore()).append(")").append('\n');
+        appendList(summary, "Blockers", review.blockers());
+        appendList(summary, "Required inputs", report.requiredUserInputs());
+        appendList(summary, "Risks", review.risks());
+        appendList(summary, "Findings", review.findings().stream()
+                .map(finding -> finding.category() + "/" + finding.severity() + ": " + finding.summary())
+                .toList());
+        appendList(summary, "Locator decisions", report.locatorDecisions().stream()
+                .map(decision -> decision.logicalElementId() + " -> " + decision.strategy()
+                        + " \"" + decision.expression() + "\"; alternatives "
+                        + decision.alternatives().size())
+                .toList());
+        appendList(summary, "Control-flow suggestions", report.controlFlowSuggestions().stream()
+                .map(suggestion -> suggestion.id() + " " + suggestion.kind() + ": " + suggestion.recommendation())
+                .toList());
+        summary.append("Code blocks: full class, replay method, POM locator inventory, action sequence");
+        if (!report.requiredUserInputs().isEmpty()) {
+            summary.append(", setup");
+        }
+        if (report.readinessWarnings().stream().anyMatch(warning -> warning.toLowerCase().contains("assertion"))) {
+            summary.append(", assertion suggestions");
+        }
+        if (!report.controlFlowSuggestions().isEmpty()) {
+            summary.append(", control-flow review");
+        }
+        return summary.toString();
+    }
+
+    private static void appendList(StringBuilder target, String label, java.util.List<String> values) {
+        target.append(label).append(':');
+        if (values == null || values.isEmpty()) {
+            target.append(" none\n");
+            return;
+        }
+        target.append('\n');
+        values.forEach(value -> target.append("- ").append(value).append('\n'));
     }
 
     private static String escape(String value) {

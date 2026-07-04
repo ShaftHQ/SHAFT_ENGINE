@@ -81,13 +81,16 @@ class GuidedWorkflowPanelTest {
         });
         JComboBox<?> templates = findByAccessibleName(panel, "Workflow template", JComboBox.class);
         JButton useTemplate = findButton(panel, "Use template");
+        JButton reviewCode = findButton(panel, "Review code");
 
         assertAll(
                 () -> assertNotNull(templates),
                 () -> assertFalse(accessibleDescription(templates).isBlank()),
                 () -> assertNotNull(useTemplate),
                 () -> assertEquals("Use template", accessibleName(useTemplate)),
-                () -> assertFalse(accessibleDescription(useTemplate).isBlank()));
+                () -> assertFalse(accessibleDescription(useTemplate).isBlank()),
+                () -> assertNotNull(reviewCode),
+                () -> assertTrue(accessibleDescription(reviewCode).contains("reviewed SHAFT code")));
     }
 
     private static void select(JComboBox<?> comboBox, String label) {
