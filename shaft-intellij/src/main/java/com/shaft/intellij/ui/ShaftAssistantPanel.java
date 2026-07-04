@@ -91,6 +91,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton saveCloudApiKey;
     private final JLabel cloudKeyStatus;
     private final JBCheckBox allowSourceMutation;
+    private final JBCheckBox verboseAgentOutput;
     private final JBTextArea prompt;
     private final AssistantTranscriptView transcript;
     private final JButton send;
@@ -127,6 +128,7 @@ final class ShaftAssistantPanel extends JPanel {
     private boolean updatingCommandAutocomplete;
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
+    private int killedLocalAgentStreamToken = -1;
     private StringBuilder localAgentOutput;
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
     private String activeCaptureRecordingPath = AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH;
@@ -300,6 +302,9 @@ final class ShaftAssistantPanel extends JPanel {
         allowSourceMutation = new JBCheckBox("Allow source edits");
         allowSourceMutation.getAccessibleContext().setAccessibleName("Approve source mutation for Agent mode");
         allowSourceMutation.setToolTipText("Enable only when Agent mode should edit local source files");
+        verboseAgentOutput = new JBCheckBox("Verbose");
+        verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
+        verboseAgentOutput.setToolTipText("Show live local agent output instead of only the final result");
         prompt = new JBTextArea(6, 40);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
@@ -439,6 +444,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(cloudProvider);
         routeRow.add(cloudModel);
         routeRow.add(allowSourceMutation);
+        routeRow.add(verboseAgentOutput);
 
         JPanel commandActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         commandActions.add(commandAutocomplete);
@@ -555,16 +561,26 @@ final class ShaftAssistantPanel extends JPanel {
         if (trigger == '@') {
             return workflowContextSuggestions();
         }
+        if (trigger == '/') {
+            return commandContextSuggestions();
+        }
         if (trigger == '#') {
             return projectContextSuggestions(project, openFileContext);
         }
         return List.of();
     }
 
+    private static List<ContextSuggestion> commandContextSuggestions() {
+        return AssistantCommand.commandHints().stream()
+                .map(hint -> new ContextSuggestion(hint.canonical(), hint.example()))
+                .toList();
+    }
+
     private static List<ContextSuggestion> workflowContextSuggestions() {
         return List.of(
-                new ContextSuggestion("@workflow:record-web", "/record-web "),
-                new ContextSuggestion("@workflow:record-mobile", "/record-mobile "),
+                new ContextSuggestion("@workflow:record-web", "/record-web https://example.com"),
+                new ContextSuggestion("@workflow:record-mobile",
+                        "/record-mobile inspector Android recordings/inspector.json"),
                 new ContextSuggestion("@workflow:codegen", "/codegen "),
                 new ContextSuggestion("@workflow:doctor", "/doctor "),
                 new ContextSuggestion("@tool:guide-search", "/guide "),
@@ -594,7 +610,7 @@ final class ShaftAssistantPanel extends JPanel {
             @Override
             public void keyTyped(KeyEvent event) {
                 char trigger = event.getKeyChar();
-                if (trigger == '@' || trigger == '#') {
+                if (trigger == '@' || trigger == '#' || trigger == '/') {
                     SwingUtilities.invokeLater(() -> showContextSuggestions(trigger));
                 }
             }
@@ -605,8 +621,8 @@ final class ShaftAssistantPanel extends JPanel {
         hideContextPopup();
         List<ContextSuggestion> suggestions = contextSuggestionsForTest(trigger);
         if (suggestions.isEmpty()) {
-            setStatus(trigger == '#'
-                    ? "No project context available"
+            setStatus(trigger == '#' ? "No project context available"
+                    : trigger == '/' ? "No SHAFT commands available"
                     : "No Assistant context available");
             return;
         }
@@ -989,6 +1005,11 @@ final class ShaftAssistantPanel extends JPanel {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
         boolean currentStream = streamToken == activeLocalAgentStreamToken;
+        if (streamToken > 0 && streamToken == killedLocalAgentStreamToken) {
+            killedLocalAgentStreamToken = -1;
+            setRunning(false, "Killed");
+            return;
+        }
         if (streamToken > 0 && !currentStream && activeLocalAgentStreamToken != -1) {
             return;
         }
@@ -1045,7 +1066,9 @@ final class ShaftAssistantPanel extends JPanel {
     private void appendStreamingLocalAgentBubble(int streamToken) {
         activeLocalAgentStreamToken = streamToken;
         localAgentOutput = new StringBuilder();
-        append("assistant", LOCAL_AGENT_STREAMING_HEADER, "");
+        if (verboseLocalAgentOutput()) {
+            append("assistant", LOCAL_AGENT_STREAMING_HEADER, "");
+        }
     }
 
     private void appendLocalAgentOutput(int streamToken, String line) {
@@ -1056,7 +1079,9 @@ final class ShaftAssistantPanel extends JPanel {
             localAgentOutput.append("\n");
         }
         localAgentOutput.append(line == null ? "" : line);
-        replaceLastTranscriptAndChatState("assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()));
+        if (verboseLocalAgentOutput()) {
+            replaceLastTranscriptAndChatState("assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()));
+        }
     }
 
     private void finishLocalAgentResponse(int streamToken, String response, String rawResponse) {
@@ -1064,12 +1089,28 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         String displayResponse = withTokenUsage(response, rawResponse);
-        replaceLastTranscriptAndChatState("assistant", displayResponse);
+        if (verboseLocalAgentOutput()) {
+            replaceLastTranscriptAndChatState("assistant", displayResponse);
+        } else {
+            append("assistant", displayResponse, rawResponse);
+        }
         lastResponse = displayResponse;
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
         copyRawResponse.setEnabled(!lastRawResponse.isBlank());
         updateActionChrome();
+    }
+
+    private boolean verboseLocalAgentOutput() {
+        return verboseAgentOutput != null && verboseAgentOutput.isSelected();
+    }
+
+    private void stopLocalAgentStreaming() {
+        if (activeLocalAgentStreamToken > 0) {
+            killedLocalAgentStreamToken = activeLocalAgentStreamToken;
+        }
+        activeLocalAgentStreamToken = -1;
+        localAgentOutput = null;
     }
 
     private void showLocalResponse(String response) {
@@ -1136,6 +1177,7 @@ final class ShaftAssistantPanel extends JPanel {
         customCommand.setEnabled(!running);
         commandAutocomplete.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
+        verboseAgentOutput.setEnabled(!running);
         saveCloudApiKey.setEnabled(!running);
         approveCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         copyCaptureReview.setEnabled(!running && pendingCaptureReview != null);
@@ -1259,10 +1301,15 @@ final class ShaftAssistantPanel extends JPanel {
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
+        verboseAgentOutput.setVisible(localAgent && localCli);
+        verboseAgentOutput.setEnabled(controlsEnabled && localAgent && localCli);
         configure.setVisible(lockedRoute);
         configure.setEnabled(controlsEnabled && lockedRoute);
         if (!agentMode || !localAgent) {
             allowSourceMutation.setSelected(false);
+        }
+        if (!localAgent || !localCli) {
+            verboseAgentOutput.setSelected(false);
         }
         if (cloud) {
             updateCloudKeyStatus();
@@ -1301,7 +1348,7 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         String selected = String.valueOf(commandAutocomplete.getSelectedItem());
-        String command = canonicalCommand(selected);
+        String command = commandInsertion(selected);
         if (command.isBlank()) {
             filterCommandItems(selected);
             return;
@@ -1679,6 +1726,7 @@ final class ShaftAssistantPanel extends JPanel {
     private void cancelOrKillCurrent() {
         if (currentInvocation != null) {
             if (cancelRequested) {
+                stopLocalAgentStreaming();
                 currentInvocation.kill();
                 setStatus("Killing...");
                 addTimeline("Killed");
@@ -1972,8 +2020,14 @@ final class ShaftAssistantPanel extends JPanel {
         }
         for (AssistantCommand.CommandHint hint : AssistantCommand.commandHints()) {
             if (hint.canonical().equals(command)) {
+                String aliases = hint.synonyms().isEmpty()
+                        ? ""
+                        : "<br><span style='color:#6A737D'>Aliases: "
+                        + escapeHtml(String.join(", ", hint.synonyms()))
+                        + "</span>";
                 return "<html><b>" + escapeHtml(command) + "</b> - "
                         + escapeHtml(hint.summary())
+                        + aliases
                         + "<br><span style='color:#6A737D'>"
                         + escapeHtml(hint.example())
                         + "</span></html>";
@@ -1989,7 +2043,7 @@ final class ShaftAssistantPanel extends JPanel {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
-    private static String canonicalCommand(String value) {
+    private static String commandInsertion(String value) {
         String normalized = value == null ? "" : value.trim();
         if (normalized.isBlank()) {
             return "";
@@ -1997,10 +2051,10 @@ final class ShaftAssistantPanel extends JPanel {
         String firstToken = normalized.split("\\s+", 2)[0];
         for (AssistantCommand.CommandHint hint : AssistantCommand.commandHints()) {
             if (hint.canonical().equalsIgnoreCase(firstToken)) {
-                return hint.canonical();
+                return hint.example();
             }
             if (hint.synonyms().stream().anyMatch(alias -> alias.equalsIgnoreCase(firstToken))) {
-                return hint.canonical();
+                return hint.example();
             }
         }
         return "";

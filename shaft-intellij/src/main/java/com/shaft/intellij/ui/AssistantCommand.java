@@ -51,6 +51,8 @@ final class AssistantCommand {
                     - For generated code that performs a specific action: Open a real browser session; call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
                     - Verify each selected locator by performing the actual action with shaft-mcp element_type, element_click, or natural_act before returning it. Do not publish unverified locators.
                     - Call test_code_guardrails_check on the final Java snippet.
+                    - Do not print full repository files or broad file dumps. Cite inspected files by path and include only the generated or changed code needed for the answer.
+                    - Put every code snippet in fenced code blocks with the correct language.
                     - Return only SHAFT-syntax Java; never return raw Selenium code.
                     """.stripIndent().trim();
     private static final CommandDefinition COMMAND_HELP = new CommandDefinition("/commands", "Show command help",
@@ -90,9 +92,13 @@ final class AssistantCommand {
             List.of("/checkcode"),
             "/guardrails driver.element().click(locator);",
             (command, rest, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(rest)));
+    private static final CommandDefinition UPGRADE_COMMAND = new CommandDefinition("/upgrade",
+            "Download and run the automated upgrade script",
+            List.of(),
+            "/upgrade .", (command, rest, workingDirectory) -> upgradeScript(rest));
     private static final CommandDefinition PROJECT_COMMAND = new CommandDefinition("/project",
             "Create or upgrade SHAFT projects",
-            List.of("/newshaft", "/upgrade"),
+            List.of("/newshaft"),
             "/project upgrade .", AssistantCommand::project);
     private static final List<CommandDefinition> VISIBLE_COMMANDS = List.of(
             CODEGEN_COMMAND,
@@ -103,6 +109,7 @@ final class AssistantCommand {
             GUARDRAILS_COMMAND,
             BROWSER_COMMAND,
             MOBILE_COMMAND,
+            UPGRADE_COMMAND,
             PROJECT_COMMAND);
     private static final List<CommandDefinition> COMMANDS = List.of(
             COMMAND_HELP,
@@ -136,6 +143,7 @@ final class AssistantCommand {
             new CommandDefinition("/assistant", "List assistant clients",
                     List.of("/agent", "/ask", "/plan", "/clients", "/client"),
                     "/assistant", (command, rest, workingDirectory) -> Invocation.tool("autobot_local_agent_clients", new JsonObject())),
+            UPGRADE_COMMAND,
             PROJECT_COMMAND,
             new CommandDefinition("/mcp", "Run an explicit MCP tool",
                     List.of("/tool", "/call"),
@@ -751,6 +759,27 @@ final class AssistantCommand {
         return Invocation.local("""
                 Creating a SHAFT project writes files. Open the Projects workflow, choose Create SHAFT Project, set `outputDirectory` to `%s`, then press Run and confirm.
                 """.formatted(target).strip());
+    }
+
+    private static Invocation upgradeScript(String projectRoot) {
+        return Invocation.local("""
+                Run this from the project you want to upgrade:
+
+                ```shell
+                %s
+                ```
+                """.formatted(upgradeScriptCommand(firstTokenOrDefault(projectRoot, "."))).strip());
+    }
+
+    private static String upgradeScriptCommand(String projectRoot) {
+        String target = pythonSingleQuoted(projectRoot == null || projectRoot.isBlank() ? "." : projectRoot.trim());
+        return "python -c \"import runpy,sys,urllib.request as u;p='upgrade_to_modular_shaft.py';"
+                + "u.urlretrieve('https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-upgrader/upgrade_to_modular_shaft.py',p);"
+                + "sys.argv=[p,'--project','" + target + "'];runpy.run_path(p,run_name='__main__')\"";
+    }
+
+    private static String pythonSingleQuoted(String value) {
+        return value.replace("\\", "\\\\").replace("'", "\\'");
     }
 
     private static JsonObject projectUpgrade(String projectRoot) {

@@ -193,12 +193,18 @@ class AssistantCommandTest {
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not publish unverified locators"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Call test_code_guardrails_check"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Do not print full repository files"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Put every code snippet in fenced code blocks"),
+                        generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Return only SHAFT-syntax Java"), generatedPrompt),
                 () -> assertTrue(explicitPrompt.contains("Call shaft_guide_search"), explicitPrompt),
                 () -> assertTrue(explicitPrompt.contains("ask the user to confirm the exact target URL"),
                         explicitPrompt),
                 () -> assertTrue(explicitPrompt.contains("browser_open_intent"), explicitPrompt),
-                () -> assertTrue(explicitPrompt.contains("Call test_code_guardrails_check"), explicitPrompt));
+                () -> assertTrue(explicitPrompt.contains("Call test_code_guardrails_check"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("Do not print full repository files"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("Put every code snippet in fenced code blocks"),
+                        explicitPrompt));
     }
 
     @Test
@@ -472,6 +478,19 @@ class AssistantCommandTest {
     }
 
     @Test
+    void slashUpgradeShowsCopyableAutomatedUpgradeScript() {
+        AssistantCommand.Invocation upgrade = command("/upgrade .");
+        String response = upgrade.localResponse();
+
+        assertAll(
+                () -> assertTrue(upgrade.isLocal()),
+                () -> assertTrue(response.contains("```shell\npython -c \"import runpy,sys,urllib.request as u;")),
+                () -> assertTrue(response.contains("u.urlretrieve('https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-upgrader/upgrade_to_modular_shaft.py',p)")),
+                () -> assertTrue(response.contains("sys.argv=[p,'--project','.'];runpy.run_path(p,run_name='__main__')")),
+                () -> assertTrue(response.contains("\n```")));
+    }
+
+    @Test
     void commandRegistryShowsOnlyTestedValidCommandFamilies() {
         List<AssistantCommand.CommandHint> hints = AssistantCommand.commandHints();
         String tooltip = AssistantCommand.commandTooltip();
@@ -486,6 +505,7 @@ class AssistantCommandTest {
                                 "/guardrails",
                                 "/browser",
                                 "/mobile",
+                                "/upgrade",
                                 "/project"),
                         hints.stream().map(AssistantCommand.CommandHint::canonical).toList()),
                 () -> assertTrue(tooltip.contains("/codegen")),
@@ -496,6 +516,7 @@ class AssistantCommandTest {
                 () -> assertTrue(tooltip.contains("/guardrails")),
                 () -> assertTrue(tooltip.contains("/browser")),
                 () -> assertTrue(tooltip.contains("/mobile")),
+                () -> assertTrue(tooltip.contains("/upgrade")),
                 () -> assertTrue(tooltip.contains("/project")),
                 () -> assertFalse(tooltip.contains("/commands")),
                 () -> assertFalse(tooltip.contains("/assistant")),
@@ -518,9 +539,11 @@ class AssistantCommandTest {
                 () -> assertTrue(response.contains("**/guardrails**")),
                 () -> assertTrue(response.contains("**/browser**")),
                 () -> assertTrue(response.contains("**/mobile**")),
+                () -> assertTrue(response.contains("**/upgrade**")),
                 () -> assertTrue(response.contains("**/project**")),
                 () -> assertTrue(response.contains("```text\n/codegen recordings/intellij-capture.json\n```")),
                 () -> assertTrue(response.contains("```text\n/record-web https://example.com\n```")),
+                () -> assertTrue(response.contains("```text\n/upgrade .\n```")),
                 () -> assertFalse(response.contains("Example: /codegen")),
                 () -> assertFalse(response.contains("/commands -")),
                 () -> assertFalse(response.contains("/assistant -")));
