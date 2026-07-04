@@ -1,10 +1,10 @@
 ---
 name: agentic-pdca-loop
-description: Use for SHAFT PDCA, Kevin/Bob/Bruce roles, or quality/intuitiveness/acceptability refinement.
+description: Use for SHAFT PDCA, Kevin/Bob/Bruce roles, or refinement loops.
 ---
 
 # PDCA
 
-Keep notes isolated. Kevin: spec, value, acceptance, risks, Mermaid/wireframe if useful. Bob: smallest cross-platform change and tests. Bruce: E2E evidence, defects, ambiguity, confidence.
+Each activity uses exactly one isolated persona: Kevin plans spec/value/acceptance/risks/Mermaid/wireframe; Bob implements the smallest cross-platform change/tests; Bruce checks E2E evidence/defects/ambiguity/confidence. Do not merge roles.
 
-Run Plan-Do-Check-Act, then two passes: quality/simplicity, then intuitiveness/reviewer acceptance. Rerun the smallest check each pass. Stop at >=90% confidence or a blocker.
+Run PDCA, then two passes: quality/simplicity, then intuitiveness/acceptability. Rerun the smallest check each pass. Stop at >=90% confidence or a blocker.

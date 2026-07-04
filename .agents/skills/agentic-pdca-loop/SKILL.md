@@ -1,6 +1,6 @@
 ---
 name: agentic-pdca-loop
-description: Use for SHAFT PDCA, Kevin/Bob/Bruce roles, or quality/intuitiveness/acceptability refinement.
+description: Use for SHAFT PDCA, Kevin/Bob/Bruce roles, or refinement loops.
 ---
 
 # PDCA

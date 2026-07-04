@@ -1,6 +1,6 @@
 interface:
   display_name: "Agentic PDCA Loop"
-  short_description: "Persona PDCA quality loop"
-  default_prompt: "Use $agentic-pdca-loop for this SHAFT change."
+  short_description: "Persona PDCA isolation loop"
+  default_prompt: "Use $agentic-pdca-loop."
 policy:
   allow_implicit_invocation: true
