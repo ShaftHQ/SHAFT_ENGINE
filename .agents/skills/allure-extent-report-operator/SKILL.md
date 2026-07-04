@@ -1,8 +1,8 @@
 ---
 name: allure-extent-report-operator
-description: Use when Allure or Extent report generation, artifacts, summaries, upload actions, failure extraction, or report paths change.
+description: Use for SHAFT Allure/Extent reports, artifacts, summaries, upload actions, failure extraction, or report paths.
 ---
 
 # Allure Extent Report Operator
 
-Read and follow the [canonical report operations playbook](../../../.github/skills/allure-extent-report-operator/SKILL.md).
+Follow the [canonical report playbook](../../../.github/skills/allure-extent-report-operator/SKILL.md).

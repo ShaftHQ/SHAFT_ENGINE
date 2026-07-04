@@ -1,8 +1,8 @@
 ---
 name: java-test-rules
-description: Use when editing or reviewing any src/test Java file in SHAFT; apply lifecycle, parallelism, isolation, Allure, browser, mocking, and focused regression rules.
+description: Use for SHAFT src/test Java edits/reviews; apply lifecycle, isolation, Allure, browser, mocking, and regression rules.
 ---
 
 # Java Test Rules
 
-Read and follow the [canonical Java test rules](../../../.github/instructions/java-tests.instructions.md).
+Follow the [canonical Java test rules](../../../.github/instructions/java-tests.instructions.md).

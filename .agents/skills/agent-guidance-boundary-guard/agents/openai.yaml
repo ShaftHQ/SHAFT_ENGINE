@@ -1,6 +1,6 @@
 interface:
   display_name: "Agent Guidance Boundary Guard"
   short_description: "Guard agent guidance and memory surfaces"
-  default_prompt: "Use $agent-guidance-boundary-guard to validate this guidance change."
+  default_prompt: "Use $agent-guidance-boundary-guard."
 policy:
   allow_implicit_invocation: true

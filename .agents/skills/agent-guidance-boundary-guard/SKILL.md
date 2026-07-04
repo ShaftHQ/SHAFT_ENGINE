@@ -1,8 +1,8 @@
 ---
 name: agent-guidance-boundary-guard
-description: Use when AGENTS.md, CLAUDE.md, .agents, .github skills/instructions, .codex, or .memory guidance surfaces change.
+description: Use for AGENTS.md, CLAUDE.md, .agents, .github skills/instructions, .codex, or .memory guidance changes.
 ---
 
 # Agent Guidance Boundary Guard
 
-Read and follow the [canonical agent guidance boundary playbook](../../../.github/skills/agent-guidance-boundary-guard/SKILL.md).
+Follow the [canonical guidance playbook](../../../.github/skills/agent-guidance-boundary-guard/SKILL.md).

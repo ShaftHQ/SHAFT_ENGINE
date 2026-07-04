@@ -1,6 +1,6 @@
 interface:
   display_name: "Graphify Repository Map"
   short_description: "Query the local SHAFT repository map"
-  default_prompt: "Use $graphify to map SHAFT_ENGINE before broad file search."
+  default_prompt: "Use $graphify."
 policy:
   allow_implicit_invocation: true

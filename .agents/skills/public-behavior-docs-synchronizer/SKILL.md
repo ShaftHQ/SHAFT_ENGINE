@@ -1,8 +1,8 @@
 ---
 name: public-behavior-docs-synchronizer
-description: Use when public SHAFT APIs, config, behavior, README links, release text, or docs routing may need user-guide synchronization.
+description: Use for public SHAFT API/config/behavior, README/release text, or docs routing sync.
 ---
 
 # Public Behavior Docs Synchronizer
 
-Read and follow the [canonical public docs synchronization playbook](../../../.github/skills/public-behavior-docs-synchronizer/SKILL.md).
+Follow the [canonical public docs playbook](../../../.github/skills/public-behavior-docs-synchronizer/SKILL.md).
