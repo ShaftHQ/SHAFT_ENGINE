@@ -55,6 +55,7 @@ public record McpCodingPartnerPlan(
     /**
      * Compatibility constructor for callers compiled against schema 1.1 fields.
      */
+    @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpCodingPartnerPlan(
             String schemaVersion,
             String workingSetSummary,
@@ -86,6 +87,7 @@ public record McpCodingPartnerPlan(
     /**
      * Compatibility constructor for callers compiled against schema 1.0 fields.
      */
+    @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpCodingPartnerPlan(
             String schemaVersion,
             String workingSetSummary,

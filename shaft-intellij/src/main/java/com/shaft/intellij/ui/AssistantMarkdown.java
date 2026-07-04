@@ -239,6 +239,19 @@ final class AssistantMarkdown {
         sections.add(metadataLine(
                 "Coding partner plan", string(object, "schemaVersion", ""),
                 "Backend", string(object, "backend", "")));
+        appendCodingPartnerSummary(sections, object);
+        appendNonBlank(sections, codingPartnerStepsMarkdown(object));
+        appendNonBlank(sections, codingPartnerReuseMarkdown(object));
+        appendNonBlank(sections, bulletList("Missing code", object, "missingCodeItems"));
+        appendNonBlank(sections, bulletList("Suggested MCP calls", object, "suggestedMcpCalls"));
+        appendNonBlank(sections, codingPartnerNextActionsMarkdown(object));
+        appendCodingPartnerVerification(sections, object);
+        appendNonBlank(sections, bulletList("Evidence paths", object, "evidencePaths"));
+        appendNonBlank(sections, warnings(object));
+        return joinSections(sections);
+    }
+
+    private static void appendCodingPartnerSummary(List<String> sections, JsonObject object) {
         String summary = string(object, "workingSetSummary", "");
         if (!summary.isBlank()) {
             sections.add("**Working set:** " + summary);
@@ -250,39 +263,13 @@ final class AssistantMarkdown {
                     "Recommended target", target.isBlank() ? "" : "`" + target + "`",
                     "Insertion anchor", anchor.isBlank() ? "" : "`" + anchor + "`"));
         }
-        String steps = codingPartnerStepsMarkdown(object);
-        if (!steps.isBlank()) {
-            sections.add(steps);
-        }
-        String reuse = codingPartnerReuseMarkdown(object);
-        if (!reuse.isBlank()) {
-            sections.add(reuse);
-        }
-        String missing = bulletList("Missing code", object, "missingCodeItems");
-        if (!missing.isBlank()) {
-            sections.add(missing);
-        }
-        String calls = bulletList("Suggested MCP calls", object, "suggestedMcpCalls");
-        if (!calls.isBlank()) {
-            sections.add(calls);
-        }
-        String nextActions = codingPartnerNextActionsMarkdown(object);
-        if (!nextActions.isBlank()) {
-            sections.add(nextActions);
-        }
+    }
+
+    private static void appendCodingPartnerVerification(List<String> sections, JsonObject object) {
         String verification = string(object, "verificationCommand", "");
         if (!verification.isBlank()) {
             sections.add("**Verification:** `" + verification + "`");
         }
-        String evidence = bulletList("Evidence paths", object, "evidencePaths");
-        if (!evidence.isBlank()) {
-            sections.add(evidence);
-        }
-        String warnings = warnings(object);
-        if (!warnings.isBlank()) {
-            sections.add(warnings);
-        }
-        return joinSections(sections);
     }
 
     private static String codingPartnerStepsMarkdown(JsonObject object) {
@@ -1007,6 +994,12 @@ final class AssistantMarkdown {
         return String.join("\n\n", sections.stream()
                 .filter(section -> section != null && !section.isBlank())
                 .toList());
+    }
+
+    private static void appendNonBlank(List<String> sections, String section) {
+        if (section != null && !section.isBlank()) {
+            sections.add(section);
+        }
     }
 
     private static String string(JsonObject object, String key, String fallback) {
