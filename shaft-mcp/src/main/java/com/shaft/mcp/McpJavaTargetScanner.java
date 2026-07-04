@@ -18,8 +18,11 @@ final class McpJavaTargetScanner {
     private static final Pattern PACKAGE = Pattern.compile("\\bpackage\\s+([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)\\s*;");
     private static final Pattern CLASS = Pattern.compile("\\bclass\\s+([A-Za-z_$][\\w$]*)\\b");
     private static final Pattern DRIVER = Pattern.compile("\\bSHAFT\\.GUI\\.(?:WebDriver|Playwright)\\s+([A-Za-z_$][\\w$]*)\\b");
+    private static final Pattern LOCATOR = Pattern.compile(
+            "\\b(?:By|String)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*([^;\\n]+);");
     private static final Pattern METHOD = Pattern.compile("\\b(?:public|protected|private)?\\s*(?:static\\s+)?"
             + "[A-Za-z_$][\\w$<>\\[\\].]*\\s+([A-Za-z_$][\\w$]*)\\s*\\(");
+    private static final int SUMMARY_LIMIT = 5;
 
     List<Candidate> scan(Path root, int maxResults) {
         int limit = maxResults <= 0 ? 20 : Math.min(maxResults, 50);
@@ -49,20 +52,31 @@ final class McpJavaTargetScanner {
             }
             String driver = first(DRIVER, source);
             List<String> anchors = methods(source, className);
-            int score = score(path, source, className, driver, anchors);
+            List<String> locators = locatorSummaries(source);
+            List<String> actions = actionSummaries(source, className);
+            int score = score(path, source, className, driver, anchors, locators, actions);
             return new Candidate(
                     root.relativize(path).toString().replace('\\', '/'),
                     first(PACKAGE, source),
                     className,
                     driver.isBlank() ? "driver" : driver,
                     anchors,
-                    score);
+                    score,
+                    locators,
+                    actions);
         } catch (IOException exception) {
             return Candidate.empty(root, path);
         }
     }
 
-    private static int score(Path path, String source, String className, String driver, List<String> anchors) {
+    private static int score(
+            Path path,
+            String source,
+            String className,
+            String driver,
+            List<String> anchors,
+            List<String> locators,
+            List<String> actions) {
         int score = 0;
         if (!driver.isBlank()) {
             score += 100;
@@ -80,6 +94,12 @@ final class McpJavaTargetScanner {
         if (source.contains("@Test")) {
             score += 10;
         }
+        if (!locators.isEmpty()) {
+            score += 8;
+        }
+        if (!actions.isEmpty()) {
+            score += 8;
+        }
         return score;
     }
 
@@ -93,6 +113,53 @@ final class McpJavaTargetScanner {
             }
         }
         return List.copyOf(methods);
+    }
+
+    private static List<String> locatorSummaries(String source) {
+        LinkedHashSet<String> locators = new LinkedHashSet<>();
+        Matcher matcher = LOCATOR.matcher(source);
+        while (matcher.find() && locators.size() < SUMMARY_LIMIT) {
+            String expression = matcher.group(2).trim();
+            locators.add(matcher.group(1) + " = " + abbreviate(expression));
+        }
+        return List.copyOf(locators);
+    }
+
+    private static List<String> actionSummaries(String source, String className) {
+        LinkedHashSet<String> actions = new LinkedHashSet<>();
+        Matcher matcher = METHOD.matcher(source);
+        while (matcher.find() && actions.size() < SUMMARY_LIMIT) {
+            String name = matcher.group(1);
+            if (name.equals(className)) {
+                continue;
+            }
+            int end = Math.min(source.length(), matcher.end() + 600);
+            String bodyPreview = source.substring(matcher.start(), end);
+            if (bodyPreview.contains(".element()")
+                    || bodyPreview.contains(".browser()")
+                    || bodyPreview.contains("SHAFT.GUI")
+                    || actionName(name)) {
+                actions.add(name);
+            }
+        }
+        return List.copyOf(actions);
+    }
+
+    private static boolean actionName(String name) {
+        String lower = name.toLowerCase(Locale.ROOT);
+        return lower.startsWith("open")
+                || lower.startsWith("login")
+                || lower.startsWith("sign")
+                || lower.startsWith("type")
+                || lower.startsWith("click")
+                || lower.startsWith("select")
+                || lower.startsWith("submit")
+                || lower.startsWith("verify")
+                || lower.startsWith("assert");
+    }
+
+    private static String abbreviate(String value) {
+        return value.length() <= 100 ? value : value.substring(0, 97) + "...";
     }
 
     private static String first(Pattern pattern, String source) {
@@ -116,6 +183,8 @@ final class McpJavaTargetScanner {
      * @param driverVariableName likely SHAFT driver variable
      * @param insertionAnchors method names usable as insertion anchors
      * @param score deterministic confidence score
+     * @param locatorSummaries existing locator field summaries
+     * @param actionSummaries existing action method summaries
      */
     public record Candidate(
             String sourcePath,
@@ -123,7 +192,22 @@ final class McpJavaTargetScanner {
             String className,
             String driverVariableName,
             List<String> insertionAnchors,
-            int score) {
+            int score,
+            List<String> locatorSummaries,
+            List<String> actionSummaries) {
+        /**
+         * Compatibility constructor for existing candidate callers.
+         */
+        public Candidate(
+                String sourcePath,
+                String packageName,
+                String className,
+                String driverVariableName,
+                List<String> insertionAnchors,
+                int score) {
+            this(sourcePath, packageName, className, driverVariableName, insertionAnchors, score, List.of(), List.of());
+        }
+
         public Candidate {
             sourcePath = sourcePath == null ? "" : sourcePath.trim();
             packageName = packageName == null ? "" : packageName.trim();
@@ -132,11 +216,13 @@ final class McpJavaTargetScanner {
                     ? "driver"
                     : driverVariableName.trim();
             insertionAnchors = insertionAnchors == null ? List.of() : List.copyOf(insertionAnchors);
+            locatorSummaries = locatorSummaries == null ? List.of() : List.copyOf(locatorSummaries);
+            actionSummaries = actionSummaries == null ? List.of() : List.copyOf(actionSummaries);
         }
 
         private static Candidate empty(Path root, Path path) {
             return new Candidate(root.relativize(path).toString().replace('\\', '/'), "", "", "driver",
-                    List.of(), 0);
+                    List.of(), 0, List.of(), List.of());
         }
     }
 }

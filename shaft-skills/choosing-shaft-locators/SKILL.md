@@ -26,12 +26,14 @@ Stop at the first rung that uniquely identifies the element:
 - For live web work, use `shaft-mcp:browser_open_intent`, `shaft-mcp:browser_get_page_dom`, and screenshots when needed.
 - For Playwright projects, use the matching `shaft-mcp:playwright_*` DOM and element tools.
 - For mobile, use `shaft-mcp:mobile_get_accessibility_tree` and prefer accessibility IDs before XPath.
+- For repo insertion, call `shaft-mcp:shaft_coding_partner_plan` to see existing locator fields and page methods before adding a new locator.
 - Run `shaft-mcp:test_code_guardrails_check` on final Java snippets.
 
 ## Codegen Rules
 
 - Verify login, form, and navigation locators with real MCP actions before publishing them.
 - Keep generated `SHAFT.GUI.Locator.*` locators inline only for throwaway snippets; move stable locators into page objects for repo insertion.
+- Reuse locator summaries returned by `shaft_coding_partner_plan` and add only missing fields that the current DOM proves are needed.
 - Preserve user-provided locator choices from Capture when the recorder marks them as intentional.
 - Do not use coordinate-only actions while a locator candidate exists.
 - Do not paste raw DOM snapshots into source code.

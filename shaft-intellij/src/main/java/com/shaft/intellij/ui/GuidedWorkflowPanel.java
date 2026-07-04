@@ -2,7 +2,10 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
@@ -21,16 +24,20 @@ import java.awt.GridLayout;
  * Guided recorder, locator, and code-generation entry points backed by existing MCP tools.
  */
 final class GuidedWorkflowPanel extends JPanel {
+    private final Project project;
     private final JComboBox<String> backend;
     private final JComboBox<WorkflowTemplate> templateSelector;
     private final JBTextField targetUrl;
     private final JBTextField intent;
+    private final JBTextField currentSourcePath;
+    private final JBTextField artifactPaths;
     private final JBTextField sessionPath;
     private final JBTextArea codeSnippet;
     private final ToolPrefill prefill;
 
     GuidedWorkflowPanel(Project project, ToolPrefill prefill) {
         super(new BorderLayout(8, 8));
+        this.project = project;
         this.prefill = prefill;
         setBorder(JBUI.Borders.empty(8));
 
@@ -42,6 +49,8 @@ final class GuidedWorkflowPanel extends JPanel {
         templateSelector.addActionListener(event -> updateTemplateDescription());
         targetUrl = field("Target URL", "");
         intent = field("Intent", "Log in as a valid user");
+        currentSourcePath = field("Current source path", "");
+        artifactPaths = field("Evidence paths", "");
         sessionPath = field("Session path", "recordings/intellij-capture.json");
         codeSnippet = new JBTextArea(6, 32);
         codeSnippet.getAccessibleContext().setAccessibleName("Generated code or guardrail input");
@@ -56,8 +65,15 @@ final class GuidedWorkflowPanel extends JPanel {
         fields.add(row("Template", 'T', templateControls(), templateSelector));
         fields.add(row("Target URL", 'U', targetUrl));
         fields.add(row("Intent", 'I', intent));
+        fields.add(row("Current source", 'R', currentSourcePath));
+        fields.add(row("Evidence paths", 'E', artifactPaths));
         fields.add(row("Session path", 'S', sessionPath));
 
+        JPanel partner = section("Partner",
+                button("Plan partner work", "Plan repository-aware SHAFT reuse, missing code, proof, and validation",
+                        this::planPartnerWork),
+                button("Find reuse", "Find existing Java test and page-object anchors before generating code",
+                        this::findReuse));
         JPanel recorder = section("Recorder",
                 button("Start recording", "Start a SHAFT recording", this::startRecording),
                 button("Stop recording", "Stop the active SHAFT recording", this::stopRecording),
@@ -70,7 +86,8 @@ final class GuidedWorkflowPanel extends JPanel {
         center.add(fields, BorderLayout.NORTH);
         center.add(row("Code", 'C', codeSnippet), BorderLayout.CENTER);
 
-        JPanel actions = new JPanel(new GridLayout(1, 2, 8, 8));
+        JPanel actions = new JPanel(new GridLayout(1, 3, 8, 8));
+        actions.add(partner);
         actions.add(recorder);
         actions.add(locator);
 
@@ -130,6 +147,8 @@ final class GuidedWorkflowPanel extends JPanel {
             case "Stop recording" -> ShaftIcons.CANCEL;
             case "Review code" -> ShaftIcons.CODE;
             case "Use template" -> ShaftIcons.SEND;
+            case "Plan partner work" -> ShaftIcons.CODE;
+            case "Find reuse" -> ShaftIcons.SEARCH;
             case "Inspect locator" -> ShaftIcons.SEARCH;
             case "Guardrail check" -> ShaftIcons.CHECK;
             default -> ShaftIcons.HELP;
@@ -245,6 +264,25 @@ final class GuidedWorkflowPanel extends JPanel {
         }
     }
 
+    private void planPartnerWork() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("repositoryPath", ".");
+        arguments.addProperty("intent", intent.getText().trim());
+        arguments.addProperty("backend", backend.getSelectedItem().toString());
+        arguments.addProperty("currentSourcePath", currentSourcePath());
+        arguments.addProperty("selectedText", selectedText());
+        arguments.add("artifactPaths", delimitedArray(artifactPaths.getText()));
+        arguments.addProperty("maxResults", 10);
+        prefill.prefill("shaft_coding_partner_plan", arguments);
+    }
+
+    private void findReuse() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("repositoryPath", ".");
+        arguments.addProperty("maxResults", 10);
+        prefill.prefill("capture_target_candidates", arguments);
+    }
+
     private void stopRecording() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("discard", false);
@@ -286,6 +324,40 @@ final class GuidedWorkflowPanel extends JPanel {
 
     private boolean playwright() {
         return "Playwright".equals(backend.getSelectedItem());
+    }
+
+    private String currentSourcePath() {
+        String typedPath = currentSourcePath.getText().trim();
+        if (!typedPath.isBlank() || project == null) {
+            return typedPath;
+        }
+        VirtualFile[] selectedFiles = FileEditorManager.getInstance(project).getSelectedFiles();
+        return selectedFiles.length == 0 ? "" : selectedFiles[0].getPath();
+    }
+
+    private String selectedText() {
+        String pastedText = codeSnippet.getText().trim();
+        if (!pastedText.isBlank() || project == null) {
+            return pastedText;
+        }
+        Editor editor = FileEditorManager.getInstance(project).getSelectedTextEditor();
+        return editor == null || editor.getSelectionModel().getSelectedText() == null
+                ? ""
+                : editor.getSelectionModel().getSelectedText();
+    }
+
+    private static JsonArray delimitedArray(String values) {
+        JsonArray array = new JsonArray();
+        if (values == null || values.isBlank()) {
+            return array;
+        }
+        for (String value : values.split("[,;\\n]+")) {
+            String trimmed = value.trim();
+            if (!trimmed.isBlank()) {
+                array.add(trimmed);
+            }
+        }
+        return array;
     }
 
     @FunctionalInterface

@@ -13,10 +13,12 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 
 1. Inspect the project first: runner, existing page/API objects, package layout, properties, and test style.
 2. Call `shaft-mcp:shaft_guide_search` before writing SHAFT code. Cite the returned guide URLs in the final answer.
-3. For broad or unclear automation requests, call `shaft-mcp:test_automation_scenarios` with the closest area (`web`, `api`, `mobile`, `cli`, `db`, `capture`, `doctor`, or `ci`).
-4. Write code using SHAFT syntax only; do not invent APIs from memory.
-5. Run `shaft-mcp:test_code_guardrails_check` on generated Java before finalizing.
-6. Validate with the smallest affected test or compile check available.
+3. For repo-aware GUI or codegen work, call `shaft-mcp:shaft_coding_partner_plan` with the repository path, user intent, current source path, selected text, and evidence paths before creating new classes.
+4. For broad or unclear automation requests, call `shaft-mcp:test_automation_scenarios` with the closest area (`web`, `api`, `mobile`, `cli`, `db`, `capture`, `doctor`, or `ci`).
+5. Reuse the plan's existing page objects, tests, locators, and actions before adding missing code.
+6. Write code using SHAFT syntax only; do not invent APIs from memory.
+7. Run `shaft-mcp:test_code_guardrails_check` on generated Java before finalizing.
+8. Validate with the smallest affected test or compile check available.
 
 ## SHAFT Defaults
 
@@ -28,6 +30,7 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 | API | `SHAFT.API`, reusable request builders/validators, `perform()` |
 | Assertions | `driver.assertThat(...)`, `driver.verifyThat(...)`, or `SHAFT.Validations` |
 | Guide evidence | `shaft-mcp:shaft_guide_search` |
+| Repo reuse plan | `shaft-mcp:shaft_coding_partner_plan` |
 | Guardrails | `shaft-mcp:test_code_guardrails_check` |
 
 ## Hard Rules
@@ -38,6 +41,7 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 - Do not infer a target URL from a site/product name. Ask for the exact URL when it is missing.
 - Keep browser sessions fresh per test and always quit/clean up following the repo's test framework style.
 - Keep reusable page/API/mobile objects outside test classes only when they are actually reused.
+- Do not create duplicate page objects, generic generated test classes, or locator fields when the coding partner plan found a reusable target.
 
 ## Example Shape
 
@@ -78,4 +82,5 @@ Use `shaft-mcp:shaft_guide_search` first, then fall back to these public pages w
 | `Thread.sleep` after navigation | Assert URL/page state or use SHAFT synchronized action |
 | Assertions only in comments | Add real `assertThat`/`verifyThat` calls |
 | Huge generated test class | Move only reused flows into page/API objects |
+| Duplicate page object from codegen | Run `shaft_coding_partner_plan`, then insert reviewed methods into the existing target |
 | Guardrail check skipped | Run `shaft-mcp:test_code_guardrails_check` before final answer |
