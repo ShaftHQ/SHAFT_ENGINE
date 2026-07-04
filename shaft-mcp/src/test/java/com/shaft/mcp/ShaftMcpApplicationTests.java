@@ -76,6 +76,7 @@ class ShaftMcpApplicationTests {
         assertTrue(toolNames.contains("mobile_type"));
         assertTrue(toolNames.contains("mobile_record_start"));
         assertTrue(toolNames.contains("mobile_recording_code_blocks"));
+        assertTrue(toolNames.contains("mobile_record_at_target_code_blocks"));
         assertTrue(toolNames.contains("mobile_replay_recording"));
         assertTrue(toolNames.contains("natural_act"));
         assertTrue(toolNames.contains("shaft_guide_search"));

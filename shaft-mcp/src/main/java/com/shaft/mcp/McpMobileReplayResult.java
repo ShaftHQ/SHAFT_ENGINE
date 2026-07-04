@@ -11,7 +11,7 @@ import java.util.List;
  * @param recordingPath original MCP recording path
  * @param successful whether generation or replay completed
  * @param replayedActionCount number of actions replayed against a live session
- * @param codeBlocks copy-paste replay blocks
+ * @param codeBlocks copy-paste replay, Page Object, and insertion blocks
  * @param warnings safe warnings
  * @param captureSessionPath optional Capture-compatible session path
  * @param sourcePath optional generated source path
@@ -38,7 +38,7 @@ public record McpMobileReplayResult(
      * @param recordingPath original recording path
      * @param successful whether generation or replay completed
      * @param replayedActionCount number of actions replayed
-     * @param codeBlocks copy-paste replay blocks
+     * @param codeBlocks copy-paste replay, Page Object, and insertion blocks
      * @param warnings safe warnings
      */
     public McpMobileReplayResult(

@@ -5,7 +5,7 @@ SHAFT is now a modular Java 25 automation framework with a lean core, opt-in pow
 This catalog is written for framework users who want to know what changed, what they can adopt now, and which command or API gets them started.
 
 - Baseline: `35d51c56289af07a4204cc52d2ee30e55be172e3` (`Shaft modularization (#2839)`)
-- Catalog source: current PR branch based on `origin/main` at `8a178ba4fd`
+- Catalog source: current PR branch based on `origin/main` at `465fb54942`
 - Fresh evidence captured: `2026-07-04`
 
 ## Start Here
@@ -177,7 +177,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
   <tr>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" alt="shaft-mcp tool manifest and tool families" width="620">
-      <br><strong>126 registered MCP tools</strong>
+      <br><strong>127 registered MCP tools</strong>
       <br>WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, scenario catalog, and guardrails in one manifest.
     </td>
     <td width="50%">
@@ -225,7 +225,7 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | IntelliJ and MCP hardening for issue #3244 | Onboarding preflight now validates Windows JDK21 `JAVA_HOME` state and auto-creates `%JAVA_HOME%\\Packages` when possible, then reports clear missing/invalid/unwritable diagnostics; recorder re-record flows map discard to `capture_stop` with `discard=true`; and `shaft_project_create` supports optional `shaftVersion` with blank/null defaulting to the latest published stable `shaft-engine` while bundled example POMs remain reactor-versioned. | `intellij-plugin-mcp-setup.png`, `intellij-plugin-mcp-setup-error-dark.png`, `intellij-plugin-recorder.png`, `mcp-tools.png` |
 | SikuliX desktop automation | Desktop image automation lives in `shaft-sikulix`, so projects opt into `com.sikulix:sikulixapi` only when they need image-based desktop flows. | `tools/modularization/consumer-fixtures/sikulix/pom.xml`, `tests/scripts/test_sikulix_module_boundary.py` |
 | Recorder-to-code workflow | Capture real user actions, preserve edited step intent and checkpoints, then generate TestNG replay snippets, setup/assertion/control-flow review blocks, locator alternatives, and Page Object insertions. | `web-recorder.png`, `capture-catalog.png`, `intellij-plugin-guided.png` |
-| Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
+| Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree, then generate ranked locator inventories, Page Object drafts, and record-at-target snippets before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
 
 ## Modular Adoption
@@ -390,6 +390,7 @@ Mobile support now covers Appium sessions, mobile web emulation, accessibility t
 | Toolchain diagnostics | Check Appium, Inspector plugin, adb, emulator, sdkmanager, avdmanager, and iOS/macOS readiness from one tool. | `mobile_toolchain_status` |
 | Inspector recording | Prepare, start, inspect status, control, stop, and generate code from wrapped Appium Inspector recording. | `mobile_inspector_record_prepare -> mobile_inspector_record_start -> mobile_inspector_record_stop` |
 | Locator-first replay | Convert a tap into `ACCESSIBILITY_ID` and a swipe target into `ID` when the accessibility tree supports it. | `mobile_recording_code_blocks(recordingPath="target/shaft-evidence/mobile-inspector-locators.json")` |
+| Mobile Page Object handoff | Return replay, ranked locator inventory, action sequence, Page Object draft, and focused insertion snippets for existing mobile POM classes. | `mobile_recording_code_blocks -> mobile_record_at_target_code_blocks` |
 
 ```text
 mobile_initialize_native(appiumServerUrl="http://127.0.0.1:4723", platformName="Android", deviceName="emulator-5554")
@@ -406,6 +407,14 @@ swipeByOffset -> locatorStrategy=ID, locatorValue=com.example:id/list, xOffset=0
 SHAFT fluent replay excerpt:
 driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId("login"));
 driver.element().touch().swipeByOffset(SHAFT.GUI.Locator.id("com.example:id/list"), 0, 200);
+
+Generated mobile handoff blocks:
+mobile-replay-method
+mobile-pom-locator-inventory
+mobile-pom-action-sequence
+mobile-page-object-draft
+mobile-target-locator-fields
+mobile-target-action-snippet
 ```
 
 Coordinate fallback stays warning-only when no stable locator can be resolved:
@@ -615,7 +624,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    A[126 registered MCP tools] --> B[WebDriver browser + element]
+    A[127 registered MCP tools] --> B[WebDriver browser + element]
     A --> C[Playwright browser + element + semantic]
     A --> D[Capture start/status/stop/generate]
     A --> E[Mobile native, web emulation, inspector, screenshots]

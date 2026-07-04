@@ -174,6 +174,7 @@ def validate(root: Path = ROOT) -> list[str]:
         "mobile_type",
         "mobile_record_start",
         "mobile_recording_code_blocks",
+        "mobile_record_at_target_code_blocks",
         "mobile_replay_recording",
         "element_click",
         "element_type",

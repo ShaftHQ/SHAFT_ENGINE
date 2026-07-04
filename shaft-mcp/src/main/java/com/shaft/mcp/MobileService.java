@@ -364,6 +364,28 @@ public class MobileService {
     }
 
     /**
+     * Generates focused mobile recording snippets for insertion into an existing Page Object.
+     *
+     * @param recordingPath workspace-contained recording path
+     * @param driverVariableName driver variable name to use in generated snippets
+     * @param targetSourcePath workspace-contained Java Page Object source path
+     * @param insertAfter method name or textual anchor to insert after
+     * @return replay code blocks plus target insertion snippets
+     */
+    @Tool(name = "mobile_record_at_target_code_blocks",
+            description = "generates focused mobile recording snippets for insertion at an existing Java source anchor")
+    public McpMobileReplayResult recordAtTargetCodeBlocks(
+            String recordingPath,
+            String driverVariableName,
+            String targetSourcePath,
+            String insertAfter) {
+        Path targetSource = targetSourcePath == null || targetSourcePath.isBlank()
+                ? null
+                : workspacePolicy.existing(targetSourcePath, "Mobile target source path");
+        return recorder.codeBlocks(recordingPath, driverVariableName, targetSource, insertAfter);
+    }
+
+    /**
      * Replays a mobile recording against the active driver session.
      *
      * @param recordingPath workspace-contained recording path
