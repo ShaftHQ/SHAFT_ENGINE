@@ -18,7 +18,8 @@ Analyze populated evidence before changing tests. Separate product defects, test
 5. Use `shaft-mcp:doctor_suggest_fix` or `shaft-mcp:playwright_doctor_suggest_fix` only after reviewing the Doctor report.
 6. Prefer `shaft-mcp:trace_latest`, `shaft-mcp:trace_summarize`, and `shaft-mcp:doctor_analyze_trace` when structured trace evidence exists.
 7. Search the guide with `shaft-mcp:shaft_guide_search` before recommending SHAFT syntax changes.
-8. Run `shaft-mcp:test_code_guardrails_check` on any suggested Java patch.
+8. Call `shaft-mcp:shaft_coding_partner_plan` with the failed source path, selected failing code, and evidence paths before adding or moving repair code.
+9. Run `shaft-mcp:test_code_guardrails_check` on any suggested Java patch.
 
 ## Diagnosis Categories
 
@@ -36,6 +37,7 @@ Analyze populated evidence before changing tests. Separate product defects, test
 - `shaft-mcp:healer_run_failed_test` and `shaft-mcp:playwright_healer_run_failed_test` may rerun and propose fixes, but they do not own source edits.
 - Require a headless, bounded Maven command and workspace-local evidence paths.
 - Do not run cloud/external suites, publish PRs, or use provider advisories unless explicitly approved.
+- Use `shaft_coding_partner_plan.reuseMatches` to keep repairs in the existing page/test owner instead of creating duplicate helper classes.
 - Validate applied fixes with the smallest affected test or compile check.
 
 ## Official Guide Routes

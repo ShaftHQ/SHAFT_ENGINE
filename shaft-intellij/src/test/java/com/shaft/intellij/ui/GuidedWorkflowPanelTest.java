@@ -93,6 +93,26 @@ class GuidedWorkflowPanelTest {
                 () -> assertTrue(accessibleDescription(reviewCode).contains("reviewed SHAFT code")));
     }
 
+    @Test
+    void codingPartnerWorkspacePrefillsRepositoryAwarePlan() {
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        JButton planPartnerWork = findButton(panel, "Plan partner work");
+
+        assertNotNull(planPartnerWork);
+        planPartnerWork.doClick();
+
+        CapturedInvocation invocation = last(invocations);
+        assertAll(
+                () -> assertEquals("shaft_coding_partner_plan", invocation.toolName()),
+                () -> assertEquals(".", invocation.arguments().get("repositoryPath").getAsString()),
+                () -> assertEquals("Log in as a valid user", invocation.arguments().get("intent").getAsString()),
+                () -> assertEquals("WebDriver", invocation.arguments().get("backend").getAsString()),
+                () -> assertEquals(10, invocation.arguments().get("maxResults").getAsInt()),
+                () -> assertEquals(0, invocation.arguments().getAsJsonArray("artifactPaths").size()));
+    }
+
     private static void select(JComboBox<?> comboBox, String label) {
         for (int index = 0; index < comboBox.getItemCount(); index++) {
             Object item = comboBox.getItemAt(index);

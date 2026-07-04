@@ -90,6 +90,7 @@ class ToolTemplatesTest {
         assertTrue(templateTools.contains("playwright_browser_take_screenshot"));
         assertTrue(templateTools.contains("trace_read"));
         assertTrue(templateTools.contains("trace_summarize"));
+        assertTrue(templateTools.contains("shaft_coding_partner_plan"));
     }
 
     @Test
@@ -121,6 +122,20 @@ class ToolTemplatesTest {
         assertTrue(comparison.arguments().contains("\"overwrite\": false"));
         assertFalse(evidence.confirmationRequired());
         assertTrue(evidence.arguments().contains("\"screenshotPaths\": []"));
+    }
+
+    @Test
+    void codingPartnerTemplateKeepsPreviewOnlyDefaults() {
+        ToolTemplate template = templateByName("shaft_coding_partner_plan");
+
+        assertNotNull(template);
+        assertEquals("Plan Coding Partner Work", template.label());
+        assertFalse(template.confirmationRequired());
+        assertTrue(template.arguments().contains("\"repositoryPath\": \".\""));
+        assertTrue(template.arguments().contains("\"currentSourcePath\": \"\""));
+        assertTrue(template.arguments().contains("\"selectedText\": \"\""));
+        assertTrue(template.arguments().contains("\"artifactPaths\": []"));
+        assertTrue(template.description().contains("preview"));
     }
 
     @Test

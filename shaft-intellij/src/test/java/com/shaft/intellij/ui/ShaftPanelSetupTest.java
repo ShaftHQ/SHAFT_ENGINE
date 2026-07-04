@@ -1676,6 +1676,7 @@ class ShaftPanelSetupTest {
                 () -> assertIcon(findButton(featurePanel, "Refresh tools")),
                 () -> assertIcon(findButton(setupPanel, "Copy command")),
                 () -> assertIcon(findButton(setupPanel, "Copy output")),
+                () -> assertIcon(findButton(guidedPanel, "Plan partner work")),
                 () -> assertIcon(findButton(guidedPanel, "Start recording")),
                 () -> assertIcon(findButton(guidedPanel, "Stop recording")),
                 () -> assertIcon(findButton(guidedPanel, "Review code")),

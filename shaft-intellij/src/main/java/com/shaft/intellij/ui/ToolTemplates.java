@@ -417,6 +417,20 @@ final class ToolTemplates {
 
     static List<ToolTemplate> mcp() {
         return List.of(
+                template("Plan Coding Partner Work", "shaft_coding_partner_plan",
+                        """
+                        {
+                          "repositoryPath": ".",
+                          "intent": "",
+                          "backend": "WebDriver",
+                          "currentSourcePath": "",
+                          "selectedText": "",
+                          "artifactPaths": [],
+                          "maxResults": 10
+                        }
+                        """,
+                        "Creates a preview-only SHAFT coding partner plan from the current source, selected text, reuse candidates, evidence, and verification needs.",
+                        false),
                 template("Automation Scenarios", "test_automation_scenarios",
                         """
                         {
