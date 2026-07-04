@@ -228,6 +228,26 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
 | Locator-first mobile recording | Resolve Appium Inspector pointer gestures through the accessibility tree, then generate ranked locator inventories, Page Object drafts, and record-at-target snippets before using coordinate fallback. | `android-recorder-working.png`, `android-recorder-locator-details.png` |
 | Evidence-led failure work | Combine Allure failure briefs, traces, locator health, healing reports, and optional reviewed AI advice. | `doctor-heal-trace.png`, `api-reporting.png` |
 
+## Recorder/Codegen Top 10 Plan
+
+The next recorder/codegen push should make the handoff from recording to a real
+repository feel obvious: preview the patch, show the risk, then verify the code.
+The implementation plan lives at
+`docs/superpowers/plans/2026-07-04-recorder-codegen-top10.md`.
+
+| Rank | Enhancement | Why users feel it immediately |
+| --- | --- | --- |
+| 1 | Patch preview for record-at-target | The agent shows the exact Java diff before touching an existing Page Object or test. |
+| 2 | Existing-suite target scanner | Users stop guessing package names, driver variables, and insertion anchors. |
+| 3 | Assertion gap checklist | Generated tests tell reviewers which post-action checks are still missing. |
+| 4 | Locator confidence queue | Risky XPath, multi-match, and coordinate fallback steps are grouped before copy/paste. |
+| 5 | Fixture and secret handoff | Required environment variables, test data, and upload fixtures are listed without exposing secrets. |
+| 6 | Flow grouping assistant | Explicit checkpoints become helper-method proposals without inventing abstractions. |
+| 7 | Replay failure back-links | Compile or replay failures point back to recording step ids and generated blocks. |
+| 8 | Backend comparison blocks | WebDriver, Playwright, and mobile output differences are visible before choosing a backend. |
+| 9 | PR evidence pack | Screenshots, workbench HTML, generated source, and validation commands are ready for review. |
+| 10 | Guided IDE action copy | IntelliJ workflow labels match the real path: record, review, preview, apply, verify. |
+
 ## Modular Adoption
 
 Use the new reactor split when you want SHAFT as a framework base, not a monolith. `shaft-engine` remains the center. Optional modules publish independently, the BOM keeps dependency alignment boring, and `legacy-shaft-engine` preserves the relocation path for existing consumers.
