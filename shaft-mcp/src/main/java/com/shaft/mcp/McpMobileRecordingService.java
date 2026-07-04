@@ -341,65 +341,106 @@ final class McpMobileRecordingService {
             Path targetSource,
             String insertAfter,
             PomCandidates pom) {
-        if (pom.locators().isEmpty() || pom.actions().isEmpty()) {
+        if (!hasTargetInsertionCandidates(pom)) {
             return List.of();
         }
-        List<String> warnings = new ArrayList<>();
-        boolean anchorFound = true;
-        if (targetSource != null && !text(insertAfter).isBlank()) {
-            try {
-                String source = Files.readString(targetSource);
-                anchorFound = source.contains(insertAfter + "(") || source.contains(insertAfter);
-            } catch (IOException exception) {
-                throw new IllegalArgumentException("Mobile target source could not be read.", exception);
-            }
-            if (!anchorFound) {
-                warnings.add("Could not find insertion anchor `" + insertAfter + "` in "
-                        + targetSource.getFileName() + "; paste the snippet manually.");
-            }
-        }
+        TargetInsertionContext context = targetInsertionContext(targetSource, insertAfter);
+        return List.of(targetLocatorFieldsBlock(context, pom), targetActionSnippetBlock(context, insertAfter, pom));
+    }
+
+    private static boolean hasTargetInsertionCandidates(PomCandidates pom) {
+        return !pom.locators().isEmpty() && !pom.actions().isEmpty();
+    }
+
+    private static TargetInsertionContext targetInsertionContext(Path targetSource, String insertAfter) {
         String targetName = targetSource == null ? "the target Page Object" : targetSource.getFileName().toString();
-        StringBuilder fields = new StringBuilder();
-        for (LocatorCandidate locator : pom.locators()) {
-            fields.append("private final By ")
-                    .append(locator.fieldName())
-                    .append(" = ")
-                    .append(locator.expression())
-                    .append(";\n");
+        if (targetSource == null || text(insertAfter).isBlank()) {
+            return new TargetInsertionContext(targetName, true, List.of());
         }
-        StringBuilder actions = new StringBuilder();
-        for (ActionCandidate action : pom.actions()) {
-            if (!action.warnings().isEmpty()) {
-                actions.append("// ").append(String.join(" ", action.warnings())).append('\n');
-            }
-            actions.append(replaceLocatorExpressions(action.line(), pom.locators())).append('\n');
+        boolean anchorFound = targetSourceContainsAnchor(targetSource, insertAfter);
+        List<String> warnings = anchorFound
+                ? List.of()
+                : List.of("Could not find insertion anchor `" + insertAfter + "` in "
+                + targetName + "; paste the snippet manually.");
+        return new TargetInsertionContext(targetName, anchorFound, warnings);
+    }
+
+    private static boolean targetSourceContainsAnchor(Path targetSource, String insertAfter) {
+        try {
+            String source = Files.readString(targetSource);
+            return source.contains(insertAfter + "(") || source.contains(insertAfter);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Mobile target source could not be read.", exception);
         }
-        List<McpCodeBlock> blocks = new ArrayList<>();
-        blocks.add(new McpCodeBlock(
+    }
+
+    private static McpCodeBlock targetLocatorFieldsBlock(TargetInsertionContext context, PomCandidates pom) {
+        return new McpCodeBlock(
                 "mobile-target-locator-fields",
                 "Mobile record-at-target locator fields",
                 McpCodeBlock.Kind.LOCATOR,
                 "java",
                 List.of("org.openqa.selenium.By"),
-                fields.toString(),
-                "Paste into " + targetName + " near the existing mobile locator fields before adding the action snippet.",
+                targetLocatorFields(pom.locators()),
+                "Paste into " + context.targetName()
+                        + " near the existing mobile locator fields before adding the action snippet.",
                 true,
-                pom.locators().stream().map(locator -> "action-" + locator.sequence()).toList(),
-                warnings));
-        blocks.add(new McpCodeBlock(
+                locatorEvidenceIds(pom.locators()),
+                context.warnings());
+    }
+
+    private static String targetLocatorFields(List<LocatorCandidate> locators) {
+        StringBuilder code = new StringBuilder();
+        for (LocatorCandidate locator : locators) {
+            code.append("private final By ")
+                    .append(locator.fieldName())
+                    .append(" = ")
+                    .append(locator.expression())
+                    .append(";\n");
+        }
+        return code.toString();
+    }
+
+    private static McpCodeBlock targetActionSnippetBlock(
+            TargetInsertionContext context,
+            String insertAfter,
+            PomCandidates pom) {
+        return new McpCodeBlock(
                 "mobile-target-action-snippet",
                 "Mobile record-at-target action snippet",
                 McpCodeBlock.Kind.ACTION,
                 "java",
                 List.of(),
-                actions.toString(),
-                text(insertAfter).isBlank()
-                        ? "Paste inside the existing mobile page method after adding locator fields."
-                        : "Paste after " + insertAfter + " in " + targetName + ".",
-                anchorFound,
-                pom.actions().stream().map(action -> "action-" + action.sequence()).toList(),
-                warnings));
-        return List.copyOf(blocks);
+                targetActionSnippet(pom),
+                targetActionPlacement(context.targetName(), insertAfter),
+                context.anchorFound(),
+                actionEvidenceIds(pom.actions()),
+                context.warnings());
+    }
+
+    private static String targetActionSnippet(PomCandidates pom) {
+        StringBuilder code = new StringBuilder();
+        for (ActionCandidate action : pom.actions()) {
+            if (!action.warnings().isEmpty()) {
+                code.append("// ").append(String.join(" ", action.warnings())).append('\n');
+            }
+            code.append(replaceLocatorExpressions(action.line(), pom.locators())).append('\n');
+        }
+        return code.toString();
+    }
+
+    private static String targetActionPlacement(String targetName, String insertAfter) {
+        return text(insertAfter).isBlank()
+                ? "Paste inside the existing mobile page method after adding locator fields."
+                : "Paste after " + insertAfter + " in " + targetName + ".";
+    }
+
+    private static List<String> locatorEvidenceIds(List<LocatorCandidate> locators) {
+        return locators.stream().map(locator -> "action-" + locator.sequence()).toList();
+    }
+
+    private static List<String> actionEvidenceIds(List<ActionCandidate> actions) {
+        return actions.stream().map(action -> "action-" + action.sequence()).toList();
     }
 
     private static PomCandidates pomCandidates(McpMobileRecording stored, String driver) {
@@ -529,6 +570,12 @@ final class McpMobileRecordingService {
         private PomCandidates {
             locators = locators == null ? List.of() : List.copyOf(locators);
             actions = actions == null ? List.of() : List.copyOf(actions);
+        }
+    }
+
+    private record TargetInsertionContext(String targetName, boolean anchorFound, List<String> warnings) {
+        private TargetInsertionContext {
+            warnings = warnings == null ? List.of() : List.copyOf(warnings);
         }
     }
 
