@@ -83,6 +83,15 @@ final class ToolTemplates {
                           "driverVariableName": "driver"
                         }
                         """),
+                template("Find Java Recorder Targets", "capture_target_candidates",
+                        """
+                        {
+                          "repositoryPath": ".",
+                          "maxResults": 10
+                        }
+                        """,
+                        "Finds Java test and page-object anchors for record-at-target insertion.",
+                        false),
                 template("Generate Playwright Recording Code Blocks", "playwright_recording_code_blocks",
                         """
                         {
@@ -105,7 +114,7 @@ final class ToolTemplates {
                         """,
                         "Generates Playwright-friendly code blocks from a Playwright Capture session.",
                         false),
-                template("Generate Record At Target", "capture_record_at_target_code_blocks",
+                template("Record Into Java Target", "capture_record_at_target_code_blocks",
                         """
                         {
                           "sessionPath": "recordings/intellij-capture.json",
@@ -118,8 +127,32 @@ final class ToolTemplates {
                           "driverVariableName": "driver"
                         }
                         """,
-                        "Generates code for a selected Java target. Review targetSourcePath and insertAfter before running.",
-                        true));
+                        "Record into an existing test: review generated code blocks, inspect the patch preview, then apply and verify.",
+                        true),
+                template("Compare WebDriver And Playwright Codegen", "capture_backend_comparison",
+                        """
+                        {
+                          "sessionPath": "recordings/intellij-capture.json",
+                          "outputDirectory": ".",
+                          "packageName": "tests.generated",
+                          "className": "ComparedFlowTest",
+                          "overwrite": false,
+                          "driverVariableName": "driver"
+                        }
+                        """,
+                        "Generates side-by-side WebDriver and Playwright code block summaries. Review output paths first.",
+                        true),
+                template("Create Recorder Evidence Pack", "capture_evidence_pack",
+                        """
+                        {
+                          "sourcePath": "src/test/java/tests/generated/RecordedFlowTest.java",
+                          "reportPath": "target/shaft-capture/generation-report.json",
+                          "reviewPath": "target/shaft-capture/capture-review.json",
+                          "screenshotPaths": []
+                        }
+                        """,
+                        "Builds a local manifest of generated source, reports, and screenshot evidence.",
+                        false));
     }
 
     static List<ToolTemplate> playback() {

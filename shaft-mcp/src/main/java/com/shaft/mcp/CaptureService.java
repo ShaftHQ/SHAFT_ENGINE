@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -415,6 +416,102 @@ public class CaptureService {
     }
 
     /**
+     * Suggests existing Java classes and anchors for record-at-target insertion.
+     *
+     * @param repositoryPath workspace-contained repository or source root
+     * @param maxResults maximum candidates to return
+     * @return ranked Java target candidates
+     */
+    @Tool(name = "capture_target_candidates",
+            description = "suggests existing Java Page Object or test targets for Capture record-at-target insertion")
+    public List<McpJavaTargetScanner.Candidate> targetCandidates(String repositoryPath, int maxResults) {
+        return new McpJavaTargetScanner().scan(
+                workspacePolicy.existing(repositoryPath, "Capture target candidate root"),
+                maxResults);
+    }
+
+    /**
+     * Compares generated WebDriver and Playwright code blocks for the same Capture session.
+     *
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param outputDirectory generated project root inside the MCP workspace
+     * @param packageName generated Java package
+     * @param className optional generated class name
+     * @param overwrite whether existing artifacts may be replaced
+     * @param driverVariableName Java driver variable name used in extracted snippets
+     * @return backend comparison result
+     */
+    @Tool(name = "capture_backend_comparison",
+            description = "compares WebDriver and Playwright Capture code-block outputs without editing source")
+    public CaptureBackendComparisonResult compareCodeBlocks(
+            String sessionPath,
+            String outputDirectory,
+            String packageName,
+            String className,
+            boolean overwrite,
+            String driverVariableName) {
+        Path baseOutput = outputDirectory == null || outputDirectory.isBlank()
+                ? workspacePolicy.output("generated-comparison", "Capture backend comparison output directory")
+                : workspacePolicy.output(outputDirectory, "Capture backend comparison output directory");
+        String baseClass = className == null || className.isBlank() ? "ComparedCaptureTest" : className;
+        CaptureGenerationResult webdriver = generateInternal(
+                sessionPath,
+                baseOutput.resolve("webdriver").toString(),
+                packageName,
+                baseClass,
+                overwrite,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                CodegenBackend.WEBDRIVER);
+        CaptureGenerationResult playwright = generateInternal(
+                sessionPath,
+                baseOutput.resolve("playwright").toString(),
+                packageName,
+                "Playwright" + baseClass,
+                overwrite,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                CodegenBackend.PLAYWRIGHT);
+        return new CaptureBackendComparisonResult(
+                "1.0",
+                List.of(
+                        backendBlocks("WEBDRIVER", webdriver, driverVariableName),
+                        backendBlocks("PLAYWRIGHT", playwright, driverVariableName)),
+                comparisonWarnings(webdriver, playwright));
+    }
+
+    /**
+     * Builds a local manifest of Capture codegen evidence for PR review.
+     *
+     * @param sourcePath generated source path inside the MCP workspace
+     * @param reportPath generation report path inside the MCP workspace
+     * @param reviewPath review UI or workbench path inside the MCP workspace
+     * @param screenshotPaths optional screenshot paths inside the MCP workspace
+     * @return evidence manifest
+     */
+    @Tool(name = "capture_evidence_pack",
+            description = "returns a local manifest of Capture source, report, review UI, screenshots, and checks")
+    public McpEvidencePack evidencePack(
+            String sourcePath,
+            String reportPath,
+            String reviewPath,
+            List<String> screenshotPaths) {
+        return McpEvidencePack.of(
+                workspacePolicy.existing(sourcePath, "Capture evidence source path"),
+                workspacePolicy.existing(reportPath, "Capture evidence report path"),
+                workspacePolicy.existing(reviewPath, "Capture evidence review path"),
+                workspacePolicy.existingList(screenshotPaths, "Capture evidence screenshot path"));
+    }
+
+    /**
      * Generates a deterministic SHAFT TestNG test from a persisted Capture session.
      *
      * @param sessionPath persisted Capture JSON path
@@ -536,5 +633,79 @@ public class CaptureService {
                 blocks,
                 result.report(),
                 result.report() == null ? java.util.List.of() : result.report().warnings());
+    }
+
+    private CaptureBackendBlocks backendBlocks(
+            String backend,
+            CaptureGenerationResult result,
+            String driverVariableName) {
+        List<McpCodeBlock> blocks = result.successful() && result.sourcePath() != null
+                ? codeBlocks.fromGeneratedSource(result.sourcePath(), driverVariableName, result.report())
+                : List.of();
+        return new CaptureBackendBlocks(
+                backend,
+                result.sourcePath(),
+                result.successful(),
+                blocks.stream().map(McpCodeBlock::id).toList(),
+                result.report() == null ? List.of() : result.report().warnings());
+    }
+
+    private static List<String> comparisonWarnings(
+            CaptureGenerationResult webdriver,
+            CaptureGenerationResult playwright) {
+        List<String> warnings = new ArrayList<>();
+        if (!webdriver.successful()) {
+            warnings.add("WebDriver Capture generation did not complete successfully.");
+        }
+        if (!playwright.successful()) {
+            warnings.add("Playwright Capture generation did not complete successfully.");
+        }
+        return List.copyOf(warnings);
+    }
+
+    /**
+     * Backend comparison result.
+     *
+     * @param schemaVersion result schema version
+     * @param backends backend block summaries
+     * @param warnings safe warnings
+     */
+    public record CaptureBackendComparisonResult(
+            String schemaVersion,
+            List<CaptureBackendBlocks> backends,
+            List<String> warnings) {
+        /**
+         * Creates an immutable comparison result.
+         */
+        public CaptureBackendComparisonResult {
+            schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? "1.0" : schemaVersion;
+            backends = backends == null ? List.of() : List.copyOf(backends);
+            warnings = warnings == null ? List.of() : List.copyOf(warnings);
+        }
+    }
+
+    /**
+     * Code-block summary for one generated backend.
+     *
+     * @param backend backend name
+     * @param sourcePath generated source path
+     * @param successful whether generation succeeded
+     * @param blockIds returned code-block identifiers
+     * @param warnings safe warnings
+     */
+    public record CaptureBackendBlocks(
+            String backend,
+            Path sourcePath,
+            boolean successful,
+            List<String> blockIds,
+            List<String> warnings) {
+        /**
+         * Creates an immutable backend summary.
+         */
+        public CaptureBackendBlocks {
+            backend = backend == null ? "" : backend.trim();
+            blockIds = blockIds == null ? List.of() : List.copyOf(blockIds);
+            warnings = warnings == null ? List.of() : List.copyOf(warnings);
+        }
     }
 }

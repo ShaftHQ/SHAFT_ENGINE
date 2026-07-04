@@ -105,6 +105,13 @@ class CaptureServiceTest {
         assertTrue(result.codeBlocks().stream()
                 .anyMatch(block -> block.id().equals("capture-target-action-snippet")
                         && block.placement().contains("after replayCheckout")));
+        McpCodeBlock preview = block(result.codeBlocks(), "capture-target-patch-preview");
+        assertEquals("PATCH_PREVIEW", preview.kind().name());
+        assertTrue(preview.code().contains("CheckoutTest.java"));
+        assertTrue(preview.code().contains("replayCheckout"));
+        assertTrue(preview.code().contains("import org.openqa.selenium.By;"));
+        assertTrue(preview.code().contains("private final By"));
+        assertTrue(preview.code().contains("browser.element().click"));
     }
 
     @Test
@@ -161,6 +168,121 @@ class CaptureServiceTest {
                 result.warnings().toString());
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("review/ASSERTION")),
                 result.warnings().toString());
+    }
+
+    @Test
+    void targetCandidatesToolFindsExistingSuiteAnchorsInsideWorkspace() throws Exception {
+        Path page = temp.resolve("src/test/java/pages/LoginPage.java");
+        Files.createDirectories(page.getParent());
+        Files.writeString(page, """
+                package pages;
+
+                import com.shaft.driver.SHAFT;
+
+                public class LoginPage {
+                    private final SHAFT.GUI.WebDriver browser;
+
+                    public LoginPage(SHAFT.GUI.WebDriver browser) {
+                        this.browser = browser;
+                    }
+
+                    public LoginPage open() {
+                        return this;
+                    }
+                }
+                """);
+        Path test = temp.resolve("src/test/java/tests/CheckoutTest.java");
+        Files.createDirectories(test.getParent());
+        Files.writeString(test, """
+                package tests;
+
+                import com.shaft.driver.SHAFT;
+
+                public class CheckoutTest {
+                    private SHAFT.GUI.WebDriver driver;
+
+                    public void replayCheckout() {
+                    }
+                }
+                """);
+
+        CaptureService service = service();
+        try {
+            var candidates = service.targetCandidates(temp.toString(), 10);
+
+            assertTrue(candidates.stream().anyMatch(candidate -> candidate.className().equals("LoginPage")
+                    && candidate.packageName().equals("pages")
+                    && candidate.driverVariableName().equals("browser")
+                    && candidate.insertionAnchors().contains("open")));
+            assertTrue(candidates.stream().anyMatch(candidate -> candidate.className().equals("CheckoutTest")
+                    && candidate.insertionAnchors().contains("replayCheckout")));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void backendComparisonToolComposesExistingWebDriverAndPlaywrightBlocks() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        try {
+            var comparison = service.compareCodeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-comparison").toString(),
+                    "generated.capture",
+                    "ComparedSessionTest",
+                    false,
+                    "driver");
+
+            assertEquals(List.of("WEBDRIVER", "PLAYWRIGHT"),
+                    comparison.backends().stream().map(CaptureService.CaptureBackendBlocks::backend).toList());
+            assertTrue(comparison.backends().stream()
+                    .allMatch(backend -> backend.blockIds().contains("capture-full-class")));
+            assertTrue(comparison.backends().stream()
+                    .anyMatch(backend -> backend.backend().equals("PLAYWRIGHT")
+                            && backend.sourcePath().toString().contains("PlaywrightComparedSessionTest")));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void evidencePackToolReturnsReviewManifestWithoutUploadingArtifacts() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+        CaptureService service = service();
+        McpCaptureReplayResult generated;
+        try {
+            generated = service.codeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-evidence").toString(),
+                    "generated.capture",
+                    "EvidenceSessionTest",
+                    false,
+                    "driver");
+            Path screenshot = temp.resolve("screenshots/capture.png");
+            Files.createDirectories(screenshot.getParent());
+            Files.writeString(screenshot, "png");
+
+            McpEvidencePack pack = service.evidencePack(
+                    generated.sourcePath().toString(),
+                    generated.reportPath().toString(),
+                    generated.reviewUiPath().toString(),
+                    List.of(screenshot.toString()));
+
+            assertEquals("1.0", pack.schemaVersion());
+            assertTrue(pack.artifactPaths().stream().anyMatch(path -> path.endsWith("EvidenceSessionTest.java")));
+            assertTrue(pack.artifactPaths().stream().anyMatch(path -> path.endsWith("generation-report.json")));
+            assertTrue(pack.artifactPaths().stream().anyMatch(path -> path.endsWith("capture.png")));
+            assertTrue(pack.validationCommands().stream().anyMatch(command -> command.contains("mvn -pl")));
+            assertTrue(pack.warnings().stream().noneMatch(warning -> warning.toLowerCase().contains("upload")));
+        } finally {
+            service.close();
+        }
     }
 
     @Test
@@ -368,6 +490,13 @@ class CaptureServiceTest {
                 List.of(),
                 RedactionSummary.empty(),
                 Map.of());
+    }
+
+    private static McpCodeBlock block(List<McpCodeBlock> blocks, String id) {
+        return blocks.stream()
+                .filter(block -> block.id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing block " + id));
     }
 
 }

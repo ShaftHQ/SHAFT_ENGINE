@@ -5,8 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,8 +59,12 @@ public final class CaptureTargetInsertionPlanner {
             String target = Files.readString(targetSource, StandardCharsets.UTF_8);
             String driver = javaIdentifierOrDefault(driverVariableName, targetDriver(target));
             String method = testMethod(generated);
-            String actions = actionSnippet(method, driver);
+            List<LocatorSnippet> inlineLocators = inlineLocators(method);
             String locators = locatorFields(generated);
+            if (locators.isBlank() && !inlineLocators.isEmpty()) {
+                locators = locatorFields(inlineLocators);
+            }
+            String actions = actionSnippet(method, driver, inlineLocators);
             boolean anchorFound = anchorFound(target, anchor);
             List<String> warnings = new ArrayList<>();
             if (!anchorFound) {
@@ -74,7 +80,7 @@ public final class CaptureTargetInsertionPlanner {
             return new CaptureTargetInsertionPlan(
                     targetSource,
                     anchor,
-                    imports(generated),
+                    imports(generated, locators),
                     locators,
                     actions,
                     "Paste the action snippet in " + targetSource.getFileName() + " after " + anchor
@@ -86,11 +92,15 @@ public final class CaptureTargetInsertionPlanner {
         }
     }
 
-    private static List<String> imports(String source) {
-        return source.lines()
+    private static List<String> imports(String source, String locatorFields) {
+        List<String> imports = new ArrayList<>(source.lines()
                 .filter(line -> line.startsWith("import "))
                 .map(line -> line.substring("import ".length(), line.length() - 1))
-                .toList();
+                .toList());
+        if (!locatorFields.isBlank() && !imports.contains("org.openqa.selenium.By")) {
+            imports.add("org.openqa.selenium.By");
+        }
+        return List.copyOf(imports);
     }
 
     private static String locatorFields(String source) {
@@ -103,7 +113,19 @@ public final class CaptureTargetInsertionPlanner {
         return fields.toString();
     }
 
-    private static String actionSnippet(String method, String driver) {
+    private static String locatorFields(List<LocatorSnippet> locators) {
+        StringBuilder fields = new StringBuilder();
+        for (LocatorSnippet locator : locators) {
+            fields.append("private final By ")
+                    .append(locator.fieldName())
+                    .append(" = ")
+                    .append(locator.expression())
+                    .append(";\n");
+        }
+        return fields.toString();
+    }
+
+    private static String actionSnippet(String method, String driver, List<LocatorSnippet> locators) {
         if (method.isBlank()) {
             return "";
         }
@@ -116,10 +138,80 @@ public final class CaptureTargetInsertionPlanner {
             }
             String trimmed = lines.get(index).trim();
             if (!trimmed.isBlank()) {
-                code.append(DRIVER_TOKEN.matcher(trimmed).replaceAll(driverReplacement)).append('\n');
+                code.append(replaceLocators(DRIVER_TOKEN.matcher(trimmed).replaceAll(driverReplacement), locators))
+                        .append('\n');
             }
         }
         return code.toString();
+    }
+
+    private static String replaceLocators(String line, List<LocatorSnippet> locators) {
+        String result = line;
+        for (LocatorSnippet locator : locators) {
+            result = result.replace(locator.expression(), locator.fieldName());
+        }
+        return result;
+    }
+
+    private static List<LocatorSnippet> inlineLocators(String method) {
+        Map<String, LocatorSnippet> locators = new LinkedHashMap<>();
+        for (String line : method.lines().toList()) {
+            for (String expression : locatorExpressions(line)) {
+                locators.computeIfAbsent(expression, ignored -> new LocatorSnippet(
+                        uniqueFieldName(expression, locators.size() + 1),
+                        expression));
+            }
+        }
+        return List.copyOf(locators.values());
+    }
+
+    private static List<String> locatorExpressions(String line) {
+        List<String> expressions = new ArrayList<>();
+        int index = 0;
+        while (index < line.length()) {
+            int start = line.indexOf("SHAFT.GUI.Locator.", index);
+            if (start < 0) {
+                break;
+            }
+            int end = expressionEnd(line, start);
+            if (end > start) {
+                expressions.add(line.substring(start, end).trim());
+                index = end;
+            } else {
+                index = start + 1;
+            }
+        }
+        return expressions;
+    }
+
+    private static int expressionEnd(String line, int start) {
+        int depth = 0;
+        boolean string = false;
+        boolean escaped = false;
+        for (int index = start; index < line.length(); index++) {
+            char character = line.charAt(index);
+            if (string) {
+                if (escaped) {
+                    escaped = false;
+                } else if (character == '\\') {
+                    escaped = true;
+                } else if (character == '"') {
+                    string = false;
+                }
+                continue;
+            }
+            if (character == '"') {
+                string = true;
+            } else if (character == '(') {
+                depth++;
+            } else if (character == ')') {
+                depth--;
+                if (depth == 0) {
+                    return index + 1;
+                }
+            }
+        }
+        return line.length();
     }
 
     private static String testMethod(String source) {
@@ -168,6 +260,36 @@ public final class CaptureTargetInsertionPlanner {
         return matcher.find() ? matcher.group(1) : "driver";
     }
 
+    private static String uniqueFieldName(String expression, int index) {
+        Matcher quoted = Pattern.compile("\"([^\"]+)\"").matcher(expression);
+        String seed = quoted.find() ? quoted.group(1) : "capturedElement";
+        String base = lowerCamel(seed);
+        if (base.isBlank()) {
+            base = "capturedElement";
+        }
+        if (index > 1) {
+            base = base + index;
+        }
+        return javaIdentifierOrDefault(base + "Locator", "capturedElement" + index + "Locator");
+    }
+
+    private static String lowerCamel(String value) {
+        String[] parts = (value == null ? "" : value)
+                .replaceAll("([a-z0-9])([A-Z])", "$1 $2")
+                .replaceAll("[^A-Za-z0-9]+", " ")
+                .trim()
+                .split("\\s+");
+        if (parts.length == 0 || parts[0].isBlank()) {
+            return "";
+        }
+        StringBuilder result = new StringBuilder(parts[0].toLowerCase(Locale.ROOT));
+        for (int index = 1; index < parts.length; index++) {
+            String part = parts[index].toLowerCase(Locale.ROOT);
+            result.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+        }
+        return result.toString();
+    }
+
     private static String javaIdentifierOrDefault(String value, String fallback) {
         String candidate = value == null || value.isBlank() ? fallback : value.trim();
         if (candidate == null || candidate.isBlank() || !Character.isJavaIdentifierStart(candidate.charAt(0))) {
@@ -179,5 +301,8 @@ public final class CaptureTargetInsertionPlanner {
             }
         }
         return candidate;
+    }
+
+    private record LocatorSnippet(String fieldName, String expression) {
     }
 }

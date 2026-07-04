@@ -156,6 +156,14 @@ class MobileRecordingServiceTest {
         assertTrue(snippet.code().contains("driver.element().touch().tap(loginLocator);"));
         assertTrue(snippet.placement().contains("after open"));
         assertTrue(snippet.copyPasteReady());
+
+        McpCodeBlock preview = block(result.codeBlocks(), "mobile-target-patch-preview");
+        assertEquals("PATCH_PREVIEW", preview.kind().name());
+        assertTrue(preview.code().contains("LoginPage.java"));
+        assertTrue(preview.code().contains("open"));
+        assertTrue(preview.code().contains("import org.openqa.selenium.By;"));
+        assertTrue(preview.code().contains("private final By loginLocator"));
+        assertTrue(preview.code().contains("driver.element().touch().tap(loginLocator);"));
     }
 
     @Test
@@ -194,6 +202,10 @@ class MobileRecordingServiceTest {
         assertTrue(replay.codeBlocks().getFirst().code().contains("probably fail"));
         assertTrue(replay.warnings().stream()
                 .anyMatch(warning -> warning.contains("probably fail")));
+        McpCodeBlock queue = block(replay.codeBlocks(), "mobile-locator-confidence-queue");
+        assertEquals(McpCodeBlock.Kind.INVESTIGATION, queue.kind());
+        assertTrue(queue.code().contains("action-1"));
+        assertTrue(queue.code().contains("probably fail"));
     }
 
     private static McpCodeBlock block(List<McpCodeBlock> blocks, String id) {
