@@ -1,4 +1,4 @@
-(channel) => {
+(channel, sink) => {
   if (globalThis.__shaftCaptureInstalled) {
     return;
   }
@@ -7,6 +7,7 @@
 
   const testIdAttributes = ["data-testid", "data-test", "data-qa"];
   const STORAGE_KEY = "shaft.capture.recorder.ui";
+  const eventSink = sink && typeof sink === "object" ? sink : {};
   const text = value => String(value || "").replace(/\s+/g, " ").trim().slice(0, 500);
   const valueText = value => String(value == null ? "" : value).slice(0, 1000);
   const dynamic = value =>
@@ -36,12 +37,16 @@
     actions: [],
     pendingSignals: [],
     nextId: 1,
+    instanceId: "",
+    currentInputActionKey: "",
     lastUrl: String(location.href || ""),
     ...persisted()
   };
   uiState.actions = Array.isArray(uiState.actions) ? uiState.actions.slice(-80) : [];
   uiState.pendingSignals = Array.isArray(uiState.pendingSignals) ? uiState.pendingSignals.slice(-200) : [];
   uiState.nextId = Number(uiState.nextId || uiState.actions.length + 1);
+  uiState.instanceId = text(uiState.instanceId) || String(Date.now()) + "-" + Math.random().toString(36).slice(2);
+  uiState.currentInputActionKey = text(uiState.currentInputActionKey);
   uiState.assertionMode = Boolean(uiState.assertionMode);
   uiState.locatorMode = Boolean(uiState.locatorMode);
   uiState.locatorPreferences = uiState.locatorPreferences && typeof uiState.locatorPreferences === "object"
@@ -74,10 +79,26 @@
         actions: uiState.actions.slice(-80),
         pendingSignals: uiState.pendingSignals.slice(-200),
         nextId: uiState.nextId,
+        instanceId: uiState.instanceId,
+        currentInputActionKey: uiState.currentInputActionKey,
         lastUrl: uiState.lastUrl
       }));
     } catch (ignored) {
       // Storage can be unavailable in sandboxed frames.
+    }
+  };
+  const postToSink = payload => {
+    if (!eventSink.url || !eventSink.token || typeof fetch !== "function") return;
+    try {
+      fetch(String(eventSink.url), {
+        method: "POST",
+        mode: "no-cors",
+        keepalive: true,
+        headers: {"Content-Type": "text/plain"},
+        body: JSON.stringify({token: String(eventSink.token), payload})
+      }).catch(() => {});
+    } catch (ignored) {
+      // Fallback polling still drains the in-page queue.
     }
   };
   const send = payload => {
@@ -86,6 +107,7 @@
     uiState.pendingSignals = uiState.pendingSignals.slice(-200);
     persist();
     globalThis.__shaftCaptureQueue.push(payload);
+    postToSink(payload);
     if (typeof channel === "function") {
       channel(JSON.stringify(payload));
     }
@@ -111,12 +133,30 @@
     }
     return path;
   };
+  const domSnapshot = () => {
+    try {
+      const root = document.documentElement;
+      if (!root) return "";
+      const clone = root.cloneNode(true);
+      clone.querySelectorAll("script, style, #shaft-capture-ui, #shaft-capture-ui-style, "
+        + "#shaft-capture-locator-highlight").forEach(element => element.remove());
+      clone.querySelectorAll("input, textarea, select").forEach(element => {
+        element.removeAttribute("value");
+        element.removeAttribute("checked");
+        element.removeAttribute("selected");
+      });
+      return String(clone.outerHTML || "").replace(/\s+/g, " ").trim().slice(0, 20000);
+    } catch (ignored) {
+      return "";
+    }
+  };
   const page = () => ({
     url: String(location.href || ""),
     title: text(document.title),
     framePath: framePath(),
     width: Number(globalThis.innerWidth || 0),
-    height: Number(globalThis.innerHeight || 0)
+    height: Number(globalThis.innerHeight || 0),
+    domSnapshot: domSnapshot()
   });
   const visibleLocation = () => text(String(location.href || "").split(/[?#]/)[0]);
   const sendControl = (action, data) =>
@@ -172,6 +212,7 @@
     checkpoint: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>`,
     stop: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"></path></svg>`,
     edit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`,
+    delete: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 14h10l1-14"></path><path d="M10 11v5"></path><path d="M14 11v5"></path></svg>`,
     pin: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5"></path><path d="M5 17h14"></path><path d="m8 4 8 8"></path><path d="M7 5l5-3 5 5-3 5Z"></path></svg>`
   })[name] || "";
   const describe = (kind, target, data) => {
@@ -193,13 +234,33 @@
         return "Capture " + kind + " on " + name;
     }
   };
-  const announce = value => {
+  const clientActionId = item => uiState.instanceId + "-" + item.id;
+  const announce = (value, mergeKey) => {
     const description = text(value);
-    if (!description) return;
-    uiState.actions.push({id: uiState.nextId++, text: description, timestamp: Date.now()});
+    if (!description) return null;
+    if (mergeKey && uiState.currentInputActionKey === mergeKey) {
+      let existing = null;
+      for (let index = uiState.actions.length - 1; index >= 0; index--) {
+        if (uiState.actions[index].mergeKey === mergeKey) {
+          existing = uiState.actions[index];
+          break;
+        }
+      }
+      if (existing) {
+        existing.text = description;
+        existing.timestamp = Date.now();
+        persist();
+        renderActions();
+        return existing;
+      }
+    }
+    const item = {id: uiState.nextId++, text: description, timestamp: Date.now(), mergeKey: mergeKey || ""};
+    uiState.actions.push(item);
     uiState.actions = uiState.actions.slice(-80);
+    uiState.currentInputActionKey = mergeKey || "";
     persist();
     renderActions();
+    return item;
   };
   const count = selector => {
     try {
@@ -485,7 +546,15 @@
       const action = data || {};
       const readiness = readinessFor(kind, target);
       if (readiness) setReadiness(readiness.state, readiness.warning);
-      announce(describe(kind, target, action));
+      const mergeKey = kind === "input" ? "input:" + target.logicalElementId : "";
+      const item = announce(describe(kind, target, action), mergeKey);
+      if (kind !== "input") {
+        uiState.currentInputActionKey = "";
+        persist();
+      }
+      if (item) {
+        action.clientActionId = clientActionId(item);
+      }
       send({kind, page: page(), target, data: action});
     }
   };
@@ -744,7 +813,7 @@
       }
       #shaft-capture-actions div {
         display: grid;
-        grid-template-columns: 1fr 32px;
+        grid-template-columns: 1fr 32px 32px;
         gap: 6px;
         align-items: start;
       }
@@ -848,7 +917,29 @@
     if (!updated || updated === item.text) return;
     item.text = updated;
     persist();
-    sendCheckpoint("Edited captured action " + item.id + ": " + updated, "USER_MARKER");
+    send({
+      kind: "step_update",
+      page: page(),
+      data: {
+        clientActionId: clientActionId(item),
+        description: updated
+      }
+    });
+    renderActions();
+  };
+  const deleteAction = item => {
+    uiState.actions = uiState.actions.filter(action => action.id !== item.id);
+    if (item.mergeKey && uiState.currentInputActionKey === item.mergeKey) {
+      uiState.currentInputActionKey = "";
+    }
+    persist();
+    send({
+      kind: "step_delete",
+      page: page(),
+      data: {
+        clientActionId: clientActionId(item)
+      }
+    });
     renderActions();
   };
   function renderActions() {
@@ -866,7 +957,13 @@
       edit.title = "Edit captured action";
       edit.setAttribute("aria-label", "Edit captured action");
       edit.addEventListener("click", () => editAction(item));
-      body.append(labelNode, edit);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.innerHTML = icon("delete");
+      remove.title = "Delete captured action";
+      remove.setAttribute("aria-label", "Delete captured action");
+      remove.addEventListener("click", () => deleteAction(item));
+      body.append(labelNode, edit, remove);
       row.append(body);
       list.appendChild(row);
     });

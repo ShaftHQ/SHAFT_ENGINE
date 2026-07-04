@@ -17,7 +17,7 @@ class McpCaptureCodeBlockServiceTest {
     Path temp;
 
     @Test
-    void fromGeneratedSourceAddsPomLocatorActionAndInsertionGuidance() throws Exception {
+    void fromGeneratedSourceAddsPomLocatorAndActionBlocksWithoutChatGuidance() throws Exception {
         Path source = writeSource("""
                 package generated.capture;
 
@@ -44,9 +44,8 @@ class McpCaptureCodeBlockServiceTest {
                 "capture-full-class",
                 "capture-test-method",
                 "capture-pom-locator-inventory",
-                "capture-pom-action-sequence",
-                "capture-pom-insertion-guide",
-                "capture-agent-integration"), blocks.stream().map(McpCodeBlock::id).toList());
+                "capture-pom-action-sequence"
+                ), blocks.stream().map(McpCodeBlock::id).toList());
 
         McpCodeBlock locators = block(blocks, "capture-pom-locator-inventory");
         assertEquals(McpCodeBlock.Kind.LOCATOR, locators.kind());
@@ -63,12 +62,7 @@ class McpCaptureCodeBlockServiceTest {
         assertTrue(actions.code().contains("// Checkpoint: checkpoint-1 (ASSERTION). Login verified"));
         assertTrue(actions.placement().contains("page methods"));
 
-        McpCodeBlock guide = block(blocks, "capture-pom-insertion-guide");
-        assertEquals(McpCodeBlock.Kind.PROVIDER_ADVISORY, guide.kind());
-        assertTrue(guide.code().contains("Locator fields -> page class"));
-        assertTrue(guide.code().contains("Action lines -> page methods"));
-        assertTrue(guide.code().contains("Orchestration -> tests"));
-        assertTrue(guide.code().contains("SHAFT.GUI.WebDriver"));
+        assertFalse(blocks.stream().anyMatch(item -> item.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
     }
 
     @Test
@@ -116,9 +110,7 @@ class McpCaptureCodeBlockServiceTest {
         assertTrue(actions.placement().contains("after replayCheckout"));
         assertTrue(actions.warnings().isEmpty(), actions.warnings().toString());
 
-        McpCodeBlock guide = block(blocks, "capture-target-insertion-guide");
-        assertTrue(guide.code().contains("record-at-target"));
-        assertTrue(guide.code().contains("CheckoutTest.java"));
+        assertFalse(blocks.stream().anyMatch(item -> item.id().equals("capture-target-insertion-guide")));
     }
 
     @Test
@@ -143,7 +135,6 @@ class McpCaptureCodeBlockServiceTest {
                 .fromGeneratedSource(source, "page");
 
         assertTrue(block(blocks, "capture-test-method").placement().contains("SHAFT.GUI.Playwright"));
-        assertTrue(block(blocks, "capture-pom-insertion-guide").code().contains("SHAFT.GUI.Playwright"));
     }
 
     @Test
@@ -205,10 +196,7 @@ class McpCaptureCodeBlockServiceTest {
         List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
                 .fromGeneratedSource(source, "driver");
 
-        assertTrue(blocks.stream().anyMatch(block -> block.id().equals("capture-full-class")));
-        assertTrue(blocks.stream().anyMatch(block -> block.id().equals("capture-agent-integration")));
-        McpCodeBlock warning = block(blocks, "capture-pom-manual-mapping-warning");
-        assertTrue(warning.warnings().stream().anyMatch(message -> message.contains("manual mapping")));
+        assertEquals(List.of("capture-full-class"), blocks.stream().map(McpCodeBlock::id).toList());
     }
 
     private Path writeSource(String source) throws Exception {

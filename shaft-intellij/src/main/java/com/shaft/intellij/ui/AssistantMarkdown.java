@@ -381,7 +381,7 @@ final class AssistantMarkdown {
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
             if ("COMPLETED".equalsIgnoreCase(string(object, "state", ""))) {
-                sections.add("Run `/codegen " + outputPath + "` to generate SHAFT Java from this recording.");
+                sections.add("Run codegen next:\n\n" + fence("text", "/codegen " + outputPath));
             }
         }
         String warnings = warnings(object);
@@ -594,7 +594,7 @@ final class AssistantMarkdown {
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
             if ("COMPLETED".equalsIgnoreCase(string(object, "state", ""))) {
-                sections.add("Run `/codegen " + outputPath + "` to generate SHAFT Java from this recording.");
+                sections.add("Run codegen next:\n\n" + fence("text", "/codegen " + outputPath));
             }
         }
         String currentUrl = string(object, "currentUrl", "");

@@ -71,6 +71,7 @@ class ManagedCaptureRecorder {
     private SHAFT.GUI.WebDriver shaftDriver;
     private WebDriver driver;
     private BrowserEventCollector collector;
+    private BrowserEventSink eventSink;
     private CaptureSessionStore store;
     private CaptureEventPipeline pipeline;
     private String currentUrl;
@@ -119,12 +120,15 @@ class ManagedCaptureRecorder {
                     privacyPolicy,
                     value -> currentUrl = value,
                     this::warn);
+            startEventSink();
             startCollector(driver);
             driver.navigate().to(request.targetUrl());
             if (driver instanceof JavascriptExecutor javascript) {
                 javascript.executeScript(
                         com.shaft.capture.collector.BrowserEventScript.fallbackInstallation(
-                                request.options().testIdAttributes()));
+                                request.options().testIdAttributes(),
+                                eventSinkEndpoint(),
+                                eventSinkToken()));
             }
             pipeline.accept(BrowserSignal.generated(
                     "navigation",
@@ -545,16 +549,44 @@ class ManagedCaptureRecorder {
         try {
             collector = new CompositeBrowserEventCollector(List.of(
                     new BidiBrowserEventCollector(activeDriver, request.options().testIdAttributes()),
-                    new PollingBrowserEventCollector(activeDriver, false, request.options().testIdAttributes())));
+                    new PollingBrowserEventCollector(
+                            activeDriver,
+                            false,
+                            request.options().testIdAttributes(),
+                            eventSinkEndpoint(),
+                            eventSinkToken())));
             collector.start(this::acceptSignal, this::warn);
         } catch (RuntimeException exception) {
             if (collector != null) {
                 collector.close();
             }
             warn("WebDriver BiDi initialization failed; the compatibility listener will be used.");
-            collector = new PollingBrowserEventCollector(activeDriver, true, request.options().testIdAttributes());
+            collector = new PollingBrowserEventCollector(
+                    activeDriver,
+                    true,
+                    request.options().testIdAttributes(),
+                    eventSinkEndpoint(),
+                    eventSinkToken());
             collector.start(this::acceptSignal, this::warn);
         }
+    }
+
+    private void startEventSink() {
+        try {
+            eventSink = new BrowserEventSink(this::acceptSignal, this::warn);
+            eventSink.start();
+        } catch (RuntimeException exception) {
+            eventSink = null;
+            warn("The browser event sink could not start; fallback capture may miss fast navigations.");
+        }
+    }
+
+    private String eventSinkEndpoint() {
+        return eventSink == null ? "" : eventSink.endpoint();
+    }
+
+    private String eventSinkToken() {
+        return eventSink == null ? "" : eventSink.eventToken();
     }
 
     void acceptSignal(BrowserSignal signal) {
@@ -639,6 +671,15 @@ class ManagedCaptureRecorder {
                 warn("The browser event collector had already stopped.");
             } finally {
                 collector = null;
+            }
+        }
+        if (eventSink != null) {
+            try {
+                eventSink.close();
+            } catch (RuntimeException ignored) {
+                warn("The browser event sink had already stopped.");
+            } finally {
+                eventSink = null;
             }
         }
         if (pipeline != null) {

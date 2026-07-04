@@ -113,15 +113,9 @@ final class McpCaptureCodeBlockService {
             if (!pom.actions().isEmpty()) {
                 blocks.add(actionSequenceBlock(pom.actions()));
             }
-            if (!pom.locators().isEmpty() || !pom.actions().isEmpty()) {
-                blocks.add(pomInsertionGuideBlock(driver, driverType, pom));
-            } else {
-                blocks.add(manualMappingWarningBlock());
-            }
             if (targetSource != null || (insertAfter != null && !insertAfter.isBlank())) {
                 blocks.addAll(targetInsertionBlocks(sourcePath, targetSource, insertAfter, driver));
             }
-            blocks.add(agentIntegrationBlock());
             return List.copyOf(blocks);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Generated Capture source could not be read.", exception);
@@ -163,49 +157,7 @@ final class McpCaptureCodeBlockService {
                     List.of(),
                     plan.warnings()));
         }
-        blocks.add(new McpCodeBlock(
-                "capture-target-insertion-guide",
-                "Record-at-target insertion guide",
-                McpCodeBlock.Kind.PROVIDER_ADVISORY,
-                "text",
-                List.of(),
-                """
-                        record-at-target insertion map
-                        Target source: %s
-                        Insert after: %s
-                        Add imports and locator fields from capture-target-locator-fields when the target class does not already define them.
-                        Paste capture-target-action-snippet at the anchor, then adapt helper/data calls to local suite conventions.
-                        No source file was edited by this workflow.
-                        """.formatted(plan.targetSource(), plan.insertAfter()),
-                "Use these blocks as an approved edit plan for the selected source target.",
-                plan.anchorFound(),
-                List.of(),
-                plan.warnings()));
         return blocks;
-    }
-
-    private static McpCodeBlock agentIntegrationBlock() {
-        return new McpCodeBlock(
-                "capture-agent-integration",
-                "Agent repository integration plan",
-                McpCodeBlock.Kind.PROVIDER_ADVISORY,
-                "text",
-                List.of(),
-                """
-                        The calling AI agent may use its own LLM and repository access to integrate this capture.
-                        After capture_stop, present the generated result and ask the user to choose either a Java
-                        snippet or repository insertion. Snippet mode should show the capture-full-class block as a
-                        fenced java class with imports, locator fields, setup, actions, and teardown.
-                        If the project has Page Object classes, move stable locator fields into the matching page class,
-                        place the action lines into page methods, and keep the test method as orchestration only.
-                        Preserve repository instructions, naming, setup/teardown, and existing test data conventions.
-                        Apply the smallest source edit that compiles; do not paste a generic generated class when a
-                        local Page Object pattern is already present.
-                        """,
-                "AI agent: inspect the current codebase, then insert the generated code into the most relevant classes.",
-                true,
-                List.of(),
-                List.of());
     }
 
     private static McpCodeBlock locatorInventoryBlock(List<String> imports, List<LocatorCandidate> locators) {
@@ -256,53 +208,6 @@ final class McpCaptureCodeBlockService {
                 List.of());
     }
 
-    private static McpCodeBlock pomInsertionGuideBlock(
-            String driver,
-            String driverType,
-            PomCandidates pom) {
-        String locatorSummary = pom.locators().isEmpty()
-                ? "No concrete locator candidates were extracted."
-                : "Use capture-pom-locator-inventory for " + pom.locators().size() + " locator candidate(s).";
-        String actionSummary = pom.actions().isEmpty()
-                ? "No concrete action lines were extracted."
-                : "Use capture-pom-action-sequence for " + pom.actions().size() + " action/checkpoint line(s).";
-        return new McpCodeBlock(
-                "capture-pom-insertion-guide",
-                "Capture-to-POM insertion guide",
-                McpCodeBlock.Kind.PROVIDER_ADVISORY,
-                "text",
-                List.of(),
-                """
-                        Capture-to-POM insertion map
-                        Locator fields -> page class: %s Paste stable locator candidates into the matching Page Object.
-                        Action lines -> page methods: %s Move replay actions into intent-named methods that own a %s named %s.
-                        Orchestration -> tests: keep the generated test method as scenario flow only; call page methods from tests.
-                        Preserve repository setup, teardown, data loading, assertions, and naming conventions.
-                        Do not auto-edit user repositories from MCP output; use these blocks as deterministic guidance.
-                        """.formatted(locatorSummary, actionSummary, driverType, driver),
-                "Use before editing repository files so generated replay code lands in Page Object seams.",
-                false,
-                List.of(),
-                List.of());
-    }
-
-    private static McpCodeBlock manualMappingWarningBlock() {
-        return new McpCodeBlock(
-                "capture-pom-manual-mapping-warning",
-                "Manual Page Object mapping required",
-                McpCodeBlock.Kind.PROVIDER_ADVISORY,
-                "text",
-                List.of(),
-                """
-                        Capture-to-POM extraction did not find concrete locator or action candidates.
-                        Keep the generated full-class and method snippets, then manually map replay steps into
-                        the nearest Page Object fields, page methods, and test orchestration.
-                        """,
-                "Review the generated class manually before repository insertion.",
-                false,
-                List.of(),
-                List.of("POM locator/action extraction found no concrete candidates; manual mapping is required."));
-    }
 
     private static List<String> imports(String source) {
         return source.lines()

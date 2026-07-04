@@ -61,6 +61,9 @@ class CaptureCollectorUtilityTest {
         assertTrue(BrowserEventScript.fallbackInstallation().contains("return ("));
         assertTrue(BrowserEventScript.fallbackDrain().contains("__shaftCaptureQueue"));
         assertTrue(BrowserEventScript.fallbackDrain().contains("__shaftCaptureDrain"));
+        assertTrue(BrowserEventScript.fallbackInstallation(
+                List.of("data-pw"), "http://127.0.0.1:1234/event", "token")
+                .contains("http://127.0.0.1:1234/event"));
         assertTrue(BrowserEventScript.preloadFunction(List.of("data-pw"))
                 .contains("const testIdAttributes = [\"data-pw\"];"));
         assertTrue(BrowserEventScript.fallbackInstallation(List.of("data-\"quoted\\path"))
@@ -73,6 +76,10 @@ class CaptureCollectorUtilityTest {
         assertTrue(preload.contains("Stop recording"));
         assertTrue(preload.contains("globalThis.top === globalThis"));
         assertTrue(preload.contains("pendingSignals"));
+        assertTrue(preload.contains("domSnapshot"));
+        assertTrue(preload.contains("kind: \"step_update\""));
+        assertTrue(preload.contains("kind: \"step_delete\""));
+        assertTrue(preload.contains("Delete captured action"));
         assertTrue(preload.contains("pagehide"));
         assertTrue(preload.contains("beforeunload"));
 

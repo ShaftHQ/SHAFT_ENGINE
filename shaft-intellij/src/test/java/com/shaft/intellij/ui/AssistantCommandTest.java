@@ -506,20 +506,24 @@ class AssistantCommandTest {
     @Test
     void commandHelpShowsOnlyTestedValidCommandFamilies() {
         AssistantCommand.Invocation help = command("/commands");
+        String response = help.localResponse();
 
         assertAll(
                 () -> assertTrue(help.isLocal()),
-                () -> assertTrue(help.localResponse().contains("/codegen")),
-                () -> assertTrue(help.localResponse().contains("/record-web")),
-                () -> assertTrue(help.localResponse().contains("/record-mobile")),
-                () -> assertTrue(help.localResponse().contains("/doctor")),
-                () -> assertTrue(help.localResponse().contains("/guide")),
-                () -> assertTrue(help.localResponse().contains("/guardrails")),
-                () -> assertTrue(help.localResponse().contains("/browser")),
-                () -> assertTrue(help.localResponse().contains("/mobile")),
-                () -> assertTrue(help.localResponse().contains("/project")),
-                () -> assertFalse(help.localResponse().contains("/commands")),
-                () -> assertFalse(help.localResponse().contains("/assistant")));
+                () -> assertTrue(response.contains("**/codegen**")),
+                () -> assertTrue(response.contains("**/record-web**")),
+                () -> assertTrue(response.contains("**/record-mobile**")),
+                () -> assertTrue(response.contains("**/doctor**")),
+                () -> assertTrue(response.contains("**/guide**")),
+                () -> assertTrue(response.contains("**/guardrails**")),
+                () -> assertTrue(response.contains("**/browser**")),
+                () -> assertTrue(response.contains("**/mobile**")),
+                () -> assertTrue(response.contains("**/project**")),
+                () -> assertTrue(response.contains("```text\n/codegen recordings/intellij-capture.json\n```")),
+                () -> assertTrue(response.contains("```text\n/record-web https://example.com\n```")),
+                () -> assertFalse(response.contains("Example: /codegen")),
+                () -> assertFalse(response.contains("/commands -")),
+                () -> assertFalse(response.contains("/assistant -")));
     }
 
     @Test

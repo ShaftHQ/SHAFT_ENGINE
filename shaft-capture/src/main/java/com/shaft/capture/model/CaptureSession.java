@@ -118,6 +118,22 @@ public record CaptureSession(
     }
 
     /**
+     * Returns a copy with a replaced event list.
+     *
+     * @param updatedEvents replacement events
+     * @return updated session
+     */
+    public CaptureSession withEvents(List<CaptureEvent> updatedEvents) {
+        ensureIncomplete();
+        Set<String> retainedReferenceIds = eventReferenceIds(updatedEvents);
+        List<ExternalTestDataReference> retainedReferences = dataReferences.stream()
+                .filter(reference -> retainedReferenceIds.contains(reference.id()))
+                .toList();
+        return new CaptureSession(schemaVersion, sessionId, status, startedAt, endedAt, browser,
+                updatedEvents, checkpoints, retainedReferences, redactionSummary, extensions);
+    }
+
+    /**
      * Returns a copy containing external data references and their safe summary.
      *
      * @param references references to add
@@ -200,5 +216,36 @@ public record CaptureSession(
             }
         }
         return List.copyOf(sorted);
+    }
+
+    private static Set<String> eventReferenceIds(List<CaptureEvent> values) {
+        Set<String> ids = new HashSet<>();
+        if (values == null) {
+            return ids;
+        }
+        values.forEach(event -> eventReferences(event).forEach(reference -> ids.add(reference.id())));
+        return ids;
+    }
+
+    private static List<ExternalTestDataReference> eventReferences(CaptureEvent event) {
+        if (event instanceof CaptureEvent.TypeEvent value) {
+            return List.of(value.value());
+        }
+        if (event instanceof CaptureEvent.SelectEvent value) {
+            return List.of(value.value());
+        }
+        if (event instanceof CaptureEvent.UploadEvent value) {
+            return List.of(value.file());
+        }
+        if (event instanceof CaptureEvent.AlertEvent value && value.text() != null) {
+            return List.of(value.text());
+        }
+        if (event instanceof CaptureEvent.WaitEvent value && value.expected() != null) {
+            return List.of(value.expected());
+        }
+        if (event instanceof CaptureEvent.VerificationEvent value && value.expected() != null) {
+            return List.of(value.expected());
+        }
+        return List.of();
     }
 }

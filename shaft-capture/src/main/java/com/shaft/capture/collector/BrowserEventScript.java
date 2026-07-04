@@ -57,6 +57,26 @@ public final class BrowserEventScript {
     }
 
     /**
+     * Returns JavaScript that installs the fallback queue listener with a loopback event sink.
+     *
+     * @param testIdAttributes locator test-id attributes
+     * @param eventEndpoint loopback event endpoint
+     * @param eventToken loopback event token
+     * @return installation JavaScript
+     */
+    public static String fallbackInstallation(
+            List<String> testIdAttributes,
+            String eventEndpoint,
+            String eventToken) {
+        if (eventEndpoint == null || eventEndpoint.isBlank()
+                || eventToken == null || eventToken.isBlank()) {
+            return fallbackInstallation(testIdAttributes);
+        }
+        return "return (" + script(testIdAttributes) + ")(null, {url: "
+                + jsString(eventEndpoint) + ", token: " + jsString(eventToken) + "});";
+    }
+
+    /**
      * Returns JavaScript that drains fallback signals.
      *
      * @return queue drain JavaScript

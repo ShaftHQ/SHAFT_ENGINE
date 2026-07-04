@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,7 +37,6 @@ import java.util.function.Consumer;
  * Converts low-level browser signals into ordered privacy-safe semantic events.
  */
 final class CaptureEventPipeline implements AutoCloseable {
-    private static final Duration INPUT_DEBOUNCE = Duration.ofMillis(350);
     private static final Duration CLICK_DEBOUNCE = Duration.ofMillis(300);
     private static final Duration NAVIGATION_DEBOUNCE = Duration.ofMillis(750);
 
@@ -123,7 +123,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     synchronized int eventCount() {
-        return Math.toIntExact(sequence);
+        return store.read().events().size();
     }
 
     @Override
@@ -142,7 +142,6 @@ final class CaptureEventPipeline implements AutoCloseable {
         }
         Instant now = Instant.now();
         List<BrowserSignal> ready = new ArrayList<>();
-        collectReady(pendingInputs, now.minus(INPUT_DEBOUNCE), ready);
         collectReady(pendingClicks, now.minus(CLICK_DEBOUNCE), ready);
         flushOrdered(ready);
     }
@@ -205,6 +204,8 @@ final class CaptureEventPipeline implements AutoCloseable {
                     target(signal).summary(), List.of());
             case "verification" -> emitVerification(signal);
             case "locator_preference" -> rememberLocatorPreference(signal);
+            case "step_update" -> updateStep(signal);
+            case "step_delete" -> deleteStep(signal);
             case "window_open" -> append(new CaptureEvent.WindowEvent(
                     context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(signal.browsingContextId())),
                     RedactionSummary.empty(), List.of());
@@ -380,7 +381,7 @@ final class CaptureEventPipeline implements AutoCloseable {
                 page.context(),
                 EventContext.ReplayStatus.NOT_REPLAYED,
                 List.of(),
-                extensions);
+                contextExtensions(signal, page, extensions));
     }
 
     private void emitContextTransitions(BrowserSignal signal, SafePage page) {
@@ -431,7 +432,8 @@ final class CaptureEventPipeline implements AutoCloseable {
     private SafePage page(BrowserSignal signal) {
         var safeUrl = privacy.sanitizeUrl(string(signal.page().get("url")));
         var safeTitle = privacy.sanitizeText(string(signal.page().get("title")));
-        RedactionSummary summary = safeUrl.summary().merge(safeTitle.summary());
+        var safeDom = privacy.sanitizeText(string(signal.page().get("domSnapshot")));
+        RedactionSummary summary = safeUrl.summary().merge(safeTitle.summary()).merge(safeDom.summary());
         List<String> frames = list(signal.page().get("framePath")).stream()
                 .map(privacy::sanitizeText)
                 .map(safe -> safe.value().isBlank() ? "frame" : safe.value())
@@ -443,7 +445,7 @@ final class CaptureEventPipeline implements AutoCloseable {
                 frames,
                 integer(signal.page().get("width"), 0),
                 integer(signal.page().get("height"), 0));
-        return new SafePage(page, summary);
+        return new SafePage(page, summary, safeDom.value());
     }
 
     private SafeTarget target(BrowserSignal signal) {
@@ -512,6 +514,42 @@ final class CaptureEventPipeline implements AutoCloseable {
         locatorPreferences.put(logicalElementId, new LocatorPreference(strategy, expression));
     }
 
+    private void updateStep(BrowserSignal signal) {
+        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String description = privacy.sanitizeText(signal.dataString("description")).value();
+        if (clientActionId.isBlank() || description.isBlank()) {
+            warningConsumer.accept("A browser step edit was ignored because it was incomplete.");
+            return;
+        }
+        store.updateEvents(events -> events.stream()
+                .map(event -> clientActionId.equals(extensionText(event.context(), "clientActionId"))
+                        ? withContext(event, withExtension(event.context(), "userDescription", description))
+                        : event)
+                .toList());
+    }
+
+    private void deleteStep(BrowserSignal signal) {
+        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        if (clientActionId.isBlank()) {
+            warningConsumer.accept("A browser step deletion was ignored because it was incomplete.");
+            return;
+        }
+        Set<String> removedReferenceIds = new LinkedHashSet<>();
+        store.updateEvents(events -> events.stream()
+                .filter(event -> {
+                    boolean remove = clientActionId.equals(extensionText(event.context(), "clientActionId"));
+                    if (remove) {
+                        eventReferences(event).forEach(reference -> removedReferenceIds.add(reference.id()));
+                    }
+                    return !remove;
+                })
+                .toList());
+        if (!removedReferenceIds.isEmpty()) {
+            classifiedValues.removeIf(value -> removedReferenceIds.contains(value.reference().id()));
+            dataWriter.write(dataPath, classifiedValues);
+        }
+    }
+
     private List<LocatorCandidate> applyLocatorPreference(
             String logicalElementId,
             List<LocatorCandidate> locators) {
@@ -543,6 +581,94 @@ final class CaptureEventPipeline implements AutoCloseable {
             RedactionSummary summary,
             List<ExternalTestDataReference> references) {
         store.append(event, references, summary);
+    }
+
+    private Map<String, JsonNode> contextExtensions(
+            BrowserSignal signal,
+            SafePage page,
+            Map<String, JsonNode> extensions) {
+        Map<String, JsonNode> result = new LinkedHashMap<>();
+        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        if (!clientActionId.isBlank()) {
+            result.put("clientActionId", StringNode.valueOf(clientActionId));
+        }
+        if (!page.domSnapshot().isBlank()) {
+            result.put("domSnapshot", StringNode.valueOf(page.domSnapshot()));
+        }
+        result.putAll(extensions);
+        return result;
+    }
+
+    private static EventContext withExtension(EventContext context, String name, String value) {
+        Map<String, JsonNode> extensions = new LinkedHashMap<>(context.extensions());
+        extensions.put(name, StringNode.valueOf(value));
+        return new EventContext(
+                context.sequence(),
+                context.timestamp(),
+                context.page(),
+                context.replayStatus(),
+                context.evidence(),
+                extensions);
+    }
+
+    private static String extensionText(EventContext context, String name) {
+        JsonNode value = context.extensions().get(name);
+        return value == null ? "" : value.asText("");
+    }
+
+    private static CaptureEvent withContext(CaptureEvent event, EventContext context) {
+        return switch (event) {
+            case CaptureEvent.NavigationEvent value -> new CaptureEvent.NavigationEvent(
+                    context, value.action(), value.targetUrl());
+            case CaptureEvent.ClickEvent value -> new CaptureEvent.ClickEvent(
+                    context, value.target(), value.button(), value.clickCount());
+            case CaptureEvent.TypeEvent value -> new CaptureEvent.TypeEvent(context, value.target(), value.value());
+            case CaptureEvent.ClearEvent value -> new CaptureEvent.ClearEvent(context, value.target());
+            case CaptureEvent.SelectEvent value -> new CaptureEvent.SelectEvent(
+                    context, value.target(), value.mode(), value.value());
+            case CaptureEvent.ToggleEvent value -> new CaptureEvent.ToggleEvent(
+                    context, value.target(), value.checked());
+            case CaptureEvent.UploadEvent value -> new CaptureEvent.UploadEvent(
+                    context,
+                    value.target(),
+                    value.file(),
+                    value.safeFileName(),
+                    value.mediaType(),
+                    value.sizeBytes());
+            case CaptureEvent.KeyboardEvent value -> new CaptureEvent.KeyboardEvent(
+                    context, value.target(), value.keys());
+            case CaptureEvent.WindowEvent value -> new CaptureEvent.WindowEvent(
+                    context, value.action(), value.logicalWindowId());
+            case CaptureEvent.FrameEvent value -> new CaptureEvent.FrameEvent(
+                    context, value.action(), value.logicalFrameId(), value.target());
+            case CaptureEvent.AlertEvent value -> new CaptureEvent.AlertEvent(context, value.action(), value.text());
+            case CaptureEvent.WaitEvent value -> new CaptureEvent.WaitEvent(
+                    context, value.condition(), value.timeout(), value.target(), value.expected());
+            case CaptureEvent.VerificationEvent value -> new CaptureEvent.VerificationEvent(
+                    context, value.verification(), value.target(), value.expected(), value.negated());
+        };
+    }
+
+    private static List<ExternalTestDataReference> eventReferences(CaptureEvent event) {
+        if (event instanceof CaptureEvent.TypeEvent value) {
+            return List.of(value.value());
+        }
+        if (event instanceof CaptureEvent.SelectEvent value) {
+            return List.of(value.value());
+        }
+        if (event instanceof CaptureEvent.UploadEvent value) {
+            return List.of(value.file());
+        }
+        if (event instanceof CaptureEvent.AlertEvent value && value.text() != null) {
+            return List.of(value.text());
+        }
+        if (event instanceof CaptureEvent.WaitEvent value && value.expected() != null) {
+            return List.of(value.expected());
+        }
+        if (event instanceof CaptureEvent.VerificationEvent value && value.expected() != null) {
+            return List.of(value.expected());
+        }
+        return List.of();
     }
 
     private String logicalWindow(String contextId) {
@@ -665,7 +791,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         }
     }
 
-    private record SafePage(PageContext context, RedactionSummary summary) {
+    private record SafePage(PageContext context, RedactionSummary summary, String domSnapshot) {
     }
 
     private record SafeTarget(ElementSnapshot snapshot, RedactionSummary summary) {
