@@ -99,6 +99,64 @@ class AssistantCommandTest {
     }
 
     @Test
+    void localAndCloudPromptsIncludeConversationContextWhenProvided() {
+        String context = "User: Previous target URL was https://duckduckgo.com";
+        AssistantCommand.Invocation local = AssistantCommand.fromPrompt(
+                "continue with the first result assertion",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                "C:/work/project",
+                "",
+                true,
+                AssistantCommand.OpenFileContext.empty(),
+                context);
+        AssistantCommand.Invocation cloud = AssistantCommand.fromPrompt(
+                "summarize next step",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                "C:/work/project",
+                "",
+                false,
+                AssistantCommand.OpenFileContext.empty(),
+                context);
+
+        assertAll(
+                () -> assertTrue(local.arguments().get("prompt").getAsString().contains("Conversation context:")),
+                () -> assertTrue(local.arguments().get("prompt").getAsString().contains(context)),
+                () -> assertTrue(local.arguments().get("prompt").getAsString()
+                        .contains("Current request:\nIf this request requires interacting")),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains("Conversation context:")),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains(context)),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString()
+                        .contains("Current request:\nsummarize next step")));
+    }
+
+    @Test
+    void askOrPlanMcpNaturalLanguagePromptsRequireAgentModeButSlashCommandsDoNot() {
+        AssistantCommand.Invocation natural = AssistantCommand.fromPrompt(
+                "open duckduckgo and search for SHAFT Engine",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "PLAN",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation slash = AssistantCommand.fromPrompt(
+                "/guide locators",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "PLAN",
+                ".",
+                "",
+                false);
+
+        assertAll(
+                () -> assertTrue(AssistantCommand.requiresAgentModeForMcp(
+                        "open duckduckgo and search for SHAFT Engine", "PLAN", natural)),
+                () -> assertFalse(AssistantCommand.requiresAgentModeForMcp("/guide locators", "PLAN", slash)),
+                () -> assertFalse(AssistantCommand.requiresAgentModeForMcp(
+                        "open duckduckgo and search for SHAFT Engine", "AGENT", natural)));
+    }
+
+    @Test
     void localAgentCodeGenerationPromptsNameShaftMcpPracticeToolsBeforeGeneration() {
         AssistantCommand.Invocation generatedTest = AssistantCommand.fromPrompt(
                 "generate a Java login test with a page object",

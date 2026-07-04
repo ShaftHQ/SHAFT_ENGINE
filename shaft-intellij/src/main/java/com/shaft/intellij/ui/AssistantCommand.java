@@ -252,7 +252,7 @@ final class AssistantCommand {
             boolean allowSourceMutation,
             OpenFileContext openFileContext) {
         return fromPrompt(prompt, Selection.fromClient(client), mode, workingDirectory, customCommand, allowSourceMutation,
-                openFileContext);
+                openFileContext, "");
     }
 
     static Invocation fromPrompt(
@@ -274,6 +274,19 @@ final class AssistantCommand {
             String customCommand,
             boolean allowSourceMutation,
             OpenFileContext openFileContext) {
+        return fromPrompt(prompt, selection, mode, workingDirectory, customCommand, allowSourceMutation,
+                openFileContext, "");
+    }
+
+    static Invocation fromPrompt(
+            String prompt,
+            Selection selection,
+            String mode,
+            String workingDirectory,
+            String customCommand,
+            boolean allowSourceMutation,
+            OpenFileContext openFileContext,
+            String conversationContext) {
         String text = prompt == null ? "" : prompt.trim();
         if (text.isEmpty()) {
             return Invocation.local("Enter a prompt or slash command.");
@@ -296,7 +309,7 @@ final class AssistantCommand {
             }
         }
         if (selection.cloud()) {
-            return cloud(text, selection, mode, workingDirectory, openFileContext);
+            return cloud(text, selection, mode, workingDirectory, openFileContext, conversationContext);
         }
         if (!"CLI".equals(selection.runtime())) {
             return Invocation.local("SHAFT is configured for " + selection.displayName()
@@ -305,7 +318,8 @@ final class AssistantCommand {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", selection.client());
         arguments.addProperty("mode", mode);
-        arguments.addProperty("prompt", localAgentPrompt(text, mode, allowSourceMutation, openFileContext));
+        arguments.addProperty("prompt", localAgentPrompt(text, mode, allowSourceMutation, openFileContext,
+                conversationContext));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.add("command", commandArray(customCommand));
         arguments.add("environment", new JsonObject());
@@ -319,26 +333,28 @@ final class AssistantCommand {
             Selection selection,
             String mode,
             String workingDirectory,
-            OpenFileContext openFileContext) {
+            OpenFileContext openFileContext,
+            String conversationContext) {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("provider", selection.cloudProvider());
         arguments.addProperty("model", selection.cloudModel());
         arguments.addProperty("mode", mode);
-        arguments.addProperty("prompt", cloudPrompt(text, mode, openFileContext));
+        arguments.addProperty("prompt", cloudPrompt(text, mode, openFileContext, conversationContext));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
         arguments.addProperty("allowSourceMutation", false);
         return Invocation.tool("autobot_provider_chat", arguments);
     }
 
-    private static String cloudPrompt(String text, String mode, OpenFileContext openFileContext) {
+    private static String cloudPrompt(String text, String mode, OpenFileContext openFileContext,
+                                      String conversationContext) {
         if (!isCodeGenerationRequest(text)) {
-            return text;
+            return withConversationContext(text, conversationContext);
         }
-        return SHAFT_MCP_USAGE_HINT
+        return withConversationContext(SHAFT_MCP_USAGE_HINT
                 + "\n" + SHAFT_CODEGEN_TOOL_GUIDANCE
                 + "\n" + codeRequestScope(Selection.normalize(mode, "ASK"), openFileContext)
-                + "\n\n" + text;
+                + "\n\n" + text, conversationContext);
     }
 
     private static Invocation slash(String text, String workingDirectory) {
@@ -1267,7 +1283,8 @@ final class AssistantCommand {
             String text,
             String mode,
             boolean allowSourceMutation,
-            OpenFileContext openFileContext) {
+            OpenFileContext openFileContext,
+            String conversationContext) {
         String lower = text.toLowerCase(Locale.ROOT);
         String normalizedMode = Selection.normalize(mode, "ASK");
         boolean agentMode = "AGENT".equals(normalizedMode);
@@ -1282,7 +1299,55 @@ final class AssistantCommand {
                 + "\n\n" + text
                 : text)
                 : hint + "\n\n" + text;
+        withHint = withConversationContext(withHint, conversationContext);
         return agentMode && !allowSourceMutation ? withHint + "\n\n" + AGENT_SOURCE_GUARD : withHint;
+    }
+
+    static boolean requiresAgentModeForMcp(String prompt, String mode, Invocation invocation) {
+        if ("AGENT".equals(Selection.normalize(mode, "ASK")) || invocation == null || invocation.isLocal()) {
+            return false;
+        }
+        if (!Invocation.LOCAL_AGENT_TOOL.equals(invocation.toolName())) {
+            return false;
+        }
+        return promptNeedsMcpToolCalls(prompt);
+    }
+
+    private static boolean promptNeedsMcpToolCalls(String prompt) {
+        String normalized = normalizeNaturalCommand(prompt);
+        return isCodeGenerationRequest(prompt)
+                || containsAny(normalized,
+                "shaft mcp",
+                "shaft-mcp",
+                "browser",
+                "open browser",
+                "open page",
+                "open url",
+                "navigate",
+                "visit http",
+                "click",
+                "type into",
+                "search for",
+                "locator",
+                "inspect element",
+                "mobile app",
+                "record flow",
+                "take screenshot",
+                "duckduckgo");
+    }
+
+    private static String withConversationContext(String prompt, String conversationContext) {
+        String context = text(conversationContext);
+        if (context.isBlank()) {
+            return prompt;
+        }
+        return """
+                Conversation context:
+                %s
+
+                Current request:
+                %s
+                """.formatted(context, prompt).stripIndent().trim();
     }
 
     private static String codeRequestScope(String mode, OpenFileContext openFileContext) {
