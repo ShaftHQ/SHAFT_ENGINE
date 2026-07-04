@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recording SHAFT Tests with MCP"
+  short_description: "Record SHAFT tests through MCP"
+  default_prompt: "Use $recording-shaft-tests-with-mcp to record this flow and turn it into SHAFT test code."

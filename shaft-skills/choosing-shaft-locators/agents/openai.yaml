@@ -1,0 +1,4 @@
+interface:
+  display_name: "Choosing SHAFT Locators"
+  short_description: "Choose robust SHAFT locators"
+  default_prompt: "Use $choosing-shaft-locators to review and improve these SHAFT locators."

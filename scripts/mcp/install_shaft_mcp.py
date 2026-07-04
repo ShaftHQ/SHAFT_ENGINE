@@ -17,6 +17,7 @@ import tempfile
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
@@ -33,6 +34,13 @@ RUNTIME_DEPENDENCIES_ENTRY = "META-INF/shaft-mcp/runtime-dependencies.txt"
 WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.workspaceRoot"
 USER_GUIDE_URL = "https://shafthq.github.io/docs/agentic/mcp"
 BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
+SHAFT_SKILLS_DIRECTORY = "shaft-skills"
+SHAFT_SKILLS_SOURCE_MARKERS = (
+    "writing-shaft-tests/SKILL.md",
+    "choosing-shaft-locators/SKILL.md",
+    "recording-shaft-tests-with-mcp/SKILL.md",
+    "analyzing-shaft-failures/SKILL.md",
+)
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "intellij-plugin")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
@@ -149,6 +157,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--client", choices=TARGETS)
     parser.add_argument("--version", default=os.environ.get("SHAFT_MCP_VERSION", "LATEST"))
     parser.add_argument("--json", action="store_true", help="Print machine-readable install details to stdout.")
+    parser.add_argument(
+        "--install-shaft-skills",
+        action="store_true",
+        help="Install SHAFT agent skills into the current directory without prompting.",
+    )
+    parser.add_argument(
+        "--skip-shaft-skills",
+        action="store_true",
+        help="Do not install SHAFT agent skills into the current directory.",
+    )
     for target, _ in TARGET_CHOICES:
         parser.add_argument(f"--{target}", action="store_true", dest=target.replace("-", "_"))
     parser.add_argument(
@@ -170,6 +188,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     selected = [target for target in selected if target]
     if len(set(selected)) > 1:
         fail("Specify only one MCP client target.", 2)
+    if args.install_shaft_skills and args.skip_shaft_skills:
+        fail("Specify only one of --install-shaft-skills or --skip-shaft-skills.", 2)
     args.client = selected[0] if selected else choose_client()
     if args.client not in TARGETS:
         fail("Usage: install-shaft-mcp.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|intellij-plugin>]", 2)
@@ -570,6 +590,98 @@ def install_runtime_dependencies(jar: Path, repository: str) -> list[Path]:
     resolved = [path for path in installed if path is not None]
     log(f"Installed {len(resolved)} shaft-mcp runtime dependencies.")
     return resolved
+
+
+def is_shaft_skills_source(path: Path) -> bool:
+    return path.is_dir() and all((path / marker).is_file() for marker in SHAFT_SKILLS_SOURCE_MARKERS)
+
+
+def local_shaft_skills_source() -> Path | None:
+    script = Path(__file__).resolve()
+    for parent in script.parents:
+        candidate = parent / SHAFT_SKILLS_DIRECTORY
+        if is_shaft_skills_source(candidate):
+            return candidate.resolve()
+    return None
+
+
+def copy_shaft_skills(source: Path, target: Path) -> Path:
+    source = source.resolve()
+    target = target.resolve()
+    if source == target:
+        return target
+    target.mkdir(parents=True, exist_ok=True)
+    for item in source.iterdir():
+        destination = target / item.name
+        if item.is_dir():
+            shutil.copytree(item, destination, dirs_exist_ok=True)
+        elif item.is_file():
+            shutil.copy2(item, destination)
+    return target
+
+
+def shaft_skills_archive_url() -> str:
+    explicit = os.environ.get("SHAFT_SKILLS_ARCHIVE_URL")
+    if explicit:
+        return explicit
+    ref = os.environ.get("SHAFT_MCP_INSTALLER_REF", "main").strip() or "main"
+    return f"https://github.com/ShaftHQ/SHAFT_ENGINE/archive/{urllib.parse.quote(ref, safe='/')}.zip"
+
+
+def extract_shaft_skills_from_archive(archive: Path, target: Path) -> Path:
+    target = target.resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    marker = f"/{SHAFT_SKILLS_DIRECTORY}/"
+    with zipfile.ZipFile(archive) as zip_file:
+        for member in zip_file.infolist():
+            name = member.filename.replace("\\", "/")
+            if member.is_dir() or marker not in name:
+                continue
+            relative = name.split(marker, 1)[1]
+            if not relative:
+                continue
+            destination = (target / relative).resolve()
+            if target != destination and target not in destination.parents:
+                fail(f"SHAFT skills archive contains an unsafe path: {relative}", 4)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with zip_file.open(member) as source, destination.open("wb") as output:
+                shutil.copyfileobj(source, output)
+            copied += 1
+    if copied == 0 or not is_shaft_skills_source(target):
+        fail("SHAFT skills package did not contain the expected skill files.", 4)
+    return target
+
+
+def install_shaft_skills(current_directory: Path, root: Path) -> Path:
+    target = current_directory.resolve() / SHAFT_SKILLS_DIRECTORY
+    source = local_shaft_skills_source()
+    if source is not None:
+        return copy_shaft_skills(source, target)
+    archive = root / "downloads" / "shaft-skills.zip"
+    download_file(shaft_skills_archive_url(), archive, "SHAFT skills package")
+    return extract_shaft_skills_from_archive(archive, target)
+
+
+def should_install_shaft_skills(args: argparse.Namespace, current_directory: Path) -> bool:
+    if args.install_shaft_skills:
+        return True
+    if args.skip_shaft_skills:
+        return False
+    if not sys.stdin.isatty():
+        log(f"Installing SHAFT skills into current directory by default: {current_directory}")
+        return True
+    print(
+        f"Install SHAFT skills into the current directory?\n  {current_directory}\n[Y/n]: ",
+        end="",
+        file=sys.stderr,
+        flush=True,
+    )
+    try:
+        answer = input().strip().lower()
+    except EOFError:
+        return True
+    return answer not in {"n", "no"}
 
 
 def java_argfile_quote(value: str) -> str:
@@ -1013,6 +1125,15 @@ def install(args: argparse.Namespace) -> None:
     if args.client != "intellij-plugin":
         log(f"Configuring shaft-mcp for {args.client}...")
         configure_client(args.client, java, args_file)
+    current_directory = Path.cwd().resolve()
+    skills_path = current_directory / SHAFT_SKILLS_DIRECTORY
+    skills_installed = False
+    if should_install_shaft_skills(args, current_directory):
+        log(f"Installing SHAFT skills to {skills_path}...")
+        skills_path = install_shaft_skills(current_directory, root)
+        skills_installed = True
+    else:
+        log(f"Skipped SHAFT skills installation for {skills_path}.")
     result = {
         "client": args.client,
         "server": SERVER_NAME,
@@ -1020,12 +1141,20 @@ def install(args: argparse.Namespace) -> None:
         "command": str(java),
         "args": [f"@{args_file}"],
         "userGuide": USER_GUIDE_URL,
+        "shaftSkills": {
+            "installed": skills_installed,
+            "path": str(skills_path),
+        },
     }
     if args.json:
         print(json.dumps(result, separators=(",", ":")))
     else:
         action = "installed and ready for" if args.client == "intellij-plugin" else "installed and configured for"
         print(f"shaft-mcp {version} is {action} {args.client}.")
+        if skills_installed:
+            print(f"SHAFT skills installed at {skills_path}.")
+        else:
+            print(f"SHAFT skills installation skipped for {skills_path}.")
         print(activation_hint(args.client))
         print(f"User guide: {USER_GUIDE_URL}")
 

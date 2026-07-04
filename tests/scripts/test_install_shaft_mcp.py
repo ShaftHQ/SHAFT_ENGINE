@@ -30,6 +30,16 @@ def temporary_environment(**values):
                 os.environ[name] = value
 
 
+@contextlib.contextmanager
+def temporary_current_directory(path: Path):
+    original = Path.cwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(original)
+
+
 class InstallShaftMcpTest(unittest.TestCase):
     def test_banner_is_not_repeated_after_bootstrap_banner(self):
         with temporary_environment(SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN="1"):
@@ -63,8 +73,59 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertEqual("intellij-plugin", args.client)
         self.assertTrue(args.json)
 
+    def test_parse_rejects_conflicting_shaft_skills_flags(self):
+        with self.assertRaises(MODULE.InstallError):
+            MODULE.parse_args(["--codex", "--install-shaft-skills", "--skip-shaft-skills"])
+
     def test_intellij_plugin_target_does_not_configure_external_client(self):
         MODULE.configure_client("intellij-plugin", Path("java"), Path("shaft-mcp.args"))
+
+    def test_unattended_install_defaults_to_shaft_skills(self):
+        args = MODULE.parse_args(["--intellij-plugin"])
+
+        stderr = io.StringIO()
+        original_stdin = MODULE.sys.stdin
+        MODULE.sys.stdin = io.StringIO("")
+        try:
+            with contextlib.redirect_stderr(stderr):
+                should_install = MODULE.should_install_shaft_skills(args, Path("project").resolve())
+        finally:
+            MODULE.sys.stdin = original_stdin
+
+        self.assertTrue(should_install)
+        self.assertIn("Installing SHAFT skills into current directory by default", stderr.getvalue())
+
+    def test_skip_shaft_skills_flag_disables_install(self):
+        args = MODULE.parse_args(["--intellij-plugin", "--skip-shaft-skills"])
+
+        self.assertFalse(MODULE.should_install_shaft_skills(args, Path("project").resolve()))
+
+    def test_install_shaft_skills_copies_package_to_current_directory(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with temporary_current_directory(root):
+                installed = MODULE.install_shaft_skills(Path.cwd(), root / "bootstrap")
+
+            self.assertEqual(root / MODULE.SHAFT_SKILLS_DIRECTORY, installed)
+            self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
+            self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
+
+    def test_extract_shaft_skills_from_archive(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            archive = root / "shaft-skills.zip"
+            with zipfile.ZipFile(archive, "w") as zip_file:
+                for marker in MODULE.SHAFT_SKILLS_SOURCE_MARKERS:
+                    zip_file.writestr(f"SHAFT_ENGINE-main/shaft-skills/{marker}", "skill")
+                zip_file.writestr(
+                    "SHAFT_ENGINE-main/shaft-skills/recording-shaft-tests-with-mcp/agents/openai.yaml",
+                    "openai: true",
+                )
+
+            installed = MODULE.extract_shaft_skills_from_archive(archive, root / "project" / "shaft-skills")
+
+            self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
+            self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
 
     def test_codex_auto_approval_is_added_to_shaft_mcp_section(self):
         with tempfile.TemporaryDirectory() as temp_dir:

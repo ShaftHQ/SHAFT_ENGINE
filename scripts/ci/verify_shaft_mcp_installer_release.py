@@ -62,6 +62,27 @@ def installer_command(client: str, *extra_args: str) -> list[str]:
     return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh"), f"--{client}", *extra_args]
 
 
+def run_installer(command: list[str], *, cwd: Path, environment: dict[str, str], capture: bool = False) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(  # nosec B603 - command comes from installer_command.
+            command,
+            cwd=cwd,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            check=True,
+            capture_output=capture,
+            text=True,
+        )
+    except subprocess.CalledProcessError as error:
+        details = []
+        if error.stdout:
+            details.append(f"stdout:\n{error.stdout}")
+        if error.stderr:
+            details.append(f"stderr:\n{error.stderr}")
+        suffix = "\n" + "\n".join(details) if details else ""
+        raise RuntimeError(f"Installer command failed: {error.cmd}{suffix}") from error
+
+
 def last_json_line(output: str) -> dict[str, object]:
     for line in reversed(output.splitlines()):
         line = line.strip()
@@ -168,6 +189,9 @@ def verify_plugin_json(result: dict[str, object], java: Path, args: Path) -> Non
         raise RuntimeError(f"Unexpected Java command in IntelliJ plugin installer output: {result}")
     if result.get("args") != [f"@{args}"]:
         raise RuntimeError(f"Unexpected SHAFT MCP arguments in IntelliJ plugin installer output: {result}")
+    shaft_skills = result.get("shaftSkills")
+    if not isinstance(shaft_skills, dict) or shaft_skills.get("installed") is not True:
+        raise RuntimeError(f"Expected IntelliJ plugin installer to install SHAFT skills by default: {result}")
 
 
 def main() -> int:
@@ -200,17 +224,21 @@ def main() -> int:
             clients.append("claude-desktop")
 
         java = expected_java(environment)
-        plugin_install = subprocess.run(  # nosec B603 - client and arguments are validated above.
+        plugin_install = run_installer(
             installer_command("intellij-plugin", "--json"),
             cwd=root,
-            env=environment,
-            check=True,
-            capture_output=True,
-            text=True,
+            environment=environment,
+            capture=True,
         )
         plugin_result = last_json_line(plugin_install.stdout)
+        shaft_skills = plugin_result.get("shaftSkills")
+        if not isinstance(shaft_skills, dict):
+            raise RuntimeError(f"Expected SHAFT skills metadata in IntelliJ plugin installer output: {plugin_result}")
+        skills_path = Path(str(shaft_skills.get("path", "")))
+        if not (skills_path / "writing-shaft-tests" / "SKILL.md").is_file():
+            raise RuntimeError(f"Expected SHAFT skills to be installed by the unattended plugin installer: {skills_path}")
         for client in clients:
-            subprocess.run(installer_command(client), cwd=root, env=environment, check=True)
+            run_installer(installer_command(client), cwd=root, environment=environment)
 
         jar = installed_jar(root, home, environment)
         args = installed_args(jar)
@@ -224,7 +252,7 @@ def main() -> int:
             verify_configuration(configuration_path(client, root, home, environment), java, args, root_property)
         verify_plugin_json(plugin_result, java, args)
 
-        subprocess.run(installer_command(clients[0]), cwd=root, env=environment, check=True)
+        run_installer(installer_command(clients[0]), cwd=root, environment=environment)
         if sha256(jar) != first_hash or jar.stat().st_mtime_ns != first_timestamp:
             raise RuntimeError("Repeated public installation did not reuse the verified JAR.")
         verify_configuration(configuration_path(clients[0], root, home, environment), java, args, "mcpServers")

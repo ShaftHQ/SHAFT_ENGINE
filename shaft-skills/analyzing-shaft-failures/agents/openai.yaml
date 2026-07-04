@@ -1,0 +1,4 @@
+interface:
+  display_name: "Analyzing SHAFT Failures"
+  short_description: "Analyze SHAFT failure evidence"
+  default_prompt: "Use $analyzing-shaft-failures to analyze these SHAFT Allure results and suggest the next fix."
