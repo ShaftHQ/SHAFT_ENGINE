@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -158,6 +159,41 @@ class MobileServiceConfigurationTest {
         assertEquals(1, stopped.actionCount());
         assertTrue(blocks.codeBlocks().getFirst().code()
                 .contains("mobileDriver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));"));
+    }
+
+    @Test
+    void recordAtTargetDelegatesToRecorderWithWorkspaceTarget() throws Exception {
+        McpMobileRecordingService recorder = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        MobileService service = new MobileService(mock(EngineService.class), recorder,
+                McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("target-recording.json");
+        Path target = temp.resolve("LoginPage.java");
+        Files.writeString(target, """
+                public class LoginPage {
+                    public LoginPage open() {
+                        return this;
+                    }
+                }
+                """);
+
+        service.recordStart(recording.toString(), "native", true);
+        recorder.record(
+                "tap",
+                locatorStrategy.ACCESSIBILITY_ID,
+                "login",
+                Map.of(),
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                false);
+        service.recordStop(false);
+
+        McpMobileReplayResult result = service.recordAtTargetCodeBlocks(
+                recording.toString(),
+                "driver",
+                target.toString(),
+                "open");
+
+        assertTrue(result.codeBlocks().stream().anyMatch(block -> block.id().equals("mobile-target-action-snippet")));
     }
 
     @Test

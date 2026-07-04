@@ -5,6 +5,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,6 +54,111 @@ class MobileRecordingServiceTest {
     }
 
     @Test
+    void recordingCodeBlocksAddMobilePomHandoffBlocks() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("pom-handoff.json");
+
+        service.start(recording.toString(), "native", true);
+        service.record(
+                "tap",
+                locatorStrategy.ACCESSIBILITY_ID,
+                "login",
+                Map.of(),
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                false);
+        service.record(
+                "type",
+                locatorStrategy.ID,
+                "com.example:id/username",
+                Map.of("value", "demo"),
+                "driver.element().type(SHAFT.GUI.Locator.id(\"com.example:id/username\"), \"demo\");",
+                "driver.element().type(SHAFT.GUI.Locator.id(\"com.example:id/username\"), \"<redacted>\");",
+                true);
+        service.stop(false);
+
+        McpMobileReplayResult result = service.codeBlocks(recording.toString(), "mobileDriver");
+
+        assertEquals(List.of(
+                "mobile-replay-method",
+                "mobile-pom-locator-inventory",
+                "mobile-pom-action-sequence",
+                "mobile-page-object-draft"
+        ), result.codeBlocks().stream().map(McpCodeBlock::id).toList());
+
+        McpCodeBlock locators = block(result.codeBlocks(), "mobile-pom-locator-inventory");
+        assertEquals(McpCodeBlock.Kind.LOCATOR, locators.kind());
+        assertTrue(locators.code().contains(
+                "// #1 loginLocator -> SHAFT.GUI.Locator.accessibilityId(\"login\")"));
+        assertTrue(locators.code().contains(
+                "// #2 usernameLocator -> SHAFT.GUI.Locator.id(\"com.example:id/username\")"));
+        assertTrue(locators.placement().contains("mobile Page Object"));
+
+        McpCodeBlock actions = block(result.codeBlocks(), "mobile-pom-action-sequence");
+        assertEquals(McpCodeBlock.Kind.ACTION, actions.kind());
+        assertTrue(actions.code().contains("// Flow: replayMobileJourney"));
+        assertTrue(actions.code().contains("mobileDriver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));"));
+        assertTrue(actions.placement().contains("mobile page methods"));
+
+        McpCodeBlock pageObject = block(result.codeBlocks(), "mobile-page-object-draft");
+        assertEquals(McpCodeBlock.Kind.ACTION, pageObject.kind());
+        assertTrue(pageObject.code().contains("public final class MobileJourneyPage"));
+        assertTrue(pageObject.code().contains("private final SHAFT.GUI.WebDriver mobileDriver;"));
+        assertTrue(pageObject.code().contains("private final By loginLocator"));
+        assertTrue(pageObject.code().contains("public MobileJourneyPage replayMobileJourney()"));
+        assertTrue(pageObject.code().contains("mobileDriver.element().touch().tap(loginLocator);"));
+    }
+
+    @Test
+    void recordAtTargetCodeBlocksAddFocusedMobileInsertionSnippets() throws Exception {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("target.json");
+        Path target = temp.resolve("LoginPage.java");
+        Files.writeString(target, """
+                package pages;
+
+                import com.shaft.driver.SHAFT;
+
+                public class LoginPage {
+                    private final SHAFT.GUI.WebDriver driver;
+
+                    public LoginPage(SHAFT.GUI.WebDriver driver) {
+                        this.driver = driver;
+                    }
+
+                    public LoginPage open() {
+                        return this;
+                    }
+                }
+                """);
+
+        service.start(recording.toString(), "native", true);
+        service.record(
+                "tap",
+                locatorStrategy.ACCESSIBILITY_ID,
+                "login",
+                Map.of(),
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                false);
+        service.stop(false);
+
+        McpMobileReplayResult result = service.codeBlocks(recording.toString(), "driver", target, "open");
+
+        McpCodeBlock fields = block(result.codeBlocks(), "mobile-target-locator-fields");
+        assertEquals(McpCodeBlock.Kind.LOCATOR, fields.kind());
+        assertTrue(fields.code().contains("private final By loginLocator = SHAFT.GUI.Locator.accessibilityId(\"login\");"));
+        assertTrue(fields.placement().contains("LoginPage.java"));
+        assertTrue(fields.copyPasteReady());
+
+        McpCodeBlock snippet = block(result.codeBlocks(), "mobile-target-action-snippet");
+        assertEquals(McpCodeBlock.Kind.ACTION, snippet.kind());
+        assertTrue(snippet.code().contains("driver.element().touch().tap(loginLocator);"));
+        assertTrue(snippet.placement().contains("after open"));
+        assertTrue(snippet.copyPasteReady());
+    }
+
+    @Test
     void recordingCodeBlocksRejectPathOutsideWorkspace() throws Exception {
         Path outside = Files.createTempFile("mobile-recording", ".json");
         Files.writeString(outside, "{}");
@@ -88,5 +194,12 @@ class MobileRecordingServiceTest {
         assertTrue(replay.codeBlocks().getFirst().code().contains("probably fail"));
         assertTrue(replay.warnings().stream()
                 .anyMatch(warning -> warning.contains("probably fail")));
+    }
+
+    private static McpCodeBlock block(List<McpCodeBlock> blocks, String id) {
+        return blocks.stream()
+                .filter(block -> block.id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing block " + id));
     }
 }

@@ -7,8 +7,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -153,8 +155,17 @@ final class McpMobileRecordingService {
     McpMobileReplayResult codeBlocks(String recordingPath, String driverVariableName) {
         Path path = workspacePolicy.existing(recordingPath, "Mobile recording path");
         McpMobileRecording stored = read(path);
-        return new McpMobileReplayResult(path, true, 0, List.of(replayBlock(stored, driverVariableName)),
-                replayWarnings(stored));
+        return codeBlocks(path, stored, driverVariableName, null, "");
+    }
+
+    McpMobileReplayResult codeBlocks(
+            String recordingPath,
+            String driverVariableName,
+            Path targetSource,
+            String insertAfter) {
+        Path path = workspacePolicy.existing(recordingPath, "Mobile recording path");
+        McpMobileRecording stored = read(path);
+        return codeBlocks(path, stored, driverVariableName, targetSource, insertAfter);
     }
 
     McpMobileRecording readRecording(String recordingPath) {
@@ -169,6 +180,31 @@ final class McpMobileRecordingService {
         }
     }
 
+    private McpMobileReplayResult codeBlocks(
+            Path path,
+            McpMobileRecording stored,
+            String driverVariableName,
+            Path targetSource,
+            String insertAfter) {
+        String driver = javaIdentifierOrDefault(driverVariableName, "driver");
+        PomCandidates pom = pomCandidates(stored, driver);
+        List<McpCodeBlock> blocks = new ArrayList<>();
+        blocks.add(replayBlock(stored, driver));
+        if (!pom.locators().isEmpty()) {
+            blocks.add(locatorInventoryBlock(pom.locators()));
+        }
+        if (!pom.actions().isEmpty()) {
+            blocks.add(actionSequenceBlock(pom.actions()));
+        }
+        if (!pom.locators().isEmpty() && !pom.actions().isEmpty()) {
+            blocks.add(pageObjectDraftBlock(pom, driver, replayWarnings(stored)));
+        }
+        if (targetSource != null || !text(insertAfter).isBlank()) {
+            blocks.addAll(targetInsertionBlocks(targetSource, insertAfter, pom));
+        }
+        return new McpMobileReplayResult(path, true, 0, blocks, replayWarnings(stored));
+    }
+
     private void persist() {
         try {
             Path parent = outputPath.getParent();
@@ -181,15 +217,14 @@ final class McpMobileRecordingService {
         }
     }
 
-    private McpCodeBlock replayBlock(McpMobileRecording stored, String driverVariableName) {
-        String driver = javaIdentifierOrDefault(driverVariableName, "driver");
+    private McpCodeBlock replayBlock(McpMobileRecording stored, String driver) {
         StringBuilder code = new StringBuilder();
         code.append("public void replayMobileJourney(SHAFT.GUI.WebDriver ").append(driver).append(") {\n");
         for (McpMobileRecordedAction action : stored.actions()) {
             if (!action.warnings().isEmpty()) {
                 code.append("    // ").append(String.join(" ", action.warnings())).append('\n');
             }
-            for (String line : action.javaCode().replace("driver.", driver + ".").split("\\R")) {
+            for (String line : replaceDriver(action.javaCode(), driver).split("\\R")) {
                 code.append("    ").append(line).append('\n');
             }
         }
@@ -205,6 +240,242 @@ final class McpMobileRecordingService {
                 replayWarnings(stored).isEmpty(),
                 List.of(),
                 replayWarnings(stored));
+    }
+
+    private static McpCodeBlock locatorInventoryBlock(List<LocatorCandidate> locators) {
+        StringBuilder code = new StringBuilder();
+        for (LocatorCandidate locator : locators) {
+            code.append("// #")
+                    .append(locator.sequence())
+                    .append(' ')
+                    .append(locator.fieldName())
+                    .append(" -> ")
+                    .append(locator.expression())
+                    .append('\n');
+            code.append("// selected from recorded ")
+                    .append(locator.action())
+                    .append(" action ")
+                    .append(locator.sequence())
+                    .append('\n');
+        }
+        return new McpCodeBlock(
+                "mobile-pom-locator-inventory",
+                "Mobile Page Object locator inventory",
+                McpCodeBlock.Kind.LOCATOR,
+                "java",
+                List.of("com.shaft.driver.SHAFT"),
+                code.toString(),
+                "Use these ranked SHAFT locator expressions when extracting recorded actions into mobile Page Object methods.",
+                false,
+                locators.stream().map(locator -> "action-" + locator.sequence()).toList(),
+                List.of());
+    }
+
+    private static McpCodeBlock actionSequenceBlock(List<ActionCandidate> actions) {
+        StringBuilder code = new StringBuilder();
+        code.append("// Flow: replayMobileJourney\n");
+        for (ActionCandidate action : actions) {
+            if (!action.warnings().isEmpty()) {
+                code.append("// ").append(String.join(" ", action.warnings())).append('\n');
+            }
+            code.append(action.line()).append('\n');
+        }
+        return new McpCodeBlock(
+                "mobile-pom-action-sequence",
+                "Mobile Page Object action sequence",
+                McpCodeBlock.Kind.ACTION,
+                "java",
+                List.of(),
+                code.toString(),
+                "Paste action lines into intent-named mobile page methods; keep orchestration in tests.",
+                false,
+                actions.stream().map(action -> "action-" + action.sequence()).toList(),
+                List.of());
+    }
+
+    private static McpCodeBlock pageObjectDraftBlock(
+            PomCandidates pom,
+            String driver,
+            List<String> warnings) {
+        StringBuilder code = new StringBuilder();
+        code.append("public final class MobileJourneyPage {\n");
+        code.append("    private final SHAFT.GUI.WebDriver ").append(driver).append(";\n");
+        for (LocatorCandidate locator : pom.locators()) {
+            code.append("    private final By ")
+                    .append(locator.fieldName())
+                    .append(" = ")
+                    .append(locator.expression())
+                    .append(";\n");
+        }
+        code.append("\n");
+        code.append("    public MobileJourneyPage(SHAFT.GUI.WebDriver ").append(driver).append(") {\n");
+        code.append("        this.").append(driver).append(" = ").append(driver).append(";\n");
+        code.append("    }\n\n");
+        code.append("    public MobileJourneyPage replayMobileJourney() {\n");
+        for (ActionCandidate action : pom.actions()) {
+            if (!action.warnings().isEmpty()) {
+                code.append("        // ").append(String.join(" ", action.warnings())).append('\n');
+            }
+            code.append("        ").append(replaceLocatorExpressions(action.line(), pom.locators())).append('\n');
+        }
+        code.append("        return this;\n");
+        code.append("    }\n");
+        code.append("}\n");
+        List<String> draftWarnings = warnings.isEmpty()
+                ? List.of("Review method naming and assertion placement before making the draft copy-paste ready.")
+                : warnings;
+        return new McpCodeBlock(
+                "mobile-page-object-draft",
+                "Mobile Page Object draft",
+                McpCodeBlock.Kind.ACTION,
+                "java",
+                List.of("com.shaft.driver.SHAFT", "org.openqa.selenium.By"),
+                code.toString(),
+                "Use as a starting point for a mobile Page Object; merge locator fields and actions into the existing class when one exists.",
+                false,
+                pom.locators().stream().map(locator -> "action-" + locator.sequence()).toList(),
+                draftWarnings);
+    }
+
+    private static List<McpCodeBlock> targetInsertionBlocks(
+            Path targetSource,
+            String insertAfter,
+            PomCandidates pom) {
+        if (!hasTargetInsertionCandidates(pom)) {
+            return List.of();
+        }
+        TargetInsertionContext context = targetInsertionContext(targetSource, insertAfter);
+        return List.of(targetLocatorFieldsBlock(context, pom), targetActionSnippetBlock(context, insertAfter, pom));
+    }
+
+    private static boolean hasTargetInsertionCandidates(PomCandidates pom) {
+        return !pom.locators().isEmpty() && !pom.actions().isEmpty();
+    }
+
+    private static TargetInsertionContext targetInsertionContext(Path targetSource, String insertAfter) {
+        String targetName = targetSource == null ? "the target Page Object" : targetSource.getFileName().toString();
+        if (targetSource == null || text(insertAfter).isBlank()) {
+            return new TargetInsertionContext(targetName, true, List.of());
+        }
+        boolean anchorFound = targetSourceContainsAnchor(targetSource, insertAfter);
+        List<String> warnings = anchorFound
+                ? List.of()
+                : List.of("Could not find insertion anchor `" + insertAfter + "` in "
+                + targetName + "; paste the snippet manually.");
+        return new TargetInsertionContext(targetName, anchorFound, warnings);
+    }
+
+    private static boolean targetSourceContainsAnchor(Path targetSource, String insertAfter) {
+        try {
+            String source = Files.readString(targetSource);
+            return source.contains(insertAfter + "(") || source.contains(insertAfter);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Mobile target source could not be read.", exception);
+        }
+    }
+
+    private static McpCodeBlock targetLocatorFieldsBlock(TargetInsertionContext context, PomCandidates pom) {
+        return new McpCodeBlock(
+                "mobile-target-locator-fields",
+                "Mobile record-at-target locator fields",
+                McpCodeBlock.Kind.LOCATOR,
+                "java",
+                List.of("org.openqa.selenium.By"),
+                targetLocatorFields(pom.locators()),
+                "Paste into " + context.targetName()
+                        + " near the existing mobile locator fields before adding the action snippet.",
+                true,
+                locatorEvidenceIds(pom.locators()),
+                context.warnings());
+    }
+
+    private static String targetLocatorFields(List<LocatorCandidate> locators) {
+        StringBuilder code = new StringBuilder();
+        for (LocatorCandidate locator : locators) {
+            code.append("private final By ")
+                    .append(locator.fieldName())
+                    .append(" = ")
+                    .append(locator.expression())
+                    .append(";\n");
+        }
+        return code.toString();
+    }
+
+    private static McpCodeBlock targetActionSnippetBlock(
+            TargetInsertionContext context,
+            String insertAfter,
+            PomCandidates pom) {
+        return new McpCodeBlock(
+                "mobile-target-action-snippet",
+                "Mobile record-at-target action snippet",
+                McpCodeBlock.Kind.ACTION,
+                "java",
+                List.of(),
+                targetActionSnippet(pom),
+                targetActionPlacement(context.targetName(), insertAfter),
+                context.anchorFound(),
+                actionEvidenceIds(pom.actions()),
+                context.warnings());
+    }
+
+    private static String targetActionSnippet(PomCandidates pom) {
+        StringBuilder code = new StringBuilder();
+        for (ActionCandidate action : pom.actions()) {
+            if (!action.warnings().isEmpty()) {
+                code.append("// ").append(String.join(" ", action.warnings())).append('\n');
+            }
+            code.append(replaceLocatorExpressions(action.line(), pom.locators())).append('\n');
+        }
+        return code.toString();
+    }
+
+    private static String targetActionPlacement(String targetName, String insertAfter) {
+        return text(insertAfter).isBlank()
+                ? "Paste inside the existing mobile page method after adding locator fields."
+                : "Paste after " + insertAfter + " in " + targetName + ".";
+    }
+
+    private static List<String> locatorEvidenceIds(List<LocatorCandidate> locators) {
+        return locators.stream().map(locator -> "action-" + locator.sequence()).toList();
+    }
+
+    private static List<String> actionEvidenceIds(List<ActionCandidate> actions) {
+        return actions.stream().map(action -> "action-" + action.sequence()).toList();
+    }
+
+    private static PomCandidates pomCandidates(McpMobileRecording stored, String driver) {
+        Map<String, LocatorCandidate> locators = new LinkedHashMap<>();
+        Map<String, Integer> fieldCounts = new LinkedHashMap<>();
+        List<ActionCandidate> actions = new ArrayList<>();
+        for (McpMobileRecordedAction action : stored.actions()) {
+            locatorStrategy strategy = strategy(action.locatorStrategy());
+            if (strategy != null && !action.locatorValue().isBlank()) {
+                String expression = McpMobileCode.locatorCode(strategy, action.locatorValue());
+                locators.computeIfAbsent(expression, ignored -> new LocatorCandidate(
+                        uniqueFieldName(action.locatorValue(), fieldCounts),
+                        expression,
+                        action.sequence(),
+                        action.action()));
+            }
+            actions.add(new ActionCandidate(
+                    action.sequence(),
+                    action.action(),
+                    replaceDriver(action.javaCode(), driver),
+                    action.warnings()));
+        }
+        return new PomCandidates(List.copyOf(locators.values()), actions);
+    }
+
+    private static String replaceLocatorExpressions(String line, List<LocatorCandidate> locators) {
+        String replaced = line;
+        for (LocatorCandidate locator : locators) {
+            replaced = replaced.replace(locator.expression(), locator.fieldName());
+        }
+        return replaced;
+    }
+
+    private static String replaceDriver(String code, String driver) {
+        return code.replace("driver.", driver + ".");
     }
 
     private static List<String> replayWarnings(McpMobileRecording stored) {
@@ -230,6 +501,82 @@ final class McpMobileRecordingService {
             }
         }
         return candidate;
+    }
+
+    private static locatorStrategy strategy(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return locatorStrategy.valueOf(value.trim());
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private static String uniqueFieldName(String locatorValue, Map<String, Integer> counts) {
+        String base = suggestedFieldName(locatorValue);
+        int count = counts.getOrDefault(base, 0) + 1;
+        counts.put(base, count);
+        if (count == 1) {
+            return base;
+        }
+        return base.substring(0, base.length() - "Locator".length()) + count + "Locator";
+    }
+
+    private static String suggestedFieldName(String value) {
+        String seed = text(value);
+        int resourceId = seed.lastIndexOf(":id/");
+        if (resourceId >= 0) {
+            seed = seed.substring(resourceId + ":id/".length());
+        } else if (seed.contains("/")) {
+            seed = seed.substring(seed.lastIndexOf('/') + 1);
+        }
+        String base = lowerCamel(seed);
+        return base.isBlank() ? "mobileElementLocator" : base + "Locator";
+    }
+
+    private static String lowerCamel(String value) {
+        String[] parts = text(value)
+                .replaceAll("([a-z0-9])([A-Z])", "$1 $2")
+                .replaceAll("[^A-Za-z0-9]+", " ")
+                .trim()
+                .split("\\s+");
+        if (parts.length == 0 || parts[0].isBlank()) {
+            return "";
+        }
+        StringBuilder result = new StringBuilder(parts[0].toLowerCase(Locale.ROOT));
+        for (int index = 1; index < parts.length; index++) {
+            String part = parts[index].toLowerCase(Locale.ROOT);
+            result.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+        }
+        return javaIdentifierOrDefault(result.toString(), "mobileElement");
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private record LocatorCandidate(String fieldName, String expression, long sequence, String action) {
+    }
+
+    private record ActionCandidate(long sequence, String action, String line, List<String> warnings) {
+        private ActionCandidate {
+            warnings = warnings == null ? List.of() : List.copyOf(warnings);
+        }
+    }
+
+    private record PomCandidates(List<LocatorCandidate> locators, List<ActionCandidate> actions) {
+        private PomCandidates {
+            locators = locators == null ? List.of() : List.copyOf(locators);
+            actions = actions == null ? List.of() : List.copyOf(actions);
+        }
+    }
+
+    private record TargetInsertionContext(String targetName, boolean anchorFound, List<String> warnings) {
+        private TargetInsertionContext {
+            warnings = warnings == null ? List.of() : List.copyOf(warnings);
+        }
     }
 
 }

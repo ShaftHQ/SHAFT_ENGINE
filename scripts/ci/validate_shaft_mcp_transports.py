@@ -49,6 +49,7 @@ EXPECTED_TOOLS = {
     "mobile_type",
     "mobile_record_start",
     "mobile_recording_code_blocks",
+    "mobile_record_at_target_code_blocks",
     "mobile_replay_recording",
     "element_click",
     "capture_checkpoint",

@@ -47,6 +47,7 @@
     {"name": "mobile_inspector_record_control", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "mobile_inspector_record_stop", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "mobile_recording_code_blocks", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "mobile_record_at_target_code_blocks", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "mobile_replay_recording", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "mobile_get_contexts", "mutation": false, "sensitive": true, "deprecated": false},
     {"name": "mobile_get_accessibility_tree", "mutation": false, "sensitive": true, "deprecated": false},
