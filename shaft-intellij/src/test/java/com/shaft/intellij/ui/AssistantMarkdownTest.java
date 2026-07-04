@@ -151,6 +151,30 @@ class AssistantMarkdownTest {
                 () -> assertFalse(markdown.contains("\"processId\"")));
     }
 
+    @Test
+    void formatsStoppedCaptureWithCodegenHint() {
+        String markdown = AssistantMarkdown.fromMcpOutput("capture_stop", mcpText("""
+                {
+                  "state": "COMPLETED",
+                  "sessionId": "session",
+                  "browser": "chrome",
+                  "currentUrl": "https://example.test/checkout",
+                  "eventCount": 4,
+                  "readiness": "READY",
+                  "warnings": [],
+                  "outputPath": "recordings/intellij-capture.json",
+                  "aiEnabled": false,
+                  "processId": 123,
+                  "startedAt": "2026-06-30T19:00:00Z"
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**State:** COMPLETED")),
+                () -> assertTrue(markdown.contains("**Output:** `recordings/intellij-capture.json`")),
+                () -> assertTrue(markdown.contains("Run `/codegen recordings/intellij-capture.json`")));
+    }
+
 
     @Test
     void formatsMobileToolchainSessionInspectionAndScreenshotResponses() {
@@ -350,6 +374,34 @@ class AssistantMarkdownTest {
                 () -> assertTrue(markdown.contains("SHAFT-only Java")),
                 () -> assertFalse(markdown.contains("driver.get")),
                 () -> assertFalse(markdown.contains("driver.findElement")));
+    }
+
+    @Test
+    void formatsAutomationScenariosWithoutRawJson() {
+        String markdown = AssistantMarkdown.fromMcpOutput("test_automation_scenarios", mcpText("""
+                {
+                  "schemaVersion": "1.0",
+                  "area": "all",
+                  "intent": "navigate to duckduckgo, search for shaft_engine, open the first result",
+                  "scenarios": [
+                    {
+                      "id": "web-search-result",
+                      "title": "Search and open the first result",
+                      "areas": ["web"],
+                      "summary": "Initialize a browser, search, open the first result, then assert the URL.",
+                      "tools": ["driver_initialize", "browser_open_intent", "test_code_guardrails_check"]
+                    }
+                  ]
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**Automation scenarios**")),
+                () -> assertTrue(markdown.contains("Search and open the first result")),
+                () -> assertTrue(markdown.contains("Initialize a browser")),
+                () -> assertTrue(markdown.contains("`driver_initialize`")),
+                () -> assertFalse(markdown.contains("\"schemaVersion\"")),
+                () -> assertFalse(markdown.contains("\"scenarios\"")));
     }
 
     @Test

@@ -185,7 +185,7 @@ public class CaptureService {
      * @return final recorder status
      */
     @Tool(name = "capture_stop",
-            description = "stops SHAFT Capture; after COMPLETED, call capture_code_blocks and ask snippet or insertion")
+            description = "stops SHAFT Capture; after COMPLETED, show outputPath and tell IntelliJ users to run /codegen <outputPath>")
     public CaptureStatus stop(boolean discard) {
         return manager.stop(discard);
     }

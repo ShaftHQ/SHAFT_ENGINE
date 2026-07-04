@@ -495,11 +495,12 @@ public final class CaptureGenerator {
             EventContext context,
             List<String> unsupported) {
         boolean targetRequired = switch (verification) {
-            case URL_EQUALS, URL_CONTAINS, TITLE_EQUALS -> false;
+            case URL_EQUALS, URL_CONTAINS, TITLE_EQUALS, TITLE_CONTAINS, PAGE_TEXT_CONTAINS -> false;
             default -> true;
         };
         boolean expectedRequired = switch (verification) {
-            case TEXT_EQUALS, TEXT_CONTAINS, ATTRIBUTE_EQUALS, URL_EQUALS, URL_CONTAINS, TITLE_EQUALS -> true;
+            case TEXT_EQUALS, TEXT_CONTAINS, ATTRIBUTE_EQUALS, URL_EQUALS, URL_CONTAINS,
+                 TITLE_EQUALS, TITLE_CONTAINS, PAGE_TEXT_CONTAINS -> true;
             default -> false;
         };
         if (targetRequired && target == null) {
@@ -1170,6 +1171,12 @@ public final class CaptureGenerator {
                     negated ? "doesNotContain" : "contains", dataExpression(expected, data));
             case TITLE_EQUALS -> nativeAssertion(source, "driver.browser().assertThat().title()",
                     negated ? "doesNotEqual" : "isEqualTo", dataExpression(expected, data));
+            case TITLE_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().title()",
+                    negated ? "doesNotContain" : "contains", dataExpression(expected, data));
+            case PAGE_TEXT_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().text()",
+                    negated ? "doesNotContain" : "contains", dataExpression(expected, data));
+            case ELEMENT_IMAGE_MATCHES -> line(source, "        driver.element().assertThat(" + locator + ")."
+                    + (negated ? "doesNotMatchReferenceImage" : "matchesReferenceImage") + "().perform();");
         }
     }
 

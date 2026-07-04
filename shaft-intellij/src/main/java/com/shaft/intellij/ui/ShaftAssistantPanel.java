@@ -42,6 +42,8 @@ import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
@@ -216,11 +218,27 @@ final class ShaftAssistantPanel extends JPanel {
         if (commandAutocomplete.getEditor().getEditorComponent() instanceof JTextComponent editor) {
             editor.getAccessibleContext().setAccessibleName("Assistant command autocomplete text");
             editor.setToolTipText("Insert a tested SHAFT command");
+            editor.getDocument().addDocumentListener(new DocumentListener() {
+                @Override
+                public void insertUpdate(DocumentEvent event) {
+                    scheduleCommandFilter(editor);
+                }
+
+                @Override
+                public void removeUpdate(DocumentEvent event) {
+                    scheduleCommandFilter(editor);
+                }
+
+                @Override
+                public void changedUpdate(DocumentEvent event) {
+                    scheduleCommandFilter(editor);
+                }
+            });
         }
         commandAutocomplete.addActionListener(event -> insertSelectedCommand());
         updatingCommandAutocomplete = true;
         try {
-            commandAutocomplete.setSelectedItem("");
+            commandAutocomplete.setSelectedItem("/");
         } finally {
             updatingCommandAutocomplete = false;
         }
@@ -288,8 +306,6 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.getEmptyText().setText("Ask SHAFT, or type / for commands");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
-        prompt.setMinimumSize(JBUI.size(320, 108));
-        prompt.setPreferredSize(JBUI.size(560, 120));
         transcript = new AssistantTranscriptView(project);
         if (!chatState.activeMarkdown().isBlank()) {
             transcript.setMessages(chatState.activeMessages());
@@ -441,7 +457,10 @@ final class ShaftAssistantPanel extends JPanel {
         composer.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createEtchedBorder(),
                 JBUI.Borders.empty(6)));
-        composer.add(new JBScrollPane(prompt), BorderLayout.CENTER);
+        JBScrollPane promptScroll = new JBScrollPane(prompt);
+        promptScroll.setMinimumSize(JBUI.size(320, 108));
+        promptScroll.setPreferredSize(JBUI.size(560, 120));
+        composer.add(promptScroll, BorderLayout.CENTER);
         composer.add(cloudKeyPanel, BorderLayout.WEST);
         composer.add(composerFooter, BorderLayout.SOUTH);
 
@@ -1159,7 +1178,8 @@ final class ShaftAssistantPanel extends JPanel {
         if (cloud && "AGENT".equals(mode.getSelectedItem())) {
             mode.setSelectedItem("PLAN");
         }
-        boolean localCli = !cloud && "CLI".equals(assistantRuntime.getSelectedItem());
+        boolean localAgent = !cloud;
+        boolean localCli = localAgent && "CLI".equals(assistantRuntime.getSelectedItem());
         boolean lockedRoute = configureFlow != null && mcpConfigured();
         boolean controlsEnabled = !running;
         mode.setVisible(true);
@@ -1183,11 +1203,11 @@ final class ShaftAssistantPanel extends JPanel {
         cloudApiKey.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
         saveCloudApiKey.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
-        allowSourceMutation.setVisible(agentMode && localCli);
-        allowSourceMutation.setEnabled(controlsEnabled && agentMode && localCli);
+        allowSourceMutation.setVisible(agentMode && localAgent);
+        allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
         configure.setVisible(lockedRoute);
         configure.setEnabled(controlsEnabled && lockedRoute);
-        if (!agentMode || !localCli) {
+        if (!agentMode || !localAgent) {
             allowSourceMutation.setSelected(false);
         }
         if (cloud) {
@@ -1226,18 +1246,50 @@ final class ShaftAssistantPanel extends JPanel {
         if (updatingCommandAutocomplete) {
             return;
         }
-        String command = canonicalCommand(String.valueOf(commandAutocomplete.getSelectedItem()));
+        String selected = String.valueOf(commandAutocomplete.getSelectedItem());
+        String command = canonicalCommand(selected);
         if (command.isBlank()) {
+            filterCommandItems(selected);
             return;
         }
         prompt.replaceSelection(command + " ");
         prompt.requestFocusInWindow();
         updatingCommandAutocomplete = true;
         try {
-            commandAutocomplete.setSelectedItem("");
+            commandAutocomplete.setModel(new DefaultComboBoxModel<>(commandItems()));
+            commandAutocomplete.setSelectedItem("/");
         } finally {
             updatingCommandAutocomplete = false;
         }
+    }
+
+    private void filterCommandItems(String prefix) {
+        String typed = prefix == null ? "" : prefix.trim();
+        String lower = typed.toLowerCase(Locale.ROOT);
+        String[] items = AssistantCommand.commandHints().stream()
+                .map(AssistantCommand.CommandHint::canonical)
+                .filter(command -> lower.isBlank()
+                        || "/".equals(lower)
+                        || command.toLowerCase(Locale.ROOT).startsWith(lower))
+                .toArray(String[]::new);
+        updatingCommandAutocomplete = true;
+        try {
+            commandAutocomplete.setModel(new DefaultComboBoxModel<>(items.length == 0 ? commandItems() : items));
+            commandAutocomplete.getEditor().setItem(typed.isBlank() ? "/" : typed);
+        } finally {
+            updatingCommandAutocomplete = false;
+        }
+    }
+
+    private void scheduleCommandFilter(JTextComponent editor) {
+        if (updatingCommandAutocomplete) {
+            return;
+        }
+        SwingUtilities.invokeLater(() -> {
+            if (!updatingCommandAutocomplete) {
+                filterCommandItems(editor.getText());
+            }
+        });
     }
 
     private void updateCloudKeyStatus() {

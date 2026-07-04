@@ -121,7 +121,10 @@ public sealed interface CaptureEvent permits CaptureEvent.NavigationEvent, Captu
         ATTRIBUTE_EQUALS,
         URL_EQUALS,
         URL_CONTAINS,
-        TITLE_EQUALS
+        TITLE_EQUALS,
+        TITLE_CONTAINS,
+        PAGE_TEXT_CONTAINS,
+        ELEMENT_IMAGE_MATCHES
     }
 
     /**

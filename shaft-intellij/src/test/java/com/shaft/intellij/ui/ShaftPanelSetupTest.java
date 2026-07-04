@@ -25,6 +25,9 @@ import javax.swing.KeyStroke;
 import javax.swing.JList;
 import javax.swing.ListCellRenderer;
 import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
+import javax.swing.JViewport;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -1186,6 +1189,44 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantCommandAutocompleteStartsWithSlashAndFiltersByTypedPrefix() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
+
+        assertEquals("/", String.valueOf(commandAutocomplete.getEditor().getItem()));
+
+        SwingUtilities.invokeAndWait(() -> commandAutocomplete.getEditor().setItem("/rec"));
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        assertAll(
+                () -> assertTrue(comboContains(commandAutocomplete, "/record-web")),
+                () -> assertTrue(comboContains(commandAutocomplete, "/record-mobile")),
+                () -> assertFalse(comboContains(commandAutocomplete, "/doctor")),
+                () -> assertFalse(comboContains(commandAutocomplete, "/project")));
+    }
+
+    @Test
+    void assistantComposerKeepsLongSetupPromptScrollable() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.agentGuidanceOptimizationPromptPending = true;
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JTextComponent prompt = assistantPrompt(panel);
+        JScrollPane promptScroll = enclosingScrollPane(prompt);
+
+        assertNotNull(promptScroll);
+        promptScroll.setSize(new Dimension(640, 120));
+        promptScroll.doLayout();
+        int lineHeight = prompt.getFontMetrics(prompt.getFont()).getHeight();
+        int lineCount = prompt.getDocument().getDefaultRootElement().getElementCount();
+
+        assertAll(
+                () -> assertTrue(lineCount > 10),
+                () -> assertTrue(prompt.getPreferredSize().height > lineHeight * 10,
+                        "Long setup prompt should have enough view height to scroll to its final line."));
+    }
+
+    @Test
     void assistantEmptyChatOmitsStarterStripAndKeepsPromptUsable() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
         JTextComponent prompt = assistantPrompt(panel);
@@ -1230,16 +1271,21 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantCommandAutocompleteInsertsCommandIntoPrompt() {
+    void assistantCommandAutocompleteInsertsCommandIntoPrompt() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
         JTextComponent prompt = assistantPrompt(panel);
 
         prompt.setText("please ");
         prompt.setCaretPosition(prompt.getDocument().getLength());
-        commandAutocomplete.setSelectedItem("/record-web");
+        SwingUtilities.invokeAndWait(() -> commandAutocomplete.setSelectedItem("/record-web"));
+        SwingUtilities.invokeAndWait(() -> {
+        });
 
-        assertEquals("please /record-web ", prompt.getText());
+        assertAll(
+                () -> assertEquals("please /record-web ", prompt.getText()),
+                () -> assertEquals("/", String.valueOf(commandAutocomplete.getEditor().getItem())),
+                () -> assertTrue(comboContains(commandAutocomplete, "/doctor")));
     }
 
     @Test
@@ -1362,6 +1408,7 @@ class ShaftPanelSetupTest {
         assertAll(panels.stream()
                 .flatMap(panel -> collectButtons(panel).stream())
                 .filter(button -> !isSetupPrimaryAction(button))
+                .filter(button -> !"Reset and reinstall SHAFT MCP".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
@@ -1753,6 +1800,29 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupResetAndReinstallClearsStateAndCopiesInstallerCommand() throws Exception {
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        settings.mcpSetupComplete = true;
+        settings.agentGuidanceOptimizationPromptPending = true;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe());
+        AtomicReference<String> copied = new AtomicReference<>("");
+        setField(panel, "copySink", (Consumer<String>) copied::set);
+        JTextComponent mcpCommand = (JTextComponent) getField(panel, "mcpCommand");
+
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+        clickAccessible(panel, "Reset and reinstall SHAFT MCP");
+
+        assertAll(
+                () -> assertEquals("", mcpCommand.getText()),
+                () -> assertFalse(settings.mcpSetupComplete),
+                () -> assertFalse(settings.agentGuidanceOptimizationPromptPending),
+                () -> assertTrue(copied.get().contains("install-shaft-mcp")),
+                () -> assertSingleVisiblePrimarySetupAction(panel, "Open terminal for MCP installer"),
+                () -> assertTrue(containsText(panel, "Installer command copied. Run it in terminal, then check.")));
+    }
+
+    @Test
     void assistantTranscriptUsesStandardMarkdownForHeadersRulesAndCodeBlocks() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
         transcript.append("user", """
@@ -1878,6 +1948,26 @@ class ShaftPanelSetupTest {
         JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
         assertAll(
                 () -> assertNotNull(allowEdits),
+                () -> assertTrue(allowEdits.isVisible()),
+                () -> assertTrue(allowEdits.isEnabled()));
+    }
+
+    @Test
+    void assistantAgentModeShowsSourceEditApprovalForLockedDesktopRuntime() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.assistantRuntime = "DESKTOP_APP";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings, new ShaftAssistantChatState(), () -> {
+        });
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+
+        assertAll(
+                () -> assertNotNull(assistantMode),
+                () -> assertNotNull(allowEdits));
+
+        assistantMode.setSelectedItem("AGENT");
+
+        assertAll(
                 () -> assertTrue(allowEdits.isVisible()),
                 () -> assertTrue(allowEdits.isEnabled()));
     }
@@ -2570,6 +2660,17 @@ class ShaftPanelSetupTest {
         JTextComponent prompt = textComponent(component, "Assistant prompt");
         assertNotNull(prompt);
         return prompt;
+    }
+
+    private static JScrollPane enclosingScrollPane(Component component) {
+        Container parent = component.getParent();
+        while (parent != null) {
+            if (parent instanceof JViewport viewport && viewport.getParent() instanceof JScrollPane scrollPane) {
+                return scrollPane;
+            }
+            parent = parent.getParent();
+        }
+        return null;
     }
 
     private static JTextComponent textComponent(Component component, String accessibleName) {

@@ -278,16 +278,22 @@ final class AssistantCommand {
         if (text.isEmpty()) {
             return Invocation.local("Enter a prompt or slash command.");
         }
-        if (text.startsWith("/")) {
+        String liveCodegen = liveCodegenSlashPrompt(text);
+        boolean liveCodegenRequest = !liveCodegen.isBlank();
+        if (!liveCodegen.isBlank()) {
+            text = liveCodegen;
+        } else if (text.startsWith("/")) {
             return slash(text, workingDirectory);
         }
-        Invocation recording = recording(text);
-        if (recording != null) {
-            return recording;
-        }
-        Invocation directIntent = directIntent(text, workingDirectory);
-        if (directIntent != null) {
-            return directIntent;
+        if (!liveCodegenRequest) {
+            Invocation recording = recording(text);
+            if (recording != null) {
+                return recording;
+            }
+            Invocation directIntent = directIntent(text, workingDirectory);
+            if (directIntent != null) {
+                return directIntent;
+            }
         }
         if (selection.cloud()) {
             return cloud(text, selection, mode, workingDirectory, openFileContext);
@@ -345,6 +351,18 @@ final class AssistantCommand {
             }
         }
         return Invocation.local("Unknown command. Use /commands for available SHAFT Assistant commands.");
+    }
+
+    private static String liveCodegenSlashPrompt(String text) {
+        String trimmed = text(text);
+        if (!"/codegen".equals(firstWord(trimmed).toLowerCase(Locale.ROOT))) {
+            return "";
+        }
+        String rest = afterFirstWord(trimmed);
+        if (rest.isBlank() || !firstJsonLikePath(rest).isBlank()) {
+            return "";
+        }
+        return "Generate SHAFT Java code for this browser flow: " + rest;
     }
 
     private static JsonObject guide(String query) {

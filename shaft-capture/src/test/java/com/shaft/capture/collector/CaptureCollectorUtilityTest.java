@@ -60,6 +60,7 @@ class CaptureCollectorUtilityTest {
         assertTrue(preload.contains("shaft"));
         assertTrue(BrowserEventScript.fallbackInstallation().contains("return ("));
         assertTrue(BrowserEventScript.fallbackDrain().contains("__shaftCaptureQueue"));
+        assertTrue(BrowserEventScript.fallbackDrain().contains("__shaftCaptureDrain"));
         assertTrue(BrowserEventScript.preloadFunction(List.of("data-pw"))
                 .contains("const testIdAttributes = [\"data-pw\"];"));
         assertTrue(BrowserEventScript.fallbackInstallation(List.of("data-\"quoted\\path"))
@@ -71,6 +72,9 @@ class CaptureCollectorUtilityTest {
         assertTrue(preload.contains("Pause recording"));
         assertTrue(preload.contains("Stop recording"));
         assertTrue(preload.contains("globalThis.top === globalThis"));
+        assertTrue(preload.contains("pendingSignals"));
+        assertTrue(preload.contains("pagehide"));
+        assertTrue(preload.contains("beforeunload"));
 
         Constructor<BrowserEventScript> constructor = BrowserEventScript.class.getDeclaredConstructor();
         constructor.setAccessible(true);

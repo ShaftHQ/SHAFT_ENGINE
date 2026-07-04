@@ -106,6 +106,11 @@ class CaptureGeneratorTest {
             assertTrue(recorder.contains("aria-label=\"Toggle locator picker\""));
             assertTrue(recorder.contains("kind: \"verification\""));
             assertTrue(recorder.contains("overflow-x: hidden"));
+            assertTrue(recorder.contains("pendingSignals"));
+            assertTrue(recorder.contains("pagehide"));
+            assertTrue(recorder.contains("beforeunload"));
+            assertTrue(recorder.contains("Browser checkpoint"));
+            assertTrue(recorder.contains("Element checkpoint"));
         }
     }
 
@@ -230,6 +235,47 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("driver.element().click(SHAFT.GUI.Locator.inputField(\"Username\"));"));
         assertFalse(source.contains("DriverFactory"));
         assertFalse(source.contains("ExpectedConditions"));
+    }
+
+    @Test
+    void generatorRendersBrowserTextTitleAndImageVerificationCheckpoints() throws Exception {
+        ExternalTestDataReference expected = CaptureFixtures.ordinary();
+        CaptureSession verificationSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "verification-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(5),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(2),
+                                CaptureEvent.VerificationKind.TITLE_CONTAINS, null, expected, false),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(3),
+                                CaptureEvent.VerificationKind.PAGE_TEXT_CONTAINS, null, expected, false),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(4),
+                                CaptureEvent.VerificationKind.ELEMENT_IMAGE_MATCHES,
+                                CaptureFixtures.target(), null, false),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(5),
+                                CaptureEvent.VerificationKind.ELEMENT_IMAGE_MATCHES,
+                                CaptureFixtures.target(), null, true)),
+                List.of(),
+                List.of(expected),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(verificationSession);
+        writeCaptureData("Welcome");
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("verification")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("driver.browser().assertThat().title().contains(requiredData(\"username\")).perform();"));
+        assertTrue(source.contains("driver.browser().assertThat().text().contains(requiredData(\"username\")).perform();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesReferenceImage().perform();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).doesNotMatchReferenceImage().perform();"));
     }
 
     @Test

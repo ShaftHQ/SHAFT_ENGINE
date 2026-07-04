@@ -82,6 +82,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton openTerminal;
     private final JButton test;
     private final JButton startChatting;
+    private final JButton resetAndReinstall;
     private final JProgressBar progress;
     private final JLabel runtimeStatus;
     private final JLabel assistStatus;
@@ -193,6 +194,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(startChatting, ShaftIcons.SEND);
         startChatting.setVisible(false);
         startChatting.addActionListener(event -> connected.run());
+        resetAndReinstall = new JButton("Reset and reinstall");
+        resetAndReinstall.getAccessibleContext().setAccessibleName("Reset and reinstall SHAFT MCP");
+        resetAndReinstall.setToolTipText("Reset setup state and copy a fresh installer command");
+        applyLabeledAction(resetAndReinstall, ShaftIcons.RESET);
+        resetAndReinstall.setVisible(false);
+        resetAndReinstall.addActionListener(event -> resetAndCopyInstaller());
         runtimeStatus = setupStatusLabel("Assistant runtime setup status");
         assistStatus = setupStatusLabel("Assistant connection setup status");
         status = new JLabel();
@@ -254,6 +261,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel diagnosticRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         diagnosticRow.add(copyCommand);
         diagnosticRow.add(copyOutput);
+        JPanel secondaryActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        secondaryActions.add(resetAndReinstall);
         family.addActionListener(event -> assistantSelectionChanged());
         runtime.addActionListener(event -> assistantSelectionChanged());
         installerTarget.addActionListener(event -> installerTargetChanged());
@@ -276,6 +285,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 .addComponent(workflow)
                 .addComponent(installerDetailsPanel)
                 .addComponent(status)
+                .addComponent(secondaryActions)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
         detailsPanel = new JPanel(new BorderLayout(4, 4));
@@ -411,6 +421,9 @@ final class ShaftMcpSetupPanel extends JPanel {
         startChatting.setEnabled(!running && startChatting.isVisible());
         chatRow.setVisible(startChatting.isVisible());
         copyCommand.setEnabled(!running && !diagnosticCommand.isBlank());
+        boolean canReset = complete || detailsPanel.isVisible();
+        resetAndReinstall.setVisible(canReset);
+        resetAndReinstall.setEnabled(!running && canReset);
         updateProgressivePanels();
         updateSetupSteps(running);
         updateWorkflowRows(running);
@@ -533,6 +546,23 @@ final class ShaftMcpSetupPanel extends JPanel {
         openIntellijTerminal();
         setStatusText("Run command in terminal, then check.");
         updateActionState(false);
+    }
+
+    private void resetAndCopyInstaller() {
+        clearDiagnostics();
+        mcpCommand.setText("");
+        settings.mcpCommand = "";
+        settings.mcpSetupComplete = false;
+        settings.agentGuidanceOptimizationPromptPending = false;
+        installerCommand.setText(installerCommand());
+        installerCommandCopied = true;
+        terminalOpened = false;
+        startChatting.setVisible(false);
+        showRuntimeSelected();
+        showAssistNotConfigured();
+        copy(installerCommand(), "Installer command copied. Run it in terminal, then check.");
+        updateActionState(false);
+        openTerminal.requestFocusInWindow();
     }
 
     private void openIntellijTerminal() {
