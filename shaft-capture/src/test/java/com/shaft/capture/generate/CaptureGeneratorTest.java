@@ -110,12 +110,15 @@ class CaptureGeneratorTest {
             assertTrue(recorder.contains("aria-label=\"Toggle assertion mode\""));
             assertTrue(recorder.contains("aria-label=\"Toggle locator picker\""));
             assertTrue(recorder.contains("kind: \"verification\""));
+            assertTrue(recorder.contains("kind: \"step_reorder\""));
             assertTrue(recorder.contains("overflow-x: hidden"));
             assertTrue(recorder.contains("pendingSignals"));
             assertTrue(recorder.contains("pagehide"));
             assertTrue(recorder.contains("beforeunload"));
             assertTrue(recorder.contains("Browser checkpoint"));
             assertTrue(recorder.contains("Element checkpoint"));
+            assertTrue(recorder.contains("shaft-capture-dialog"));
+            assertFalse(recorder.contains("prompt("));
         }
     }
 
@@ -181,6 +184,33 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("public class CheckoutHappyPathTest"));
         assertTrue(source.contains("public void replayCheckoutHappyPath()"));
         assertTrue(source.contains("// Captured step: Click Pay now after entering card data"));
+    }
+
+    @Test
+    void generatedSourceIncludesReviewHeaderAndSessionGoal() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        CaptureSession goalSession = new CaptureSession(
+                base.schemaVersion(),
+                "goal-session",
+                base.status(),
+                base.startedAt(),
+                base.endedAt(),
+                base.browser(),
+                base.events().subList(0, 2),
+                List.of(),
+                List.of(CaptureFixtures.ordinary()),
+                base.redactionSummary(),
+                Map.of("sessionGoal", JSON.getNodeFactory().textNode("record checkout happy path")));
+        Path session = session(goalSession);
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("goal-session")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("// Capture review: readiness="));
+        assertTrue(source.contains("// Capture goal: record checkout happy path"));
     }
 
     @Test
@@ -348,7 +378,7 @@ class CaptureGeneratorTest {
     }
 
     @Test
-    void fallbackLocatorReplayOptionReportsRankedCandidatesWithoutRawHelper() throws Exception {
+    void fallbackLocatorReplayOptionEmitsCompactHelperOnlyWhenFallbacksExist() throws Exception {
         Path session = session(CaptureFixtures.representativeSession());
         writeCaptureData("alice");
 
@@ -360,9 +390,9 @@ class CaptureGeneratorTest {
 
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         String source = Files.readString(result.sourcePath());
-        assertFalse(source.contains("private static final By[]"));
-        assertFalse(source.contains("captureReplayLocator("));
-        assertFalse(source.contains("By.cssSelector("));
+        assertTrue(source.contains("import org.openqa.selenium.By;"));
+        assertTrue(source.contains("private By captureReplayLocator(By primary, By... alternatives)"));
+        assertTrue(source.contains("captureReplayLocator(SHAFT.GUI.Locator.inputField(\"Username\")"));
         assertTrue(result.report().fallbackLocators().stream()
                 .anyMatch(fallback -> fallback.contains("username-input")));
     }

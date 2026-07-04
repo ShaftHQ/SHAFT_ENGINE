@@ -31,6 +31,7 @@ import java.util.Set;
  * @param timeout maximum browser timeout
  * @param userAgent user-agent override
  * @param userDataDirectory persistent browser profile directory
+ * @param sessionGoal human-readable recording goal
  */
 public record CaptureStartOptions(
         String targetLanguage,
@@ -52,7 +53,8 @@ public record CaptureStartOptions(
         String saveHarGlob,
         Duration timeout,
         String userAgent,
-        Path userDataDirectory) {
+        Path userDataDirectory,
+        String sessionGoal) {
     private static final List<String> DEFAULT_TEST_ID_ATTRIBUTES = List.of("data-testid", "data-test", "data-qa");
 
     /**
@@ -75,6 +77,7 @@ public record CaptureStartOptions(
         saveHarPath = text(saveHarPath);
         saveHarGlob = text(saveHarGlob);
         userAgent = text(userAgent);
+        sessionGoal = text(sessionGoal);
         timeout = timeout == null ? Duration.ZERO : timeout;
         if (timeout.isNegative()) {
             throw new IllegalArgumentException("Capture timeout cannot be negative.");
@@ -84,13 +87,42 @@ public record CaptureStartOptions(
     }
 
     /**
+     * Creates normalized capture options without a session goal.
+     */
+    public CaptureStartOptions(
+            String targetLanguage,
+            String testIdAttribute,
+            String channel,
+            String deviceName,
+            String viewportSize,
+            String colorScheme,
+            String geolocation,
+            boolean ignoreHttpsErrors,
+            boolean blockServiceWorkers,
+            String loadStoragePath,
+            String saveStoragePath,
+            String language,
+            String timezone,
+            String proxyServer,
+            String proxyBypass,
+            String saveHarPath,
+            String saveHarGlob,
+            Duration timeout,
+            String userAgent,
+            Path userDataDirectory) {
+        this(targetLanguage, testIdAttribute, channel, deviceName, viewportSize, colorScheme, geolocation,
+                ignoreHttpsErrors, blockServiceWorkers, loadStoragePath, saveStoragePath, language, timezone,
+                proxyServer, proxyBypass, saveHarPath, saveHarGlob, timeout, userAgent, userDataDirectory, "");
+    }
+
+    /**
      * Returns default options.
      *
      * @return default options
      */
     public static CaptureStartOptions defaults() {
         return new CaptureStartOptions("", "", "", "", "", "", "", false, false,
-                "", "", "", "", "", "", "", "", Duration.ZERO, "", null);
+                "", "", "", "", "", "", "", "", Duration.ZERO, "", null, "");
     }
 
     /**

@@ -182,8 +182,8 @@ Every screenshot in this catalog is real repository evidence under `shaft-engine
     </td>
     <td width="50%">
       <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/capture-catalog.png" alt="Capture and code generation feature catalog" width="620">
-      <br><strong>40 capture/codegen capabilities</strong>
-      <br>Session storage, replay generation, checkpoints, privacy, locator fallback, and record-at-target support are visible in source.
+      <br><strong>46 capture/codegen capabilities</strong>
+      <br>Session storage, in-panel checkpoints, step reorder, session goals, replay generation, privacy, locator fallback, workbench review sections, and Page Object drafts are visible in source.
     </td>
   </tr>
   <tr>
@@ -357,11 +357,11 @@ Capture is now the bridge between exploratory testing and maintainable Java. It 
 
 | Capability | Better user outcome | Entry point |
 | --- | --- | --- |
-| Managed web recorder | Pause, assert, verify, copy, clear, edit, pick locators, and see readiness score while recording. | `capture_start --url https://example.com --browser chrome --output target/capture/session.json` |
-| TestNG replay | Generate replay snippets, intent-derived class/method names, Page Object insertions, and review warnings from the captured session. | `capture_generate_replay --session target/capture/session.json --target-source src/test/java/CheckoutTest.java` |
-| Assertions | Record visibility, text, and value checkpoints instead of writing assertions from memory later. | `capture_checkpoint --description "cart total is visible"` |
-| Locator refinement | Keep fallback locator replay, live locator picker/refinement, and ranked locator alternatives in the generated review blocks. | `capture_code_blocks --session target/capture/session.json --driver-variable-name driver` |
-| Review workbench | Review blockers, required inputs, locator decisions, code-block summary, and control-flow suggestions before reading or saving source. | `target/shaft-capture/capture-workbench.html` |
+| Managed web recorder | Pause, assert, verify, edit, delete, reorder, add visible assertions from captured targets, pick locators, and see readiness score while recording. | `capture_start --url https://example.com --browser chrome --output target/capture/session.json --session-goal "record checkout"` |
+| TestNG replay | Generate replay snippets, intent-derived class/method names, source review headers, Page Object insertions, and review warnings from the captured session. | `capture_generate_replay --session target/capture/session.json --target-source src/test/java/CheckoutTest.java` |
+| Assertions | Record browser and element checkpoints from in-panel dialogs instead of blocking native prompts or writing assertions from memory later. | `capture_checkpoint --description "cart total is visible"` |
+| Locator refinement | Keep fallback locator replay, live locator picker/refinement, compact generated fallback helpers, and ranked locator alternatives in the generated review blocks. | `capture_code_blocks --session target/capture/session.json --driver-variable-name driver` |
+| Review workbench | Review blockers, assertions, locator decisions, Page Object draft, copyable commands, code-block summary, and control-flow suggestions before reading or saving source. | `target/shaft-capture/capture-workbench.html` |
 | Record at cursor | Generate code blocks for automated and user-performed flows, including record-at-target snippets. | `capture_record_at_target_code_blocks` |
 | Browser context | Capture viewport, device, color scheme, geolocation, language, timezone, storage, HTTPS, HAR, proxy, and user data directory options. | `capture start --url https://example.com --device "Pixel 5" --timezone Africa/Cairo --save-har target/capture/run.har` |
 
@@ -369,6 +369,7 @@ Capture is now the bridge between exploratory testing and maintainable Java. It 
 Load current shaft-capture-recorder.js into a local fixture page.
 Type email, select plan, type notes, toggle terms, submit.
 Capture overlay state: RISKY | 8 events | Step 8 needs a follow-up assertion after form submission.
+Step inspector: edit, delete, move up/down, or add a visible assertion from the captured target.
 Generated replay syntax: driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
 ```
 

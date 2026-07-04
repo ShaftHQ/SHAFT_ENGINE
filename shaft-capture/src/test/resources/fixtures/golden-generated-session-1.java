@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class FormCompletedTest {
+    // Capture review: readiness=READY, events=14, fallback locators=1.
     private SHAFT.GUI.WebDriver driver;
     private SHAFT.TestData.JSON testData;
     private final Map<String, String> windows = new HashMap<>();

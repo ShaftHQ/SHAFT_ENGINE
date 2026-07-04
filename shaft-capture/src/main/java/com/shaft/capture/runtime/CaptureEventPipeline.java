@@ -206,6 +206,7 @@ final class CaptureEventPipeline implements AutoCloseable {
             case "locator_preference" -> rememberLocatorPreference(signal);
             case "step_update" -> updateStep(signal);
             case "step_delete" -> deleteStep(signal);
+            case "step_reorder" -> reorderStep(signal);
             case "window_open" -> append(new CaptureEvent.WindowEvent(
                     context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(signal.browsingContextId())),
                     RedactionSummary.empty(), List.of());
@@ -550,6 +551,34 @@ final class CaptureEventPipeline implements AutoCloseable {
         }
     }
 
+    private void reorderStep(BrowserSignal signal) {
+        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        String direction = privacy.sanitizeText(signal.dataString("direction")).value().toLowerCase(Locale.ROOT);
+        if (clientActionId.isBlank() || (!direction.equals("up") && !direction.equals("down"))) {
+            warningConsumer.accept("A browser step reorder was ignored because it was incomplete.");
+            return;
+        }
+        store.updateEvents(events -> {
+            List<CaptureEvent> updated = new ArrayList<>(events);
+            int index = -1;
+            for (int position = 0; position < updated.size(); position++) {
+                if (clientActionId.equals(extensionText(updated.get(position).context(), "clientActionId"))) {
+                    index = position;
+                    break;
+                }
+            }
+            int targetIndex = direction.equals("up") ? index - 1 : index + 1;
+            if (index < 0 || targetIndex < 0 || targetIndex >= updated.size()) {
+                return events;
+            }
+            CaptureEvent current = updated.get(index);
+            CaptureEvent adjacent = updated.get(targetIndex);
+            updated.set(index, withContext(current, withSequence(current.context(), adjacent.context().sequence())));
+            updated.set(targetIndex, withContext(adjacent, withSequence(adjacent.context(), current.context().sequence())));
+            return updated;
+        });
+    }
+
     private List<LocatorCandidate> applyLocatorPreference(
             String logicalElementId,
             List<LocatorCandidate> locators) {
@@ -609,6 +638,16 @@ final class CaptureEventPipeline implements AutoCloseable {
                 context.replayStatus(),
                 context.evidence(),
                 extensions);
+    }
+
+    private static EventContext withSequence(EventContext context, long sequence) {
+        return new EventContext(
+                sequence,
+                context.timestamp(),
+                context.page(),
+                context.replayStatus(),
+                context.evidence(),
+                context.extensions());
     }
 
     private static String extensionText(EventContext context, String name) {

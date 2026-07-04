@@ -113,6 +113,9 @@ final class McpCaptureCodeBlockService {
             if (!pom.actions().isEmpty()) {
                 blocks.add(actionSequenceBlock(pom.actions()));
             }
+            if (!pom.locators().isEmpty() && !pom.actions().isEmpty()) {
+                blocks.add(pageObjectDraftBlock(pom, driverType, driver));
+            }
             blocks.addAll(reportBlocks(report, driver));
             if (targetSource != null || (insertAfter != null && !insertAfter.isBlank())) {
                 blocks.addAll(targetInsertionBlocks(sourcePath, targetSource, insertAfter, driver));
@@ -304,6 +307,87 @@ final class McpCaptureCodeBlockService {
                 List.of());
     }
 
+    private static McpCodeBlock pageObjectDraftBlock(
+            PomCandidates pom,
+            String driverType,
+            String driver) {
+        String pageClassName = pageClassName(pom.actions().getFirst().flow());
+        StringBuilder code = new StringBuilder();
+        code.append("public final class ").append(pageClassName).append(" {\n");
+        code.append("    private final ").append(driverType).append(' ').append(driver).append(";\n");
+        for (LocatorCandidate locator : pom.locators()) {
+            if (!locator.description().isBlank()) {
+                code.append("    // ").append(locator.description()).append('\n');
+            }
+            code.append("    private final By ")
+                    .append(locator.suggestedFieldName())
+                    .append(" = ")
+                    .append(locator.expression())
+                    .append(";\n");
+        }
+        code.append("\n");
+        code.append("    public ").append(pageClassName).append('(').append(driverType).append(' ')
+                .append(driver).append(") {\n");
+        code.append("        this.").append(driver).append(" = ").append(driver).append(";\n");
+        code.append("    }\n");
+
+        String currentFlow = "";
+        String currentMethod = "";
+        for (ActionCandidate action : pom.actions()) {
+            if (!action.flow().equals(currentFlow)) {
+                if (!currentFlow.isBlank()) {
+                    code.append("        return this;\n");
+                    code.append("    }\n");
+                }
+                currentFlow = action.flow();
+                currentMethod = flowMethodName(currentFlow);
+                code.append("\n");
+                code.append("    public ").append(pageClassName).append(' ')
+                        .append(currentMethod).append("() {\n");
+            }
+            code.append("        ").append(replaceLocatorExpressions(action.line(), pom.locators())).append('\n');
+        }
+        if (!currentFlow.isBlank()) {
+            code.append("        return this;\n");
+            code.append("    }\n");
+        }
+        code.append("}\n");
+        return new McpCodeBlock(
+                "capture-page-object-draft",
+                "Page Object draft",
+                McpCodeBlock.Kind.ACTION,
+                "java",
+                List.of("com.shaft.driver.SHAFT", "org.openqa.selenium.By"),
+                code.toString(),
+                "Use as a starting point for a Page Object; review naming and required data helpers before pasting.",
+                false,
+                evidenceIds(pom.locators()),
+                List.of("Review requiredData and assertion placeholders before making the draft copy-paste ready."));
+    }
+
+    private static String replaceLocatorExpressions(String line, List<LocatorCandidate> locators) {
+        String replaced = line;
+        for (LocatorCandidate locator : locators) {
+            replaced = replaced.replace(locator.expression(), locator.suggestedFieldName());
+        }
+        return replaced;
+    }
+
+    private static String pageClassName(String flow) {
+        String seed = flow == null || flow.isBlank() ? "Captured" : flow.trim();
+        if (seed.startsWith("replay") && seed.length() > "replay".length()) {
+            seed = seed.substring("replay".length());
+        }
+        if (seed.isBlank()) {
+            seed = "Captured";
+        }
+        String base = lowerCamel(seed, "captured");
+        return Character.toUpperCase(base.charAt(0)) + base.substring(1) + "Page";
+    }
+
+    private static String flowMethodName(String flow) {
+        return lowerCamel(flow == null || flow.isBlank() ? "capturedFlow" : flow, "capturedFlow");
+    }
 
     private static List<String> imports(String source) {
         return source.lines()
@@ -681,6 +765,10 @@ final class McpCaptureCodeBlockService {
     }
 
     private static String lowerCamel(String value) {
+        return lowerCamel(value, "capturedLocator");
+    }
+
+    private static String lowerCamel(String value, String fallback) {
         String[] parts = value.replaceAll("([a-z0-9])([A-Z])", "$1 $2")
                 .replaceAll("[^A-Za-z0-9]+", " ")
                 .trim()
@@ -693,7 +781,7 @@ final class McpCaptureCodeBlockService {
             String part = parts[index].toLowerCase(Locale.ROOT);
             result.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
         }
-        return javaIdentifierOrDefault(result.toString(), "capturedLocator");
+        return javaIdentifierOrDefault(result.toString(), fallback);
     }
 
     private static String javaString(String value) {

@@ -440,6 +440,7 @@ public final class CaptureCli {
                 + "[--geolocation <lat,lon>] [--timezone <id>] [--block-service-workers] "
                 + "[--load-storage <path>] [--save-storage <path>] [--save-har <path>] "
                 + "[--test-id-attribute <name>] [--user-agent <value>] [--user-data-dir <path>] "
+                + "[--session-goal <text>] "
                 + "[--lang <locale>] [--proxy-server <url>] [--proxy-bypass <list>] "
                 + "[--ignore-https-errors] | status | stop [--discard] | "
                 + "checkpoint --description <text> "
@@ -479,7 +480,8 @@ public final class CaptureCli {
                 options.value("user-agent", ""),
                 options.values().containsKey("user-data-dir")
                         ? Path.of(options.value("user-data-dir", ""))
-                        : null);
+                        : null,
+                options.value("session-goal", ""));
     }
 
     private static long parsePositiveLong(String value, String option) {
