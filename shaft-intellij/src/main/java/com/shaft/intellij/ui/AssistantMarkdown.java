@@ -820,13 +820,14 @@ final class AssistantMarkdown {
         return """
                 **Generated code rejected**
 
-                The assistant returned Java that uses native Selenium APIs. SHAFT IntelliJ Assistant only accepts generated Java that uses SHAFT syntax.
+                The assistant returned Java that uses native Selenium APIs or a rejected SHAFT locator fallback. SHAFT IntelliJ Assistant only accepts generated Java that uses SHAFT syntax.
 
                 Ask the agent to regenerate the answer with SHAFT-only Java:
                 - Call `shaft_guide_search` with a query for SHAFT GUI WebDriver, page objects, locators, `driver.browser()`, and `driver.element()`.
                 - For broad test or page-object design, call `test_automation_scenarios` to learn the matching SHAFT coding pattern.
                 - Call `test_code_guardrails_check` on the final Java snippet before returning it.
                 - Use `SHAFT.GUI.WebDriver`, `driver.browser()`, `driver.element()`, `driver.element().touch()`, and `SHAFT.GUI.Locator`.
+                - Do not use `SHAFT.GUI.Locator.xpath(...)`; use Smart Locators, the SHAFT locator builder, or `By.xpath(...)` only as a last fallback.
                 - Do not return native navigation calls, direct element lookup calls, WebElement actions, browser-driver constructors, or other raw Selenium code.
                 """.strip();
     }
@@ -1096,6 +1097,7 @@ final class AssistantMarkdown {
 
     private static boolean looksLikeNativeSelenium(String code) {
         return code.contains("org.openqa.selenium.WebDriver")
+                || code.contains("SHAFT.GUI.Locator.xpath(")
                 || code.contains("new ChromeDriver(")
                 || code.contains("new FirefoxDriver(")
                 || code.contains("new EdgeDriver(")

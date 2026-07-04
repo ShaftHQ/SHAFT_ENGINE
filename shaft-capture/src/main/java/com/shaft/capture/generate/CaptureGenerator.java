@@ -840,9 +840,7 @@ public final class CaptureGenerator {
         } else {
             line(source, "import com.shaft.driver.SHAFT;");
         }
-        if (fallbackReplay) {
-            line(source, "import org.openqa.selenium.By;");
-        }
+        line(source, "import org.openqa.selenium.By;");
         line(source, "import org.testng.annotations.AfterMethod;");
         line(source, "import org.testng.annotations.BeforeMethod;");
         line(source, "import org.testng.annotations.Test;");
@@ -1262,7 +1260,7 @@ public final class CaptureGenerator {
             case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(candidate.expression()) + "\")";
             case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(candidate.expression()) + "\")";
             case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(candidate.expression()) + "\")";
-            case XPATH -> "SHAFT.GUI.Locator.xpath(\"" + javaString(candidate.expression()) + "\")";
+            case XPATH -> "By.xpath(\"" + javaString(candidate.expression()) + "\")";
         };
     }
 
@@ -1275,7 +1273,7 @@ public final class CaptureGenerator {
                 .findFirst()
                 .map(plan -> locatorExpression(plan, fallbackReplay))
                 .orElseGet(() -> target.locatorCandidates().isEmpty()
-                        ? "SHAFT.GUI.Locator.xpath(\"//*\")"
+                        ? "By.xpath(\"//*\")"
                         : locatorExpression(target, target.locatorCandidates().getFirst()));
     }
 
@@ -1312,43 +1310,9 @@ public final class CaptureGenerator {
             return "SHAFT.GUI.Locator.clickableField(\"" + javaString(semanticName) + "\")";
         }
         if (!semanticName.isBlank()) {
-            String literal = xpathTextLiteral(semanticName);
-            return "SHAFT.GUI.Locator.xpath(\"//*[" + literal + "]\")";
+            return "SHAFT.GUI.Locator.hasAnyTagName().containsText(\"" + javaString(semanticName) + "\").build()";
         }
-        return "SHAFT.GUI.Locator.xpath(\"" + javaString(candidate.expression()) + "\")";
-    }
-
-    private static String xpathTextLiteral(String value) {
-        String literal = xpathStringLiteral(value);
-        return "normalize-space(.)=" + literal + " or @aria-label=" + literal
-                + " or @title=" + literal + " or @placeholder=" + literal;
-    }
-
-    private static String xpathStringLiteral(String value) {
-        if (!value.contains("'")) {
-            return "'" + javaString(value) + "'";
-        }
-        if (!value.contains("\"")) {
-            return "\\\"" + javaString(value) + "\\\"";
-        }
-        List<String> parts = new ArrayList<>();
-        StringBuilder buffer = new StringBuilder();
-        for (int i = 0; i < value.length(); i++) {
-            char character = value.charAt(i);
-            if (character == '\'' || character == '"') {
-                if (!buffer.isEmpty()) {
-                    parts.add("'" + javaString(buffer.toString()) + "'");
-                    buffer.setLength(0);
-                }
-                parts.add(character == '\'' ? "\\\"'\\\"" : "'\\\"'");
-            } else {
-                buffer.append(character);
-            }
-        }
-        if (!buffer.isEmpty()) {
-            parts.add("'" + javaString(buffer.toString()) + "'");
-        }
-        return "concat(" + String.join(", ", parts) + ")";
+        return "By.xpath(\"" + javaString(candidate.expression()) + "\")";
     }
 
     private static String dataExpression(ExternalTestDataReference reference, DataPlan data) {

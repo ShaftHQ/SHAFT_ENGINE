@@ -378,6 +378,22 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void rejectsShaftLocatorXpathGeneratedJavaSnippets() {
+        String markdown = AssistantMarkdown.fromMcpOutput("capture_code_blocks", mcpText("""
+                {
+                  "codeBlocks": [
+                    {"language":"java","code":"driver.element().click(SHAFT.GUI.Locator.xpath(\\"//button[@type='submit']\\"));"}
+                  ]
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**Generated code rejected**")),
+                () -> assertTrue(markdown.contains("SHAFT.GUI.Locator.xpath")),
+                () -> assertFalse(markdown.contains("driver.element().click")));
+    }
+
+    @Test
     void formatsAutomationScenariosWithoutRawJson() {
         String markdown = AssistantMarkdown.fromMcpOutput("test_automation_scenarios", mcpText("""
                 {

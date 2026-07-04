@@ -44,8 +44,11 @@ Bring only evidence back into SHAFT: command transcript, page snapshot, locator 
 - Prefer recorded assertion mode for generated assertions; checkpoints should name review intent, and generated verification code must use SHAFT assertion builders only.
 - Move stable locators/actions into page objects; do not paste a generic generated class when the repo has existing structure.
 - Treat `shaft_coding_partner_plan.reuseMatches` as the insertion shortlist and `missingCodeItems` as the only code that still needs to be created.
+- Record the complete user flow before codegen when requested actions or locators are missing, then insert only the missing locators/actions into the existing source anchor.
+- Do not generate `SHAFT.GUI.Locator.xpath(...)`; use Smart Locators, ARIA locators, the SHAFT locator builder, or native `By.xpath(...)` only as a last fallback.
 - Keep recording artifacts as evidence, not as source.
 - Do not paste Playwright TypeScript tests into Java projects; translate the proven behavior into SHAFT syntax and the existing Java design pattern.
+- Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.
 - Treat Playwright `browser_run_code_unsafe`, `playwright-cli run-code`, and `eval` as trusted-client-only evidence gathering.
 - Do not add sleeps, absolute XPath, raw Selenium calls, or coordinate-only actions when locator candidates exist.
 

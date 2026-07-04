@@ -49,7 +49,7 @@ class PlaywrightServiceTest {
         assertTrue(Files.isRegularFile(result.reviewPath()));
         assertTrue(result.codeBlocks().stream().anyMatch(block -> block.id().equals("capture-full-class")));
         assertTrue(result.report().warnings().stream()
-                .anyMatch(warning -> warning.contains("No assertion")));
+                .anyMatch(warning -> warning.contains("No recorded SHAFT assertion-builder verification")));
         CaptureSession session = new CaptureJsonCodec().read(result.captureSessionPath());
         assertTrue(session.events().getFirst() instanceof CaptureEvent.NavigationEvent);
         assertTrue(session.events().get(1) instanceof CaptureEvent.TypeEvent);
@@ -114,7 +114,7 @@ class PlaywrightServiceTest {
 
         String code = result.codeBlocks().getFirst().code();
         assertFalse(result.codeBlocks().getFirst().imports().contains("com.shaft.gui.driver.ShaftLocator"));
-        assertTrue(code.contains("SHAFT.GUI.Locator.xpath("));
+        assertTrue(code.contains("SHAFT.GUI.Locator.inputField(\"Password\")"));
         assertTrue(code.contains("Password"));
         assertTrue(code.contains("<redacted>"));
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("redacted")));

@@ -234,7 +234,8 @@ The recorder/codegen handoff is now a three-iteration coding-partner loop before
 any source edit: plan the working set and user steps, reuse the recommended Java
 owner and insertion anchor, avoid duplicate locators/actions/classes, prove
 missing browser steps, inspect the patch preview, collect evidence, then verify
-locally.
+locally. Generated code uses Smart Locators and the SHAFT locator builder before
+native `By.xpath(...)`; it must not emit `SHAFT.GUI.Locator.xpath(...)`.
 
 The public entry point is IntelliJ, not raw MCP: Assistant `/partner` and Guided
 `Plan coding partner` gather the IDE context, then MCP returns the reuse plan,

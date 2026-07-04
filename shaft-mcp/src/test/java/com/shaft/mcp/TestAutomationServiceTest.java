@@ -38,6 +38,7 @@ class TestAutomationServiceTest {
         assertTrue(ids.contains("failure-doctor-analysis"));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("Thread.sleep")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("absolute XPath")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("SHAFT.GUI.Locator.xpath")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("driver.findElement")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("confirm the exact target URL")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("do not infer canonical URLs")));
@@ -110,6 +111,7 @@ class TestAutomationServiceTest {
                     void waitsWrong() throws Exception {
                         Thread.sleep(1000);
                         By login = By.xpath("/html/body/div/form/button");
+                        By fallback = SHAFT.GUI.Locator.xpath("//button[@type='submit']");
                     }
                 }
                 """);
@@ -117,6 +119,7 @@ class TestAutomationServiceTest {
         assertFalse(result.passed());
         assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("THREAD_SLEEP")));
         assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("ABSOLUTE_XPATH")));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("SHAFT_LOCATOR_XPATH")));
     }
 
     @Test

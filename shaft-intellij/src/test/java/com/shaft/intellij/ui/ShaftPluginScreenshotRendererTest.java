@@ -68,6 +68,8 @@ class ShaftPluginScreenshotRendererTest {
             """.stripIndent().trim();
     private static final String DUCK_DUCK_GO_SHAFT_CODE_SAMPLE = """
             ```java
+            import org.openqa.selenium.By;
+
             public class DuckDuckGoSearchTest {
                 private final SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
 
@@ -76,7 +78,7 @@ class ShaftPluginScreenshotRendererTest {
                     driver.browser().navigateToURL("https://duckduckgo.com/");
                     driver.element().type(SHAFT.GUI.Locator.name("q"), "SHAFT Engine");
                     driver.element().keyPress(SHAFT.GUI.Locator.name("q"), "ENTER");
-                    driver.element().click(SHAFT.GUI.Locator.xpath(
+                    driver.element().click(By.xpath(
                             "(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']"));
                 }
             }

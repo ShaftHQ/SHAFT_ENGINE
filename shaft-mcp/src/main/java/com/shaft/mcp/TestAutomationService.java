@@ -17,6 +17,8 @@ public class TestAutomationService {
     private static final int MAX_RESULTS = 50;
     private static final Pattern TOKEN_SPLIT = Pattern.compile("[^a-z0-9]+");
     private static final Pattern THREAD_SLEEP = Pattern.compile("\\bThread\\s*\\.\\s*sleep\\s*\\(");
+    private static final Pattern SHAFT_LOCATOR_XPATH = Pattern.compile(
+            "\\bSHAFT\\s*\\.\\s*GUI\\s*\\.\\s*Locator\\s*\\.\\s*xpath\\s*\\(");
     private static final Pattern BY_XPATH = Pattern.compile("\\bBy\\s*\\.\\s*xpath\\s*\\(\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
     private static final Pattern PAGE_FACTORY = Pattern.compile("(?:@FindBy\\b|\\bPageFactory\\b)");
     private static final Pattern IMPLICIT_WAIT = Pattern.compile(
@@ -42,6 +44,8 @@ public class TestAutomationService {
     private static final String NO_SLEEP = "Do not generate Thread.sleep; use SHAFT waits/actions/assertions.";
     private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer smart locators,"
             + " SHAFT.GUI.Locator builders.";
+    private static final String NO_SHAFT_LOCATOR_XPATH = "Do not generate SHAFT.GUI.Locator.xpath; use smart"
+            + " locators, the SHAFT locator builder, or By.xpath only as a last fallback.";
     private static final String NO_IMPLICIT_WAIT = "Avoid Selenium implicit waits; use SHAFT waits/actions/assertions.";
     private static final String NO_RAW_FIND_ELEMENT = "Avoid direct driver.findElement/findElements calls in generated"
             + " SHAFT tests; route actions through SHAFT facades or page objects.";
@@ -68,6 +72,7 @@ public class TestAutomationService {
                     + " code blocks only after stopping the session.",
             "For Allure, trace, or locator-flakiness failures, prefer Doctor/Trace/Heal evidence before source edits.",
             "Prefer SHAFT smart/semantic locators, ARIA locators, and SHAFT.GUI.Locator builders before raw By objects.",
+            NO_SHAFT_LOCATOR_XPATH,
             NO_SLEEP,
             NO_ABSOLUTE_XPATH,
             NO_IMPLICIT_WAIT,
@@ -128,6 +133,7 @@ public class TestAutomationService {
         String source = code == null ? "" : code;
         List<McpCodeGuardrailViolation> violations = new ArrayList<>();
         addThreadSleepViolations(source, violations);
+        addShaftLocatorXpathViolations(source, violations);
         addAbsoluteXpathViolations(source, violations);
         addPageFactoryWarnings(source, violations);
         addImplicitWaitWarnings(source, violations);
@@ -149,6 +155,11 @@ public class TestAutomationService {
 
     private static void addThreadSleepViolations(String source, List<McpCodeGuardrailViolation> violations) {
         addPatternViolations(source, violations, THREAD_SLEEP, "THREAD_SLEEP", "ERROR", NO_SLEEP);
+    }
+
+    private static void addShaftLocatorXpathViolations(String source, List<McpCodeGuardrailViolation> violations) {
+        addPatternViolations(source, violations, SHAFT_LOCATOR_XPATH, "SHAFT_LOCATOR_XPATH", "ERROR",
+                NO_SHAFT_LOCATOR_XPATH);
     }
 
     private static void addAbsoluteXpathViolations(String source, List<McpCodeGuardrailViolation> violations) {

@@ -198,6 +198,7 @@ final class GuidedWorkflowPanel extends JPanel {
         arguments.addProperty("intent",
                 "Convert a pasted Selenium WebDriver Java snippet to SHAFT syntax using SHAFT.GUI.WebDriver, "
                         + "driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator. "
+                        + "Do not use SHAFT.GUI.Locator.xpath; use the locator builder or By.xpath only as a last fallback. "
                         + "Return review-only code and do not write source files.");
         arguments.addProperty("maxResults", 5);
         return arguments;

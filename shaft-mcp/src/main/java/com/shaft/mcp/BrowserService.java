@@ -601,7 +601,7 @@ public class BrowserService {
             case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(expression) + "\")";
             case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(expression) + "\")";
             case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(expression) + "\")";
-            case XPATH -> "SHAFT.GUI.Locator.xpath(\"" + javaString(expression) + "\")";
+            case XPATH -> "By.xpath(\"" + javaString(expression) + "\")";
         };
     }
 

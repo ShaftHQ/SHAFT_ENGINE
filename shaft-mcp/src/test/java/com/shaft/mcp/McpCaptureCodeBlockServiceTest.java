@@ -298,7 +298,7 @@ class McpCaptureCodeBlockServiceTest {
                 public class RiskyReplayTest {
                     @Test
                     public void replayRiskyLocator() {
-                        driver.element().click(SHAFT.GUI.Locator.xpath("/html/body/div[2]/button"));
+                        driver.element().click(By.xpath("/html/body/div[2]/button"));
                     }
                 }
                 """);
