@@ -840,7 +840,9 @@ public final class CaptureGenerator {
         } else {
             line(source, "import com.shaft.driver.SHAFT;");
         }
-        line(source, "import org.openqa.selenium.By;");
+        if (needsByImport(targets, fallbackReplay)) {
+            line(source, "import org.openqa.selenium.By;");
+        }
         line(source, "import org.testng.annotations.AfterMethod;");
         line(source, "import org.testng.annotations.BeforeMethod;");
         line(source, "import org.testng.annotations.Test;");
@@ -1264,6 +1266,26 @@ public final class CaptureGenerator {
         };
     }
 
+    private static boolean needsByImport(List<TargetPlan> targets, boolean fallbackReplay) {
+        return fallbackReplay || targets.stream().anyMatch(CaptureGenerator::usesNativeBy);
+    }
+
+    private static boolean usesNativeBy(TargetPlan plan) {
+        LocatorCandidate candidate = plan.selection().selected().candidate();
+        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.XPATH) {
+            return true;
+        }
+        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
+                || candidate.strategy() == LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME
+                || candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL) {
+            String name = !plan.target().accessibleName().isBlank()
+                    ? plan.target().accessibleName()
+                    : plan.target().label();
+            return semanticName(name, candidate).isBlank() && !isInput(plan.target()) && !isClickable(plan.target());
+        }
+        return false;
+    }
+
     private static String locatorReference(
             ElementSnapshot target,
             List<TargetPlan> targets,
@@ -1297,12 +1319,7 @@ public final class CaptureGenerator {
             String name,
             LocatorCandidate candidate) {
         String semanticName = name;
-        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
-                && candidate.expression().contains(":")) {
-            semanticName = candidate.expression().substring(candidate.expression().indexOf(':') + 1);
-        } else if (semanticName.isBlank()) {
-            semanticName = candidate.expression();
-        }
+        semanticName = semanticName(semanticName, candidate);
         if (isInput(target)) {
             return "SHAFT.GUI.Locator.inputField(\"" + javaString(semanticName) + "\")";
         }
@@ -1313,6 +1330,14 @@ public final class CaptureGenerator {
             return "SHAFT.GUI.Locator.hasAnyTagName().containsText(\"" + javaString(semanticName) + "\").build()";
         }
         return "By.xpath(\"" + javaString(candidate.expression()) + "\")";
+    }
+
+    private static String semanticName(String name, LocatorCandidate candidate) {
+        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
+                && candidate.expression().contains(":")) {
+            return candidate.expression().substring(candidate.expression().indexOf(':') + 1);
+        }
+        return name.isBlank() ? candidate.expression() : name;
     }
 
     private static String dataExpression(ExternalTestDataReference reference, DataPlan data) {
