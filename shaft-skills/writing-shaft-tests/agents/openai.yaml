@@ -1,0 +1,4 @@
+interface:
+  display_name: "Writing SHAFT Tests"
+  short_description: "Author SHAFT tests correctly"
+  default_prompt: "Use $writing-shaft-tests to write a SHAFT test that follows official guide patterns."

@@ -35,6 +35,8 @@ ALLOWED_GLOBS = (
     ".github/skills/**/*.md",
     ".memory/memory/*.md",
     ".memory/memory/**/*.md",
+    "shaft-skills/*.md",
+    "shaft-skills/**/*.md",
     "tools/**/*.md",
     "*/src/test/resources/fixtures/**/*.md",
 )

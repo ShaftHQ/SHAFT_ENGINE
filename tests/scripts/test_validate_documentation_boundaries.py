@@ -58,6 +58,12 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_installable_shaft_skills(self):
+        self.write("shaft-skills/evaluation-prompts.md", "# Evaluation Prompts\n")
+        self.write("shaft-skills/writing-shaft-tests/SKILL.md", "# Writing SHAFT Tests\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_rejects_unapproved_nested_readme(self):
         self.write(".github/other/README.md", "# Other\n")
 

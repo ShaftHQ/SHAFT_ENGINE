@@ -205,4 +205,15 @@ else
 fi
 
 python_script="$(resolve_python_script "$ROOT")"
+has_shaft_skills_decision=0
+for argument in "$@"; do
+  case "$argument" in
+    --install-shaft-skills|--skip-shaft-skills)
+      has_shaft_skills_decision=1
+      ;;
+  esac
+done
+if [ "$has_shaft_skills_decision" -eq 0 ] && [ ! -t 0 ]; then
+  set -- "$@" --install-shaft-skills
+fi
 exec "$python_path" "$python_script" "$@"
