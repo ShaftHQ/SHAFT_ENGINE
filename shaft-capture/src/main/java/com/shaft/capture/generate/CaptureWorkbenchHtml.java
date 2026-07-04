@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Writes the local Capture recording and generated-code review workbench.
@@ -91,6 +93,26 @@ final class CaptureWorkbenchHtml {
                       <pre>%s</pre>
                     </section>
                     <section>
+                      <h2>Blockers</h2>
+                      <pre>%s</pre>
+                    </section>
+                    <section>
+                      <h2>Assertions</h2>
+                      <pre>%s</pre>
+                    </section>
+                    <section>
+                      <h2>Locator Decisions</h2>
+                      <pre>%s</pre>
+                    </section>
+                    <section>
+                      <h2>Page Object Draft</h2>
+                      <pre>%s</pre>
+                    </section>
+                    <section>
+                      <h2>Copyable Commands</h2>
+                      <pre>%s</pre>
+                    </section>
+                    <section>
                       <h2>Record</h2>
                       <div class="grid">
                         <div><label for="url">URL</label><input id="url" value="https://example.com"></div>
@@ -168,6 +190,11 @@ final class CaptureWorkbenchHtml {
                 review.readinessScore(),
                 escape(report.status().name()),
                 escape(reviewSummary(report, review)),
+                escape(linesOrNone(review.blockers())),
+                escape(assertionSection(report, review)),
+                escape(locatorDecisionSection(report)),
+                escape(pageObjectDraft(report)),
+                escape(commandSection(sourcePath, report)),
                 escape(source),
                 escape(sourcePath == null ? "" : sourcePath.toString()),
                 escape(String.join("\n", review.suggestions())),
@@ -194,7 +221,7 @@ final class CaptureWorkbenchHtml {
         appendList(summary, "Control-flow suggestions", report.controlFlowSuggestions().stream()
                 .map(suggestion -> suggestion.id() + " " + suggestion.kind() + ": " + suggestion.recommendation())
                 .toList());
-        summary.append("Code blocks: full class, replay method, POM locator inventory, action sequence");
+        summary.append("Code blocks: full class, replay method, POM locator inventory, action sequence, Page Object draft");
         if (!report.requiredUserInputs().isEmpty()) {
             summary.append(", setup");
         }
@@ -207,7 +234,119 @@ final class CaptureWorkbenchHtml {
         return summary.toString();
     }
 
-    private static void appendList(StringBuilder target, String label, java.util.List<String> values) {
+    private static String linesOrNone(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return "none";
+        }
+        return String.join("\n", values);
+    }
+
+    private static String assertionSection(CaptureGenerationReport report, CaptureReview review) {
+        List<String> assertions = new ArrayList<>();
+        report.readinessWarnings().stream()
+                .filter(CaptureWorkbenchHtml::mentionsAssertion)
+                .forEach(assertions::add);
+        report.warnings().stream()
+                .filter(CaptureWorkbenchHtml::mentionsAssertion)
+                .forEach(assertions::add);
+        review.findings().stream()
+                .filter(finding -> mentionsAssertion(finding.category())
+                        || mentionsAssertion(finding.summary())
+                        || mentionsAssertion(finding.recommendation()))
+                .map(finding -> finding.severity() + ": " + finding.recommendation())
+                .forEach(assertions::add);
+        return linesOrNone(assertions);
+    }
+
+    private static boolean mentionsAssertion(String value) {
+        return value != null && value.toLowerCase(java.util.Locale.ROOT).contains("assert");
+    }
+
+    private static String locatorDecisionSection(CaptureGenerationReport report) {
+        if (report.locatorDecisions().isEmpty()) {
+            return "none";
+        }
+        StringBuilder section = new StringBuilder();
+        for (CaptureGenerationReport.LocatorDecision decision : report.locatorDecisions()) {
+            section.append(decision.logicalElementId())
+                    .append(" -> ")
+                    .append(decision.strategy())
+                    .append(' ')
+                    .append(decision.expression())
+                    .append(" (score ")
+                    .append(decision.score())
+                    .append(")\n");
+            if (!decision.alternatives().isEmpty()) {
+                section.append("  alternatives: ")
+                        .append(String.join("; ", decision.alternatives()))
+                        .append('\n');
+            }
+        }
+        return section.toString();
+    }
+
+    private static String pageObjectDraft(CaptureGenerationReport report) {
+        if (report.locatorDecisions().isEmpty()) {
+            return "No locator decisions are available for a Page Object draft.";
+        }
+        StringBuilder draft = new StringBuilder();
+        draft.append("public final class CapturedPage {\n");
+        draft.append("    private final SHAFT.GUI.WebDriver driver;\n\n");
+        for (CaptureGenerationReport.LocatorDecision decision : report.locatorDecisions()) {
+            draft.append("    // ")
+                    .append(String.join(", ", decision.eventIds()))
+                    .append(" -> ")
+                    .append(decision.strategy())
+                    .append(' ')
+                    .append(decision.expression())
+                    .append('\n');
+            draft.append("    // private final By ")
+                    .append(fieldName(decision.logicalElementId()))
+                    .append(" = <review SHAFT locator expression>;\n");
+        }
+        draft.append("\n    public CapturedPage(SHAFT.GUI.WebDriver driver) {\n");
+        draft.append("        this.driver = driver;\n");
+        draft.append("    }\n");
+        draft.append("}\n");
+        return draft.toString();
+    }
+
+    private static String fieldName(String value) {
+        StringBuilder name = new StringBuilder();
+        boolean upperNext = false;
+        for (char character : (value == null ? "locator" : value).toCharArray()) {
+            if (!Character.isLetterOrDigit(character)) {
+                upperNext = name.length() > 0;
+                continue;
+            }
+            if (name.isEmpty()) {
+                name.append(Character.toLowerCase(character));
+            } else if (upperNext) {
+                name.append(Character.toUpperCase(character));
+                upperNext = false;
+            } else {
+                name.append(character);
+            }
+        }
+        if (name.isEmpty() || !Character.isJavaIdentifierStart(name.charAt(0))) {
+            name.insert(0, "locator");
+        }
+        return name.append("Locator").toString();
+    }
+
+    private static String commandSection(Path sourcePath, CaptureGenerationReport report) {
+        String source = sourcePath == null ? "<generated-source.java>" : sourcePath.toString();
+        return """
+                capture start --url "https://example.com" --browser chrome --session-goal "record the critical user flow"
+                capture checkpoint --description "assert the current page state" --kind ASSERTION
+                capture generate --session <capture.json> --enable-fallback-locators --control-flow-preview
+                capture generate --session <capture.json> --target-source "%s" --insert-after <method>
+                MCP capture_start_codegen: {"targetUrl":"https://example.com","browser":"chrome","sessionGoal":"record the critical user flow"}
+                MCP code blocks: use sourcePath %s from session %s
+                """.formatted(source, source, report.sessionId()).stripIndent();
+    }
+
+    private static void appendList(StringBuilder target, String label, List<String> values) {
         target.append(label).append(':');
         if (values == null || values.isEmpty()) {
             target.append(" none\n");

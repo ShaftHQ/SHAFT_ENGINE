@@ -123,7 +123,8 @@ public class CaptureService {
                         options.userAgent,
                         options.userDataDirectory == null || options.userDataDirectory.isBlank()
                                 ? null
-                                : workspacePolicy.output(options.userDataDirectory, "Capture user data directory"))));
+                                : workspacePolicy.output(options.userDataDirectory, "Capture user data directory"),
+                        options.sessionGoal)));
     }
 
     /**
@@ -154,6 +155,7 @@ public class CaptureService {
         public long timeoutMillis;
         public String userAgent;
         public String userDataDirectory;
+        public String sessionGoal;
     }
 
     /**

@@ -267,6 +267,29 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void reordersPersistedStepsByClientActionId(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("click", START, usernameTarget(),
+                Map.of("button", 0, "clickCount", 1, "clientActionId", "ui-5"), Map.of()));
+        pipeline.accept(signal("click", START.plusMillis(1), buttonTarget(),
+                Map.of("button", 0, "clickCount", 1, "clientActionId", "ui-6"), Map.of()));
+        pipeline.accept(signal("step_reorder", START.plusMillis(2), Map.of(),
+                Map.of("clientActionId", "ui-6", "direction", "up"), Map.of()));
+
+        List<CaptureEvent> reordered = store.read().events();
+        assertEquals("ui-6", reordered.get(0).context().extensions().get("clientActionId").asText());
+        assertEquals("ui-5", reordered.get(1).context().extensions().get("clientActionId").asText());
+        assertEquals(1, reordered.get(0).context().sequence());
+        assertEquals(2, reordered.get(1).context().sequence());
+    }
+
+    @Test
     void deletingTypedStepPrunesExternalDataReference(@TempDir Path temp) throws Exception {
         Path output = temp.resolve("session.json");
         CaptureSessionStore store = startedStore(output);

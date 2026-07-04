@@ -1,5 +1,6 @@
 package com.shaft.capture.runtime;
 
+import tools.jackson.databind.node.StringNode;
 import com.shaft.capture.collector.BidiBrowserEventCollector;
 import com.shaft.capture.collector.BrowserEventCollector;
 import com.shaft.capture.collector.BrowserSignal;
@@ -110,10 +111,7 @@ class ManagedCaptureRecorder {
             driver = shaftDriver.getDriver();
             applyRuntimeOptions();
             store = new CaptureSessionStore(request.outputPath());
-            store.start(CaptureSession.start(
-                    sessionId,
-                    startedAt,
-                    browserMetadata(driver)));
+            store.start(startSession(browserMetadata(driver)));
             pipeline = new CaptureEventPipeline(
                     store,
                     request.outputPath(),
@@ -145,6 +143,27 @@ class ManagedCaptureRecorder {
             interrupt();
             throw new IllegalStateException("SHAFT Capture could not start the managed browser.", exception);
         }
+    }
+
+    private CaptureSession startSession(BrowserMetadata metadata) {
+        CaptureSession session = CaptureSession.start(sessionId, startedAt, metadata);
+        if (request.options().sessionGoal().isBlank()) {
+            return session;
+        }
+        Map<String, tools.jackson.databind.JsonNode> extensions = new LinkedHashMap<>(session.extensions());
+        extensions.put("sessionGoal", StringNode.valueOf(request.options().sessionGoal()));
+        return new CaptureSession(
+                session.schemaVersion(),
+                session.sessionId(),
+                session.status(),
+                session.startedAt(),
+                session.endedAt(),
+                session.browser(),
+                session.events(),
+                session.checkpoints(),
+                session.dataReferences(),
+                session.redactionSummary(),
+                extensions);
     }
 
     synchronized CaptureStatus status() {

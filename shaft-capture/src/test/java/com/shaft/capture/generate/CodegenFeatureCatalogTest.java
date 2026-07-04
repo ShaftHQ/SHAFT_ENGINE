@@ -18,6 +18,12 @@ class CodegenFeatureCatalogTest {
                 "Live readiness scoring",
                 "Fallback locator replay",
                 "Control-flow suggestions",
+                "In-panel assertions and checkpoints",
+                "Step inspector with reorder controls",
+                "Session goal metadata",
+                "Generated review header",
+                "MCP Page Object draft",
+                "Workbench review sections",
                 "MCP Playwright recording schema convergence"));
         missing.removeAll(actualNames);
 

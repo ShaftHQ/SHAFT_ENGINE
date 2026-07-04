@@ -213,6 +213,8 @@
     stop: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"></path></svg>`,
     edit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`,
     delete: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 14h10l1-14"></path><path d="M10 11v5"></path><path d="M14 11v5"></path></svg>`,
+    up: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>`,
+    down: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>`,
     pin: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5"></path><path d="M5 17h14"></path><path d="m8 4 8 8"></path><path d="M7 5l5-3 5 5-3 5Z"></path></svg>`
   })[name] || "";
   const describe = (kind, target, data) => {
@@ -235,7 +237,7 @@
     }
   };
   const clientActionId = item => uiState.instanceId + "-" + item.id;
-  const announce = (value, mergeKey) => {
+  const announce = (value, mergeKey, details) => {
     const description = text(value);
     if (!description) return null;
     if (mergeKey && uiState.currentInputActionKey === mergeKey) {
@@ -249,12 +251,19 @@
       if (existing) {
         existing.text = description;
         existing.timestamp = Date.now();
+        existing.details = details || existing.details || {};
         persist();
         renderActions();
         return existing;
       }
     }
-    const item = {id: uiState.nextId++, text: description, timestamp: Date.now(), mergeKey: mergeKey || ""};
+    const item = {
+      id: uiState.nextId++,
+      text: description,
+      timestamp: Date.now(),
+      mergeKey: mergeKey || "",
+      details: details || {}
+    };
     uiState.actions.push(item);
     uiState.actions = uiState.actions.slice(-80);
     uiState.currentInputActionKey = mergeKey || "";
@@ -433,6 +442,14 @@
     }
     return null;
   };
+  const bestLocatorSummary = target => {
+    const best = (target.locators || []).slice()
+      .sort((left, right) => locatorScore(right) - locatorScore(left))[0];
+    if (!best) return "";
+    return best.strategy + " " + best.expression
+      + " | score " + locatorScore(best)
+      + " | matches " + best.uniquenessCount;
+  };
   const allPageElements = () =>
     Array.from(document.querySelectorAll("body *")).filter(element => !isControlElement(element));
   const queryAll = selector => {
@@ -547,7 +564,13 @@
       const readiness = readinessFor(kind, target);
       if (readiness) setReadiness(readiness.state, readiness.warning);
       const mergeKey = kind === "input" ? "input:" + target.logicalElementId : "";
-      const item = announce(describe(kind, target, action), mergeKey);
+      const item = announce(describe(kind, target, action), mergeKey, {
+        kind,
+        target,
+        locator: bestLocatorSummary(target),
+        readiness: readiness ? readiness.state : "READY",
+        warning: readiness ? readiness.warning : ""
+      });
       if (kind !== "input") {
         uiState.currentInputActionKey = "";
         persist();
@@ -627,17 +650,139 @@
     if (isTextInput(element)) return valueText(element.value);
     return text(element && (element.innerText || element.textContent));
   };
+  const closeDialog = () => {
+    const dialog = document.getElementById("shaft-capture-dialog");
+    if (dialog) dialog.remove();
+  };
+  const showDialog = (title, fields, onSubmit) => {
+    const panel = document.getElementById("shaft-capture-ui");
+    if (!panel) return;
+    closeDialog();
+    const dialog = document.createElement("form");
+    dialog.id = "shaft-capture-dialog";
+    dialog.setAttribute("data-shaft-capture-control", "true");
+    const heading = document.createElement("h2");
+    heading.textContent = title;
+    dialog.appendChild(heading);
+    fields.forEach(field => {
+      const labelNode = document.createElement("label");
+      const caption = document.createElement("span");
+      caption.textContent = field.label;
+      let input;
+      if (field.type === "select") {
+        input = document.createElement("select");
+        (field.options || []).forEach(option => {
+          const item = document.createElement("option");
+          item.value = option.value;
+          item.textContent = option.label;
+          input.appendChild(item);
+        });
+      } else {
+        input = document.createElement("input");
+        input.type = "text";
+      }
+      input.name = field.name;
+      input.value = field.value || "";
+      input.placeholder = field.placeholder || "";
+      labelNode.append(caption, input);
+      dialog.appendChild(labelNode);
+    });
+    const buttons = document.createElement("div");
+    buttons.className = "dialog-actions";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", closeDialog);
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.textContent = "Save";
+    buttons.append(cancel, save);
+    dialog.appendChild(buttons);
+    dialog.addEventListener("submit", event => {
+      event.preventDefault();
+      const data = {};
+      fields.forEach(field => {
+        data[field.name] = valueText(dialog.elements[field.name] && dialog.elements[field.name].value);
+      });
+      closeDialog();
+      onSubmit(data);
+    });
+    const status = document.getElementById("shaft-capture-status");
+    if (status && status.nextSibling) {
+      panel.insertBefore(dialog, status.nextSibling);
+    } else {
+      panel.appendChild(dialog);
+    }
+    const first = dialog.querySelector("select,input");
+    if (first) first.focus();
+  };
   const browserCheckpoint = () => {
-    const selected = prompt(
-      "Browser checkpoint",
-      "url contains, url equals, title contains, title equals, page source contains");
-    const kind = assertionKind(selected);
-    if (!kind || !pageAssertion(kind)) return false;
-    const expected = prompt("Expected value", currentValue(kind, null, ""));
-    if (expected === null) return true;
-    announce("Assert " + assertionLabel(kind) + " on page");
-    sendVerification(null, {verification: kind, expected: valueText(expected)});
+    showDialog("Browser checkpoint", [
+      {
+        name: "kind",
+        label: "Assertion",
+        type: "select",
+        value: "URL_CONTAINS",
+        options: [
+          {value: "URL_CONTAINS", label: "URL contains"},
+          {value: "URL_EQUALS", label: "URL equals"},
+          {value: "TITLE_CONTAINS", label: "Title contains"},
+          {value: "TITLE_EQUALS", label: "Title equals"},
+          {value: "PAGE_TEXT_CONTAINS", label: "Page text contains"}
+        ]
+      },
+      {name: "expected", label: "Expected value", value: currentValue("URL_CONTAINS", null, "")}
+    ], data => {
+      const kind = assertionKind(data.kind);
+      if (!kind || !pageAssertion(kind)) return;
+      announce("Assert " + assertionLabel(kind) + " on page");
+      sendVerification(null, {verification: kind, expected: valueText(data.expected)});
+    });
     return true;
+  };
+  const showElementAssertionDialog = (target, element) => {
+    showDialog("Element checkpoint", [
+      {
+        name: "kind",
+        label: "Assertion",
+        type: "select",
+        value: "ELEMENT_VISIBLE",
+        options: [
+          {value: "ELEMENT_VISIBLE", label: "Visible"},
+          {value: "ELEMENT_ENABLED", label: "Enabled"},
+          {value: "ELEMENT_SELECTED", label: "Selected"},
+          {value: "TEXT_EQUALS", label: "Text equals"},
+          {value: "TEXT_CONTAINS", label: "Text contains"},
+          {value: "ATTRIBUTE_EQUALS", label: "Attribute equals"},
+          {value: "ELEMENT_IMAGE_MATCHES", label: "Image matches"}
+        ]
+      },
+      {name: "attributeName", label: "Attribute", value: defaultAttribute(element)},
+      {name: "expected", label: "Expected value", value: currentValue("TEXT_CONTAINS", element, "")}
+    ], data => {
+      const kind = assertionKind(data.kind);
+      if (!kind || pageAssertion(kind)) return;
+      const payload = {
+        verification: kind,
+        negated: false
+      };
+      if (kind === "ATTRIBUTE_EQUALS") {
+        payload.attributeName = text(data.attributeName);
+        if (!payload.attributeName) return;
+      }
+      if (expectsValue(kind)) {
+        payload.expected = valueText(data.expected);
+      }
+      announce("Assert " + assertionLabel(kind) + " on " + targetName(target), "", {
+        kind: "verification",
+        target,
+        locator: bestLocatorSummary(target),
+        readiness: "READY",
+        warning: ""
+      });
+      sendVerification(target, payload);
+      setStatus();
+    });
   };
   const captureAssertion = event => {
     if (!uiState.assertionMode || uiState.locatorMode || uiState.stopped || uiState.paused) return false;
@@ -647,40 +792,9 @@
     event.stopImmediatePropagation();
     const target = snapshot(event);
     if (!target) return true;
-    const selected = prompt(
-      "Assertion type",
-      "visible, enabled, selected, text equals, text contains, attribute equals, image matches, image does not match");
-    const kind = assertionKind(selected);
-    if (!kind) {
-      const unsupported = text(selected);
-      if (unsupported) {
-        uiState.assertionMode = false;
-        persist();
-        announce("Unsupported assertion: " + unsupported);
-        sendCheckpoint("Unsupported assertion type: " + unsupported, "ASSERTION");
-        setStatus();
-      }
-      return true;
-    }
-    const data = {
-      verification: kind,
-      negated: text(selected).toLowerCase().includes("does not")
-    };
-    let attributeName = "";
-    if (kind === "ATTRIBUTE_EQUALS") {
-      attributeName = text(prompt("Attribute name", defaultAttribute(element)));
-      if (!attributeName) return true;
-      data.attributeName = attributeName;
-    }
-    if (expectsValue(kind)) {
-      const expected = prompt("Expected value", currentValue(kind, element, attributeName));
-      if (expected === null) return true;
-      data.expected = valueText(expected);
-    }
     uiState.assertionMode = false;
     persist();
-    announce("Assert " + assertionLabel(kind) + " on " + (pageAssertion(kind) ? "page" : targetName(target)));
-    sendVerification(pageAssertion(kind) ? null : target, data);
+    showElementAssertionDialog(target, element);
     setStatus();
     return true;
   };
@@ -811,15 +925,63 @@
         margin: 0 0 7px;
         padding: 0;
       }
-      #shaft-capture-actions div {
+      #shaft-capture-actions .action-row {
         display: grid;
-        grid-template-columns: 1fr 32px 32px;
+        grid-template-columns: 1fr repeat(5, 28px);
         gap: 6px;
         align-items: start;
       }
-      #shaft-capture-actions span {
+      #shaft-capture-actions span,
+      #shaft-capture-actions small {
         min-width: 0;
         overflow-wrap: anywhere;
+      }
+      #shaft-capture-actions small {
+        display: block;
+        margin-top: 3px;
+        color: var(--shaft-text-muted);
+        font-size: 12px;
+      }
+      #shaft-capture-dialog {
+        display: grid;
+        gap: 7px;
+        margin: 8px 10px 0;
+        padding: 8px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 6px;
+        background: var(--shaft-bg);
+      }
+      #shaft-capture-dialog h2 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      #shaft-capture-dialog label {
+        display: grid;
+        gap: 3px;
+        color: var(--shaft-text-muted);
+        font-size: 12px;
+      }
+      #shaft-capture-dialog input,
+      #shaft-capture-dialog select {
+        min-width: 0;
+        height: 30px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 6px;
+        background: var(--shaft-surface);
+        color: var(--shaft-text);
+        padding: 4px 7px;
+      }
+      #shaft-capture-dialog .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+      #shaft-capture-dialog .dialog-actions button {
+        width: auto;
+        min-width: 64px;
+        padding: 0 10px;
+        line-height: 1;
       }
       #shaft-capture-locator-panel {
         border-top: 1px solid var(--shaft-border);
@@ -913,19 +1075,54 @@
     stop.disabled = uiState.stopped;
   };
   const editAction = item => {
-    const updated = text(prompt("Edit captured action", item.text));
-    if (!updated || updated === item.text) return;
-    item.text = updated;
+    showDialog("Edit captured action", [
+      {name: "description", label: "Description", value: item.text}
+    ], data => {
+      const updated = text(data.description);
+      if (!updated || updated === item.text) return;
+      item.text = updated;
+      persist();
+      send({
+        kind: "step_update",
+        page: page(),
+        data: {
+          clientActionId: clientActionId(item),
+          description: updated
+        }
+      });
+      renderActions();
+    });
+  };
+  const moveStep = (item, direction) => {
+    const index = uiState.actions.findIndex(action => action.id === item.id);
+    const offset = direction === "up" ? -1 : 1;
+    const next = index + offset;
+    if (index < 0 || next < 0 || next >= uiState.actions.length) return;
+    const copy = uiState.actions.slice();
+    [copy[index], copy[next]] = [copy[next], copy[index]];
+    uiState.actions = copy;
     persist();
     send({
-      kind: "step_update",
+      kind: "step_reorder",
       page: page(),
       data: {
         clientActionId: clientActionId(item),
-        description: updated
+        direction
       }
     });
     renderActions();
+  };
+  const quickAssertion = item => {
+    const target = item.details && item.details.target;
+    if (!target) return;
+    announce("Assert element visible on " + targetName(target), "", {
+      kind: "verification",
+      target,
+      locator: bestLocatorSummary(target),
+      readiness: "READY",
+      warning: ""
+    });
+    sendVerification(target, {verification: "ELEMENT_VISIBLE"});
   };
   const deleteAction = item => {
     uiState.actions = uiState.actions.filter(action => action.id !== item.id);
@@ -946,11 +1143,39 @@
     const list = document.getElementById("shaft-capture-action-list");
     if (!list) return;
     list.textContent = "";
-    uiState.actions.forEach(item => {
+    uiState.actions.forEach((item, index) => {
       const row = document.createElement("li");
       const body = document.createElement("div");
+      body.className = "action-row";
+      const textWrap = document.createElement("span");
       const labelNode = document.createElement("span");
       labelNode.textContent = item.text;
+      textWrap.appendChild(labelNode);
+      const detail = document.createElement("small");
+      const details = item.details || {};
+      detail.textContent = [details.locator, details.warning].filter(Boolean).join(" | ");
+      if (detail.textContent) textWrap.appendChild(detail);
+      const assert = document.createElement("button");
+      assert.type = "button";
+      assert.innerHTML = icon("assert");
+      assert.title = "Add visible assertion for this target";
+      assert.setAttribute("aria-label", "Add visible assertion for this target");
+      assert.disabled = !details.target;
+      assert.addEventListener("click", () => quickAssertion(item));
+      const up = document.createElement("button");
+      up.type = "button";
+      up.innerHTML = icon("up");
+      up.title = "Move captured action up";
+      up.setAttribute("aria-label", "Move captured action up");
+      up.disabled = index === 0;
+      up.addEventListener("click", () => moveStep(item, "up"));
+      const down = document.createElement("button");
+      down.type = "button";
+      down.innerHTML = icon("down");
+      down.title = "Move captured action down";
+      down.setAttribute("aria-label", "Move captured action down");
+      down.disabled = index === uiState.actions.length - 1;
+      down.addEventListener("click", () => moveStep(item, "down"));
       const edit = document.createElement("button");
       edit.type = "button";
       edit.innerHTML = icon("edit");
@@ -963,7 +1188,7 @@
       remove.title = "Delete captured action";
       remove.setAttribute("aria-label", "Delete captured action");
       remove.addEventListener("click", () => deleteAction(item));
-      body.append(labelNode, edit, remove);
+      body.append(textWrap, assert, up, down, edit, remove);
       row.append(body);
       list.appendChild(row);
     });
@@ -1131,24 +1356,41 @@
     });
     document.getElementById("shaft-capture-checkpoint").addEventListener("click", () => {
       if (uiState.stopped) return;
-      const scope = text(prompt("Checkpoint type", "Browser checkpoint or Element checkpoint")).toLowerCase();
-      if (scope.startsWith("browser")) {
-        browserCheckpoint();
-        return;
-      }
-      if (scope.startsWith("element")) {
-        uiState.assertionMode = true;
-        uiState.locatorMode = false;
-        persist();
-        announce("Element checkpoint: click the target element");
-        setStatus();
-        return;
-      }
-      const description = text(scope);
-      if (description) {
+      showDialog("Add checkpoint", [
+        {
+          name: "scope",
+          label: "Type",
+          type: "select",
+          value: "Browser checkpoint",
+          options: [
+            {value: "Browser checkpoint", label: "Browser checkpoint"},
+            {value: "Element checkpoint", label: "Element checkpoint"},
+            {value: "USER_MARKER", label: "User marker"},
+            {value: "FLOW_START", label: "Flow start"},
+            {value: "FLOW_END", label: "Flow end"},
+            {value: "RECOVERY", label: "Recovery"}
+          ]
+        },
+        {name: "description", label: "Description", value: ""}
+      ], data => {
+        const scope = text(data.scope).toLowerCase();
+        if (scope.startsWith("browser")) {
+          browserCheckpoint();
+          return;
+        }
+        if (scope.startsWith("element")) {
+          uiState.assertionMode = true;
+          uiState.locatorMode = false;
+          persist();
+          announce("Element checkpoint: click the target element");
+          setStatus();
+          return;
+        }
+        const kind = text(data.scope) || "USER_MARKER";
+        const description = text(data.description) || kind.toLowerCase().replace(/_/g, " ");
         announce("Checkpoint: " + description);
-        sendCheckpoint(description, "USER_MARKER");
-      }
+        sendCheckpoint(description, kind);
+      });
     });
     document.getElementById("shaft-capture-stop").addEventListener("click", () => {
       if (uiState.stopped) return;

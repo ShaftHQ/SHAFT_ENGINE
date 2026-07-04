@@ -45,7 +45,8 @@ class McpCaptureCodeBlockServiceTest {
                 "capture-full-class",
                 "capture-test-method",
                 "capture-pom-locator-inventory",
-                "capture-pom-action-sequence"
+                "capture-pom-action-sequence",
+                "capture-page-object-draft"
                 ), blocks.stream().map(McpCodeBlock::id).toList());
 
         McpCodeBlock locators = block(blocks, "capture-pom-locator-inventory");
@@ -62,6 +63,13 @@ class McpCaptureCodeBlockServiceTest {
         assertTrue(actions.code().contains("browser.element().click(SHAFT.GUI.Locator.inputField(\"Username\"));"));
         assertTrue(actions.code().contains("// Checkpoint: checkpoint-1 (ASSERTION). Login verified"));
         assertTrue(actions.placement().contains("page methods"));
+
+        McpCodeBlock pageObject = block(blocks, "capture-page-object-draft");
+        assertEquals(McpCodeBlock.Kind.ACTION, pageObject.kind());
+        assertTrue(pageObject.code().contains("public final class LoginPage"));
+        assertTrue(pageObject.code().contains("private final SHAFT.GUI.WebDriver browser;"));
+        assertTrue(pageObject.code().contains("private final By usernameLocator"));
+        assertTrue(pageObject.code().contains("public LoginPage replayLogin()"));
 
         assertFalse(blocks.stream().anyMatch(item -> item.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
     }
@@ -136,6 +144,32 @@ class McpCaptureCodeBlockServiceTest {
                 .fromGeneratedSource(source, "page");
 
         assertTrue(block(blocks, "capture-test-method").placement().contains("SHAFT.GUI.Playwright"));
+    }
+
+    @Test
+    void pageObjectDraftKeepsClassNameValidWhenReplayFlowStartsWithDigit() throws Exception {
+        Path source = writeSource("""
+                package generated.capture;
+
+                import com.shaft.driver.SHAFT;
+                import org.testng.annotations.Test;
+
+                public class TwoFactorReplayTest {
+                    private SHAFT.GUI.WebDriver driver;
+
+                    @Test
+                    public void replay2FactorLogin() {
+                        driver.element().click(SHAFT.GUI.Locator.inputField("Code"));
+                    }
+                }
+                """);
+
+        List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
+                .fromGeneratedSource(source, "browser");
+
+        McpCodeBlock pageObject = block(blocks, "capture-page-object-draft");
+        assertTrue(pageObject.code().contains("public final class CapturedPage"));
+        assertTrue(pageObject.code().contains("public CapturedPage replay2FactorLogin()"));
     }
 
     @Test

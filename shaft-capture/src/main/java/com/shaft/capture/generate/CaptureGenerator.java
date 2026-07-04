@@ -834,7 +834,7 @@ public final class CaptureGenerator {
             CodegenBackend backend,
             boolean fallbackLocators,
             Set<Long> optionalGuardSequences) {
-        boolean fallbackReplay = false;
+        boolean fallbackReplay = fallbackLocators && hasFallbackTargets(targets);
         StringBuilder source = new StringBuilder();
         line(source, "package " + packageName + ";");
         line(source, "");
@@ -843,6 +843,9 @@ public final class CaptureGenerator {
             line(source, "import com.shaft.driver.SHAFT;");
         } else {
             line(source, "import com.shaft.driver.SHAFT;");
+        }
+        if (fallbackReplay) {
+            line(source, "import org.openqa.selenium.By;");
         }
         line(source, "import org.testng.annotations.AfterMethod;");
         line(source, "import org.testng.annotations.BeforeMethod;");
@@ -853,6 +856,13 @@ public final class CaptureGenerator {
         line(source, "import java.util.Map;");
         line(source, "");
         line(source, "public class " + className + " {");
+        line(source, "    // Capture review: readiness=" + CaptureReadiness.from(session).state()
+                + ", events=" + session.events().size()
+                + ", fallback locators=" + fallbackLocatorCount(targets) + ".");
+        String sessionGoal = sessionGoal(session);
+        if (!sessionGoal.isBlank()) {
+            line(source, "    // Capture goal: " + safeComment(sessionGoal));
+        }
         line(source, "    private SHAFT.GUI." + backend.driverClassName() + " driver;");
         line(source, "    private SHAFT.TestData.JSON testData;");
         line(source, "    private final Map<String, String> windows = new HashMap<>();");
@@ -924,6 +934,9 @@ public final class CaptureGenerator {
         line(source, "        return value;");
         line(source, "    }");
         line(source, "");
+        if (fallbackReplay) {
+            renderFallbackHelper(source);
+        }
         line(source, "    @AfterMethod(alwaysRun = true)");
         line(source, "    public void tearDown() {");
         line(source, "        if (driver != null) {");
@@ -932,6 +945,36 @@ public final class CaptureGenerator {
         line(source, "    }");
         line(source, "}");
         return source.toString();
+    }
+
+    private static boolean hasFallbackTargets(List<TargetPlan> targets) {
+        return targets.stream().anyMatch(target -> !target.selection().alternatives().isEmpty());
+    }
+
+    private static long fallbackLocatorCount(List<TargetPlan> targets) {
+        return targets.stream()
+                .filter(target -> !target.selection().alternatives().isEmpty())
+                .count();
+    }
+
+    private static String sessionGoal(CaptureSession session) {
+        JsonNode value = session.extensions().get("sessionGoal");
+        return value == null ? "" : value.asText("").trim();
+    }
+
+    private static void renderFallbackHelper(StringBuilder source) {
+        line(source, "    private By captureReplayLocator(By primary, By... alternatives) {");
+        line(source, "        if (driver.element().getElementsCount(primary) > 0) {");
+        line(source, "            return primary;");
+        line(source, "        }");
+        line(source, "        for (By alternative : alternatives) {");
+        line(source, "            if (driver.element().getElementsCount(alternative) > 0) {");
+        line(source, "                return alternative;");
+        line(source, "            }");
+        line(source, "        }");
+        line(source, "        return primary;");
+        line(source, "    }");
+        line(source, "");
     }
 
     private static void renderEventWithAnnotations(
@@ -982,7 +1025,7 @@ public final class CaptureGenerator {
             CodegenBackend backend,
             boolean fallbackReplay) {
         String locator = target(event)
-                .map(target -> locatorReference(target, targets))
+                .map(target -> locatorReference(target, targets, fallbackReplay))
                 .orElse("");
         if (event instanceof CaptureEvent.NavigationEvent value) {
             String statement = switch (value.action()) {
@@ -1047,7 +1090,7 @@ public final class CaptureGenerator {
             CaptureEvent.ClickEvent value,
             List<TargetPlan> targets,
             boolean fallbackReplay) {
-        String locator = locatorReference(value.target(), targets);
+        String locator = locatorReference(value.target(), targets, fallbackReplay);
         line(source, "        if (driver.element().getElementsCount(" + locator + ") > 0) {");
         line(source, "            driver.element()."
                 + (value.clickCount() == 2 ? "doubleClick" : "click")
@@ -1206,7 +1249,7 @@ public final class CaptureGenerator {
         }
         CaptureEvent.VerificationKind verification =
                 CaptureEvent.VerificationKind.valueOf(suggestion.verification());
-        String locator = locatorReference(target.get(), targets);
+        String locator = locatorReference(target.get(), targets, fallbackReplay);
         renderVerification(source, verification, target.get(), null, suggestion.negated(),
                 event.context(), locator, null, backend);
     }
@@ -1229,14 +1272,30 @@ public final class CaptureGenerator {
 
     private static String locatorReference(
             ElementSnapshot target,
-            List<TargetPlan> targets) {
+            List<TargetPlan> targets,
+            boolean fallbackReplay) {
         return targets.stream()
                 .filter(plan -> plan.logicalElementId().equals(target.logicalElementId()))
                 .findFirst()
-                .map(CaptureGenerator::locatorExpression)
+                .map(plan -> locatorExpression(plan, fallbackReplay))
                 .orElseGet(() -> target.locatorCandidates().isEmpty()
                         ? "SHAFT.GUI.Locator.xpath(\"//*\")"
                         : locatorExpression(target, target.locatorCandidates().getFirst()));
+    }
+
+    private static String locatorExpression(TargetPlan plan, boolean fallbackReplay) {
+        String primary = locatorExpression(plan);
+        if (!fallbackReplay || plan.selection().alternatives().isEmpty()) {
+            return primary;
+        }
+        String alternatives = plan.selection().alternatives().stream()
+                .map(alternative -> locatorExpression(plan.target(), alternative.candidate()))
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("");
+        if (alternatives.isBlank()) {
+            return primary;
+        }
+        return "captureReplayLocator(" + primary + ", " + alternatives + ")";
     }
 
     private static String semanticLocator(
