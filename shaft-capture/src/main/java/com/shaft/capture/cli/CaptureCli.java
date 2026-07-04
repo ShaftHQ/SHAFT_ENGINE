@@ -211,21 +211,22 @@ public final class CaptureCli {
                 options.value("replay-timeout-seconds", "300"),
                 "replay-timeout-seconds");
         CaptureGenerationResult result = new CaptureGenerator().generate(new CaptureGenerationRequest(
-                options.pathRequired("session"),
-                output,
-                options.value("package", "generated.capture"),
-                options.value("class-name", ""),
-                options.flag("overwrite"),
-                !options.flag("skip-compile"),
-                options.flag("replay"),
-                Duration.ofSeconds(timeoutSeconds),
-                enrichmentMode,
-                preview,
-                options.flag("approve-enrichment"),
-                approval,
-                options.flag("enable-fallback-locators"),
-                controlFlowMode,
-                controlFlowPreview));
+                        options.pathRequired("session"),
+                        output,
+                        options.value("package", "generated.capture"),
+                        options.value("class-name", ""),
+                        options.flag("overwrite"),
+                        !options.flag("skip-compile"),
+                        options.flag("replay"),
+                        Duration.ofSeconds(timeoutSeconds),
+                        enrichmentMode,
+                        preview,
+                        options.flag("approve-enrichment"),
+                        approval,
+                        options.flag("enable-fallback-locators"),
+                        controlFlowMode,
+                        controlFlowPreview),
+                generationBackend(options));
         if (options.values().containsKey("target-source") || options.values().containsKey("insert-after")) {
             if (!options.values().containsKey("target-source") || !options.values().containsKey("insert-after")) {
                 throw new IllegalArgumentException(
@@ -445,7 +446,8 @@ public final class CaptureCli {
                 + "[--ignore-https-errors] | status | stop [--discard] | "
                 + "checkpoint --description <text> "
                 + "[--kind USER_MARKER|ASSERTION|PAGE_TRANSITION|RECOVERY|FLOW_START|FLOW_END] | "
-                + "generate --session <capture.json> [--output-dir <path>] [--package <name>] "
+                + "generate --session <capture.json> [--backend webdriver|playwright] "
+                + "[--output-dir <path>] [--package <name>] "
                 + "[--class-name <name>] [--overwrite] [--skip-compile] [--replay] "
                 + "[--enable-fallback-locators] "
                 + "[--control-flow-preview] [--apply-control-flow-preview <path>] "
@@ -482,6 +484,16 @@ public final class CaptureCli {
                         ? Path.of(options.value("user-data-dir", ""))
                         : null,
                 options.value("session-goal", ""));
+    }
+
+    private static CaptureGenerator.CodegenBackend generationBackend(Arguments options) {
+        String value = options.value("backend", "webdriver").trim().toLowerCase(Locale.ROOT);
+        return switch (value) {
+            case "webdriver", "selenium" -> CaptureGenerator.CodegenBackend.WEBDRIVER;
+            case "playwright", "shaft-playwright" -> CaptureGenerator.CodegenBackend.PLAYWRIGHT;
+            default -> throw new IllegalArgumentException(
+                    "Capture option --backend must be webdriver or playwright.");
+        };
     }
 
     private static long parsePositiveLong(String value, String option) {

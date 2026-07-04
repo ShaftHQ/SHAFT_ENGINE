@@ -460,6 +460,28 @@ public class TestAutomationService {
                         t("Recording JSON remains an artifact; reusable code enters page/test classes"),
                         t(NO_SLEEP, NO_ABSOLUTE_XPATH, "Do not include sensitive typed values unless explicitly allowed"),
                         t("Replay code is reviewed, guarded, and inserted into the right Playwright classes")),
+                s("web-playwright-cli-assisted-flow",
+                        "Use official Playwright CLI or MCP as a browser-exploration sidecar",
+                        a("web", "gui", "capture", "playwright", "cli"),
+                        "Use Playwright CLI or Playwright MCP to explore this flow, then generate SHAFT code.",
+                        t("shaft_guide_search", "capture_codegen_features", "shaft_coding_partner_plan",
+                                "capture_start_codegen", "playwright_capture_code_blocks",
+                                "test_code_guardrails_check"),
+                        t("Use official playwright-cli for token-efficient open, goto, click, type, snapshot,"
+                                        + " screenshot, network, storage, console, tracing, or video exploration"
+                                        + " when the user or installed Playwright skills request it",
+                                "Use official Playwright MCP for persistent accessibility-snapshot exploration"
+                                        + " when that MCP server is already configured",
+                                "Bring proven steps, locator notes, screenshots, HAR/storage artifacts, and trace"
+                                        + " evidence back into SHAFT Capture or the coding partner plan",
+                                "Generate SHAFT.GUI.Playwright or SHAFT WebDriver code according to the project backend"),
+                        t("Official Playwright artifacts remain evidence; reusable Java code enters existing SHAFT"
+                                + " page objects and tests"),
+                        t("Do not paste Playwright TypeScript tests into Java projects",
+                                "Treat browser_run_code_unsafe, playwright-cli run-code, and eval as trusted-client-only",
+                                "Do not commit authenticated storage state, traces, or videos that may contain secrets"),
+                        t("Agent reports the Playwright CLI/MCP commands used, the SHAFT backend selected, codegen path,"
+                                + " guardrail result, and focused validation command")),
                 s("web-visual-accessibility", "Add visual or accessibility checks", a("web", "gui", "visual"),
                         "Add visual or accessibility assertions for this critical page state.",
                         t("shaft_guide_search", "driver_initialize", "browser_navigate", "browser_take_screenshot"),

@@ -14,7 +14,7 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 1. Inspect the project first: runner, existing page/API objects, package layout, properties, and test style.
 2. Call `shaft-mcp:shaft_guide_search` before writing SHAFT code. Cite the returned guide URLs in the final answer.
 3. For repo-aware GUI or codegen work, call `shaft-mcp:shaft_coding_partner_plan` with the repository path, user intent, current source path, selected text, and evidence paths before creating new classes.
-4. For broad or unclear automation requests, call `shaft-mcp:test_automation_scenarios` with the closest area (`web`, `api`, `mobile`, `cli`, `db`, `capture`, `doctor`, or `ci`).
+4. For broad or unclear automation requests, call `shaft-mcp:test_automation_scenarios` with the closest area (`web`, `playwright`, `api`, `mobile`, `cli`, `db`, `capture`, `doctor`, or `ci`).
 5. Reuse the plan's existing page objects, tests, locators, and actions before adding missing code.
 6. Write code using SHAFT syntax only; do not invent APIs from memory.
 7. Run `shaft-mcp:test_code_guardrails_check` on generated Java before finalizing.
@@ -26,6 +26,7 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 | --- | --- |
 | Web UI test | `SHAFT.GUI.WebDriver`, `driver.browser()`, `driver.element()`, page objects |
 | Playwright project | `SHAFT.GUI.Playwright`, not mixed WebDriver waits |
+| Official Playwright CLI/MCP evidence | Use as a sidecar only; convert proven steps into SHAFT Java code |
 | Mobile native/web | `SHAFT.GUI.Locator.*`, touch actions, `driver.element().assertThat(...)` |
 | API | `SHAFT.API`, reusable request builders/validators, `perform()` |
 | Assertions | `driver.assertThat(...)`, `driver.verifyThat(...)`, or `SHAFT.Validations` |
@@ -38,6 +39,7 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 - Do not use `Thread.sleep`; use SHAFT waits, actions, assertions, or condition-based waiting from the guide.
 - Do not use raw `driver.findElement`, Selenium `PageFactory`, `@FindBy`, implicit waits, headed setup, or TestNG/JUnit assertions in generated tests.
 - Generate GUI assertions and checkpoint follow-ups through SHAFT assertion builders such as `driver.element().assertThat(...)`, `driver.browser().assertThat()`, or `driver.verifyThat(...)`.
+- Do not paste Playwright TypeScript output into Java projects; reuse the behavior, locators, and evidence while writing SHAFT syntax.
 - Do not hard-code secrets, credentials, tokens, target URLs, or environment-specific paths.
 - Do not infer a target URL from a site/product name. Ask for the exact URL when it is missing.
 - Keep browser sessions fresh per test and always quit/clean up following the repo's test framework style.

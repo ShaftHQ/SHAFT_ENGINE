@@ -32,6 +32,7 @@ class TestAutomationServiceTest {
         assertTrue(ids.contains("web-pom-fluent-test"));
         assertTrue(ids.contains("web-playwright-pom-fluent-test"));
         assertTrue(ids.contains("web-playwright-record-replay"));
+        assertTrue(ids.contains("web-playwright-cli-assisted-flow"));
         assertTrue(ids.contains("mobile-native-appium"));
         assertTrue(ids.contains("failure-trace-first-analysis"));
         assertTrue(ids.contains("failure-doctor-analysis"));
@@ -74,6 +75,30 @@ class TestAutomationServiceTest {
                 .anyMatch(guardrail -> guardrail.contains("Do not infer target URLs")));
         assertTrue(scenario.guardrails().stream()
                 .anyMatch(guardrail -> guardrail.contains("publish unverified locators")));
+    }
+
+    @Test
+    void playwrightCliScenarioDelegatesExplorationBackToShaftCodegen() {
+        McpScenarioCatalogResult result = service.testAutomationScenarios(
+                "playwright",
+                "playwright-cli storage network trace",
+                10);
+
+        McpTestAutomationScenario scenario = result.scenarios().stream()
+                .filter(candidate -> candidate.id().equals("web-playwright-cli-assisted-flow"))
+                .findFirst()
+                .orElseThrow();
+
+        assertTrue(scenario.mcpTools().contains("capture_codegen_features"));
+        assertTrue(scenario.mcpTools().contains("shaft_coding_partner_plan"));
+        assertTrue(scenario.agentActions().stream()
+                .anyMatch(action -> action.contains("official playwright-cli")));
+        assertTrue(scenario.agentActions().stream()
+                .anyMatch(action -> action.contains("Bring proven steps")));
+        assertTrue(scenario.guardrails().stream()
+                .anyMatch(guardrail -> guardrail.contains("TypeScript tests")));
+        assertTrue(scenario.completionCriteria().stream()
+                .anyMatch(criteria -> criteria.contains("SHAFT backend selected")));
     }
 
     @Test

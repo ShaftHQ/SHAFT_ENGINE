@@ -287,6 +287,7 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 | Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
 | Capture review blocks | Return setup prerequisites, assertion suggestions, locator alternatives, action sequences, locator-confidence queues, validation back-links, and control-flow review notes as additive MCP code blocks after generation. | `capture_code_blocks`, `capture_record_at_target_code_blocks` |
 | Semantic actions | Combine guide search, scenario catalog, guardrail checks, and `natural_act` without leaving the MCP session. | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
+| Playwright MCP and CLI parity | Official Playwright MCP/CLI can be used as a delegated exploration sidecar for accessibility snapshots, browser commands, network/storage/devtools, codegen, and Test Agent planning; SHAFT converts the proven behavior into Java Page Objects, Capture sessions, Doctor/Heal evidence, and `SHAFT.GUI.Playwright` or WebDriver code. | `test_automation_scenarios(area="playwright")`, `capture_codegen_features`, `capture generate --backend playwright` |
 
 ```text
 driver_initialize(browserName="chrome", headless=true)
@@ -300,6 +301,19 @@ browser_open_intent(
 orientation.elements[0].bestLocator.strategy=ROLE
 orientation.elements[0].shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")
 nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, element_click, natural_act, capture_start, capture_code_blocks, test_code_guardrails_check]
+```
+
+```mermaid
+flowchart LR
+    Intent[User intent in IntelliJ] --> Route{Need SHAFT Java edit?}
+    Route -->|Yes| Plan[shaft_coding_partner_plan]
+    Route -->|Browser exploration sidecar| PW[Official Playwright CLI or MCP]
+    PW --> Evidence[Snapshots, locators, screenshots, network, storage, traces]
+    Evidence --> Plan
+    Plan --> Capture[Capture or Playwright code blocks]
+    Capture --> POM[Existing Page Objects and tests]
+    POM --> Guardrails[test_code_guardrails_check]
+    Guardrails --> Verify[Focused Maven or Gradle validation]
 ```
 
 <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" alt="MCP tool manifest" width="760">
@@ -476,6 +490,7 @@ The modular era keeps classic WebDriver/Appium flows, adds a first-class Playwri
 | --- | --- | --- |
 | Playwright facade | `SHAFT.GUI.Playwright` sits beside WebDriver under the shared GUI driver concept. | `SHAFT.GUI.Playwright driver = new SHAFT.GUI.Playwright();` |
 | Playwright parity | Browser actions, element actions, assertions, verifications, tracing, contract replay, natural action executor, screenshots, and Doctor hooks. | `playwright_capture_code_blocks`, `playwright_replay_recording`, `playwright_doctor_suggest_fix` |
+| Capture CLI backend selection | The same persisted Capture session can now generate WebDriver or SHAFT Playwright replay from local CLI use. | `capture generate --session recordings/example.json --backend playwright` |
 | Browser network control | Intercept, mock, assert, verify, throttle, block resources, bridge API/browser auth state, and record contracts. | `driver.browser().interceptRequest().get().urlContains("/api/users")...perform();` |
 | API facade | GraphQL builder, retry policies, typed JSON mapping to classes/records/lists, and OpenAPI coverage thresholds. | `api.get("/health").withRetry(RetryPolicy.transientFailures().maxAttempts(3)).perform();` |
 | Browser/mobile polish | UI state wait timeout, touch end-scroll, image invisibility waits, Appium recursion fallback, and mobile trace enrichment. | `SHAFT.Properties.timeouts.set().waitForUiStateTimeout(600);` |
