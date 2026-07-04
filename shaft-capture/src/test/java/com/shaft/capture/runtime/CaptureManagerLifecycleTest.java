@@ -38,7 +38,10 @@ class CaptureManagerLifecycleTest {
         assertEquals(CaptureStatus.State.ACTIVE,
                 manager.checkpoint("review", Checkpoint.CheckpointKind.USER_MARKER).state());
         assertEquals(1, recorderRef.get().checkpointCount);
-        assertEquals(CaptureStatus.State.COMPLETED, manager.stop(false).state());
+        CaptureStatus stopped = manager.stop(false);
+        assertEquals(CaptureStatus.State.COMPLETED, stopped.state());
+        assertEquals(request.outputPath().toString(), stopped.outputPath());
+        assertFalse(recorderRef.get().isBrowserAlive());
         assertEquals(CaptureStatus.State.COMPLETED, manager.stop(false).state());
         manager.close();
     }

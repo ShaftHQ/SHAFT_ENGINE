@@ -62,7 +62,9 @@ public final class BrowserEventScript {
      * @return queue drain JavaScript
      */
     public static String fallbackDrain() {
-        return "return globalThis.__shaftCaptureQueue ? globalThis.__shaftCaptureQueue.splice(0) : [];";
+        return "return typeof globalThis.__shaftCaptureDrain === \"function\" "
+                + "? globalThis.__shaftCaptureDrain() "
+                + ": (globalThis.__shaftCaptureQueue ? globalThis.__shaftCaptureQueue.splice(0) : []);";
     }
 
     private static String script(List<String> testIdAttributes) {

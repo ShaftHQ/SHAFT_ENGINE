@@ -330,11 +330,12 @@ final class CaptureEventPipeline implements AutoCloseable {
             return;
         }
         boolean targetRequired = switch (kind) {
-            case URL_EQUALS, URL_CONTAINS, TITLE_EQUALS -> false;
+            case URL_EQUALS, URL_CONTAINS, TITLE_EQUALS, TITLE_CONTAINS, PAGE_TEXT_CONTAINS -> false;
             default -> true;
         };
         boolean expectedRequired = switch (kind) {
-            case TEXT_EQUALS, TEXT_CONTAINS, ATTRIBUTE_EQUALS, URL_EQUALS, URL_CONTAINS, TITLE_EQUALS -> true;
+            case TEXT_EQUALS, TEXT_CONTAINS, ATTRIBUTE_EQUALS, URL_EQUALS, URL_CONTAINS,
+                 TITLE_EQUALS, TITLE_CONTAINS, PAGE_TEXT_CONTAINS -> true;
             default -> false;
         };
         SafeTarget safeTarget = targetRequired ? target(signal) : null;

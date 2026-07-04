@@ -144,6 +144,29 @@ class AssistantCommandTest {
     }
 
     @Test
+    void slashCodegenWithLiveInstructionsRoutesToAgentCodegenPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/codegen navigate to https://duckduckgo.com, search for shaft_engine, open the first result and assert that the url is correct.",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().has("prompt")
+                ? invocation.arguments().get("prompt").getAsString()
+                : "";
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
+                () -> assertTrue(prompt.contains("Open a real browser session"), prompt),
+                () -> assertTrue(prompt.contains("call driver_initialize and browser_open_intent"), prompt),
+                () -> assertTrue(prompt.contains("navigate to https://duckduckgo.com"), prompt),
+                () -> assertFalse(prompt.contains("test_automation_scenarios OK")));
+    }
+
+    @Test
     void localAgentCodeRequestsStayScopedToCurrentOpenFileAndMode() {
         AssistantCommand.OpenFileContext openFile = new AssistantCommand.OpenFileContext(
                 "src/test/java/example/LoginTest.java",

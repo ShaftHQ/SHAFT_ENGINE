@@ -208,6 +208,9 @@ final class AssistantMarkdown {
             if (!doctor.isBlank()) {
                 return doctor;
             }
+            if (object.has("scenarios") && object.get("scenarios").isJsonArray()) {
+                return scenariosMarkdown(object);
+            }
             if (object.has("tools") && object.get("tools").isJsonArray()) {
                 return toolsMarkdown(object.getAsJsonArray("tools"));
             }
@@ -222,6 +225,55 @@ final class AssistantMarkdown {
             }
         }
         return "";
+    }
+
+    private static String scenariosMarkdown(JsonObject object) {
+        JsonArray scenarios = object.getAsJsonArray("scenarios");
+        if (scenarios.isEmpty()) {
+            return "_No automation scenarios matched._";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Automation scenarios", "",
+                "Intent", string(object, "intent", ""),
+                "Area", string(object, "area", "")));
+        StringBuilder list = new StringBuilder("**Automation scenarios**");
+        for (JsonElement item : scenarios) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject scenario = item.getAsJsonObject();
+            String title = string(scenario, "title", string(scenario, "id", "Scenario"));
+            String id = string(scenario, "id", "");
+            String summary = string(scenario, "summary", "");
+            list.append("\n- **").append(title).append("**");
+            if (!id.isBlank()) {
+                list.append(" (`").append(id).append("`)");
+            }
+            if (!summary.isBlank()) {
+                list.append(": ").append(summary);
+            }
+            String tools = scenarioToolsMarkdown(scenario);
+            if (!tools.isBlank()) {
+                list.append("\n  Tools: ").append(tools);
+            }
+        }
+        sections.add(list.toString());
+        return joinSections(sections);
+    }
+
+    private static String scenarioToolsMarkdown(JsonObject scenario) {
+        JsonElement tools = scenario.get("tools");
+        if (tools == null || !tools.isJsonArray() || tools.getAsJsonArray().isEmpty()) {
+            return "";
+        }
+        List<String> names = new ArrayList<>();
+        for (JsonElement tool : tools.getAsJsonArray()) {
+            if (tool.isJsonPrimitive()) {
+                names.add("`" + tool.getAsString() + "`");
+            }
+        }
+        return String.join(", ", names);
     }
 
     private static String doctorMarkdown(JsonObject object) {
@@ -328,6 +380,9 @@ final class AssistantMarkdown {
         String outputPath = string(object, "outputPath", "");
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
+            if ("COMPLETED".equalsIgnoreCase(string(object, "state", ""))) {
+                sections.add("Run `/codegen " + outputPath + "` to generate SHAFT Java from this recording.");
+            }
         }
         String warnings = warnings(object);
         if (!warnings.isBlank()) {
@@ -538,6 +593,9 @@ final class AssistantMarkdown {
         String outputPath = string(object, "outputPath", "");
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
+            if ("COMPLETED".equalsIgnoreCase(string(object, "state", ""))) {
+                sections.add("Run `/codegen " + outputPath + "` to generate SHAFT Java from this recording.");
+            }
         }
         String currentUrl = string(object, "currentUrl", "");
         if (!currentUrl.isBlank()) {

@@ -34,11 +34,13 @@
     readinessState: "READY",
     readinessWarnings: [],
     actions: [],
+    pendingSignals: [],
     nextId: 1,
     lastUrl: String(location.href || ""),
     ...persisted()
   };
   uiState.actions = Array.isArray(uiState.actions) ? uiState.actions.slice(-80) : [];
+  uiState.pendingSignals = Array.isArray(uiState.pendingSignals) ? uiState.pendingSignals.slice(-200) : [];
   uiState.nextId = Number(uiState.nextId || uiState.actions.length + 1);
   uiState.assertionMode = Boolean(uiState.assertionMode);
   uiState.locatorMode = Boolean(uiState.locatorMode);
@@ -70,6 +72,7 @@
         readinessState: uiState.readinessState,
         readinessWarnings: uiState.readinessWarnings.slice(-20),
         actions: uiState.actions.slice(-80),
+        pendingSignals: uiState.pendingSignals.slice(-200),
         nextId: uiState.nextId,
         lastUrl: uiState.lastUrl
       }));
@@ -79,10 +82,20 @@
   };
   const send = payload => {
     payload.timestamp = Date.now();
+    uiState.pendingSignals.push(payload);
+    uiState.pendingSignals = uiState.pendingSignals.slice(-200);
+    persist();
     globalThis.__shaftCaptureQueue.push(payload);
     if (typeof channel === "function") {
       channel(JSON.stringify(payload));
     }
+  };
+  globalThis.__shaftCaptureDrain = () => {
+    const memorySignals = globalThis.__shaftCaptureQueue ? globalThis.__shaftCaptureQueue.splice(0) : [];
+    const pendingSignals = uiState.pendingSignals.slice();
+    uiState.pendingSignals = [];
+    persist();
+    return pendingSignals.length ? pendingSignals : memorySignals;
   };
   const framePath = () => {
     const path = [];
@@ -513,24 +526,49 @@
       case "title equals":
       case "title equal":
         return "TITLE_EQUALS";
+      case "title contains":
+        return "TITLE_CONTAINS";
+      case "page source contains":
+      case "page text contains":
+        return "PAGE_TEXT_CONTAINS";
+      case "image matches":
+      case "element image matches":
+      case "image does not match":
+      case "element image does not match":
+        return "ELEMENT_IMAGE_MATCHES";
       default:
         return "";
     }
   };
   const assertionLabel = kind => kind.toLowerCase().replace(/_/g, " ");
   const expectsValue = kind =>
-    ["TEXT_EQUALS", "TEXT_CONTAINS", "ATTRIBUTE_EQUALS", "URL_EQUALS", "URL_CONTAINS", "TITLE_EQUALS"]
+    ["TEXT_EQUALS", "TEXT_CONTAINS", "ATTRIBUTE_EQUALS", "URL_EQUALS", "URL_CONTAINS",
+      "TITLE_EQUALS", "TITLE_CONTAINS", "PAGE_TEXT_CONTAINS"]
       .includes(kind);
-  const pageAssertion = kind => ["URL_EQUALS", "URL_CONTAINS", "TITLE_EQUALS"].includes(kind);
+  const pageAssertion = kind =>
+    ["URL_EQUALS", "URL_CONTAINS", "TITLE_EQUALS", "TITLE_CONTAINS", "PAGE_TEXT_CONTAINS"].includes(kind);
   const defaultAttribute = element =>
     ["value", "aria-label", "title", "href", "id", "name"]
       .find(name => element && element.hasAttribute && element.hasAttribute(name)) || "value";
   const currentValue = (kind, element, attributeName) => {
     if (kind === "URL_EQUALS" || kind === "URL_CONTAINS") return valueText(location.href);
-    if (kind === "TITLE_EQUALS") return valueText(document.title);
+    if (kind === "TITLE_EQUALS" || kind === "TITLE_CONTAINS") return valueText(document.title);
+    if (kind === "PAGE_TEXT_CONTAINS") return valueText(document.body && document.body.innerText);
     if (kind === "ATTRIBUTE_EQUALS") return valueText(element && element.getAttribute(attributeName));
     if (isTextInput(element)) return valueText(element.value);
     return text(element && (element.innerText || element.textContent));
+  };
+  const browserCheckpoint = () => {
+    const selected = prompt(
+      "Browser checkpoint",
+      "url contains, url equals, title contains, title equals, page source contains");
+    const kind = assertionKind(selected);
+    if (!kind || !pageAssertion(kind)) return false;
+    const expected = prompt("Expected value", currentValue(kind, null, ""));
+    if (expected === null) return true;
+    announce("Assert " + assertionLabel(kind) + " on page");
+    sendVerification(null, {verification: kind, expected: valueText(expected)});
+    return true;
   };
   const captureAssertion = event => {
     if (!uiState.assertionMode || uiState.locatorMode || uiState.stopped || uiState.paused) return false;
@@ -542,7 +580,7 @@
     if (!target) return true;
     const selected = prompt(
       "Assertion type",
-      "visible, enabled, selected, text equals, text contains, attribute equals, url equals, url contains, title equals");
+      "visible, enabled, selected, text equals, text contains, attribute equals, image matches, image does not match");
     const kind = assertionKind(selected);
     if (!kind) {
       const unsupported = text(selected);
@@ -555,7 +593,10 @@
       }
       return true;
     }
-    const data = {verification: kind};
+    const data = {
+      verification: kind,
+      negated: text(selected).toLowerCase().includes("does not")
+    };
     let attributeName = "";
     if (kind === "ATTRIBUTE_EQUALS") {
       attributeName = text(prompt("Attribute name", defaultAttribute(element)));
@@ -993,10 +1034,24 @@
     });
     document.getElementById("shaft-capture-checkpoint").addEventListener("click", () => {
       if (uiState.stopped) return;
-      const description = text(prompt("Checkpoint description", "Review this page state"));
-      if (!description) return;
-      announce("Checkpoint: " + description);
-      sendCheckpoint(description, "USER_MARKER");
+      const scope = text(prompt("Checkpoint type", "Browser checkpoint or Element checkpoint")).toLowerCase();
+      if (scope.startsWith("browser")) {
+        browserCheckpoint();
+        return;
+      }
+      if (scope.startsWith("element")) {
+        uiState.assertionMode = true;
+        uiState.locatorMode = false;
+        persist();
+        announce("Element checkpoint: click the target element");
+        setStatus();
+        return;
+      }
+      const description = text(scope);
+      if (description) {
+        announce("Checkpoint: " + description);
+        sendCheckpoint(description, "USER_MARKER");
+      }
     });
     document.getElementById("shaft-capture-stop").addEventListener("click", () => {
       if (uiState.stopped) return;
@@ -1087,6 +1142,8 @@
     if (!named && modifiers.length === 0) return;
     emit("keyboard", event, {keys: [...modifiers, key.toUpperCase()]});
   }, true);
+  addEventListener("pagehide", persist, true);
+  addEventListener("beforeunload", persist, true);
 
   if (topLevel) {
     schedulePanel();

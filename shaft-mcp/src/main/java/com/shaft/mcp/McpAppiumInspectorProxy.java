@@ -307,7 +307,7 @@ final class McpAppiumInspectorProxy implements AutoCloseable {
                     <span class="brand-mark" aria-hidden="true">S</span>
                     <button id="pause" title="Pause recording" aria-label="Pause recording">||</button>
                     <button id="resume" title="Resume recording" aria-label="Resume recording">&gt;</button>
-                    <button id="checkpoint" title="Add checkpoint" aria-label="Add checkpoint">*</button>
+                    <button id="checkpoint" title="Add element checkpoint" aria-label="Add element checkpoint">*</button>
                     <button id="stop" title="Stop recording" aria-label="Stop recording">[]</button>
                     <button id="discard" title="Discard recording" aria-label="Discard recording">x</button>
                     <span class="status-chip" id="status">Recorder ready</span>
@@ -320,7 +320,7 @@ final class McpAppiumInspectorProxy implements AutoCloseable {
                   <iframe src="/inspector" title="Appium Inspector"></iframe>
                   <script>
                     async function control(action) {
-                      const checkpoint = action === 'checkpoint' ? prompt('Checkpoint name', '') || '' : '';
+                      const checkpoint = action === 'checkpoint' ? prompt('Element checkpoint description', '') || '' : '';
                       const response = await fetch('/shaft-inspector/control', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
