@@ -52,11 +52,19 @@ class CodingPartnerServiceTest {
                 10);
 
         assertAll(
-                () -> assertEquals("1.0", plan.schemaVersion()),
+                () -> assertEquals("1.1", plan.schemaVersion()),
                 () -> assertEquals("WebDriver", plan.backend()),
                 () -> assertTrue(plan.workingSetSummary().contains("LoginPage.java")),
                 () -> assertFalse(plan.reuseMatches().isEmpty()),
                 () -> assertEquals("LoginPage", plan.reuseMatches().get(0).className()),
+                () -> assertEquals("src/test/java/pages/LoginPage.java", plan.recommendedTargetSourcePath()),
+                () -> assertEquals("loginAs", plan.recommendedInsertionAnchor()),
+                () -> assertEquals(2, plan.stepPlan().size()),
+                () -> assertEquals(1, plan.stepPlan().get(0).index()),
+                () -> assertEquals("Log in with valid credentials", plan.stepPlan().get(0).instruction()),
+                () -> assertTrue(plan.stepPlan().get(0).reuseHint().contains("LoginPage.java")),
+                () -> assertTrue(plan.stepPlan().get(0).proofTool().contains("browser_open_intent")),
+                () -> assertEquals("verify the account menu", plan.stepPlan().get(1).instruction()),
                 () -> assertTrue(plan.reuseMatches().get(0).locatorSummaries().stream()
                         .anyMatch(summary -> summary.contains("emailInput"))),
                 () -> assertTrue(plan.reuseMatches().get(0).actionSummaries().stream()

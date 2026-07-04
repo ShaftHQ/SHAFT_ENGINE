@@ -121,7 +121,11 @@ class McpCaptureCodeBlockServiceTest {
         assertTrue(actions.placement().contains("after replayCheckout"));
         assertTrue(actions.warnings().isEmpty(), actions.warnings().toString());
 
-        assertTrue(blocks.stream().anyMatch(item -> item.id().equals("capture-target-patch-preview")));
+        McpCodeBlock preview = block(blocks, "capture-target-patch-preview");
+        assertTrue(preview.code().contains("Apply order:"));
+        assertTrue(preview.code().contains("1. Confirm the recommended target and anchor."));
+        assertTrue(preview.code().contains("2. Add only missing locator fields/imports."));
+        assertTrue(preview.code().contains("3. Paste the non-duplicate action snippet after replayCheckout."));
     }
 
     @Test

@@ -171,6 +171,10 @@ final class McpCaptureCodeBlockService {
         code.append("# Preview only; MCP does not edit source files.\n");
         code.append("Target: ").append(plan.targetSource().getFileName()).append('\n');
         code.append("Anchor: ").append(plan.insertAfter()).append("\n\n");
+        code.append("Apply order:\n");
+        code.append("1. Confirm the recommended target and anchor.\n");
+        code.append("2. Add only missing locator fields/imports.\n");
+        code.append("3. Paste the non-duplicate action snippet after ").append(plan.insertAfter()).append(".\n\n");
         if (!plan.imports().isEmpty()) {
             code.append("Imports:\n");
             for (String importName : plan.imports()) {

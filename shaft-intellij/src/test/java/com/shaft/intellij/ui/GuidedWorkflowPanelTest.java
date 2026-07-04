@@ -98,7 +98,7 @@ class GuidedWorkflowPanelTest {
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
-        JButton planPartnerWork = findButton(panel, "Plan partner work");
+        JButton planPartnerWork = findButton(panel, "Plan coding partner");
 
         assertNotNull(planPartnerWork);
         planPartnerWork.doClick();

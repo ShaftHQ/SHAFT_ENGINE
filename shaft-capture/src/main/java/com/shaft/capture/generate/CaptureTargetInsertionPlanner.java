@@ -57,16 +57,21 @@ public final class CaptureTargetInsertionPlanner {
         try {
             String generated = Files.readString(generatedSource, StandardCharsets.UTF_8);
             String target = Files.readString(targetSource, StandardCharsets.UTF_8);
+            List<String> warnings = new ArrayList<>();
+            Map<String, String> existingLocators = locatorFieldsByExpression(target);
+            Map<String, String> generatedFieldAliases = new LinkedHashMap<>();
             String driver = javaIdentifierOrDefault(driverVariableName, targetDriver(target));
             String method = testMethod(generated);
-            List<LocatorSnippet> inlineLocators = inlineLocators(method);
-            String locators = locatorFields(generated);
+            List<LocatorSnippet> inlineLocators = inlineLocators(method, existingLocators, warnings);
+            String locators = locatorFields(generated, existingLocators, generatedFieldAliases, warnings);
             if (locators.isBlank() && !inlineLocators.isEmpty()) {
                 locators = locatorFields(inlineLocators);
             }
-            String actions = actionSnippet(method, driver, inlineLocators);
+            String actions = deduplicateActionLines(
+                    actionSnippet(method, driver, inlineLocators, generatedFieldAliases),
+                    target,
+                    warnings);
             boolean anchorFound = anchorFound(target, anchor);
-            List<String> warnings = new ArrayList<>();
             if (!anchorFound) {
                 warnings.add("Target anchor " + anchor + " was not found in " + targetSource.getFileName()
                         + "; use the snippet manually.");
@@ -103,10 +108,34 @@ public final class CaptureTargetInsertionPlanner {
         return List.copyOf(imports);
     }
 
-    private static String locatorFields(String source) {
+    private static Map<String, String> locatorFieldsByExpression(String source) {
+        Map<String, String> locators = new LinkedHashMap<>();
+        source.lines().forEach(line -> {
+            Matcher matcher = LOCATOR_FIELD.matcher(line);
+            if (matcher.matches()) {
+                locators.putIfAbsent(stripTrailingSemicolon(matcher.group(2).trim()), matcher.group(1));
+            }
+        });
+        return Map.copyOf(locators);
+    }
+
+    private static String locatorFields(
+            String source,
+            Map<String, String> existingLocators,
+            Map<String, String> generatedFieldAliases,
+            List<String> warnings) {
         StringBuilder fields = new StringBuilder();
         source.lines().forEach(line -> {
-            if (LOCATOR_FIELD.matcher(line).matches()) {
+            Matcher matcher = LOCATOR_FIELD.matcher(line);
+            if (matcher.matches()) {
+                String fieldName = matcher.group(1);
+                String expression = stripTrailingSemicolon(matcher.group(2).trim());
+                String existingField = existingLocators.get(expression);
+                if (existingField != null) {
+                    generatedFieldAliases.put(fieldName, existingField);
+                    addWarning(warnings, "Reused existing locator field " + existingField + " for " + expression + ".");
+                    return;
+                }
                 fields.append(line.strip()).append('\n');
             }
         });
@@ -116,6 +145,9 @@ public final class CaptureTargetInsertionPlanner {
     private static String locatorFields(List<LocatorSnippet> locators) {
         StringBuilder fields = new StringBuilder();
         for (LocatorSnippet locator : locators) {
+            if (locator.existing()) {
+                continue;
+            }
             fields.append("private final By ")
                     .append(locator.fieldName())
                     .append(" = ")
@@ -125,7 +157,11 @@ public final class CaptureTargetInsertionPlanner {
         return fields.toString();
     }
 
-    private static String actionSnippet(String method, String driver, List<LocatorSnippet> locators) {
+    private static String actionSnippet(
+            String method,
+            String driver,
+            List<LocatorSnippet> locators,
+            Map<String, String> generatedFieldAliases) {
         if (method.isBlank()) {
             return "";
         }
@@ -138,28 +174,70 @@ public final class CaptureTargetInsertionPlanner {
             }
             String trimmed = lines.get(index).trim();
             if (!trimmed.isBlank()) {
-                code.append(replaceLocators(DRIVER_TOKEN.matcher(trimmed).replaceAll(driverReplacement), locators))
+                code.append(replaceLocators(
+                                DRIVER_TOKEN.matcher(trimmed).replaceAll(driverReplacement),
+                                locators,
+                                generatedFieldAliases))
                         .append('\n');
             }
         }
         return code.toString();
     }
 
-    private static String replaceLocators(String line, List<LocatorSnippet> locators) {
+    private static String replaceLocators(
+            String line,
+            List<LocatorSnippet> locators,
+            Map<String, String> generatedFieldAliases) {
         String result = line;
+        for (Map.Entry<String, String> alias : generatedFieldAliases.entrySet()) {
+            result = Pattern.compile("\\b" + Pattern.quote(alias.getKey()) + "\\b")
+                    .matcher(result)
+                    .replaceAll(Matcher.quoteReplacement(alias.getValue()));
+        }
         for (LocatorSnippet locator : locators) {
             result = result.replace(locator.expression(), locator.fieldName());
         }
         return result;
     }
 
-    private static List<LocatorSnippet> inlineLocators(String method) {
+    private static String deduplicateActionLines(String actions, String target, List<String> warnings) {
+        if (actions.isBlank()) {
+            return "";
+        }
+        List<String> targetLines = target.lines()
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .toList();
+        StringBuilder result = new StringBuilder();
+        for (String line : actions.lines().toList()) {
+            String trimmed = line.trim();
+            if (trimmed.isBlank()) {
+                continue;
+            }
+            if (targetLines.contains(trimmed)) {
+                addWarning(warnings, "Skipped duplicate action line already present in target: " + trimmed);
+                continue;
+            }
+            result.append(trimmed).append('\n');
+        }
+        return result.toString();
+    }
+
+    private static List<LocatorSnippet> inlineLocators(
+            String method,
+            Map<String, String> existingLocators,
+            List<String> warnings) {
         Map<String, LocatorSnippet> locators = new LinkedHashMap<>();
         for (String line : method.lines().toList()) {
             for (String expression : locatorExpressions(line)) {
-                locators.computeIfAbsent(expression, ignored -> new LocatorSnippet(
-                        uniqueFieldName(expression, locators.size() + 1),
-                        expression));
+                locators.computeIfAbsent(expression, ignored -> {
+                    String existingField = existingLocators.get(expression);
+                    if (existingField != null) {
+                        addWarning(warnings, "Reused existing locator field " + existingField + " for " + expression + ".");
+                        return new LocatorSnippet(existingField, expression, true);
+                    }
+                    return new LocatorSnippet(uniqueFieldName(expression, locators.size() + 1), expression, false);
+                });
             }
         }
         return List.copyOf(locators.values());
@@ -260,6 +338,16 @@ public final class CaptureTargetInsertionPlanner {
         return matcher.find() ? matcher.group(1) : "driver";
     }
 
+    private static String stripTrailingSemicolon(String value) {
+        return value.endsWith(";") ? value.substring(0, value.length() - 1).trim() : value;
+    }
+
+    private static void addWarning(List<String> warnings, String warning) {
+        if (!warnings.contains(warning)) {
+            warnings.add(warning);
+        }
+    }
+
     private static String uniqueFieldName(String expression, int index) {
         Matcher quoted = Pattern.compile("\"([^\"]+)\"").matcher(expression);
         String seed = quoted.find() ? quoted.group(1) : "capturedElement";
@@ -303,6 +391,6 @@ public final class CaptureTargetInsertionPlanner {
         return candidate;
     }
 
-    private record LocatorSnippet(String fieldName, String expression) {
+    private record LocatorSnippet(String fieldName, String expression, boolean existing) {
     }
 }

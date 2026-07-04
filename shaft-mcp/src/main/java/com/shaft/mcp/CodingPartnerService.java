@@ -61,11 +61,17 @@ public class CodingPartnerService {
         List<String> missingCodeItems = missingCodeItems(intent, selectedText, currentSource, reuseMatches);
         List<String> suggestedCalls = suggestedMcpCalls(normalizedBackend, selectedText, evidencePaths);
         List<String> warnings = warnings(selectedText, currentSource);
+        McpJavaTargetScanner.Candidate recommended = recommendedCandidate(currentSource, reuseMatches);
+        String recommendedSourcePath = recommendedTargetSourcePath(currentSource, recommended);
+        String recommendedAnchor = recommendedInsertionAnchor(recommended);
         return new McpCodingPartnerPlan(
-                "1.0",
+                "1.1",
                 workingSetSummary(text(intent), normalizedBackend, currentSource, reuseMatches.size(), evidencePaths.size()),
                 normalizedBackend,
                 reuseMatches,
+                stepPlan(intent, normalizedBackend, recommended),
+                recommendedSourcePath,
+                recommendedAnchor,
                 missingCodeItems,
                 suggestedCalls,
                 verificationCommand(repository),
@@ -176,6 +182,106 @@ public class CodingPartnerService {
         return List.copyOf(warnings);
     }
 
+    private static McpJavaTargetScanner.Candidate recommendedCandidate(
+            String currentSource,
+            List<McpJavaTargetScanner.Candidate> reuseMatches) {
+        if (reuseMatches == null || reuseMatches.isEmpty()) {
+            return null;
+        }
+        String source = text(currentSource);
+        if (!source.isBlank()) {
+            for (McpJavaTargetScanner.Candidate candidate : reuseMatches) {
+                if (source.equals(candidate.sourcePath())) {
+                    return candidate;
+                }
+            }
+        }
+        return reuseMatches.get(0);
+    }
+
+    private static String recommendedTargetSourcePath(
+            String currentSource,
+            McpJavaTargetScanner.Candidate recommended) {
+        String source = text(currentSource);
+        if (!source.isBlank()) {
+            return source;
+        }
+        return recommended == null ? "" : recommended.sourcePath();
+    }
+
+    private static String recommendedInsertionAnchor(McpJavaTargetScanner.Candidate recommended) {
+        if (recommended == null || recommended.insertionAnchors().isEmpty()) {
+            return "";
+        }
+        for (String action : recommended.actionSummaries()) {
+            if (recommended.insertionAnchors().contains(action)) {
+                return action;
+            }
+        }
+        return recommended.insertionAnchors().get(0);
+    }
+
+    private static List<McpCodingPartnerStep> stepPlan(
+            String intent,
+            String backend,
+            McpJavaTargetScanner.Candidate recommended) {
+        List<String> instructions = instructions(intent);
+        if (instructions.isEmpty()) {
+            return List.of();
+        }
+        List<McpCodingPartnerStep> steps = new ArrayList<>();
+        for (int index = 0; index < instructions.size(); index++) {
+            String instruction = instructions.get(index);
+            steps.add(new McpCodingPartnerStep(
+                    index + 1,
+                    instruction,
+                    reuseHint(recommended),
+                    proofTool(backend, instruction)));
+        }
+        return List.copyOf(steps);
+    }
+
+    private static List<String> instructions(String intent) {
+        String value = text(intent);
+        if (value.isBlank()) {
+            return List.of();
+        }
+        List<String> instructions = new ArrayList<>();
+        for (String rawLine : value.split("\\R+")) {
+            String line = rawLine
+                    .replaceFirst("^\\s*(?:[-*]|\\d+[.)])\\s*", "")
+                    .replaceAll("(?i)\\s+and\\s+(?=verify\\b|assert\\b|check\\b|validate\\b)", " then ")
+                    .trim();
+            for (String piece : line.split("(?i)\\s+(?:then|and then)\\s+|\\s*;\\s*")) {
+                String instruction = piece.trim();
+                if (!instruction.isBlank()) {
+                    instructions.add(instruction);
+                }
+            }
+        }
+        return List.copyOf(instructions);
+    }
+
+    private static String reuseHint(McpJavaTargetScanner.Candidate recommended) {
+        if (recommended == null) {
+            return "Create the smallest SHAFT page object or test only after reuse scan finds no target.";
+        }
+        String anchor = recommendedInsertionAnchor(recommended);
+        String suffix = anchor.isBlank() ? "" : "#" + anchor;
+        return "Reuse " + recommended.sourcePath() + suffix + " before creating duplicate locators, actions, or tests.";
+    }
+
+    private static String proofTool(String backend, String instruction) {
+        String lower = text(instruction).toLowerCase(Locale.ROOT);
+        if ("Playwright".equals(backend)) {
+            return "playwright_browser_get_page_dom";
+        }
+        if (containsAny(lower, "verify", "assert", "check", "validate", "see ")) {
+            return "browser_get_page_dom";
+        }
+        return "browser_open_intent";
+    }
+
     private static String workingSetSummary(
             String intent,
             String backend,
@@ -211,6 +317,18 @@ public class CodingPartnerService {
                 || source.contains(".findElements(")
                 || source.contains("Thread.sleep(")
                 || source.contains("PageFactory");
+    }
+
+    private static boolean containsAny(String value, String... needles) {
+        if (value == null || needles == null) {
+            return false;
+        }
+        for (String needle : needles) {
+            if (needle != null && !needle.isBlank() && value.contains(needle)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String text(String value) {
