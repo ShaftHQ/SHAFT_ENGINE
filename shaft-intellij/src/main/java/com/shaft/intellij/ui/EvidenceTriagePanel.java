@@ -57,13 +57,13 @@ final class EvidenceTriagePanel extends JPanel {
         addFieldFiller(fields, 6);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        actions.add(button("Fix Failing Test", "Plan a repair from failure evidence via the coding partner",
+        actions.add(button("Fix Failing Test", "Plan a repair from failure evidence via the coding partner", ShaftIcons.EDIT,
                 this::repairPlan));
-        actions.add(button("Analyze Allure", "Analyze failed Allure evidence", this::analyzeAllure));
-        actions.add(button("Analyze Trace", "Analyze the latest SHAFT trace", this::analyzeTrace));
-        actions.add(button("Suggest Fix", "Build Doctor remediation snippets", this::suggestFix));
-        actions.add(button("Run Healer", "Run a guarded failed-test healer loop", this::runHealer));
-        actions.add(button("Propose Locator", "Create a review-only locator repair proposal", this::proposeLocator));
+        actions.add(button("Analyze Allure", "Analyze failed Allure evidence", ShaftIcons.VIEW, this::analyzeAllure));
+        actions.add(button("Analyze Trace", "Analyze the latest SHAFT trace", ShaftIcons.VIEW, this::analyzeTrace));
+        actions.add(button("Suggest Fix", "Build Doctor remediation snippets", ShaftIcons.EDIT, this::suggestFix));
+        actions.add(button("Run Healer", "Run a guarded failed-test healer loop", ShaftIcons.SEND, this::runHealer));
+        actions.add(button("Propose Locator", "Create a review-only locator repair proposal", ShaftIcons.SEARCH, this::proposeLocator));
 
         add(introLabel("Evidence triage prepares Doctor, Trace, and Healer MCP requests."), BorderLayout.NORTH);
         add(fields, BorderLayout.CENTER);
@@ -114,22 +114,12 @@ final class EvidenceTriagePanel extends JPanel {
         panel.add(new JPanel(), constraints);
     }
 
-    private static JButton button(String text, String description, Runnable action) {
+    private static JButton button(String text, String description, Icon icon, Runnable action) {
         JButton button = new JButton();
-        ShaftIconButtons.apply(button, description, text, iconFor(text));
+        ShaftIconButtons.apply(button, description, text, icon);
         button.getAccessibleContext().setAccessibleDescription(description);
         button.addActionListener(event -> action.run());
         return button;
-    }
-
-    private static Icon iconFor(String text) {
-        return switch (text) {
-            case "Analyze Allure", "Analyze Trace" -> ShaftIcons.VIEW;
-            case "Fix Failing Test", "Suggest Fix" -> ShaftIcons.EDIT;
-            case "Run Healer" -> ShaftIcons.SEND;
-            case "Propose Locator" -> ShaftIcons.SEARCH;
-            default -> ShaftIcons.HELP;
-        };
     }
 
     private void repairPlan() {

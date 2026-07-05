@@ -71,17 +71,17 @@ final class GuidedWorkflowPanel extends JPanel {
         fields.add(row("Session path", 'S', sessionPath));
 
         JPanel partner = section("Coding Partner",
-                button("Plan coding partner", "Plan repository-aware SHAFT reuse, missing code, proof, and validation",
+                button("Plan coding partner", "Plan repository-aware SHAFT reuse, missing code, proof, and validation", ShaftIcons.CODE,
                         this::planPartnerWork),
-                button("Find reuse", "Find existing Java test and page-object anchors before generating code",
+                button("Find reuse", "Find existing Java test and page-object anchors before generating code", ShaftIcons.SEARCH,
                         this::findReuse));
         JPanel recorder = section("Recorder",
-                button("Start recording", "Start a SHAFT recording", this::startRecording),
-                button("Stop recording", "Stop the active SHAFT recording", this::stopRecording),
-                button("Review code", "Generate reviewed SHAFT code blocks from a recording", this::generateCode));
+                button("Start recording", "Start a SHAFT recording", ShaftIcons.SEND, this::startRecording),
+                button("Stop recording", "Stop the active SHAFT recording", ShaftIcons.CANCEL, this::stopRecording),
+                button("Review code", "Generate reviewed SHAFT code blocks from a recording", ShaftIcons.CODE, this::generateCode));
         JPanel locator = section("Locator",
-                button("Inspect locator", "Inspect the page and propose locator candidates", this::inspectLocator),
-                button("Guardrail check", "Check generated SHAFT code for automation anti-patterns", this::guardrailCheck));
+                button("Inspect locator", "Inspect the page and propose locator candidates", ShaftIcons.SEARCH, this::inspectLocator),
+                button("Guardrail check", "Check generated SHAFT code for automation anti-patterns", ShaftIcons.CHECK, this::guardrailCheck));
 
         JPanel center = new JPanel(new BorderLayout(6, 6));
         center.add(fields, BorderLayout.NORTH);
@@ -128,7 +128,7 @@ final class GuidedWorkflowPanel extends JPanel {
     private JPanel templateControls() {
         JPanel controls = new JPanel(new BorderLayout(4, 0));
         controls.add(templateSelector, BorderLayout.CENTER);
-        controls.add(button("Use template", "Prefill the selected workflow template", this::applyTemplate),
+        controls.add(button("Use template", "Prefill the selected workflow template", ShaftIcons.SEND, this::applyTemplate),
                 BorderLayout.EAST);
         return controls;
     }
@@ -142,26 +142,12 @@ final class GuidedWorkflowPanel extends JPanel {
         return panel;
     }
 
-    private static JButton button(String text, String description, Runnable action) {
+    private static JButton button(String text, String description, Icon icon, Runnable action) {
         JButton button = new JButton();
-        ShaftIconButtons.apply(button, description, text, iconFor(text));
+        ShaftIconButtons.apply(button, description, text, icon);
         button.getAccessibleContext().setAccessibleDescription(description);
         button.addActionListener(event -> action.run());
         return button;
-    }
-
-    private static Icon iconFor(String text) {
-        return switch (text) {
-            case "Start recording" -> ShaftIcons.SEND;
-            case "Stop recording" -> ShaftIcons.CANCEL;
-            case "Review code" -> ShaftIcons.CODE;
-            case "Use template" -> ShaftIcons.SEND;
-            case "Plan coding partner" -> ShaftIcons.CODE;
-            case "Find reuse" -> ShaftIcons.SEARCH;
-            case "Inspect locator" -> ShaftIcons.SEARCH;
-            case "Guardrail check" -> ShaftIcons.CHECK;
-            default -> ShaftIcons.HELP;
-        };
     }
 
     private void updateTemplateDescription() {
