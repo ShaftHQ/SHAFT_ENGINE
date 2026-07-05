@@ -60,6 +60,7 @@ public final class JsonSchemaValidator {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static boolean matchesType(JsonNode type, JsonNode value) {
         if (type == null || type.isNull()) {
             return true;
@@ -84,6 +85,7 @@ public final class JsonSchemaValidator {
         };
     }
 
+    @SuppressWarnings("deprecation")
     private static void validateObject(JsonNode schema, JsonNode value, String path, List<String> errors) {
         Set<String> required = new HashSet<>();
         JsonNode requiredNode = schema.get("required");
