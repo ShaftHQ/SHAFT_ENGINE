@@ -18,6 +18,7 @@ import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -158,6 +159,7 @@ public final class ShaftToolWindowPanel extends JPanel {
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         header.setBorder(JBUI.Borders.empty(6, 8, 4, 8));
         JLabel label = new JLabel("Workflow");
+        label.setFont(label.getFont().deriveFont(Font.BOLD));
         label.setLabelFor(workflowSelector);
         header.add(label);
         header.add(workflowSelector);

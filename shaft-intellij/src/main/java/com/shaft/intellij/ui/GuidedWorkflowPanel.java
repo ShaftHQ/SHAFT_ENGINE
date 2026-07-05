@@ -18,6 +18,7 @@ import javax.swing.JPanel;
 import javax.swing.Icon;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.GridLayout;
 
 /**
@@ -91,9 +92,17 @@ final class GuidedWorkflowPanel extends JPanel {
         actions.add(recorder);
         actions.add(locator);
 
-        add(new JLabel("Guided workflows prepare reviewed SHAFT MCP requests."), BorderLayout.NORTH);
+        add(introLabel("Guided workflows prepare reviewed SHAFT MCP requests."), BorderLayout.NORTH);
         add(center, BorderLayout.CENTER);
         add(actions, BorderLayout.SOUTH);
+    }
+
+    private static JLabel introLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(label.getFont().deriveFont(Font.BOLD, label.getFont().getSize2D() + 1f));
+        label.setBorder(JBUI.Borders.emptyBottom(8));
+        label.getAccessibleContext().setAccessibleName(text);
+        return label;
     }
 
     private static JBTextField field(String accessibleName, String value) {

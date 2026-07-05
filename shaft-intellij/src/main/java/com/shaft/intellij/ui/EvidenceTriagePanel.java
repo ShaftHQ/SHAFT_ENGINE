@@ -14,6 +14,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -64,9 +65,17 @@ final class EvidenceTriagePanel extends JPanel {
         actions.add(button("Run Healer", "Run a guarded failed-test healer loop", this::runHealer));
         actions.add(button("Propose Locator", "Create a review-only locator repair proposal", this::proposeLocator));
 
-        add(new JLabel("Evidence triage prepares Doctor, Trace, and Healer MCP requests."), BorderLayout.NORTH);
+        add(introLabel("Evidence triage prepares Doctor, Trace, and Healer MCP requests."), BorderLayout.NORTH);
         add(fields, BorderLayout.CENTER);
         add(actions, BorderLayout.SOUTH);
+    }
+
+    private static JLabel introLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(label.getFont().deriveFont(Font.BOLD, label.getFont().getSize2D() + 1f));
+        label.setBorder(JBUI.Borders.emptyBottom(8));
+        label.getAccessibleContext().setAccessibleName(text);
+        return label;
     }
 
     private static JBTextField field(String accessibleName, String value) {
