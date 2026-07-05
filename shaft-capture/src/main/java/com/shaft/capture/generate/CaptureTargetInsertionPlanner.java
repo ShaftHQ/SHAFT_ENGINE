@@ -22,6 +22,7 @@ public final class CaptureTargetInsertionPlanner {
                     + "([A-Za-z_$][\\w$]*)\\s*=\\s*(.+);\\s*");
     private static final Pattern TARGET_DRIVER = Pattern.compile(
             "\\bSHAFT\\.GUI\\.(?:Driver|WebDriver|Playwright)\\s+([A-Za-z_$][\\w$]*)\\b");
+    private static final Pattern LOCATOR_EXPRESSION_ANCHOR = Pattern.compile("SHAFT\\.GUI\\.Locator\\.|\\bBy\\.");
 
     /**
      * Creates a planner.
@@ -246,11 +247,12 @@ public final class CaptureTargetInsertionPlanner {
     private static List<String> locatorExpressions(String line) {
         List<String> expressions = new ArrayList<>();
         int index = 0;
-        while (index < line.length()) {
-            int start = line.indexOf("SHAFT.GUI.Locator.", index);
-            if (start < 0) {
+        while (index <= line.length()) {
+            Matcher matcher = LOCATOR_EXPRESSION_ANCHOR.matcher(line);
+            if (!matcher.find(index)) {
                 break;
             }
+            int start = matcher.start();
             int end = expressionEnd(line, start);
             if (end > start) {
                 expressions.add(line.substring(start, end).trim());
