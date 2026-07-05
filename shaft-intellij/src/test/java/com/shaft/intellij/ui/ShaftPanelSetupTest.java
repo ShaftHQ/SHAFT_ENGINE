@@ -2234,6 +2234,14 @@ class ShaftPanelSetupTest {
         EvidenceTriagePanel panel = new EvidenceTriagePanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
 
+        click(panel, "Fix Failing Test");
+        CapturedInvocation repair = last(invocations);
+        assertAll(
+                () -> assertEquals("shaft_coding_partner_plan", repair.toolName()),
+                () -> assertTrue(repair.arguments().has("repositoryPath")),
+                () -> assertTrue(repair.arguments().has("intent")),
+                () -> assertTrue(repair.arguments().getAsJsonArray("artifactPaths").size() >= 1));
+
         click(panel, "Analyze Allure");
         CapturedInvocation analyze = last(invocations);
         assertAll(

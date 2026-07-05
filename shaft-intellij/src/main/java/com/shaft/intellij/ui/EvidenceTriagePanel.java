@@ -56,6 +56,8 @@ final class EvidenceTriagePanel extends JPanel {
         addFieldFiller(fields, 6);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        actions.add(button("Fix Failing Test", "Plan a repair from failure evidence via the coding partner",
+                this::repairPlan));
         actions.add(button("Analyze Allure", "Analyze failed Allure evidence", this::analyzeAllure));
         actions.add(button("Analyze Trace", "Analyze the latest SHAFT trace", this::analyzeTrace));
         actions.add(button("Suggest Fix", "Build Doctor remediation snippets", this::suggestFix));
@@ -113,11 +115,34 @@ final class EvidenceTriagePanel extends JPanel {
     private static Icon iconFor(String text) {
         return switch (text) {
             case "Analyze Allure", "Analyze Trace" -> ShaftIcons.VIEW;
-            case "Suggest Fix" -> ShaftIcons.EDIT;
+            case "Fix Failing Test", "Suggest Fix" -> ShaftIcons.EDIT;
             case "Run Healer" -> ShaftIcons.SEND;
             case "Propose Locator" -> ShaftIcons.SEARCH;
             default -> ShaftIcons.HELP;
         };
+    }
+
+    private void repairPlan() {
+        JsonObject arguments = new JsonObject();
+        String repository = repositoryRoot.getText().trim();
+        arguments.addProperty("repositoryPath", repository.isBlank() ? "." : repository);
+        arguments.addProperty("intent", "Repair the failing test using existing page objects and tests, then verify");
+        arguments.addProperty("backend", "webdriver");
+        arguments.addProperty("currentSourcePath", sourcePath.getText().trim());
+        arguments.addProperty("selectedText", "");
+        JsonArray artifacts = new JsonArray();
+        addEvidence(artifacts, allurePath.getText());
+        addEvidence(artifacts, tracePath.getText());
+        arguments.add("artifactPaths", artifacts);
+        arguments.addProperty("maxResults", 10);
+        prefill.prefill("shaft_coding_partner_plan", arguments);
+    }
+
+    private static void addEvidence(JsonArray artifacts, String value) {
+        String trimmed = value == null ? "" : value.trim();
+        if (!trimmed.isBlank()) {
+            artifacts.add(trimmed);
+        }
     }
 
     private void analyzeAllure() {
