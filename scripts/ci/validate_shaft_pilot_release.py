@@ -266,6 +266,18 @@ def validate_test_results(root: Path = ROOT) -> list[str]:
                 errors.extend(
                     scan_bytes(str(path.relative_to(root)), path.read_bytes())
                 )
+        # Check for failed/broken test status in Allure results
+        for result_file in populated:
+            try:
+                content = json.loads(result_file.read_text(encoding="utf-8"))
+                status = content.get("status")
+                if status in ("failed", "broken"):
+                    errors.append(
+                        f"{module}: Allure result contains a {status} test status: {result_file.relative_to(root)}"
+                    )
+            except (json.JSONDecodeError, ValueError):
+                # Skip malformed JSON; will be caught by other validation
+                pass
 
     for relative in (
         Path("shaft-capture/target/shaft-capture"),
