@@ -216,6 +216,39 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void typingCapitalsAndSymbolsStaysAsOneTypeEvent(@TempDir Path temp) throws Exception {
+        // The browser recorder must not emit a "keyboard" signal for Shift-only combinations
+        // (capital letters, shifted symbols such as "!"): those are normal characters already
+        // carried by the "input" signal's value. Only "input" signals are sent here, matching
+        // the corrected browser behavior, and typing "Hello World!" must collapse into a single
+        // TypeEvent with the final value instead of fragmenting at every shifted character.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        String[] progressiveValues = {"H", "He", "Hel", "Hell", "Hello", "Hello ",
+                "Hello W", "Hello Wo", "Hello Wor", "Hello Worl", "Hello World", "Hello World!"};
+        for (int index = 0; index < progressiveValues.length; index++) {
+            pipeline.accept(signal("input", START.plusMillis(index), usernameTarget(),
+                    Map.of("value", progressiveValues[index], "clientActionId", "ui-1"), Map.of()));
+        }
+        pipeline.accept(signal("input", START.plusMillis(progressiveValues.length), usernameTarget(),
+                Map.of("value", "Hello World!", "committed", true, "clientActionId", "ui-1"), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(1, events.size());
+        assertInstanceOf(CaptureEvent.TypeEvent.class, events.getFirst());
+        String dataJson = Files.readString(output.getParent().resolve("capture-data.json"),
+                StandardCharsets.UTF_8);
+        assertTrue(dataJson.contains("Hello World!"));
+        assertFalse(dataJson.contains("\"Hello\""));
+    }
+
+    @Test
     void writesActionsBeforeStopAndStoresSanitizedDomEvidence(@TempDir Path temp) {
         Path output = temp.resolve("session.json");
         CaptureSessionStore store = startedStore(output);

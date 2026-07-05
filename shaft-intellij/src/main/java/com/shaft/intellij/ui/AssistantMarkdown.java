@@ -874,16 +874,23 @@ final class AssistantMarkdown {
 
     private static String captureStatusMarkdown(JsonObject object) {
         List<String> sections = new ArrayList<>();
+        String state = string(object, "state", "");
+        String readiness = string(object, "readiness", "");
         sections.add(metadataLine(
-                "State", string(object, "state", ""),
+                "State", state,
                 "Browser", string(object, "browser", ""),
-                "Readiness", string(object, "readiness", ""),
+                "Readiness", readinessIcon(readiness) + " " + readiness,
                 "Events", string(object, "eventCount", ""),
                 "Process", string(object, "processId", "")));
+        if ("INCOMPLETE".equalsIgnoreCase(state)) {
+            sections.add("_This recording was interrupted before it was stopped, but every action captured so"
+                    + " far was already saved to disk — nothing was lost. Review it, generate code from it,"
+                    + " or start a new recording._");
+        }
         String outputPath = string(object, "outputPath", "");
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
-            if ("COMPLETED".equalsIgnoreCase(string(object, "state", ""))) {
+            if ("COMPLETED".equalsIgnoreCase(state)) {
                 sections.add("Run codegen next:\n\n" + fence("text", "/codegen " + outputPath));
             }
         }
@@ -896,6 +903,15 @@ final class AssistantMarkdown {
             sections.add(warnings);
         }
         return joinSections(sections);
+    }
+
+    private static String readinessIcon(String readiness) {
+        return switch (readiness == null ? "" : readiness.toUpperCase(Locale.ROOT)) {
+            case "READY" -> "✅";
+            case "RISKY" -> "⚠️";
+            case "BLOCKED" -> "⛔";
+            default -> "";
+        };
     }
 
     private static String toolsMarkdown(JsonArray tools) {

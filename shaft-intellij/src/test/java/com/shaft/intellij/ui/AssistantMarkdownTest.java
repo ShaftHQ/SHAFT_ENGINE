@@ -146,8 +146,10 @@ class AssistantMarkdownTest {
 
         assertAll(
                 () -> assertTrue(markdown.contains("**State:** INCOMPLETE")),
+                () -> assertTrue(markdown.contains("⛔ BLOCKED")),
                 () -> assertTrue(markdown.contains("**Output:** `recordings/intellij-capture.json`")),
                 () -> assertTrue(markdown.contains("The recorder process is no longer reachable.")),
+                () -> assertTrue(markdown.contains("nothing was lost")),
                 () -> assertFalse(markdown.contains("\"processId\"")));
     }
 
@@ -171,6 +173,8 @@ class AssistantMarkdownTest {
 
         assertAll(
                 () -> assertTrue(markdown.contains("**State:** COMPLETED")),
+                () -> assertTrue(markdown.contains("✅ READY")),
+                () -> assertFalse(markdown.contains("nothing was lost")),
                 () -> assertTrue(markdown.contains("**Output:** `recordings/intellij-capture.json`")),
                 () -> assertTrue(markdown.contains("Run codegen next:")),
                 () -> assertTrue(markdown.contains("```text\n/codegen recordings/intellij-capture.json\n```")));
