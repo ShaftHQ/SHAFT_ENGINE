@@ -5,26 +5,30 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftIconAssetsTest {
     private static final String LIGHT_ACTION_COLOR = "#6C707E";
     private static final String DARK_ACTION_COLOR = "#CED0D6";
-    private static final String LIGHT_LOGO_COLOR = "#9A6A00";
-    private static final String DARK_LOGO_COLOR = "#FFFFFF";
 
     @Test
     void toolWindowIconsUseOfficialShaftLogoSvgVariants() throws IOException {
         Path icons = Path.of("src/main/resources/icons");
 
         assertAll(
-                () -> assertLogoIcon(icons.resolve("shaftToolWindow.svg"), 16, LIGHT_LOGO_COLOR),
-                () -> assertLogoIcon(icons.resolve("shaftToolWindow_dark.svg"), 16, DARK_LOGO_COLOR),
-                () -> assertLogoIcon(icons.resolve("shaftToolWindow@20x20.svg"), 20, LIGHT_LOGO_COLOR),
-                () -> assertLogoIcon(icons.resolve("shaftToolWindow@20x20_dark.svg"), 20, DARK_LOGO_COLOR),
+                () -> assertLogoIcon(icons.resolve("shaftToolWindow.svg"), 16,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft_standard.png")),
+                () -> assertLogoIcon(icons.resolve("shaftToolWindow_dark.svg"), 16,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft_white.png")),
+                () -> assertLogoIcon(icons.resolve("shaftToolWindow@20x20.svg"), 20,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft_standard.png")),
+                () -> assertLogoIcon(icons.resolve("shaftToolWindow@20x20_dark.svg"), 20,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft_white.png")),
                 () -> assertFalse(Files.exists(icons.resolve("shaftToolWindow.png"))),
                 () -> assertFalse(Files.exists(icons.resolve("shaftToolWindow_dark.png"))));
     }
@@ -34,8 +38,10 @@ class ShaftIconAssetsTest {
         Path metaInf = Path.of("src/main/resources/META-INF");
 
         assertAll(
-                () -> assertLogoIcon(metaInf.resolve("pluginIcon.svg"), 40, LIGHT_LOGO_COLOR),
-                () -> assertLogoIcon(metaInf.resolve("pluginIcon_dark.svg"), 40, DARK_LOGO_COLOR),
+                () -> assertLogoIcon(metaInf.resolve("pluginIcon.svg"), 40,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft.png")),
+                () -> assertLogoIcon(metaInf.resolve("pluginIcon_dark.svg"), 40,
+                        Path.of("../shaft-engine/src/main/resources/images/shaft.png")),
                 () -> assertFalse(Files.exists(metaInf.resolve("pluginIcon.png"))),
                 () -> assertFalse(Files.exists(metaInf.resolve("pluginIcon_dark.png"))));
     }
@@ -94,16 +100,33 @@ class ShaftIconAssetsTest {
                 () -> assertTrue(svg.contains("stroke-linejoin=\"round\""), path.toString()));
     }
 
-    private static void assertLogoIcon(Path path, int size, String color) throws IOException {
-        String svg = Files.readString(path);
+    private static void assertLogoIcon(Path svgPath, int size, Path canonicalPngPath) throws IOException {
+        String svg = Files.readString(svgPath);
+        byte[] canonicalPngBytes = Files.readAllBytes(canonicalPngPath);
+
         assertAll(
-                () -> assertTrue(svg.contains("width=\"" + size + "\""), path.toString()),
-                () -> assertTrue(svg.contains("height=\"" + size + "\""), path.toString()),
-                () -> assertTrue(svg.contains("viewBox=\"0 0 " + size + " " + size + "\""), path.toString()),
-                () -> assertTrue(svg.contains("data-shaft-logo=\"official\""), path.toString()),
-                () -> assertTrue(svg.contains("fill=\"" + color + "\""), path.toString()),
-                () -> assertFalse(svg.contains("stroke=\"#6C707E\""), path.toString()),
-                () -> assertFalse(svg.contains("stroke=\"#CED0D6\""), path.toString()));
+                () -> assertTrue(svg.contains("width=\"" + size + "\""), svgPath.toString()),
+                () -> assertTrue(svg.contains("height=\"" + size + "\""), svgPath.toString()),
+                () -> assertTrue(svg.contains("viewBox=\"0 0 " + size + " " + size + "\""), svgPath.toString()),
+                () -> assertEmbeddedPngBytesMatchCanonical(svg, canonicalPngBytes, svgPath.toString()));
+    }
+
+    private static void assertEmbeddedPngBytesMatchCanonical(String svgContent, byte[] canonicalPngBytes,
+                                                             String svgPath) {
+        // Extract base64 data from SVG: href="data:image/png;base64,BASE64DATA"
+        String base64Prefix = "data:image/png;base64,";
+        int startIdx = svgContent.indexOf(base64Prefix);
+        assertTrue(startIdx >= 0, "SVG does not contain embedded base64 PNG data: " + svgPath);
+
+        startIdx += base64Prefix.length();
+        int endIdx = svgContent.indexOf("\"", startIdx);
+        assertTrue(endIdx > startIdx, "Malformed base64 data URI in SVG: " + svgPath);
+
+        String embeddedBase64 = svgContent.substring(startIdx, endIdx);
+        byte[] embeddedPngBytes = Base64.getDecoder().decode(embeddedBase64);
+
+        assertArrayEquals(canonicalPngBytes, embeddedPngBytes,
+                "Embedded PNG in " + svgPath + " does not match canonical source PNG bytes");
     }
 
     private static org.junit.jupiter.api.function.Executable actionIconAssertions(Path actions, String name) {
