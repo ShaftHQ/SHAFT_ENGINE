@@ -734,9 +734,13 @@ final class ShaftAssistantPanel extends JPanel {
         }
         if (agentMode
                 && !approvingCaptureReview
-                && !route.cloud()
-                && !allowSourceMutation.isSelected()
-                && (promptRequiresSourceMutation(text) || continuationRequiresSourceMutation(text, conversationContext))) {
+                && requiresSourceEditApprovalBeforeSend(
+                        agentMode,
+                        route.cloud(),
+                        allowSourceMutation.isSelected(),
+                        customCommand.getText(),
+                        text,
+                        conversationContext)) {
             showResponse("To let the agent make source edits, please enable **Allow source edits** before sending.",
                     "");
             addTimeline("Failed");
@@ -864,6 +868,21 @@ final class ShaftAssistantPanel extends JPanel {
         currentToolSequence = List.of();
         sequenceMarkdown = null;
         sequenceRawOutput = null;
+    }
+
+    static boolean requiresSourceEditApprovalBeforeSend(
+            boolean agentMode,
+            boolean cloudRoute,
+            boolean allowSourceMutation,
+            String customCommand,
+            String prompt,
+            String conversationContext) {
+        return agentMode
+                && !cloudRoute
+                && !allowSourceMutation
+                && customCommand != null
+                && !customCommand.isBlank()
+                && (promptRequiresSourceMutation(prompt) || continuationRequiresSourceMutation(prompt, conversationContext));
     }
 
     private static boolean promptRequiresSourceMutation(String text) {

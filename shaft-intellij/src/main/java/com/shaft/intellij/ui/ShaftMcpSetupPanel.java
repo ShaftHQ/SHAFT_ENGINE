@@ -620,10 +620,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         if (isWindows()) {
             return "powershell -NoProfile -ExecutionPolicy Bypass -Command '$installer=Join-Path $env:TEMP \"install-shaft-mcp.ps1\"; "
                     + "Invoke-WebRequest -UseBasicParsing \"" + url
-                    + ".ps1\" -OutFile $installer; & $installer -Client " + target + "'";
+                    + ".ps1\" -OutFile $installer; & $installer -Client " + target + " --install-shaft-skills'";
         }
         return "tmp=\"${TMPDIR:-/tmp}/install-shaft-mcp.sh\"; curl -fL " + url
-                + ".sh -o \"$tmp\" && sh \"$tmp\" --" + target;
+                + ".sh -o \"$tmp\" && sh \"$tmp\" --" + target + " --install-shaft-skills";
     }
 
     private void copyInstallerCommand() {
