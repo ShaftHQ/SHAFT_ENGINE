@@ -174,14 +174,32 @@ final class AssistantMarkdown {
         }
         List<String> sections = new ArrayList<>();
         String answer = string(response, "answer", "");
+        String summary = string(response, "summary", "");
+        boolean hasCodeBlocks = hasNonEmptyCodeBlocks(response);
+        appendProviderChatContent(sections, response, answer, summary, hasCodeBlocks);
+        sections.add(metadataLine(
+                "Status", string(response, "status", ""),
+                "Provider", string(response, "provider", ""),
+                "Model", string(response, "model", ""),
+                "Mode", string(response, "mode", "")));
+        String warnings = warnings(response);
+        String fallback = string(response, "fallbackReason", "");
+        appendProviderChatFooter(sections, warnings, fallback);
+        if (isEmptyProviderChatResponse(answer, summary, warnings, fallback, hasCodeBlocks)) {
+            sections.add("_No answer returned._");
+        }
+        return joinSections(sections);
+    }
+
+    private static void appendProviderChatContent(
+            List<String> sections, JsonObject response, String answer, String summary, boolean hasCodeBlocks) {
         if (!answer.isBlank()) {
             sections.add(normalizeMarkdown(answer));
         }
-        String summary = string(response, "summary", "");
         if (!summary.isBlank()) {
             sections.add("**Summary:** " + summary);
         }
-        if (response.has("codeBlocks") && response.get("codeBlocks").isJsonArray()) {
+        if (hasCodeBlocks) {
             appendNonBlank(sections, providerCodeBlocksMarkdown(response.getAsJsonArray("codeBlocks")));
         }
         appendNonBlank(sections, bulletList("Cited SHAFT guides", response, "citedGuideUrls"));
@@ -190,25 +208,25 @@ final class AssistantMarkdown {
         if (!guardrailStatus.isBlank() && !"NOT_CHECKED".equals(guardrailStatus)) {
             sections.add("**Guardrails:** " + guardrailStatus);
         }
-        sections.add(metadataLine(
-                "Status", string(response, "status", ""),
-                "Provider", string(response, "provider", ""),
-                "Model", string(response, "model", ""),
-                "Mode", string(response, "mode", "")));
-        String warnings = warnings(response);
+    }
+
+    private static void appendProviderChatFooter(List<String> sections, String warnings, String fallback) {
         if (!warnings.isBlank()) {
             sections.add(warnings);
         }
-        String fallback = string(response, "fallbackReason", "");
         if (!fallback.isBlank()) {
             sections.add("**Fallback reason:** " + fallback);
         }
-        if (answer.isBlank() && summary.isBlank() && warnings.isBlank() && fallback.isBlank()
-                && !(response.has("codeBlocks") && response.get("codeBlocks").isJsonArray()
-                        && !response.getAsJsonArray("codeBlocks").isEmpty())) {
-            sections.add("_No answer returned._");
-        }
-        return joinSections(sections);
+    }
+
+    private static boolean hasNonEmptyCodeBlocks(JsonObject response) {
+        return response.has("codeBlocks") && response.get("codeBlocks").isJsonArray()
+                && !response.getAsJsonArray("codeBlocks").isEmpty();
+    }
+
+    private static boolean isEmptyProviderChatResponse(
+            String answer, String summary, String warnings, String fallback, boolean hasCodeBlocks) {
+        return answer.isBlank() && summary.isBlank() && warnings.isBlank() && fallback.isBlank() && !hasCodeBlocks;
     }
 
     private static String providerCodeBlocksMarkdown(JsonArray blocks) {
