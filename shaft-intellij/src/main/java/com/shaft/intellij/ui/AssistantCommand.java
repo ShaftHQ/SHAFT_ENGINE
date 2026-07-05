@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.shaft.intellij.mcp.ShaftCommandLine;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -69,7 +70,7 @@ final class AssistantCommand {
                     """.stripIndent().trim();
     private static final CommandDefinition COMMAND_HELP = new CommandDefinition("/commands", "Show command help",
             List.of("/help", "/mcp-help", "/shaft-help"),
-            "/commands", (command, rest, workingDirectory) -> Invocation.local(commandHelp()));
+            "/commands", (command, rest, workingDirectory) -> Invocation.local(commandHelp(false)));
     private static final CommandDefinition CODEGEN_COMMAND = new CommandDefinition("/codegen",
             "Generate code from recordings",
             List.of(),
@@ -119,18 +120,33 @@ final class AssistantCommand {
             "Create or upgrade SHAFT projects",
             List.of("/newshaft"),
             "/project upgrade .", AssistantCommand::project);
-    private static final List<CommandDefinition> VISIBLE_COMMANDS = List.of(
-            CODEGEN_COMMAND,
-            PARTNER_COMMAND,
+    private static final CommandDefinition VERIFY_COMMAND = new CommandDefinition("/verify",
+            "Run a focused verification command",
+            List.of("/validate", "/check"),
+            "/verify mvn -q test-compile",
+            (command, rest, workingDirectory) -> verify(rest, workingDirectory));
+    private static final CommandDefinition SKILLS_COMMAND = new CommandDefinition("/skills",
+            "List SHAFT authoring skills",
+            List.of("/skill"),
+            "/skills",
+            (command, rest, workingDirectory) -> Invocation.local(skillsHelp()));
+    // Default composer shows only the core entry points; the rest are revealed by Expert mode.
+    private static final List<CommandDefinition> CORE_COMMANDS = List.of(
             RECORD_WEB_COMMAND,
             RECORD_MOBILE_COMMAND,
+            CODEGEN_COMMAND,
             DOCTOR_COMMAND,
+            UPGRADE_COMMAND);
+    private static final List<CommandDefinition> EXPERT_COMMANDS = List.of(
+            PARTNER_COMMAND,
             GUIDE_COMMAND,
             GUARDRAILS_COMMAND,
             BROWSER_COMMAND,
             MOBILE_COMMAND,
-            UPGRADE_COMMAND,
-            PROJECT_COMMAND);
+            PROJECT_COMMAND,
+            VERIFY_COMMAND,
+            SKILLS_COMMAND);
+    private static final List<CommandDefinition> VISIBLE_COMMANDS = concat(CORE_COMMANDS, EXPERT_COMMANDS);
     private static final List<CommandDefinition> COMMANDS = List.of(
             COMMAND_HELP,
             CODEGEN_COMMAND,
@@ -172,10 +188,12 @@ final class AssistantCommand {
             new CommandDefinition("/generate", "Generate code from recordings",
                     List.of("/gen", "/generateTest"),
                     "/generate recordings/intellij-capture.json",
-                    (command, rest, workingDirectory) -> generateTest(rest)));
+                    (command, rest, workingDirectory) -> generateTest(rest)),
+            VERIFY_COMMAND,
+            SKILLS_COMMAND);
     private static final List<NaturalIntent> NATURAL_INTENTS = List.of(
             new NaturalIntent(AssistantCommand::isCommandHelpIntent,
-                    (text, workingDirectory) -> Invocation.local(commandHelp())),
+                    (text, workingDirectory) -> Invocation.local(commandHelp(false))),
             new NaturalIntent(AssistantCommand::isCodingPartnerIntent,
                     (text, workingDirectory) -> Invocation.tool(
                             "shaft_coding_partner_plan",
@@ -207,23 +225,35 @@ final class AssistantCommand {
                         String path = firstPathLike(text);
                         return doctor(path.isBlank() ? "" : path, workingDirectory);
                     }));
-    private static final List<CommandHint> COMMAND_HINTS = commandHintsFromRegistry();
+    private static final List<CommandHint> CORE_HINTS =
+            CORE_COMMANDS.stream().map(CommandDefinition::hint).toList();
+    private static final List<CommandHint> EXPERT_HINTS =
+            EXPERT_COMMANDS.stream().map(CommandDefinition::hint).toList();
+    private static final List<CommandHint> ALL_HINTS = concat(CORE_HINTS, EXPERT_HINTS);
 
     private AssistantCommand() {
         throw new IllegalStateException("Utility class");
     }
 
+    /**
+     * Returns every command hint. Used for looking up metadata about a command the user already typed,
+     * regardless of Expert mode.
+     */
     static List<CommandHint> commandHints() {
-        return COMMAND_HINTS;
+        return ALL_HINTS;
     }
 
-    private static List<CommandHint> commandHintsFromRegistry() {
-        return VISIBLE_COMMANDS.stream().map(CommandDefinition::hint).toList();
+    /**
+     * Returns the command hints that should be visible in menus/autocomplete: core-only by default, or every
+     * command when Expert mode is enabled.
+     */
+    static List<CommandHint> commandHints(boolean expertEnabled) {
+        return expertEnabled ? ALL_HINTS : CORE_HINTS;
     }
 
-    static String commandTooltip() {
+    static String commandTooltip(boolean expertEnabled) {
         StringBuilder tooltip = new StringBuilder("<html><b>SHAFT commands</b>");
-        for (CommandHint hint : COMMAND_HINTS) {
+        for (CommandHint hint : commandHints(expertEnabled)) {
             tooltip.append("<br><code>")
                     .append(hint.canonical())
                     .append("</code> - ")
@@ -238,9 +268,9 @@ final class AssistantCommand {
         return tooltip.append("</html>").toString();
     }
 
-    static String commandHelp() {
+    static String commandHelp(boolean expertEnabled) {
         StringBuilder help = new StringBuilder("SHAFT Assistant commands:");
-        for (CommandDefinition definition : VISIBLE_COMMANDS) {
+        for (CommandDefinition definition : (expertEnabled ? VISIBLE_COMMANDS : CORE_COMMANDS)) {
             help.append("\n\n**")
                     .append(definition.canonical())
                     .append("** - ")
@@ -253,7 +283,52 @@ final class AssistantCommand {
                     .append(definition.example())
                     .append("\n```");
         }
+        if (!expertEnabled) {
+            help.append("\n\n_Enable Expert mode in SHAFT settings to reveal advanced commands: ")
+                    .append(EXPERT_COMMANDS.stream().map(CommandDefinition::canonical)
+                            .collect(java.util.stream.Collectors.joining(", ")))
+                    .append("._");
+        }
         return help.toString();
+    }
+
+    private static <T> List<T> concat(List<T> first, List<T> second) {
+        List<T> combined = new ArrayList<>(first);
+        combined.addAll(second);
+        return List.copyOf(combined);
+    }
+
+    private static Invocation verify(String rest, String workingDirectory) {
+        JsonObject arguments = new JsonObject();
+        String repositoryPath = text(workingDirectory);
+        arguments.addProperty("repositoryRoot", repositoryPath.isBlank() ? "." : repositoryPath);
+        JsonArray commandArray = new JsonArray();
+        String trimmed = text(rest);
+        List<String> tokens = trimmed.isBlank()
+                ? List.of("mvn", "-q", "test-compile")
+                : ShaftCommandLine.parse(trimmed);
+        if (tokens.isEmpty()) {
+            tokens = List.of("mvn", "-q", "test-compile");
+        }
+        for (String token : tokens) {
+            commandArray.add(token);
+        }
+        arguments.add("command", commandArray);
+        arguments.addProperty("networkValidationApproved", false);
+        return Invocation.tool("verify_run_focused", arguments);
+    }
+
+    private static String skillsHelp() {
+        return """
+                SHAFT authoring skills (use `$<name>` in a chat with an installed agent):
+
+                **$writing-shaft-tests** - write, review, or repair SHAFT Java tests, page objects, API/mobile tests.
+                **$choosing-shaft-locators** - pick stable SHAFT smart/semantic locators over brittle XPath.
+                **$recording-shaft-tests-with-mcp** - record web/mobile flows and turn them into reusable SHAFT code.
+                **$analyzing-shaft-failures** - triage failed Allure/trace evidence and route repairs safely.
+                **$verifying-and-applying-shaft-changes** - review, diff, apply, guardrail, and verify generated code.
+
+                Each skill grounds generated code in the official SHAFT guide and the coding-partner plan first.""";
     }
 
     record OpenFileContext(String path, String text, String selectedText) {

@@ -246,11 +246,11 @@ final class ShaftAssistantPanel extends JPanel {
             updatingCommandAutocomplete = false;
         }
         commandInfo = button("Commands", "SHAFT command hints",
-                event -> showLocalResponse(AssistantCommand.commandHelp()));
+                event -> showLocalResponse(AssistantCommand.commandHelp(expertEnabled())));
         commandInfo.getAccessibleContext().setAccessibleDescription(
                 "Shows the supported SHAFT Assistant command families in the command menu.");
         ShaftIconButtons.apply(commandInfo, ShaftIcons.HELP);
-        commandInfo.setToolTipText(AssistantCommand.commandTooltip());
+        commandInfo.setToolTipText(AssistantCommand.commandTooltip(expertEnabled()));
         contextInfo = button("Context", "Assistant context suggestions",
                 event -> showContextSuggestions('@'));
         contextInfo.getAccessibleContext().setAccessibleDescription(
@@ -570,10 +570,14 @@ final class ShaftAssistantPanel extends JPanel {
         return List.of();
     }
 
-    private static List<ContextSuggestion> commandContextSuggestions() {
-        return AssistantCommand.commandHints().stream()
+    private List<ContextSuggestion> commandContextSuggestions() {
+        return AssistantCommand.commandHints(expertEnabled()).stream()
                 .map(hint -> new ContextSuggestion(hint.canonical(), hint.example()))
                 .toList();
+    }
+
+    private boolean expertEnabled() {
+        return settings != null && settings.advancedUiEnabled;
     }
 
     private static List<ContextSuggestion> workflowContextSuggestions() {
@@ -1387,7 +1391,7 @@ final class ShaftAssistantPanel extends JPanel {
     private void filterCommandItems(String prefix) {
         String typed = prefix == null ? "" : prefix.trim();
         String lower = typed.toLowerCase(Locale.ROOT);
-        String[] items = AssistantCommand.commandHints().stream()
+        String[] items = AssistantCommand.commandHints(expertEnabled()).stream()
                 .map(AssistantCommand.CommandHint::canonical)
                 .filter(command -> lower.isBlank()
                         || "/".equals(lower)
@@ -2032,8 +2036,8 @@ final class ShaftAssistantPanel extends JPanel {
         return combo;
     }
 
-    private static String[] commandItems() {
-        return AssistantCommand.commandHints().stream()
+    private String[] commandItems() {
+        return AssistantCommand.commandHints(expertEnabled()).stream()
                 .map(AssistantCommand.CommandHint::canonical)
                 .toArray(String[]::new);
     }
