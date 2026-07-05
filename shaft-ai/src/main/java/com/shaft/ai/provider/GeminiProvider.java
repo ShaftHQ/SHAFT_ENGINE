@@ -65,9 +65,8 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
         }
         ObjectNode generationConfig = root.putObject("generationConfig");
         generationConfig.put("maxOutputTokens", outputTokenLimit(request, PilotConfiguration.current()));
-        ObjectNode text = generationConfig.putObject("responseFormat").putObject("text");
-        text.put("mimeType", "application/json");
-        text.set("schema", request.desiredResponseSchema());
+        generationConfig.put("responseMimeType", "application/json");
+        generationConfig.set("responseSchema", request.desiredResponseSchema());
         return root;
     }
 

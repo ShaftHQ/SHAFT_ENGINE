@@ -1836,7 +1836,7 @@ final class AssistantCommand {
         }
 
         static Selection cloud(String provider, String model) {
-            return new Selection(true, "", "", normalize(provider, "openai").toLowerCase(Locale.ROOT),
+            return new Selection(true, "", "", normalize(provider, "gemini").toLowerCase(Locale.ROOT),
                     model == null ? "" : model.trim());
         }
 

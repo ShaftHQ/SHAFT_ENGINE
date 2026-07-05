@@ -95,5 +95,7 @@ tasks {
     test {
         useJUnitPlatform()
         systemProperty("shaft.intellij.screenshotDir", System.getProperty("shaft.intellij.screenshotDir", ""))
+        systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", "false"))
+        systemProperty("shaft.intellij.liveMcpCommand", System.getProperty("shaft.intellij.liveMcpCommand", ""))
     }
 }

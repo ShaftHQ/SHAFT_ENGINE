@@ -29,7 +29,24 @@ class ShaftMcpEnvironmentTest {
     }
 
     @Test
+    void javaToolOptionsUseGeminiCloudDefaults() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.assistantProviderType = "CLOUD";
+        settings.passProviderApiKeysToMcp = false;
+
+        Map<String, String> environment = ShaftMcpEnvironment.forSettings(settings);
+
+        String options = environment.get("JAVA_TOOL_OPTIONS");
+        assertTrue(options.contains("-Dpilot.ai.enabled=true"));
+        assertTrue(options.contains("-Dpilot.ai.provider=gemini"));
+        assertTrue(options.contains("-Dpilot.ai.consent.remote=true"));
+        assertTrue(options.contains("-Dpilot.ai.gemini.model=gemini-3.5-flash"));
+        assertFalse(environment.containsKey("GEMINI_API_KEY"));
+    }
+
+    @Test
     void selectedProviderKeyNameIsStable() {
+        assertEquals("GEMINI_API_KEY", ShaftMcpEnvironment.providerKeyName("gemini"));
         assertEquals("GITHUB_TOKEN", ShaftMcpEnvironment.providerKeyName("github"));
         assertEquals("ANTHROPIC_API_KEY", ShaftMcpEnvironment.providerKeyName("anthropic"));
         assertEquals("", ShaftMcpEnvironment.providerKeyName("none"));

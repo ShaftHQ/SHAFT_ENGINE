@@ -66,4 +66,17 @@ class ProviderConfigurationTest {
         assertEquals(ProcessingLocation.REMOTE, configuration.processingLocation());
         SHAFT.Properties.clearForCurrentThread();
     }
+
+    @Test
+    void currentConfigurationUsesGeminiFlashAsDefaultModel() {
+        SHAFT.Properties.clearForCurrentThread();
+
+        ProviderConfiguration configuration = PilotConfiguration.current().provider("gemini");
+
+        assertEquals(URI.create("https://generativelanguage.googleapis.com/v1beta/models"), configuration.endpoint());
+        assertEquals("gemini-3.5-flash", configuration.model());
+        assertEquals("GEMINI_API_KEY", configuration.apiKeyEnvironmentVariable());
+        assertEquals(ProcessingLocation.REMOTE, configuration.processingLocation());
+        SHAFT.Properties.clearForCurrentThread();
+    }
 }

@@ -273,8 +273,8 @@ final class ShaftAssistantPanel extends JPanel {
         currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
                 "Read-only assistant agent configuration from the completed MCP setup flow.");
-        cloudProvider = combo("Assistant cloud provider", "openai", "anthropic", "gemini", "github");
-        cloudProvider.setSelectedItem(normalizeLower(settings.cloudProvider, "openai"));
+        cloudProvider = combo("Assistant cloud provider", "gemini", "openai", "anthropic", "github");
+        cloudProvider.setSelectedItem(normalizeLower(settings.cloudProvider, "gemini"));
         cloudModel = new JBTextField();
         cloudModel.setColumns(16);
         cloudModel.getEmptyText().setText("model");
@@ -2134,7 +2134,7 @@ final class ShaftAssistantPanel extends JPanel {
     private String currentAgentConfigurationText() {
         if (settings.advancedUiEnabled && "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
             String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " " + settings.cloudModel.trim();
-            return ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "openai")) + model;
+            return ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "gemini")) + model;
         }
         return ShaftUiLabels.friendly(resolveFamily(settings)) + " "
                 + ShaftUiLabels.friendly(normalize(settings.assistantRuntime, "CLI"));
@@ -2143,7 +2143,7 @@ final class ShaftAssistantPanel extends JPanel {
     private String currentAgentConfigurationTooltip() {
         if (settings.advancedUiEnabled && "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
             String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " / " + settings.cloudModel.trim();
-            return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "openai")) + model;
+            return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "gemini")) + model;
         }
         return "Agent: Local / " + ShaftUiLabels.friendly(resolveFamily(settings))
                 + " / " + ShaftUiLabels.friendly(normalize(settings.assistantRuntime, "CLI"));

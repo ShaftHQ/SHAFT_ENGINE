@@ -43,8 +43,8 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public String assistantProviderType = "LOCAL";
         public String assistantFamily = "";
         public String assistantRuntime = "CLI";
-        public String cloudProvider = "openai";
-        public String cloudModel = "";
+        public String cloudProvider = "gemini";
+        public String cloudModel = "gemini-3.5-flash";
         public String defaultAutobotClient = "CODEX";
         public String defaultAutobotMode = "ASK";
         public String pilotAiProvider = "none";

@@ -1,0 +1,1 @@
+Before any task, clean/delete local stale branches and worktrees from both SHAFT_ENGINE and shafthq.github.io, then check out the remote main/master branch and override local uncommitted changes except local Graphify files. Evidence: direct user message in this thread on 2026-07-05. This is a user workflow preference and applies unless a later explicit instruction supersedes it.
