@@ -353,31 +353,37 @@ final class AssistantMarkdown {
         }
         List<String> sections = new ArrayList<>();
         String status = string(object, "status", "");
-        String icon = switch (status) {
-            case "PASSED" -> "✅";
-            case "TIMED_OUT" -> "⏳";
-            default -> "❌";
-        };
         sections.add(metadataLine(
-                "Verification", icon + " " + status,
+                "Verification", verifyStatusIcon(status) + " " + status,
                 "Exit", string(object, "exitCode", "")));
-        if (object.has("command") && object.get("command").isJsonArray()) {
-            StringBuilder command = new StringBuilder();
-            for (JsonElement token : object.getAsJsonArray("command")) {
-                if (token.isJsonPrimitive()) {
-                    command.append(token.getAsString()).append(' ');
-                }
-            }
-            if (command.length() > 0) {
-                sections.add("**Command:** `" + command.toString().trim() + "`");
-            }
-        }
+        appendNonBlank(sections, verifyCommandLine(object));
         String output = string(object, "outputSummary", "");
         if (!output.isBlank()) {
             sections.add(fence("text", clip(output, 4_000)));
         }
         appendNonBlank(sections, warnings(object));
         return joinSections(sections);
+    }
+
+    private static String verifyStatusIcon(String status) {
+        return switch (status) {
+            case "PASSED" -> "✅";
+            case "TIMED_OUT" -> "⏳";
+            default -> "❌";
+        };
+    }
+
+    private static String verifyCommandLine(JsonObject object) {
+        if (!object.has("command") || !object.get("command").isJsonArray()) {
+            return "";
+        }
+        StringBuilder command = new StringBuilder();
+        for (JsonElement token : object.getAsJsonArray("command")) {
+            if (token.isJsonPrimitive()) {
+                command.append(token.getAsString()).append(' ');
+            }
+        }
+        return command.length() == 0 ? "" : "**Command:** `" + command.toString().trim() + "`";
     }
 
     private static String genericMarkdown(JsonElement parsed) {
