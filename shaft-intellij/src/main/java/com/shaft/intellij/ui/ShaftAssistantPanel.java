@@ -323,6 +323,15 @@ final class ShaftAssistantPanel extends JPanel {
         status.getAccessibleContext().setAccessibleDescription(READY_STATUS);
         status.setToolTipText(READY_STATUS);
         status.setFont(status.getFont().deriveFont(Math.max(10.0F, status.getFont().getSize2D() - 1.0F)));
+        status.setOpaque(true);
+        status.setBackground(ShaftStatusPresentation.tint(
+                javax.swing.UIManager.getColor("Panel.background") == null
+                        ? java.awt.Color.WHITE
+                        : javax.swing.UIManager.getColor("Panel.background"),
+                ShaftStatusPresentation.progress(), 0.08D));
+        status.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(ShaftStatusPresentation.progress(), 1),
+                JBUI.Borders.empty(4, 8)));
         status.setPreferredSize(JBUI.size(260, status.getPreferredSize().height));
         status.setMinimumSize(JBUI.size(220, status.getPreferredSize().height));
         status.setVisible(false);
