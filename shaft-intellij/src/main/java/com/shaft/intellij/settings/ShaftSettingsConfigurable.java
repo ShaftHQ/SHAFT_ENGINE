@@ -12,6 +12,7 @@ import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.ui.ShaftIconButtons;
 import com.shaft.intellij.ui.ShaftIcons;
+import com.shaft.intellij.ui.ShaftStatusPresentation;
 import com.shaft.intellij.ui.ShaftUiLabels;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
@@ -502,20 +503,6 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
     }
 
-    private static java.awt.Color successColor() {
-        return new java.awt.Color(0x0A7F26);
-    }
-
-    private static java.awt.Color progressColor() {
-        java.awt.Color color = javax.swing.UIManager.getColor("Component.focusColor");
-        return color == null ? new java.awt.Color(0x0550AE) : color;
-    }
-
-    private static java.awt.Color errorColor() {
-        java.awt.Color color = javax.swing.UIManager.getColor("ValidationTooltip.errorForeground");
-        return color == null ? new java.awt.Color(0xB42318) : color;
-    }
-
     private static JLabel label(String text, char mnemonic, JComponent target) {
         JLabel label = new JLabel(text);
         label.setDisplayedMnemonic(mnemonic);
@@ -619,7 +606,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         button.setEnabled(false);
         statusLabel.setEnabled(true);
         statusLabel.setText("Testing...");
-        statusLabel.setForeground(progressColor());
+        statusLabel.setForeground(ShaftStatusPresentation.progress());
         String command = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
         ShaftMcpConnectionProbe.test(command, formSettings()).whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> {
@@ -629,7 +616,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                     button.setEnabled(true);
                     if (error != null) {
                         statusLabel.setText("Failed");
-                        statusLabel.setForeground(errorColor());
+                        statusLabel.setForeground(ShaftStatusPresentation.error());
                         Messages.showErrorDialog(host, error.getMessage(), "SHAFT MCP");
                     } else {
                         showProbeResult(host, statusLabel, result);
@@ -643,13 +630,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         if (result != null && result.success()) {
             statusLabel.setText("Connected");
-            statusLabel.setForeground(successColor());
+            statusLabel.setForeground(ShaftStatusPresentation.success());
             saveConnectedSettings();
             editingAgentConfiguration = false;
             updateAgentConfigurationControls();
         } else {
             statusLabel.setText("Failed");
-            statusLabel.setForeground(errorColor());
+            statusLabel.setForeground(ShaftStatusPresentation.error());
             Messages.showErrorDialog(host, result == null ? "No result returned." : result.output(), "SHAFT MCP");
         }
     }

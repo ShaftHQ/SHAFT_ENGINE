@@ -2042,7 +2042,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         JsonElement warnings = statusJson.get("warnings");
         if (warnings != null && warnings.isJsonArray() && !warnings.getAsJsonArray().isEmpty()) {
-            markdown.append("\n\n**⚠️ Warnings**");
+            markdown.append("\n\n**").append(ShaftStatusPresentation.WARNING_ICON).append(" Warnings**");
             for (JsonElement warning : warnings.getAsJsonArray()) {
                 if (warning.isJsonPrimitive()) {
                     markdown.append("\n- ").append(warning.getAsString());

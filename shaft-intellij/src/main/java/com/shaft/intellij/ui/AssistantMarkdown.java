@@ -367,9 +367,9 @@ final class AssistantMarkdown {
 
     private static String verifyStatusIcon(String status) {
         return switch (status) {
-            case "PASSED" -> "✅";
-            case "TIMED_OUT" -> "⏳";
-            default -> "❌";
+            case "PASSED" -> ShaftStatusPresentation.SUCCESS_ICON;
+            case "TIMED_OUT" -> ShaftStatusPresentation.PENDING_ICON;
+            default -> ShaftStatusPresentation.ERROR_ICON;
         };
     }
 
@@ -956,8 +956,8 @@ final class AssistantMarkdown {
 
     private static String readinessIcon(String readiness) {
         return switch (readiness == null ? "" : readiness.toUpperCase(Locale.ROOT)) {
-            case "READY" -> "✅";
-            case "RISKY" -> "⚠️";
+            case "READY" -> ShaftStatusPresentation.SUCCESS_ICON;
+            case "RISKY" -> ShaftStatusPresentation.WARNING_ICON;
             case "BLOCKED" -> "⛔";
             default -> "";
         };
@@ -1183,7 +1183,7 @@ final class AssistantMarkdown {
         if (warnings == null || !warnings.isJsonArray() || warnings.getAsJsonArray().isEmpty()) {
             return "";
         }
-        StringBuilder markdown = new StringBuilder("**⚠️ Warnings**");
+        StringBuilder markdown = new StringBuilder("**").append(ShaftStatusPresentation.WARNING_ICON).append(" Warnings**");
         for (JsonElement warning : warnings.getAsJsonArray()) {
             if (warning.isJsonPrimitive()) {
                 markdown.append("\n- ").append(warning.getAsString());
