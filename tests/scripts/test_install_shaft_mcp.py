@@ -135,9 +135,11 @@ class InstallShaftMcpTest(unittest.TestCase):
                 MODULE.local_shaft_skills_source = original_local_source
                 MODULE.download_file = original_download_file
 
-            self.assertEqual(9, len(calls))
+            self.assertEqual(11, len(calls))
             self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
             self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
+            self.assertTrue(
+                (installed / "verifying-and-applying-shaft-changes" / "SKILL.md").is_file())
 
     def test_codex_auto_approval_is_added_to_shaft_mcp_section(self):
         with tempfile.TemporaryDirectory() as temp_dir:

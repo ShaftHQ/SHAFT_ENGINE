@@ -45,12 +45,15 @@ SHAFT_SKILLS_SOURCE_FILES = (
     "recording-shaft-tests-with-mcp/agents/openai.yaml",
     "analyzing-shaft-failures/SKILL.md",
     "analyzing-shaft-failures/agents/openai.yaml",
+    "verifying-and-applying-shaft-changes/SKILL.md",
+    "verifying-and-applying-shaft-changes/agents/openai.yaml",
 )
 SHAFT_SKILLS_SOURCE_MARKERS = (
     "writing-shaft-tests/SKILL.md",
     "choosing-shaft-locators/SKILL.md",
     "recording-shaft-tests-with-mcp/SKILL.md",
     "analyzing-shaft-failures/SKILL.md",
+    "verifying-and-applying-shaft-changes/SKILL.md",
 )
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "intellij-plugin")
 TARGET_CHOICES = (

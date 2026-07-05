@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verifying And Applying SHAFT Changes"
+  short_description: "Preview, apply, guardrail, and verify generated SHAFT code"
+  default_prompt: "Use $verifying-and-applying-shaft-changes to preview a diff, apply it under approval, run guardrails, and verify with the focused command."

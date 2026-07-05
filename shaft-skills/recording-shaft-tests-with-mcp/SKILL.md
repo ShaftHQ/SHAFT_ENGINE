@@ -20,6 +20,9 @@ Record first, then generate reviewed SHAFT code. Treat recordings as evidence an
 7. Call `shaft-mcp:shaft_coding_partner_plan` with the repository path, intent, current source path, selected text, and recording/report artifacts to find existing targets and missing code.
 8. Generate snippets with `shaft-mcp:capture_code_blocks`; use `shaft-mcp:capture_record_at_target_code_blocks` for insertion into an existing Java source anchor from the plan.
 9. Run `shaft-mcp:test_code_guardrails_check` before inserting or returning code.
+10. Preview insertion with `shaft-mcp:shaft_coding_partner_diff`, apply under explicit
+    approval in IntelliJ, then verify with `shaft-mcp:verify_run_focused`. See
+    `verifying-and-applying-shaft-changes`.
 
 ## Playwright And Mobile
 
