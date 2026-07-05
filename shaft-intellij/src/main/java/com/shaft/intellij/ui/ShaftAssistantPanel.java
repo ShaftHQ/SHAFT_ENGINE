@@ -1350,7 +1350,11 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void setStatus(String message) {
         String value = message == null || message.isBlank() ? READY_STATUS : message;
-        status.setText(value);
+        // Trim text if it exceeds available width, but keep full text in tooltip
+        int availableWidth = Math.max(220, status.getWidth() > 0 ? status.getWidth() : 260);
+        FontMetrics metrics = status.getFontMetrics(status.getFont());
+        String displayText = trimChatTitleForWidth(value, metrics, availableWidth - JBUI.scale(8));
+        status.setText(displayText);
         status.setToolTipText(value);
         status.getAccessibleContext().setAccessibleDescription(value);
         status.setVisible(!READY_STATUS.equals(value));
