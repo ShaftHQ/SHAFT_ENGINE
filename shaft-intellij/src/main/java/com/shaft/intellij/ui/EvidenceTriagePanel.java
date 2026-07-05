@@ -81,6 +81,7 @@ final class EvidenceTriagePanel extends JPanel {
     private static JBTextField field(String accessibleName, String value) {
         JBTextField field = new JBTextField(value);
         field.getAccessibleContext().setAccessibleName(accessibleName);
+        field.setToolTipText(accessibleName);
         return field;
     }
 
