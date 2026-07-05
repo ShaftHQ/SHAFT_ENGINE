@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -91,6 +92,53 @@ public class CodingPartnerService {
                 verificationCommand(repository),
                 evidencePaths,
                 warnings);
+    }
+
+    /**
+     * Builds a preview-only unified diff that inserts reviewed SHAFT code blocks into an existing Java target.
+     *
+     * <p>The MCP server never writes files; the returned diff is for IntelliJ to preview and apply under
+     * explicit user approval.</p>
+     *
+     * @param repositoryPath workspace-contained repository root
+     * @param targetSourcePath Java target file, absolute or repository-relative
+     * @param codeBlocks reviewed SHAFT code blocks to insert (Markdown fences are stripped)
+     * @param insertionAnchor optional existing method or textual anchor to insert after
+     * @return preview-only unified diff
+     */
+    @Tool(name = "shaft_coding_partner_diff",
+            description = "produces a preview-only unified diff that inserts reviewed SHAFT code blocks into an"
+                    + " existing Java target at a chosen method or textual anchor; never writes files")
+    public McpCodingPartnerDiff diff(
+            String repositoryPath,
+            String targetSourcePath,
+            List<String> codeBlocks,
+            String insertionAnchor) {
+        Path repository = workspacePolicy.existing(repositoryPath, "Coding partner repository");
+        String relativeTarget = normalizeCurrentSource(repository, targetSourcePath);
+        if (relativeTarget.isBlank()) {
+            throw new IllegalArgumentException("Coding partner diff requires a target source path.");
+        }
+        Path target = resolveRepositoryPath(repository, relativeTarget, "Coding partner diff target");
+        String displayPath = repository.relativize(target).toString().replace('\\', '/');
+        String snippet = insertionSnippet(codeBlocks);
+        if (snippet.isBlank()) {
+            throw new IllegalArgumentException("Coding partner diff requires at least one non-empty code block.");
+        }
+        boolean exists = Files.isRegularFile(target);
+        List<String> originalLines = readSourceLines(target, exists);
+        String anchor = text(insertionAnchor);
+        int insertAt = insertionIndex(originalLines, anchor);
+        List<String> insertedLines = insertedLines(originalLines, snippet);
+        String unifiedDiff = unifiedDiff(displayPath, originalLines, insertAt, insertedLines, exists);
+        return new McpCodingPartnerDiff(
+                "1.0",
+                relativeTarget,
+                anchor,
+                exists,
+                insertedLines.size(),
+                unifiedDiff,
+                diffWarnings(exists, snippet));
     }
 
     private String normalizeCurrentSource(Path repository, String currentSourcePath) {
@@ -495,6 +543,159 @@ public class CodingPartnerService {
         }
         String value = text(intent);
         return value.isBlank() ? "SHAFT coding partner page object locators" : value;
+    }
+
+    private static String insertionSnippet(List<String> codeBlocks) {
+        if (codeBlocks == null) {
+            return "";
+        }
+        List<String> pieces = new ArrayList<>();
+        for (String block : codeBlocks) {
+            String cleaned = stripFences(block);
+            if (!cleaned.isBlank()) {
+                pieces.add(cleaned);
+            }
+        }
+        return String.join("\n\n", pieces).strip();
+    }
+
+    private static String stripFences(String block) {
+        if (block == null) {
+            return "";
+        }
+        String value = block.strip();
+        if (value.startsWith("```")) {
+            int firstNewline = value.indexOf('\n');
+            value = firstNewline < 0 ? "" : value.substring(firstNewline + 1);
+            if (value.endsWith("```")) {
+                value = value.substring(0, value.length() - 3);
+            }
+        }
+        return value.stripTrailing();
+    }
+
+    private static List<String> readSourceLines(Path target, boolean exists) {
+        if (!exists) {
+            return List.of();
+        }
+        String content;
+        try {
+            content = Files.readString(target);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Coding partner diff target cannot be read inside the MCP workspace.",
+                    exception);
+        }
+        String normalized = content.replace("\r\n", "\n").replace('\r', '\n');
+        List<String> lines = new ArrayList<>(Arrays.asList(normalized.split("\n", -1)));
+        if (!lines.isEmpty() && lines.get(lines.size() - 1).isEmpty()) {
+            lines.remove(lines.size() - 1);
+        }
+        return lines;
+    }
+
+    private static int insertionIndex(List<String> lines, String anchor) {
+        if (lines.isEmpty()) {
+            return 0;
+        }
+        if (!anchor.isBlank()) {
+            for (int index = 0; index < lines.size(); index++) {
+                if (lines.get(index).contains(anchor)) {
+                    int methodEnd = methodEnd(lines, index);
+                    if (methodEnd >= 0) {
+                        return methodEnd + 1;
+                    }
+                    break;
+                }
+            }
+        }
+        return classInsertionIndex(lines);
+    }
+
+    private static int methodEnd(List<String> lines, int anchorLine) {
+        int depth = 0;
+        boolean opened = false;
+        for (int index = anchorLine; index < lines.size(); index++) {
+            String line = lines.get(index);
+            for (int position = 0; position < line.length(); position++) {
+                char character = line.charAt(position);
+                if (character == '{') {
+                    depth++;
+                    opened = true;
+                } else if (character == '}') {
+                    depth--;
+                    if (opened && depth == 0) {
+                        return index;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static int classInsertionIndex(List<String> lines) {
+        for (int index = lines.size() - 1; index >= 0; index--) {
+            if ("}".equals(lines.get(index).trim())) {
+                return index;
+            }
+        }
+        return lines.size();
+    }
+
+    private static List<String> insertedLines(List<String> originalLines, String snippet) {
+        List<String> lines = new ArrayList<>();
+        if (!originalLines.isEmpty()) {
+            lines.add("");
+        }
+        lines.addAll(Arrays.asList(snippet.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1)));
+        return lines;
+    }
+
+    private static String unifiedDiff(
+            String path,
+            List<String> originalLines,
+            int insertAt,
+            List<String> insertedLines,
+            boolean targetExists) {
+        StringBuilder diff = new StringBuilder();
+        diff.append("--- ").append(targetExists ? "a/" + path : "/dev/null").append('\n');
+        diff.append("+++ ").append("b/").append(path).append('\n');
+        int size = originalLines.size();
+        if (!targetExists || size == 0) {
+            diff.append("@@ -0,0 +1,").append(insertedLines.size()).append(" @@\n");
+            for (String line : insertedLines) {
+                diff.append('+').append(line).append('\n');
+            }
+            return diff.toString();
+        }
+        int context = 3;
+        int start = Math.max(0, insertAt - context);
+        int endAfter = Math.min(size, insertAt + context);
+        int oldCount = (insertAt - start) + (endAfter - insertAt);
+        int newCount = oldCount + insertedLines.size();
+        diff.append("@@ -").append(start + 1).append(',').append(oldCount)
+                .append(" +").append(start + 1).append(',').append(newCount).append(" @@\n");
+        for (int index = start; index < insertAt; index++) {
+            diff.append(' ').append(originalLines.get(index)).append('\n');
+        }
+        for (String line : insertedLines) {
+            diff.append('+').append(line).append('\n');
+        }
+        for (int index = insertAt; index < endAfter; index++) {
+            diff.append(' ').append(originalLines.get(index)).append('\n');
+        }
+        return diff.toString();
+    }
+
+    private static List<String> diffWarnings(boolean exists, String snippet) {
+        List<String> warnings = new ArrayList<>();
+        warnings.add("Diff is preview-only; apply changes in IntelliJ under explicit user approval.");
+        if (!exists) {
+            warnings.add("Target file does not exist yet; the diff would create a new file.");
+        }
+        if (containsRawSelenium(snippet)) {
+            warnings.add("Inserted code contains raw Selenium; run test_code_guardrails_check before applying.");
+        }
+        return List.copyOf(warnings);
     }
 
     private static String text(String value) {

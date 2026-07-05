@@ -157,6 +157,59 @@ class HealerServiceTest {
         assertEquals(McpHealerRunResult.Status.FAILED_WITH_SUGGESTIONS, result.status());
     }
 
+    @Test
+    void verifyFocusedPassesAndForcesHeadlessOffline() throws Exception {
+        Path repository = fakeRepository(temp);
+        HealerService service = new HealerService(McpWorkspacePolicy.of(temp),
+                (command, directory, timeout) -> new HealerService.ProcessResult(0, false, "BUILD SUCCESS"));
+
+        McpVerificationResult result = service.verifyFocused(
+                repository.toString(), List.of("mvn", "-q", "test-compile"), false);
+
+        assertEquals("PASSED", result.status());
+        assertEquals(0, result.exitCode());
+        assertTrue(result.command().contains("-DheadlessExecution=true"));
+        assertTrue(result.command().contains("--offline"));
+        assertTrue(result.outputSummary().contains("BUILD SUCCESS"));
+    }
+
+    @Test
+    void verifyFocusedReportsFailureExitCode() throws Exception {
+        Path repository = fakeRepository(temp);
+        HealerService service = new HealerService(McpWorkspacePolicy.of(temp),
+                (command, directory, timeout) -> new HealerService.ProcessResult(1, false, "BUILD FAILURE"));
+
+        McpVerificationResult result = service.verifyFocused(
+                repository.toString(), List.of("mvn", "test-compile"), false);
+
+        assertEquals("FAILED", result.status());
+        assertEquals(1, result.exitCode());
+    }
+
+    @Test
+    void verifyFocusedRejectsReleaseGoals() throws Exception {
+        Path repository = fakeRepository(temp);
+        HealerService service = new HealerService(McpWorkspacePolicy.of(temp),
+                (command, directory, timeout) -> new HealerService.ProcessResult(0, false, "unused"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.verifyFocused(repository.toString(), List.of("mvn", "deploy"), false));
+    }
+
+    @Test
+    void verifyFocusedReportsTimeout() throws Exception {
+        Path repository = fakeRepository(temp);
+        HealerService service = new HealerService(McpWorkspacePolicy.of(temp),
+                (command, directory, timeout) -> new HealerService.ProcessResult(-1, true, "stalled"));
+
+        McpVerificationResult result = service.verifyFocused(
+                repository.toString(), List.of("mvn", "test"), true);
+
+        assertEquals("TIMED_OUT", result.status());
+        assertTrue(result.timedOut());
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("timed out")));
+    }
+
     private HealerService service() {
         return new HealerService(McpWorkspacePolicy.of(temp));
     }

@@ -38,7 +38,7 @@ Analyze populated evidence before changing tests. Separate product defects, test
 - Require a headless, bounded Maven command and workspace-local evidence paths.
 - Do not run cloud/external suites, publish PRs, or use provider advisories unless explicitly approved.
 - Use `shaft_coding_partner_plan.reuseMatches` to keep repairs in the existing page/test owner instead of creating duplicate helper classes.
-- Validate applied fixes with the smallest affected test or compile check.
+- Validate applied fixes with `shaft-mcp:verify_run_focused` using the smallest affected test or compile check; see `verifying-and-applying-shaft-changes`.
 
 ## Official Guide Routes
 

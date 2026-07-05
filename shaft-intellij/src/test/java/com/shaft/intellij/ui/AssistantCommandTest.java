@@ -551,43 +551,37 @@ class AssistantCommandTest {
     }
 
     @Test
-    void commandRegistryShowsOnlyTestedValidCommandFamilies() {
-        List<AssistantCommand.CommandHint> hints = AssistantCommand.commandHints();
-        String tooltip = AssistantCommand.commandTooltip();
+    void commandRegistryExposesCoreByDefaultAndExpertCommandsInExpertMode() {
+        List<String> coreHints = AssistantCommand.commandHints(false).stream()
+                .map(AssistantCommand.CommandHint::canonical).toList();
+        List<String> allHints = AssistantCommand.commandHints(true).stream()
+                .map(AssistantCommand.CommandHint::canonical).toList();
+        String coreTooltip = AssistantCommand.commandTooltip(false);
+        String expertTooltip = AssistantCommand.commandTooltip(true);
 
         assertAll(
-                () -> assertEquals(List.of(
-                                "/codegen",
-                                "/partner",
-                                "/record-web",
-                                "/record-mobile",
-                                "/doctor",
-                                "/guide",
-                                "/guardrails",
-                                "/browser",
-                                "/mobile",
-                                "/upgrade",
-                                "/project"),
-                        hints.stream().map(AssistantCommand.CommandHint::canonical).toList()),
-                () -> assertTrue(tooltip.contains("/codegen")),
-                () -> assertTrue(tooltip.contains("/partner")),
-                () -> assertTrue(tooltip.contains("/record-web")),
-                () -> assertTrue(tooltip.contains("/record-mobile")),
-                () -> assertTrue(tooltip.contains("/doctor")),
-                () -> assertTrue(tooltip.contains("/guide")),
-                () -> assertTrue(tooltip.contains("/guardrails")),
-                () -> assertTrue(tooltip.contains("/browser")),
-                () -> assertTrue(tooltip.contains("/mobile")),
-                () -> assertTrue(tooltip.contains("/upgrade")),
-                () -> assertTrue(tooltip.contains("/project")),
-                () -> assertFalse(tooltip.contains("/commands")),
-                () -> assertFalse(tooltip.contains("/assistant")),
-                () -> assertFalse(tooltip.contains("/mobile-record")),
-                () -> assertFalse(tooltip.contains("Slash commands:")));
+                // default composer shows only the five core entry points
+                () -> assertEquals(List.of("/record-web", "/record-mobile", "/codegen", "/doctor", "/upgrade"),
+                        coreHints),
+                // Expert mode reveals the rest, including the two new commands
+                () -> assertTrue(allHints.containsAll(List.of("/record-web", "/record-mobile", "/codegen", "/doctor",
+                        "/upgrade", "/partner", "/guide", "/guardrails", "/browser", "/mobile", "/project", "/verify",
+                        "/skills"))),
+                () -> assertEquals(AssistantCommand.commandHints().size(), allHints.size()),
+                () -> assertTrue(coreTooltip.contains("/record-web")),
+                () -> assertFalse(coreTooltip.contains("/partner")),
+                () -> assertFalse(coreTooltip.contains("/verify")),
+                () -> assertFalse(coreTooltip.contains("/skills")),
+                () -> assertTrue(expertTooltip.contains("/partner")),
+                () -> assertTrue(expertTooltip.contains("/verify")),
+                () -> assertTrue(expertTooltip.contains("/skills")),
+                () -> assertFalse(expertTooltip.contains("/commands")),
+                () -> assertFalse(expertTooltip.contains("/assistant")),
+                () -> assertFalse(expertTooltip.contains("/mobile-record")));
     }
 
     @Test
-    void commandHelpShowsOnlyTestedValidCommandFamilies() {
+    void commandHelpShowsCoreCommandsAndPointsToExpertMode() {
         AssistantCommand.Invocation help = command("/commands");
         String response = help.localResponse();
 
@@ -597,18 +591,36 @@ class AssistantCommandTest {
                 () -> assertTrue(response.contains("**/record-web**")),
                 () -> assertTrue(response.contains("**/record-mobile**")),
                 () -> assertTrue(response.contains("**/doctor**")),
-                () -> assertTrue(response.contains("**/guide**")),
-                () -> assertTrue(response.contains("**/guardrails**")),
-                () -> assertTrue(response.contains("**/browser**")),
-                () -> assertTrue(response.contains("**/mobile**")),
                 () -> assertTrue(response.contains("**/upgrade**")),
-                () -> assertTrue(response.contains("**/project**")),
+                // expert commands are not shown as sections in the default help
+                () -> assertFalse(response.contains("**/guide**")),
+                () -> assertFalse(response.contains("**/partner**")),
+                // but the Expert-mode footer names them
+                () -> assertTrue(response.contains("Expert mode")),
+                () -> assertTrue(response.contains("/verify")),
+                () -> assertTrue(response.contains("/skills")),
                 () -> assertTrue(response.contains("```text\n/codegen recordings/intellij-capture.json\n```")),
                 () -> assertTrue(response.contains("```text\n/record-web https://example.com\n```")),
                 () -> assertTrue(response.contains("```text\n/upgrade .\n```")),
-                () -> assertFalse(response.contains("Example: /codegen")),
                 () -> assertFalse(response.contains("/commands -")),
                 () -> assertFalse(response.contains("/assistant -")));
+    }
+
+    @Test
+    void verifyCommandRoutesToGuardedFocusedVerification() {
+        assertEquals("verify_run_focused", command("/verify mvn -q test-compile").toolName());
+        assertEquals("verify_run_focused", command("/verify").toolName());
+        assertEquals("verify_run_focused", command("/check").toolName());
+    }
+
+    @Test
+    void skillsCommandListsAuthoringSkills() {
+        AssistantCommand.Invocation invocation = command("/skills");
+        assertAll(
+                () -> assertTrue(invocation.isLocal()),
+                () -> assertTrue(invocation.localResponse().contains("$writing-shaft-tests")),
+                () -> assertTrue(invocation.localResponse().contains("$choosing-shaft-locators")),
+                () -> assertTrue(invocation.localResponse().contains("$verifying-and-applying-shaft-changes")));
     }
 
     @Test

@@ -246,11 +246,11 @@ final class ShaftAssistantPanel extends JPanel {
             updatingCommandAutocomplete = false;
         }
         commandInfo = button("Commands", "SHAFT command hints",
-                event -> showLocalResponse(AssistantCommand.commandHelp()));
+                event -> showLocalResponse(AssistantCommand.commandHelp(expertEnabled())));
         commandInfo.getAccessibleContext().setAccessibleDescription(
                 "Shows the supported SHAFT Assistant command families in the command menu.");
         ShaftIconButtons.apply(commandInfo, ShaftIcons.HELP);
-        commandInfo.setToolTipText(AssistantCommand.commandTooltip());
+        commandInfo.setToolTipText(AssistantCommand.commandTooltip(expertEnabled()));
         contextInfo = button("Context", "Assistant context suggestions",
                 event -> showContextSuggestions('@'));
         contextInfo.getAccessibleContext().setAccessibleDescription(
@@ -570,10 +570,14 @@ final class ShaftAssistantPanel extends JPanel {
         return List.of();
     }
 
-    private static List<ContextSuggestion> commandContextSuggestions() {
-        return AssistantCommand.commandHints().stream()
+    private List<ContextSuggestion> commandContextSuggestions() {
+        return AssistantCommand.commandHints(expertEnabled()).stream()
                 .map(hint -> new ContextSuggestion(hint.canonical(), hint.example()))
                 .toList();
+    }
+
+    private boolean expertEnabled() {
+        return settings != null && settings.advancedUiEnabled;
     }
 
     private static List<ContextSuggestion> workflowContextSuggestions() {
@@ -819,28 +823,43 @@ final class ShaftAssistantPanel extends JPanel {
             Throwable error) {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
-        String output = error != null ? error.getMessage()
-                : result == null ? "No result returned."
-                : result.output();
+        String output = resolveOutput(result, error, "No result returned.");
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
         if (rejectedGeneratedJava) {
-            sequenceMarkdown.append("### ")
-                    .append(toolCall.toolName())
-                    .append(" rejected")
-                    .append("\n\n")
-                    .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
-                    .append("\n\n");
-            setRunning(false, "Rejected generated code");
-            addTimeline("Failed");
-            showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
-                    sequenceRawOutput.toString());
-            clearSequenceState();
+            showRejectedSequenceResult(toolCall, output);
             return;
         }
         if (!output.isBlank()) {
             appendToolEvidence(toolCall.toolName(), output);
         }
-        String statusText = cancelled ? "cancelled" : success ? "OK" : "failed";
+        String statusText = sequenceStatusText(cancelled, success);
+        appendSequenceStep(toolCall, statusText, output);
+        if (cancelled || !success) {
+            showTerminalSequenceResult(cancelled, statusText);
+            return;
+        }
+        runNextSequenceCall(index + 1);
+    }
+
+    private void showRejectedSequenceResult(AssistantCommand.ToolCall toolCall, String output) {
+        sequenceMarkdown.append("### ")
+                .append(toolCall.toolName())
+                .append(" rejected")
+                .append("\n\n")
+                .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
+                .append("\n\n");
+        setRunning(false, "Rejected generated code");
+        addTimeline("Failed");
+        showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
+                sequenceRawOutput.toString());
+        clearSequenceState();
+    }
+
+    private static String sequenceStatusText(boolean cancelled, boolean success) {
+        return cancelled ? "cancelled" : success ? "OK" : "failed";
+    }
+
+    private void appendSequenceStep(AssistantCommand.ToolCall toolCall, String statusText, String output) {
         sequenceMarkdown.append("### ")
                 .append(toolCall.toolName())
                 .append(" ")
@@ -853,15 +872,14 @@ final class ShaftAssistantPanel extends JPanel {
                 .append("\n")
                 .append(output)
                 .append("\n\n");
-        if (cancelled || !success) {
-            setRunning(false, cancelled ? "Cancelled" : "Failed");
-            addTimeline(cancelled ? "Cancelled" : "Failed");
-            showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
-                    sequenceRawOutput.toString());
-            clearSequenceState();
-            return;
-        }
-        runNextSequenceCall(index + 1);
+    }
+
+    private void showTerminalSequenceResult(boolean cancelled, String statusText) {
+        setRunning(false, cancelled ? "Cancelled" : "Failed");
+        addTimeline(cancelled ? "Cancelled" : "Failed");
+        showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
+                sequenceRawOutput.toString());
+        clearSequenceState();
     }
 
     private void clearSequenceState() {
@@ -951,64 +969,103 @@ final class ShaftAssistantPanel extends JPanel {
     private void showResult(String toolName, ShaftMcpToolResult result, Throwable error) {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
-        boolean isMcpConnectionCheck = "mcp initialize".equals(toolName);
-        setRunning(false, success ? (isMcpConnectionCheck ? "MCP test passed" : READY_STATUS) : "Failed");
-        if (isMcpConnectionCheck && success) {
-            showTransientStatus("MCP test passed. Ready to chat.");
-        }
+        updateMcpConnectionCheckStatus(toolName, success);
         if (cancelled) {
-            addTimeline("Cancelled");
-            if (isRecordingCodeReviewTool(toolName) && captureReviewGenerationRunning) {
-                captureReviewGenerationRunning = false;
-                clearPendingCaptureReview();
-            }
-            showResponse("**SHAFT Assistant (" + toolName + " cancelled)**", "");
-            setStatus("Cancelled");
+            showCancelledToolResult(toolName);
             return;
         }
-        String output = error != null ? error.getMessage()
-                : result == null ? "No result returned."
-                : result.output();
+        String output = resolveOutput(result, error, "No result returned.");
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
         if (!output.isBlank() && !rejectedGeneratedJava) {
             appendToolEvidence(toolName, output);
         }
         String markdown = AssistantMarkdown.fromMcpOutput(toolName, output);
         if (rejectedGeneratedJava) {
-            if (captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
-                captureReviewGenerationRunning = false;
-            }
-            showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "");
-            setStatus("Rejected generated code");
-            addTimeline("Failed");
+            showRejectedToolResult(toolName, markdown);
             return;
         }
-        if (!success && captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
-            captureReviewGenerationRunning = false;
-        }
-        if (success && captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
-            captureReviewGenerationRunning = false;
-            pendingCaptureReview = new CaptureReview(markdown, output);
-            showPendingCaptureReview();
-            showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n"
-                    + markdown
-                    + "\n\n**Review before writing files.** Send `approve`, `okay`, or `generate` to let the Agent create the actual Page Object Model files.",
-                    output);
-            setStatus("Awaiting approval");
-            addTimeline("Waiting for approval");
+        if (showCaptureReviewApprovalIfPending(toolName, success, markdown, output)) {
             return;
         }
-        if (success && generateCaptureReviewAfterStop
-                && ("capture_stop".equals(toolName) || "playwright_record_stop".equals(toolName))) {
-            stopCaptureStartDiagnostic();
-            showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n" + markdown, output);
-            startCaptureCodeReview();
+        if (showCaptureStopDiagnosticIfPending(toolName, success, markdown, output)) {
             return;
         }
         if (success && formatUnknownResponse(toolName, output, markdown)) {
             addTimeline("Completed");
             return;
         }
+        showFinalToolResult(toolName, success, markdown, output);
+    }
+
+    private void updateMcpConnectionCheckStatus(String toolName, boolean success) {
+        boolean isMcpConnectionCheck = "mcp initialize".equals(toolName);
+        setRunning(false, success ? (isMcpConnectionCheck ? "MCP test passed" : READY_STATUS) : "Failed");
+        if (isMcpConnectionCheck && success) {
+            showTransientStatus("MCP test passed. Ready to chat.");
+        }
+    }
+
+    private static String resolveOutput(ShaftMcpToolResult result, Throwable error, String noResultFallback) {
+        if (error != null) {
+            return AssistantMarkdown.humanizeError(error);
+        }
+        return result == null ? noResultFallback : result.output();
+    }
+
+    private void showCancelledToolResult(String toolName) {
+        addTimeline("Cancelled");
+        if (isRecordingCodeReviewTool(toolName) && captureReviewGenerationRunning) {
+            captureReviewGenerationRunning = false;
+            clearPendingCaptureReview();
+        }
+        showResponse("**SHAFT Assistant (" + toolName + " cancelled)**", "");
+        setStatus("Cancelled");
+    }
+
+    private void showRejectedToolResult(String toolName, String markdown) {
+        if (captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName)) {
+            captureReviewGenerationRunning = false;
+        }
+        showResponse("**SHAFT Assistant (" + toolName + " rejected)**\n\n" + markdown, "");
+        setStatus("Rejected generated code");
+        addTimeline("Failed");
+    }
+
+    private boolean showCaptureReviewApprovalIfPending(
+            String toolName, boolean success, String markdown, String output) {
+        boolean isCaptureReviewTool = captureReviewGenerationRunning && isRecordingCodeReviewTool(toolName);
+        if (!success && isCaptureReviewTool) {
+            captureReviewGenerationRunning = false;
+            return false;
+        }
+        if (!success || !isCaptureReviewTool) {
+            return false;
+        }
+        captureReviewGenerationRunning = false;
+        pendingCaptureReview = new CaptureReview(markdown, output);
+        showPendingCaptureReview();
+        showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n"
+                + markdown
+                + "\n\n**Review before writing files.** Send `approve`, `okay`, or `generate` to let the Agent create the actual Page Object Model files.",
+                output);
+        setStatus("Awaiting approval");
+        addTimeline("Waiting for approval");
+        return true;
+    }
+
+    private boolean showCaptureStopDiagnosticIfPending(
+            String toolName, boolean success, String markdown, String output) {
+        boolean isCaptureStopTool = "capture_stop".equals(toolName) || "playwright_record_stop".equals(toolName);
+        if (!success || !generateCaptureReviewAfterStop || !isCaptureStopTool) {
+            return false;
+        }
+        stopCaptureStartDiagnostic();
+        showResponse("**SHAFT Assistant (" + toolName + " OK)**\n\n" + markdown, output);
+        startCaptureCodeReview();
+        return true;
+    }
+
+    private void showFinalToolResult(String toolName, boolean success, String markdown, String output) {
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
                 + markdown, output);
         addTimeline(success ? "Completed" : "Failed");
@@ -1022,37 +1079,49 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showAgentResult(int streamToken, ShaftMcpToolResult result, Throwable error) {
+        if (handleKilledOrStaleAgentStream(streamToken)) {
+            return;
+        }
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
         boolean currentStream = streamToken == activeLocalAgentStreamToken;
-        if (streamToken > 0 && streamToken == killedLocalAgentStreamToken) {
-            killedLocalAgentStreamToken = -1;
-            setRunning(false, "Killed");
-            return;
-        }
-        if (streamToken > 0 && !currentStream && activeLocalAgentStreamToken != -1) {
-            return;
-        }
         localAgentOutput = null;
         if (currentStream) {
             activeLocalAgentStreamToken = -1;
         }
         setRunning(false, success ? READY_STATUS : "Failed");
-        if (captureIntegrationRunning) {
-            if (success) {
-                clearPendingCaptureReview();
-            }
-            captureIntegrationRunning = false;
-        }
+        finishCaptureIntegrationIfRunning(success);
         if (cancelled) {
             addTimeline("Cancelled");
             showAgentCancelled(streamToken, currentStream);
             setStatus("Cancelled");
             return;
         }
-        String output = error != null ? error.getMessage()
-                : result == null ? "No response returned."
-                : result.output();
+        showAgentToolResult(streamToken, currentStream, success, result, error);
+    }
+
+    private boolean handleKilledOrStaleAgentStream(int streamToken) {
+        if (streamToken > 0 && streamToken == killedLocalAgentStreamToken) {
+            killedLocalAgentStreamToken = -1;
+            setRunning(false, "Killed");
+            return true;
+        }
+        return streamToken > 0 && streamToken != activeLocalAgentStreamToken && activeLocalAgentStreamToken != -1;
+    }
+
+    private void finishCaptureIntegrationIfRunning(boolean success) {
+        if (!captureIntegrationRunning) {
+            return;
+        }
+        if (success) {
+            clearPendingCaptureReview();
+        }
+        captureIntegrationRunning = false;
+    }
+
+    private void showAgentToolResult(
+            int streamToken, boolean currentStream, boolean success, ShaftMcpToolResult result, Throwable error) {
+        String output = resolveOutput(result, error, "No response returned.");
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
         if (!output.isBlank() && !rejectedGeneratedJava) {
             appendToolEvidence("autobot_local_agent_run", output);
@@ -1387,7 +1456,7 @@ final class ShaftAssistantPanel extends JPanel {
     private void filterCommandItems(String prefix) {
         String typed = prefix == null ? "" : prefix.trim();
         String lower = typed.toLowerCase(Locale.ROOT);
-        String[] items = AssistantCommand.commandHints().stream()
+        String[] items = AssistantCommand.commandHints(expertEnabled()).stream()
                 .map(AssistantCommand.CommandHint::canonical)
                 .filter(command -> lower.isBlank()
                         || "/".equals(lower)
@@ -1942,7 +2011,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private static String captureReviewSummary(String markdown) {
         int codeBlocks = count(markdown, "```") / 2;
-        boolean warnings = markdown != null && markdown.contains("**Warnings**");
+        boolean warnings = markdown != null && markdown.contains("Warnings**");
         StringBuilder summary = new StringBuilder("Capture review ready");
         if (codeBlocks > 0) {
             summary.append(": ").append(codeBlocks).append(codeBlocks == 1 ? " code block" : " code blocks");
@@ -1973,7 +2042,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         JsonElement warnings = statusJson.get("warnings");
         if (warnings != null && warnings.isJsonArray() && !warnings.getAsJsonArray().isEmpty()) {
-            markdown.append("\n\n**Warnings**");
+            markdown.append("\n\n**⚠️ Warnings**");
             for (JsonElement warning : warnings.getAsJsonArray()) {
                 if (warning.isJsonPrimitive()) {
                     markdown.append("\n- ").append(warning.getAsString());
@@ -2032,8 +2101,8 @@ final class ShaftAssistantPanel extends JPanel {
         return combo;
     }
 
-    private static String[] commandItems() {
-        return AssistantCommand.commandHints().stream()
+    private String[] commandItems() {
+        return AssistantCommand.commandHints(expertEnabled()).stream()
                 .map(AssistantCommand.CommandHint::canonical)
                 .toArray(String[]::new);
     }

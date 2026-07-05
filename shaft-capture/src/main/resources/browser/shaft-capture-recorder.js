@@ -1478,7 +1478,13 @@
     if (event.shiftKey) modifiers.push("SHIFT");
     const key = String(event.key || "");
     const named = key.length > 1 && !["Shift", "Control", "Alt", "Meta"].includes(key);
-    if (!named && modifiers.length === 0) return;
+    // Shift alone (capital letters, shifted symbols like "!" or "@") produces a normal
+    // printable character already captured by the "input" listener; only Ctrl/Meta, or
+    // Ctrl+Alt held together (AltGr text composition on some layouts), read as a real
+    // shortcut here, so typing a sentence does not fragment into one action per shifted
+    // character and does not flush the in-progress "input" merge early.
+    const hasShortcutModifier = event.metaKey || (event.ctrlKey !== event.altKey);
+    if (!named && !hasShortcutModifier) return;
     emit("keyboard", event, {keys: [...modifiers, key.toUpperCase()]});
   }, true);
   addEventListener("pagehide", persist, true);

@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 /**
  * Converts Assistant and MCP payloads into Markdown suitable for display.
@@ -20,10 +23,53 @@ final class AssistantMarkdown {
     private static final Set<String> KNOWN_TOOLS = Set.of(
             "autobot_local_agent_clients",
             "autobot_local_agent_run",
-            "autobot_provider_chat");
+            "autobot_provider_chat",
+            "autobot_provider_status",
+            "shaft_coding_partner_diff",
+            "verify_run_focused");
+    private static final Pattern EXCEPTION_CLASS_PREFIX = Pattern.compile(
+            "^(?:[a-zA-Z_$][\\w$]*\\.)+[A-Za-z_$][\\w$]*(?:Exception|Error)\\s*:\\s*");
 
     private AssistantMarkdown() {
         throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Turns a failed tool/agent invocation's exception into a plain-language message.
+     *
+     * <p>Unwraps common async-completion wrappers, strips a leading fully-qualified exception
+     * class name when the underlying message already reads as plain text, and always returns a
+     * non-blank result so callers never need to null-check before rendering it.</p>
+     *
+     * @param error the failure, or null
+     * @return a safe, human-readable message
+     */
+    static String humanizeError(Throwable error) {
+        if (error == null) {
+            return "";
+        }
+        Throwable cause = rootCause(error);
+        String message = cause.getMessage();
+        if (message == null || message.isBlank()) {
+            return "SHAFT Assistant hit an unexpected " + simpleName(cause)
+                    + ". Check the SHAFT MCP connection in Settings, then try again.";
+        }
+        String cleaned = EXCEPTION_CLASS_PREFIX.matcher(message.strip()).replaceFirst("");
+        return cleaned.isBlank() ? message.strip() : cleaned;
+    }
+
+    private static Throwable rootCause(Throwable error) {
+        Throwable current = error;
+        while ((current instanceof CompletionException || current instanceof ExecutionException)
+                && current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private static String simpleName(Throwable error) {
+        String name = error.getClass().getSimpleName();
+        return name.isBlank() ? "error" : name;
     }
 
     static String fromMcpOutput(String output) {
@@ -97,6 +143,9 @@ final class AssistantMarkdown {
             case "autobot_local_agent_clients" -> clientsMarkdown(parsed);
             case "autobot_local_agent_run" -> localAgentMarkdown(parsed);
             case "autobot_provider_chat" -> providerChatMarkdown(parsed);
+            case "autobot_provider_status" -> providerStatusMarkdown(parsed);
+            case "shaft_coding_partner_diff" -> codingPartnerDiffMarkdown(parsed);
+            case "verify_run_focused" -> verifyMarkdown(parsed);
             default -> "";
         };
     }
@@ -168,25 +217,166 @@ final class AssistantMarkdown {
         }
         List<String> sections = new ArrayList<>();
         String answer = string(response, "answer", "");
-        if (!answer.isBlank()) {
-            sections.add(normalizeMarkdown(answer));
-        }
+        String summary = string(response, "summary", "");
+        boolean hasCodeBlocks = hasNonEmptyCodeBlocks(response);
+        appendProviderChatContent(sections, response, answer, summary, hasCodeBlocks);
         sections.add(metadataLine(
                 "Status", string(response, "status", ""),
                 "Provider", string(response, "provider", ""),
                 "Model", string(response, "model", ""),
                 "Mode", string(response, "mode", "")));
         String warnings = warnings(response);
+        String fallback = string(response, "fallbackReason", "");
+        appendProviderChatFooter(sections, warnings, fallback);
+        if (isEmptyProviderChatResponse(answer, summary, warnings, fallback, hasCodeBlocks)) {
+            sections.add("_No answer returned._");
+        }
+        return joinSections(sections);
+    }
+
+    private static void appendProviderChatContent(
+            List<String> sections, JsonObject response, String answer, String summary, boolean hasCodeBlocks) {
+        if (!answer.isBlank()) {
+            sections.add(normalizeMarkdown(answer));
+        }
+        if (!summary.isBlank()) {
+            sections.add("**Summary:** " + summary);
+        }
+        if (hasCodeBlocks) {
+            appendNonBlank(sections, providerCodeBlocksMarkdown(response.getAsJsonArray("codeBlocks")));
+        }
+        appendNonBlank(sections, bulletList("Cited SHAFT guides", response, "citedGuideUrls"));
+        appendNonBlank(sections, bulletList("Unverified locator assumptions", response, "locatorAssumptions"));
+        String guardrailStatus = string(response, "guardrailStatus", "");
+        if (!guardrailStatus.isBlank() && !"NOT_CHECKED".equals(guardrailStatus)) {
+            sections.add("**Guardrails:** " + guardrailStatus);
+        }
+    }
+
+    private static void appendProviderChatFooter(List<String> sections, String warnings, String fallback) {
         if (!warnings.isBlank()) {
             sections.add(warnings);
         }
-        String fallback = string(response, "fallbackReason", "");
         if (!fallback.isBlank()) {
             sections.add("**Fallback reason:** " + fallback);
         }
-        if (answer.isBlank() && warnings.isBlank() && fallback.isBlank()) {
-            sections.add("_No answer returned._");
+    }
+
+    private static boolean hasNonEmptyCodeBlocks(JsonObject response) {
+        return response.has("codeBlocks") && response.get("codeBlocks").isJsonArray()
+                && !response.getAsJsonArray("codeBlocks").isEmpty();
+    }
+
+    private static boolean isEmptyProviderChatResponse(
+            String answer, String summary, String warnings, String fallback, boolean hasCodeBlocks) {
+        return answer.isBlank() && summary.isBlank() && warnings.isBlank() && fallback.isBlank() && !hasCodeBlocks;
+    }
+
+    private static String providerCodeBlocksMarkdown(JsonArray blocks) {
+        List<String> sections = new ArrayList<>();
+        for (JsonElement item : blocks) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = item.getAsJsonObject();
+            String code = string(block, "code", "");
+            if (code.isBlank()) {
+                continue;
+            }
+            String path = string(block, "path", "");
+            String anchor = string(block, "insertionAnchor", "");
+            StringBuilder header = new StringBuilder();
+            if (!path.isBlank()) {
+                header.append('`').append(path).append('`');
+            }
+            if (!anchor.isBlank()) {
+                header.append(header.length() > 0 ? " after `" : "After `").append(anchor).append('`');
+            }
+            if (header.length() > 0) {
+                sections.add("**" + header + "**");
+            }
+            sections.add(fence(string(block, "language", "java"), code));
         }
+        return joinSections(sections);
+    }
+
+    private static String providerStatusMarkdown(JsonElement parsed) {
+        if (!parsed.isJsonObject()) {
+            return "";
+        }
+        JsonObject object = parsed.getAsJsonObject();
+        if (!object.has("provider") || !object.has("apiKeyPresent")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Provider", string(object, "provider", ""),
+                "Model", string(object, "model", "")));
+        sections.add(metadataLine(
+                "API key", booleanValue(object, "apiKeyPresent") ? "present" : "missing",
+                "Structured output", booleanValue(object, "structuredOutputSupported") ? "yes" : "no",
+                "Modes", string(object, "supportedModes", "")));
+        appendNonBlank(sections, warnings(object));
+        return joinSections(sections);
+    }
+
+    private static String codingPartnerDiffMarkdown(JsonElement parsed) {
+        if (!parsed.isJsonObject()) {
+            return "";
+        }
+        JsonObject object = parsed.getAsJsonObject();
+        if (!object.has("unifiedDiff") || !object.has("targetSourcePath")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        String anchor = string(object, "insertionAnchor", "");
+        sections.add(metadataLine(
+                "Patch preview", "`" + string(object, "targetSourcePath", "") + "`",
+                "Anchor", anchor.isBlank() ? "class end" : "`" + anchor + "`",
+                "Adds", string(object, "insertedLineCount", "0") + " line(s)"));
+        String diff = string(object, "unifiedDiff", "");
+        if (!diff.isBlank()) {
+            sections.add(fence("diff", clip(diff, 8_000)));
+        }
+        appendNonBlank(sections, warnings(object));
+        sections.add("_Review the diff, then apply it in IntelliJ under approval and run `/verify`._");
+        return joinSections(sections);
+    }
+
+    private static String verifyMarkdown(JsonElement parsed) {
+        if (!parsed.isJsonObject()) {
+            return "";
+        }
+        JsonObject object = parsed.getAsJsonObject();
+        if (!object.has("status") || !object.has("command")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        String status = string(object, "status", "");
+        String icon = switch (status) {
+            case "PASSED" -> "✅";
+            case "TIMED_OUT" -> "⏳";
+            default -> "❌";
+        };
+        sections.add(metadataLine(
+                "Verification", icon + " " + status,
+                "Exit", string(object, "exitCode", "")));
+        if (object.has("command") && object.get("command").isJsonArray()) {
+            StringBuilder command = new StringBuilder();
+            for (JsonElement token : object.getAsJsonArray("command")) {
+                if (token.isJsonPrimitive()) {
+                    command.append(token.getAsString()).append(' ');
+                }
+            }
+            if (command.length() > 0) {
+                sections.add("**Command:** `" + command.toString().trim() + "`");
+            }
+        }
+        String output = string(object, "outputSummary", "");
+        if (!output.isBlank()) {
+            sections.add(fence("text", clip(output, 4_000)));
+        }
+        appendNonBlank(sections, warnings(object));
         return joinSections(sections);
     }
 
@@ -727,16 +917,23 @@ final class AssistantMarkdown {
 
     private static String captureStatusMarkdown(JsonObject object) {
         List<String> sections = new ArrayList<>();
+        String state = string(object, "state", "");
+        String readiness = string(object, "readiness", "");
         sections.add(metadataLine(
-                "State", string(object, "state", ""),
+                "State", state,
                 "Browser", string(object, "browser", ""),
-                "Readiness", string(object, "readiness", ""),
+                "Readiness", readinessIcon(readiness) + " " + readiness,
                 "Events", string(object, "eventCount", ""),
                 "Process", string(object, "processId", "")));
+        if ("INCOMPLETE".equalsIgnoreCase(state)) {
+            sections.add("_This recording was interrupted before it was stopped, but every action captured so"
+                    + " far was already saved to disk — nothing was lost. Review it, generate code from it,"
+                    + " or start a new recording._");
+        }
         String outputPath = string(object, "outputPath", "");
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
-            if ("COMPLETED".equalsIgnoreCase(string(object, "state", ""))) {
+            if ("COMPLETED".equalsIgnoreCase(state)) {
                 sections.add("Run codegen next:\n\n" + fence("text", "/codegen " + outputPath));
             }
         }
@@ -749,6 +946,15 @@ final class AssistantMarkdown {
             sections.add(warnings);
         }
         return joinSections(sections);
+    }
+
+    private static String readinessIcon(String readiness) {
+        return switch (readiness == null ? "" : readiness.toUpperCase(Locale.ROOT)) {
+            case "READY" -> "✅";
+            case "RISKY" -> "⚠️";
+            case "BLOCKED" -> "⛔";
+            default -> "";
+        };
     }
 
     private static String toolsMarkdown(JsonArray tools) {
@@ -971,7 +1177,7 @@ final class AssistantMarkdown {
         if (warnings == null || !warnings.isJsonArray() || warnings.getAsJsonArray().isEmpty()) {
             return "";
         }
-        StringBuilder markdown = new StringBuilder("**Warnings**");
+        StringBuilder markdown = new StringBuilder("**⚠️ Warnings**");
         for (JsonElement warning : warnings.getAsJsonArray()) {
             if (warning.isJsonPrimitive()) {
                 markdown.append("\n- ").append(warning.getAsString());

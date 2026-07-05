@@ -19,7 +19,9 @@ Write SHAFT tests from official guide evidence and current repo patterns. Prefer
 6. If actions or locators are missing, record the complete flow, then insert only the missing fields/methods into the planned source anchors.
 7. Write code using SHAFT syntax only; do not invent APIs from memory.
 8. Run `shaft-mcp:test_code_guardrails_check` on generated Java before finalizing.
-9. Validate with the smallest affected test or compile check available.
+9. Preview the insertion with `shaft-mcp:shaft_coding_partner_diff`, apply it under
+   explicit approval in IntelliJ, then verify with `shaft-mcp:verify_run_focused`
+   using the plan's focused command. See `verifying-and-applying-shaft-changes`.
 
 ## SHAFT Defaults
 

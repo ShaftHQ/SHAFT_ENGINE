@@ -20,11 +20,13 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -40,6 +42,7 @@ public class AutobotService {
     private final McpWorkspacePolicy workspacePolicy;
     private final LocalAgentService localAgentService;
     private final Function<AiRequest, AiResponse> aiExecutor;
+    private final Function<String, String> environmentReader;
 
     /**
      * Creates the default Autobot MCP adapter.
@@ -56,9 +59,18 @@ public class AutobotService {
             McpWorkspacePolicy workspacePolicy,
             LocalAgentService localAgentService,
             Function<AiRequest, AiResponse> aiExecutor) {
+        this(workspacePolicy, localAgentService, aiExecutor, System::getenv);
+    }
+
+    AutobotService(
+            McpWorkspacePolicy workspacePolicy,
+            LocalAgentService localAgentService,
+            Function<AiRequest, AiResponse> aiExecutor,
+            Function<String, String> environmentReader) {
         this.workspacePolicy = Objects.requireNonNull(workspacePolicy, "workspacePolicy");
         this.localAgentService = Objects.requireNonNull(localAgentService, "localAgentService");
         this.aiExecutor = Objects.requireNonNull(aiExecutor, "aiExecutor");
+        this.environmentReader = Objects.requireNonNull(environmentReader, "environmentReader");
     }
 
     /**
@@ -146,7 +158,7 @@ public class AutobotService {
         String normalizedProvider = normalizeProvider(provider);
         try {
             configureProvider(normalizedProvider, model);
-            AiRequest request = AiRequest.builder("autobot-provider-chat", answerSchema())
+            AiRequest request = AiRequest.builder("autobot-provider-chat", codegenSchema())
                     .text(prompt == null ? "" : prompt)
                     .approvalPolicy(new ApprovalPolicy(false, true, EnumSet.of(EvidenceCategory.TEXT)))
                     .budget(new AiBudget(8_000, 2_000, BigDecimal.ZERO))
@@ -154,12 +166,19 @@ public class AutobotService {
                     .deterministicFallback(JSON.createObjectNode().put("answer", ""))
                     .build();
             AiResponse response = aiExecutor.apply(request);
+            JsonNode payload = response.structuredPayload();
+            List<AutobotCodeBlock> codeBlocks = parseCodeBlocks(payload.path("codeBlocks"));
             return new AutobotProviderChatResponse(
                     response.status().name(),
                     response.provider().isBlank() ? normalizedProvider : response.provider(),
                     response.model().isBlank() ? model : response.model(),
                     normalizedMode,
-                    response.structuredPayload().path("answer").asText(""),
+                    payload.path("answer").asText(""),
+                    payload.path("summary").asText(""),
+                    codeBlocks,
+                    stringList(payload.path("citedGuideUrls")),
+                    stringList(payload.path("locatorAssumptions")),
+                    guardrailStatus(codeBlocks),
                     response.warnings(),
                     response.duration(),
                     response.fallbackReason());
@@ -168,12 +187,154 @@ public class AutobotService {
         }
     }
 
-    private static JsonNode answerSchema() {
+    /**
+     * Reports the configured SHAFT cloud provider readiness for the IntelliJ status view.
+     *
+     * <p>Never exposes the API key value; only whether the provider key is present in the environment.</p>
+     *
+     * @param provider provider identifier: openai, anthropic, gemini, or github
+     * @param model configured model, or blank when none is set
+     * @return read-only provider status
+     */
+    @Tool(name = "autobot_provider_status",
+            description = "reports the configured SHAFT cloud provider, model, API-key presence (never the value),"
+                    + " and structured-output support for the IntelliJ readiness view")
+    public AutobotProviderStatus providerStatus(String provider, String model) {
+        String normalizedProvider = normalizeProvider(provider);
+        String environmentVariable = keyEnvironmentVariable(normalizedProvider);
+        boolean keyPresent = !environmentVariable.isBlank()
+                && !text(environmentReader.apply(environmentVariable)).isBlank();
+        boolean structuredOutput = structuredOutputSupported(normalizedProvider);
+        String effectiveModel = text(model);
+        List<String> warnings = new ArrayList<>();
+        if (environmentVariable.isBlank()) {
+            warnings.add("Unknown provider '" + normalizedProvider
+                    + "'; expected openai, anthropic, gemini, or github.");
+        } else if (!keyPresent) {
+            warnings.add("No API key detected in " + environmentVariable + "; store the " + normalizedProvider
+                    + " key in SHAFT settings and enable passing provider keys to MCP.");
+        }
+        if (effectiveModel.isBlank()) {
+            warnings.add("No model configured; set a " + normalizedProvider + " model in SHAFT settings.");
+        }
+        if (!structuredOutput && !environmentVariable.isBlank()) {
+            warnings.add("Provider does not advertise JSON-schema structured output.");
+        }
+        return new AutobotProviderStatus(
+                "1.0",
+                normalizedProvider,
+                effectiveModel,
+                keyPresent,
+                environmentVariable,
+                structuredOutput,
+                "ASK, PLAN",
+                List.copyOf(warnings));
+    }
+
+    private static JsonNode codegenSchema() {
         var schema = JSON.createObjectNode().put("type", "object");
-        schema.set("properties", JSON.createObjectNode()
-                .set("answer", JSON.createObjectNode().put("type", "string")));
+        var properties = JSON.createObjectNode();
+        properties.set("answer", stringSchema("Concise natural-language answer or summary of the change."));
+        properties.set("summary", stringSchema("One-line summary of what the generated SHAFT code does."));
+        var codeBlock = JSON.createObjectNode().put("type", "object");
+        var blockProperties = JSON.createObjectNode();
+        blockProperties.set("language", stringSchema("Code language, usually java."));
+        blockProperties.set("path", stringSchema("Repository-relative target file path, or empty."));
+        blockProperties.set("insertionAnchor",
+                stringSchema("Existing method or textual anchor to insert after, or empty."));
+        blockProperties.set("code", stringSchema("SHAFT-syntax code without Markdown fences."));
+        codeBlock.set("properties", blockProperties);
+        codeBlock.putArray("required").add("code");
+        var codeBlocks = JSON.createObjectNode().put("type", "array");
+        codeBlocks.put("description", "Reviewed SHAFT-syntax code blocks ready for preview and apply.");
+        codeBlocks.set("items", codeBlock);
+        properties.set("codeBlocks", codeBlocks);
+        properties.set("citedGuideUrls",
+                stringArraySchema("Official SHAFT guide URLs that back the generated APIs."));
+        properties.set("locatorAssumptions",
+                stringArraySchema("Locator assumptions that were not verified in a live browser."));
+        schema.set("properties", properties);
         schema.putArray("required").add("answer");
         return schema;
+    }
+
+    private static JsonNode stringSchema(String description) {
+        return JSON.createObjectNode().put("type", "string").put("description", description);
+    }
+
+    private static JsonNode stringArraySchema(String description) {
+        var array = JSON.createObjectNode().put("type", "array").put("description", description);
+        array.set("items", JSON.createObjectNode().put("type", "string"));
+        return array;
+    }
+
+    private static List<AutobotCodeBlock> parseCodeBlocks(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        List<AutobotCodeBlock> blocks = new ArrayList<>();
+        for (JsonNode block : node) {
+            String code = block.path("code").asText("");
+            if (code.isBlank()) {
+                continue;
+            }
+            blocks.add(new AutobotCodeBlock(
+                    block.path("language").asText("java"),
+                    block.path("path").asText(""),
+                    block.path("insertionAnchor").asText(""),
+                    code));
+        }
+        return List.copyOf(blocks);
+    }
+
+    private static List<String> stringList(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode item : node) {
+            String value = item.asText("");
+            if (!value.isBlank()) {
+                values.add(value.trim());
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    private static String guardrailStatus(List<AutobotCodeBlock> blocks) {
+        List<String> codes = blocks.stream()
+                .map(AutobotCodeBlock::code)
+                .filter(value -> !value.isBlank())
+                .toList();
+        if (codes.isEmpty()) {
+            return "NOT_CHECKED";
+        }
+        McpCodeGuardrailResult result = new TestAutomationService().checkGeneratedCode("java", String.join("\n", codes));
+        if (result.passed()) {
+            return "PASSED";
+        }
+        long errors = result.violations().stream()
+                .filter(violation -> "ERROR".equals(violation.severity()))
+                .count();
+        return "VIOLATIONS: " + errors + " error(s)";
+    }
+
+    private static String keyEnvironmentVariable(String provider) {
+        return switch (provider) {
+            case "openai" -> "OPENAI_API_KEY";
+            case "anthropic" -> "ANTHROPIC_API_KEY";
+            case "gemini" -> "GEMINI_API_KEY";
+            case "github" -> "GITHUB_TOKEN";
+            default -> "";
+        };
+    }
+
+    private static boolean structuredOutputSupported(String provider) {
+        return Set.of("openai", "anthropic", "gemini", "github").contains(provider);
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private static void configureProvider(String provider, String model) {

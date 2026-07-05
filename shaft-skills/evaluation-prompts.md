@@ -29,3 +29,10 @@ Use these prompts through IntelliJ Assistant `/partner` or Guided `Plan coding p
 2. Use `$analyzing-shaft-failures` to triage a failed SHAFT web test with `NoSuchElementException` after a retry and a Doctor suggestion to use a new locator.
 3. Use `$analyzing-shaft-failures` to decide whether to apply a healer-proposed assertion change when the trace shows the product now returns a different validation message.
 4. Use `$analyzing-shaft-failures` to route a failed login repair through `shaft_coding_partner_plan` so the fix updates the existing page object and not a new helper.
+
+## `verifying-and-applying-shaft-changes`
+
+1. Use `$verifying-and-applying-shaft-changes` to preview a `shaft_coding_partner_diff` that inserts a new page-object method after `loginAs`, then decide whether it is safe to apply.
+2. Use `$verifying-and-applying-shaft-changes` when a generated block contains `Thread.sleep` and `driver.findElement`; show that guardrails block the apply and describe the regeneration.
+3. Use `$verifying-and-applying-shaft-changes` to choose and run the smallest `verify_run_focused` command after applying a locator change, and explain why a full suite is not needed.
+4. Use `$verifying-and-applying-shaft-changes` after a cloud provider returns `guardrailStatus` that is not `PASSED`; show that you do not apply and route back to the coding-partner plan.
