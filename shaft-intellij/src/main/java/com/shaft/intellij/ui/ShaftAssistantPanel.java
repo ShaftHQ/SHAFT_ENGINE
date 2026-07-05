@@ -46,6 +46,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Component;
 import java.awt.FontMetrics;
@@ -381,6 +382,7 @@ final class ShaftAssistantPanel extends JPanel {
                 "Status timeline for the current Assistant or MCP request.");
         timeline.setFocusable(false);
         timeline.setVisibleRowCount(3);
+        timeline.setCellRenderer(new TimelineListCellRenderer());
         addTimeline("Ready");
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         ShaftIconButtons.apply(clearTranscript, ShaftIcons.CLEAR);
@@ -2274,5 +2276,66 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private record CaptureReview(String markdown, String rawResult) {
+    }
+
+    private static final class TimelineListCellRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(
+                JList<?> list,
+                Object value,
+                int index,
+                boolean isSelected,
+                boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(
+                    list, value, index, isSelected, cellHasFocus);
+            String step = value == null ? "" : value.toString();
+            String icon = timelineIcon(step);
+            String displayText = icon.isEmpty() ? step : icon + " " + step;
+            label.setText(displayText);
+            if (!isSelected) {
+                Color color = timelineColor(step);
+                if (color != null) {
+                    label.setForeground(color);
+                }
+            }
+            return label;
+        }
+
+        private static String timelineIcon(String step) {
+            if (step == null || step.isBlank()) {
+                return "";
+            }
+            return switch (step) {
+                case "Completed" -> ShaftStatusPresentation.SUCCESS_ICON;
+                case "Failed" -> ShaftStatusPresentation.ERROR_ICON;
+                default -> {
+                    if ("Running".equals(step) || step.startsWith("Tool selected: ")) {
+                        yield ShaftStatusPresentation.PENDING_ICON;
+                    }
+                    yield "";
+                }
+            };
+        }
+
+        private static Color timelineColor(String step) {
+            if (step == null || step.isBlank()) {
+                return null;
+            }
+            return switch (step) {
+                case "Completed" -> ShaftStatusPresentation.success();
+                case "Failed" -> ShaftStatusPresentation.error();
+                case "Running" -> ShaftStatusPresentation.progress();
+                default -> {
+                    if (step.startsWith("Tool selected: ")) {
+                        yield ShaftStatusPresentation.progress();
+                    }
+                    if ("Ready".equals(step) || "Waiting for approval".equals(step)
+                            || "Cancelled".equals(step) || "Killed".equals(step)) {
+                        yield ShaftStatusPresentation.pending();
+                    }
+                    yield null;
+                }
+            };
+        }
     }
 }
