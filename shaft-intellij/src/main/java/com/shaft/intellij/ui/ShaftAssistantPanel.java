@@ -826,23 +826,40 @@ final class ShaftAssistantPanel extends JPanel {
         String output = resolveOutput(result, error, "No result returned.");
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
         if (rejectedGeneratedJava) {
-            sequenceMarkdown.append("### ")
-                    .append(toolCall.toolName())
-                    .append(" rejected")
-                    .append("\n\n")
-                    .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
-                    .append("\n\n");
-            setRunning(false, "Rejected generated code");
-            addTimeline("Failed");
-            showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
-                    sequenceRawOutput.toString());
-            clearSequenceState();
+            showRejectedSequenceResult(toolCall, output);
             return;
         }
         if (!output.isBlank()) {
             appendToolEvidence(toolCall.toolName(), output);
         }
-        String statusText = cancelled ? "cancelled" : success ? "OK" : "failed";
+        String statusText = sequenceStatusText(cancelled, success);
+        appendSequenceStep(toolCall, statusText, output);
+        if (cancelled || !success) {
+            showTerminalSequenceResult(cancelled, statusText);
+            return;
+        }
+        runNextSequenceCall(index + 1);
+    }
+
+    private void showRejectedSequenceResult(AssistantCommand.ToolCall toolCall, String output) {
+        sequenceMarkdown.append("### ")
+                .append(toolCall.toolName())
+                .append(" rejected")
+                .append("\n\n")
+                .append(AssistantMarkdown.fromMcpOutput(toolCall.toolName(), output))
+                .append("\n\n");
+        setRunning(false, "Rejected generated code");
+        addTimeline("Failed");
+        showResponse("**SHAFT Assistant sequence rejected**\n\n" + sequenceMarkdown,
+                sequenceRawOutput.toString());
+        clearSequenceState();
+    }
+
+    private static String sequenceStatusText(boolean cancelled, boolean success) {
+        return cancelled ? "cancelled" : success ? "OK" : "failed";
+    }
+
+    private void appendSequenceStep(AssistantCommand.ToolCall toolCall, String statusText, String output) {
         sequenceMarkdown.append("### ")
                 .append(toolCall.toolName())
                 .append(" ")
@@ -855,15 +872,14 @@ final class ShaftAssistantPanel extends JPanel {
                 .append("\n")
                 .append(output)
                 .append("\n\n");
-        if (cancelled || !success) {
-            setRunning(false, cancelled ? "Cancelled" : "Failed");
-            addTimeline(cancelled ? "Cancelled" : "Failed");
-            showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
-                    sequenceRawOutput.toString());
-            clearSequenceState();
-            return;
-        }
-        runNextSequenceCall(index + 1);
+    }
+
+    private void showTerminalSequenceResult(boolean cancelled, String statusText) {
+        setRunning(false, cancelled ? "Cancelled" : "Failed");
+        addTimeline(cancelled ? "Cancelled" : "Failed");
+        showResponse("**SHAFT Assistant sequence " + statusText + "**\n\n" + sequenceMarkdown,
+                sequenceRawOutput.toString());
+        clearSequenceState();
     }
 
     private void clearSequenceState() {
@@ -1063,34 +1079,48 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showAgentResult(int streamToken, ShaftMcpToolResult result, Throwable error) {
+        if (handleKilledOrStaleAgentStream(streamToken)) {
+            return;
+        }
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
         boolean currentStream = streamToken == activeLocalAgentStreamToken;
-        if (streamToken > 0 && streamToken == killedLocalAgentStreamToken) {
-            killedLocalAgentStreamToken = -1;
-            setRunning(false, "Killed");
-            return;
-        }
-        if (streamToken > 0 && !currentStream && activeLocalAgentStreamToken != -1) {
-            return;
-        }
         localAgentOutput = null;
         if (currentStream) {
             activeLocalAgentStreamToken = -1;
         }
         setRunning(false, success ? READY_STATUS : "Failed");
-        if (captureIntegrationRunning) {
-            if (success) {
-                clearPendingCaptureReview();
-            }
-            captureIntegrationRunning = false;
-        }
+        finishCaptureIntegrationIfRunning(success);
         if (cancelled) {
             addTimeline("Cancelled");
             showAgentCancelled(streamToken, currentStream);
             setStatus("Cancelled");
             return;
         }
+        showAgentToolResult(streamToken, currentStream, success, result, error);
+    }
+
+    private boolean handleKilledOrStaleAgentStream(int streamToken) {
+        if (streamToken > 0 && streamToken == killedLocalAgentStreamToken) {
+            killedLocalAgentStreamToken = -1;
+            setRunning(false, "Killed");
+            return true;
+        }
+        return streamToken > 0 && streamToken != activeLocalAgentStreamToken && activeLocalAgentStreamToken != -1;
+    }
+
+    private void finishCaptureIntegrationIfRunning(boolean success) {
+        if (!captureIntegrationRunning) {
+            return;
+        }
+        if (success) {
+            clearPendingCaptureReview();
+        }
+        captureIntegrationRunning = false;
+    }
+
+    private void showAgentToolResult(
+            int streamToken, boolean currentStream, boolean success, ShaftMcpToolResult result, Throwable error) {
         String output = resolveOutput(result, error, "No response returned.");
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
         if (!output.isBlank() && !rejectedGeneratedJava) {
