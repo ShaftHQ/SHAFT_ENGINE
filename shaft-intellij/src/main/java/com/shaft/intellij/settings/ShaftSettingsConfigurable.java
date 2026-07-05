@@ -135,7 +135,24 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 "Run a one-time SHAFT MCP connection check with current settings.");
         ShaftIconButtons.apply(testMcp, ShaftIcons.SEND);
         testMcp.addActionListener(event -> testMcpConnection());
-        testStatus = help("Not tested");
+        testStatus = statusLabel("Not tested");
+        testStatus.getAccessibleContext().setAccessibleName("SHAFT MCP test status");
+        mcpCommand.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent event) {
+                resetTestStatus();
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent event) {
+                resetTestStatus();
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent event) {
+                resetTestStatus();
+            }
+        });
         currentAgentConfiguration = new JLabel();
         currentAgentConfiguration.getAccessibleContext().setAccessibleName("Current agent configuration");
         currentAgentConfiguration.getAccessibleContext().setAccessibleDescription(
@@ -459,6 +476,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
 
     private static JLabel section(String text) {
         JLabel label = new JLabel(text);
+        label.setFont(label.getFont().deriveFont(java.awt.Font.BOLD, label.getFont().getSize2D() + 1f));
+        label.setBorder(JBUI.Borders.emptyTop(10));
         label.getAccessibleContext().setAccessibleName(text + " settings section");
         return label;
     }
@@ -467,6 +486,34 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         JLabel label = new JLabel(text);
         label.setEnabled(false);
         return label;
+    }
+
+    private static JLabel statusLabel(String text) {
+        // Swing's own disabled-label rendering (not a manual UIManager color lookup, which is
+        // unreliable for "Label.disabledForeground" outside a fully initialized IDE look-and-feel)
+        // gives a clean, theme-correct muted look for the idle state.
+        return help(text);
+    }
+
+    private void resetTestStatus() {
+        if (testStatus != null) {
+            testStatus.setText("Not tested");
+            testStatus.setEnabled(false);
+        }
+    }
+
+    private static java.awt.Color successColor() {
+        return new java.awt.Color(0x0A7F26);
+    }
+
+    private static java.awt.Color progressColor() {
+        java.awt.Color color = javax.swing.UIManager.getColor("Component.focusColor");
+        return color == null ? new java.awt.Color(0x0550AE) : color;
+    }
+
+    private static java.awt.Color errorColor() {
+        java.awt.Color color = javax.swing.UIManager.getColor("ValidationTooltip.errorForeground");
+        return color == null ? new java.awt.Color(0xB42318) : color;
     }
 
     private static JLabel label(String text, char mnemonic, JComponent target) {
@@ -570,7 +617,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             return;
         }
         button.setEnabled(false);
+        statusLabel.setEnabled(true);
         statusLabel.setText("Testing...");
+        statusLabel.setForeground(progressColor());
         String command = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
         ShaftMcpConnectionProbe.test(command, formSettings()).whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> {
@@ -580,6 +629,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                     button.setEnabled(true);
                     if (error != null) {
                         statusLabel.setText("Failed");
+                        statusLabel.setForeground(errorColor());
                         Messages.showErrorDialog(host, error.getMessage(), "SHAFT MCP");
                     } else {
                         showProbeResult(host, statusLabel, result);
@@ -593,11 +643,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         if (result != null && result.success()) {
             statusLabel.setText("Connected");
+            statusLabel.setForeground(successColor());
             saveConnectedSettings();
             editingAgentConfiguration = false;
             updateAgentConfigurationControls();
         } else {
             statusLabel.setText("Failed");
+            statusLabel.setForeground(errorColor());
             Messages.showErrorDialog(host, result == null ? "No result returned." : result.output(), "SHAFT MCP");
         }
     }

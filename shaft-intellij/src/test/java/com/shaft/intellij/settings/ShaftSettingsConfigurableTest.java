@@ -120,6 +120,48 @@ class ShaftSettingsConfigurableTest {
     }
 
     @Test
+    void settingsSectionHeadersAreVisuallyDistinctFromFieldLabels() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.advancedUiEnabled = true;
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JLabel advancedSection = findByAccessibleName(panel, "Advanced settings section", JLabel.class);
+        JLabel credentialsSection = findByAccessibleName(panel, "Credentials settings section", JLabel.class);
+
+        assertAll(
+                () -> assertNotNull(advancedSection),
+                () -> assertNotNull(credentialsSection),
+                () -> assertTrue(advancedSection.getFont().isBold(), "section header should be bold"),
+                () -> assertTrue(credentialsSection.getFont().isBold(), "section header should be bold"));
+    }
+
+    @Test
+    void testStatusReflectsProbeOutcomeAndResetsWhenCommandChanges() {
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
+                new ShaftSettingsState.Settings(), new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JLabel status = findByAccessibleName(panel, "SHAFT MCP test status", JLabel.class);
+        JBTextField command = findByAccessibleName(panel, "MCP stdio command", JBTextField.class);
+
+        assertAll(
+                () -> assertEquals("Not tested", status.getText()),
+                () -> assertFalse(status.isEnabled(), "idle status should use the muted disabled look"));
+
+        // Simulate a completed successful test, then confirm editing the command invalidates it again.
+        status.setEnabled(true);
+        status.setText("Connected");
+        status.setForeground(new java.awt.Color(0x0A7F26));
+        command.setText(command.getText() + "-edited");
+
+        assertAll(
+                () -> assertEquals("Not tested", status.getText()),
+                () -> assertFalse(status.isEnabled(), "editing the command should invalidate the prior test result"));
+    }
+
+    @Test
     void settingsPanelHidesAdvancedControlsByDefault() {
         ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(
                 new ShaftSettingsState.Settings(), new InMemoryCredentials());
