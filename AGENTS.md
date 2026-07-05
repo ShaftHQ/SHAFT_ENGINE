@@ -44,6 +44,23 @@ Before forked Maven/Surefire/TestNG, load gotchas. If delete gotcha is active, a
 
 PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`, `|`. Confirm Allure before SHAFT verdicts.
 
+## Agentic Skills & MCP Tools
+
+Issue #3292: 8 of 10 skills/MCP servers adopted (configured in `.claude/settings.json`, `.mcp.json`).
+
+- `jdtls-lsp`: Java language server; precise symbol navigation across Maven reactor and shaft-intellij.
+- `design` plugin: WCAG audits, design-critique, UX copywriting for Swing UI and docs DESIGN_LANGUAGE.md.
+- `frontend-design`: Distinctive visual design guidance for docs React components.
+- `mcp-server-dev`: Best practices for MCP server design (shaft-mcp has 80+ tools, published to registry).
+- `chrome-devtools-mcp`: Performance traces, network analysis, console debugging for docs UI and AutoBot.
+- `context7` (MCP): Version-pinned library docs on demand (Spring Boot 4.1, Spring AI 2.0, JUnit 6, Selenium 4.45, etc.).
+- `maven-tools-mcp` (MCP): Maven Central tools (version lookups, upgrade recommendations, license/CVE) for release automation.
+- `webapp-testing`: Playwright verification workflow for screenshot/browser-log evidence on UI/report PRs.
+
+**Not configurable here (separate follow-up):**
+- JetBrains IntelliJ IDEA MCP server (#5): Manual enable in IDEA 2025.2+ via Settings | Tools | MCP Server.
+- `a11ymcp` (#7): For shafthq.github.io docs repo; requires separate PR with axe-core accessibility testing.
+
 ## Completion
 
 Report changes/checks/outcomes.
