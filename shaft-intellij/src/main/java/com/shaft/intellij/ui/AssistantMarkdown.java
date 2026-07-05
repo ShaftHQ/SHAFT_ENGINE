@@ -353,31 +353,37 @@ final class AssistantMarkdown {
         }
         List<String> sections = new ArrayList<>();
         String status = string(object, "status", "");
-        String icon = switch (status) {
-            case "PASSED" -> "✅";
-            case "TIMED_OUT" -> "⏳";
-            default -> "❌";
-        };
         sections.add(metadataLine(
-                "Verification", icon + " " + status,
+                "Verification", verifyStatusIcon(status) + " " + status,
                 "Exit", string(object, "exitCode", "")));
-        if (object.has("command") && object.get("command").isJsonArray()) {
-            StringBuilder command = new StringBuilder();
-            for (JsonElement token : object.getAsJsonArray("command")) {
-                if (token.isJsonPrimitive()) {
-                    command.append(token.getAsString()).append(' ');
-                }
-            }
-            if (command.length() > 0) {
-                sections.add("**Command:** `" + command.toString().trim() + "`");
-            }
-        }
+        appendNonBlank(sections, verifyCommandLine(object));
         String output = string(object, "outputSummary", "");
         if (!output.isBlank()) {
             sections.add(fence("text", clip(output, 4_000)));
         }
         appendNonBlank(sections, warnings(object));
         return joinSections(sections);
+    }
+
+    private static String verifyStatusIcon(String status) {
+        return switch (status) {
+            case "PASSED" -> ShaftStatusPresentation.SUCCESS_ICON;
+            case "TIMED_OUT" -> ShaftStatusPresentation.PENDING_ICON;
+            default -> ShaftStatusPresentation.ERROR_ICON;
+        };
+    }
+
+    private static String verifyCommandLine(JsonObject object) {
+        if (!object.has("command") || !object.get("command").isJsonArray()) {
+            return "";
+        }
+        StringBuilder command = new StringBuilder();
+        for (JsonElement token : object.getAsJsonArray("command")) {
+            if (token.isJsonPrimitive()) {
+                command.append(token.getAsString()).append(' ');
+            }
+        }
+        return command.length() == 0 ? "" : "**Command:** `" + command.toString().trim() + "`";
     }
 
     private static String genericMarkdown(JsonElement parsed) {
@@ -950,8 +956,8 @@ final class AssistantMarkdown {
 
     private static String readinessIcon(String readiness) {
         return switch (readiness == null ? "" : readiness.toUpperCase(Locale.ROOT)) {
-            case "READY" -> "✅";
-            case "RISKY" -> "⚠️";
+            case "READY" -> ShaftStatusPresentation.SUCCESS_ICON;
+            case "RISKY" -> ShaftStatusPresentation.WARNING_ICON;
             case "BLOCKED" -> "⛔";
             default -> "";
         };
@@ -1177,7 +1183,7 @@ final class AssistantMarkdown {
         if (warnings == null || !warnings.isJsonArray() || warnings.getAsJsonArray().isEmpty()) {
             return "";
         }
-        StringBuilder markdown = new StringBuilder("**⚠️ Warnings**");
+        StringBuilder markdown = new StringBuilder("**").append(ShaftStatusPresentation.WARNING_ICON).append(" Warnings**");
         for (JsonElement warning : warnings.getAsJsonArray()) {
             if (warning.isJsonPrimitive()) {
                 markdown.append("\n- ").append(warning.getAsString());

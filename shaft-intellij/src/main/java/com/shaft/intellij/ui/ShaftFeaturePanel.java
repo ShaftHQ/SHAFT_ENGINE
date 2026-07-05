@@ -389,9 +389,11 @@ final class ShaftFeaturePanel extends JPanel {
         if (selected != null) {
             argumentsArea.setText(argumentDrafts.getOrDefault(draftKey(selected), selected.arguments()));
             templateDescription.setText(description(selected));
+            templateDescription.setEnabled(true);
         } else {
             argumentsArea.setText("");
             templateDescription.setText("No tool template matches the current filter.");
+            templateDescription.setEnabled(false);
         }
         validateArguments();
     }

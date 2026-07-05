@@ -240,7 +240,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         toast.setBackground(UIManagerColors.activeBackground());
         toast.setForeground(UIManagerColors.foreground());
         toast.setBorder(JBUI.Borders.compound(
-                JBUI.Borders.customLine(UIManagerColors.progress(), 1),
+                JBUI.Borders.customLine(ShaftStatusPresentation.progress(), 1),
                 JBUI.Borders.empty(4, 8)));
         toast.setVisible(false);
         status = new JLabel();
@@ -1003,8 +1003,8 @@ final class ShaftMcpSetupPanel extends JPanel {
                     ? Font.BOLD
                     : Font.PLAIN));
             label.setForeground(switch (state) {
-                case "done" -> UIManagerColors.success();
-                case "next", "checking" -> UIManagerColors.progress();
+                case "done" -> ShaftStatusPresentation.success();
+                case "next", "checking" -> ShaftStatusPresentation.progress();
                 default -> UIManagerColors.foreground();
             });
         }
@@ -1022,8 +1022,8 @@ final class ShaftMcpSetupPanel extends JPanel {
             default -> UIManagerColors.panelBackground();
         });
         stateLabel.setForeground(switch (state) {
-            case "done" -> UIManagerColors.success();
-            case "next", "checking" -> UIManagerColors.progress();
+            case "done" -> ShaftStatusPresentation.success();
+            case "next", "checking" -> ShaftStatusPresentation.progress();
             default -> UIManagerColors.foreground();
         });
     }
@@ -1064,8 +1064,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         });
         row.setBorder(JBUI.Borders.compound(
                 JBUI.Borders.customLine(switch (state) {
-                    case "next", "checking" -> UIManagerColors.progress();
-                    case "done" -> UIManagerColors.success();
+                    case "next", "checking" -> ShaftStatusPresentation.progress();
+                    case "done" -> ShaftStatusPresentation.success();
                     default -> UIManagerColors.border();
                 }, 1),
                 JBUI.Borders.empty(6)));
@@ -1079,12 +1079,12 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void showRuntimeSelected() {
-        showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " selected", UIManagerColors.pending());
+        showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " selected", ShaftStatusPresentation.pending());
         runtimeStatus.setVisible(false);
     }
 
     private void showRuntimeVerified() {
-        showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " verified", UIManagerColors.success());
+        showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " verified", ShaftStatusPresentation.success());
         runtimeStatus.setVisible(true);
     }
 
@@ -1101,22 +1101,22 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void showAssistNotConfigured() {
-        showAssistStatus("Not configured", UIManagerColors.pending());
+        showAssistStatus("Not configured", ShaftStatusPresentation.pending());
         assistStatus.setVisible(false);
     }
 
     private void showAssistConnecting() {
-        showAssistStatus("Connecting", UIManagerColors.progress());
+        showAssistStatus("Connecting", ShaftStatusPresentation.progress());
         assistStatus.setVisible(true);
     }
 
     private void showAssistConfigured() {
-        showAssistStatus("Configured", UIManagerColors.success());
+        showAssistStatus("Configured", ShaftStatusPresentation.success());
         assistStatus.setVisible(true);
     }
 
     private void showAssistError() {
-        showAssistStatus("Error", UIManagerColors.error());
+        showAssistStatus("Error", ShaftStatusPresentation.error());
         assistStatus.setVisible(true);
     }
 
@@ -1264,7 +1264,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         SimpleAttributeSet style = new SimpleAttributeSet();
         StyleConstants.setFontFamily(style, details.getFont() == null ? Font.MONOSPACED : details.getFont().getFamily());
         StyleConstants.setFontSize(style, details.getFont() == null ? 12 : details.getFont().getSize());
-        StyleConstants.setForeground(style, success ? UIManagerColors.success() : UIManagerColors.foreground());
+        StyleConstants.setForeground(style, success ? ShaftStatusPresentation.success() : UIManagerColors.foreground());
         if (success) {
             StyleConstants.setBold(style, true);
         }
@@ -1283,11 +1283,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         }
 
         private static Color activeBackground() {
-            return mix(panelBackground(), progress(), 0.08D);
+            return mix(panelBackground(), ShaftStatusPresentation.progress(), 0.08D);
         }
 
         private static Color doneBackground() {
-            return mix(panelBackground(), success(), 0.06D);
+            return mix(panelBackground(), ShaftStatusPresentation.success(), 0.06D);
         }
 
         private static Color border() {
@@ -1298,25 +1298,6 @@ final class ShaftMcpSetupPanel extends JPanel {
         private static Color foreground() {
             Color foreground = javax.swing.UIManager.getColor("TextArea.foreground");
             return foreground == null ? Color.BLACK : foreground;
-        }
-
-        private static Color success() {
-            return new Color(0x0A7F26);
-        }
-
-        private static Color pending() {
-            Color foreground = javax.swing.UIManager.getColor("Label.disabledForeground");
-            return foreground == null ? Color.GRAY : foreground;
-        }
-
-        private static Color progress() {
-            Color foreground = javax.swing.UIManager.getColor("Component.focusColor");
-            return foreground == null ? new Color(0x0550AE) : foreground;
-        }
-
-        private static Color error() {
-            Color foreground = javax.swing.UIManager.getColor("ValidationTooltip.errorForeground");
-            return foreground == null ? new Color(0xB42318) : foreground;
         }
 
         private static Color mix(Color base, Color overlay, double overlayWeight) {

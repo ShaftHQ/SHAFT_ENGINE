@@ -46,6 +46,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Component;
 import java.awt.FontMetrics;
@@ -322,6 +323,15 @@ final class ShaftAssistantPanel extends JPanel {
         status.getAccessibleContext().setAccessibleDescription(READY_STATUS);
         status.setToolTipText(READY_STATUS);
         status.setFont(status.getFont().deriveFont(Math.max(10.0F, status.getFont().getSize2D() - 1.0F)));
+        status.setOpaque(true);
+        status.setBackground(ShaftStatusPresentation.tint(
+                javax.swing.UIManager.getColor("Panel.background") == null
+                        ? java.awt.Color.WHITE
+                        : javax.swing.UIManager.getColor("Panel.background"),
+                ShaftStatusPresentation.progress(), 0.08D));
+        status.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(ShaftStatusPresentation.progress(), 1),
+                JBUI.Borders.empty(4, 8)));
         status.setPreferredSize(JBUI.size(260, status.getPreferredSize().height));
         status.setMinimumSize(JBUI.size(220, status.getPreferredSize().height));
         status.setVisible(false);
@@ -381,6 +391,7 @@ final class ShaftAssistantPanel extends JPanel {
                 "Status timeline for the current Assistant or MCP request.");
         timeline.setFocusable(false);
         timeline.setVisibleRowCount(3);
+        timeline.setCellRenderer(new TimelineListCellRenderer());
         addTimeline("Ready");
         clearTranscript = button("Clear", "Clear assistant transcript", event -> clearTranscript());
         ShaftIconButtons.apply(clearTranscript, ShaftIcons.CLEAR);
@@ -1348,7 +1359,11 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void setStatus(String message) {
         String value = message == null || message.isBlank() ? READY_STATUS : message;
-        status.setText(value);
+        // Trim text if it exceeds available width, but keep full text in tooltip
+        int availableWidth = Math.max(220, status.getWidth() > 0 ? status.getWidth() : 260);
+        FontMetrics metrics = status.getFontMetrics(status.getFont());
+        String displayText = trimChatTitleForWidth(value, metrics, availableWidth - JBUI.scale(8));
+        status.setText(displayText);
         status.setToolTipText(value);
         status.getAccessibleContext().setAccessibleDescription(value);
         status.setVisible(!READY_STATUS.equals(value));
@@ -2042,7 +2057,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         JsonElement warnings = statusJson.get("warnings");
         if (warnings != null && warnings.isJsonArray() && !warnings.getAsJsonArray().isEmpty()) {
-            markdown.append("\n\n**⚠️ Warnings**");
+            markdown.append("\n\n**").append(ShaftStatusPresentation.WARNING_ICON).append(" Warnings**");
             for (JsonElement warning : warnings.getAsJsonArray()) {
                 if (warning.isJsonPrimitive()) {
                     markdown.append("\n- ").append(warning.getAsString());
@@ -2274,5 +2289,66 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private record CaptureReview(String markdown, String rawResult) {
+    }
+
+    private static final class TimelineListCellRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(
+                JList<?> list,
+                Object value,
+                int index,
+                boolean isSelected,
+                boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(
+                    list, value, index, isSelected, cellHasFocus);
+            String step = value == null ? "" : value.toString();
+            String icon = timelineIcon(step);
+            String displayText = icon.isEmpty() ? step : icon + " " + step;
+            label.setText(displayText);
+            if (!isSelected) {
+                Color color = timelineColor(step);
+                if (color != null) {
+                    label.setForeground(color);
+                }
+            }
+            return label;
+        }
+
+        private static String timelineIcon(String step) {
+            if (step == null || step.isBlank()) {
+                return "";
+            }
+            return switch (step) {
+                case "Completed" -> ShaftStatusPresentation.SUCCESS_ICON;
+                case "Failed" -> ShaftStatusPresentation.ERROR_ICON;
+                default -> {
+                    if ("Running".equals(step) || step.startsWith("Tool selected: ")) {
+                        yield ShaftStatusPresentation.PENDING_ICON;
+                    }
+                    yield "";
+                }
+            };
+        }
+
+        private static Color timelineColor(String step) {
+            if (step == null || step.isBlank()) {
+                return null;
+            }
+            return switch (step) {
+                case "Completed" -> ShaftStatusPresentation.success();
+                case "Failed" -> ShaftStatusPresentation.error();
+                case "Running" -> ShaftStatusPresentation.progress();
+                default -> {
+                    if (step.startsWith("Tool selected: ")) {
+                        yield ShaftStatusPresentation.progress();
+                    }
+                    if ("Ready".equals(step) || "Waiting for approval".equals(step)
+                            || "Cancelled".equals(step) || "Killed".equals(step)) {
+                        yield ShaftStatusPresentation.pending();
+                    }
+                    yield null;
+                }
+            };
+        }
     }
 }

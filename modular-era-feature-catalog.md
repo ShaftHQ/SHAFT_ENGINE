@@ -290,6 +290,23 @@ flowchart LR
     Triage --> Plan
 ```
 
+### Settling Pass: Audit + UI/UX Polish
+
+A follow-up pass re-audited this wave's own gap-analysis fixes (all confirmed intact) and closed the remaining
+professionalism gaps the first audit didn't reach — no new features, all reused-vocabulary polish.
+
+| Enhancement | What users get | Entry point |
+| --- | --- | --- |
+| Unified status presentation | One shared `ShaftStatusPresentation` class now owns every status color and glyph (success/pending/progress/error, plus the warning glyph) that three panels used to reimplement independently. | Settings, MCP setup, Assistant |
+| Colored, iconed timeline | The Assistant's run timeline shows a checkmark/hourglass/cross next to Completed/Running/Failed steps instead of plain text, reusing the same shared vocabulary. | `Assistant` run timeline |
+| Consistent section headers | Guided Workflows and Evidence Triage's intro captions, and the Workflow selector's field label, now get the same bold-header treatment Settings already had. | `Guided`, `Triage` tabs |
+| Field tooltips | Evidence Triage's six input fields (Allure, Trace, Repository, Sources, Locator source, Command) now show a tooltip, matching every other panel in the plugin. | `Triage` tab |
+| Iconed workflow selector | The Workflow selector — the plugin's primary navigation control across all 8 destinations — now shows an icon per destination instead of bare text. | `Workflow` selector |
+| Hardened narrow layout | The Assistant status row now trims safely at the 360px narrow tool-window width instead of risking a clip, keeping the full text in a tooltip. | `Assistant` tab, narrow layout |
+| Muted empty state | The tool catalog's "No tool template matches the current filter" message now renders muted/disabled, matching the plugin's established empty-state treatment. | `Advanced` tools tab |
+| Unified transient confirmation | The Assistant's transient status label now uses the same bordered, tinted "chip" look as the MCP setup toast, instead of two different visual languages for the same concept. | `Assistant` tab, `Settings \| SHAFT MCP` setup |
+| Explicit icon wiring | Guided Workflows' and Evidence Triage's buttons now receive their icon explicitly at construction instead of an icon lookup keyed on the button's display text, so a future label edit can't silently point at the wrong icon. | `Guided`, `Triage` tabs |
+
 ## Modular Adoption
 
 Use the new reactor split when you want SHAFT as a framework base, not a monolith. `shaft-engine` remains the center. Optional modules publish independently, the BOM keeps dependency alignment boring, and `legacy-shaft-engine` preserves the relocation path for existing consumers.

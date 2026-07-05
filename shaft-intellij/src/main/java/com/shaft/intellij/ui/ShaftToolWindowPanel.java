@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.Icon;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -18,6 +19,7 @@ import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -93,7 +95,7 @@ public final class ShaftToolWindowPanel extends JPanel {
             workflowLayout = null;
             advancedTools = null;
             featurePanels = List.of();
-            workflowViews = List.of(new WorkflowView("Assistant", assistant));
+            workflowViews = List.of(new WorkflowView("Assistant", assistant, ShaftIcons.SEND));
             add(assistant, BorderLayout.CENTER);
             revalidate();
             repaint();
@@ -122,14 +124,14 @@ public final class ShaftToolWindowPanel extends JPanel {
         featurePanels.add(projectsTools);
         featurePanels.add(advancedTools);
         workflowViews = List.of(
-                new WorkflowView("Assistant", assistant),
-                new WorkflowView("Guided", guided),
-                new WorkflowView("Recorder", recorderTools),
-                new WorkflowView("Inspector", inspectorTools),
-                new WorkflowView("Triage", triage),
-                new WorkflowView("Evidence", evidenceTools),
-                new WorkflowView("Projects", projectsTools),
-                new WorkflowView("Advanced", advancedTools));
+                new WorkflowView("Assistant", assistant, ShaftIcons.SEND),
+                new WorkflowView("Guided", guided, ShaftIcons.CODE),
+                new WorkflowView("Recorder", recorderTools, ShaftIcons.VIEW),
+                new WorkflowView("Inspector", inspectorTools, ShaftIcons.SEARCH),
+                new WorkflowView("Triage", triage, ShaftIcons.CHECK),
+                new WorkflowView("Evidence", evidenceTools, ShaftIcons.EDIT),
+                new WorkflowView("Projects", projectsTools, ShaftIcons.SETTINGS),
+                new WorkflowView("Advanced", advancedTools, ShaftIcons.HELP));
         for (WorkflowView view : workflowViews) {
             workflowCards.add(view.component(), view.label());
         }
@@ -146,10 +148,14 @@ public final class ShaftToolWindowPanel extends JPanel {
                 JLabel label = (JLabel) super.getListCellRendererComponent(
                         list, value, index, isSelected, cellHasFocus);
                 label.setBorder(JBUI.Borders.empty(2, 6));
+                if (value instanceof WorkflowView workflow) {
+                    label.setIcon(workflow.icon());
+                    label.setIconTextGap(6);
+                }
                 return label;
             }
         });
-        workflowSelector.setPrototypeDisplayValue(new WorkflowView("Assistant", assistant));
+        workflowSelector.setPrototypeDisplayValue(new WorkflowView("Assistant", assistant, ShaftIcons.SEND));
         Dimension selectorSize = workflowSelector.getPreferredSize();
         int selectorHeight = Math.max(30, selectorSize.height);
         workflowSelector.setPreferredSize(JBUI.size(Math.max(150, selectorSize.width), selectorHeight));
@@ -158,6 +164,7 @@ public final class ShaftToolWindowPanel extends JPanel {
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         header.setBorder(JBUI.Borders.empty(6, 8, 4, 8));
         JLabel label = new JLabel("Workflow");
+        label.setFont(label.getFont().deriveFont(Font.BOLD));
         label.setLabelFor(workflowSelector);
         header.add(label);
         header.add(workflowSelector);
@@ -220,7 +227,7 @@ public final class ShaftToolWindowPanel extends JPanel {
         return settings != null && settings.mcpReady();
     }
 
-    record WorkflowView(String label, JComponent component) {
+    record WorkflowView(String label, JComponent component, Icon icon) {
         @Override
         public String toString() {
             return label;
