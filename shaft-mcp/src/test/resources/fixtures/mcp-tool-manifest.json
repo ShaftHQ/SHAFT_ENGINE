@@ -123,14 +123,17 @@
     {"name": "doctor_analyze_trace", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "healer_run_failed_test", "mutation": true, "sensitive": true, "deprecated": false},
     {"name": "playwright_healer_run_failed_test", "mutation": true, "sensitive": true, "deprecated": false},
+    {"name": "verify_run_focused", "mutation": true, "sensitive": true, "deprecated": false},
     {"name": "shaft_guide_search", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "shaft_project_create", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "shaft_project_upgrade", "mutation": true, "sensitive": true, "deprecated": false},
     {"name": "test_automation_scenarios", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "test_code_guardrails_check", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "shaft_coding_partner_plan", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "shaft_coding_partner_diff", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "autobot_local_agent_clients", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "autobot_local_agent_run", "mutation": true, "sensitive": true, "deprecated": false},
-    {"name": "autobot_provider_chat", "mutation": false, "sensitive": true, "deprecated": false}
+    {"name": "autobot_provider_chat", "mutation": false, "sensitive": true, "deprecated": false},
+    {"name": "autobot_provider_status", "mutation": false, "sensitive": false, "deprecated": false}
   ]
 }

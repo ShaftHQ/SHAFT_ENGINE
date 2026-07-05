@@ -207,6 +207,97 @@ class CodingPartnerServiceTest {
         assertTrue(failure.getMessage().contains("repository"));
     }
 
+    @Test
+    void diffInsertsReviewedCodeAfterExistingMethod() throws Exception {
+        Path page = temp.resolve("src/test/java/pages/LoginPage.java");
+        Files.createDirectories(page.getParent());
+        Files.writeString(page, """
+                package pages;
+
+                import com.shaft.driver.SHAFT;
+                import org.openqa.selenium.By;
+
+                public class LoginPage {
+                    private final SHAFT.GUI.WebDriver browser;
+
+                    public LoginPage loginAs(String username) {
+                        browser.element().type(email, username);
+                        return this;
+                    }
+                }
+                """);
+
+        McpCodingPartnerDiff diff = service().diff(
+                temp.toString(),
+                "src/test/java/pages/LoginPage.java",
+                List.of("""
+                        ```java
+                        public LoginPage assertDashboard() {
+                            browser.assertThat().browser().url().contains("/dashboard");
+                            return this;
+                        }
+                        ```"""),
+                "loginAs");
+
+        assertAll(
+                () -> assertEquals("1.0", diff.schemaVersion()),
+                () -> assertEquals("src/test/java/pages/LoginPage.java", diff.targetSourcePath()),
+                () -> assertEquals("loginAs", diff.insertionAnchor()),
+                () -> assertTrue(diff.targetExists()),
+                () -> assertTrue(diff.insertedLineCount() > 0),
+                () -> assertTrue(diff.unifiedDiff().startsWith("--- a/src/test/java/pages/LoginPage.java")),
+                () -> assertTrue(diff.unifiedDiff().contains("+++ b/src/test/java/pages/LoginPage.java")),
+                () -> assertTrue(diff.unifiedDiff().contains("@@ ")),
+                () -> assertFalse(diff.unifiedDiff().contains("```")),
+                () -> assertTrue(diff.unifiedDiff().contains("+public LoginPage assertDashboard() {")),
+                // the insertion lands after loginAs's closing brace, before the class closing brace
+                () -> assertTrue(diff.unifiedDiff().contains(" }")),
+                () -> assertTrue(diff.warnings().stream().anyMatch(warning -> warning.contains("preview-only"))));
+    }
+
+    @Test
+    void diffForMissingTargetProducesNewFileHunk() throws Exception {
+        McpCodingPartnerDiff diff = service().diff(
+                temp.toString(),
+                "src/test/java/tests/NewFlowTest.java",
+                List.of("public class NewFlowTest {\n}"),
+                "");
+
+        assertAll(
+                () -> assertFalse(diff.targetExists()),
+                () -> assertTrue(diff.unifiedDiff().contains("--- /dev/null")),
+                () -> assertTrue(diff.unifiedDiff().contains("@@ -0,0 +1,")),
+                () -> assertTrue(diff.warnings().stream().anyMatch(warning -> warning.contains("does not exist"))));
+    }
+
+    @Test
+    void diffFlagsRawSeleniumInsertion() throws Exception {
+        Path page = temp.resolve("src/test/java/pages/HomePage.java");
+        Files.createDirectories(page.getParent());
+        Files.writeString(page, """
+                package pages;
+
+                public class HomePage {
+                }
+                """);
+
+        McpCodingPartnerDiff diff = service().diff(
+                temp.toString(),
+                "src/test/java/pages/HomePage.java",
+                List.of("driver.findElement(By.id(\"email\")).sendKeys(username);"),
+                "");
+
+        assertTrue(diff.warnings().stream().anyMatch(warning -> warning.contains("raw Selenium")));
+    }
+
+    @Test
+    void diffRejectsMissingCodeBlocks() {
+        Path repository = temp;
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().diff(repository.toString(), "src/test/java/pages/HomePage.java", List.of("  "), "x"));
+        assertTrue(failure.getMessage().contains("code block"));
+    }
+
     private CodingPartnerService service() {
         return new CodingPartnerService(McpWorkspacePolicy.of(temp));
     }

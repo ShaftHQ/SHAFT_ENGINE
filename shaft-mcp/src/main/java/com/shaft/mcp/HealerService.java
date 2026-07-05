@@ -338,6 +338,48 @@ public class HealerService {
                 List.of());
     }
 
+    /**
+     * Runs a guarded, tokenized Maven verification command headlessly and returns a bounded pass/fail summary.
+     *
+     * <p>Reuses the healer command allowlist: only compile/test-compile/test/verify/package/install goals run,
+     * release and deploy goals are rejected, tests are forced headless, and offline mode is added unless network
+     * validation is explicitly approved. This lets clients run the coding-partner plan's focused verification
+     * command without leaving the MCP session.</p>
+     *
+     * @param repositoryRoot Maven project root inside the MCP workspace; blank uses the workspace root
+     * @param command tokenized Maven verification command, for example ["mvn","-q","test-compile"]
+     * @param networkValidationApproved whether Maven may resolve dependencies online instead of offline
+     * @return guarded verification result
+     */
+    @Tool(name = "verify_run_focused",
+            description = "runs a guarded, tokenized Maven verification command (compile, test-compile, test, verify,"
+                    + " package) headlessly inside the MCP workspace and returns a bounded pass/fail summary;"
+                    + " release and deploy goals are rejected")
+    public McpVerificationResult verifyFocused(
+            String repositoryRoot,
+            List<String> command,
+            boolean networkValidationApproved) {
+        Path directory = repositoryRoot == null || repositoryRoot.isBlank()
+                ? workspacePolicy.root()
+                : workspacePolicy.existing(repositoryRoot, "Verification working directory");
+        List<String> validated = validationCommand(command, networkValidationApproved);
+        ProcessResult result = executor.run(validated, directory, COMMAND_TIMEOUT);
+        String status = result.timedOut() ? "TIMED_OUT" : result.exitCode() == 0 ? "PASSED" : "FAILED";
+        List<String> warnings = new ArrayList<>();
+        warnings.add("Verification runs headlessly with an allowlisted Maven goal; review the output before acting.");
+        if (result.timedOut()) {
+            warnings.add("Command timed out after " + COMMAND_TIMEOUT.toMinutes() + " minutes.");
+        }
+        return new McpVerificationResult(
+                "1.0",
+                status,
+                result.exitCode(),
+                result.timedOut(),
+                validated,
+                result.output(),
+                List.copyOf(warnings));
+    }
+
     private static String replayGuidance(CodegenBackend backend) {
         return backend == CodegenBackend.PLAYWRIGHT
                 ? "Use the SHAFT MCP playwright_* DOM, screenshot, element, and replay tools when more UI evidence is needed."

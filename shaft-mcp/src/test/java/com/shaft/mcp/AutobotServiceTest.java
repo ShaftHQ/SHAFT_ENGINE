@@ -132,6 +132,90 @@ class AutobotServiceTest {
         assertEquals("gemini-3.5-flash", capturedModel.get());
     }
 
+    @Test
+    void providerStatusReportsKeyPresenceWithoutLeakingValue() {
+        AutobotService service = new AutobotService(
+                McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()),
+                request -> {
+                    throw new AssertionError("Cloud provider should not be invoked for status");
+                },
+                name -> "GEMINI_API_KEY".equals(name) ? "secret-value" : "");
+
+        AutobotProviderStatus status = service.providerStatus("gemini", "gemini-3.5-flash");
+
+        assertEquals("gemini", status.provider());
+        assertEquals("gemini-3.5-flash", status.model());
+        assertTrue(status.apiKeyPresent());
+        assertEquals("GEMINI_API_KEY", status.apiKeyEnvironmentVariable());
+        assertTrue(status.structuredOutputSupported());
+        assertFalse(status.toString().contains("secret-value"));
+        assertTrue(status.warnings().isEmpty());
+    }
+
+    @Test
+    void providerStatusWarnsWhenKeyOrModelMissing() {
+        AutobotService service = new AutobotService(
+                McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()),
+                request -> {
+                    throw new AssertionError("Cloud provider should not be invoked for status");
+                },
+                name -> "");
+
+        AutobotProviderStatus status = service.providerStatus("openai", "");
+
+        assertFalse(status.apiKeyPresent());
+        assertTrue(status.warnings().stream().anyMatch(warning -> warning.contains("OPENAI_API_KEY")));
+        assertTrue(status.warnings().stream().anyMatch(warning -> warning.contains("No model configured")));
+    }
+
+    @Test
+    void providerChatSurfacesStructuredCodeBlocksAndGuardrailStatus() {
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                    var payload = tools.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+                    payload.put("answer", "done");
+                    payload.put("summary", "adds a sign-in test");
+                    var block = payload.putArray("codeBlocks").addObject();
+                    block.put("language", "java");
+                    block.put("path", "src/test/java/tests/SignInTest.java");
+                    block.put("code", "driver.element().click(signIn);");
+                    payload.putArray("citedGuideUrls").add("https://shafthq.github.io/docs/testing/web");
+                    return AiResponse.success("gemini", "gemini-3.5-flash", payload,
+                            Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(),
+                            request.deterministicFallback());
+                });
+
+        AutobotProviderChatResponse response = service.runProviderChat(
+                "gemini", "gemini-3.5-flash", "PLAN", "Write a sign-in test", "", 10, false);
+
+        assertEquals("done", response.answer());
+        assertEquals("adds a sign-in test", response.summary());
+        assertEquals(1, response.codeBlocks().size());
+        assertEquals("src/test/java/tests/SignInTest.java", response.codeBlocks().get(0).path());
+        assertEquals("PASSED", response.guardrailStatus());
+        assertTrue(response.citedGuideUrls().contains("https://shafthq.github.io/docs/testing/web"));
+    }
+
+    @Test
+    void providerChatFlagsGuardrailViolationsInReturnedCode() {
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                    var payload = tools.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+                    payload.put("answer", "done");
+                    payload.putArray("codeBlocks").addObject().put("code", "Thread.sleep(1000);");
+                    return AiResponse.success("gemini", "gemini-3.5-flash", payload,
+                            Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(),
+                            request.deterministicFallback());
+                });
+
+        AutobotProviderChatResponse response = service.runProviderChat(
+                "gemini", "gemini-3.5-flash", "PLAN", "Write code", "", 10, false);
+
+        assertTrue(response.guardrailStatus().startsWith("VIOLATIONS"));
+    }
+
     private static final class CapturingRunner implements LocalAgentProcessRunner {
         private final AtomicReference<List<String>> command = new AtomicReference<>();
         private final AtomicReference<Path> workingDirectory = new AtomicReference<>();
