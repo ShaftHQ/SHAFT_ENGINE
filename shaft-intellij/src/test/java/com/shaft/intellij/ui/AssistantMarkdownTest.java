@@ -496,6 +496,88 @@ class AssistantMarkdownTest {
                 () -> assertFalse(AssistantMarkdown.shouldFormatWithAgent("unknown", "{\"warnings\":[\"safe\"]}")));
     }
 
+    @Test
+    void formatsProviderChatStructuredCodegen() {
+        String json = """
+                {"status":"SUCCESS","provider":"gemini","model":"gemini-3.5-flash","mode":"PLAN",
+                 "answer":"Added a sign-in test","summary":"signs in and asserts the dashboard",
+                 "codeBlocks":[{"language":"java","path":"src/test/java/tests/SignInTest.java",
+                   "insertionAnchor":"loginAs","code":"driver.element().click(signIn);"}],
+                 "citedGuideUrls":["https://shafthq.github.io/docs/testing/web"],
+                 "locatorAssumptions":["signIn assumed by label"],"guardrailStatus":"PASSED",
+                 "warnings":[],"fallbackReason":""}
+                """;
+
+        String markdown = AssistantMarkdown.fromMcpOutput("autobot_provider_chat", mcpText(json));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("Summary:")),
+                () -> assertTrue(markdown.contains("SignInTest.java")),
+                () -> assertTrue(markdown.contains("after `loginAs`")),
+                () -> assertTrue(markdown.contains("driver.element().click(signIn);")),
+                () -> assertTrue(markdown.contains("Cited SHAFT guides")),
+                () -> assertTrue(markdown.contains("Unverified locator assumptions")),
+                () -> assertTrue(markdown.contains("**Guardrails:** PASSED")));
+    }
+
+    @Test
+    void formatsProviderStatusReadiness() {
+        String json = """
+                {"schemaVersion":"1.0","provider":"gemini","model":"gemini-3.5-flash","apiKeyPresent":true,
+                 "apiKeyEnvironmentVariable":"GEMINI_API_KEY","structuredOutputSupported":true,
+                 "supportedModes":"ASK, PLAN","warnings":[]}
+                """;
+
+        String markdown = AssistantMarkdown.fromMcpOutput("autobot_provider_status", mcpText(json));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**Provider:** gemini")),
+                () -> assertTrue(markdown.contains("**API key:** present")),
+                () -> assertTrue(markdown.contains("**Structured output:** yes")),
+                () -> assertFalse(markdown.contains("GEMINI_API_KEY=")));
+    }
+
+    @Test
+    void formatsCodingPartnerDiffPreview() {
+        String json = """
+                {"schemaVersion":"1.0","targetSourcePath":"src/test/java/pages/LoginPage.java",
+                 "insertionAnchor":"loginAs","targetExists":true,"insertedLineCount":4,
+                 "unifiedDiff":"--- a/x\\n+++ b/x\\n@@ -1,1 +1,2 @@\\n class X {}\\n+// added",
+                 "warnings":["Diff is preview-only; apply changes in IntelliJ under explicit user approval."]}
+                """;
+
+        String markdown = AssistantMarkdown.fromMcpOutput("shaft_coding_partner_diff", mcpText(json));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("Patch preview")),
+                () -> assertTrue(markdown.contains("Anchor")),
+                () -> assertTrue(markdown.contains("```diff")),
+                () -> assertTrue(markdown.contains("preview-only")),
+                () -> assertTrue(markdown.contains("/verify")));
+    }
+
+    @Test
+    void formatsVerificationResult() {
+        String pass = """
+                {"schemaVersion":"1.0","status":"PASSED","exitCode":0,"timedOut":false,
+                 "command":["mvn","-q","test-compile","--offline"],"outputSummary":"BUILD SUCCESS","warnings":[]}
+                """;
+        String fail = """
+                {"schemaVersion":"1.0","status":"FAILED","exitCode":1,"timedOut":false,
+                 "command":["mvn","test"],"outputSummary":"BUILD FAILURE","warnings":[]}
+                """;
+
+        String passMarkdown = AssistantMarkdown.fromMcpOutput("verify_run_focused", mcpText(pass));
+        String failMarkdown = AssistantMarkdown.fromMcpOutput("verify_run_focused", mcpText(fail));
+
+        assertAll(
+                () -> assertTrue(passMarkdown.contains("PASSED")),
+                () -> assertTrue(passMarkdown.contains("mvn -q test-compile --offline")),
+                () -> assertTrue(passMarkdown.contains("BUILD SUCCESS")),
+                () -> assertTrue(failMarkdown.contains("FAILED")),
+                () -> assertTrue(failMarkdown.contains("BUILD FAILURE")));
+    }
+
     private static String mcpText(String text) {
         JsonObject item = new JsonObject();
         item.addProperty("type", "text");

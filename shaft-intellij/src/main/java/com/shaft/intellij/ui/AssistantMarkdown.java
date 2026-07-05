@@ -20,7 +20,10 @@ final class AssistantMarkdown {
     private static final Set<String> KNOWN_TOOLS = Set.of(
             "autobot_local_agent_clients",
             "autobot_local_agent_run",
-            "autobot_provider_chat");
+            "autobot_provider_chat",
+            "autobot_provider_status",
+            "shaft_coding_partner_diff",
+            "verify_run_focused");
 
     private AssistantMarkdown() {
         throw new IllegalStateException("Utility class");
@@ -97,6 +100,9 @@ final class AssistantMarkdown {
             case "autobot_local_agent_clients" -> clientsMarkdown(parsed);
             case "autobot_local_agent_run" -> localAgentMarkdown(parsed);
             case "autobot_provider_chat" -> providerChatMarkdown(parsed);
+            case "autobot_provider_status" -> providerStatusMarkdown(parsed);
+            case "shaft_coding_partner_diff" -> codingPartnerDiffMarkdown(parsed);
+            case "verify_run_focused" -> verifyMarkdown(parsed);
             default -> "";
         };
     }
@@ -171,6 +177,19 @@ final class AssistantMarkdown {
         if (!answer.isBlank()) {
             sections.add(normalizeMarkdown(answer));
         }
+        String summary = string(response, "summary", "");
+        if (!summary.isBlank()) {
+            sections.add("**Summary:** " + summary);
+        }
+        if (response.has("codeBlocks") && response.get("codeBlocks").isJsonArray()) {
+            appendNonBlank(sections, providerCodeBlocksMarkdown(response.getAsJsonArray("codeBlocks")));
+        }
+        appendNonBlank(sections, bulletList("Cited SHAFT guides", response, "citedGuideUrls"));
+        appendNonBlank(sections, bulletList("Unverified locator assumptions", response, "locatorAssumptions"));
+        String guardrailStatus = string(response, "guardrailStatus", "");
+        if (!guardrailStatus.isBlank() && !"NOT_CHECKED".equals(guardrailStatus)) {
+            sections.add("**Guardrails:** " + guardrailStatus);
+        }
         sections.add(metadataLine(
                 "Status", string(response, "status", ""),
                 "Provider", string(response, "provider", ""),
@@ -184,9 +203,119 @@ final class AssistantMarkdown {
         if (!fallback.isBlank()) {
             sections.add("**Fallback reason:** " + fallback);
         }
-        if (answer.isBlank() && warnings.isBlank() && fallback.isBlank()) {
+        if (answer.isBlank() && summary.isBlank() && warnings.isBlank() && fallback.isBlank()
+                && !(response.has("codeBlocks") && response.get("codeBlocks").isJsonArray()
+                        && !response.getAsJsonArray("codeBlocks").isEmpty())) {
             sections.add("_No answer returned._");
         }
+        return joinSections(sections);
+    }
+
+    private static String providerCodeBlocksMarkdown(JsonArray blocks) {
+        List<String> sections = new ArrayList<>();
+        for (JsonElement item : blocks) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = item.getAsJsonObject();
+            String code = string(block, "code", "");
+            if (code.isBlank()) {
+                continue;
+            }
+            String path = string(block, "path", "");
+            String anchor = string(block, "insertionAnchor", "");
+            StringBuilder header = new StringBuilder();
+            if (!path.isBlank()) {
+                header.append('`').append(path).append('`');
+            }
+            if (!anchor.isBlank()) {
+                header.append(header.length() > 0 ? " after `" : "After `").append(anchor).append('`');
+            }
+            if (header.length() > 0) {
+                sections.add("**" + header + "**");
+            }
+            sections.add(fence(string(block, "language", "java"), code));
+        }
+        return joinSections(sections);
+    }
+
+    private static String providerStatusMarkdown(JsonElement parsed) {
+        if (!parsed.isJsonObject()) {
+            return "";
+        }
+        JsonObject object = parsed.getAsJsonObject();
+        if (!object.has("provider") || !object.has("apiKeyPresent")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Provider", string(object, "provider", ""),
+                "Model", string(object, "model", "")));
+        sections.add(metadataLine(
+                "API key", booleanValue(object, "apiKeyPresent") ? "present" : "missing",
+                "Structured output", booleanValue(object, "structuredOutputSupported") ? "yes" : "no",
+                "Modes", string(object, "supportedModes", "")));
+        appendNonBlank(sections, warnings(object));
+        return joinSections(sections);
+    }
+
+    private static String codingPartnerDiffMarkdown(JsonElement parsed) {
+        if (!parsed.isJsonObject()) {
+            return "";
+        }
+        JsonObject object = parsed.getAsJsonObject();
+        if (!object.has("unifiedDiff") || !object.has("targetSourcePath")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        String anchor = string(object, "insertionAnchor", "");
+        sections.add(metadataLine(
+                "Patch preview", "`" + string(object, "targetSourcePath", "") + "`",
+                "Anchor", anchor.isBlank() ? "class end" : "`" + anchor + "`",
+                "Adds", string(object, "insertedLineCount", "0") + " line(s)"));
+        String diff = string(object, "unifiedDiff", "");
+        if (!diff.isBlank()) {
+            sections.add(fence("diff", clip(diff, 8_000)));
+        }
+        appendNonBlank(sections, warnings(object));
+        sections.add("_Review the diff, then apply it in IntelliJ under approval and run `/verify`._");
+        return joinSections(sections);
+    }
+
+    private static String verifyMarkdown(JsonElement parsed) {
+        if (!parsed.isJsonObject()) {
+            return "";
+        }
+        JsonObject object = parsed.getAsJsonObject();
+        if (!object.has("status") || !object.has("command")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        String status = string(object, "status", "");
+        String icon = switch (status) {
+            case "PASSED" -> "✅";
+            case "TIMED_OUT" -> "⏳";
+            default -> "❌";
+        };
+        sections.add(metadataLine(
+                "Verification", icon + " " + status,
+                "Exit", string(object, "exitCode", "")));
+        if (object.has("command") && object.get("command").isJsonArray()) {
+            StringBuilder command = new StringBuilder();
+            for (JsonElement token : object.getAsJsonArray("command")) {
+                if (token.isJsonPrimitive()) {
+                    command.append(token.getAsString()).append(' ');
+                }
+            }
+            if (command.length() > 0) {
+                sections.add("**Command:** `" + command.toString().trim() + "`");
+            }
+        }
+        String output = string(object, "outputSummary", "");
+        if (!output.isBlank()) {
+            sections.add(fence("text", clip(output, 4_000)));
+        }
+        appendNonBlank(sections, warnings(object));
         return joinSections(sections);
     }
 
