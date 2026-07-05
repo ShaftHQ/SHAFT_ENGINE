@@ -1,0 +1,24 @@
+{
+  "extraKnownMarketplaces": {
+    "anthropics/knowledge-work-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/knowledge-work-plugins"
+      }
+    },
+    "anthropics/skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "jdtls-lsp@claude-plugins-official": true,
+    "design@anthropics/knowledge-work-plugins": true,
+    "frontend-design@claude-plugins-official": true,
+    "mcp-server-dev@claude-plugins-official": true,
+    "chrome-devtools-mcp@claude-plugins-official": true,
+    "example-skills@anthropics/skills": true
+  }
+}
