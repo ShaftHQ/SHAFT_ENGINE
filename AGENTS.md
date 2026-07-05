@@ -46,20 +46,20 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 
 ## Agentic Skills & MCP Tools
 
-Issue #3292: 8 of 10 skills/MCP servers adopted (configured in `.claude/settings.json`, `.mcp.json`).
+#3292 adopted 8 skills/MCP servers (`.claude/settings.json`, `.mcp.json`). Route by task shape; skip-rules bind:
 
-- `jdtls-lsp`: Java language server; precise symbol navigation across Maven reactor and shaft-intellij.
-- `design` plugin: WCAG audits, design-critique, UX copywriting for Swing UI and docs DESIGN_LANGUAGE.md.
-- `frontend-design`: Distinctive visual design guidance for docs React components.
-- `mcp-server-dev`: Best practices for MCP server design (shaft-mcp has 80+ tools, published to registry).
-- `chrome-devtools-mcp`: Performance traces, network analysis, console debugging for docs UI and AutoBot.
-- `context7` (MCP): Version-pinned library docs on demand (Spring Boot 4.1, Spring AI 2.0, JUnit 6, Selenium 4.45, etc.).
-- `maven-tools-mcp` (MCP): Maven Central tools (version lookups, upgrade recommendations, license/CVE) for release automation.
-- `webapp-testing`: Playwright verification workflow for screenshot/browser-log evidence on UI/report PRs.
+- Plugin Swing UI: `frontend-design` (net-new surfaces only) -> `design` critique/UX copy -> `jdtls-lsp` -> JetBrains IDE MCP inspections when enabled (optional, per-dev) -> plugin screenshot renderer -> heuristic `accessibility-review` on renders. `webapp-testing` is Playwright; it cannot see Swing.
+- Docs/report web UI: `frontend-design` -> `design` critique -> implement -> `webapp-testing` evidence -> `accessibility-review`. `chrome-devtools-mcp` only for perf/network regressions.
+- Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (skip when in-tree: `rg` a pom beats a Docker cold start) -> `ci-failure-investigator` on breakage.
+- `context7`: only past-training-cutoff APIs (Spring Boot 4.1, Spring AI 2.0, JUnit 6, Jackson 3, Selenium 4.45, Docusaurus 3.10/React 19); else repo exemplars win.
+- Skip `jdtls-lsp` for one-liners; value scales with cross-module symbol impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
+- Follow-up: `a11ymcp` belongs in the docs repo.
 
-**Not configurable here (separate follow-up):**
-- JetBrains IntelliJ IDEA MCP server (#5): Manual enable in IDEA 2025.2+ via Settings | Tools | MCP Server.
-- `a11ymcp` (#7): For shafthq.github.io docs repo; requires separate PR with axe-core accessibility testing.
+## Agent Hierarchy
+
+Fable plans (fallback Opus) -> Opus orchestrates multi-task plans (fallback Sonnet) -> Sonnet owns each task, delegates implementation to Haiku, QAs the diff with real checks, loops <=3 rounds, then finishes directly. Fresh context per spawned agent; handoffs serialize to files/structured output; log which model ran each phase. PDCA personas: Kevin=Fable/Opus, Bob=Haiku, Bruce=Sonnet (`agentic-pdca-loop`). Saved workflows: `.claude/workflows/shaft-bug-fix.js`, `shaft-release-ci-fix.js`. Precisely-arranged core code (sync/wait internals, locator resolution, EDT threading): Sonnet implements directly. No repo `ralph-loop`: unbounded Stop-hook looping plus Maven fork gotchas risks Windows runaways; use the capped workflows.
+
+Use the hierarchy workflows for multi-module changes, release/CI incidents, or plans with 3+ independent tasks. For single-file fixes, doc edits, and version bumps, a single Sonnet session implements and verifies directly. Never spawn an orchestrator for a one-task plan.
 
 ## Completion
 
