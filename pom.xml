@@ -86,8 +86,8 @@
         <jython.slim.version>2.7.4</jython.slim.version>
         <tess4j.version>5.19.0</tess4j.version>
         <jnr.ffi.version>2.3.0</jnr.ffi.version>
-        <jna.version>5.18.1</jna.version>
-        <asm.version>9.7</asm.version>
+        <jna.version>5.19.1</jna.version>
+        <asm.version>9.10.1</asm.version>
         <antlr.runtime.version>3.5.3</antlr.runtime.version>
         <commons.compress.version>1.28.0</commons.compress.version>
         <bouncycastle.version>1.84</bouncycastle.version>

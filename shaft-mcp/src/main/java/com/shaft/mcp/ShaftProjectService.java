@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.net.JarURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
@@ -492,7 +494,7 @@ public class ShaftProjectService {
                 return latest;
             }
             return latestStableVersionFromVersions(metadata);
-        } catch (IOException exception) {
+        } catch (IOException | java.net.URISyntaxException exception) {
             throw new IllegalStateException(
                     "Could not resolve latest SHAFT Engine version from Maven Central.",
                     exception);
@@ -556,8 +558,8 @@ public class ShaftProjectService {
         return Long.parseLong(digits);
     }
 
-    private static String readTextFromUrl(String target) throws IOException {
-        URL url = new URL(target);
+    private static String readTextFromUrl(String target) throws IOException, URISyntaxException {
+        URL url = new URI(target).toURL();
         URLConnection connection = url.openConnection();
         connection.setConnectTimeout(5000);
         connection.setReadTimeout(5000);

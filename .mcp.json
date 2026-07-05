@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "maven-tools-mcp": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:latest"]
+    }
+  }
+}
