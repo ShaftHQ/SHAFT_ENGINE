@@ -317,6 +317,51 @@ class ShaftPilotReleaseValidatorTest(unittest.TestCase):
             any("capture-browser-secret-canary" in error for error in errors)
         )
 
+    def test_failed_allure_status_is_rejected_across_all_modules(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for module in MODULE.PILOT_MODULES:
+                results = root / module / "allure-results"
+                results.mkdir(parents=True)
+                (results / f"{module}-result.json").write_text(
+                    '{"status":"failed"}',
+                    encoding="utf-8",
+                )
+
+            errors = MODULE.validate_test_results(root)
+
+        self.assertTrue(
+            any("failed" in error for error in errors),
+            f"Expected failed status error, got: {errors}",
+        )
+        # Verify that all modules are checked, not just one
+        failed_modules = [
+            error for error in errors if "Allure result contains a failed test status" in error
+        ]
+        self.assertEqual(
+            len(failed_modules),
+            len(MODULE.PILOT_MODULES),
+            f"Expected {len(MODULE.PILOT_MODULES)} failed modules, got {len(failed_modules)}: {failed_modules}",
+        )
+
+    def test_broken_allure_status_is_rejected_across_all_modules(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for module in MODULE.PILOT_MODULES:
+                results = root / module / "allure-results"
+                results.mkdir(parents=True)
+                (results / f"{module}-result.json").write_text(
+                    '{"status":"broken"}',
+                    encoding="utf-8",
+                )
+
+            errors = MODULE.validate_test_results(root)
+
+        self.assertTrue(
+            any("broken" in error for error in errors),
+            f"Expected broken status error, got: {errors}",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
