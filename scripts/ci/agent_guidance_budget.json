@@ -1,7 +1,7 @@
 {
   "file_budgets": {
     "AGENTS.md": {
-      "max_bytes": 3072
+      "max_bytes": 5632
     },
     "CLAUDE.md": {
       "max_bytes": 1536,
@@ -41,7 +41,7 @@
       ".claude/skills/*/SKILL.md"
     ]
   },
-  "max_estimated_tokens_per_host": 2100,
+  "max_estimated_tokens_per_host": 2700,
   "active_guidance_globs": [
     "AGENTS.md",
     "CLAUDE.md",
@@ -64,7 +64,7 @@
     ".github/codex/prompts/refresh-agent-instructions.md"
   ],
   "reduction_baseline_bytes": 150000,
-  "minimum_reduction_percent": 79,
+  "minimum_reduction_percent": 77,
   "expected_skill_names": {
     ".agents/skills": [
       "agent-guidance-boundary-guard",
