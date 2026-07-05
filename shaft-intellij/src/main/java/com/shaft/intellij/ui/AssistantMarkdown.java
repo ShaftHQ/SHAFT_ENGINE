@@ -208,6 +208,10 @@ final class AssistantMarkdown {
             if (!doctor.isBlank()) {
                 return doctor;
             }
+            String codingPartner = codingPartnerMarkdown(object);
+            if (!codingPartner.isBlank()) {
+                return codingPartner;
+            }
             if (object.has("scenarios") && object.get("scenarios").isJsonArray()) {
                 return scenariosMarkdown(object);
             }
@@ -225,6 +229,145 @@ final class AssistantMarkdown {
             }
         }
         return "";
+    }
+
+    private static String codingPartnerMarkdown(JsonObject object) {
+        if (!object.has("workingSetSummary") || !object.has("reuseMatches") || !object.has("missingCodeItems")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add(metadataLine(
+                "Coding partner plan", string(object, "schemaVersion", ""),
+                "Backend", string(object, "backend", "")));
+        appendCodingPartnerSummary(sections, object);
+        appendNonBlank(sections, codingPartnerStepsMarkdown(object));
+        appendNonBlank(sections, codingPartnerReuseMarkdown(object));
+        appendNonBlank(sections, bulletList("Missing code", object, "missingCodeItems"));
+        appendNonBlank(sections, bulletList("Suggested MCP calls", object, "suggestedMcpCalls"));
+        appendNonBlank(sections, codingPartnerNextActionsMarkdown(object));
+        appendCodingPartnerVerification(sections, object);
+        appendNonBlank(sections, bulletList("Evidence paths", object, "evidencePaths"));
+        appendNonBlank(sections, warnings(object));
+        return joinSections(sections);
+    }
+
+    private static void appendCodingPartnerSummary(List<String> sections, JsonObject object) {
+        String summary = string(object, "workingSetSummary", "");
+        if (!summary.isBlank()) {
+            sections.add("**Working set:** " + summary);
+        }
+        String target = string(object, "recommendedTargetSourcePath", "");
+        String anchor = string(object, "recommendedInsertionAnchor", "");
+        if (!target.isBlank() || !anchor.isBlank()) {
+            sections.add(metadataLine(
+                    "Recommended target", target.isBlank() ? "" : "`" + target + "`",
+                    "Insertion anchor", anchor.isBlank() ? "" : "`" + anchor + "`"));
+        }
+    }
+
+    private static void appendCodingPartnerVerification(List<String> sections, JsonObject object) {
+        String verification = string(object, "verificationCommand", "");
+        if (!verification.isBlank()) {
+            sections.add("**Verification:** `" + verification + "`");
+        }
+    }
+
+    private static String codingPartnerStepsMarkdown(JsonObject object) {
+        JsonElement value = object.get("stepPlan");
+        if (value == null || !value.isJsonArray() || value.getAsJsonArray().isEmpty()) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("**Plan steps**");
+        for (JsonElement item : value.getAsJsonArray()) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject step = item.getAsJsonObject();
+            String index = string(step, "index", "");
+            String instruction = string(step, "instruction", "Step");
+            markdown.append("\n").append(index.isBlank() ? "- " : index + ". ").append(instruction);
+            String reuse = string(step, "reuseHint", "");
+            if (!reuse.isBlank()) {
+                markdown.append("\n  Reuse: ").append(reuse);
+            }
+            String proof = string(step, "proofTool", "");
+            if (!proof.isBlank()) {
+                markdown.append("\n  Proof: `").append(proof).append("`");
+            }
+        }
+        return markdown.toString();
+    }
+
+    private static String codingPartnerReuseMarkdown(JsonObject object) {
+        JsonElement value = object.get("reuseMatches");
+        if (value == null || !value.isJsonArray() || value.getAsJsonArray().isEmpty()) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("**Reuse matches**");
+        for (JsonElement item : value.getAsJsonArray()) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject match = item.getAsJsonObject();
+            String sourcePath = string(match, "sourcePath", "");
+            String className = string(match, "className", "");
+            markdown.append("\n- ");
+            if (!sourcePath.isBlank()) {
+                markdown.append("`").append(sourcePath).append("`");
+            }
+            if (!className.isBlank()) {
+                markdown.append(sourcePath.isBlank() ? "" : " ").append("(").append(className).append(")");
+            }
+            String score = string(match, "score", "");
+            if (!score.isBlank()) {
+                markdown.append(" score ").append(score);
+            }
+            appendInlineList(markdown, "Anchors", match, "insertionAnchors");
+            appendInlineList(markdown, "Locators", match, "locatorSummaries");
+            appendInlineList(markdown, "Actions", match, "actionSummaries");
+        }
+        return markdown.toString();
+    }
+
+    private static String codingPartnerNextActionsMarkdown(JsonObject object) {
+        JsonElement value = object.get("nextActions");
+        if (value == null || !value.isJsonArray() || value.getAsJsonArray().isEmpty()) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("**Next actions**");
+        for (JsonElement item : value.getAsJsonArray()) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject action = item.getAsJsonObject();
+            String label = string(action, "label", "Run next action");
+            String tool = string(action, "toolName", "");
+            markdown.append("\n- ").append(label);
+            if (!tool.isBlank()) {
+                markdown.append(" (`").append(tool).append("`)");
+            }
+            if (booleanValue(action, "requiresConfirmation")) {
+                markdown.append(" - confirm context first");
+            }
+            appendInlineList(markdown, "Why", action, "rationale");
+        }
+        return markdown.toString();
+    }
+
+    private static void appendInlineList(StringBuilder markdown, String label, JsonObject object, String key) {
+        JsonElement value = object.get(key);
+        if (value == null || !value.isJsonArray() || value.getAsJsonArray().isEmpty()) {
+            return;
+        }
+        List<String> items = new ArrayList<>();
+        for (JsonElement item : value.getAsJsonArray()) {
+            if (item.isJsonPrimitive()) {
+                items.add("`" + item.getAsString() + "`");
+            }
+        }
+        if (!items.isEmpty()) {
+            markdown.append("\n  ").append(label).append(": ").append(String.join(", ", items));
+        }
     }
 
     private static String scenariosMarkdown(JsonObject object) {
@@ -677,13 +820,14 @@ final class AssistantMarkdown {
         return """
                 **Generated code rejected**
 
-                The assistant returned Java that uses native Selenium APIs. SHAFT IntelliJ Assistant only accepts generated Java that uses SHAFT syntax.
+                The assistant returned Java that uses native Selenium APIs or a rejected SHAFT locator fallback. SHAFT IntelliJ Assistant only accepts generated Java that uses SHAFT syntax.
 
                 Ask the agent to regenerate the answer with SHAFT-only Java:
                 - Call `shaft_guide_search` with a query for SHAFT GUI WebDriver, page objects, locators, `driver.browser()`, and `driver.element()`.
                 - For broad test or page-object design, call `test_automation_scenarios` to learn the matching SHAFT coding pattern.
                 - Call `test_code_guardrails_check` on the final Java snippet before returning it.
                 - Use `SHAFT.GUI.WebDriver`, `driver.browser()`, `driver.element()`, `driver.element().touch()`, and `SHAFT.GUI.Locator`.
+                - Do not use `SHAFT.GUI.Locator.xpath(...)`; use Smart Locators, the SHAFT locator builder, or `By.xpath(...)` only as a last fallback.
                 - Do not return native navigation calls, direct element lookup calls, WebElement actions, browser-driver constructors, or other raw Selenium code.
                 """.strip();
     }
@@ -853,6 +997,12 @@ final class AssistantMarkdown {
                 .toList());
     }
 
+    private static void appendNonBlank(List<String> sections, String section) {
+        if (section != null && !section.isBlank()) {
+            sections.add(section);
+        }
+    }
+
     private static String string(JsonObject object, String key, String fallback) {
         JsonElement value = object.get(key);
         if (value == null || value.isJsonNull()) {
@@ -947,6 +1097,7 @@ final class AssistantMarkdown {
 
     private static boolean looksLikeNativeSelenium(String code) {
         return code.contains("org.openqa.selenium.WebDriver")
+                || code.contains("SHAFT.GUI.Locator.xpath(")
                 || code.contains("new ChromeDriver(")
                 || code.contains("new FirefoxDriver(")
                 || code.contains("new EdgeDriver(")

@@ -7,9 +7,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * MCP planning tools for a repository-aware SHAFT IntelliJ coding partner.
@@ -59,13 +60,25 @@ public class CodingPartnerService {
         String currentSource = normalizeCurrentSource(repository, currentSourcePath);
         List<String> evidencePaths = safeEvidencePaths(repository, artifactPaths);
         List<String> missingCodeItems = missingCodeItems(intent, selectedText, currentSource, reuseMatches);
-        List<String> suggestedCalls = suggestedMcpCalls(normalizedBackend, selectedText, evidencePaths);
         List<String> warnings = warnings(selectedText, currentSource);
         McpJavaTargetScanner.Candidate recommended = recommendedCandidate(currentSource, reuseMatches);
         String recommendedSourcePath = recommendedTargetSourcePath(currentSource, recommended);
         String recommendedAnchor = recommendedInsertionAnchor(recommended);
+        List<McpCodingPartnerNextAction> nextActions = nextActions(
+                repositoryPath,
+                intent,
+                normalizedBackend,
+                selectedText,
+                evidencePaths,
+                recommendedSourcePath,
+                recommendedAnchor,
+                recommended);
+        List<String> suggestedCalls = nextActions.stream()
+                .map(McpCodingPartnerNextAction::toolName)
+                .distinct()
+                .toList();
         return new McpCodingPartnerPlan(
-                "1.1",
+                "1.2",
                 workingSetSummary(text(intent), normalizedBackend, currentSource, reuseMatches.size(), evidencePaths.size()),
                 normalizedBackend,
                 reuseMatches,
@@ -74,6 +87,7 @@ public class CodingPartnerService {
                 recommendedAnchor,
                 missingCodeItems,
                 suggestedCalls,
+                nextActions,
                 verificationCommand(repository),
                 evidencePaths,
                 warnings);
@@ -151,25 +165,6 @@ public class CodingPartnerService {
         return List.copyOf(items);
     }
 
-    private static List<String> suggestedMcpCalls(String backend, String selectedText, List<String> evidencePaths) {
-        LinkedHashSet<String> calls = new LinkedHashSet<>();
-        calls.add("shaft_guide_search");
-        calls.add("capture_target_candidates");
-        if ("Playwright".equals(backend)) {
-            calls.add("playwright_browser_get_page_dom");
-            calls.add("playwright_capture_code_blocks");
-        } else {
-            calls.add("browser_open_intent");
-            calls.add("capture_record_at_target_code_blocks");
-        }
-        calls.add("test_code_guardrails_check");
-        if (!evidencePaths.isEmpty()) {
-            calls.add("trace_summarize");
-            calls.add("capture_evidence_pack");
-        }
-        return List.copyOf(calls);
-    }
-
     private static List<String> warnings(String selectedText, String currentSource) {
         List<String> warnings = new ArrayList<>();
         warnings.add("Plan is preview-only; IntelliJ/source edits require explicit user approval.");
@@ -219,6 +214,95 @@ public class CodingPartnerService {
             }
         }
         return recommended.insertionAnchors().get(0);
+    }
+
+    private static List<McpCodingPartnerNextAction> nextActions(
+            String repositoryPath,
+            String intent,
+            String backend,
+            String selectedText,
+            List<String> evidencePaths,
+            String recommendedSourcePath,
+            String recommendedAnchor,
+            McpJavaTargetScanner.Candidate recommended) {
+        List<McpCodingPartnerNextAction> actions = new ArrayList<>();
+        actions.add(action(
+                "Read relevant SHAFT guide guidance",
+                "shaft_guide_search",
+                arguments("query", guideQuery(intent, backend, selectedText)),
+                false,
+                "Ground generated code in current SHAFT syntax before editing."));
+        actions.add(action(
+                "Refresh repository reuse candidates",
+                "capture_target_candidates",
+                arguments("repositoryPath", text(repositoryPath), "maxResults", 10),
+                false,
+                "Recheck Page Objects, tests, locators, and fluent actions before adding code."));
+        if ("Playwright".equals(backend)) {
+            actions.add(action(
+                    "Inspect current Playwright page DOM",
+                    "playwright_browser_get_page_dom",
+                    arguments("maxCharacters", 200_000),
+                    true,
+                    "Use Playwright's current page snapshot before choosing locators."));
+            actions.add(action(
+                    "Generate Playwright capture code blocks",
+                    "playwright_capture_code_blocks",
+                    playwrightCodeArguments(recommended),
+                    true,
+                    "Requires a completed recording path before code generation."));
+        } else if ("Mobile".equals(backend)) {
+            actions.add(action(
+                    "Inspect current mobile accessibility tree",
+                    "mobile_get_accessibility_tree",
+                    arguments("maxCharacters", 200_000),
+                    true,
+                    "Prefer Appium accessibility IDs and resource IDs before coordinate fallback."));
+            actions.add(action(
+                    "Generate mobile target code blocks",
+                    "mobile_record_at_target_code_blocks",
+                    mobileCodeArguments(recommended, recommendedSourcePath, recommendedAnchor),
+                    true,
+                    "Requires a completed mobile recording path before code generation."));
+        } else {
+            actions.add(action(
+                    "Open the target URL and rank locators",
+                    "browser_open_intent",
+                    arguments("targetUrl", "", "userIntent", text(intent), "maxCharacters", 200_000, "maxElements", 10),
+                    true,
+                    "The user or project must confirm the URL before browser automation runs."));
+            actions.add(action(
+                    "Generate WebDriver target code blocks",
+                    "capture_record_at_target_code_blocks",
+                    captureCodeArguments(recommended, recommendedSourcePath, recommendedAnchor),
+                    true,
+                    "Requires a completed recording path before code generation."));
+        }
+        actions.add(action(
+                "Run generated-code guardrails",
+                "test_code_guardrails_check",
+                arguments("language", "java"),
+                true,
+                "Run after code generation with the generated snippet as the code argument."));
+        if (!evidencePaths.isEmpty()) {
+            actions.add(action(
+                    "Summarize the first trace evidence path",
+                    "trace_summarize",
+                    arguments("tracePath", evidencePaths.get(0)),
+                    false,
+                    "Use existing failure evidence before changing shared page or test code."));
+            actions.add(action(
+                    "Assemble local evidence pack",
+                    "capture_evidence_pack",
+                    arguments(
+                            "sourcePath", recommendedSourcePath,
+                            "reportPath", "",
+                            "reviewPath", "",
+                            "screenshotPaths", List.of()),
+                    true,
+                    "Attach source, review, report, and screenshots to the PR after generation."));
+        }
+        return List.copyOf(actions);
     }
 
     private static List<McpCodingPartnerStep> stepPlan(
@@ -276,6 +360,9 @@ public class CodingPartnerService {
         if ("Playwright".equals(backend)) {
             return "playwright_browser_get_page_dom";
         }
+        if ("Mobile".equals(backend)) {
+            return "mobile_get_accessibility_tree";
+        }
         if (containsAny(lower, "verify", "assert", "check", "validate", "see ")) {
             return "browser_get_page_dom";
         }
@@ -304,6 +391,11 @@ public class CodingPartnerService {
 
     private static String backend(String backend, String selectedText) {
         String value = text(backend).toLowerCase(Locale.ROOT);
+        String source = text(selectedText).toLowerCase(Locale.ROOT);
+        if (containsAny(value, "mobile", "appium", "android", "ios")
+                || containsAny(source, "appium", "mobileelement", "accessibility_id", "iosdriver", "androiddriver")) {
+            return "Mobile";
+        }
         if (value.contains("playwright")
                 || text(selectedText).contains("SHAFT.GUI.Playwright")) {
             return "Playwright";
@@ -331,7 +423,85 @@ public class CodingPartnerService {
         return false;
     }
 
+    private static McpCodingPartnerNextAction action(
+            String label,
+            String toolName,
+            Map<String, Object> arguments,
+            boolean requiresConfirmation,
+            String rationale) {
+        return new McpCodingPartnerNextAction(label, toolName, arguments, requiresConfirmation, List.of(rationale));
+    }
+
+    private static Map<String, Object> captureCodeArguments(
+            McpJavaTargetScanner.Candidate recommended,
+            String recommendedSourcePath,
+            String recommendedAnchor) {
+        return arguments(
+                "sessionPath", "",
+                "outputDirectory", ".",
+                "packageName", "tests.generated",
+                "className", "RecordedFlowTest",
+                "overwrite", false,
+                "targetSourcePath", text(recommendedSourcePath),
+                "insertAfter", text(recommendedAnchor),
+                "driverVariableName", recommended == null ? "driver" : recommended.driverVariableName());
+    }
+
+    private static Map<String, Object> playwrightCodeArguments(McpJavaTargetScanner.Candidate recommended) {
+        return arguments(
+                "sessionPath", "",
+                "outputDirectory", ".",
+                "packageName", "tests.generated",
+                "className", "RecordedFlowTest",
+                "overwrite", false,
+                "driverVariableName", recommended == null ? "driver" : recommended.driverVariableName());
+    }
+
+    private static Map<String, Object> mobileCodeArguments(
+            McpJavaTargetScanner.Candidate recommended,
+            String recommendedSourcePath,
+            String recommendedAnchor) {
+        return arguments(
+                "recordingPath", "",
+                "driverVariableName", recommended == null ? "driver" : recommended.driverVariableName(),
+                "targetSourcePath", text(recommendedSourcePath),
+                "insertAfter", text(recommendedAnchor));
+    }
+
+    private static Map<String, Object> arguments(Object... entries) {
+        LinkedHashMap<String, Object> values = new LinkedHashMap<>();
+        if (entries == null) {
+            return values;
+        }
+        for (int index = 0; index + 1 < entries.length; index += 2) {
+            values.put(textValue(entries[index]), argumentValue(entries[index + 1]));
+        }
+        return values;
+    }
+
+    private static Object argumentValue(Object value) {
+        return value == null ? "" : value;
+    }
+
+    private static String guideQuery(String intent, String backend, String selectedText) {
+        if (containsRawSelenium(selectedText)) {
+            return "Selenium to SHAFT syntax page object locators guardrails";
+        }
+        if ("Mobile".equals(backend)) {
+            return "SHAFT MCP mobile Appium locator-first recording";
+        }
+        if ("Playwright".equals(backend)) {
+            return "SHAFT Playwright backend capture codegen locators";
+        }
+        String value = text(intent);
+        return value.isBlank() ? "SHAFT coding partner page object locators" : value;
+    }
+
     private static String text(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private static String textValue(Object value) {
+        return value == null ? "" : value.toString().trim();
     }
 }

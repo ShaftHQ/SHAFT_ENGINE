@@ -794,6 +794,10 @@ final class McpCaptureCodeBlockService {
                 .noneMatch(importName -> importName.equals("com.shaft.driver.SHAFT"))) {
             result.add("com.shaft.driver.SHAFT");
         }
+        if (code.contains("By.") && result.stream()
+                .noneMatch(importName -> importName.equals("org.openqa.selenium.By"))) {
+            result.add("org.openqa.selenium.By");
+        }
         return List.copyOf(result);
     }
 
@@ -803,19 +807,18 @@ final class McpCaptureCodeBlockService {
         if (DIRECT_BY_STRATEGIES.contains(strategy)) {
             return switch (strategy) {
                 case "CSS", "TEST_ID" -> "SHAFT.GUI.Locator.cssSelector(\"" + expression + "\")";
-                case "XPATH" -> "SHAFT.GUI.Locator.xpath(\"" + expression + "\")";
+                case "XPATH" -> "By.xpath(\"" + expression + "\")";
                 case "ID" -> "SHAFT.GUI.Locator.id(\"" + expression + "\")";
                 case "NAME" -> "SHAFT.GUI.Locator.name(\"" + expression + "\")";
                 case "CLASS_NAME" -> "SHAFT.GUI.Locator.className(\"" + expression + "\")";
                 case "TAG_NAME" -> "SHAFT.GUI.Locator.tagName(\"" + expression + "\")";
-                case "LINK_TEXT" -> "SHAFT.GUI.Locator.xpath(\"//a[normalize-space(.)='"
-                        + expression + "']\")";
-                case "PARTIAL_LINK_TEXT" -> "SHAFT.GUI.Locator.xpath(\"//a[contains(normalize-space(.), '"
-                        + expression + "')]\")";
+                case "LINK_TEXT" -> "SHAFT.GUI.Locator.hasTagName(\"a\").hasText(\"" + expression + "\").build()";
+                case "PARTIAL_LINK_TEXT" -> "SHAFT.GUI.Locator.hasTagName(\"a\").containsText(\"" + expression
+                        + "\").build()";
                 default -> "SHAFT.GUI.Locator.cssSelector(\"" + expression + "\")";
             };
         }
-        return "SHAFT.GUI.Locator.xpath(\"//*[normalize-space(.)='" + expression + "']\")";
+        return "SHAFT.GUI.Locator.hasAnyTagName().containsText(\"" + expression + "\").build()";
     }
 
     private static String alternativeLocatorExpression(String alternative) {

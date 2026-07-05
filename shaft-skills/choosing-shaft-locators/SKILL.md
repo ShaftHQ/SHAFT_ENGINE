@@ -18,7 +18,7 @@ Stop at the first rung that uniquely identifies the element:
 3. Stable product-owned attribute: `data-testid`, stable `id`, `name`, or mobile `accessibilityId`.
 4. Composed `SHAFT.GUI.Locator` builder with tag, text, attributes, parent/shadow/iframe context.
 5. Stable CSS only when the app exposes no semantic signal.
-6. XPath only when required, never absolute XPath.
+6. Native `By.xpath(...)` only when required, never absolute XPath. Do not generate `SHAFT.GUI.Locator.xpath(...)`.
 
 ## MCP Checks
 
@@ -35,6 +35,8 @@ Stop at the first rung that uniquely identifies the element:
 - Keep generated `SHAFT.GUI.Locator.*` locators inline only for throwaway snippets; move stable locators into page objects for repo insertion.
 - Reuse locator summaries returned by `shaft_coding_partner_plan` and add only missing fields that the current DOM proves are needed.
 - Preserve user-provided locator choices from Capture when the recorder marks them as intentional.
+- For complex XPath, first try Smart Locators, ARIA, and the SHAFT locator builder; use a native Selenium `By` object only when those fail.
+- For SHAFT Playwright code, use native Playwright locators only as the same last fallback.
 - Do not use coordinate-only actions while a locator candidate exists.
 - Do not paste raw DOM snapshots into source code.
 

@@ -372,7 +372,8 @@ public final class CaptureGenerator {
                         : " (" + checkpoint.description() + ")";
                 unsupported.add("checkpoint-" + checkpoint.id() + description + ": assertion checkpoints require a "
                         + "VerificationEvent at sequence " + checkpoint.sequence()
-                        + ". Record the expected target and value explicitly.");
+                        + ". Record the expected target and value explicitly so generated code uses SHAFT "
+                        + "assertion builders only.");
             }
         }
         List<TargetPlan> immutableTargets = targets.entrySet().stream()
@@ -538,21 +539,16 @@ public final class CaptureGenerator {
     }
 
     private static List<String> missingAssertionWarnings(CaptureSession session, Set<Long> verificationSequences) {
-        Set<Long> assertionSequences = new HashSet<>(verificationSequences);
-        session.checkpoints().stream()
-                .filter(checkpoint -> checkpoint.kind() == Checkpoint.CheckpointKind.ASSERTION)
-                .map(Checkpoint::sequence)
-                .forEach(assertionSequences::add);
         List<String> warnings = new ArrayList<>();
         for (CaptureEvent event : session.events()) {
-            if (!needsPostActionAssertion(event) || hasLaterAssertion(event.context().sequence(), assertionSequences)) {
+            if (!needsPostActionAssertion(event) || hasLaterAssertion(event.context().sequence(), verificationSequences)) {
                 continue;
             }
             warnings.add(reviewWarning(
                     "ASSERTION",
                     "WARNING",
                     eventId(event),
-                    "No assertion or ASSERTION checkpoint follows a navigation or form-submission action.",
+                    "No recorded SHAFT assertion-builder verification follows a navigation or form-submission action.",
                     "Record a verification for the post-action page state."));
         }
         return warnings;
@@ -844,7 +840,7 @@ public final class CaptureGenerator {
         } else {
             line(source, "import com.shaft.driver.SHAFT;");
         }
-        if (fallbackReplay) {
+        if (needsByImport(targets, fallbackReplay)) {
             line(source, "import org.openqa.selenium.By;");
         }
         line(source, "import org.testng.annotations.AfterMethod;");
@@ -1266,8 +1262,28 @@ public final class CaptureGenerator {
             case TEST_ID, CSS -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(candidate.expression()) + "\")";
             case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(candidate.expression()) + "\")";
             case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(candidate.expression()) + "\")";
-            case XPATH -> "SHAFT.GUI.Locator.xpath(\"" + javaString(candidate.expression()) + "\")";
+            case XPATH -> "By.xpath(\"" + javaString(candidate.expression()) + "\")";
         };
+    }
+
+    private static boolean needsByImport(List<TargetPlan> targets, boolean fallbackReplay) {
+        return fallbackReplay || targets.stream().anyMatch(CaptureGenerator::usesNativeBy);
+    }
+
+    private static boolean usesNativeBy(TargetPlan plan) {
+        LocatorCandidate candidate = plan.selection().selected().candidate();
+        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.XPATH) {
+            return true;
+        }
+        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
+                || candidate.strategy() == LocatorCandidate.LocatorStrategy.ACCESSIBLE_NAME
+                || candidate.strategy() == LocatorCandidate.LocatorStrategy.LABEL) {
+            String name = !plan.target().accessibleName().isBlank()
+                    ? plan.target().accessibleName()
+                    : plan.target().label();
+            return semanticName(name, candidate).isBlank() && !isInput(plan.target()) && !isClickable(plan.target());
+        }
+        return false;
     }
 
     private static String locatorReference(
@@ -1279,7 +1295,7 @@ public final class CaptureGenerator {
                 .findFirst()
                 .map(plan -> locatorExpression(plan, fallbackReplay))
                 .orElseGet(() -> target.locatorCandidates().isEmpty()
-                        ? "SHAFT.GUI.Locator.xpath(\"//*\")"
+                        ? "By.xpath(\"//*\")"
                         : locatorExpression(target, target.locatorCandidates().getFirst()));
     }
 
@@ -1303,12 +1319,7 @@ public final class CaptureGenerator {
             String name,
             LocatorCandidate candidate) {
         String semanticName = name;
-        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
-                && candidate.expression().contains(":")) {
-            semanticName = candidate.expression().substring(candidate.expression().indexOf(':') + 1);
-        } else if (semanticName.isBlank()) {
-            semanticName = candidate.expression();
-        }
+        semanticName = semanticName(semanticName, candidate);
         if (isInput(target)) {
             return "SHAFT.GUI.Locator.inputField(\"" + javaString(semanticName) + "\")";
         }
@@ -1316,43 +1327,17 @@ public final class CaptureGenerator {
             return "SHAFT.GUI.Locator.clickableField(\"" + javaString(semanticName) + "\")";
         }
         if (!semanticName.isBlank()) {
-            String literal = xpathTextLiteral(semanticName);
-            return "SHAFT.GUI.Locator.xpath(\"//*[" + literal + "]\")";
+            return "SHAFT.GUI.Locator.hasAnyTagName().containsText(\"" + javaString(semanticName) + "\").build()";
         }
-        return "SHAFT.GUI.Locator.xpath(\"" + javaString(candidate.expression()) + "\")";
+        return "By.xpath(\"" + javaString(candidate.expression()) + "\")";
     }
 
-    private static String xpathTextLiteral(String value) {
-        String literal = xpathStringLiteral(value);
-        return "normalize-space(.)=" + literal + " or @aria-label=" + literal
-                + " or @title=" + literal + " or @placeholder=" + literal;
-    }
-
-    private static String xpathStringLiteral(String value) {
-        if (!value.contains("'")) {
-            return "'" + javaString(value) + "'";
+    private static String semanticName(String name, LocatorCandidate candidate) {
+        if (candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE
+                && candidate.expression().contains(":")) {
+            return candidate.expression().substring(candidate.expression().indexOf(':') + 1);
         }
-        if (!value.contains("\"")) {
-            return "\\\"" + javaString(value) + "\\\"";
-        }
-        List<String> parts = new ArrayList<>();
-        StringBuilder buffer = new StringBuilder();
-        for (int i = 0; i < value.length(); i++) {
-            char character = value.charAt(i);
-            if (character == '\'' || character == '"') {
-                if (!buffer.isEmpty()) {
-                    parts.add("'" + javaString(buffer.toString()) + "'");
-                    buffer.setLength(0);
-                }
-                parts.add(character == '\'' ? "\\\"'\\\"" : "'\\\"'");
-            } else {
-                buffer.append(character);
-            }
-        }
-        if (!buffer.isEmpty()) {
-            parts.add("'" + javaString(buffer.toString()) + "'");
-        }
-        return "concat(" + String.join(", ", parts) + ")";
+        return name.isBlank() ? candidate.expression() : name;
     }
 
     private static String dataExpression(ExternalTestDataReference reference, DataPlan data) {

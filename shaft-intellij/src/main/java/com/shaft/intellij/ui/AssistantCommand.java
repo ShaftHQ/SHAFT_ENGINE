@@ -38,6 +38,7 @@ final class AssistantCommand {
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                     For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
                     Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
+                    Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                     For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
                     """.stripIndent().trim();
@@ -46,10 +47,15 @@ final class AssistantCommand {
                     This is a code-generation request. Before returning Java:
                     - Call shaft_guide_search for the relevant SHAFT guide examples and cite the official guide URLs.
                     - Call test_automation_scenarios for broad test/page-object design to learn the matching SHAFT coding pattern.
+                    - Inspect existing project code and call shaft_coding_partner_plan before creating tests, page objects, locators, or actions.
+                    - Reuse existing tests, page objects, locator fields, and action methods first.
+                    - If required actions or locators are missing, record the complete flow, then insert only the missing locators/actions into the planned source anchors.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
                     - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
                     - For generated code that performs a specific action: Open a real browser session; call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
                     - Verify each selected locator by performing the actual action with shaft-mcp element_type, element_click, or natural_act before returning it. Do not publish unverified locators.
+                    - Never generate SHAFT.GUI.Locator.xpath(...); prefer smart locators and the locator builder, then By.xpath only as a last fallback.
+                    - Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.
                     - Call test_code_guardrails_check on the final Java snippet.
                     - Do not print full repository files or broad file dumps. Cite inspected files by path and include only the generated or changed code needed for the answer.
                     - Put every code snippet in fenced code blocks with the correct language.
@@ -244,13 +250,21 @@ final class AssistantCommand {
         return help.toString();
     }
 
-    record OpenFileContext(String path, String text) {
+    record OpenFileContext(String path, String text, String selectedText) {
+        OpenFileContext(String path, String text) {
+            this(path, text, "");
+        }
+
         static OpenFileContext empty() {
-            return new OpenFileContext("", "");
+            return new OpenFileContext("", "", "");
         }
 
         boolean present() {
             return path != null && !path.isBlank() && text != null && !text.isBlank();
+        }
+
+        String selectedOrEmpty() {
+            return selectedText == null ? "" : selectedText.trim();
         }
     }
 
@@ -318,9 +332,14 @@ final class AssistantCommand {
         if (!liveCodegen.isBlank()) {
             text = liveCodegen;
         } else if (text.startsWith("/")) {
-            return slash(text, workingDirectory);
+            return slash(text, workingDirectory, openFileContext);
         }
         if (!liveCodegenRequest) {
+            if (isCodingPartnerIntent(text)) {
+                return Invocation.tool(
+                        "shaft_coding_partner_plan",
+                        codingPartnerPlan(naturalCodingPartnerIntent(text), workingDirectory, openFileContext));
+            }
             Invocation recording = recording(text);
             if (recording != null) {
                 return recording;
@@ -380,9 +399,16 @@ final class AssistantCommand {
     }
 
     private static Invocation slash(String text, String workingDirectory) {
+        return slash(text, workingDirectory, OpenFileContext.empty());
+    }
+
+    private static Invocation slash(String text, String workingDirectory, OpenFileContext openFileContext) {
         String[] parts = text.split("\\s+", 2);
         String command = parts[0].toLowerCase(Locale.ROOT);
         String rest = parts.length == 2 ? parts[1].trim() : "";
+        if (PARTNER_COMMAND.matches(command)) {
+            return Invocation.tool("shaft_coding_partner_plan", codingPartnerPlan(rest, workingDirectory, openFileContext));
+        }
         for (CommandDefinition definition : COMMANDS) {
             if (definition.matches(command)) {
                 return definition.invoke(command, rest, workingDirectory);
@@ -419,18 +445,31 @@ final class AssistantCommand {
     }
 
     private static JsonObject codingPartnerPlan(String intent, String workingDirectory) {
+        return codingPartnerPlan(intent, workingDirectory, OpenFileContext.empty());
+    }
+
+    private static JsonObject codingPartnerPlan(String intent, String workingDirectory, OpenFileContext openFileContext) {
         JsonObject arguments = new JsonObject();
         String repositoryPath = text(workingDirectory);
+        String normalizedIntent = text(intent);
         arguments.addProperty("repositoryPath", repositoryPath.isBlank() ? "." : repositoryPath);
-        arguments.addProperty("intent", text(intent));
-        arguments.addProperty("backend", text(intent).toLowerCase(Locale.ROOT).contains("playwright")
-                ? "Playwright"
-                : "WebDriver");
-        arguments.addProperty("currentSourcePath", "");
-        arguments.addProperty("selectedText", "");
+        arguments.addProperty("intent", normalizedIntent);
+        arguments.addProperty("backend", codingPartnerBackend(normalizedIntent, openFileContext));
+        arguments.addProperty("currentSourcePath", openFileContext == null ? "" : text(openFileContext.path()));
+        arguments.addProperty("selectedText", openFileContext == null ? "" : openFileContext.selectedOrEmpty());
         arguments.add("artifactPaths", new JsonArray());
         arguments.addProperty("maxResults", 10);
         return arguments;
+    }
+
+    private static String codingPartnerBackend(String intent, OpenFileContext openFileContext) {
+        String combined = (text(intent) + " "
+                + (openFileContext == null ? "" : text(openFileContext.text()) + " " + openFileContext.selectedOrEmpty()))
+                .toLowerCase(Locale.ROOT);
+        if (containsAny(combined, "mobile", "appium", "android", "ios")) {
+            return "Mobile";
+        }
+        return combined.contains("playwright") ? "Playwright" : "WebDriver";
     }
 
     private static JsonObject inspect(String rest) {
@@ -1352,6 +1391,7 @@ final class AssistantCommand {
                 - Call shaft_coding_partner_plan when available and reuse its recommended target source and anchor before creating new files.
                 - Move stable locators into page object classes.
                 - Move replay actions into intent-named page methods.
+                - Do not use SHAFT.GUI.Locator.xpath; use smart locators, the locator builder, or By.xpath only as a last fallback.
                 - Keep the TestNG test focused on scenario orchestration and final assertions.
                 - Do not duplicate existing locators, page actions, tests, or classes.
                 - Preserve the recorded browser journey; do not collapse it to only opening the start page or a generic title check.

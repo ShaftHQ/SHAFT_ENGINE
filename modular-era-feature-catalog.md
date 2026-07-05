@@ -14,7 +14,7 @@ This catalog is written for framework users who want to know what changed, what 
 | --- | --- | --- |
 | Upgrade without pulling every optional integration into the core artifact. | [Modular adoption](#modular-adoption) | `shaft-engine` stays lean while BrowserStack, visual, video, AI, Doctor, Heal, and Capture remain available as opt-in modules. |
 | Let an agent inspect pages, choose locators, record flows, and review generated code. | [MCP and agent workflows](#mcp-and-agent-workflows) | `shaft-mcp` exposes WebDriver, Playwright, mobile, capture, Doctor, Heal, Trace, guide search, and guardrail tools through one automation surface. |
-| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The stable plugin uses Assistant browser control plus right-side workflow tabs (Guided, Recorder, Inspector, Triage, Evidence Tools, Projects, Advanced Tools) so prompts, sessions, and MCP templates stay close to the editor. |
+| Use SHAFT workflows inside IntelliJ IDEA. | [IntelliJ IDEA plugin](#intellij-idea-plugin) | The stable plugin is the front door for coding-partner work: Assistant and Guided collect intent, current source, selected text, and evidence before MCP plans reuse and verification. |
 | Turn exploratory browser or mobile sessions into maintainable Java tests. | [Capture and code generation](#capture-and-code-generation) | Recorder sessions preserve actions, checkpoints, locators, context, privacy, and replay snippets. |
 | Make Android/Appium setup and recording less coordinate-driven. | [Mobile automation](#mobile-automation) | Toolchain diagnostics and locator-first Inspector recording show the exact device, locator, and fallback state. |
 | Debug failed tests from evidence instead of guessing. | [Doctor, Heal, Trace, and reporting](#doctor-heal-trace-and-reporting) | Failure briefs, traces, locator health, healing decisions, and report UI give a shorter path from failure to fix. |
@@ -234,7 +234,20 @@ The recorder/codegen handoff is now a three-iteration coding-partner loop before
 any source edit: plan the working set and user steps, reuse the recommended Java
 owner and insertion anchor, avoid duplicate locators/actions/classes, prove
 missing browser steps, inspect the patch preview, collect evidence, then verify
-locally.
+locally. Generated code uses Smart Locators and the SHAFT locator builder before
+native `By.xpath(...)`; it must not emit `SHAFT.GUI.Locator.xpath(...)`.
+
+The public entry point is IntelliJ, not raw MCP: Assistant `/partner` and Guided
+`Plan coding partner` gather the IDE context, then MCP returns the reuse plan,
+reviewed code blocks, and focused verification command.
+
+```mermaid
+flowchart LR
+    IDE[IntelliJ Assistant / Guided] --> Plan[shaft_coding_partner_plan]
+    Plan --> Reuse[Existing target + insertion anchor]
+    Reuse --> Review[Reviewed code blocks / patch preview]
+    Review --> Verify[Focused local verification]
+```
 
 | Rank | Enhancement | Why users feel it immediately |
 | --- | --- | --- |
@@ -275,6 +288,7 @@ Use the new reactor split when you want SHAFT as a framework base, not a monolit
 | Locator inspection | Reuse `shaft-capture` `LocatorRanker` scoring for role, accessible name, label, test id, id, name, CSS, and XPath alternatives. | `bestLocator.strategy=ROLE; shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign in")` |
 | Capture review blocks | Return setup prerequisites, assertion suggestions, locator alternatives, action sequences, locator-confidence queues, validation back-links, and control-flow review notes as additive MCP code blocks after generation. | `capture_code_blocks`, `capture_record_at_target_code_blocks` |
 | Semantic actions | Combine guide search, scenario catalog, guardrail checks, and `natural_act` without leaving the MCP session. | `shaft_guide_search`, `test_automation_scenarios`, `test_code_guardrails_check`, `natural_act` |
+| Playwright MCP and CLI parity | Official Playwright MCP/CLI can be used as a delegated exploration sidecar for accessibility snapshots, browser commands, network/storage/devtools, codegen, and Test Agent planning; SHAFT converts the proven behavior into Java Page Objects, Capture sessions, Doctor/Heal evidence, and `SHAFT.GUI.Playwright` or WebDriver code. | `test_automation_scenarios(area="playwright")`, `capture_codegen_features`, `capture generate --backend playwright` |
 
 ```text
 driver_initialize(browserName="chrome", headless=true)
@@ -290,11 +304,24 @@ orientation.elements[0].shaftLocatorCode=SHAFT.GUI.Locator.clickableField("Sign 
 nextTools=[browser_get_page_dom, browser_take_screenshot, shaft_guide_search, element_click, natural_act, capture_start, capture_code_blocks, test_code_guardrails_check]
 ```
 
+```mermaid
+flowchart LR
+    Intent[User intent in IntelliJ] --> Route{Need SHAFT Java edit?}
+    Route -->|Yes| Plan[shaft_coding_partner_plan]
+    Route -->|Browser exploration sidecar| PW[Official Playwright CLI or MCP]
+    PW --> Evidence[Snapshots, locators, screenshots, network, storage, traces]
+    Evidence --> Plan
+    Plan --> Capture[Capture or Playwright code blocks]
+    Capture --> POM[Existing Page Objects and tests]
+    POM --> Guardrails[test_code_guardrails_check]
+    Guardrails --> Verify[Focused Maven or Gradle validation]
+```
+
 <img src="shaft-engine/src/main/resources/modular-era-feature-catalog/mcp-tools.png" alt="MCP tool manifest" width="760">
 
 ## IntelliJ IDEA Plugin
 
-`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.3.20260703`). It is intentionally thin: first-run setup defaults to Codex CLI, walks through `Pick agent`, `Copy command`, `Run in terminal`, and `Check setup`, then uses installer defaults to find and persist the local SHAFT MCP launch command automatically before revealing `Start chatting`. The plugin does not download or execute installer scripts at runtime. Settings remain available later for Local/Cloud routing, API keys, and custom local MCP commands.
+`shaft-intellij` is the stable IntelliJ IDEA plugin (`io.github.shafthq.shaft`, `10.3.20260703`). It is the public front door for coding-partner work: start in Assistant or Guided, let MCP plan reuse, review generated code blocks, and run the focused verification command. It is intentionally thin: first-run setup defaults to Codex CLI, walks through `Pick agent`, `Copy command`, `Run in terminal`, and `Check setup`, then uses installer defaults to find and persist the local SHAFT MCP launch command automatically before revealing `Start chatting`. The plugin does not download or execute installer scripts at runtime. Settings remain available later for Local/Cloud routing, API keys, and custom local MCP commands.
 
 | Surface | What users get | Entry point |
 | --- | --- | --- |
@@ -381,7 +408,7 @@ Capture is now the bridge between exploratory testing and maintainable Java. It 
 | --- | --- | --- |
 | Managed web recorder | Pause, assert, verify, edit, delete, reorder, add visible assertions from captured targets, pick locators, and see readiness score while recording. | `capture_start --url https://example.com --browser chrome --output target/capture/session.json --session-goal "record checkout"` |
 | TestNG replay | Generate replay snippets, intent-derived class/method names, source review headers, Page Object insertions, and review warnings from the captured session. | `capture_generate_replay --session target/capture/session.json --target-source src/test/java/CheckoutTest.java` |
-| Assertions | Record browser and element checkpoints from in-panel dialogs instead of blocking native prompts or writing assertions from memory later. | `capture_checkpoint --description "cart total is visible"` |
+| Assertions | Record browser and element verification events from in-panel dialogs; checkpoint notes do not replace generated SHAFT assertion-builder calls. | `capture_checkpoint --description "cart total is visible"` |
 | Locator refinement | Keep fallback locator replay, live locator picker/refinement, compact generated fallback helpers, and ranked locator alternatives in the generated review blocks. | `capture_code_blocks --session target/capture/session.json --driver-variable-name driver` |
 | Review workbench | Review blockers, assertions, locator decisions, Page Object draft, copyable commands, code-block summary, and control-flow suggestions before reading or saving source. | `target/shaft-capture/capture-workbench.html` |
 | Record at cursor | Generate code blocks for automated and user-performed flows, including record-at-target snippets. | `capture_record_at_target_code_blocks` |
@@ -464,6 +491,7 @@ The modular era keeps classic WebDriver/Appium flows, adds a first-class Playwri
 | --- | --- | --- |
 | Playwright facade | `SHAFT.GUI.Playwright` sits beside WebDriver under the shared GUI driver concept. | `SHAFT.GUI.Playwright driver = new SHAFT.GUI.Playwright();` |
 | Playwright parity | Browser actions, element actions, assertions, verifications, tracing, contract replay, natural action executor, screenshots, and Doctor hooks. | `playwright_capture_code_blocks`, `playwright_replay_recording`, `playwright_doctor_suggest_fix` |
+| Capture CLI backend selection | The same persisted Capture session can now generate WebDriver or SHAFT Playwright replay from local CLI use. | `capture generate --session recordings/example.json --backend playwright` |
 | Browser network control | Intercept, mock, assert, verify, throttle, block resources, bridge API/browser auth state, and record contracts. | `driver.browser().interceptRequest().get().urlContains("/api/users")...perform();` |
 | API facade | GraphQL builder, retry policies, typed JSON mapping to classes/records/lists, and OpenAPI coverage thresholds. | `api.get("/health").withRetry(RetryPolicy.transientFailures().maxAttempts(3)).perform();` |
 | Browser/mobile polish | UI state wait timeout, touch end-scroll, image invisibility waits, Appium recursion fallback, and mobile trace enrichment. | `SHAFT.Properties.timeouts.set().waitForUiStateTimeout(600);` |

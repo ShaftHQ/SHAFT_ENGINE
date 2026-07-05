@@ -58,7 +58,9 @@ final class McpMobileCode {
                 "Mobile action snippet",
                 McpCodeBlock.Kind.ACTION,
                 "java",
-                List.of("com.shaft.driver.SHAFT"),
+                javaCode.contains("By.")
+                        ? List.of("com.shaft.driver.SHAFT", "org.openqa.selenium.By")
+                        : List.of("com.shaft.driver.SHAFT"),
                 javaCode + System.lineSeparator(),
                 "Paste inside a method that already owns a SHAFT.GUI.WebDriver named driver.",
                 true,
@@ -69,12 +71,12 @@ final class McpMobileCode {
     static String locatorCode(locatorStrategy strategy, String value) {
         String literal = java(value);
         if (strategy == null) {
-            return "SHAFT.GUI.Locator.xpath(" + literal + ")";
+            return "By.xpath(" + literal + ")";
         }
         return switch (strategy) {
             case ID -> "SHAFT.GUI.Locator.id(" + literal + ")";
             case CSSSELECTOR, CSS, SELECTOR -> "SHAFT.GUI.Locator.cssSelector(" + literal + ")";
-            case XPATH -> "SHAFT.GUI.Locator.xpath(" + literal + ")";
+            case XPATH -> "By.xpath(" + literal + ")";
             case NAME -> "SHAFT.GUI.Locator.name(" + literal + ")";
             case TAGNAME -> "SHAFT.GUI.Locator.tagName(" + literal + ")";
             case CLASSNAME -> "SHAFT.GUI.Locator.className(" + literal + ")";

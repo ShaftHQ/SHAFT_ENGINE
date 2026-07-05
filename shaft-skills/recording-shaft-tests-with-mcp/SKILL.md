@@ -25,20 +25,31 @@ Record first, then generate reviewed SHAFT code. Treat recordings as evidence an
 
 | Target | Tools |
 | --- | --- |
-| SHAFT Playwright direct record | `shaft-mcp:playwright_initialize`, `shaft-mcp:playwright_record_start`, `shaft-mcp:playwright_record_stop`, `shaft-mcp:playwright_recording_code_blocks` |
-| Playwright Capture generation | `shaft-mcp:playwright_capture_code_blocks` |
+| SHAFT Playwright direct record | `shaft-mcp:playwright_initialize`, `shaft-mcp:playwright_record_start`, `shaft-mcp:playwright_record_status`, `shaft-mcp:playwright_record_stop`, `shaft-mcp:playwright_recording_code_blocks`, `shaft-mcp:playwright_replay_recording` |
+| Playwright Capture generation | `shaft-mcp:playwright_capture_generate_replay`, `shaft-mcp:playwright_capture_code_blocks` |
 | Mobile MCP recording | `shaft-mcp:mobile_record_start`, `shaft-mcp:mobile_record_stop`, `shaft-mcp:mobile_recording_code_blocks` |
 | Appium Inspector wrapper | `shaft-mcp:mobile_inspector_record_prepare`, `shaft-mcp:mobile_inspector_record_start`, `shaft-mcp:mobile_inspector_record_control`, `shaft-mcp:mobile_inspector_record_stop` |
 | Repo-aware insertion plan | `shaft-mcp:shaft_coding_partner_plan`, then target-specific code blocks |
+
+## Official Playwright Sidecar
+
+Use official Playwright CLI or Playwright MCP as a delegated browser-exploration sidecar when the user asks for it, when installed Playwright skills are already active, or when the task needs token-efficient snapshots, network/storage inspection, console output, tracing, video, PDF, or Playwright Test Agent planning.
+
+Bring only evidence back into SHAFT: command transcript, page snapshot, locator notes, screenshots, HAR/storage paths, traces, and the exact user steps. Then call `shaft-mcp:shaft_coding_partner_plan`, `shaft-mcp:capture_start_codegen`, `shaft-mcp:capture_codegen_features`, and WebDriver or Playwright code-block tools according to the target Java backend.
 
 ## Integration Rules
 
 - Ask for the exact target URL when the user names a site without one.
 - Keep secrets redacted. Use generated required-data placeholders instead of captured typed secrets.
-- Prefer recorded assertion mode or checkpoints so replay has meaningful verification.
+- Prefer recorded assertion mode for generated assertions; checkpoints should name review intent, and generated verification code must use SHAFT assertion builders only.
 - Move stable locators/actions into page objects; do not paste a generic generated class when the repo has existing structure.
 - Treat `shaft_coding_partner_plan.reuseMatches` as the insertion shortlist and `missingCodeItems` as the only code that still needs to be created.
+- Record the complete user flow before codegen when requested actions or locators are missing, then insert only the missing locators/actions into the existing source anchor.
+- Do not generate `SHAFT.GUI.Locator.xpath(...)`; use Smart Locators, ARIA locators, the SHAFT locator builder, or native `By.xpath(...)` only as a last fallback.
 - Keep recording artifacts as evidence, not as source.
+- Do not paste Playwright TypeScript tests into Java projects; translate the proven behavior into SHAFT syntax and the existing Java design pattern.
+- Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.
+- Treat Playwright `browser_run_code_unsafe`, `playwright-cli run-code`, and `eval` as trusted-client-only evidence gathering.
 - Do not add sleeps, absolute XPath, raw Selenium calls, or coordinate-only actions when locator candidates exist.
 
 ## Official Guide Routes

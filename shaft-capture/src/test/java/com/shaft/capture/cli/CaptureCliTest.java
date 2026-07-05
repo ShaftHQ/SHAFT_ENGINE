@@ -146,6 +146,7 @@ class CaptureCliTest {
         assertTrue(usage.contains("capture start"));
         assertTrue(usage.contains("features"));
         assertTrue(usage.contains("--enable-fallback-locators"));
+        assertTrue(usage.contains("--backend webdriver|playwright"));
         assertTrue(usage.contains("--target-source"));
         assertTrue(usage.contains("--insert-after"));
         assertTrue(usage.contains("--control-flow-preview"));
@@ -187,6 +188,51 @@ class CaptureCliTest {
         assertEquals("agent", startOptions.userAgent());
         assertEquals(java.time.Duration.ofMillis(1500), startOptions.timeout());
         assertEquals(temp.resolve("profile").toAbsolutePath().normalize(), startOptions.userDataDirectory());
+    }
+
+    @Test
+    void generationBackendSelectsPlaywrightAndRejectsUnknownValues() throws Exception {
+        Class<?> argumentsClass = Class.forName("com.shaft.capture.cli.CaptureCli$Arguments");
+        Object defaultOptions = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {});
+        Object playwrightOptions = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {"--backend", "playwright"});
+        Object seleniumOptions = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {"--backend", "selenium"});
+        Object invalidOptions = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {"--backend", "puppeteer"});
+
+        assertEquals("WEBDRIVER", ((Enum<?>) invokeStatic(
+                "generationBackend",
+                new Class<?>[] {argumentsClass},
+                defaultOptions)).name());
+        assertEquals("PLAYWRIGHT", ((Enum<?>) invokeStatic(
+                "generationBackend",
+                new Class<?>[] {argumentsClass},
+                playwrightOptions)).name());
+        assertEquals("WEBDRIVER", ((Enum<?>) invokeStatic(
+                "generationBackend",
+                new Class<?>[] {argumentsClass},
+                seleniumOptions)).name());
+
+        InvocationTargetException invalidBackend = assertThrows(InvocationTargetException.class,
+                () -> invokeStatic(
+                        "generationBackend",
+                        new Class<?>[] {argumentsClass},
+                        invalidOptions));
+        assertInstanceOf(IllegalArgumentException.class, invalidBackend.getCause());
     }
 
     private static Object invokeStatic(String methodName, Class<?>[] parameterTypes, Object... arguments)

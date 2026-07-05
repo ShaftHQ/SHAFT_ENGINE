@@ -378,6 +378,22 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void rejectsShaftLocatorXpathGeneratedJavaSnippets() {
+        String markdown = AssistantMarkdown.fromMcpOutput("capture_code_blocks", mcpText("""
+                {
+                  "codeBlocks": [
+                    {"language":"java","code":"driver.element().click(SHAFT.GUI.Locator.xpath(\\"//button[@type='submit']\\"));"}
+                  ]
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**Generated code rejected**")),
+                () -> assertTrue(markdown.contains("SHAFT.GUI.Locator.xpath")),
+                () -> assertFalse(markdown.contains("driver.element().click")));
+    }
+
+    @Test
     void formatsAutomationScenariosWithoutRawJson() {
         String markdown = AssistantMarkdown.fromMcpOutput("test_automation_scenarios", mcpText("""
                 {
@@ -403,6 +419,72 @@ class AssistantMarkdownTest {
                 () -> assertTrue(markdown.contains("`driver_initialize`")),
                 () -> assertFalse(markdown.contains("\"schemaVersion\"")),
                 () -> assertFalse(markdown.contains("\"scenarios\"")));
+    }
+
+    @Test
+    void formatsCodingPartnerPlanWithoutRawJson() {
+        String markdown = AssistantMarkdown.fromMcpOutput("shaft_coding_partner_plan", mcpText("""
+                {
+                  "schemaVersion": "1.2",
+                  "workingSetSummary": "Intent: Log in; backend: WebDriver; current source: src/test/java/pages/LoginPage.java; reuse candidates: 1; evidence paths: 1",
+                  "backend": "WebDriver",
+                  "reuseMatches": [
+                    {
+                      "sourcePath": "src/test/java/pages/LoginPage.java",
+                      "packageName": "pages",
+                      "className": "LoginPage",
+                      "driverVariableName": "browser",
+                      "insertionAnchors": ["loginAs"],
+                      "score": 176,
+                      "locatorSummaries": ["emailInput = SHAFT.GUI.Locator.inputField(\\"Email\\")"],
+                      "actionSummaries": ["loginAs"]
+                    }
+                  ],
+                  "stepPlan": [
+                    {
+                      "index": 1,
+                      "instruction": "Log in with valid credentials",
+                      "reuseHint": "Reuse src/test/java/pages/LoginPage.java after loginAs before creating duplicate locators, actions, or tests.",
+                      "proofTool": "browser_open_intent"
+                    }
+                  ],
+                  "recommendedTargetSourcePath": "src/test/java/pages/LoginPage.java",
+                  "recommendedInsertionAnchor": "loginAs",
+                  "missingCodeItems": ["Replace raw Selenium selected text with SHAFT syntax."],
+                  "suggestedMcpCalls": ["capture_target_candidates", "test_code_guardrails_check"],
+                  "nextActions": [
+                    {
+                      "label": "Open the target URL and rank locators",
+                      "toolName": "browser_open_intent",
+                      "arguments": {"targetUrl": "", "userIntent": "Log in"},
+                      "requiresConfirmation": true,
+                      "rationale": ["The user must confirm the URL before browser automation runs."]
+                    }
+                  ],
+                  "verificationCommand": "mvn -q -DskipTests test-compile",
+                  "evidencePaths": ["target/shaft-traces/latest"],
+                  "warnings": ["Preview only; do not edit source before approval."]
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(markdown.contains("**Coding partner plan:** 1.2")),
+                () -> assertTrue(markdown.contains("**Recommended target:** `src/test/java/pages/LoginPage.java`")),
+                () -> assertTrue(markdown.contains("**Insertion anchor:** `loginAs`")),
+                () -> assertTrue(markdown.contains("**Plan steps**")),
+                () -> assertTrue(markdown.contains("Reuse src/test/java/pages/LoginPage.java")),
+                () -> assertTrue(markdown.contains("Proof: `browser_open_intent`")),
+                () -> assertTrue(markdown.contains("**Reuse matches**")),
+                () -> assertTrue(markdown.contains("`emailInput = SHAFT.GUI.Locator.inputField(")),
+                () -> assertTrue(markdown.contains("**Suggested MCP calls**")),
+                () -> assertTrue(markdown.contains("**Next actions**")),
+                () -> assertTrue(markdown.contains("Open the target URL and rank locators (`browser_open_intent`)")),
+                () -> assertTrue(markdown.contains("confirm context first")),
+                () -> assertTrue(markdown.contains("`mvn -q -DskipTests test-compile`")),
+                () -> assertTrue(markdown.contains("Preview only; do not edit source before approval.")),
+                () -> assertFalse(markdown.contains("\"reuseMatches\"")),
+                () -> assertFalse(markdown.contains("\"stepPlan\"")),
+                () -> assertFalse(markdown.contains("\"nextActions\"")));
     }
 
     @Test

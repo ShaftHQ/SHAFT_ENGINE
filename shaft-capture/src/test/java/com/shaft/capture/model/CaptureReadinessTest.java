@@ -44,7 +44,31 @@ class CaptureReadinessTest {
         assertTrue(blocked.warnings().stream().anyMatch(warning -> warning.contains("required input")));
     }
 
+    @Test
+    void assertionCheckpointWithoutVerificationDoesNotSatisfyReadinessAssertionSignal() {
+        CaptureReadiness ready = CaptureReadiness.from(session(
+                List.of(new CaptureEvent.NavigationEvent(
+                        CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN,
+                        "https://example.test/checkout")),
+                List.of(new Checkpoint(
+                        "assertion-note",
+                        2,
+                        CaptureFixtures.STARTED.plusSeconds(2),
+                        Checkpoint.CheckpointKind.ASSERTION,
+                        "cart total is visible")),
+                List.of()));
+
+        assertEquals(CaptureReadiness.State.RISKY, ready.state());
+        assertTrue(ready.warnings().stream()
+                .anyMatch(warning -> warning.contains("Record a verification for the post-action page state.")));
+    }
+
     private static CaptureSession session(List<CaptureEvent> events, List<String> warnings) {
+        return session(events, List.of(), warnings);
+    }
+
+    private static CaptureSession session(List<CaptureEvent> events, List<Checkpoint> checkpoints, List<String> warnings) {
         return new CaptureSession(
                 CaptureSession.CURRENT_SCHEMA_VERSION,
                 "readiness-session",
@@ -53,7 +77,7 @@ class CaptureReadinessTest {
                 null,
                 CaptureFixtures.browser(),
                 events,
-                List.of(),
+                checkpoints,
                 List.of(CaptureFixtures.secret()),
                 RedactionSummary.empty(),
                 Map.of("collectorWarnings", JSON.valueToTree(warnings)));

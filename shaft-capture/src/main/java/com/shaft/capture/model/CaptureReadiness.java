@@ -67,7 +67,7 @@ public record CaptureReadiness(State state, List<String> warnings) {
         }
         List<String> blocked = new ArrayList<>();
         List<String> risky = new ArrayList<>();
-        Set<Long> assertionSequences = assertionSequences(session);
+        Set<Long> verificationSequences = verificationSequences(session);
         for (CaptureEvent event : session.events()) {
             String step = "Step " + event.context().sequence();
             if (event.context().replayStatus() == EventContext.ReplayStatus.UNSUPPORTED) {
@@ -84,8 +84,10 @@ public record CaptureReadiness(State state, List<String> warnings) {
                     .forEach(id -> blocked.add(step + " uses redacted required input " + id
                             + "; set required input before replay."));
             if (needsPostActionAssertion(event)
-                    && assertionSequences.stream().noneMatch(sequence -> sequence > event.context().sequence())) {
-                risky.add(step + " has no later assertion after navigation or form submission.");
+                    && verificationSequences.stream().noneMatch(sequence -> sequence > event.context().sequence())) {
+                risky.add(step
+                        + " has no later recorded verification after navigation or form submission. "
+                        + "Record a verification for the post-action page state.");
             }
         }
         liveWarnings(session, collectorWarnings).forEach(warning ->
@@ -144,17 +146,13 @@ public record CaptureReadiness(State state, List<String> warnings) {
                 || INDEXED_LOCATOR.matcher(candidate.expression()).find());
     }
 
-    private static Set<Long> assertionSequences(CaptureSession session) {
+    private static Set<Long> verificationSequences(CaptureSession session) {
         Set<Long> sequences = new HashSet<>();
         for (CaptureEvent event : session.events()) {
             if (event instanceof CaptureEvent.VerificationEvent) {
                 sequences.add(event.context().sequence());
             }
         }
-        session.checkpoints().stream()
-                .filter(checkpoint -> checkpoint.kind() == Checkpoint.CheckpointKind.ASSERTION)
-                .map(Checkpoint::sequence)
-                .forEach(sequences::add);
         return sequences;
     }
 

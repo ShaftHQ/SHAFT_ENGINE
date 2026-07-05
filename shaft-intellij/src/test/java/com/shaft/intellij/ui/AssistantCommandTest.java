@@ -82,6 +82,7 @@ class AssistantCommandTest {
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
                 Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
+                Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                 Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                 For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
 
@@ -92,6 +93,7 @@ class AssistantCommandTest {
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
                 Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
+                Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                 Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                 For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
 
@@ -181,6 +183,9 @@ class AssistantCommandTest {
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Call shaft_guide_search"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Call test_automation_scenarios"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("call shaft_coding_partner_plan"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Reuse existing tests, page objects"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("record the complete flow"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not infer canonical URLs"), generatedPrompt),
@@ -192,6 +197,7 @@ class AssistantCommandTest {
                 () -> assertTrue(generatedPrompt.contains("element_type, element_click, or natural_act"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not publish unverified locators"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Never generate SHAFT.GUI.Locator.xpath"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Call test_code_guardrails_check"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not print full repository files"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Put every code snippet in fenced code blocks"),
@@ -730,6 +736,39 @@ class AssistantCommandTest {
                 () -> assertEquals(10, slash.arguments().get("maxResults").getAsInt()),
                 () -> assertEquals("shaft_coding_partner_plan", natural.toolName()),
                 () -> assertEquals("checkout happy path", natural.arguments().get("intent").getAsString()));
+    }
+
+    @Test
+    void partnerCommandIncludesOpenFileContextWhenAvailable() {
+        AssistantCommand.OpenFileContext openFile = new AssistantCommand.OpenFileContext(
+                "src/test/java/pages/LoginPage.java",
+                "class LoginPage { void login() {} }",
+                "driver.findElement(By.id(\"email\")).sendKeys(username);");
+        AssistantCommand.Invocation slash = AssistantCommand.fromPrompt(
+                "/partner Convert this login step to SHAFT",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                "C:/work/project",
+                "",
+                true,
+                openFile);
+        AssistantCommand.Invocation natural = AssistantCommand.fromPrompt(
+                "plan coding partner work for mobile login",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                "C:/work/project",
+                "",
+                true,
+                openFile);
+
+        assertAll(
+                () -> assertEquals("src/test/java/pages/LoginPage.java",
+                        slash.arguments().get("currentSourcePath").getAsString()),
+                () -> assertEquals("driver.findElement(By.id(\"email\")).sendKeys(username);",
+                        slash.arguments().get("selectedText").getAsString()),
+                () -> assertEquals("Mobile", natural.arguments().get("backend").getAsString()),
+                () -> assertEquals("src/test/java/pages/LoginPage.java",
+                        natural.arguments().get("currentSourcePath").getAsString()));
     }
 
     @Test

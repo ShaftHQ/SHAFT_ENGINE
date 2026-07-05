@@ -267,6 +267,42 @@ class CaptureGeneratorTest {
     }
 
     @Test
+    void assertionCheckpointWithoutVerificationDoesNotClearMissingAssertionWarning() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        CaptureSession unsupported = new CaptureSession(
+                base.schemaVersion(),
+                "assertion-checkpoint-only-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(new CaptureEvent.NavigationEvent(
+                        CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN,
+                        "https://example.test/checkout")),
+                List.of(new Checkpoint(
+                        "assertion-note",
+                        2,
+                        CaptureFixtures.STARTED.plusSeconds(2),
+                        Checkpoint.CheckpointKind.ASSERTION,
+                        "cart total is visible")),
+                List.of(),
+                base.redactionSummary(),
+                base.extensions());
+        Path session = session(unsupported);
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("assertion-checkpoint-only")));
+
+        assertFalse(result.successful());
+        assertTrue(result.report().unsupportedEvents().stream()
+                .anyMatch(message -> message.contains("SHAFT assertion builders only")));
+        assertTrue(result.report().warnings().stream()
+                .anyMatch(message -> message.contains("review/ASSERTION")
+                        && message.contains("Record a verification for the post-action page state.")));
+    }
+
+    @Test
     void flowBoundaryCheckpointsGenerateReusableMethods() throws Exception {
         CaptureSession base = CaptureFixtures.representativeSession();
         List<Checkpoint> checkpoints = new java.util.ArrayList<>(base.checkpoints());

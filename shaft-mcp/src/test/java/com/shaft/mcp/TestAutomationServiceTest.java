@@ -32,11 +32,13 @@ class TestAutomationServiceTest {
         assertTrue(ids.contains("web-pom-fluent-test"));
         assertTrue(ids.contains("web-playwright-pom-fluent-test"));
         assertTrue(ids.contains("web-playwright-record-replay"));
+        assertTrue(ids.contains("web-playwright-cli-assisted-flow"));
         assertTrue(ids.contains("mobile-native-appium"));
         assertTrue(ids.contains("failure-trace-first-analysis"));
         assertTrue(ids.contains("failure-doctor-analysis"));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("Thread.sleep")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("absolute XPath")));
+        assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("SHAFT.GUI.Locator.xpath")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("driver.findElement")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("confirm the exact target URL")));
         assertTrue(result.guidanceRules().stream().anyMatch(rule -> rule.contains("do not infer canonical URLs")));
@@ -77,6 +79,30 @@ class TestAutomationServiceTest {
     }
 
     @Test
+    void playwrightCliScenarioDelegatesExplorationBackToShaftCodegen() {
+        McpScenarioCatalogResult result = service.testAutomationScenarios(
+                "playwright",
+                "playwright-cli storage network trace",
+                10);
+
+        McpTestAutomationScenario scenario = result.scenarios().stream()
+                .filter(candidate -> candidate.id().equals("web-playwright-cli-assisted-flow"))
+                .findFirst()
+                .orElseThrow();
+
+        assertTrue(scenario.mcpTools().contains("capture_codegen_features"));
+        assertTrue(scenario.mcpTools().contains("shaft_coding_partner_plan"));
+        assertTrue(scenario.agentActions().stream()
+                .anyMatch(action -> action.contains("official playwright-cli")));
+        assertTrue(scenario.agentActions().stream()
+                .anyMatch(action -> action.contains("Bring proven steps")));
+        assertTrue(scenario.guardrails().stream()
+                .anyMatch(guardrail -> guardrail.contains("TypeScript tests")));
+        assertTrue(scenario.completionCriteria().stream()
+                .anyMatch(criteria -> criteria.contains("SHAFT backend selected")));
+    }
+
+    @Test
     void guardrailRejectsThreadSleepAndAbsoluteXpath() {
         McpCodeGuardrailResult result = service.checkGeneratedCode("java", """
                 import org.openqa.selenium.By;
@@ -85,6 +111,7 @@ class TestAutomationServiceTest {
                     void waitsWrong() throws Exception {
                         Thread.sleep(1000);
                         By login = By.xpath("/html/body/div/form/button");
+                        By fallback = SHAFT.GUI.Locator.xpath("//button[@type='submit']");
                     }
                 }
                 """);
@@ -92,6 +119,7 @@ class TestAutomationServiceTest {
         assertFalse(result.passed());
         assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("THREAD_SLEEP")));
         assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("ABSOLUTE_XPATH")));
+        assertTrue(result.violations().stream().anyMatch(violation -> violation.kind().equals("SHAFT_LOCATOR_XPATH")));
     }
 
     @Test

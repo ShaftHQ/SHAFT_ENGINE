@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,7 +53,7 @@ class CodingPartnerServiceTest {
                 10);
 
         assertAll(
-                () -> assertEquals("1.1", plan.schemaVersion()),
+                () -> assertEquals("1.2", plan.schemaVersion()),
                 () -> assertEquals("WebDriver", plan.backend()),
                 () -> assertTrue(plan.workingSetSummary().contains("LoginPage.java")),
                 () -> assertFalse(plan.reuseMatches().isEmpty()),
@@ -72,10 +73,100 @@ class CodingPartnerServiceTest {
                 () -> assertTrue(plan.missingCodeItems().stream()
                         .anyMatch(item -> item.contains("raw Selenium"))),
                 () -> assertTrue(plan.suggestedMcpCalls().contains("capture_target_candidates")),
-                () -> assertTrue(plan.suggestedMcpCalls().contains("test_code_guardrails_check")),
+                () -> assertTrue(plan.nextActions().stream()
+                        .anyMatch(action -> "browser_open_intent".equals(action.toolName())
+                                && action.requiresConfirmation())),
+                () -> assertTrue(plan.nextActions().stream()
+                        .anyMatch(action -> "capture_record_at_target_code_blocks".equals(action.toolName())
+                                && action.arguments().containsValue("src/test/java/pages/LoginPage.java"))),
+                () -> assertTrue(plan.nextActions().stream()
+                        .anyMatch(action -> "capture_target_candidates".equals(action.toolName())
+                                && Integer.valueOf(10).equals(action.arguments().get("maxResults")))),
+                () -> assertTrue(plan.nextActions().stream()
+                        .anyMatch(action -> "capture_record_at_target_code_blocks".equals(action.toolName())
+                                && Boolean.FALSE.equals(action.arguments().get("overwrite")))),
+                () -> assertTrue(plan.nextActions().stream()
+                        .filter(action -> "test_code_guardrails_check".equals(action.toolName()))
+                        .allMatch(action -> action.requiresConfirmation()
+                                && !action.arguments().containsKey("code"))),
                 () -> assertTrue(plan.verificationCommand().contains("test-compile")),
                 () -> assertTrue(plan.evidencePaths().contains("target/shaft-traces/latest")),
                 () -> assertTrue(plan.warnings().stream().anyMatch(warning -> warning.contains("approval"))));
+    }
+
+    @Test
+    void planPreservesTypedEvidencePackArguments() throws Exception {
+        Path page = temp.resolve("src/test/java/tests/LoginTest.java");
+        Files.createDirectories(page.getParent());
+        Files.writeString(page, """
+                package tests;
+
+                public class LoginTest {
+                }
+                """);
+
+        McpCodingPartnerPlan plan = service().plan(
+                temp.toString(),
+                "Verify login evidence",
+                "webdriver",
+                "src/test/java/tests/LoginTest.java",
+                "",
+                List.of("target/shaft-traces/login.zip"),
+                10);
+
+        McpCodingPartnerNextAction evidencePack = plan.nextActions().stream()
+                .filter(action -> "capture_evidence_pack".equals(action.toolName()))
+                .findFirst()
+                .orElseThrow();
+        Map<?, ?> arguments = evidencePack.arguments();
+
+        assertAll(
+                () -> assertEquals("", arguments.get("reportPath")),
+                () -> assertEquals(List.of(), arguments.get("screenshotPaths")),
+                () -> assertEquals("src/test/java/tests/LoginTest.java", arguments.get("sourcePath")));
+    }
+
+    @Test
+    void planSurfacesMobileBackendActions() throws Exception {
+        Path page = temp.resolve("src/test/java/pages/LoginScreen.java");
+        Files.createDirectories(page.getParent());
+        Files.writeString(page, """
+                package pages;
+
+                import com.shaft.driver.SHAFT;
+                import io.appium.java_client.AppiumBy;
+                import org.openqa.selenium.By;
+
+                public class LoginScreen {
+                    private final SHAFT.GUI.WebDriver driver;
+                    private final By loginButton = AppiumBy.accessibilityId("login");
+
+                    public LoginScreen(SHAFT.GUI.WebDriver driver) {
+                        this.driver = driver;
+                    }
+
+                    public LoginScreen tapLogin() {
+                        driver.element().click(loginButton);
+                        return this;
+                    }
+                }
+                """);
+
+        McpCodingPartnerPlan plan = service().plan(
+                temp.toString(),
+                "Tap the login button in the Android app",
+                "mobile",
+                "src/test/java/pages/LoginScreen.java",
+                "AppiumBy.accessibilityId(\"login\")",
+                List.of(),
+                10);
+
+        assertAll(
+                () -> assertEquals("Mobile", plan.backend()),
+                () -> assertTrue(plan.suggestedMcpCalls().contains("mobile_get_accessibility_tree")),
+                () -> assertTrue(plan.suggestedMcpCalls().contains("mobile_record_at_target_code_blocks")),
+                () -> assertTrue(plan.stepPlan().stream()
+                        .allMatch(step -> "mobile_get_accessibility_tree".equals(step.proofTool()))));
     }
 
     @Test
