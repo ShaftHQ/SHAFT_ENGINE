@@ -1,0 +1,1 @@
+Natural Page Object/codegen prompts route to the guarded local-agent codegen path before live browser sequences. Code-only or no-browser prompts avoid live driver tools; explicit live locator verification can still opt into driver_initialize/browser_open_intent guidance.

@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/facts/intellij-assistant-codegen-avoids-live-browser-unless-explicit.md",
+  "content_hash": "sha256:4267b716a1454b13a1a21da759bdc9a6057631f9b1889a25dd70ceaff5905c3f",
+  "created_at": "2026-07-05T10:18:19+03:00",
+  "evidence": [],
+  "id": "fact.intellij-assistant-codegen-avoids-live-browser-unless-explicit",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix IntelliJ Assistant onboarding blockers from issue 3285"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "assistant",
+    "codegen",
+    "issue-3285"
+  ],
+  "title": "IntelliJ Assistant codegen avoids live browser unless explicit",
+  "type": "fact",
+  "updated_at": "2026-07-05T10:18:19+03:00"
+}
