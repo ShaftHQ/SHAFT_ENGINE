@@ -5,7 +5,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.util.concurrent.CompletionException;
+
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -86,7 +90,7 @@ class AssistantMarkdownTest {
 
         assertAll(
                 () -> assertTrue(markdown.contains("Use `mvn test` for the focused check.")),
-                () -> assertTrue(markdown.contains("**Warnings**")),
+                () -> assertTrue(markdown.contains("**⚠️ Warnings**")),
                 () -> assertTrue(markdown.contains("Codex returned a non-zero exit code.")),
                 () -> assertTrue(markdown.contains("```text")),
                 () -> assertFalse(markdown.contains("\"stdout\"")));
@@ -580,6 +584,39 @@ class AssistantMarkdownTest {
                 () -> assertTrue(passMarkdown.contains("BUILD SUCCESS")),
                 () -> assertTrue(failMarkdown.contains("FAILED")),
                 () -> assertTrue(failMarkdown.contains("BUILD FAILURE")));
+    }
+
+    @Test
+    void humanizeErrorStripsFullyQualifiedExceptionClassNames() {
+        String humanized = AssistantMarkdown.humanizeError(
+                new IllegalStateException("java.util.NoSuchElementException: Index 5 out of bounds for length 3"));
+
+        assertEquals("Index 5 out of bounds for length 3", humanized);
+    }
+
+    @Test
+    void humanizeErrorLeavesAlreadyPlainMessagesUnchanged() {
+        String humanized = AssistantMarkdown.humanizeError(
+                new IOException("Timed out waiting for SHAFT MCP response."));
+
+        assertEquals("Timed out waiting for SHAFT MCP response.", humanized);
+    }
+
+    @Test
+    void humanizeErrorUnwrapsCompletionExceptionToTheRealCause() {
+        String humanized = AssistantMarkdown.humanizeError(
+                new CompletionException(new IOException("Connection refused")));
+
+        assertEquals("Connection refused", humanized);
+    }
+
+    @Test
+    void humanizeErrorNeverReturnsNullOrBlankEvenWithoutAMessage() {
+        assertAll(
+                () -> assertEquals("", AssistantMarkdown.humanizeError(null)),
+                () -> assertTrue(AssistantMarkdown.humanizeError(new NullPointerException())
+                        .contains("NullPointerException")),
+                () -> assertFalse(AssistantMarkdown.humanizeError(new NullPointerException()).isBlank()));
     }
 
     private static String mcpText(String text) {

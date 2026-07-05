@@ -823,7 +823,7 @@ final class ShaftAssistantPanel extends JPanel {
             Throwable error) {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
-        String output = error != null ? error.getMessage()
+        String output = error != null ? AssistantMarkdown.humanizeError(error)
                 : result == null ? "No result returned."
                 : result.output();
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
@@ -970,7 +970,7 @@ final class ShaftAssistantPanel extends JPanel {
             setStatus("Cancelled");
             return;
         }
-        String output = error != null ? error.getMessage()
+        String output = error != null ? AssistantMarkdown.humanizeError(error)
                 : result == null ? "No result returned."
                 : result.output();
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
@@ -1054,7 +1054,7 @@ final class ShaftAssistantPanel extends JPanel {
             setStatus("Cancelled");
             return;
         }
-        String output = error != null ? error.getMessage()
+        String output = error != null ? AssistantMarkdown.humanizeError(error)
                 : result == null ? "No response returned."
                 : result.output();
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
@@ -1946,7 +1946,7 @@ final class ShaftAssistantPanel extends JPanel {
 
     private static String captureReviewSummary(String markdown) {
         int codeBlocks = count(markdown, "```") / 2;
-        boolean warnings = markdown != null && markdown.contains("**Warnings**");
+        boolean warnings = markdown != null && markdown.contains("Warnings**");
         StringBuilder summary = new StringBuilder("Capture review ready");
         if (codeBlocks > 0) {
             summary.append(": ").append(codeBlocks).append(codeBlocks == 1 ? " code block" : " code blocks");
@@ -1977,7 +1977,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         JsonElement warnings = statusJson.get("warnings");
         if (warnings != null && warnings.isJsonArray() && !warnings.getAsJsonArray().isEmpty()) {
-            markdown.append("\n\n**Warnings**");
+            markdown.append("\n\n**⚠️ Warnings**");
             for (JsonElement warning : warnings.getAsJsonArray()) {
                 if (warning.isJsonPrimitive()) {
                     markdown.append("\n- ").append(warning.getAsString());

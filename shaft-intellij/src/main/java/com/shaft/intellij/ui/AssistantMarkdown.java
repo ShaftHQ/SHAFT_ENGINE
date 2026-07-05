@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 /**
  * Converts Assistant and MCP payloads into Markdown suitable for display.
@@ -24,9 +27,49 @@ final class AssistantMarkdown {
             "autobot_provider_status",
             "shaft_coding_partner_diff",
             "verify_run_focused");
+    private static final Pattern EXCEPTION_CLASS_PREFIX = Pattern.compile(
+            "^(?:[a-zA-Z_$][\\w$]*\\.)+[A-Za-z_$][\\w$]*(?:Exception|Error)\\s*:\\s*");
 
     private AssistantMarkdown() {
         throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Turns a failed tool/agent invocation's exception into a plain-language message.
+     *
+     * <p>Unwraps common async-completion wrappers, strips a leading fully-qualified exception
+     * class name when the underlying message already reads as plain text, and always returns a
+     * non-blank result so callers never need to null-check before rendering it.</p>
+     *
+     * @param error the failure, or null
+     * @return a safe, human-readable message
+     */
+    static String humanizeError(Throwable error) {
+        if (error == null) {
+            return "";
+        }
+        Throwable cause = rootCause(error);
+        String message = cause.getMessage();
+        if (message == null || message.isBlank()) {
+            return "SHAFT Assistant hit an unexpected " + simpleName(cause)
+                    + ". Check the SHAFT MCP connection in Settings, then try again.";
+        }
+        String cleaned = EXCEPTION_CLASS_PREFIX.matcher(message.strip()).replaceFirst("");
+        return cleaned.isBlank() ? message.strip() : cleaned;
+    }
+
+    private static Throwable rootCause(Throwable error) {
+        Throwable current = error;
+        while ((current instanceof CompletionException || current instanceof ExecutionException)
+                && current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private static String simpleName(Throwable error) {
+        String name = error.getClass().getSimpleName();
+        return name.isBlank() ? "error" : name;
     }
 
     static String fromMcpOutput(String output) {
@@ -1134,7 +1177,7 @@ final class AssistantMarkdown {
         if (warnings == null || !warnings.isJsonArray() || warnings.getAsJsonArray().isEmpty()) {
             return "";
         }
-        StringBuilder markdown = new StringBuilder("**Warnings**");
+        StringBuilder markdown = new StringBuilder("**⚠️ Warnings**");
         for (JsonElement warning : warnings.getAsJsonArray()) {
             if (warning.isJsonPrimitive()) {
                 markdown.append("\n- ").append(warning.getAsString());
