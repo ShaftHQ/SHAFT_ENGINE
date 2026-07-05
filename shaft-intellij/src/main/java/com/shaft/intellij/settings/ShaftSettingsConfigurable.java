@@ -161,12 +161,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftUiLabels.applyFriendlyRenderer(assistantRuntime);
         assistantRuntime.getAccessibleContext().setAccessibleName("Assistant runtime");
         assistantRuntime.getAccessibleContext().setAccessibleDescription("Local runtime: command line, IDE plugin, or desktop app.");
-        cloudProvider = new JComboBox<>(model("openai", "anthropic", "gemini", "github"));
+        cloudProvider = new JComboBox<>(model("gemini", "openai", "anthropic", "github"));
         ShaftUiLabels.applyFriendlyRenderer(cloudProvider);
         cloudProvider.getAccessibleContext().setAccessibleName("Assistant cloud provider");
         cloudProvider.getAccessibleContext().setAccessibleDescription("Cloud provider used by Assistant Ask and Plan prompts.");
         cloudModel = new JBTextField();
-        cloudModel.getEmptyText().setText("Cloud model, for example openai/gpt-4.1");
+        cloudModel.getEmptyText().setText("Cloud model, for example gemini-3.5-flash");
         cloudModel.getAccessibleContext().setAccessibleName("Assistant cloud model");
         cloudModel.getAccessibleContext().setAccessibleDescription("Model name passed to the selected cloud provider.");
         defaultClient = new JComboBox<>(model("CODEX", "CLAUDE_CODE", "COPILOT_CLI"));
@@ -188,7 +188,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         pilotAiProvider.getAccessibleContext().setAccessibleDescription(
                 "Optional SHAFT AI provider used by MCP tools that request configured provider assistance.");
         pilotAiModel = new JBTextField();
-        pilotAiModel.getEmptyText().setText("Provider model, for example gpt-4.1");
+        pilotAiModel.getEmptyText().setText("Provider model, for example gemini-3.5-flash");
         pilotAiModel.getAccessibleContext().setAccessibleName("SHAFT AI provider model");
         pilotAiModel.getAccessibleContext().setAccessibleDescription("Model name passed to SHAFT MCP provider tools.");
         passProviderKeys = new JBCheckBox("Pass stored provider keys to SHAFT MCP environment");
@@ -287,7 +287,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 || !Objects.equals(stateProviderType, selectedProviderType)
                 || !Objects.equals(resolveFamily(state), assistantFamily.getSelectedItem())
                 || !Objects.equals(normalize(state.assistantRuntime, "CLI"), assistantRuntime.getSelectedItem())
-                || !Objects.equals(normalizeLower(state.cloudProvider, "openai"), cloudProvider.getSelectedItem())
+                || !Objects.equals(normalizeLower(state.cloudProvider, "gemini"), cloudProvider.getSelectedItem())
                 || !Objects.equals(state.cloudModel == null ? "" : state.cloudModel, cloudModel.getText())
                 || !Objects.equals(state.defaultAutobotClient, clientFromFamily(String.valueOf(assistantFamily.getSelectedItem())))
                 || !Objects.equals(state.defaultAutobotMode, defaultMode.getSelectedItem())
@@ -349,7 +349,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
         assistantFamily.setSelectedItem(resolveFamily(state));
         assistantRuntime.setSelectedItem(normalize(state.assistantRuntime, "CLI"));
-        cloudProvider.setSelectedItem(normalizeLower(state.cloudProvider, "openai"));
+        cloudProvider.setSelectedItem(normalizeLower(state.cloudProvider, "gemini"));
         cloudModel.setText(state.cloudModel == null ? "" : state.cloudModel);
         defaultClient.setSelectedItem(clientFromFamily(resolveFamily(state)));
         defaultMode.setSelectedItem(state.defaultAutobotMode);
@@ -697,7 +697,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private static String currentAgentConfigurationText(ShaftSettingsState.Settings state) {
         if (state.advancedUiEnabled && "CLOUD".equals(normalize(state.assistantProviderType, "LOCAL"))) {
             String model = state.cloudModel == null || state.cloudModel.isBlank() ? "" : " / " + state.cloudModel.trim();
-            return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(state.cloudProvider, "openai")) + model;
+            return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(state.cloudProvider, "gemini")) + model;
         }
         return "Agent: Local / " + ShaftUiLabels.friendly(resolveFamily(state))
                 + " / " + ShaftUiLabels.friendly(normalize(state.assistantRuntime, "CLI"));

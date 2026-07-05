@@ -108,6 +108,14 @@ class ShaftSettingsConfigurableTest {
         assertNotNull(findByAccessibleName(panel, "Assistant family"));
         assertNotNull(findByAccessibleName(panel, "Assistant runtime"));
 
+        JComboBox<?> assistantCloudProvider = findByAccessibleName(panel, "Assistant cloud provider", JComboBox.class);
+        JBTextField assistantCloudModel = findByAccessibleName(panel, "Assistant cloud model", JBTextField.class);
+        JBTextField shaftAiModel = findByAccessibleName(panel, "SHAFT AI provider model", JBTextField.class);
+        assertEquals("gemini", assistantCloudProvider.getSelectedItem());
+        assertEquals("gemini-3.5-flash", assistantCloudModel.getText());
+        assertEquals("Cloud model, for example gemini-3.5-flash", assistantCloudModel.getEmptyText().getText());
+        assertEquals("Provider model, for example gemini-3.5-flash", shaftAiModel.getEmptyText().getText());
+
         collectAllButtons(panel).forEach(ShaftSettingsConfigurableTest::assertIconOnlySymmetric);
     }
 

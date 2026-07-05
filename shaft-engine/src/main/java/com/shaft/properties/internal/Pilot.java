@@ -169,7 +169,7 @@ public interface Pilot extends EngineProperties<Pilot> {
 
     /** @return configured Gemini model */
     @Key("pilot.ai.gemini.model")
-    @DefaultValue("")
+    @DefaultValue("gemini-3.5-flash")
     String geminiModel();
 
     /** @return environment variable containing the Gemini credential */

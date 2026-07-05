@@ -134,6 +134,23 @@ class AssistantCommandTest {
     }
 
     @Test
+    void cloudSelectionDefaultsBlankProviderToGemini() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Summarize this test",
+                AssistantCommand.Selection.cloud("", ""),
+                "ASK",
+                ".",
+                "",
+                true);
+
+        assertEquals("autobot_provider_chat", invocation.toolName());
+        assertEquals("gemini", invocation.arguments().get("provider").getAsString());
+        assertEquals("", invocation.arguments().get("model").getAsString());
+        assertEquals("ASK", invocation.arguments().get("mode").getAsString());
+        assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    @Test
     void askOrPlanMcpNaturalLanguagePromptsRequireAgentModeButSlashCommandsDoNot() {
         AssistantCommand.Invocation natural = AssistantCommand.fromPrompt(
                 "open duckduckgo and search for SHAFT Engine",

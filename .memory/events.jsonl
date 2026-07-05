@@ -140,5 +140,6 @@
 {"actor":"agent","event":"memory.created","id":"decision.assistant-markdown-copy-controls-are-icon-only","timestamp":"2026-07-02T23:32:22+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.assistant-transcript-fallback-paints-real-rounded-bubbles","timestamp":"2026-07-02T23:32:22+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.intellij-mcp-setup-troubleshooting","timestamp":"2026-07-03T17:15:57+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.reset-core-and-user-guide-before-tasks","timestamp":"2026-07-05T08:31:01+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.intellij-assistant-codegen-avoids-live-browser-unless-explicit","timestamp":"2026-07-05T10:18:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.intellij-mcp-setup-copies-skills-install-flag","timestamp":"2026-07-05T10:18:19+03:00"}

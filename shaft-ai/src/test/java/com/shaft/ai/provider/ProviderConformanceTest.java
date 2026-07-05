@@ -29,6 +29,7 @@ import com.shaft.pilot.ai.EvidenceCategory;
 import com.shaft.pilot.ai.ProcessingLocation;
 import com.shaft.pilot.config.PilotConfiguration;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -92,6 +93,13 @@ class ProviderConformanceTest {
         assertTrue(capturedBody.get().contains("answer"));
         if (!"ollama".equals(providerId)) {
             assertTrue(capturedCredential.get().contains("test-credential"));
+        }
+        if ("gemini".equals(providerId)) {
+            JsonNode body = JSON.readTree(capturedBody.get());
+            JsonNode generationConfig = body.path("generationConfig");
+            assertEquals("application/json", generationConfig.path("responseMimeType").asText());
+            assertTrue(generationConfig.has("responseSchema"));
+            assertFalse(generationConfig.has("responseFormat"));
         }
     }
 
@@ -172,6 +180,38 @@ class ProviderConformanceTest {
         var ids = new AiProviderRegistry().serviceProviders().stream().map(AiProvider::id).toList();
 
         assertEquals(List.of("anthropic", "gemini", "github", "ollama", "openai"), ids);
+    }
+
+    @Test
+    void liveGeminiDuckDuckGoPromptReturnsValidTestCase() {
+        Assumptions.assumeTrue(Boolean.getBoolean("shaft.ai.liveGemini"),
+                "Set -Dshaft.ai.liveGemini=true to run the live Gemini conformance test.");
+        Assumptions.assumeTrue(hasEnvironment("GEMINI_API_KEY"),
+                "Set GEMINI_API_KEY to run the live Gemini conformance test.");
+        SHAFT.Properties.pilot.set()
+                .enabled(true)
+                .provider("gemini")
+                .localConsent(false)
+                .remoteConsent(true)
+                .allowedEvidenceCategories("TEXT")
+                .retryMaxAttempts(1)
+                .timeoutSeconds(60)
+                .maxOutputTokens(2_000);
+
+        AiResponse response = new AiExecutionService().execute(duckDuckGoTestCaseRequest());
+
+        assertEquals(AiResponseStatus.SUCCESS, response.status());
+        assertEquals("gemini", response.provider());
+        assertFalse(response.model().isBlank());
+        JsonNode payload = response.structuredPayload();
+        String className = payload.path("className").asText("");
+        String source = payload.path("source").asText("");
+        String lowerSource = source.toLowerCase(java.util.Locale.ROOT);
+        assertTrue(className.contains("DuckDuckGo"));
+        assertTrue(source.contains("SHAFT"));
+        assertTrue(source.contains("@Test"));
+        assertTrue(lowerSource.contains("duckduckgo"));
+        assertTrue(lowerSource.contains("search"));
     }
 
     @Test
@@ -274,6 +314,42 @@ class ProviderConformanceTest {
                 .timeout(Duration.ofSeconds(1))
                 .deterministicFallback(JSON.createObjectNode().put("answer", "deterministic"))
                 .build();
+    }
+
+    private static AiRequest duckDuckGoTestCaseRequest() {
+        tools.jackson.databind.node.ObjectNode properties = JSON.createObjectNode();
+        properties.set("className", JSON.createObjectNode().put("type", "string"));
+        properties.set("summary", JSON.createObjectNode().put("type", "string"));
+        properties.set("source", JSON.createObjectNode().put("type", "string"));
+        tools.jackson.databind.node.ObjectNode schema = JSON.createObjectNode().put("type", "object");
+        schema.set("properties", properties);
+        schema.putArray("required").add("className").add("summary").add("source");
+        tools.jackson.databind.node.ObjectNode fallback = JSON.createObjectNode()
+                .put("className", "")
+                .put("summary", "")
+                .put("source", "");
+        ApprovalPolicy approval = new ApprovalPolicy(false, true, EnumSet.of(EvidenceCategory.TEXT));
+        return AiRequest.builder("live-gemini-duckduckgo", schema)
+                .text("""
+                        Generate one complete Java TestNG SHAFT Engine web test case.
+                        Requirements:
+                        - Class name must be DuckDuckGoSearchTest.
+                        - Use com.shaft.driver.SHAFT.
+                        - Open https://duckduckgo.com/.
+                        - Search for SHAFT Engine.
+                        - Validate that search results are shown.
+                        - Return Java source in the source field only.
+                        """)
+                .budget(new AiBudget(8_000, 2_000, java.math.BigDecimal.ZERO))
+                .approvalPolicy(approval)
+                .timeout(Duration.ofSeconds(60))
+                .deterministicFallback(fallback)
+                .build();
+    }
+
+    private static boolean hasEnvironment(String name) {
+        String value = System.getenv(name);
+        return value != null && !value.isBlank();
     }
 
     private static void configure(String providerId, int port) {

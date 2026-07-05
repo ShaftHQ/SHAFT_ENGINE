@@ -8,6 +8,7 @@ import com.shaft.pilot.agent.LocalAgentService;
 import com.shaft.pilot.agent.LocalAgentStatus;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiResponseStatus;
+import com.shaft.pilot.config.PilotConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -105,6 +106,30 @@ class AutobotServiceTest {
         assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
         assertEquals("ok", response.answer());
         assertEquals("Explain this failure", capturedText.get());
+    }
+
+    @Test
+    void providerChatDefaultsBlankProviderToGeminiDefaultModel() {
+        AtomicReference<String> capturedProvider = new AtomicReference<>("");
+        AtomicReference<String> capturedModel = new AtomicReference<>("");
+        AutobotService service = new AutobotService(McpWorkspacePolicy.of(workspace),
+                new LocalAgentService(client -> true, new CapturingRunner()), request -> {
+                    PilotConfiguration configuration = PilotConfiguration.current();
+                    capturedProvider.set(configuration.provider());
+                    capturedModel.set(configuration.provider("gemini").model());
+                    return AiResponse.success("gemini", capturedModel.get(),
+                            tools.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("answer", "ok"),
+                            Duration.ofMillis(10), com.shaft.pilot.ai.AiUsage.empty(), request.deterministicFallback());
+                });
+
+        AutobotProviderChatResponse response = service.runProviderChat(
+                "", "", "ASK", "Explain this failure", "", 10, false);
+
+        assertEquals(AiResponseStatus.SUCCESS.name(), response.status());
+        assertEquals("gemini", response.provider());
+        assertEquals("gemini-3.5-flash", response.model());
+        assertEquals("gemini", capturedProvider.get());
+        assertEquals("gemini-3.5-flash", capturedModel.get());
     }
 
     private static final class CapturingRunner implements LocalAgentProcessRunner {

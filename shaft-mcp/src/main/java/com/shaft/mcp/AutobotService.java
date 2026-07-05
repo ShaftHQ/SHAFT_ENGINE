@@ -149,7 +149,7 @@ public class AutobotService {
             AiRequest request = AiRequest.builder("autobot-provider-chat", answerSchema())
                     .text(prompt == null ? "" : prompt)
                     .approvalPolicy(new ApprovalPolicy(false, true, EnumSet.of(EvidenceCategory.TEXT)))
-                    .budget(new AiBudget(8_000, 1_000, BigDecimal.ZERO))
+                    .budget(new AiBudget(8_000, 2_000, BigDecimal.ZERO))
                     .timeout(Duration.ofSeconds(timeoutSeconds > 0 ? timeoutSeconds : DEFAULT_TIMEOUT_SECONDS))
                     .deterministicFallback(JSON.createObjectNode().put("answer", ""))
                     .build();
@@ -202,6 +202,6 @@ public class AutobotService {
     }
 
     private static String normalizeProvider(String provider) {
-        return provider == null || provider.isBlank() ? "openai" : provider.trim().toLowerCase(Locale.ROOT);
+        return provider == null || provider.isBlank() ? "gemini" : provider.trim().toLowerCase(Locale.ROOT);
     }
 }
