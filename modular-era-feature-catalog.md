@@ -262,6 +262,34 @@ flowchart LR
 | 9 | Failure Repair Loop | Failure skills now route Doctor, trace, and healer evidence through the coding-partner plan before changing shared page/test code. |
 | 10 | Evidence Pack And PR UX | `capture_evidence_pack` plus refreshed IntelliJ screenshots provide local source/report/review/screenshot evidence without zipping or uploading artifacts. |
 
+## IntelliJ + MCP UX Enhancements (Next Wave)
+
+Building on the coding-partner loop, this wave tightens the last-mile experience:
+plan to applied code to verified result, with a simpler default command surface
+and sharper trust signals.
+
+| Enhancement | What users get | Entry point |
+| --- | --- | --- |
+| Minimal command surface | The Assistant shows only five core commands by default — `/record-web`, `/record-mobile`, `/codegen`, `/doctor`, `/upgrade`. Everything else (including the new `/verify` and `/skills`) moves behind Expert mode, which is the existing advanced-UI switch. Natural-language intents still work in both modes. | Assistant composer; `Settings -> SHAFT` Expert mode |
+| Preview-only patch diff | `shaft_coding_partner_diff` turns reviewed SHAFT code blocks into a unified diff against an existing Java target and anchor, without writing files. | `shaft_coding_partner_diff` |
+| Focused verification runner | `verify_run_focused` runs the plan's smallest Maven verification command headlessly through the Healer allowlist and returns a bounded pass/fail summary; the Expert `/verify` command routes to it. | `verify_run_focused`, `/verify` |
+| Provider readiness | `autobot_provider_status` reports the configured provider, model, API-key presence (never the value), and structured-output support for an at-a-glance readiness view. | `autobot_provider_status` |
+| Structured cloud codegen | `autobot_provider_chat` now returns a structured JSON-schema codegen response — summary, per-block code with target path/anchor, cited SHAFT guide URLs, unverified locator assumptions, and a guardrail status computed by running SHAFT guardrails on the returned code. | `autobot_provider_chat` |
+| Readable tool output | The Assistant renders the coding-partner plan, diff preview, verification result, provider status, and structured codegen as clean markdown with inline citations and locator-assumption warnings instead of raw JSON. | `Assistant` tab |
+| Fix Failing Test | The Triage panel adds a one-click button that routes the Allure/trace evidence and locator source into `shaft_coding_partner_plan`, bridging analyze -> plan -> verify. | `Triage` tab |
+| Optimized authoring skills | The `shaft-skills` set gains `verifying-and-applying-shaft-changes` (review -> diff -> apply -> guardrails -> verify) and the existing skills point their apply/verify step at the new tools; the Expert `/skills` command lists them in-panel. | `shaft-skills/`, `/skills` |
+
+```mermaid
+flowchart LR
+    Intent[Intent in IntelliJ] --> Plan[shaft_coding_partner_plan]
+    Plan --> Diff[shaft_coding_partner_diff preview]
+    Diff --> Apply[Approve + apply in IDE]
+    Apply --> Guard[test_code_guardrails_check]
+    Guard --> Verify[verify_run_focused]
+    Verify -->|fail| Triage[Fix Failing Test]
+    Triage --> Plan
+```
+
 ## Modular Adoption
 
 Use the new reactor split when you want SHAFT as a framework base, not a monolith. `shaft-engine` remains the center. Optional modules publish independently, the BOM keeps dependency alignment boring, and `legacy-shaft-engine` preserves the relocation path for existing consumers.
@@ -674,7 +702,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    A[130 registered MCP tools] --> B[WebDriver browser + element]
+    A[134 registered MCP tools] --> B[WebDriver browser + element]
     A --> C[Playwright browser + element + semantic]
     A --> D[Capture start/status/stop/generate]
     A --> E[Mobile native, web emulation, inspector, screenshots]
