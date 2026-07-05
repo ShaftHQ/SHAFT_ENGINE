@@ -49,17 +49,23 @@ final class AssistantCommand {
                     - Call test_automation_scenarios for broad test/page-object design to learn the matching SHAFT coding pattern.
                     - Inspect existing project code and call shaft_coding_partner_plan before creating tests, page objects, locators, or actions.
                     - Reuse existing tests, page objects, locator fields, and action methods first.
-                    - If required actions or locators are missing, record the complete flow, then insert only the missing locators/actions into the planned source anchors.
+                    - If required actions or locators are missing, ask before starting live browser work; otherwise return review-only Java and mark locator assumptions as unverified.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
                     - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
-                    - For generated code that performs a specific action: Open a real browser session; call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
-                    - Verify each selected locator by performing the actual action with shaft-mcp element_type, element_click, or natural_act before returning it. Do not publish unverified locators.
+                    - If the user asks for code only, a draft, or says not to run/open a browser, do not call live browser tools.
+                    - Do not publish locators as verified unless a live browser session actually checked them.
                     - Never generate SHAFT.GUI.Locator.xpath(...); prefer smart locators and the locator builder, then By.xpath only as a last fallback.
                     - Use native Playwright locators only as a last fallback in SHAFT Playwright-specific code.
                     - Call test_code_guardrails_check on the final Java snippet.
                     - Do not print full repository files or broad file dumps. Cite inspected files by path and include only the generated or changed code needed for the answer.
                     - Put every code snippet in fenced code blocks with the correct language.
                     - Return only SHAFT-syntax Java; never return raw Selenium code.
+                    """.stripIndent().trim();
+    private static final String SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE =
+            """
+                    Live browser verification was explicitly requested:
+                    - Open a real browser session; call driver_initialize and browser_open_intent with the confirmed targetUrl and userIntent to inspect the live page and locator candidates.
+                    - Verify each selected locator by performing the actual action with shaft-mcp element_type, element_click, or natural_act before returning it.
                     """.stripIndent().trim();
     private static final CommandDefinition COMMAND_HELP = new CommandDefinition("/commands", "Show command help",
             List.of("/help", "/mcp-help", "/shaft-help"),
@@ -334,12 +340,18 @@ final class AssistantCommand {
         } else if (text.startsWith("/")) {
             return slash(text, workingDirectory, openFileContext);
         }
+        boolean codeGenerationRequest = isCodeGenerationRequest(text);
         if (!liveCodegenRequest) {
             if (isCodingPartnerIntent(text)) {
                 return Invocation.tool(
                         "shaft_coding_partner_plan",
                         codingPartnerPlan(naturalCodingPartnerIntent(text), workingDirectory, openFileContext));
             }
+            if (isGuardrailsCheckIntent(text)) {
+                return Invocation.tool("test_code_guardrails_check", guardrails(naturalCode(text)));
+            }
+        }
+        if (!liveCodegenRequest && !codeGenerationRequest) {
             Invocation recording = recording(text);
             if (recording != null) {
                 return recording;
@@ -393,7 +405,7 @@ final class AssistantCommand {
             return withConversationContext(text, conversationContext);
         }
         return withConversationContext(SHAFT_MCP_USAGE_HINT
-                + "\n" + SHAFT_CODEGEN_TOOL_GUIDANCE
+                + "\n" + codeGenerationGuidance(text)
                 + "\n" + codeRequestScope(Selection.normalize(mode, "ASK"), openFileContext)
                 + "\n\n" + text, conversationContext);
     }
@@ -1037,7 +1049,7 @@ final class AssistantCommand {
 
     private static boolean isBrowserControlIntent(String text) {
         String lower = text == null ? "" : text.toLowerCase(Locale.ROOT);
-        if (isBrowserRecordingIntent(lower) || isCommandHelpIntent(lower)) {
+        if (isBrowserRecordingIntent(lower) || isCommandHelpIntent(lower) || isCodeOnlyRequest(lower)) {
             return false;
         }
         boolean mentionsBrowserAction = containsAny(lower,
@@ -1441,11 +1453,11 @@ final class AssistantCommand {
         boolean codeGenerationRequest = isCodeGenerationRequest(text);
         String hint = SHAFT_MCP_USAGE_HINT
                 + (codeGenerationRequest
-                ? "\n" + SHAFT_CODEGEN_TOOL_GUIDANCE + "\n" + codeRequestScope(normalizedMode, openFileContext)
+                ? "\n" + codeGenerationGuidance(text) + "\n" + codeRequestScope(normalizedMode, openFileContext)
                 : "");
         String withHint = lower.contains("shaft-mcp")
                 ? (codeGenerationRequest
-                ? SHAFT_CODEGEN_TOOL_GUIDANCE + "\n" + codeRequestScope(normalizedMode, openFileContext)
+                ? codeGenerationGuidance(text) + "\n" + codeRequestScope(normalizedMode, openFileContext)
                 + "\n\n" + text
                 : text)
                 : hint + "\n\n" + text;
@@ -1530,6 +1542,8 @@ final class AssistantCommand {
                 "generate java",
                 "generate test",
                 "generate tests",
+                "write code",
+                "write java",
                 "create test",
                 "create tests",
                 "write test",
@@ -1552,7 +1566,51 @@ final class AssistantCommand {
                 "fix code",
                 "fix this code",
                 "java code",
+                "code only",
+                "code-only",
+                "draft code",
                 "generated code");
+    }
+
+    private static String codeGenerationGuidance(String text) {
+        return shouldUseLiveCodegenTools(text)
+                ? SHAFT_CODEGEN_TOOL_GUIDANCE + "\n" + SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE
+                : SHAFT_CODEGEN_TOOL_GUIDANCE;
+    }
+
+    private static boolean shouldUseLiveCodegenTools(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return !isCodeOnlyRequest(normalized)
+                && containsAny(normalized,
+                "live browser",
+                "live locator",
+                "verify locator",
+                "verify locators",
+                "inspect live",
+                "run browser",
+                "open browser",
+                "record flow",
+                "record the flow",
+                "capture flow",
+                "capture the flow");
+    }
+
+    private static boolean isCodeOnlyRequest(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return containsAny(normalized,
+                "code only",
+                "code-only",
+                "draft only",
+                "draft code",
+                "write code only",
+                "do not run browser",
+                "dont run browser",
+                "don't run browser",
+                "without running browser",
+                "do not open browser",
+                "dont open browser",
+                "don't open browser",
+                "no browser");
     }
 
     private static String[] splitTargetUrlAndIntent(String rest) {

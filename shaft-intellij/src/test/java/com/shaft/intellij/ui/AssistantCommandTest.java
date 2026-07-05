@@ -202,18 +202,16 @@ class AssistantCommandTest {
                 () -> assertTrue(generatedPrompt.contains("Call test_automation_scenarios"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("call shaft_coding_partner_plan"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Reuse existing tests, page objects"), generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("record the complete flow"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("ask before starting live browser work"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not infer canonical URLs"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Never substitute a different URL, domain, or example page"),
                         generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("Open a real browser session"), generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("call driver_initialize and browser_open_intent"),
+                () -> assertTrue(generatedPrompt.contains("do not call live browser tools"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Do not publish locators as verified"), generatedPrompt),
+                () -> assertFalse(generatedPrompt.contains("Live browser verification was explicitly requested"),
                         generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("element_type, element_click, or natural_act"),
-                        generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("Do not publish unverified locators"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Never generate SHAFT.GUI.Locator.xpath"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Call test_code_guardrails_check"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not print full repository files"), generatedPrompt),
@@ -223,7 +221,8 @@ class AssistantCommandTest {
                 () -> assertTrue(explicitPrompt.contains("Call shaft_guide_search"), explicitPrompt),
                 () -> assertTrue(explicitPrompt.contains("ask the user to confirm the exact target URL"),
                         explicitPrompt),
-                () -> assertTrue(explicitPrompt.contains("browser_open_intent"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("do not call live browser tools"), explicitPrompt),
+                () -> assertFalse(explicitPrompt.contains("browser_open_intent"), explicitPrompt),
                 () -> assertTrue(explicitPrompt.contains("Call test_code_guardrails_check"), explicitPrompt),
                 () -> assertTrue(explicitPrompt.contains("Do not print full repository files"), explicitPrompt),
                 () -> assertTrue(explicitPrompt.contains("Put every code snippet in fenced code blocks"),
@@ -231,7 +230,7 @@ class AssistantCommandTest {
     }
 
     @Test
-    void slashCodegenWithLiveInstructionsRoutesToAgentCodegenPrompt() {
+    void slashCodegenWithLiveInstructionsRoutesToReviewOnlyAgentCodegenPrompt() {
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 "/codegen navigate to https://duckduckgo.com, search for shaft_engine, open the first result and assert that the url is correct.",
                 AssistantCommand.Selection.local("CODEX", "CLI"),
@@ -247,10 +246,29 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
                 () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
-                () -> assertTrue(prompt.contains("Open a real browser session"), prompt),
-                () -> assertTrue(prompt.contains("call driver_initialize and browser_open_intent"), prompt),
+                () -> assertTrue(prompt.contains("ask before starting live browser work"), prompt),
+                () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("navigate to https://duckduckgo.com"), prompt),
                 () -> assertFalse(prompt.contains("test_automation_scenarios OK")));
+    }
+
+    @Test
+    void codeOnlyBrowserCodegenPromptDoesNotRouteToLiveBrowserSequence() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "write code only for https://duckduckgo.com search Page Object; do not run browser",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertFalse(invocation.isSequence()),
+                () -> assertTrue(prompt.contains("do not call live browser tools"), prompt),
+                () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt));
     }
 
     @Test
@@ -301,12 +319,12 @@ class AssistantCommandTest {
                 () -> assertTrue(agentPrompt.contains("current open class only"), agentPrompt),
                 () -> assertEquals("autobot_provider_chat", cloud.toolName()),
                 () -> assertTrue(cloudPrompt.contains("Use only the currently open file"), cloudPrompt),
-                () -> assertTrue(cloudPrompt.contains("Open a real browser session"), cloudPrompt),
-                () -> assertTrue(cloudPrompt.contains("Do not publish unverified locators"), cloudPrompt));
+                () -> assertTrue(cloudPrompt.contains("ask before starting live browser work"), cloudPrompt),
+                () -> assertTrue(cloudPrompt.contains("Do not publish locators as verified"), cloudPrompt));
     }
 
     @Test
-    void localAgentLoginCodeGenerationRequiresUrlConfirmationAndLiveLocatorProof() {
+    void localAgentLoginCodeGenerationRequiresUrlConfirmationBeforeLiveLocatorProof() {
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 "generate code to login to saucedemo",
                 "CODEX",
@@ -322,10 +340,29 @@ class AssistantCommandTest {
                 () -> assertTrue(prompt.contains("ask the user to confirm the exact target URL"), prompt),
                 () -> assertTrue(prompt.contains("Do not infer canonical URLs"), prompt),
                 () -> assertTrue(prompt.contains("Never substitute a different URL, domain, or example page"), prompt),
+                () -> assertTrue(prompt.contains("ask before starting live browser work"), prompt),
+                () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
+                () -> assertTrue(prompt.contains("Do not publish locators as verified"), prompt),
+                () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
+    }
+
+    @Test
+    void localAgentCodeGenerationCanRequestExplicitLiveBrowserVerification() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate code to login to https://example.com and verify locators live",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("Open a real browser session"), prompt),
                 () -> assertTrue(prompt.contains("browser_open_intent"), prompt),
                 () -> assertTrue(prompt.contains("element_type, element_click, or natural_act"), prompt),
-                () -> assertTrue(prompt.contains("Do not publish unverified locators"), prompt),
                 () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
     }
 

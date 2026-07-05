@@ -353,6 +353,7 @@ class ShaftPanelSetupTest {
             assertAll(
                     () -> assertTrue(copied.get().contains("install-shaft-mcp")),
                     () -> assertTrue(copied.get().contains("codex")),
+                    () -> assertTrue(copied.get().contains("--install-shaft-skills")),
                     () -> assertTrue(copied.get().contains("/main/scripts/mcp/install-shaft-mcp")),
                     () -> assertFalse(copied.get().contains("SHAFT_MCP_INSTALLER_REF")),
                     () -> assertEquals("Command copied to clipboard", toast.get()),
@@ -399,7 +400,8 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(manualTarget),
                 () -> assertFalse(target.isVisible()),
                 () -> assertEquals("CODEX", target.getSelectedItem()),
-                () -> assertTrue(installer.getText().contains("codex")));
+                () -> assertTrue(installer.getText().contains("codex")),
+                () -> assertTrue(installer.getText().contains("--install-shaft-skills")));
 
         family.setSelectedItem("CLAUDE");
         runtime.setSelectedItem("DESKTOP_APP");
@@ -1978,6 +1980,7 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(settings.mcpSetupComplete),
                 () -> assertFalse(settings.agentGuidanceOptimizationPromptPending),
                 () -> assertTrue(copied.get().contains("install-shaft-mcp")),
+                () -> assertTrue(copied.get().contains("--install-shaft-skills")),
                 () -> assertSingleVisiblePrimarySetupAction(panel, "Open terminal for MCP installer"),
                 () -> assertTrue(containsText(panel, "Installer command copied. Run it in terminal, then check.")));
     }
@@ -2069,27 +2072,18 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantAgentModeWarnsOnlyWhenSourceMutationIsNotApproved() {
-        ShaftAssistantPanel blockedPanel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JComboBox<?> blockedMode = findByAccessibleName(blockedPanel, "Assistant mode", JComboBox.class);
-        assertNotNull(blockedMode);
-        blockedMode.setSelectedItem("AGENT");
-        assistantPrompt(blockedPanel).setText("edit this test");
-        clickAccessible(blockedPanel, "Send assistant prompt");
-        assertTrue(transcriptMarkdown(blockedPanel).contains("enable **Allow source edits**"));
-
-        ShaftAssistantPanel approvedPanel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JComboBox<?> approvedMode = findByAccessibleName(approvedPanel, "Assistant mode", JComboBox.class);
-        JCheckBox allowEdits = findByAccessibleName(approvedPanel,
-                "Approve source mutation for Agent mode", JCheckBox.class);
+    void assistantAgentModeSourceEditApprovalOnlyBlocksUnsandboxedCustomCommands() {
         assertAll(
-                () -> assertNotNull(approvedMode),
-                () -> assertNotNull(allowEdits));
-        approvedMode.setSelectedItem("AGENT");
-        allowEdits.setSelected(true);
-        assistantPrompt(approvedPanel).setText("edit this test");
-        clickAccessible(approvedPanel, "Send assistant prompt");
-        assertFalse(transcriptMarkdown(approvedPanel).contains("enable **Allow source edits**"));
+                () -> assertFalse(ShaftAssistantPanel.requiresSourceEditApprovalBeforeSend(
+                        true, false, false, "", "edit this test", "")),
+                () -> assertTrue(ShaftAssistantPanel.requiresSourceEditApprovalBeforeSend(
+                        true, false, false, "custom-agent --unsafe", "edit this test", "")),
+                () -> assertFalse(ShaftAssistantPanel.requiresSourceEditApprovalBeforeSend(
+                        true, false, true, "custom-agent --unsafe", "edit this test", "")),
+                () -> assertFalse(ShaftAssistantPanel.requiresSourceEditApprovalBeforeSend(
+                        false, false, false, "custom-agent --unsafe", "edit this test", "")),
+                () -> assertFalse(ShaftAssistantPanel.requiresSourceEditApprovalBeforeSend(
+                        true, true, false, "custom-agent --unsafe", "edit this test", "")));
     }
 
     @Test
@@ -2107,17 +2101,11 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantAgentModeSourceEditWarningUsesActiveContextForContinuationPrompt() {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
-        assertNotNull(assistantMode);
-        assistantMode.setSelectedItem("AGENT");
-
-        assistantPrompt(panel).setText("fix this Java test");
-        clickAccessible(panel, "Send assistant prompt");
-        assistantPrompt(panel).setText("try again");
-        clickAccessible(panel, "Send assistant prompt");
-
-        assertEquals(2, countOccurrences(transcriptMarkdown(panel), "enable **Allow source edits**"));
+        assertAll(
+                () -> assertTrue(ShaftAssistantPanel.requiresSourceEditApprovalBeforeSend(
+                        true, false, false, "custom-agent --unsafe", "try again", "fix this Java test")),
+                () -> assertFalse(ShaftAssistantPanel.requiresSourceEditApprovalBeforeSend(
+                        true, false, false, "", "try again", "fix this Java test")));
     }
 
     @Test
