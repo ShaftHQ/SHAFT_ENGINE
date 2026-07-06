@@ -27,6 +27,40 @@
       },
       "action": "OPEN",
       "targetUrl": "https://example.test"
+    },
+    {
+      "eventType": "navigation",
+      "context": {
+        "sequence": 2,
+        "timestamp": "2026-01-02T03:04:07Z",
+        "page": {
+          "url": "https://example.test/form",
+          "title": "Form",
+          "logicalWindowId": "window-1",
+          "framePath": [],
+          "viewportWidth": 1280,
+          "viewportHeight": 720
+        }
+      },
+      "action": "REFRESH",
+      "targetUrl": "https://example.test/form"
+    },
+    {
+      "eventType": "navigation",
+      "context": {
+        "sequence": 3,
+        "timestamp": "2026-01-02T03:04:08Z",
+        "page": {
+          "url": "https://example.test/result",
+          "title": "Result",
+          "logicalWindowId": "window-1",
+          "framePath": [],
+          "viewportWidth": 1280,
+          "viewportHeight": 720
+        }
+      },
+      "action": "OPEN",
+      "targetUrl": "https://example.test/result"
     }
   ]
 }
