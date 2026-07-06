@@ -1,15 +1,26 @@
 package com.shaft.intellij.ui;
 
+import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssistantCommandTest {
@@ -1007,11 +1018,231 @@ class AssistantCommandTest {
         assertTrue(command("   ").isLocal());
     }
 
+    @Test
+    void verboseStreamingDeliversEachStubbedProcessLineIncrementallyBeforeExit() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "stub-agent --print", false);
+        FakeProcess process = FakeProcess.withDelayedStdoutLines(
+                List.of("line one", "line two", "line three"), 40);
+        List<String> delivered = new CopyOnWriteArrayList<>();
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, delivered::add, (command, workingDirectory, environment) -> process);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertEquals(3, delivered.size()),
+                () -> assertEquals("line one", delivered.get(0)),
+                () -> assertEquals("line two", delivered.get(1)),
+                () -> assertEquals("line three", delivered.get(2)));
+    }
+
+    @Test
+    void tokenUsageParsingPrefersReportedFieldsAndFallsBackToNullForEstimate() {
+        String claudeJsonResult = """
+                {"type":"result","subtype":"success","result":"Done","usage":{"input_tokens":123,"output_tokens":45}}
+                """.strip();
+
+        AssistantLocalAgentRunner.TokenUsage reported = AssistantLocalAgentRunner.parseTokenUsage(claudeJsonResult);
+        AssistantLocalAgentRunner.TokenUsage absent = AssistantLocalAgentRunner.parseTokenUsage("Plain markdown response with no usage metadata.");
+
+        assertAll(
+                () -> assertEquals(123, reported.inputTokens()),
+                () -> assertEquals(45, reported.outputTokens()),
+                () -> assertFalse(reported.estimated()),
+                () -> assertEquals(168, reported.totalTokens()),
+                () -> assertNull(absent));
+    }
+
+    @Test
+    void modelSelectorPopulatesFromStubbedCliWithNoHardcodedModelNames() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CLAUDE_CODE", "ASK", ".", "", false);
+        FakeProcess process = FakeProcess.withStdout("stub-model-alpha\nstub-model-beta\n", 0);
+
+        List<String> models = AssistantLocalAgentRunner.listModels(
+                invocation.arguments(), (command, workingDirectory, environment) -> process);
+
+        assertAll(
+                () -> assertEquals(2, models.size()),
+                () -> assertTrue(models.contains("stub-model-alpha")),
+                () -> assertTrue(models.contains("stub-model-beta")),
+                () -> assertFalse(models.contains("claude-opus-4-8")),
+                () -> assertFalse(models.contains("claude-sonnet-5")),
+                () -> assertFalse(models.contains("gpt-4.1")));
+    }
+
+    @Test
+    void autoCompactIssuesCompactCommandBeforeUserPromptInvocation() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CLAUDE_CODE", "ASK", ".", "stub-agent --print", false);
+        List<List<String>> launchedCommands = new CopyOnWriteArrayList<>();
+        AtomicInteger launchCount = new AtomicInteger();
+
+        AssistantLocalAgentRunner.ProcessLauncher launcher = (command, workingDirectory, environment) -> {
+            launchedCommands.add(command);
+            int index = launchCount.getAndIncrement();
+            return index == 0
+                    ? FakeProcess.withStdout("Compaction complete.", 0)
+                    : FakeProcess.withStdout("Explanation of the failure.", 0);
+        };
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.startWithOptionalCompact(
+                invocation, true, output -> { }, launcher);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertEquals(2, launchedCommands.size()),
+                () -> assertTrue(launchedCommands.get(0).contains("/compact"),
+                        "Compact command should be issued first: " + launchedCommands),
+                () -> assertEquals(AssistantLocalAgentRunner.commandFor(invocation.arguments()),
+                        launchedCommands.get(1)));
+    }
+
+    @Test
+    void autoCompactSkipsGracefullyWithoutFailingRequestWhenCliDoesNotSupportCompaction() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "COPILOT_CLI", "ASK", ".", "stub-agent ask", false);
+        List<List<String>> launchedCommands = new CopyOnWriteArrayList<>();
+        AssistantLocalAgentRunner.ProcessLauncher launcher = (command, workingDirectory, environment) -> {
+            launchedCommands.add(command);
+            return FakeProcess.withStdout("ask response", 0);
+        };
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.startWithOptionalCompact(
+                invocation, true, output -> { }, launcher);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertEquals(1, launchedCommands.size(), "Unsupported CLI should skip compaction, not fail: "
+                        + launchedCommands),
+                () -> assertEquals(AssistantLocalAgentRunner.commandFor(invocation.arguments()),
+                        launchedCommands.get(0)));
+    }
+
     private static AssistantCommand.Invocation command(String prompt) {
         return command(prompt, ".");
     }
 
     private static AssistantCommand.Invocation command(String prompt, String workingDirectory) {
         return AssistantCommand.fromPrompt(prompt, "CODEX", "ASK", workingDirectory, "", false);
+    }
+
+    /**
+     * Minimal stub {@link Process} for driving {@link AssistantLocalAgentRunner} without spawning a
+     * real CLI executable.
+     */
+    private static final class FakeProcess extends Process {
+        private final InputStream stdout;
+        private final InputStream stderr;
+        private final OutputStream stdin = new ByteArrayOutputStream();
+        private final int exitValue;
+
+        private FakeProcess(InputStream stdout, InputStream stderr, int exitValue) {
+            this.stdout = stdout;
+            this.stderr = stderr;
+            this.exitValue = exitValue;
+        }
+
+        static FakeProcess withStdout(String stdout, int exitValue) {
+            return new FakeProcess(
+                    new ByteArrayInputStream(stdout.getBytes(StandardCharsets.UTF_8)),
+                    new ByteArrayInputStream(new byte[0]),
+                    exitValue);
+        }
+
+        static FakeProcess withDelayedStdoutLines(List<String> lines, long delayMillisPerLine) {
+            return new FakeProcess(new DelayedLinesInputStream(lines, delayMillisPerLine),
+                    new ByteArrayInputStream(new byte[0]), 0);
+        }
+
+        @Override
+        public OutputStream getOutputStream() {
+            return stdin;
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return stdout;
+        }
+
+        @Override
+        public InputStream getErrorStream() {
+            return stderr;
+        }
+
+        @Override
+        public int waitFor() {
+            return exitValue;
+        }
+
+        @Override
+        public boolean waitFor(long timeout, TimeUnit unit) {
+            return true;
+        }
+
+        @Override
+        public int exitValue() {
+            return exitValue;
+        }
+
+        @Override
+        public void destroy() {
+            // No underlying OS process to terminate.
+        }
+
+        @Override
+        public Process destroyForcibly() {
+            return this;
+        }
+
+        @Override
+        public boolean isAlive() {
+            return false;
+        }
+    }
+
+    /**
+     * Feeds newline-delimited lines to a reader with a delay between each line, simulating a slow
+     * streaming CLI process for verbose-output tests.
+     */
+    private static final class DelayedLinesInputStream extends InputStream {
+        private final List<byte[]> chunks = new ArrayList<>();
+        private final long delayMillisPerLine;
+        private int chunkIndex;
+        private int positionInChunk;
+        private boolean delayedForCurrentChunk;
+
+        DelayedLinesInputStream(List<String> lines, long delayMillisPerLine) {
+            this.delayMillisPerLine = delayMillisPerLine;
+            for (String line : lines) {
+                chunks.add((line + "\n").getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        @Override
+        public synchronized int read() throws IOException {
+            while (chunkIndex < chunks.size() && positionInChunk >= chunks.get(chunkIndex).length) {
+                chunkIndex++;
+                positionInChunk = 0;
+                delayedForCurrentChunk = false;
+            }
+            if (chunkIndex >= chunks.size()) {
+                return -1;
+            }
+            if (!delayedForCurrentChunk) {
+                delayedForCurrentChunk = true;
+                try {
+                    Thread.sleep(delayMillisPerLine);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted while simulating delayed output", exception);
+                }
+            }
+            return chunks.get(chunkIndex)[positionInChunk++] & 0xFF;
+        }
     }
 }

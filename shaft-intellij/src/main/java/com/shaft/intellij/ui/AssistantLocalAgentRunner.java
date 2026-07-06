@@ -2,6 +2,8 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 
@@ -16,15 +18,19 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Runs selected local assistant CLIs directly so their markdown stays user-facing.
@@ -32,8 +38,12 @@ import java.util.function.Consumer;
 final class AssistantLocalAgentRunner {
     static final String LOCAL_AGENT_TOOL = "autobot_local_agent_run";
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
+    private static final int MODEL_LIST_TIMEOUT_SECONDS = 20;
+    private static final int COMPACT_TIMEOUT_SECONDS = 30;
     private static final String CUSTOM_AGENT_APPROVAL_WARNING =
             "Custom Agent commands require Allow source edits because SHAFT cannot enforce read-only execution.";
+    private static final Pattern MODEL_LINE_PATTERN = Pattern.compile("(claude-[a-z0-9.-]+|gpt-[a-z0-9.-]+|o[0-9][a-z0-9.-]*)",
+            Pattern.CASE_INSENSITIVE);
 
     private AssistantLocalAgentRunner() {
         throw new IllegalStateException("Utility class");
@@ -48,15 +58,82 @@ final class AssistantLocalAgentRunner {
     }
 
     static ShaftMcpInvocation start(AssistantCommand.Invocation invocation, Consumer<String> outputConsumer) {
+        return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    /**
+     * Package-private overload that accepts a custom process launcher so tests can drive a stub
+     * process instead of spawning a real CLI.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher) {
         JsonObject arguments = invocation.arguments();
         AtomicReference<Process> processReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
-                () -> run(arguments, processReference, cancellationRequested, outputConsumer));
+                () -> run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher));
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(processReference, cancellationRequested, false),
                 () -> cancel(processReference, cancellationRequested, true));
+    }
+
+    /**
+     * Starts a local agent invocation, first sending the agent CLI's compact/compress command as a
+     * preamble when {@code autoCompactEnabled} is true. The compact call always completes (or is
+     * skipped) before the user prompt invocation is dispatched. Compaction failures or an
+     * unsupported CLI never block the user's request — they are logged into the transcript of the
+     * eventual result via the {@code outputConsumer}, and the main invocation proceeds regardless.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer) {
+        if (autoCompactEnabled) {
+            ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments());
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process for both the compact preamble
+     * and the main invocation, and to assert their relative ordering.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher) {
+        if (autoCompactEnabled) {
+            JsonObject arguments = invocation.arguments();
+            ShaftMcpToolResult compactResult = runCompactPreamble(arguments, processLauncher);
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer, processLauncher);
+    }
+
+    /**
+     * Launches a local agent process. Extracted so tests can substitute a stub process without
+     * spawning a real CLI executable.
+     */
+    @FunctionalInterface
+    interface ProcessLauncher {
+        Process launch(List<String> command, Path workingDirectory, Map<String, String> environment) throws IOException;
+    }
+
+    private static Process launchProcess(List<String> command, Path workingDirectory, Map<String, String> environment)
+            throws IOException {
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(workingDirectory.toFile());
+        builder.environment().putAll(environment);
+        return builder.start();
     }
 
     static ShaftMcpToolResult readiness(String client, String runtime) {
@@ -92,7 +169,8 @@ final class AssistantLocalAgentRunner {
             JsonObject arguments,
             AtomicReference<Process> processReference,
             AtomicBoolean cancellationRequested,
-            Consumer<String> outputConsumer) {
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher) {
         List<String> command = commandFor(arguments);
         if (command.isEmpty()) {
             return ShaftMcpToolResult.failure("No local assistant command was configured.");
@@ -110,10 +188,7 @@ final class AssistantLocalAgentRunner {
         String stdin = string(arguments, "prompt", "");
         Path workingDirectory = workingDirectory(arguments);
         try {
-            ProcessBuilder builder = new ProcessBuilder(command);
-            builder.directory(workingDirectory.toFile());
-            builder.environment().putAll(environment(arguments));
-            Process process = builder.start();
+            Process process = processLauncher.launch(command, workingDirectory, environment(arguments));
             processReference.set(process);
             InputStream stdoutStream = process.getInputStream();
             InputStream stderrStream = process.getErrorStream();
@@ -198,6 +273,270 @@ final class AssistantLocalAgentRunner {
             case "AGENT" -> List.of("copilot", allowSourceMutation ? "agent" : "ask");
             default -> List.of("copilot", "ask");
         };
+    }
+
+    /**
+     * Returns the command used to list the models supported by the selected agent CLI, or an
+     * empty list when the CLI has no known model-listing capability.
+     */
+    static List<String> modelsCommandFor(JsonObject arguments) {
+        return switch (normalize(string(arguments, "client", "CODEX"))) {
+            case "CLAUDE_CODE" -> List.of("claude", "config", "list-models");
+            case "COPILOT_CLI" -> List.of("copilot", "models");
+            default -> List.of("codex", "models");
+        };
+    }
+
+    /**
+     * Queries the connected agent CLI for its supported model list. Returns an empty list when the
+     * CLI is unavailable, unsupported, or the query fails or times out — callers should fall back to
+     * their own default model set in that case.
+     */
+    static List<String> listModels(JsonObject arguments) {
+        List<String> command = modelsCommandFor(arguments);
+        if (command.isEmpty() || !isCommandAvailable(command.get(0))) {
+            return List.of();
+        }
+        return listModels(arguments, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process directly, bypassing the PATH
+     * availability check that gates the real CLI in {@link #listModels(JsonObject)}.
+     */
+    static List<String> listModels(JsonObject arguments, ProcessLauncher processLauncher) {
+        List<String> command = modelsCommandFor(arguments);
+        if (command.isEmpty()) {
+            return List.of();
+        }
+        Path workingDirectory = workingDirectory(arguments);
+        try {
+            Process process = processLauncher.launch(command, workingDirectory, Map.of());
+            process.getOutputStream().close();
+            CompletableFuture<String> stdout = readAsync(process.getInputStream(), null);
+            CompletableFuture<String> stderr = readAsync(process.getErrorStream(), null);
+            boolean finished = process.waitFor(MODEL_LIST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return List.of();
+            }
+            String output = process.exitValue() == 0 ? stdoutNow(stdout) : "";
+            if (output.isBlank()) {
+                stderrNow(stderr);
+                return List.of();
+            }
+            return parseModelNames(output);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return List.of();
+        } catch (IOException | RuntimeException exception) {
+            return List.of();
+        }
+    }
+
+    /**
+     * Parses model names out of a CLI's model-listing output. Accepts either a JSON array of
+     * strings/objects (with a {@code name} or {@code id} field) or plain newline-delimited text.
+     */
+    static List<String> parseModelNames(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return List.of();
+        }
+        Set<String> models = new LinkedHashSet<>();
+        if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+            try {
+                JsonElement parsed = JsonParser.parseString(trimmed);
+                collectModelNames(parsed, models);
+                if (!models.isEmpty()) {
+                    return List.copyOf(models);
+                }
+            } catch (JsonParseException ignored) {
+                // Fall through to line-based parsing below.
+            }
+        }
+        for (String line : trimmed.split("\\r?\\n")) {
+            String candidate = line.strip();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            candidate = candidate.replaceFirst("^[-*]\\s+", "").strip();
+            Matcher matcher = MODEL_LINE_PATTERN.matcher(candidate);
+            if (matcher.find()) {
+                models.add(matcher.group(1));
+            } else if (!candidate.contains(" ") && candidate.length() < 64) {
+                models.add(candidate);
+            }
+        }
+        return List.copyOf(models);
+    }
+
+    private static void collectModelNames(JsonElement element, Set<String> models) {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement item : element.getAsJsonArray()) {
+                collectModelNames(item, models);
+            }
+            return;
+        }
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            models.add(element.getAsString());
+            return;
+        }
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            for (String key : List.of("id", "name", "model")) {
+                JsonElement value = object.get(key);
+                if (value != null && value.isJsonPrimitive()) {
+                    models.add(value.getAsString());
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns the agent CLI's compact/compress command preamble, or an empty list when the
+     * selected client has no known compaction command.
+     */
+    static List<String> compactCommandFor(JsonObject arguments) {
+        return switch (normalize(string(arguments, "client", "CODEX"))) {
+            case "CLAUDE_CODE" -> List.of("claude", "--print", "/compact");
+            case "COPILOT_CLI" -> List.of();
+            default -> List.of();
+        };
+    }
+
+    static boolean supportsCompact(JsonObject arguments) {
+        return !compactCommandFor(arguments).isEmpty();
+    }
+
+    /**
+     * Sends the agent CLI's compact/compress command as a preamble before a new user request, when
+     * the client supports one. Returns a successful no-op result immediately when the CLI does not
+     * support compaction so callers can skip it gracefully without failing the request.
+     */
+    static ShaftMcpToolResult runCompactPreamble(JsonObject arguments) {
+        List<String> command = compactCommandFor(arguments);
+        if (command.isEmpty()) {
+            return ShaftMcpToolResult.success("Compaction is not supported by the selected agent CLI.");
+        }
+        if (!isCommandAvailable(command.get(0))) {
+            return ShaftMcpToolResult.success("Compaction skipped: agent executable is not available on PATH.");
+        }
+        return runCompactPreamble(arguments, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process directly, bypassing the PATH
+     * availability check that gates the real CLI in {@link #runCompactPreamble(JsonObject)}.
+     */
+    static ShaftMcpToolResult runCompactPreamble(JsonObject arguments, ProcessLauncher processLauncher) {
+        List<String> command = compactCommandFor(arguments);
+        if (command.isEmpty()) {
+            return ShaftMcpToolResult.success("Compaction is not supported by the selected agent CLI.");
+        }
+        Path workingDirectory = workingDirectory(arguments);
+        try {
+            Process process = processLauncher.launch(command, workingDirectory, Map.of());
+            process.getOutputStream().close();
+            CompletableFuture<String> stdout = readAsync(process.getInputStream(), null);
+            CompletableFuture<String> stderr = readAsync(process.getErrorStream(), null);
+            boolean finished = process.waitFor(COMPACT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return ShaftMcpToolResult.success("Compaction timed out; continuing without it.");
+            }
+            String output = agentOutput(process.exitValue() == 0, stdoutNow(stdout), stderrNow(stderr), "");
+            return ShaftMcpToolResult.success(output.isBlank() ? "Compaction complete." : output);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return ShaftMcpToolResult.success("Compaction interrupted; continuing without it.");
+        } catch (IOException | RuntimeException exception) {
+            return ShaftMcpToolResult.success("Compaction skipped: " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Token usage parsed from an agent's structured result metadata (for example, the
+     * {@code usage} object in the Claude CLI's {@code --output-format json} result), or an
+     * estimated fallback when the agent reports no usage fields.
+     *
+     * @param inputTokens reported or estimated input token count
+     * @param outputTokens reported or estimated output token count
+     * @param estimated true when the counts are an estimate rather than agent-reported values
+     */
+    record TokenUsage(int inputTokens, int outputTokens, boolean estimated) {
+        static TokenUsage estimate(int inputTokens, int outputTokens) {
+            return new TokenUsage(Math.max(0, inputTokens), Math.max(0, outputTokens), true);
+        }
+
+        static TokenUsage reported(int inputTokens, int outputTokens) {
+            return new TokenUsage(Math.max(0, inputTokens), Math.max(0, outputTokens), false);
+        }
+
+        int totalTokens() {
+            return inputTokens + outputTokens;
+        }
+    }
+
+    /**
+     * Parses token usage from an agent's raw output. Looks for a JSON object anywhere in the text
+     * containing a {@code usage} field with {@code input_tokens}/{@code output_tokens} (the Claude
+     * CLI {@code --output-format json} shape), falling back to top-level
+     * {@code input_tokens}/{@code output_tokens} fields. Returns {@code null} when no structured
+     * usage metadata is present, so callers can fall back to an estimate and label it accordingly.
+     */
+    static TokenUsage parseTokenUsage(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return null;
+        }
+        JsonObject usageHolder = extractJsonObject(trimmed);
+        if (usageHolder == null) {
+            return null;
+        }
+        JsonObject usage = usageHolder.has("usage") && usageHolder.get("usage").isJsonObject()
+                ? usageHolder.getAsJsonObject("usage")
+                : usageHolder;
+        Integer inputTokens = intField(usage, "input_tokens");
+        Integer outputTokens = intField(usage, "output_tokens");
+        if (inputTokens == null && outputTokens == null) {
+            return null;
+        }
+        return TokenUsage.reported(inputTokens == null ? 0 : inputTokens, outputTokens == null ? 0 : outputTokens);
+    }
+
+    private static Integer intField(JsonObject object, String key) {
+        JsonElement value = object == null ? null : object.get(key);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+            return null;
+        }
+        try {
+            return value.getAsInt();
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private static JsonObject extractJsonObject(String text) {
+        int start = text.indexOf('{');
+        if (start < 0) {
+            return null;
+        }
+        int end = text.lastIndexOf('}');
+        if (end <= start) {
+            return null;
+        }
+        String candidate = text.substring(start, end + 1);
+        try {
+            JsonElement parsed = JsonParser.parseString(candidate);
+            return parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+        } catch (JsonParseException exception) {
+            return null;
+        }
     }
 
     private static boolean allowSourceMutation(JsonObject arguments) {
