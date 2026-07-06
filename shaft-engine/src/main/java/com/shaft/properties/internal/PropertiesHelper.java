@@ -339,15 +339,19 @@ public class PropertiesHelper {
                 .forEach(file -> {
                     if (!fileActions.doesFileExist(targetPropertiesFolderPath + file)) {
                         if (isExternalRun) {
-                            var tempPath = propertiesFolderPath.replace("/default", "");
                             try {
-                                if (tempPath.contains("file:")) {
-                                    fileActions.copyFileFromJar(tempPath, targetPropertiesFolderPath, file.replace("/", ""));
+                                if (propertiesFolderPath.contains("file:")) {
+                                    // propertiesFolderPath already points inside the bundled "default"
+                                    // jar entry, which is where the template file actually lives --
+                                    // stripping "/default" here breaks the entry-name match in
+                                    // copyFileFromJar and silently mis-copies to a nested
+                                    // "default/<file>" destination instead of the intended target path.
+                                    fileActions.copyFileFromJar(propertiesFolderPath, targetPropertiesFolderPath, file.replace("/", ""));
                                 } else {
                                     throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
                                 }
                             } catch (Throwable ignored) {
-                                fileActions.copyFile(tempPath + file, targetPropertiesFolderPath + file);
+                                downloadPropertiesFile(targetPropertiesFolderPath, file.replace("/", ""));
                             }
                         } else {
                             fileActions.copyFile(PropertyFileManager.resolveCustomPropertiesTemplatePath(),
@@ -359,9 +363,13 @@ public class PropertiesHelper {
     }
 
     private static void downloadPropertiesFile(String fileName) {
+        downloadPropertiesFile(Properties.paths.properties(), fileName);
+    }
+
+    private static void downloadPropertiesFile(String targetFolderPath, String fileName) {
         var baseURI = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/shaft-engine/src/main/resources/properties/default/";
         FileActions.getInstance(true).downloadFile(baseURI + fileName,
-                Properties.paths.properties() + File.separator + fileName);
+                targetFolderPath + File.separator + fileName);
     }
 
     private static void attachPropertyFiles() {
