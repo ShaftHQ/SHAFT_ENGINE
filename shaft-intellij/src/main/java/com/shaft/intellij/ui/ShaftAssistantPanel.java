@@ -143,6 +143,7 @@ final class ShaftAssistantPanel extends JPanel {
     private StringBuilder sequenceMarkdown;
     private StringBuilder sequenceRawOutput;
     private JPopupMenu contextPopup;
+    private int contextTruncationBoundaryIndex = -1;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -317,6 +318,7 @@ final class ShaftAssistantPanel extends JPanel {
         if (!chatState.activeMarkdown().isBlank()) {
             transcript.setMessages(chatState.activeMessages());
             lastPrompt = latestUserPrompt();
+            updateContextTruncationBoundary();
         }
         status = new JLabel(READY_STATUS);
         status.getAccessibleContext().setAccessibleName("Assistant status");
@@ -563,6 +565,10 @@ final class ShaftAssistantPanel extends JPanel {
 
     List<ContextSuggestion> contextSuggestionsForTest(char trigger) {
         return contextSuggestions(trigger, project, openFileContext(project));
+    }
+
+    void simulateAppendForTest(String role, String message, String rawResponse) {
+        append(role, message, rawResponse);
     }
 
     private List<ContextSuggestion> contextSuggestions(
@@ -1253,6 +1259,7 @@ final class ShaftAssistantPanel extends JPanel {
     private void append(String role, String text, String rawResponse) {
         transcript.append(role, text);
         chatState.append(role, text, rawResponse);
+        updateContextTruncationBoundary();
         refreshChatSelector();
         updateActionChrome();
     }
@@ -1611,6 +1618,7 @@ final class ShaftAssistantPanel extends JPanel {
         captureReviewGenerationRunning = false;
         captureIntegrationRunning = false;
         transcript.clear();
+        contextTruncationBoundaryIndex = -1;
         lastResponse = "";
         lastRawResponse = "";
         lastPrompt = "";
@@ -1928,8 +1936,10 @@ final class ShaftAssistantPanel extends JPanel {
     private void restoreTranscript() {
         if (!chatState.activeMarkdown().isBlank()) {
             transcript.setMessages(chatState.activeMessages());
+            updateContextTruncationBoundary();
         } else {
             transcript.clear();
+            contextTruncationBoundaryIndex = -1;
         }
         lastResponse = "";
         lastRawResponse = "";
@@ -1955,10 +1965,13 @@ final class ShaftAssistantPanel extends JPanel {
     private String conversationContextForPrompt() {
         List<ShaftAssistantChatState.Message> messages = chatState.activeMessages();
         if (messages.isEmpty()) {
+            contextTruncationBoundaryIndex = -1;
             return "";
         }
         List<String> entries = new ArrayList<>();
         int total = 0;
+        int oldestIncludedIndex = -1;
+        boolean loopCompletedWithoutBreak = true;
         for (int index = messages.size() - 1; index >= 0; index--) {
             ShaftAssistantChatState.Message message = messages.get(index);
             if (message == null || message.markdown == null || message.markdown.isBlank()) {
@@ -1967,12 +1980,23 @@ final class ShaftAssistantPanel extends JPanel {
             String entry = contextRole(message.role) + ": " + message.markdown.trim();
             int nextTotal = total + entry.length() + 2;
             if (nextTotal > MAX_AGENT_CONTEXT_CHARACTERS && !entries.isEmpty()) {
+                contextTruncationBoundaryIndex = index + 1;
+                loopCompletedWithoutBreak = false;
                 break;
             }
+            oldestIncludedIndex = index;
             entries.add(0, clipContextEntry(entry, MAX_AGENT_CONTEXT_CHARACTERS));
             total = nextTotal;
         }
+        if (loopCompletedWithoutBreak && oldestIncludedIndex == 0) {
+            contextTruncationBoundaryIndex = -1;
+        }
         return String.join("\n\n", entries);
+    }
+
+    private void updateContextTruncationBoundary() {
+        conversationContextForPrompt();
+        transcript.setTruncationBoundaryIndex(contextTruncationBoundaryIndex);
     }
 
     private static String contextRole(String role) {

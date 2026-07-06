@@ -18,6 +18,7 @@ import com.intellij.util.ui.JBUI;
 
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.UIManager;
@@ -28,6 +29,7 @@ import javax.swing.event.HyperlinkEvent;
 import javax.swing.text.html.HTMLEditorKit;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -50,6 +52,7 @@ import java.util.regex.Pattern;
  * Markdown-rendered Assistant transcript with copyable source text.
  */
 final class AssistantTranscriptView extends JPanel {
+    private static final int MAX_AGENT_CONTEXT_CHARACTERS = 16_000;
     private static final Pattern LANGUAGE_CLASS = Pattern.compile("(?i)\\blanguage-([a-z0-9_+.#-]+)");
     private static final Pattern UNORDERED_LIST_ITEM = Pattern.compile("^[-*+]\\s+(.+)$");
     private static final Pattern ORDERED_LIST_ITEM = Pattern.compile("^\\d+[.)]\\s+(.+)$");
@@ -72,6 +75,7 @@ final class AssistantTranscriptView extends JPanel {
     private final JBScrollPane fallbackScrollPane;
     private final List<ShaftAssistantChatState.Message> messages = new ArrayList<>();
     private String markdown = "";
+    private int truncationBoundaryIndex = -1;
 
     AssistantTranscriptView() {
         this(null);
@@ -148,6 +152,10 @@ final class AssistantTranscriptView extends JPanel {
         refresh();
     }
 
+    void setTruncationBoundaryIndex(int index) {
+        this.truncationBoundaryIndex = index;
+    }
+
     private JBScrollPane createFallbackScrollPane(Color transcriptBackground) {
         JBScrollPane scrollPane = new JBScrollPane(fallbackPanel);
         scrollPane.setBorder(JBUI.Borders.empty());
@@ -188,11 +196,47 @@ final class AssistantTranscriptView extends JPanel {
         Color transcriptBackground = resolvedColor("TextArea.background", Color.WHITE);
         fallbackPanel.removeAll();
         fallbackPanel.setBackground(transcriptBackground);
-        for (ShaftAssistantChatState.Message message : messages) {
+        for (int i = 0; i < messages.size(); i++) {
+            if (i == truncationBoundaryIndex) {
+                fallbackPanel.add(createTruncationDivider());
+            }
+            ShaftAssistantChatState.Message message = messages.get(i);
             fallbackPanel.add(fallbackMessage(message.role, message.markdown));
         }
         fallbackPanel.revalidate();
         fallbackPanel.repaint();
+    }
+
+    private JComponent createTruncationDivider() {
+        JPanel row = new PreferredHeightRow(new BorderLayout());
+        row.setOpaque(false);
+        row.setBorder(JBUI.Borders.empty(8, 0));
+        row.getAccessibleContext().setAccessibleName("Context truncation indicator");
+
+        Color chipBackground = resolvedColor("Component.background", new Color(0xFFF3CD));
+        Color chipForeground = resolvedColor("Component.foreground", new Color(0x664D03));
+        Color borderColor = resolvedColor("Component.borderColor", new Color(0xFFEBA0));
+
+        JPanel chipPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        chipPanel.setOpaque(false);
+        chipPanel.setBorder(JBUI.Borders.emptyLeft(8));
+
+        JLabel chipLabel = new JLabel("Earlier messages not included in context");
+        chipLabel.setFont(chipLabel.getFont().deriveFont(Math.max(10.0F, chipLabel.getFont().getSize2D() - 1.0F)));
+        chipLabel.setForeground(chipForeground);
+        chipLabel.setOpaque(true);
+        chipLabel.setBackground(chipBackground);
+        chipLabel.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(borderColor, 1),
+                JBUI.Borders.empty(4, 8)));
+        chipLabel.setToolTipText("Context window is limited to " + MAX_AGENT_CONTEXT_CHARACTERS + " characters. " +
+                "Earlier messages are not sent to the agent. Start a new chat if needed.");
+        chipLabel.getAccessibleContext().setAccessibleName("Context truncation chip");
+        chipLabel.getAccessibleContext().setAccessibleDescription(chipLabel.getToolTipText());
+
+        chipPanel.add(chipLabel);
+        row.add(chipPanel, BorderLayout.CENTER);
+        return row;
     }
 
     private JComponent fallbackMessage(String role, String markdown) {
