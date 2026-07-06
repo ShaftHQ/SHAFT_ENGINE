@@ -351,36 +351,74 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
             contentType = header(request, "Content-Type");
         }
         String path = pathOf(request.getUri());
-        if (containsAny(contentType, "text/html") || (accept.contains("text/html") && path.isBlank())) {
+
+        if (isDocument(contentType, accept, path)) {
             return InternalResourceKind.DOCUMENT;
         }
-        if (containsAny(contentType, "text/css") || path.endsWith(".css")) {
+        if (isStylesheet(contentType, path)) {
             return InternalResourceKind.STYLESHEET;
         }
-        if (containsAny(contentType, "javascript", "ecmascript") || path.endsWith(".js") || path.endsWith(".mjs")) {
+        if (isScript(contentType, path)) {
             return InternalResourceKind.SCRIPT;
         }
-        if (containsAny(contentType, "image/") || hasExtension(path, ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico")) {
+        if (isImage(contentType, path)) {
             return InternalResourceKind.IMAGE;
         }
-        if (containsAny(contentType, "font/", "application/font")
-                || hasExtension(path, ".woff", ".woff2", ".ttf", ".otf", ".eot")) {
+        if (isFont(contentType, path)) {
             return InternalResourceKind.FONT;
         }
-        if (containsAny(contentType, "audio/", "video/") || hasExtension(path, ".mp4", ".webm", ".mp3", ".wav")) {
+        if (isMedia(contentType, path)) {
             return InternalResourceKind.MEDIA;
         }
-        if (containsAny(header(request, "Upgrade"), "websocket")) {
+        if (isWebSocket(request)) {
             return InternalResourceKind.WEBSOCKET;
         }
-        if (containsAny(contentType, "json", "xml", "text/plain") || containsAny(accept, "json")
-                || !header(request, "X-Requested-With").isBlank()) {
+        if (isXhrOrFetch(contentType, accept, request)) {
             return InternalResourceKind.XHR_FETCH;
         }
-        if (path.isBlank() || hasExtension(path, ".htm", ".html")) {
+        if (isBlankOrHtmlPath(path)) {
             return InternalResourceKind.DOCUMENT;
         }
         return InternalResourceKind.XHR_FETCH;
+    }
+
+    private static boolean isDocument(String contentType, String accept, String path) {
+        return containsAny(contentType, "text/html") || (accept.contains("text/html") && path.isBlank());
+    }
+
+    private static boolean isStylesheet(String contentType, String path) {
+        return containsAny(contentType, "text/css") || path.endsWith(".css");
+    }
+
+    private static boolean isScript(String contentType, String path) {
+        return containsAny(contentType, "javascript", "ecmascript") || path.endsWith(".js") || path.endsWith(".mjs");
+    }
+
+    private static boolean isImage(String contentType, String path) {
+        return containsAny(contentType, "image/")
+                || hasExtension(path, ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico");
+    }
+
+    private static boolean isFont(String contentType, String path) {
+        return containsAny(contentType, "font/", "application/font")
+                || hasExtension(path, ".woff", ".woff2", ".ttf", ".otf", ".eot");
+    }
+
+    private static boolean isMedia(String contentType, String path) {
+        return containsAny(contentType, "audio/", "video/") || hasExtension(path, ".mp4", ".webm", ".mp3", ".wav");
+    }
+
+    private static boolean isWebSocket(HttpRequest request) {
+        return containsAny(header(request, "Upgrade"), "websocket");
+    }
+
+    private static boolean isXhrOrFetch(String contentType, String accept, HttpRequest request) {
+        return containsAny(contentType, "json", "xml", "text/plain") || containsAny(accept, "json")
+                || !header(request, "X-Requested-With").isBlank();
+    }
+
+    private static boolean isBlankOrHtmlPath(String path) {
+        return path.isBlank() || hasExtension(path, ".htm", ".html");
     }
 
     private static boolean containsAny(String haystack, String... needles) {

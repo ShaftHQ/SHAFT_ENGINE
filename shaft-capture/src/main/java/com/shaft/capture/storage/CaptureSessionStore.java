@@ -213,22 +213,34 @@ public final class CaptureSessionStore {
         if (!(event instanceof CaptureEvent.NetworkEvent networkEvent)) {
             return null;
         }
+        var request = networkEvent.request();
+        var response = networkEvent.response();
+
         java.util.Map<String, Object> bodyRefMetadata = new java.util.LinkedHashMap<>();
-        putBodyRefMetadata(bodyRefMetadata, "request", networkEvent.request() == null
-                ? null : networkEvent.request().body());
-        putBodyRefMetadata(bodyRefMetadata, "response", networkEvent.response() == null
-                ? null : networkEvent.response().body());
+        putBodyRefMetadata(bodyRefMetadata, "request", request == null ? null : request.body());
+        putBodyRefMetadata(bodyRefMetadata, "response", response == null ? null : response.body());
+
         return new com.shaft.capture.runtime.NetworkTransaction(
                 networkEvent.transactionId(),
-                networkEvent.request() == null ? "" : networkEvent.request().method(),
-                networkEvent.request() == null ? "" : networkEvent.request().url(),
-                networkEvent.response() == null ? 0 : networkEvent.response().statusCode(),
-                networkEvent.resourceKind() == null ? "" : networkEvent.resourceKind().name(),
+                request == null ? "" : request.method(),
+                request == null ? "" : request.url(),
+                response == null ? 0 : response.statusCode(),
+                resourceKindName(networkEvent),
                 timingMillis(networkEvent.timing()),
                 bodyRefMetadata,
-                networkEvent.correlatedUiSequence() == null
-                        ? List.of()
-                        : List.of(Math.toIntExact(Math.min(Integer.MAX_VALUE, networkEvent.correlatedUiSequence()))));
+                correlatedUiSequence(networkEvent));
+    }
+
+    private static String resourceKindName(CaptureEvent.NetworkEvent networkEvent) {
+        return networkEvent.resourceKind() == null ? "" : networkEvent.resourceKind().name();
+    }
+
+    private static List<Integer> correlatedUiSequence(CaptureEvent.NetworkEvent networkEvent) {
+        Long sequence = networkEvent.correlatedUiSequence();
+        if (sequence == null) {
+            return List.of();
+        }
+        return List.of(Math.toIntExact(Math.min(Integer.MAX_VALUE, sequence)));
     }
 
     private static void putBodyRefMetadata(

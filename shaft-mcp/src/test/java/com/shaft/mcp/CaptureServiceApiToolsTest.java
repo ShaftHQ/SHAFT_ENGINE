@@ -173,22 +173,16 @@ class CaptureServiceApiToolsTest {
 
     @Test
     void networkTransactionRejectsNegativeValues() {
-        // Verify status code validation
-        try {
-            new NetworkTransaction("tx-1", "GET", "https://example.com", -1, "xhr", 0,
-                    java.util.Map.of(), List.of());
-            assertTrue(false, "Should have thrown IllegalArgumentException for negative status code");
-        } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("status code"));
-        }
+        IllegalArgumentException statusCodeError = assertThrows(IllegalArgumentException.class,
+                () -> new NetworkTransaction("tx-1", "GET", "https://example.com", -1, "xhr", 0,
+                        java.util.Map.of(), List.of()),
+                "Should have thrown IllegalArgumentException for negative status code");
+        assertTrue(statusCodeError.getMessage().contains("status code"));
 
-        // Verify timing validation
-        try {
-            new NetworkTransaction("tx-1", "GET", "https://example.com", 200, "xhr", -1,
-                    java.util.Map.of(), List.of());
-            assertTrue(false, "Should have thrown IllegalArgumentException for negative timing");
-        } catch (IllegalArgumentException ex) {
-            assertTrue(ex.getMessage().contains("timing") || ex.getMessage().contains("Timing"));
-        }
+        IllegalArgumentException timingError = assertThrows(IllegalArgumentException.class,
+                () -> new NetworkTransaction("tx-1", "GET", "https://example.com", 200, "xhr", -1,
+                        java.util.Map.of(), List.of()),
+                "Should have thrown IllegalArgumentException for negative timing");
+        assertTrue(timingError.getMessage().contains("timing") || timingError.getMessage().contains("Timing"));
     }
 }
