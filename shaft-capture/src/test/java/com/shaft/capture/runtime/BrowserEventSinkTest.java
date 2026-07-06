@@ -60,6 +60,7 @@ class BrowserEventSinkTest {
             assertEquals(204, posted.statusCode());
             assertEquals(1, received.size());
             assertEquals("click", received.getFirst().kind());
+            assertTrue(warnings.isEmpty());
         } finally {
             sink.close();
         }

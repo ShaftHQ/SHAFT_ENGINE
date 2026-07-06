@@ -148,7 +148,7 @@ class McpMobileToolchainServiceTest {
     }
 
     @Test
-    void toolchainStatusReturnsNormalResultWhenPropertiesInitialized() {
+    void toolchainStatusReturnsNormalResultWhenPropertiesInitialized() throws Exception {
         Path toolRoot = Files.createDirectories(temp.resolve("tools"));
         Path sdk = Files.createDirectories(temp.resolve("android-sdk"));
         Path avdHome = Files.createDirectories(temp.resolve("avd-home"));
