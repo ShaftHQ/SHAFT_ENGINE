@@ -118,7 +118,7 @@ public final class DoctorAiAnalysisService {
                 DoctorAdvisory cached = JSON.readValue(cachePath.toFile(), DoctorAdvisory.class);
                 validateCached(cached, evidence, identity);
                 return new DoctorAdvisory(cached.schemaVersion(), cached.status(), cached.analysis(),
-                        cached.metadata().asCacheHit());
+                        cached.metadata().asCacheHit(), cached.confidence(), cached.confidenceRationale());
             } catch (RuntimeException ignored) {
                 ignoredCacheEntry = true;
             }
@@ -169,6 +169,7 @@ public final class DoctorAiAnalysisService {
             }
             DoctorAdvisory.ProviderAnalysis analysis =
                     parse(sanitized, evidence, diagnosis, warnings);
+            DoctorConfidenceScorer.ConfidenceResult confidenceResult = DoctorConfidenceScorer.score(analysis);
             DoctorAdvisory advisory = new DoctorAdvisory(
                     DoctorAdvisory.CURRENT_SCHEMA_VERSION,
                     DoctorAdvisory.Status.SUCCESS,
@@ -182,7 +183,9 @@ public final class DoctorAiAnalysisService {
                             response.usage(),
                             "",
                             false,
-                            warnings));
+                            warnings),
+                    confidenceResult.score(),
+                    confidenceResult.rationale());
             if (request.cacheEnabled() && cachePath != null) {
                 writeCache(cachePath, advisory);
             }
@@ -526,7 +529,9 @@ public final class DoctorAiAnalysisService {
                         usage,
                         safeFallbackReason(reason),
                         false,
-                        warnings));
+                        warnings),
+                0,
+                "Provider analysis unavailable; deterministic diagnosis retained.");
     }
 
     private static List<String> cacheWarning(boolean ignoredCacheEntry) {
