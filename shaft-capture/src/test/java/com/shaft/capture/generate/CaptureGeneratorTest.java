@@ -407,10 +407,10 @@ class CaptureGeneratorTest {
 
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("driver.browser().assertThat().title().contains(requiredData(\"username\")).perform();"));
-        assertTrue(source.contains("driver.browser().assertThat().text().contains(requiredData(\"username\")).perform();"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesReferenceImage().perform();"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).doesNotMatchReferenceImage().perform();"));
+        assertTrue(source.contains("driver.browser().assertThat().title().contains(requiredData(\"username\"));"));
+        assertTrue(source.contains("driver.browser().assertThat().text().contains(requiredData(\"username\"));"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesReferenceImage();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).doesNotMatchReferenceImage();"));
     }
 
     @Test
@@ -711,7 +711,7 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("public class EnrichedJourneyTest"));
         assertTrue(source.contains("public void completeCheckout()"));
         assertFalse(source.contains("private static final By USERNAME_FIELD"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).isVisible().perform();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).isVisible();"));
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 applied.report().compilation().status());
     }
