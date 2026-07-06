@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.PropertiesHelper;
 
 import java.io.IOException;
 import java.net.URI;
@@ -36,6 +37,20 @@ final class McpMobileToolchainService {
     private static final Duration INSTALL_TIMEOUT = Duration.ofMinutes(20);
     private static final Pattern DEVICE_NAME = Pattern.compile("\\bmodel:([^\\s]+)");
 
+    // Cached property values to avoid repeated null checks in bare MCP processes
+    private static volatile boolean propertiesInitialized = false;
+    private static volatile String cachedNodeLtsVersion;
+    private static volatile String cachedAppiumServerVersion;
+    private static volatile String cachedAppiumInspectorPluginVersion;
+    private static volatile String cachedAppiumUiAutomator2DriverVersion;
+    private static volatile String cachedAppiumXcuitestDriverVersion;
+    private static volatile String cachedAndroidCommandLineToolsVersion;
+    private static volatile int cachedAndroidEmulatorApiLevel;
+    private static volatile String cachedAndroidEmulatorDeviceProfile;
+    private static volatile String cachedAndroidEmulatorImageTag;
+    private static volatile int cachedAndroidEmulatorRamMb;
+    private static volatile int cachedAndroidEmulatorCores;
+
     private final McpProcessRunner runner;
     private final Map<String, String> environment;
     private final Path toolRoot;
@@ -46,6 +61,7 @@ final class McpMobileToolchainService {
     McpMobileToolchainService() {
         this(McpProcessRunner.system(), System.getenv(), McpRuntimePaths.applicationDataRoot().resolve("tools"),
                 System.getProperty("os.name", ""), System.getProperty("os.arch", ""));
+        ensurePropertiesInitialized();
     }
 
     McpMobileToolchainService(
@@ -102,10 +118,10 @@ final class McpMobileToolchainService {
             missing.add("npm");
         }
         if (appium.isEmpty()) {
-            missing.add("appium@" + SHAFT.Properties.internal.appiumServerVersion());
+            missing.add("appium@" + appiumServerVersion());
         }
         if (!inspector) {
-            missing.add("appium-inspector-plugin@" + SHAFT.Properties.internal.appiumInspectorPluginVersion());
+            missing.add("appium-inspector-plugin@" + appiumInspectorPluginVersion());
         }
         if ("Android".equals(platform)) {
             if (adb.isEmpty()) {
@@ -137,7 +153,7 @@ final class McpMobileToolchainService {
                 androidAvdHome,
                 appiumRoot,
                 detectedAppiumVersion,
-                SHAFT.Properties.internal.appiumInspectorPluginVersion(),
+                appiumInspectorPluginVersion(),
                 devices,
                 avds,
                 missing,
@@ -162,17 +178,17 @@ final class McpMobileToolchainService {
         List<McpMobileToolchainDiagnostic> diagnostics = new ArrayList<>();
         diagnostics.add(dependency("node", node, "",
                 "node was not found on PATH or in the SHAFT-managed Node.js cache.",
-                "Install Node.js " + SHAFT.Properties.internal.nodeLtsVersion()
+                "Install Node.js " + nodeLtsVersion()
                         + " and ensure `node` is on PATH, or let SHAFT prepare its portable Node.js cache."));
         diagnostics.add(dependency("npm", npm, "",
                 "npm was not found on PATH or in the SHAFT-managed Node.js cache.",
-                "Install npm with Node.js " + SHAFT.Properties.internal.nodeLtsVersion()
+                "Install npm with Node.js " + nodeLtsVersion()
                         + " and ensure `npm` is on PATH."));
         diagnostics.add(dependency("appium", appium, detectedAppiumVersion,
                 "Appium was not found on PATH or in the SHAFT-managed Appium cache.",
                 "Run `npm --prefix " + appiumRoot + " install appium@"
-                        + SHAFT.Properties.internal.appiumServerVersion() + " appium-inspector-plugin@"
-                        + SHAFT.Properties.internal.appiumInspectorPluginVersion() + "`."));
+                        + appiumServerVersion() + " appium-inspector-plugin@"
+                        + appiumInspectorPluginVersion() + "`."));
         String inspectorPath = Files.isDirectory(inspectorPluginPath)
                 ? inspectorPluginPath.toString()
                 : appium.map(Path::toString).orElse("");
@@ -183,7 +199,7 @@ final class McpMobileToolchainService {
                 "",
                 inspector ? "" : "Appium Inspector plugin was not reported by Appium or found in the SHAFT cache.",
                 inspector ? "" : "Run `appium plugin install --source=npm appium-inspector-plugin@"
-                        + SHAFT.Properties.internal.appiumInspectorPluginVersion() + "`."));
+                        + appiumInspectorPluginVersion() + "`."));
         if ("Android".equals(platform)) {
             diagnostics.add(dependency("adb", adb, "",
                     "adb was not found on PATH or under " + androidSdkRoot.resolve("platform-tools") + ".",
@@ -241,14 +257,14 @@ final class McpMobileToolchainService {
             String abi,
             int ramMb,
             int cores) {
-        int resolvedApiLevel = apiLevel > 0 ? apiLevel : SHAFT.Properties.internal.androidEmulatorApiLevel();
-        String resolvedDevice = defaultText(deviceProfile, SHAFT.Properties.internal.androidEmulatorDeviceProfile());
-        String resolvedTag = defaultText(imageTag, SHAFT.Properties.internal.androidEmulatorImageTag());
+        int resolvedApiLevel = apiLevel > 0 ? apiLevel : androidEmulatorApiLevel();
+        String resolvedDevice = defaultText(deviceProfile, androidEmulatorDeviceProfile());
+        String resolvedTag = defaultText(imageTag, androidEmulatorImageTag());
         String resolvedAbi = defaultText(abi, hostAndroidAbi());
         String resolvedName = defaultText(avdName, "shaft_pixel_8_api_" + resolvedApiLevel + "_"
                 + resolvedAbi.replace('-', '_'));
-        int resolvedRam = ramMb > 0 ? ramMb : SHAFT.Properties.internal.androidEmulatorRamMb();
-        int resolvedCores = cores > 0 ? cores : SHAFT.Properties.internal.androidEmulatorCores();
+        int resolvedRam = ramMb > 0 ? ramMb : androidEmulatorRamMb();
+        int resolvedCores = cores > 0 ? cores : androidEmulatorCores();
         Path sdkRoot = androidSdkRoot();
         Path avdHome = androidAvdHome();
         String imagePackage = "system-images;android-" + resolvedApiLevel + ";" + resolvedTag + ";" + resolvedAbi;
@@ -286,20 +302,20 @@ final class McpMobileToolchainService {
         try {
             Files.createDirectories(appiumRoot());
             runChecked(List.of(npm.toString(), "--prefix", appiumRoot().toString(), "install",
-                    "appium@" + SHAFT.Properties.internal.appiumServerVersion(),
-                    "appium-inspector-plugin@" + SHAFT.Properties.internal.appiumInspectorPluginVersion()),
+                    "appium@" + appiumServerVersion(),
+                    "appium-inspector-plugin@" + appiumInspectorPluginVersion()),
                     appiumRoot(), appiumEnvironment(), INSTALL_TIMEOUT, "Appium npm install failed.");
             Path appium = appiumCommand();
             runChecked(List.of(appium.toString(), "driver", "install", "--source=npm",
-                    "appium-uiautomator2-driver@" + SHAFT.Properties.internal.appiumUiAutomator2DriverVersion()),
+                    "appium-uiautomator2-driver@" + appiumUiAutomator2DriverVersion()),
                     appiumRoot(), appiumEnvironment(), INSTALL_TIMEOUT, "UiAutomator2 driver install failed.");
             if ("iOS".equals(platform) && isMac()) {
                 runChecked(List.of(appium.toString(), "driver", "install", "--source=npm",
-                        "appium-xcuitest-driver@" + SHAFT.Properties.internal.appiumXcuitestDriverVersion()),
+                        "appium-xcuitest-driver@" + appiumXcuitestDriverVersion()),
                         appiumRoot(), appiumEnvironment(), INSTALL_TIMEOUT, "XCUITest driver install failed.");
             }
             runChecked(List.of(appium.toString(), "plugin", "install", "--source=npm",
-                    "appium-inspector-plugin@" + SHAFT.Properties.internal.appiumInspectorPluginVersion()),
+                    "appium-inspector-plugin@" + appiumInspectorPluginVersion()),
                     appiumRoot(), appiumEnvironment(), INSTALL_TIMEOUT, "Appium Inspector plugin install failed.");
         } catch (IOException exception) {
             throw new IllegalStateException("Appium tool cache could not be prepared.", exception);
@@ -439,7 +455,7 @@ final class McpMobileToolchainService {
         }
         try {
             Files.createDirectories(archive.getParent());
-            download("https://nodejs.org/dist/v" + SHAFT.Properties.internal.nodeLtsVersion() + "/"
+            download("https://nodejs.org/dist/v" + nodeLtsVersion() + "/"
                     + archiveName + extension, archive);
             Files.createDirectories(target.getParent());
             if (isWindows()) {
@@ -690,14 +706,14 @@ final class McpMobileToolchainService {
     private String commandLineToolsUrl() {
         String platform = isWindows() ? "win" : isMac() ? "mac" : "linux";
         return "https://dl.google.com/android/repository/commandlinetools-" + platform + "-"
-                + SHAFT.Properties.internal.androidCommandLineToolsVersion() + "_latest.zip";
+                + androidCommandLineToolsVersion() + "_latest.zip";
     }
 
     private String nodeArchiveName() {
         String platform = isWindows() ? "win" : isMac() ? "darwin" : "linux";
         String arch = osArch.toLowerCase(Locale.ROOT).contains("aarch64")
                 || osArch.toLowerCase(Locale.ROOT).contains("arm64") ? "arm64" : "x64";
-        return "node-v" + SHAFT.Properties.internal.nodeLtsVersion() + "-" + platform + "-" + arch;
+        return "node-v" + nodeLtsVersion() + "-" + platform + "-" + arch;
     }
 
     private String hostAndroidAbi() {
@@ -726,6 +742,81 @@ final class McpMobileToolchainService {
     private boolean isMac() {
         String os = osName.toLowerCase(Locale.ROOT);
         return os.contains("mac") || os.contains("darwin");
+    }
+
+    private static void ensurePropertiesInitialized() {
+        if (!propertiesInitialized) {
+            synchronized (McpMobileToolchainService.class) {
+                if (!propertiesInitialized) {
+                    try {
+                        if (SHAFT.Properties.internal == null) {
+                            PropertiesHelper.initialize();
+                        }
+                        // Cache all property values to avoid repeated null checks
+                        cachedNodeLtsVersion = SHAFT.Properties.internal.nodeLtsVersion();
+                        cachedAppiumServerVersion = SHAFT.Properties.internal.appiumServerVersion();
+                        cachedAppiumInspectorPluginVersion = SHAFT.Properties.internal.appiumInspectorPluginVersion();
+                        cachedAppiumUiAutomator2DriverVersion = SHAFT.Properties.internal.appiumUiAutomator2DriverVersion();
+                        cachedAppiumXcuitestDriverVersion = SHAFT.Properties.internal.appiumXcuitestDriverVersion();
+                        cachedAndroidCommandLineToolsVersion = SHAFT.Properties.internal.androidCommandLineToolsVersion();
+                        cachedAndroidEmulatorApiLevel = SHAFT.Properties.internal.androidEmulatorApiLevel();
+                        cachedAndroidEmulatorDeviceProfile = SHAFT.Properties.internal.androidEmulatorDeviceProfile();
+                        cachedAndroidEmulatorImageTag = SHAFT.Properties.internal.androidEmulatorImageTag();
+                        cachedAndroidEmulatorRamMb = SHAFT.Properties.internal.androidEmulatorRamMb();
+                        cachedAndroidEmulatorCores = SHAFT.Properties.internal.androidEmulatorCores();
+                        propertiesInitialized = true;
+                    } catch (RuntimeException exception) {
+                        throw new IllegalStateException(
+                                "SHAFT Properties initialization failed. Ensure the SHAFT framework is properly configured with access to property files.",
+                                exception);
+                    }
+                }
+            }
+        }
+    }
+
+    private static String nodeLtsVersion() {
+        return cachedNodeLtsVersion;
+    }
+
+    private static String appiumServerVersion() {
+        return cachedAppiumServerVersion;
+    }
+
+    private static String appiumInspectorPluginVersion() {
+        return cachedAppiumInspectorPluginVersion;
+    }
+
+    private static String appiumUiAutomator2DriverVersion() {
+        return cachedAppiumUiAutomator2DriverVersion;
+    }
+
+    private static String appiumXcuitestDriverVersion() {
+        return cachedAppiumXcuitestDriverVersion;
+    }
+
+    private static String androidCommandLineToolsVersion() {
+        return cachedAndroidCommandLineToolsVersion;
+    }
+
+    private static int androidEmulatorApiLevel() {
+        return cachedAndroidEmulatorApiLevel;
+    }
+
+    private static String androidEmulatorDeviceProfile() {
+        return cachedAndroidEmulatorDeviceProfile;
+    }
+
+    private static String androidEmulatorImageTag() {
+        return cachedAndroidEmulatorImageTag;
+    }
+
+    private static int androidEmulatorRamMb() {
+        return cachedAndroidEmulatorRamMb;
+    }
+
+    private static int androidEmulatorCores() {
+        return cachedAndroidEmulatorCores;
     }
 
     private static String firstNonBlank(String first, String second) {
