@@ -463,7 +463,7 @@ class CaptureGeneratorTest {
         String source = Files.readString(result.sourcePath());
         assertTrue(source.contains(
                 "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).attribute(\"autocomplete\")"
-                        + ".isEqualTo(requiredData(\"username\")).perform();"));
+                        + ".isEqualTo(requiredData(\"username\"));"));
     }
 
     @Test

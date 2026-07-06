@@ -61,7 +61,6 @@ final class McpMobileToolchainService {
     McpMobileToolchainService() {
         this(McpProcessRunner.system(), System.getenv(), McpRuntimePaths.applicationDataRoot().resolve("tools"),
                 System.getProperty("os.name", ""), System.getProperty("os.arch", ""));
-        ensurePropertiesInitialized();
     }
 
     McpMobileToolchainService(
@@ -70,6 +69,7 @@ final class McpMobileToolchainService {
             Path toolRoot,
             String osName,
             String osArch) {
+        ensurePropertiesInitialized();
         this.runner = runner;
         this.environment = environment == null ? Map.of() : Map.copyOf(environment);
         this.toolRoot = toolRoot.toAbsolutePath().normalize();
