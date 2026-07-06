@@ -158,7 +158,8 @@ public final class ShaftMcpInvocationService {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
             }
-            return ShaftMcpToolResult.failure(exception.getMessage());
+            McpInvocationError category = McpInvocationError.categorize(exception);
+            return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
         } finally {
             clientReference.set(null);
         }
@@ -185,7 +186,8 @@ public final class ShaftMcpInvocationService {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
             }
-            return ShaftMcpToolResult.failure(exception.getMessage());
+            McpInvocationError category = McpInvocationError.categorize(exception);
+            return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
         } finally {
             clientReference.set(null);
         }
@@ -213,7 +215,8 @@ public final class ShaftMcpInvocationService {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
             }
-            return ShaftMcpToolResult.failure(exception.getMessage());
+            McpInvocationError category = McpInvocationError.categorize(exception);
+            return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
         } finally {
             clientReference.set(null);
         }

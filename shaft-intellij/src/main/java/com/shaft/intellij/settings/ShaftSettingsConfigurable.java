@@ -8,6 +8,7 @@ import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.mcp.McpInvocationError;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.ui.ShaftIconButtons;
@@ -617,7 +618,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                     if (error != null) {
                         statusLabel.setText("Failed");
                         statusLabel.setForeground(ShaftStatusPresentation.error());
-                        Messages.showErrorDialog(host, error.getMessage(), "SHAFT MCP");
+                        McpInvocationError category = McpInvocationError.categorize(error);
+                        StringBuilder sb = new StringBuilder();
+                        sb.append(category.message());
+                        if (category.recoveryAction() != null) {
+                            sb.append("\n\nRecovery: ").append(category.recoveryAction());
+                        }
+                        Messages.showErrorDialog(host, sb.toString(), "SHAFT MCP");
                     } else {
                         showProbeResult(host, statusLabel, result);
                     }
@@ -637,8 +644,24 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         } else {
             statusLabel.setText("Failed");
             statusLabel.setForeground(ShaftStatusPresentation.error());
-            Messages.showErrorDialog(host, result == null ? "No result returned." : result.output(), "SHAFT MCP");
+            String message = formatErrorMessage(result);
+            Messages.showErrorDialog(host, message, "SHAFT MCP");
         }
+    }
+
+    private String formatErrorMessage(ShaftMcpToolResult result) {
+        if (result == null) {
+            return "No result returned.";
+        }
+        if (result.errorCategory() != null) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(result.errorCategory().message());
+            if (result.recoveryAction() != null) {
+                sb.append("\n\nRecovery: ").append(result.recoveryAction());
+            }
+            return sb.toString();
+        }
+        return result.output();
     }
 
     private ShaftSettingsState.Settings formSettings() {

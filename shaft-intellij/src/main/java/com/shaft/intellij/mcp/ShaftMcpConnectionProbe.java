@@ -87,7 +87,8 @@ public final class ShaftMcpConnectionProbe {
                     return ShaftMcpToolResult.success(scopedMessage(client.initializeOnly(TIMEOUT), workspace));
                 }
             } catch (Exception exception) {
-                return ShaftMcpToolResult.failure(exception.getMessage());
+                McpInvocationError category = McpInvocationError.categorize(exception);
+                return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
             }
         });
     }

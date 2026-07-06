@@ -12,12 +12,16 @@ import java.util.List;
  * @param status advisory outcome
  * @param analysis schema-validated provider analysis
  * @param metadata safe provider and fallback metadata
+ * @param confidence SHAFT-computed confidence score 0-100
+ * @param confidenceRationale human-readable rationale for the confidence score
  */
 public record DoctorAdvisory(
         String schemaVersion,
         Status status,
         ProviderAnalysis analysis,
-        Metadata metadata) {
+        Metadata metadata,
+        int confidence,
+        String confidenceRationale) {
     /**
      * Current advisory envelope schema version.
      */
@@ -206,6 +210,8 @@ public record DoctorAdvisory(
                 ? new Metadata(AiResponseStatus.DISABLED, "none", "", "", 0,
                 AiUsage.empty(), "", false, List.of())
                 : metadata;
+        confidence = Math.max(0, Math.min(100, confidence));
+        confidenceRationale = confidenceRationale == null ? "" : confidenceRationale;
     }
 
     /**
@@ -217,6 +223,8 @@ public record DoctorAdvisory(
         return new DoctorAdvisory(CURRENT_SCHEMA_VERSION, Status.DISABLED,
                 ProviderAnalysis.empty(),
                 new Metadata(AiResponseStatus.DISABLED, "none", "", "", 0,
-                        AiUsage.empty(), "", false, List.of()));
+                        AiUsage.empty(), "", false, List.of()),
+                0,
+                "");
     }
 }
