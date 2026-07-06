@@ -1,8 +1,11 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
@@ -39,6 +42,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private ShaftFeaturePanel advancedTools;
     private List<ShaftFeaturePanel> featurePanels = List.of();
     private List<WorkflowView> workflowViews = List.of();
+    private ApiRecordingSessionPanel apiRecordingPanel;
 
     public ShaftToolWindowPanel(@NotNull Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -70,6 +74,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     private void showSetupView() {
+        disposeApiRecordingPanel();
         removeAll();
         ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::showMainView, readinessProbe);
         preferredFocusComponent = setup.preferredFocusComponent();
@@ -85,6 +90,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     private void showMainView() {
+        disposeApiRecordingPanel();
         removeAll();
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
                 assistantChatState, this::showSetupView);
@@ -204,6 +210,54 @@ public final class ShaftToolWindowPanel extends JPanel {
             }
         }
         selectWorkflow(advancedTools);
+    }
+
+    /**
+     * Opens (or reuses) the API Recording tab for the given target URL and MCP
+     * {@code capture_api_start} arguments, starting a new polling session.
+     *
+     * @param targetUrl the URL the recording session targets
+     * @param startArguments arguments for the {@code capture_api_start} MCP call
+     */
+    public void showApiRecordingTab(@NotNull String targetUrl, @NotNull JsonObject startArguments) {
+        if (workflowCards == null || workflowLayout == null || !settings.advancedUiEnabled) {
+            return;
+        }
+        disposeApiRecordingPanel();
+        apiRecordingPanel = new ApiRecordingSessionPanel(project, targetUrl, null);
+        WorkflowView apiRecordingView = new WorkflowView("API Recording", apiRecordingPanel, ShaftIcons.VIEW);
+        List<WorkflowView> updated = new ArrayList<>(workflowViews);
+        updated.removeIf(view -> "API Recording".equals(view.label()));
+        updated.add(apiRecordingView);
+        workflowViews = updated;
+        workflowCards.add(apiRecordingPanel, apiRecordingView.label());
+        workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
+        selectWorkflow(apiRecordingPanel);
+
+        ShaftMcpInvocationService.getInstance(project)
+                .startTool("capture_api_start", startArguments)
+                .future()
+                .whenComplete((result, error) -> com.intellij.openapi.application.ApplicationManager.getApplication()
+                        .invokeLater(() -> {
+                            if (apiRecordingPanel == null) {
+                                return;
+                            }
+                            if (error != null || result == null || !result.success()) {
+                                apiRecordingPanel.statusLabel().setText(
+                                        "Failed to start recording: "
+                                                + (result != null ? result.output() : String.valueOf(error)));
+                            }
+                        }));
+    }
+
+    /**
+     * Disposes the current API Recording panel, if any, cancelling its poller.
+     */
+    private void disposeApiRecordingPanel() {
+        if (apiRecordingPanel != null) {
+            Disposer.dispose(apiRecordingPanel);
+            apiRecordingPanel = null;
+        }
     }
 
     private void showSelectedWorkflow() {

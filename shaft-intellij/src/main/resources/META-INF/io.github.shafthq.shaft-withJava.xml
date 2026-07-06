@@ -9,5 +9,13 @@
             <add-to-group group-id="Shaft.ToolsMenu" anchor="last"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
+        <action id="Shaft.RecordApiWeb"
+                class="com.shaft.intellij.actions.RecordApiWebAction"
+                text="Record SHAFT API + Web Session"
+                description="Start a SHAFT API/web recording session via the capture_api_start MCP tool"
+                icon="/icons/shaftToolWindow.svg"
+                iconDark="/icons/shaftToolWindow_dark.svg">
+            <add-to-group group-id="Shaft.ToolsMenu" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>
