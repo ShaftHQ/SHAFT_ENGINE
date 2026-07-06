@@ -20,4 +20,28 @@ class JsonTextTest {
         assertFalse(JsonText.validateObject("[1,2]").isBlank());
         assertFalse(JsonText.validateObject("{").isBlank());
     }
+
+    @Test
+    void findErrorLocationReturnsNullForValidJson() {
+        JsonText.JsonErrorLocation location = JsonText.findErrorLocation("{}");
+        assertEquals(null, location);
+    }
+
+    @Test
+    void findErrorLocationReturnsNullForBlankJson() {
+        JsonText.JsonErrorLocation location = JsonText.findErrorLocation("");
+        assertEquals(null, location);
+    }
+
+    @Test
+    void findErrorLocationDetectsInvalidJson() {
+        JsonText.JsonErrorLocation location = JsonText.findErrorLocation("{invalid}");
+        assertFalse(location == null);
+    }
+
+    @Test
+    void errorLocationFormatsToString() {
+        JsonText.JsonErrorLocation location = new JsonText.JsonErrorLocation(3, 15);
+        assertEquals("line 3, column 15", location.toString());
+    }
 }

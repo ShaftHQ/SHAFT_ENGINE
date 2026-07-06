@@ -2276,6 +2276,87 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(locator.arguments().has("sourcePath")));
     }
 
+    @Test
+    void contextTruncationIndicatorRendersAtBoundaryWhenExceeded() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings(), chatState);
+
+        String longMessage = "x".repeat(8000);
+        String shortMessage = "y".repeat(100);
+
+        panel.simulateAppendForTest("user", longMessage, "");
+        panel.simulateAppendForTest("assistant", longMessage, "");
+        panel.simulateAppendForTest("user", shortMessage, "");
+
+        AssistantTranscriptView transcript = getTranscriptView(panel);
+        JLabel truncationChip = findByAccessibleName(panel, "Context truncation chip", JLabel.class);
+
+        assertAll(
+                () -> assertNotNull(truncationChip,
+                        "Truncation chip should exist when context exceeds cap"),
+                () -> assertEquals("Earlier messages not included in context", truncationChip.getText(),
+                        "Truncation chip text should be correct"),
+                () -> assertTrue(truncationChip.getToolTipText().contains("16000"),
+                        "Tooltip should mention the 16K character cap"));
+    }
+
+    @Test
+    void contextTruncationIndicatorHidesWhenAllFits() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings(), chatState);
+
+        String shortMessage = "Test message";
+        panel.simulateAppendForTest("user", shortMessage, "");
+        panel.simulateAppendForTest("assistant", shortMessage, "");
+
+        JLabel truncationChip = findByAccessibleName(panel, "Context truncation chip", JLabel.class);
+
+        assertNull(truncationChip,
+                "Truncation chip should not appear when all messages fit within cap");
+    }
+
+    @Test
+    void contextTruncationIndicatorRepositionsWithNewMessages() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings(), chatState);
+
+        String longMessage = "x".repeat(8000);
+        String mediumMessage = "y".repeat(500);
+        String shortMessage = "z".repeat(100);
+
+        panel.simulateAppendForTest("user", longMessage, "");
+        panel.simulateAppendForTest("assistant", longMessage, "");
+        panel.simulateAppendForTest("user", mediumMessage, "");
+
+        JLabel chipBefore = findByAccessibleName(panel, "Context truncation chip", JLabel.class);
+        assertNotNull(chipBefore, "Truncation chip should exist before adding more messages");
+
+        panel.simulateAppendForTest("assistant", shortMessage, "");
+
+        JLabel chipAfter = findByAccessibleName(panel, "Context truncation chip", JLabel.class);
+        assertNotNull(chipAfter,
+                "Truncation indicator should still be present after new message");
+    }
+
+    @Test
+    void contextTruncationIndicatorTooltipIsDescriptive() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings(), chatState);
+
+        String longMessage = "x".repeat(8000);
+        String shortMessage = "y".repeat(100);
+        panel.simulateAppendForTest("user", longMessage, "");
+        panel.simulateAppendForTest("assistant", longMessage, "");
+        panel.simulateAppendForTest("user", shortMessage, "");
+
+        JLabel truncationChip = findByAccessibleName(panel, "Context truncation chip", JLabel.class);
+
+        assertAll(
+                () -> assertNotNull(truncationChip, "Truncation chip should exist"),
+                () -> assertTrue(truncationChip.getToolTipText().contains("Start a new chat"),
+                        "Tooltip should suggest starting a new chat when context is truncated"));
+    }
+
     private static ShaftSettingsState.Settings blankMcpSettings() {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.mcpCommand = "";
@@ -2562,6 +2643,29 @@ class ShaftPanelSetupTest {
                     return found;
                 }
             }
+        }
+        return "";
+    }
+
+    private static AssistantTranscriptView getTranscriptView(Component component) {
+        if (component instanceof AssistantTranscriptView view) {
+            return view;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                AssistantTranscriptView found = getTranscriptView(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String getTranscriptHtml(Component component) {
+        AssistantTranscriptView view = getTranscriptView(component);
+        if (view != null) {
+            return transcriptRenderedHtml(view);
         }
         return "";
     }
