@@ -99,7 +99,7 @@ public final class ShaftMcpInvocationService {
         if (command.isEmpty()) {
             return completed(CONFIGURE_MESSAGE);
         }
-        if (!connectionState.isConnected()) {
+        if (connectionState != null && !connectionState.isConnected()) {
             return completed(DISCONNECTED_MESSAGE);
         }
         AtomicReference<ShaftMcpStdioClient> clientReference = new AtomicReference<>();

@@ -8,7 +8,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Periodic lightweight MCP connection health check using IntelliJ's Alarm.
@@ -77,12 +79,11 @@ public final class ShaftMcpHeartbeat implements Disposable {
                     getCommand(),
                     getSettings(),
                     getProjectRoot()).get(15, TimeUnit.SECONDS);
-            if (result.success()) {
-                connectionState.setConnected(true);
-            } else {
-                connectionState.setConnected(false);
-            }
-        } catch (Exception exception) {
+            connectionState.setConnected(result.success());
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            connectionState.setConnected(false);
+        } catch (ExecutionException | TimeoutException | RuntimeException exception) {
             connectionState.setConnected(false);
         } finally {
             scheduleNextPing();

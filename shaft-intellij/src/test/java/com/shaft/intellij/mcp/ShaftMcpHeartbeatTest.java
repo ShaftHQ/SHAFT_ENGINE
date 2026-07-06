@@ -37,6 +37,7 @@ class ShaftMcpHeartbeatTest {
     @Test
     void connectionStateDoesNotNotifyWhenStateUnchanged() throws Exception {
         ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
+        connectionState.setConnected(false);
         CountDownLatch noChangeLatch = new CountDownLatch(1);
 
         connectionState.addStateChangeListener(noChangeLatch::countDown);

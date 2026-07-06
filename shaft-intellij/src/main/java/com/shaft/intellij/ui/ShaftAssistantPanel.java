@@ -172,7 +172,7 @@ final class ShaftAssistantPanel extends JPanel {
         this.settings = settings;
         this.chatState = chatState;
         this.configureFlow = setupFlow;
-        this.connectionState = project.getService(ShaftMcpConnectionState.class);
+        this.connectionState = project == null ? null : project.getService(ShaftMcpConnectionState.class);
         setBorder(JBUI.Borders.empty(8));
 
         chatSelector = new JComboBox<>();
@@ -515,13 +515,17 @@ final class ShaftAssistantPanel extends JPanel {
     public void addNotify() {
         super.addNotify();
         startHeartbeat();
-        connectionState.addStateChangeListener(this::onConnectionStateChanged);
+        if (connectionState != null) {
+            connectionState.addStateChangeListener(this::onConnectionStateChanged);
+        }
     }
 
     @Override
     public void removeNotify() {
         stopHeartbeat();
-        connectionState.removeStateChangeListener(this::onConnectionStateChanged);
+        if (connectionState != null) {
+            connectionState.removeStateChangeListener(this::onConnectionStateChanged);
+        }
         super.removeNotify();
     }
 
@@ -2302,7 +2306,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private synchronized void startHeartbeat() {
-        if (heartbeat == null && project != null && mcpReady(settings)) {
+        if (heartbeat == null && project != null && connectionState != null && mcpReady(settings)) {
             heartbeat = new ShaftMcpHeartbeat(project, connectionState);
             heartbeat.start();
         }
@@ -2320,6 +2324,9 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void updateConnectionDisplay() {
+        if (connectionState == null) {
+            return;
+        }
         boolean connected = connectionState.isConnected();
         reconnect.setVisible(!connected);
         if (!connected && !running) {
@@ -2332,14 +2339,19 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void reconnectMcp() {
+        if (project == null) {
+            return;
+        }
         ShaftMcpInvocationService invocationService = ShaftMcpInvocationService.getInstance(project);
         invocationService.testConnection().future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(() -> {
-            if (error == null && result != null && result.success()) {
-                connectionState.setConnected(true);
+            boolean success = error == null && result != null && result.success();
+            if (connectionState != null) {
+                connectionState.setConnected(success);
+            }
+            if (success) {
                 setStatus("Reconnected successfully");
                 showTransientStatus("MCP reconnected. Ready to chat.");
             } else {
-                connectionState.setConnected(false);
                 setStatus("Reconnect failed. Check the MCP command.");
             }
         }));
