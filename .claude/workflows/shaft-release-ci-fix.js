@@ -208,23 +208,33 @@ async function ownFix(fix) {
   return { fix: fix.id, escalated: true, escalation, runLog };
 }
 
-// failingJobs: [{ name, runUrl }] -- e.g. from
+// Workflow scripts run as top-level async code against the `args`
+// global, not as an exported function -- an `export default` here is a
+// syntax error under the runtime's non-module script evaluation.
+//
+// The runtime hands `args` through as a JSON-encoded string even when
+// the caller passes a real object/array -- parse it back or every field
+// silently reads as undefined (array/object property lookups on a
+// string return undefined instead of throwing, so this fails silently).
+//
+// args.failingJobs: [{ name, runUrl }] -- e.g. from
 // `gh run view <id> --json jobs`.
-export default async function run({ failingJobs }) {
-  const verdicts = await parallel(
-    failingJobs.map((job) => () =>
-      agent(triagePrompt(job), { model: "haiku", schema: TRIAGE_VERDICT })
-    )
-  );
-  runLog.push({ phase: "triage", model: "haiku", jobs: failingJobs.length });
+const parsedArgs = typeof args === "string" ? JSON.parse(args) : args;
+const { failingJobs } = parsedArgs;
 
-  const plan = await withFallback("synthesize", SYNTH_CHAIN, synthesisPrompt(verdicts), {
-    effort: "high",
-    schema: FIX_PLAN_SCHEMA,
-  });
+const verdicts = await parallel(
+  failingJobs.map((job) => () =>
+    agent(triagePrompt(job), { model: "haiku", schema: TRIAGE_VERDICT })
+  )
+);
+runLog.push({ phase: "triage", model: "haiku", jobs: failingJobs.length });
 
-  const results = await pipeline(plan.fixes, ownFix);
+const plan = await withFallback("synthesize", SYNTH_CHAIN, synthesisPrompt(verdicts), {
+  effort: "high",
+  schema: FIX_PLAN_SCHEMA,
+});
 
-  // Terminate here. Rerun-watching is /loop / Monitor territory.
-  return { rootCauses: plan.rootCauses, results, runLog };
-}
+const results = await pipeline(plan.fixes, ownFix);
+
+// Terminate here. Rerun-watching is /loop / Monitor territory.
+return { rootCauses: plan.rootCauses, results, runLog };
