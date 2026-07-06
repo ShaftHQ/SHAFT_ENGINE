@@ -46,6 +46,9 @@ import java.util.stream.Collectors;
  * MCP tools panel with editable JSON arguments.
  */
 final class ShaftFeaturePanel extends JPanel {
+    private static final String REFRESH_TOOLS_TOOLTIP = "Refresh tools";
+    private static final String REFRESHING_TOOLTIP = "Refreshing...";
+
     private List<ToolCategory> categories;
     private final boolean catalogRefreshEnabled;
     private final JBTextField search;
@@ -268,6 +271,9 @@ final class ShaftFeaturePanel extends JPanel {
         if (!catalogRefreshEnabled) {
             return;
         }
+        if (currentInvocation != null) {
+            return;
+        }
         if (!mcpConfigured()) {
             status.setText("Configure MCP");
             outputArea.setText("Configure SHAFT MCP in Settings before refreshing the tool catalog.");
@@ -278,6 +284,7 @@ final class ShaftFeaturePanel extends JPanel {
             return;
         }
         setRunning(true, "Refreshing tools...");
+        refreshCatalogButton.setToolTipText(REFRESHING_TOOLTIP);
         outputArea.setText("");
         copyOutputButton.setEnabled(false);
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startListTools();
@@ -312,6 +319,7 @@ final class ShaftFeaturePanel extends JPanel {
     }
 
     private void showCatalogResult(ShaftMcpToolResult result, Throwable error) {
+        refreshCatalogButton.setToolTipText(REFRESH_TOOLS_TOOLTIP);
         if (error instanceof CancellationException) {
             setRunning(false, "Cancelled");
             outputArea.setText("Cancelled.");
@@ -319,7 +327,11 @@ final class ShaftFeaturePanel extends JPanel {
             return;
         }
         boolean success = error == null && result != null && result.success();
-        setRunning(false, success ? "Tools refreshed" : "Failed");
+        // setRunning(false, ...) clears currentInvocation, which reloadCategories() -> refreshTools()
+        // -> loadSelectedTemplate() -> validateArguments() reads to decide whether to reset the status
+        // label back to "Ready". Run that reload first so the SUCCESS_ICON/ERROR_ICON completion
+        // message set below is the last write to the status label, not clobbered by it.
+        setRunning(false, null);
         if (success) {
             categories = ToolTemplates.categories(result.output());
             reloadCategories();
@@ -337,6 +349,9 @@ final class ShaftFeaturePanel extends JPanel {
         } else {
             formatErrorOutput(result);
         }
+        status.setText(success
+                ? ShaftStatusPresentation.SUCCESS_ICON + " Tools refreshed"
+                : ShaftStatusPresentation.ERROR_ICON + " Failed");
         copyOutputButton.setEnabled(!outputArea.getText().isBlank());
     }
 
@@ -436,7 +451,9 @@ final class ShaftFeaturePanel extends JPanel {
         toolSelector.setEnabled(!running);
         argumentsArea.setEnabled(!running);
         progress.setVisible(running);
-        status.setText(message);
+        if (message != null) {
+            status.setText(message);
+        }
         if (!running) {
             currentInvocation = null;
         }
