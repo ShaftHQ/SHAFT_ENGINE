@@ -342,7 +342,7 @@ class ShaftPluginScreenshotRendererTest {
                     () -> {
                     }, (client, runtime) -> ShaftMcpToolResult.success("Codex CLI executable is available on PATH."));
             invokeShowTestResult(component, ShaftMcpToolResult.success("""
-                    Initialized SHAFT MCP 10.3.20260705
+                    Initialized SHAFT MCP 10.3.20260706
                     MCP workspace: C:\\Users\\demo\\IdeaProjects\\shop-tests
                     user.dir: C:\\Users\\demo\\AppData\\Local\\ShaftHQ\\shaft-mcp\\work
                     shaft.mcp.workspaceRoot: C:\\Users\\demo\\IdeaProjects\\shop-tests
@@ -373,7 +373,7 @@ class ShaftPluginScreenshotRendererTest {
                     () -> {
                     });
             invokeShowTestResult(component, ShaftMcpToolResult.failure(
-                    "Could not resolve artifact io.github.shafthq:shaft-mcp:jar:10.3.20260705"), null);
+                    "Could not resolve artifact io.github.shafthq:shaft-mcp:jar:10.3.20260706"), null);
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);
