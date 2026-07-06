@@ -65,6 +65,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -272,6 +273,80 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(containsText(toolWindow, "Connect SHAFT Assistant")),
                 () -> assertTrue(containsText(tools, "Configure SHAFT MCP")),
                 () -> assertTrue(outputText(tools).contains("Configure SHAFT MCP in Settings before running Tools requests.")));
+    }
+
+    @Test
+    void refreshCatalogEntersBusyStateThenBlocksReentryViaRealGuard() throws Exception {
+        ShaftFeaturePanel tools = new ShaftFeaturePanel(fakeProject(), connectedMcpSettings());
+        JButton refreshButton = findButton(tools, "Refresh tools");
+        assertNotNull(refreshButton);
+        assertEquals("Refresh tools", refreshButton.getToolTipText());
+
+        // The fake test Project has no real ShaftMcpInvocationService/Application wired up (this
+        // suite never registers one - see fakeProject()), so refreshCatalog()'s call into
+        // ShaftMcpInvocationService.getInstance(project).startListTools() is expected to throw once
+        // it gets that far. What we're proving here is that setRunning(true, ...) and the busy
+        // tooltip swap already happened - via the real refreshCatalog(Project) method - before that
+        // unrelated plumbing gap is hit.
+        assertThrows(NullPointerException.class, () -> invokeRefreshCatalog(tools, fakeProject()));
+
+        assertAll(
+                () -> assertFalse(refreshButton.isEnabled(), "button should be disabled once refreshCatalog() starts running"),
+                () -> assertEquals("Refreshing...", refreshButton.getToolTipText()));
+
+        // Re-entry guard: seed currentInvocation as if a request were genuinely in flight, then
+        // invoke the real refreshCatalog(Project) method again. The guard at the top of the method
+        // must return immediately without touching the button/tooltip/currentInvocation again.
+        ShaftMcpInvocation inFlight = new ShaftMcpInvocation(new CompletableFuture<>(), () -> {
+        });
+        setField(tools, "currentInvocation", inFlight);
+        refreshButton.setEnabled(true);
+        refreshButton.setToolTipText("Refresh tools");
+
+        invokeRefreshCatalog(tools, fakeProject());
+
+        assertAll(
+                () -> assertSame(inFlight, getField(tools, "currentInvocation"),
+                        "a blocked re-entrant call must not replace the in-flight invocation"),
+                () -> assertTrue(refreshButton.isEnabled(),
+                        "the re-entry guard must return before touching button state"),
+                () -> assertEquals("Refresh tools", refreshButton.getToolTipText(),
+                        "the re-entry guard must return before touching the tooltip"));
+    }
+
+    @Test
+    void showCatalogResultAppliesSuccessAndErrorGlyphsThroughRealCompletionPath() throws Exception {
+        ShaftFeaturePanel tools = new ShaftFeaturePanel(fakeProject(), connectedMcpSettings());
+        JButton refreshButton = findButton(tools, "Refresh tools");
+        assertNotNull(refreshButton);
+
+        setField(tools, "currentInvocation", new ShaftMcpInvocation(new CompletableFuture<>(), () -> {
+        }));
+        refreshButton.setToolTipText("Refreshing...");
+
+        showCatalogResult(tools, ShaftMcpToolResult.success(mcpToolsList()));
+
+        assertAll(
+                () -> assertTrue(statusText(tools).contains(ShaftStatusPresentation.SUCCESS_ICON),
+                        "success completion should surface the shared SUCCESS_ICON glyph: " + statusText(tools)),
+                () -> assertTrue(statusText(tools).contains("Tools refreshed")),
+                () -> assertEquals("Refresh tools", refreshButton.getToolTipText(),
+                        "tooltip should be restored once the refresh completes"),
+                () -> assertNull(getField(tools, "currentInvocation"), "completion must clear the in-flight guard"),
+                () -> assertTrue(refreshButton.isEnabled()));
+
+        setField(tools, "currentInvocation", new ShaftMcpInvocation(new CompletableFuture<>(), () -> {
+        }));
+        refreshButton.setToolTipText("Refreshing...");
+
+        showCatalogResult(tools, ShaftMcpToolResult.failure("MCP server process exited."));
+
+        assertAll(
+                () -> assertTrue(statusText(tools).contains(ShaftStatusPresentation.ERROR_ICON),
+                        "error completion should surface the shared ERROR_ICON glyph: " + statusText(tools)),
+                () -> assertTrue(statusText(tools).contains("Failed")),
+                () -> assertEquals("Refresh tools", refreshButton.getToolTipText()),
+                () -> assertNull(getField(tools, "currentInvocation")));
     }
 
     @Test
@@ -2468,6 +2543,45 @@ class ShaftPanelSetupTest {
                 "showResult", ShaftMcpToolResult.class, Throwable.class);
         showResult.setAccessible(true);
         showResult.invoke(panel, result, null);
+    }
+
+    private static void showCatalogResult(ShaftFeaturePanel panel, ShaftMcpToolResult result) throws Exception {
+        Method showCatalogResult = ShaftFeaturePanel.class.getDeclaredMethod(
+                "showCatalogResult", ShaftMcpToolResult.class, Throwable.class);
+        showCatalogResult.setAccessible(true);
+        showCatalogResult.invoke(panel, result, null);
+    }
+
+    private static void invokeRefreshCatalog(ShaftFeaturePanel panel, Project project) throws Exception {
+        Method refreshCatalog = ShaftFeaturePanel.class.getDeclaredMethod("refreshCatalog", Project.class);
+        refreshCatalog.setAccessible(true);
+        try {
+            refreshCatalog.invoke(panel, project);
+        } catch (java.lang.reflect.InvocationTargetException wrapped) {
+            Throwable cause = wrapped.getCause();
+            if (cause instanceof Exception exception) {
+                throw exception;
+            }
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            throw wrapped;
+        }
+    }
+
+    private static String statusText(ShaftFeaturePanel panel) throws Exception {
+        return (String) ((JLabel) getField(panel, "status")).getText();
+    }
+
+    private static String mcpToolsList() {
+        JsonObject tool = new JsonObject();
+        tool.addProperty("name", "browser_navigate");
+        tool.addProperty("description", "Navigate the browser");
+        JsonArray tools = new JsonArray();
+        tools.add(tool);
+        JsonObject result = new JsonObject();
+        result.add("tools", tools);
+        return result.toString();
     }
 
     private static void showTestResult(ShaftMcpSetupPanel panel, ShaftMcpToolResult result) throws Exception {

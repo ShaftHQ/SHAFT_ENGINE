@@ -1,6 +1,8 @@
 package com.shaft.intellij.settings;
 
 import com.intellij.ui.components.JBTextField;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.ui.ShaftStatusPresentation;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
@@ -8,10 +10,14 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -25,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftSettingsConfigurableTest {
@@ -258,6 +265,118 @@ class ShaftSettingsConfigurableTest {
 
         assertEquals(0, openAiField.getPassword().length);
         assertTrue(configurable.isModified());
+    }
+
+    @Test
+    void testMcpButtonEntersBusyStateAndBlocksReentryWhileInFlight() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        // A non-blank command routes ShaftMcpConnectionProbe.test through its
+        // CompletableFuture.supplyAsync branch (a blank command resolves inline on the calling
+        // thread instead, which would race this assertion). The executable does not exist, so the
+        // background ProcessBuilder.start() call fails almost immediately with an IOException
+        // instead of running/waiting on a real MCP handshake - we only need the synchronous busy
+        // state that testMcpConnection() sets up before handing off to that background thread.
+        settings.mcpCommand = "\"" + Path.of("does", "not", "exist", "shaft-mcp-missing.exe") + "\"";
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+
+        JButton testMcp = findByAccessibleName(panel, "Test MCP", JButton.class);
+        assertNotNull(testMcp);
+
+        testMcp.doClick();
+
+        assertAll(
+                () -> assertFalse(testMcp.isEnabled(), "button should be disabled while the probe is in flight"),
+                () -> assertEquals("Testing...", testMcp.getToolTipText()),
+                () -> assertEquals(Boolean.TRUE, getField(configurable, "testMcpInFlight")));
+
+        // Re-entry guard: invoking the real completion-guarded method again while
+        // testMcpInFlight is still true must be a no-op, not start a second probe.
+        invokeTestMcpConnection(configurable);
+
+        assertAll(
+                () -> assertFalse(testMcp.isEnabled(), "second click while in flight must not re-enable or restart"),
+                () -> assertEquals("Testing...", testMcp.getToolTipText(),
+                        "tooltip must still read the busy label after a blocked re-entrant call"),
+                () -> assertEquals(Boolean.TRUE, getField(configurable, "testMcpInFlight")));
+    }
+
+    @Test
+    void showProbeResultAppliesSuccessGlyphThroughRealCompletionPath() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpSetupComplete = false;
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JLabel statusLabel = findByAccessibleName(panel, "SHAFT MCP test status", JLabel.class);
+        assertNotNull(statusLabel);
+        statusLabel.setText("Testing...");
+
+        invokeShowProbeResult(configurable, (JPanel) panel, statusLabel,
+                ShaftMcpToolResult.success("Handshake acknowledged."));
+
+        assertAll(
+                () -> assertEquals(ShaftStatusPresentation.SUCCESS_ICON + " Connected", statusLabel.getText()),
+                () -> assertTrue(settings.mcpSetupComplete, "a successful probe should mark MCP setup complete"));
+    }
+
+    @Test
+    void showProbeResultAppliesErrorGlyphThroughRealCompletionPathBeforeReportingTheFailure() throws Exception {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpSetupComplete = false;
+        ShaftSettingsConfigurable configurable = new ShaftSettingsConfigurable(settings, new InMemoryCredentials());
+        JComponent panel = (JComponent) configurable.createComponent();
+        JLabel statusLabel = findByAccessibleName(panel, "SHAFT MCP test status", JLabel.class);
+        assertNotNull(statusLabel);
+        statusLabel.setText("Testing...");
+
+        // showProbeResult's failure branch reports the outcome via Messages.showErrorDialog(host, ...).
+        // This module has no test-only seam (e.g. TestDialogManager.setTestDialog) wired up for that
+        // call - there is no existing precedent for stubbing Messages in this suite. The JUnit5 IntelliJ
+        // test framework attached to this module's test JVM enforces its own EDT-thread assertion
+        // before DialogWrapper ever reaches real AWT/Swing dialog code, so invoking this off the EDT (as
+        // any plain JUnit test body runs) surfaces as a real, deterministic IntelliJ threading exception
+        // instead of popping a blocking modal. We still invoke the real, private
+        // showProbeResult(JPanel, JLabel, ShaftMcpToolResult) method via reflection - not a hand-written
+        // stand-in - and the assertions below confirm the ERROR_ICON glyph the method sets on the label
+        // (which happens before the dialog call in production code) really came from that invocation.
+        InvocationTargetException wrapped = assertThrows(InvocationTargetException.class,
+                () -> invokeShowProbeResult(configurable, (JPanel) panel, statusLabel,
+                        ShaftMcpToolResult.failure("MCP server process exited.")));
+
+        assertAll(
+                () -> assertNotNull(wrapped.getCause()),
+                () -> assertTrue(wrapped.getCause() instanceof RuntimeException,
+                        "expected the real Messages.showErrorDialog call to fail with a runtime exception, got: "
+                                + wrapped.getCause()),
+                () -> assertTrue(wrapped.getCause().getMessage() != null
+                                && wrapped.getCause().getMessage().contains("Event Dispatch Thread"),
+                        "expected IntelliJ's EDT-only threading assertion inside Messages.showErrorDialog, got: "
+                                + wrapped.getCause()),
+                () -> assertEquals(ShaftStatusPresentation.ERROR_ICON + " Failed", statusLabel.getText()),
+                () -> assertFalse(settings.mcpSetupComplete));
+    }
+
+    private static void invokeShowProbeResult(
+            ShaftSettingsConfigurable configurable,
+            JPanel host,
+            JLabel statusLabel,
+            ShaftMcpToolResult result) throws Exception {
+        Method showProbeResult = ShaftSettingsConfigurable.class.getDeclaredMethod(
+                "showProbeResult", JPanel.class, JLabel.class, ShaftMcpToolResult.class);
+        showProbeResult.setAccessible(true);
+        showProbeResult.invoke(configurable, host, statusLabel, result);
+    }
+
+    private static void invokeTestMcpConnection(ShaftSettingsConfigurable configurable) throws Exception {
+        Method testMcpConnection = ShaftSettingsConfigurable.class.getDeclaredMethod("testMcpConnection");
+        testMcpConnection.setAccessible(true);
+        testMcpConnection.invoke(configurable);
+    }
+
+    private static Object getField(Object target, String name) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(target);
     }
 
     private static List<JButton> collectButtons(Component root) {

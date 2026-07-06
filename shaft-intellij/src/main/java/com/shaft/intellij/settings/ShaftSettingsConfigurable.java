@@ -41,6 +41,8 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private static final String ANTHROPIC_PROVIDER_KEY = "ANTHROPIC_API_KEY";
     private static final String GEMINI_PROVIDER_KEY = "GEMINI_API_KEY";
     private static final String GITHUB_PROVIDER_KEY = "GITHUB_TOKEN";
+    private static final String TEST_MCP_TOOLTIP = "Test MCP";
+    private static final String TESTING_MCP_TOOLTIP = "Testing...";
 
     private final Supplier<ShaftSettingsState.Settings> settingsProvider;
     private final Supplier<CredentialAccess> credentialsProvider;
@@ -97,6 +99,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private boolean geminiClearRequested;
     private boolean githubClearRequested;
     private boolean editingAgentConfiguration;
+    private boolean testMcpInFlight;
 
     /**
      * Creates a settings page backed by IntelliJ persistent services.
@@ -604,7 +607,12 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         if (button == null || statusLabel == null || host == null || mcpCommand == null || passProviderKeys == null) {
             return;
         }
+        if (testMcpInFlight) {
+            return;
+        }
+        testMcpInFlight = true;
         button.setEnabled(false);
+        button.setToolTipText(TESTING_MCP_TOOLTIP);
         statusLabel.setEnabled(true);
         statusLabel.setText("Testing...");
         statusLabel.setForeground(ShaftStatusPresentation.progress());
@@ -614,9 +622,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                     if (button == null || statusLabel == null || host == null) {
                         return;
                     }
+                    testMcpInFlight = false;
                     button.setEnabled(true);
+                    button.setToolTipText(TEST_MCP_TOOLTIP);
                     if (error != null) {
-                        statusLabel.setText("Failed");
+                        statusLabel.setText(ShaftStatusPresentation.ERROR_ICON + " Failed");
                         statusLabel.setForeground(ShaftStatusPresentation.error());
                         McpInvocationError category = McpInvocationError.categorize(error);
                         StringBuilder sb = new StringBuilder();
@@ -636,13 +646,13 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             return;
         }
         if (result != null && result.success()) {
-            statusLabel.setText("Connected");
+            statusLabel.setText(ShaftStatusPresentation.SUCCESS_ICON + " Connected");
             statusLabel.setForeground(ShaftStatusPresentation.success());
             saveConnectedSettings();
             editingAgentConfiguration = false;
             updateAgentConfigurationControls();
         } else {
-            statusLabel.setText("Failed");
+            statusLabel.setText(ShaftStatusPresentation.ERROR_ICON + " Failed");
             statusLabel.setForeground(ShaftStatusPresentation.error());
             String message = formatErrorMessage(result);
             Messages.showErrorDialog(host, message, "SHAFT MCP");
