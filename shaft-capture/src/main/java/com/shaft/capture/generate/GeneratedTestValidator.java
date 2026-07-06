@@ -174,7 +174,7 @@ public class GeneratedTestValidator {
 
     private static String boundedFailureMessage(String name, String message) {
         String oneLine = message.replaceAll("\\s+", " ").trim();
-        String bounded = oneLine.length() > 300 ? oneLine.substring(0, 300) + "..." : oneLine;
+        String bounded = oneLine.length() > 2_000 ? oneLine.substring(0, 2_000) + "..." : oneLine;
         return name.isBlank() ? bounded : name + ": " + bounded;
     }
 
