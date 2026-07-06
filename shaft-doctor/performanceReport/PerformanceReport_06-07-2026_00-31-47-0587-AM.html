@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Performance Report</title>
+  <style>
+:root {
+  color-scheme: light dark;
+  --shaft-primary: #006ec0;
+  --shaft-primary-rgb: 0, 110, 192;
+  --shaft-deep: #102a31;
+  --shaft-deep-alt: #181f2a;
+  --shaft-muted: #c8d6e7;
+  --shaft-on-dark: #ffffff;
+  --shaft-on-primary: #ffffff;
+  --shaft-bg: #f7f9fb;
+  --shaft-surface: #ffffff;
+  --shaft-text: #17202a;
+  --shaft-text-muted: #5f6f81;
+  --shaft-border: #d9e2ec;
+  --shaft-pass: #14804a;
+  --shaft-warn: #b7791f;
+  --shaft-fail: #c53030;
+  --shaft-shadow: 0 18px 45px rgba(24, 31, 42, .12);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --shaft-primary: #4cc2ff;
+    --shaft-primary-rgb: 76, 194, 255;
+    --shaft-deep: #07111f;
+    --shaft-deep-alt: #102a31;
+    --shaft-muted: #dff5f4;
+    --shaft-on-dark: #f5fdff;
+    --shaft-on-primary: #07111f;
+    --shaft-bg: #07111f;
+    --shaft-surface: #102a31;
+    --shaft-text: #f5fdff;
+    --shaft-text-muted: #c8d6e7;
+    --shaft-border: rgba(223, 245, 244, .24);
+    --shaft-shadow: 0 18px 45px rgba(0, 0, 0, .34);
+  }
+}
+* { box-sizing: border-box; }
+html {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+body {
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  background: var(--shaft-bg);
+  color: var(--shaft-text);
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+a { color: var(--shaft-primary); font-weight: 600; text-decoration: none; }
+a:hover { text-decoration: underline; }
+img, video, svg, canvas { max-width: 100%; height: auto; }
+.report-shell { width: 100%; min-height: 100vh; overflow-x: hidden; }
+.report-header {
+  background: linear-gradient(135deg, var(--shaft-deep), var(--shaft-deep-alt));
+  color: var(--shaft-on-dark);
+  padding: 22px 24px;
+}
+.report-header-inner {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(var(--shaft-primary-rgb), .42);
+  border-radius: 8px;
+  background: rgba(var(--shaft-primary-rgb), .18);
+  color: var(--shaft-on-dark);
+  font-weight: 700;
+}
+h1, h2, h3 { margin: 0; line-height: 1.2; }
+h1 { font-size: 24px; font-weight: 700; }
+h2 { font-size: 17px; font-weight: 700; }
+h3 { font-size: 15px; font-weight: 700; }
+.subtitle { margin: 5px 0 0; color: var(--shaft-muted); }
+.report-main {
+  width: 100%;
+  max-width: 1180px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 20px 24px 32px;
+}
+.panel {
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid var(--shaft-border);
+  border-radius: 8px;
+  background: var(--shaft-surface);
+  box-shadow: var(--shaft-shadow);
+}
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.metric-card {
+  padding: 14px;
+  border: 1px solid var(--shaft-border);
+  border-radius: 8px;
+  background: rgba(var(--shaft-primary-rgb), .05);
+}
+.metric-label {
+  color: var(--shaft-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.metric-value { margin-top: 4px; font-size: 24px; font-weight: 700; }
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1px solid var(--shaft-border);
+  border-radius: 999px;
+  background: rgba(var(--shaft-primary-rgb), .08);
+  color: var(--shaft-text);
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.status-chip.pass, .status-chip.passed { color: var(--shaft-pass); background: rgba(20, 128, 74, .1); }
+.status-chip.warn, .status-chip.warning, .status-chip.skipped { color: var(--shaft-warn); background: rgba(183, 121, 31, .12); }
+.status-chip.fail, .status-chip.failed, .status-chip.error { color: var(--shaft-fail); background: rgba(197, 48, 48, .1); }
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+input, select, button, textarea {
+  border: 1px solid var(--shaft-border);
+  border-radius: 8px;
+  color: var(--shaft-text);
+  font: inherit;
+}
+input, select, textarea { min-width: 0; background: var(--shaft-surface); }
+input, select { min-height: 38px; padding: 8px 10px; }
+button {
+  min-height: 38px;
+  padding: 8px 12px;
+  background: var(--shaft-primary);
+  color: var(--shaft-on-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+button.secondary {
+  background: var(--shaft-surface);
+  color: var(--shaft-primary);
+}
+button:hover { filter: brightness(.96); }
+.table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+  border: 1px solid var(--shaft-border);
+  border-radius: 8px;
+}
+table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: var(--shaft-surface);
+}
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--shaft-border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+th {
+  background: rgba(var(--shaft-primary-rgb), .08);
+  color: var(--shaft-text);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+tr:hover td { background: rgba(var(--shaft-primary-rgb), .04); }
+pre, code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+pre {
+  max-height: 62vh;
+  overflow: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--shaft-deep);
+  color: var(--shaft-on-dark);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+code {
+  color: var(--shaft-primary);
+  overflow-wrap: anywhere;
+}
+details { border: 1px solid var(--shaft-border); border-radius: 8px; background: var(--shaft-surface); }
+summary { cursor: pointer; padding: 12px 14px; font-weight: 700; }
+details > div { padding: 0 14px 14px; }
+.muted { color: var(--shaft-text-muted); }
+.warn { color: var(--shaft-warn); font-weight: 700; }
+@media (max-width: 760px) {
+  .report-header-inner { align-items: flex-start; }
+  .report-main, .report-header { padding-left: 14px; padding-right: 14px; }
+  .metric-grid { grid-template-columns: 1fr; }
+}
+  </style>
+  <script>
+    var currentPage = 1;
+    var rowsPerPage = 10;
+    function visibleRows() {
+      return Array.from(document.querySelectorAll('#performanceTable tbody tr'))
+        .filter(row => row.dataset.filtered !== 'true');
+    }
+    function changePage(page) {
+      var rows = visibleRows();
+      var totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+      currentPage = Math.min(Math.max(page, 1), totalPages);
+      document.querySelectorAll('#performanceTable tbody tr').forEach(row => row.style.display = 'none');
+      rows.forEach((row, index) => {
+        row.style.display = index >= (currentPage - 1) * rowsPerPage && index < currentPage * rowsPerPage ? '' : 'none';
+      });
+      showPageNumbers(totalPages);
+    }
+    function filterTable() {
+      var value = document.getElementById('filterInput').value.toLowerCase();
+      document.querySelectorAll('#performanceTable tbody tr').forEach(row => {
+        row.dataset.filtered = row.textContent.toLowerCase().includes(value) ? 'false' : 'true';
+      });
+      changePage(1);
+    }
+    function showPageNumbers(totalPages) {
+      var pagination = document.getElementById('pagination');
+      pagination.innerHTML = '';
+      for (var i = 1; i <= totalPages; i++) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = i === currentPage ? '' : 'secondary';
+        button.textContent = i;
+        button.addEventListener('click', changePage.bind(null, i));
+        pagination.appendChild(button);
+      }
+    }
+    window.addEventListener('load', function() { filterTable(); });
+  </script>
+</head>
+<body>
+  <div class="report-shell">
+    <header class="report-header">
+      <div class="report-header-inner">
+        <span class="brand-mark">S</span>
+        <div>
+          <h1>Performance Report</h1>
+          <p class="subtitle">Created 2026-07-06 00:31:47 · 2026-07-06 00:31:22 - 2026-07-06 00:31:47 · 0 minutes, 24 seconds</p>
+        </div>
+      </div>
+    </header>
+    <main class="report-main">
+      <section class="panel">
+        <h2>API Endpoint Performance</h2>
+        <div class="toolbar">
+          <input type="search" id="filterInput" oninput="filterTable()" placeholder="Filter by endpoint">
+        </div>
+        <div class="table-wrap">
+          <table id="performanceTable">
+            <thead>
+              <tr><th>Endpoint</th><th>Requests</th><th>Max Response Time (ms)</th><th>Min Response Time (ms)</th><th>Average Response Time (ms)</th><th>P50 Response Time (ms)</th><th>P90 Response Time (ms)</th><th>P95 Response Time (ms)</th><th>P99 Response Time (ms)</th><th>Budget (p95 ms)</th><th>Budget Status</th></tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        <div class="toolbar" id="pagination"></div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

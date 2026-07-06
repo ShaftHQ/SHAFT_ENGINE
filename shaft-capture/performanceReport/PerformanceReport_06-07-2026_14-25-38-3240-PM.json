@@ -1,0 +1,8 @@
+{
+  "startTime" : "2026-07-06 14:24:59",
+  "endTime" : "2026-07-06 14:25:38",
+  "executionTime" : "0 minutes, 38 seconds",
+  "budgetMetric" : "p95",
+  "failOnBudgetViolation" : false,
+  "endpoints" : [ ]
+}

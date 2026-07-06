@@ -131,6 +131,45 @@ class McpMobileToolchainServiceTest {
     }
 
     @Test
+    void toolchainServiceInitializesPropertiesWhenConstructed() {
+        Path toolRoot = temp.resolve("tools");
+        FakeRunner runner = new FakeRunner();
+
+        // Construct the service - should not throw even if SHAFT.Properties.internal is null
+        McpMobileToolchainService service = new McpMobileToolchainService(runner,
+                Map.of("PATH", ""), toolRoot, "Windows 11", "amd64");
+
+        // Call status() to verify properties were initialized and accessor methods work
+        McpMobileToolchainStatus status = service.status("Android");
+
+        // If we reach here without NullPointerException, properties are initialized
+        assertFalse(status.platformName().isBlank());
+        assertEquals("Android", status.platformName());
+    }
+
+    @Test
+    void toolchainStatusReturnsNormalResultWhenPropertiesInitialized() {
+        Path toolRoot = Files.createDirectories(temp.resolve("tools"));
+        Path sdk = Files.createDirectories(temp.resolve("android-sdk"));
+        Path avdHome = Files.createDirectories(temp.resolve("avd-home"));
+        create(sdk.resolve("platform-tools"), "adb.exe");
+        create(toolRoot.resolve(windowsNodeArchive()), "node.exe");
+
+        FakeRunner runner = new FakeRunner();
+        runner.adbOutput = "List of devices attached\nemulator-5554 device\n";
+
+        McpMobileToolchainService service = new McpMobileToolchainService(runner,
+                Map.of("ANDROID_SDK_ROOT", sdk.toString(), "ANDROID_AVD_HOME", avdHome.toString(), "PATH", ""),
+                toolRoot, "Windows 11", "amd64");
+
+        // This should not throw and should return valid diagnostics
+        McpMobileToolchainStatus status = service.status("Android");
+
+        assertFalse(status.diagnostics().isEmpty());
+        assertTrue(status.diagnostics().stream().anyMatch(d -> d.dependencyId().equals("node")));
+    }
+
+    @Test
     void ensureAppiumInstallsPinnedPackagesWithCurrentCliSyntax() throws Exception {
         Path toolRoot = Files.createDirectories(temp.resolve("tools"));
         create(toolRoot.resolve(windowsNodeArchive()), "npm.cmd");

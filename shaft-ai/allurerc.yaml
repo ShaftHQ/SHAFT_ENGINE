@@ -1,0 +1,17 @@
+name: "SHAFT-powered test report"
+output: "C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/shaft-ai/target/allure-report"
+historyPath: "C:/Users/Mohab/IdeaProjects/SHAFT_ENGINE/shaft-ai/target/history.jsonl"
+appendHistory: true
+
+plugins:
+  awesome:
+    options:
+      reportName: "SHAFT-powered test report"
+      singleFile: true
+      logo: "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/shaft-engine/src/main/resources/images/shaft_report_logo.png?raw=true"
+      theme: "auto"
+      reportLanguage: "en"
+      open: false
+      groupBy:
+        - package
+        - testClass
