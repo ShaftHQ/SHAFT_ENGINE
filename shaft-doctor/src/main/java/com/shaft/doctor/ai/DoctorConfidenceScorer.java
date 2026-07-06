@@ -1,6 +1,5 @@
 package com.shaft.doctor.ai;
 
-import com.shaft.doctor.model.Confidence;
 import com.shaft.doctor.model.DoctorAdvisory;
 
 import java.util.List;
@@ -25,24 +24,56 @@ final class DoctorConfidenceScorer {
             return new ConfidenceResult(0, "No hypotheses provided.");
         }
 
-        int baseScore = 50;
         StringBuilder rationale = new StringBuilder();
+        int baseScore = 50;
+        baseScore += applyProviderConfidenceFactor(analysis, rationale);
+        baseScore += applyCitationFactor(analysis, rationale);
+        baseScore += applyContradictionFactor(analysis, rationale);
+        baseScore += applyMissingEvidenceFactor(analysis, rationale);
+        baseScore += applyHypothesisCountFactor(analysis, rationale);
 
-        // Factor 1: Provider confidence levels in hypotheses.
+        int finalScore = Math.max(0, Math.min(100, baseScore));
+        if (!rationale.isEmpty() && rationale.charAt(rationale.length() - 1) == ' ') {
+            rationale.setLength(rationale.length() - 1);
+        }
+
+        return new ConfidenceResult(finalScore, rationale.toString());
+    }
+
+    /**
+     * Factor 1: scores provider-reported confidence levels across hypotheses.
+     *
+     * @param analysis  the parsed provider analysis
+     * @param rationale the shared rationale builder to append explanatory text to
+     * @return the score delta contributed by this factor
+     */
+    private static int applyProviderConfidenceFactor(DoctorAdvisory.ProviderAnalysis analysis,
+            StringBuilder rationale) {
         int averageConfidence = scoreProviderConfidence(analysis.hypotheses());
+        int delta;
         rationale.append("Provider confidence: ");
         if (averageConfidence >= 75) {
-            baseScore += 20;
+            delta = 20;
             rationale.append("high");
         } else if (averageConfidence >= 50) {
+            delta = 0;
             rationale.append("medium");
         } else {
-            baseScore -= 15;
+            delta = -15;
             rationale.append("low");
         }
         rationale.append(" (").append(averageConfidence).append("). ");
+        return delta;
+    }
 
-        // Factor 2: Citation completeness of hypotheses and actions.
+    /**
+     * Factor 2: scores citation completeness of hypotheses and recommended actions.
+     *
+     * @param analysis  the parsed provider analysis
+     * @param rationale the shared rationale builder to append explanatory text to
+     * @return the score delta contributed by this factor
+     */
+    private static int applyCitationFactor(DoctorAdvisory.ProviderAnalysis analysis, StringBuilder rationale) {
         int citedHypotheses = (int) analysis.hypotheses().stream()
                 .filter(DoctorAdvisory.Hypothesis::cited).count();
         int citedActions = (int) analysis.recommendedActions().stream()
@@ -52,53 +83,75 @@ final class DoctorConfidenceScorer {
                 .append(" hypotheses, ").append(citedActions).append("/").append(analysis.recommendedActions().size())
                 .append(" actions cited. ");
 
+        int delta = 0;
         boolean fullyHypothesisCited = citedHypotheses == analysis.hypotheses().size()
                 && !analysis.hypotheses().isEmpty();
         boolean fullyActionCited = citedActions == analysis.recommendedActions().size()
                 || analysis.recommendedActions().isEmpty();
         if (fullyHypothesisCited) {
-            baseScore += 15;
+            delta += 15;
         } else if (citedHypotheses > 0) {
-            baseScore += 5;
+            delta += 5;
         } else {
-            baseScore -= 25; // Uncited proposed fix: low band.
+            delta -= 25; // Uncited proposed fix: low band.
         }
         if (fullyActionCited) {
-            baseScore += 10;
+            delta += 10;
         } else if (citedActions > 0) {
-            baseScore += 5;
+            delta += 5;
         }
+        return delta;
+    }
 
-        // Factor 3: Contradicts deterministic diagnosis.
+    /**
+     * Factor 3: penalizes hypotheses that contradict the deterministic diagnosis.
+     *
+     * @param analysis  the parsed provider analysis
+     * @param rationale the shared rationale builder to append explanatory text to
+     * @return the score delta contributed by this factor
+     */
+    private static int applyContradictionFactor(DoctorAdvisory.ProviderAnalysis analysis, StringBuilder rationale) {
         boolean contradicts = analysis.hypotheses().stream()
                 .anyMatch(DoctorAdvisory.Hypothesis::contradictsDeterministic);
         if (contradicts) {
-            baseScore -= 20;
             rationale.append("Contradicts deterministic diagnosis. ");
+            return -20;
         }
+        return 0;
+    }
 
-        // Factor 4: Missing evidence gaps.
+    /**
+     * Factor 4: penalizes advisories where the provider flagged missing evidence gaps.
+     *
+     * @param analysis  the parsed provider analysis
+     * @param rationale the shared rationale builder to append explanatory text to
+     * @return the score delta contributed by this factor
+     */
+    private static int applyMissingEvidenceFactor(DoctorAdvisory.ProviderAnalysis analysis, StringBuilder rationale) {
         if (!analysis.missingEvidence().isEmpty()) {
-            baseScore -= 10;
             rationale.append("Provider identified ").append(analysis.missingEvidence().size())
                     .append(" missing evidence gaps. ");
+            return -10;
         }
+        return 0;
+    }
 
-        // Factor 5: Single vs. multiple hypotheses.
+    /**
+     * Factor 5: rewards a single focused hypothesis and penalizes conflicting multiple hypotheses.
+     *
+     * @param analysis  the parsed provider analysis
+     * @param rationale the shared rationale builder to append explanatory text to
+     * @return the score delta contributed by this factor
+     */
+    private static int applyHypothesisCountFactor(DoctorAdvisory.ProviderAnalysis analysis, StringBuilder rationale) {
         if (analysis.hypotheses().size() == 1) {
-            baseScore += 10;
             rationale.append("Single focused hypothesis. ");
+            return 10;
         } else if (analysis.hypotheses().size() > 2) {
-            baseScore -= 5;
             rationale.append("Multiple hypotheses reduce confidence. ");
+            return -5;
         }
-
-        int finalScore = Math.max(0, Math.min(100, baseScore));
-        if (!rationale.isEmpty() && rationale.charAt(rationale.length() - 1) == ' ') {
-            rationale.setLength(rationale.length() - 1);
-        }
-
-        return new ConfidenceResult(finalScore, rationale.toString());
+        return 0;
     }
 
     /**
