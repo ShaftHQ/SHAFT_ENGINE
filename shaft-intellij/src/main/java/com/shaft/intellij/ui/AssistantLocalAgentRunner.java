@@ -498,15 +498,25 @@ final class AssistantLocalAgentRunner {
         if (usageHolder == null) {
             return null;
         }
-        JsonObject usage = usageHolder.has("usage") && usageHolder.get("usage").isJsonObject()
-                ? usageHolder.getAsJsonObject("usage")
-                : usageHolder;
+        JsonObject usage = resolveUsageObject(usageHolder);
         Integer inputTokens = intField(usage, "input_tokens");
         Integer outputTokens = intField(usage, "output_tokens");
         if (inputTokens == null && outputTokens == null) {
             return null;
         }
-        return TokenUsage.reported(inputTokens == null ? 0 : inputTokens, outputTokens == null ? 0 : outputTokens);
+        return TokenUsage.reported(orZero(inputTokens), orZero(outputTokens));
+    }
+
+    private static JsonObject resolveUsageObject(JsonObject usageHolder) {
+        JsonElement usage = usageHolder.get("usage");
+        if (usage != null && usage.isJsonObject()) {
+            return usage.getAsJsonObject();
+        }
+        return usageHolder;
+    }
+
+    private static int orZero(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private static Integer intField(JsonObject object, String key) {
