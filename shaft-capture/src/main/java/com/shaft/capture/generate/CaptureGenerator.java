@@ -1120,7 +1120,7 @@ public final class CaptureGenerator {
             case TYPE -> line(source, "        driver.browser().typeIntoPromptAlert("
                     + dataExpression(value.text(), data) + ");");
             case VERIFY_TEXT -> line(source, "        driver.browser().assertThat().alertText().isEqualTo("
-                    + dataExpression(value.text(), data) + ").perform();");
+                    + dataExpression(value.text(), data) + ");");
         }
     }
 
@@ -1137,15 +1137,15 @@ public final class CaptureGenerator {
         }
         switch (value.condition()) {
             case ELEMENT_PRESENT -> line(source, "        driver.element().assertThat("
-                    + locator + ").exists().perform();");
+                    + locator + ").exists();");
             case ELEMENT_VISIBLE -> line(source, "        driver.element().assertThat("
-                    + locator + ").isVisible().perform();");
+                    + locator + ").isVisible();");
             case ELEMENT_CLICKABLE -> {
-                line(source, "        driver.element().assertThat(" + locator + ").isVisible().perform();");
-                line(source, "        driver.element().assertThat(" + locator + ").isEnabled().perform();");
+                line(source, "        driver.element().assertThat(" + locator + ").isVisible();");
+                line(source, "        driver.element().assertThat(" + locator + ").isEnabled();");
             }
             case ELEMENT_ABSENT -> line(source, "        driver.element().assertThat("
-                    + locator + ").doesNotExist().perform();");
+                    + locator + ").doesNotExist();");
             case URL_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().url()",
                     "contains", dataExpression(value.expected(), data));
             case TITLE_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().title()",
@@ -1162,9 +1162,9 @@ public final class CaptureGenerator {
             DataPlan data) {
         switch (value.condition()) {
             case ELEMENT_PRESENT, ELEMENT_VISIBLE, ELEMENT_CLICKABLE ->
-                    line(source, "        driver.element().assertThat(" + locator + ").isVisible().perform();");
+                    line(source, "        driver.element().assertThat(" + locator + ").isVisible();");
             case ELEMENT_ABSENT ->
-                    line(source, "        driver.element().assertThat(" + locator + ").doesNotExist().perform();");
+                    line(source, "        driver.element().assertThat(" + locator + ").doesNotExist();");
             case URL_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().url()",
                     "contains", dataExpression(value.expected(), data));
             case TITLE_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().title()",
@@ -1186,18 +1186,18 @@ public final class CaptureGenerator {
             CodegenBackend backend) {
         switch (verification) {
             case ELEMENT_PRESENT -> line(source, "        driver.element().assertThat(" + locator + ")."
-                    + (negated ? "doesNotExist" : "exists") + "().perform();");
+                    + (negated ? "doesNotExist" : "exists") + "();");
             case ELEMENT_VISIBLE -> {
                 if (negated) {
-                    line(source, "        driver.element().assertThat(" + locator + ").isHidden().perform();");
+                    line(source, "        driver.element().assertThat(" + locator + ").isHidden();");
                 } else {
-                    line(source, "        driver.element().assertThat(" + locator + ").isVisible().perform();");
+                    line(source, "        driver.element().assertThat(" + locator + ").isVisible();");
                 }
             }
             case ELEMENT_ENABLED -> line(source, "        driver.element().assertThat(" + locator + ")."
-                    + (negated ? "isDisabled" : "isEnabled") + "().perform();");
+                    + (negated ? "isDisabled" : "isEnabled") + "();");
             case ELEMENT_SELECTED -> line(source, "        driver.element().assertThat(" + locator + ")."
-                    + (negated ? "isNotSelected" : "isSelected") + "().perform();");
+                    + (negated ? "isNotSelected" : "isSelected") + "();");
             case TEXT_EQUALS -> nativeAssertion(source,
                     "driver.element().assertThat(" + locator + ").text()",
                     negated ? "doesNotEqual" : "isEqualTo", dataExpression(expected, data));
@@ -1219,7 +1219,7 @@ public final class CaptureGenerator {
             case PAGE_TEXT_CONTAINS -> nativeAssertion(source, "driver.browser().assertThat().text()",
                     negated ? "doesNotContain" : "contains", dataExpression(expected, data));
             case ELEMENT_IMAGE_MATCHES -> line(source, "        driver.element().assertThat(" + locator + ")."
-                    + (negated ? "doesNotMatchReferenceImage" : "matchesReferenceImage") + "().perform();");
+                    + (negated ? "doesNotMatchReferenceImage" : "matchesReferenceImage") + "();");
         }
     }
 
@@ -1228,7 +1228,7 @@ public final class CaptureGenerator {
             String builder,
             String comparison,
             String expected) {
-        line(source, "        " + builder + "." + comparison + "(" + expected + ").perform();");
+        line(source, "        " + builder + "." + comparison + "(" + expected + ");");
     }
 
     private static void renderSuggestedAssertion(

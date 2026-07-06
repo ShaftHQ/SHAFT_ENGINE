@@ -38,8 +38,8 @@ public class FormCompletedTest {
         windows.put("window-2", driver.browser().getWindowHandle());
         driver.element().switchToIframe(SHAFT.GUI.Locator.inputField("Username"));
         driver.browser().typeIntoPromptAlert(requiredData("username"));
-        driver.element().assertThat(SHAFT.GUI.Locator.inputField("Username")).isVisible().perform();
-        driver.element().assertThat(SHAFT.GUI.Locator.inputField("Username")).text().isEqualTo(requiredData("username")).perform();
+        driver.element().assertThat(SHAFT.GUI.Locator.inputField("Username")).isVisible();
+        driver.element().assertThat(SHAFT.GUI.Locator.inputField("Username")).text().isEqualTo(requiredData("username"));
         // Recorded checkpoint checkpoint-1 (ASSERTION). Form completed
     }
 
