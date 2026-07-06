@@ -104,7 +104,8 @@ public class DoctorService {
                 includePageSnapshots,
                 minimumAllureResults <= 0 ? 1 : minimumAllureResults,
                 DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
-                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES);
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
+                true);
         DoctorAnalysisResult result = new DoctorAnalyzer().analyze(request);
         return remediationService.build(
                 result,
@@ -165,7 +166,8 @@ public class DoctorService {
                 includePageSnapshots,
                 minimumAllureResults <= 0 ? 1 : minimumAllureResults,
                 DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
-                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES);
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
+                true);
         DoctorAnalysisResult result = new DoctorAnalyzer().analyze(request);
         return remediationService.build(
                 result,
@@ -291,7 +293,8 @@ public class DoctorService {
                 includePageSnapshots,
                 minimumAllureResults <= 0 ? 1 : minimumAllureResults,
                 DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
-                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES);
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
+                true);
         DoctorAnalyzer analyzer = new DoctorAnalyzer();
         DoctorAnalysisResult result;
         PilotConfiguration configuration = currentConfiguration();

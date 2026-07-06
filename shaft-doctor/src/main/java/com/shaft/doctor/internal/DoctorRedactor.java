@@ -8,6 +8,10 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -15,11 +19,21 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
+import javax.imageio.ImageIO;
 
 /**
  * Structured and textual deterministic redaction for Doctor evidence.
  */
 public final class DoctorRedactor {
+    /**
+     * Marker returned by {@link #extractSensitiveRegions(String)} indicating that the whole
+     * screenshot must be masked because real per-field pixel coordinates cannot be derived
+     * from a static HTML snapshot.
+     */
+    private static final String WHOLE_IMAGE_MARKER = "WHOLE_IMAGE";
+    private static final List<String> WHOLE_IMAGE_REGIONS = List.of(WHOLE_IMAGE_MARKER);
+    private static final String SENSITIVE_FIELD_SELECTOR =
+            "input[type=password],[autocomplete=current-password],[autocomplete=new-password]";
     private static final Set<String> SENSITIVE_FIELDS = Set.of(
             "authorization", "proxy-authorization", "cookie", "set-cookie",
             "password", "passwd", "secret", "token", "access_token", "refresh_token",
@@ -184,6 +198,124 @@ public final class DoctorRedactor {
 
     private static boolean looksLikeHtml(String value) {
         return value.indexOf('<') >= 0 && value.indexOf('>') > value.indexOf('<');
+    }
+
+    /**
+     * Determines if HTML page snapshot indicates sensitive fields requiring screenshot masking.
+     * Returns empty list if no sensitive fields found, or a special marker indicating whole-image masking.
+     *
+     * Since jsoup parses static HTML (not rendered layout), real pixel coordinates are not derivable.
+     * This method adopts a conservative approach: when sensitive input fields are detected,
+     * it returns a marker indicating full-image masking rather than fake precise regions.
+     *
+     * @param htmlContent HTML page snapshot content
+     * @return empty list if no sensitive fields, or list with single marker element for whole-image masking
+     */
+    public List<String> extractSensitiveRegions(String htmlContent) {
+        if (htmlContent == null || htmlContent.isBlank()) {
+            return List.of();
+        }
+        Document document = Jsoup.parseBodyFragment(htmlContent);
+        boolean hasSensitiveFields = hasSensitiveInputElements(document) || hasSensitiveAttributes(document);
+        return hasSensitiveFields ? WHOLE_IMAGE_REGIONS : List.of();
+    }
+
+    private static boolean hasSensitiveInputElements(Document document) {
+        return !document.select(SENSITIVE_FIELD_SELECTOR).isEmpty();
+    }
+
+    private static boolean hasSensitiveAttributes(Document document) {
+        for (Element element : document.getAllElements()) {
+            for (org.jsoup.nodes.Attribute attribute : element.attributes().asList()) {
+                if (isSensitive(attribute.getKey())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Applies full-image opaque masking to screenshot bytes when sensitive regions are detected.
+     * Only masks if regions list contains the whole-image marker.
+     *
+     * <p>Redaction fails closed: if the sensitive regions marker is present but the image cannot
+     * be re-encoded after masking, this method throws rather than returning the original,
+     * still-sensitive bytes, since silently falling back would leak unredacted evidence.
+     *
+     * @param screenshotBytes original screenshot image bytes
+     * @param regions masking decision (empty = no masking, contains the whole-image marker = mask entire image)
+     * @return masked image bytes, or original bytes if no masking needed or the bytes are not a decodable image
+     * @throws IOException if a decodable image was masked but could not be re-encoded
+     */
+    public byte[] redactScreenshot(byte[] screenshotBytes, List<String> regions) throws IOException {
+        if (screenshotBytes == null || screenshotBytes.length == 0) {
+            return screenshotBytes;
+        }
+        if (regions == null || !regions.contains(WHOLE_IMAGE_MARKER)) {
+            return screenshotBytes;
+        }
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
+        if (image == null) {
+            return screenshotBytes;
+        }
+        BufferedImage masked = paintOpaqueBlack(image);
+        return encodeImage(masked, guessImageFormat(screenshotBytes));
+    }
+
+    private static BufferedImage paintOpaqueBlack(BufferedImage source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+        BufferedImage masked = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        int opaqueBlack = 0xFF000000;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                masked.setRGB(x, y, opaqueBlack);
+            }
+        }
+        return masked;
+    }
+
+    private static byte[] encodeImage(BufferedImage image, String format) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        String extension = format == null || format.isEmpty() ? "png" : format;
+        ImageIO.write(image, extension, outputStream);
+        return outputStream.toByteArray();
+    }
+
+    private static String guessImageFormat(byte[] bytes) {
+        if (bytes == null || bytes.length < 4) {
+            return "png";
+        }
+        if (isJpegSignature(bytes)) {
+            return "jpg";
+        }
+        if (isPngSignature(bytes)) {
+            return "png";
+        }
+        if (isGifSignature(bytes)) {
+            return "gif";
+        }
+        if (isWebpSignature(bytes)) {
+            return "webp";
+        }
+        return "png";
+    }
+
+    private static boolean isJpegSignature(byte[] bytes) {
+        return bytes[0] == (byte) 0xFF && bytes[1] == (byte) 0xD8 && bytes[2] == (byte) 0xFF;
+    }
+
+    private static boolean isPngSignature(byte[] bytes) {
+        return bytes[0] == (byte) 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
+    }
+
+    private static boolean isGifSignature(byte[] bytes) {
+        return bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46;
+    }
+
+    private static boolean isWebpSignature(byte[] bytes) {
+        return bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
     }
 
     private record NamedPattern(String name, Pattern pattern) {

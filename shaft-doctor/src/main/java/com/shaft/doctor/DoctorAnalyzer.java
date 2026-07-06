@@ -186,7 +186,8 @@ public final class DoctorAnalyzer {
                 request.includePageSnapshots(),
                 request.minimumAllureResults(),
                 request.maxItemBytes(),
-                request.maxBundleBytes());
+                request.maxBundleBytes(),
+                request.redactScreenshots());
     }
 
     private static Path realPath(Path path) {
