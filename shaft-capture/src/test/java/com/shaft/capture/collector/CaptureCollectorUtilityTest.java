@@ -68,6 +68,15 @@ class CaptureCollectorUtilityTest {
                 .contains("const testIdAttributes = [\"data-pw\"];"));
         assertTrue(BrowserEventScript.fallbackInstallation(List.of("data-\"quoted\\path"))
                 .contains("\"data-\\\"quoted\\\\path\""));
+        String bidiPreloadWithSink = BrowserEventScript.preloadFunction(
+                List.of("data-pw"), "http://127.0.0.1:1234/event", "token");
+        assertTrue(bidiPreloadWithSink.startsWith("(channel) => ("));
+        assertTrue(bidiPreloadWithSink.contains("http://127.0.0.1:1234/event"));
+        assertTrue(bidiPreloadWithSink.contains("{url: \"http://127.0.0.1:1234/event\", token: \"token\"}"));
+        assertEquals(BrowserEventScript.preloadFunction(List.of("data-pw")),
+                BrowserEventScript.preloadFunction(List.of("data-pw"), "", ""));
+        assertEquals(BrowserEventScript.preloadFunction(List.of("data-pw")),
+                BrowserEventScript.preloadFunction(List.of("data-pw"), null, null));
         assertTrue(preload.contains("SHAFT Capture"));
         assertTrue(preload.contains("kind: \"control\""));
         assertTrue(preload.contains("kind: \"verification\""));
@@ -120,6 +129,8 @@ class CaptureCollectorUtilityTest {
                 () -> new PollingBrowserEventCollector(null, true, List.of("data-pw")));
         assertInstanceOf(BidiBrowserEventCollector.class,
                 new BidiBrowserEventCollector(driver, List.of("data-pw")));
+        assertInstanceOf(BidiBrowserEventCollector.class,
+                new BidiBrowserEventCollector(driver, List.of("data-pw"), "http://127.0.0.1:1234/event", "token"));
         assertInstanceOf(PollingBrowserEventCollector.class,
                 new PollingBrowserEventCollector(driver, false, List.of("data-pw")));
     }

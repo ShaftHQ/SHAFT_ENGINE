@@ -567,7 +567,11 @@ class ManagedCaptureRecorder {
     private void startCollector(WebDriver activeDriver) {
         try {
             collector = new CompositeBrowserEventCollector(List.of(
-                    new BidiBrowserEventCollector(activeDriver, request.options().testIdAttributes()),
+                    new BidiBrowserEventCollector(
+                            activeDriver,
+                            request.options().testIdAttributes(),
+                            eventSinkEndpoint(),
+                            eventSinkToken()),
                     new PollingBrowserEventCollector(
                             activeDriver,
                             false,
@@ -592,7 +596,7 @@ class ManagedCaptureRecorder {
 
     private void startEventSink() {
         try {
-            eventSink = new BrowserEventSink(this::acceptSignal, this::warn);
+            eventSink = new BrowserEventSink(this::acceptSignal, this::warn, this::sessionSnapshot);
             eventSink.start();
         } catch (RuntimeException exception) {
             eventSink = null;
@@ -606,6 +610,19 @@ class ManagedCaptureRecorder {
 
     private String eventSinkToken() {
         return eventSink == null ? "" : eventSink.eventToken();
+    }
+
+    /**
+     * Server-authoritative continuation state for the in-page recorder panel, so it can
+     * rehydrate after a cross-origin navigation clears its page-scoped storage instead of
+     * appearing to have silently restarted.
+     */
+    synchronized Map<String, Object> sessionSnapshot() {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("instanceId", sessionId);
+        snapshot.put("eventCount", pipeline == null ? 0 : pipeline.eventCount());
+        snapshot.put("readinessState", readiness().state().name());
+        return snapshot;
     }
 
     void acceptSignal(BrowserSignal signal) {

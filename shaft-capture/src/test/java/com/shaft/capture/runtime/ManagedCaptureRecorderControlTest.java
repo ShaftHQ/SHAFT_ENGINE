@@ -74,6 +74,40 @@ class ManagedCaptureRecorderControlTest {
     }
 
     @Test
+    void sessionSnapshotReflectsEventCountAndReadinessWithAStableInstanceIdForRehydration() throws Exception {
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, CaptureStartOptions.defaults());
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
+        store.start(CaptureSession.start(
+                "snapshot-session",
+                Instant.parse("2026-01-02T03:04:05Z"),
+                new BrowserMetadata("chrome", "149", "test", "browser", Map.of())));
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store,
+                request.outputPath(),
+                CapturePrivacyPolicy.defaults(),
+                ignored -> { },
+                ignored -> { });
+        recorder.activeSessionForTesting(store, pipeline);
+
+        Map<String, Object> beforeAnyEvents = recorder.sessionSnapshot();
+        assertEquals(0, beforeAnyEvents.get("eventCount"));
+        assertEquals("READY", beforeAnyEvents.get("readinessState"));
+        Object instanceId = beforeAnyEvents.get("instanceId");
+        assertNotNull(instanceId);
+
+        recorder.acceptSignal(BrowserSignal.generated(
+                "navigation",
+                "window-1",
+                Map.of("url", "https://example.test/checkout", "title", "Checkout"),
+                Map.of("action", "OPEN")));
+
+        Map<String, Object> afterCrossOriginNavigation = recorder.sessionSnapshot();
+        assertEquals(1, afterCrossOriginNavigation.get("eventCount"));
+        assertEquals(instanceId, afterCrossOriginNavigation.get("instanceId"));
+    }
+
+    @Test
     void browserOptionsCarryCodegenSessionMetadataWithoutLaunchingBrowser() throws Exception {
         CaptureStartOptions options = new CaptureStartOptions(
                 "java",

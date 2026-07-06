@@ -38,6 +38,28 @@ public final class BrowserEventScript {
     }
 
     /**
+     * Returns the BiDi preload function declaration with a loopback event sink so the
+     * in-page recorder can rehydrate its panel state after a cross-origin navigation,
+     * where BiDi re-installs this script on a fresh, storage-isolated document.
+     *
+     * @param testIdAttributes locator test-id attributes
+     * @param eventEndpoint loopback event endpoint
+     * @param eventToken loopback event token
+     * @return JavaScript function
+     */
+    public static String preloadFunction(
+            List<String> testIdAttributes,
+            String eventEndpoint,
+            String eventToken) {
+        if (eventEndpoint == null || eventEndpoint.isBlank()
+                || eventToken == null || eventToken.isBlank()) {
+            return preloadFunction(testIdAttributes);
+        }
+        return "(channel) => (" + script(testIdAttributes) + ")(channel, {url: "
+                + jsString(eventEndpoint) + ", token: " + jsString(eventToken) + "})";
+    }
+
+    /**
      * Returns JavaScript that installs the fallback queue listener.
      *
      * @return installation JavaScript

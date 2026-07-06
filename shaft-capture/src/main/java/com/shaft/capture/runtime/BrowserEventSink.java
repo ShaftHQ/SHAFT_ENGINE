@@ -11,20 +11,27 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Loopback sink used by the WebDriver fallback listener before navigation can clear page memory.
+ * Also answers a token-authenticated GET with the current session snapshot, so the in-page
+ * recorder can rehydrate its panel state after a cross-origin navigation resets page-scoped
+ * storage.
  */
 final class BrowserEventSink implements AutoCloseable {
     private static final int MAX_REQUEST_BYTES = 131_072;
 
     private final Consumer<BrowserSignal> signalConsumer;
     private final Consumer<String> warningConsumer;
+    private final Supplier<Map<String, Object>> stateSupplier;
     private final ObjectMapper mapper = JsonMapper.builder().build();
     private final String token = token();
     private final HttpServer server;
@@ -32,12 +39,14 @@ final class BrowserEventSink implements AutoCloseable {
 
     BrowserEventSink(
             Consumer<BrowserSignal> signalConsumer,
-            Consumer<String> warningConsumer) {
-        if (signalConsumer == null || warningConsumer == null) {
+            Consumer<String> warningConsumer,
+            Supplier<Map<String, Object>> stateSupplier) {
+        if (signalConsumer == null || warningConsumer == null || stateSupplier == null) {
             throw new IllegalArgumentException("Browser event sink consumers are required.");
         }
         this.signalConsumer = signalConsumer;
         this.warningConsumer = warningConsumer;
+        this.stateSupplier = stateSupplier;
         try {
             server = HttpServer.create(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
         } catch (IOException exception) {
@@ -68,6 +77,10 @@ final class BrowserEventSink implements AutoCloseable {
     private void handle(HttpExchange exchange) throws IOException {
         try (exchange) {
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                handleState(exchange);
+                return;
+            }
             if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 send(exchange, 405);
                 return;
@@ -80,6 +93,31 @@ final class BrowserEventSink implements AutoCloseable {
             accept(body);
             send(exchange, 204);
         }
+    }
+
+    private void handleState(HttpExchange exchange) throws IOException {
+        if (!authorized(queryParameter(exchange.getRequestURI().getRawQuery(), "token"))) {
+            send(exchange, 403);
+            return;
+        }
+        byte[] body = mapper.writeValueAsBytes(stateSupplier.get());
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(200, body.length);
+        exchange.getResponseBody().write(body);
+    }
+
+    private static String queryParameter(String rawQuery, String name) {
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return "";
+        }
+        for (String pair : rawQuery.split("&")) {
+            int separator = pair.indexOf('=');
+            String key = separator < 0 ? pair : pair.substring(0, separator);
+            if (name.equals(URLDecoder.decode(key, StandardCharsets.UTF_8))) {
+                return separator < 0 ? "" : URLDecoder.decode(pair.substring(separator + 1), StandardCharsets.UTF_8);
+            }
+        }
+        return "";
     }
 
     private void accept(byte[] body) {

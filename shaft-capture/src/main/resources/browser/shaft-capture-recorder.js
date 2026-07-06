@@ -1705,10 +1705,39 @@
   addEventListener("pagehide", persist, true);
   addEventListener("beforeunload", persist, true);
 
+  // A fresh top-level document (e.g. after a cross-origin navigation) always starts with
+  // empty page-scoped sessionStorage, even mid-recording. Before announcing a brand-new
+  // session, ask the loopback sink -- which is not origin-scoped -- whether this browser
+  // is already mid-recording, so the panel continues instead of appearing to have reset.
+  const announceStart = () => {
+    if (!eventSink.url || !eventSink.token || typeof fetch !== "function") {
+      announce("Open " + visibleLocation());
+      return;
+    }
+    fetch(String(eventSink.url) + "?token=" + encodeURIComponent(String(eventSink.token)))
+      .then(response => response.ok ? response.json() : null)
+      .then(state => {
+        const eventCount = state ? Number(state.eventCount) : 0;
+        if (!eventCount) {
+          announce("Open " + visibleLocation());
+          return;
+        }
+        uiState.instanceId = text(state.instanceId) || uiState.instanceId;
+        uiState.nextId = Math.max(uiState.nextId, eventCount + 1);
+        if (["READY", "RISKY", "BLOCKED"].includes(state.readinessState)) {
+          uiState.readinessState = state.readinessState;
+        }
+        persist();
+        announce("Continuing recording after navigating to a new domain ("
+          + eventCount + " action" + (eventCount === 1 ? "" : "s") + " already captured)");
+      })
+      .catch(() => announce("Open " + visibleLocation()));
+  };
+
   if (topLevel) {
     schedulePanel();
     if (uiState.actions.length === 0) {
-      announce("Open " + visibleLocation());
+      announceStart();
     }
     setInterval(() => {
       const current = String(location.href || "");

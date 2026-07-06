@@ -19,6 +19,8 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
 
     private final WebDriver driver;
     private final List<String> testIdAttributes;
+    private final String eventEndpoint;
+    private final String eventToken;
     private final Map<String, String> promptTypes = new ConcurrentHashMap<>();
     private Script script;
     private BrowsingContextInspector contexts;
@@ -40,11 +42,31 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
      * @param testIdAttributes locator test-id attributes
      */
     public BidiBrowserEventCollector(WebDriver driver, List<String> testIdAttributes) {
+        this(driver, testIdAttributes, "", "");
+    }
+
+    /**
+     * Creates a BiDi collector whose preload script also carries the loopback event sink,
+     * so the in-page recorder can rehydrate its panel state after a cross-origin navigation
+     * re-installs it on a fresh, storage-isolated document.
+     *
+     * @param driver BiDi-capable driver
+     * @param testIdAttributes locator test-id attributes
+     * @param eventEndpoint loopback event endpoint
+     * @param eventToken loopback event token
+     */
+    public BidiBrowserEventCollector(
+            WebDriver driver,
+            List<String> testIdAttributes,
+            String eventEndpoint,
+            String eventToken) {
         if (driver == null) {
             throw new IllegalArgumentException("Capture WebDriver is required.");
         }
         this.driver = driver;
         this.testIdAttributes = testIdAttributes == null ? List.of() : List.copyOf(testIdAttributes);
+        this.eventEndpoint = eventEndpoint == null ? "" : eventEndpoint;
+        this.eventToken = eventToken == null ? "" : eventToken;
     }
 
     @Override
@@ -66,7 +88,7 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
             }
         });
         preloadId = script.addPreloadScript(
-                BrowserEventScript.preloadFunction(testIdAttributes),
+                BrowserEventScript.preloadFunction(testIdAttributes, eventEndpoint, eventToken),
                 List.of(new ChannelValue(CHANNEL)));
 
         contexts = new BrowsingContextInspector(driver);
