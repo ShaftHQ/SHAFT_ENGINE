@@ -619,10 +619,14 @@ class ShaftPluginScreenshotRendererTest {
     }
 
     private static void verifySetupPanelLabelsAndBackground(JComponent setupPanel) {
-        // Verify labels are not cropped by checking their preferred vs actual size
+        // Verify labels are not cropped by checking their preferred vs actual size.
+        // Components that are hidden (e.g. runtimeStatus before verification, or the
+        // "ready" chat row before setup completes) are intentionally zero-sized and
+        // must not be treated as cropping regressions.
         final List<JLabel> labels = new ArrayList<>();
         walkComponentsForVerification(setupPanel, comp -> {
-            if (comp instanceof JLabel lbl && lbl.getText() != null && !lbl.getText().isEmpty()) {
+            if (comp instanceof JLabel lbl && lbl.getText() != null && !lbl.getText().isEmpty()
+                    && isEffectivelyVisible(lbl)) {
                 labels.add(lbl);
             }
         });
@@ -637,20 +641,76 @@ class ShaftPluginScreenshotRendererTest {
                     label.getSize().height + ", Preferred: " + label.getPreferredSize().height);
         }
 
-        // Verify child panels are non-opaque or have consistent step background
-        final List<JPanel> panels = new ArrayList<>();
-        walkComponentsForVerification(setupPanel, comp -> {
-            if (comp instanceof JPanel pnl && comp != setupPanel) {
-                panels.add(pnl);
-            }
-        });
+        // Verify every step row's nested child panels are either non-opaque (so the
+        // step's accent background shows through) or explicitly painted with that same
+        // step's background color. Each wizard step (chooseRow, copyRow, terminalRow,
+        // checkRow, chatRow) can carry a different accent color, so continuity must be
+        // checked per-step-row rather than against one global background.
+        final List<JPanel> stepRows = new ArrayList<>();
+        for (Component child : setupPanel.getComponents()) {
+            collectStepRows(child, stepRows);
+        }
 
-        for (JPanel panel : panels) {
-            if (panel.isOpaque() && panel.getBackground() != null) {
-                // Opaque panels should have consistent background (not mismatched colors)
-                assertTrue(panel.getBackground() != null, "Opaque panel should have a background color");
+        for (JPanel stepRow : stepRows) {
+            Color stepBackground = stepRow.getBackground();
+            final List<JPanel> nestedPanels = new ArrayList<>();
+            walkComponentsForVerification(stepRow, comp -> {
+                if (comp instanceof JPanel pnl && comp != stepRow) {
+                    nestedPanels.add(pnl);
+                }
+            });
+            for (JPanel nested : nestedPanels) {
+                boolean isNonOpaque = !nested.isOpaque();
+                boolean matchesStepBackground = stepBackground != null
+                        && stepBackground.equals(nested.getBackground());
+                assertTrue(isNonOpaque || matchesStepBackground,
+                        "Nested panel inside step row should be non-opaque or share the step's background color. "
+                        + "Opaque: " + nested.isOpaque()
+                        + ", panel background: " + nested.getBackground()
+                        + ", step background: " + stepBackground);
             }
         }
+    }
+
+    /** A component is effectively invisible for cropping purposes if it or any ancestor up to the
+     * setup panel has been explicitly hidden via {@link Component#setVisible(boolean)}. */
+    private static boolean isEffectivelyVisible(Component component) {
+        for (Component current = component; current != null; current = current.getParent()) {
+            if (!current.isVisible()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Recursively collects the top-level wizard-step row panels (as produced by
+     * {@code ShaftMcpSetupPanel#stepRow}) without descending into their own children,
+     * so each row's background is only compared against its own nested panels. */
+    private static void collectStepRows(Component component, List<JPanel> stepRows) {
+        if (component instanceof JPanel panel && isWizardStepRow(panel)) {
+            stepRows.add(panel);
+            return;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                collectStepRows(child, stepRows);
+            }
+        }
+    }
+
+    /** Wizard step rows are opaque JPanels whose direct children include a step label and a state
+     * label (see {@code ShaftMcpSetupPanel#stepRow}); plain layout containers are not opaque. */
+    private static boolean isWizardStepRow(JPanel panel) {
+        if (!panel.isOpaque()) {
+            return false;
+        }
+        int labelCount = 0;
+        for (Component child : panel.getComponents()) {
+            if (child instanceof JLabel) {
+                labelCount++;
+            }
+        }
+        return labelCount >= 2;
     }
 
     private static void walkComponentsForVerification(Component component, Consumer<Component> visitor) {
