@@ -208,8 +208,9 @@ function Install-ShaftMcp {
     if (-not [string]::IsNullOrWhiteSpace($Client)) {
         $installerArguments += @("--client", $Client)
     }
-    if (-not [string]::IsNullOrWhiteSpace($Version)) {
-        $installerArguments += @("--version", $Version)
+    $trimmedVersion = if ([string]::IsNullOrWhiteSpace($Version)) { "" } else { $Version.Trim() }
+    if (-not [string]::IsNullOrWhiteSpace($trimmedVersion)) {
+        $installerArguments += @("--version", $trimmedVersion)
     }
     $hasShaftSkillsDecision = $false
     foreach ($argument in $Arguments) {

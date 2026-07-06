@@ -169,7 +169,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("--client", choices=TARGETS)
-    parser.add_argument("--version", default=os.environ.get("SHAFT_MCP_VERSION", "LATEST"))
+    parser.add_argument("--version", nargs="?", const="LATEST", default=os.environ.get("SHAFT_MCP_VERSION") or "LATEST")
     parser.add_argument("--json", action="store_true", help="Print machine-readable install details to stdout.")
     parser.add_argument(
         "--install-shaft-skills",
@@ -444,6 +444,8 @@ def java_home_for(java: Path) -> Path:
 
 def resolve_shaft_mcp_version(requested_version: str | None, repository: str, root: Path) -> str:
     requested = (requested_version or "LATEST").strip()
+    if not requested or requested == "":
+        requested = "LATEST"
     if requested and requested != "LATEST":
         return requested
     log("Resolving io.github.shafthq:shaft-mcp:LATEST...")
