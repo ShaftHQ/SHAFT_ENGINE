@@ -33,7 +33,7 @@ class McpCaptureCodeBlockServiceTest {
                         driver.element().click(SHAFT.GUI.Locator.inputField("Username"));
                         driver.element().type(SHAFT.GUI.Locator.inputField("Username"), requiredData("username"));
                         // Recorded checkpoint checkpoint-1 (ASSERTION). Login verified
-                        driver.element().assertThat(SHAFT.GUI.Locator.clickableField("Sign In")).isVisible().perform();
+                        driver.element().assertThat(SHAFT.GUI.Locator.clickableField("Sign In")).isVisible();
                     }
                 }
                 """);

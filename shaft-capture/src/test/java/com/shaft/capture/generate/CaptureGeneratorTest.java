@@ -107,7 +107,7 @@ class CaptureGeneratorTest {
             assertTrue(recorder.contains("shaft-capture-readiness"));
             assertTrue(recorder.contains("readinessState"));
             assertTrue(recorder.contains("viewBox=\"0 0 24 24\""));
-            assertTrue(recorder.contains("aria-label=\"Toggle assertion mode\""));
+            assertTrue(recorder.contains("aria-label=\"Add assertion\""));
             assertTrue(recorder.contains("aria-label=\"Toggle locator picker\""));
             assertTrue(recorder.contains("kind: \"verification\""));
             assertTrue(recorder.contains("kind: \"step_reorder\""));
@@ -115,9 +115,14 @@ class CaptureGeneratorTest {
             assertTrue(recorder.contains("pendingSignals"));
             assertTrue(recorder.contains("pagehide"));
             assertTrue(recorder.contains("beforeunload"));
-            assertTrue(recorder.contains("Browser checkpoint"));
-            assertTrue(recorder.contains("Element checkpoint"));
+            assertTrue(recorder.contains("shaft-capture-assertion-panel"));
+            assertTrue(recorder.contains("ELEMENT_ASSERTIONS"));
+            assertTrue(recorder.contains("BROWSER_ASSERTIONS"));
+            assertTrue(recorder.contains("assertion-locator-step"));
+            assertTrue(recorder.contains("Manual locator (XPath or CSS)"));
             assertTrue(recorder.contains("shaft-capture-dialog"));
+            assertFalse(recorder.contains("shaft-capture-checkpoint"));
+            assertFalse(recorder.contains("aria-label=\"Add checkpoint\""));
             assertFalse(recorder.contains("prompt("));
         }
     }
@@ -407,10 +412,58 @@ class CaptureGeneratorTest {
 
         assertTrue(result.successful(), result.report().unsupportedEvents().toString());
         String source = Files.readString(result.sourcePath());
-        assertTrue(source.contains("driver.browser().assertThat().title().contains(requiredData(\"username\")).perform();"));
-        assertTrue(source.contains("driver.browser().assertThat().text().contains(requiredData(\"username\")).perform();"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesReferenceImage().perform();"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).doesNotMatchReferenceImage().perform();"));
+        assertTrue(source.contains("driver.browser().assertThat().title().contains(requiredData(\"username\"));"));
+        assertTrue(source.contains("driver.browser().assertThat().text().contains(requiredData(\"username\"));"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesReferenceImage();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).doesNotMatchReferenceImage();"));
+    }
+
+    @Test
+    void recordedElementAssertionWithChosenLocatorAndTestDataGeneratesMatchingValidationsCall() throws Exception {
+        ExternalTestDataReference expected = CaptureFixtures.ordinary();
+        ElementSnapshot target = CaptureFixtures.target();
+        EventContext context = new EventContext(
+                2,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.page(),
+                EventContext.ReplayStatus.NOT_REPLAYED,
+                List.of(),
+                Map.of("attributeName", JSON.getNodeFactory().textNode("autocomplete")));
+        CaptureSession attributeAssertionSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "attribute-assertion-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(5),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.VerificationEvent(context,
+                                CaptureEvent.VerificationKind.ATTRIBUTE_EQUALS, target, expected, false)),
+                List.of(),
+                List.of(expected),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(attributeAssertionSession);
+        writeCaptureData("alice");
+
+        // Round-trip the recorded session JSON exactly as CaptureGenerator would read it from disk.
+        CaptureSession recorded = new CaptureJsonCodec().read(session);
+        CaptureEvent.VerificationEvent recordedAssertion =
+                (CaptureEvent.VerificationEvent) recorded.events().get(1);
+        assertEquals(CaptureEvent.VerificationKind.ATTRIBUTE_EQUALS, recordedAssertion.verification());
+        assertEquals("username-input", recordedAssertion.target().logicalElementId());
+        assertEquals("data.username", recordedAssertion.expected().id());
+
+        CaptureGenerationResult result = new CaptureGenerator()
+                .generate(request(session, temp.resolve("attribute-assertion")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains(
+                "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).attribute(\"autocomplete\")"
+                        + ".isEqualTo(requiredData(\"username\")).perform();"));
     }
 
     @Test
@@ -711,7 +764,7 @@ class CaptureGeneratorTest {
         assertTrue(source.contains("public class EnrichedJourneyTest"));
         assertTrue(source.contains("public void completeCheckout()"));
         assertFalse(source.contains("private static final By USERNAME_FIELD"));
-        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).isVisible().perform();"));
+        assertTrue(source.contains("driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).isVisible();"));
         assertEquals(CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                 applied.report().compilation().status());
     }

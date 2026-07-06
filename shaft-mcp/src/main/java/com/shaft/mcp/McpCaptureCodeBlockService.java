@@ -287,8 +287,8 @@ final class McpCaptureCodeBlockService {
         String javaDriver = javaIdentifierOrDefault(driver, "driver");
         String code = """
                 // Add after the recorded navigation or submit action once the expected page state is known.
-                %s.browser().assertThat().url().contains("REPLACE_WITH_EXPECTED_PATH").perform();
-                %s.browser().assertThat().title().contains("REPLACE_WITH_EXPECTED_TITLE").perform();
+                %s.browser().assertThat().url().contains("REPLACE_WITH_EXPECTED_PATH");
+                %s.browser().assertThat().title().contains("REPLACE_WITH_EXPECTED_TITLE");
                 """.formatted(javaDriver, javaDriver).stripIndent();
         List<String> warnings = assertionWarnings(report);
         return new McpCodeBlock(

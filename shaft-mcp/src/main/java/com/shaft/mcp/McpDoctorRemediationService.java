@@ -434,7 +434,7 @@ final class McpDoctorRemediationService {
                 List.of("com.shaft.driver.SHAFT"),
                 """
                             var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
-                            %s.element().assertThat(target).isVisible().perform();
+                            %s.element().assertThat(target).isVisible();
                             %s.element().click(target);
                             """.formatted(driver, driver),
                     "Paste inside the Playwright test method before or at the failing interaction.",
@@ -450,8 +450,8 @@ final class McpDoctorRemediationService {
                 List.of("com.shaft.driver.SHAFT"),
                 """
                         var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
-                        %s.element().assertThat(target).isVisible().perform();
-                        %s.element().assertThat(target).isEnabled().perform();
+                        %s.element().assertThat(target).isVisible();
+                        %s.element().assertThat(target).isEnabled();
                         """.formatted(driver, driver),
                 "Paste inside the test method before interacting with the target element.",
                 ready,
@@ -468,7 +468,7 @@ final class McpDoctorRemediationService {
                 List.of("com.shaft.driver.SHAFT"),
                 """
                         var target = SHAFT.GUI.Locator.clickableField(TARGET_ELEMENT_TEXT);
-                        %s.element().assertThat(target).isVisible().perform();
+                        %s.element().assertThat(target).isVisible();
                         """.formatted(driver),
                 "Paste inside the test method near the failing step.",
                 ready,

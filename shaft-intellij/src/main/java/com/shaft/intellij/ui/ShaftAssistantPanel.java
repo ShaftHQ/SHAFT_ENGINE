@@ -65,6 +65,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * SHAFT Assistant chat-style panel.
@@ -88,6 +89,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JComboBox<String> assistantRuntime;
     private final JComboBox<String> cloudProvider;
     private final JBTextField cloudModel;
+    private final JComboBox<String> localModel;
     private final JBTextField customCommand;
     private final JPanel cloudKeyPanel;
     private final JPasswordField cloudApiKey;
@@ -95,6 +97,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JLabel cloudKeyStatus;
     private final JBCheckBox allowSourceMutation;
     private final JBCheckBox verboseAgentOutput;
+    private final JBCheckBox autoCompact;
     private final JBTextArea prompt;
     private final AssistantTranscriptView transcript;
     private final JButton send;
@@ -149,6 +152,8 @@ final class ShaftAssistantPanel extends JPanel {
     private ShaftMcpHeartbeat heartbeat;
     private JButton reconnect;
     private int contextTruncationBoundaryIndex = -1;
+    private String modelListFamily = "";
+    private boolean modelListRefreshing;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -289,6 +294,14 @@ final class ShaftAssistantPanel extends JPanel {
         cloudModel.getAccessibleContext().setAccessibleName("Assistant cloud model");
         cloudModel.setToolTipText("Optional provider model override");
         cloudModel.setText(settings.cloudModel == null ? "" : settings.cloudModel);
+        localModel = new JComboBox<>();
+        localModel.setEditable(true);
+        localModel.getAccessibleContext().setAccessibleName("Assistant local agent model");
+        localModel.setToolTipText("Model reported by the connected agent CLI");
+        if (localModel.getEditor().getEditorComponent() instanceof JTextComponent localModelEditor) {
+            localModelEditor.getAccessibleContext().setAccessibleName("Assistant local agent model text");
+            localModelEditor.setToolTipText("Model reported by the connected agent CLI");
+        }
         customCommand = new JBTextField();
         customCommand.setColumns(18);
         customCommand.getEmptyText().setText("Optional local agent command");
@@ -313,6 +326,11 @@ final class ShaftAssistantPanel extends JPanel {
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
         verboseAgentOutput.setToolTipText("Show live local agent output instead of only the final result");
+        autoCompact = new JBCheckBox("Auto-compact");
+        autoCompact.getAccessibleContext().setAccessibleName("Compact agent context before each request");
+        autoCompact.setToolTipText("Send the agent CLI's compact/compress command before each new prompt, when supported");
+        autoCompact.setSelected(settings.autoCompactEnabled);
+        autoCompact.addActionListener(event -> settings.autoCompactEnabled = autoCompact.isSelected());
         prompt = new JBTextArea(6, 40);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
@@ -414,6 +432,7 @@ final class ShaftAssistantPanel extends JPanel {
 
         mode.addActionListener(event -> updateControlVisibility());
         providerType.addActionListener(event -> updateControlVisibility());
+        assistantFamily.addActionListener(event -> updateControlVisibility());
         assistantRuntime.addActionListener(event -> updateControlVisibility());
         cloudProvider.addActionListener(event -> updateControlVisibility());
         bindKeyboard(project);
@@ -466,8 +485,10 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(customCommand);
         routeRow.add(cloudProvider);
         routeRow.add(cloudModel);
+        routeRow.add(localModel);
         routeRow.add(allowSourceMutation);
         routeRow.add(verboseAgentOutput);
+        routeRow.add(autoCompact);
 
         JPanel commandActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         commandActions.add(commandAutocomplete);
@@ -815,8 +836,11 @@ final class ShaftAssistantPanel extends JPanel {
             addTimeline("Running");
             setRunning(true, "Thinking...");
             appendStreamingLocalAgentBubble(streamToken);
-            currentInvocation = AssistantLocalAgentRunner.start(invocation, output -> ApplicationManager.getApplication().invokeLater(
-                    () -> appendLocalAgentOutput(streamToken, output)));
+            currentInvocation = AssistantLocalAgentRunner.startWithOptionalCompact(
+                    invocation,
+                    autoCompact.isSelected(),
+                    output -> ApplicationManager.getApplication().invokeLater(
+                            () -> appendLocalAgentOutput(streamToken, output)));
             currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                     () -> showAgentResult(streamToken, result, error)));
             return;
@@ -1268,6 +1292,11 @@ final class ShaftAssistantPanel extends JPanel {
                 || markdown.toLowerCase(Locale.ROOT).contains("tokens consumed:")) {
             return markdown;
         }
+        AssistantLocalAgentRunner.TokenUsage reported = AssistantLocalAgentRunner.parseTokenUsage(rawResponse);
+        if (reported != null) {
+            return markdown + "\n\n**Tokens consumed:** `" + reported.totalTokens() + "` (input: "
+                    + reported.inputTokens() + ", output: " + reported.outputTokens() + ")";
+        }
         int tokens = estimatedTokenCount(lastPrompt) + estimatedTokenCount(rawResponse == null || rawResponse.isBlank()
                 ? markdown
                 : rawResponse);
@@ -1309,10 +1338,12 @@ final class ShaftAssistantPanel extends JPanel {
         assistantRuntime.setEnabled(!running);
         cloudProvider.setEnabled(!running);
         cloudModel.setEnabled(!running);
+        localModel.setEnabled(!running);
         customCommand.setEnabled(!running);
         commandAutocomplete.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
         verboseAgentOutput.setEnabled(!running);
+        autoCompact.setEnabled(!running);
         saveCloudApiKey.setEnabled(!running);
         approveCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         copyCaptureReview.setEnabled(!running && pendingCaptureReview != null);
@@ -1442,6 +1473,10 @@ final class ShaftAssistantPanel extends JPanel {
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
         verboseAgentOutput.setVisible(localAgent && localCli);
         verboseAgentOutput.setEnabled(controlsEnabled && localAgent && localCli);
+        localModel.setVisible(advanced && !lockedRoute && localCli);
+        localModel.setEnabled(controlsEnabled && advanced && !lockedRoute && localCli);
+        autoCompact.setVisible(localAgent && localCli);
+        autoCompact.setEnabled(controlsEnabled && localAgent && localCli);
         configure.setVisible(lockedRoute);
         configure.setEnabled(controlsEnabled && lockedRoute);
         if (!agentMode || !localAgent) {
@@ -1450,10 +1485,51 @@ final class ShaftAssistantPanel extends JPanel {
         if (!localAgent || !localCli) {
             verboseAgentOutput.setSelected(false);
         }
+        if (localCli) {
+            refreshLocalModelsIfNeeded();
+        }
         if (cloud) {
             updateCloudKeyStatus();
         }
         updateActionChrome();
+    }
+
+    private void refreshLocalModelsIfNeeded() {
+        String family = String.valueOf(assistantFamily.getSelectedItem());
+        if (modelListRefreshing || family.equals(modelListFamily)) {
+            return;
+        }
+        modelListRefreshing = true;
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("client", AssistantCommand.Selection.local(family, "CLI").client());
+        CompletableFuture.supplyAsync(() -> AssistantLocalAgentRunner.listModels(arguments))
+                .whenComplete((models, error) -> runOnEdt(
+                        () -> applyLocalModels(family, error == null ? models : List.of())));
+    }
+
+    private void applyLocalModels(String family, List<String> models) {
+        modelListRefreshing = false;
+        modelListFamily = family;
+        String previousSelection = localModel.getEditor() == null
+                ? null
+                : String.valueOf(localModel.getEditor().getItem());
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(models.toArray(new String[0]));
+        localModel.setModel(model);
+        if (previousSelection != null && !previousSelection.isBlank()) {
+            localModel.setSelectedItem(previousSelection);
+        } else if (!models.isEmpty()) {
+            localModel.setSelectedItem(models.get(0));
+        }
+    }
+
+    private static void runOnEdt(Runnable action) {
+        if (ApplicationManager.getApplication() != null) {
+            ApplicationManager.getApplication().invokeLater(action);
+        } else if (SwingUtilities.isEventDispatchThread()) {
+            action.run();
+        } else {
+            SwingUtilities.invokeLater(action);
+        }
     }
 
     private void updateActionChrome() {
