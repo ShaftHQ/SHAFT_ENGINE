@@ -485,6 +485,9 @@ public final class CaptureGenerator {
         } else if (event instanceof CaptureEvent.NavigationEvent value
                 && value.targetUrl().contains("[data:")) {
             required.add(id + ": replace sanitized URL data placeholders before replay.");
+        } else if (event instanceof CaptureEvent.NetworkEvent) {
+            // P2: NetworkEvent requires ApiCaptureGenerator; UI-only codegen skips network capture
+            unsupported.add(id + ": network capture requires ApiCaptureGenerator (P2 feature).");
         }
     }
 
@@ -2157,6 +2160,10 @@ public final class CaptureGenerator {
         if (event instanceof CaptureEvent.VerificationEvent value) {
             return Optional.ofNullable(value.target());
         }
+        // P2: NetworkEvent requires ApiCaptureGenerator; UI-only codegen skips network capture
+        if (event instanceof CaptureEvent.NetworkEvent) {
+            return Optional.empty();
+        }
         return Optional.empty();
     }
 
@@ -2175,6 +2182,10 @@ public final class CaptureGenerator {
         } else if (event instanceof CaptureEvent.VerificationEvent value && value.expected() != null) {
             references.add(value.expected());
         }
+        // P2: NetworkEvent requires ApiCaptureGenerator; UI-only codegen skips network capture
+        // } else if (event instanceof CaptureEvent.NetworkEvent value && value.request().body() != null) {
+        //     // Network request/response bodies handled in P2 ApiCaptureGenerator
+        // }
         return references;
     }
 
