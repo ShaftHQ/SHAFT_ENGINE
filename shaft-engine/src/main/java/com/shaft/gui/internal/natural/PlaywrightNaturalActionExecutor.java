@@ -89,7 +89,9 @@ public final class PlaywrightNaturalActionExecutor {
                 plan.intent(),
                 plan.steps(),
                 aggregateTrust,
-                plan.explanation());
+                plan.explanation(),
+                plan.matchConfidence(),
+                plan.resolutionPath());
     }
 
     private static double locatorTrust(Page page, By locator) {

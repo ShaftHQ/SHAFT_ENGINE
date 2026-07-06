@@ -178,7 +178,7 @@ public class DeterministicNaturalActionPlanner implements NaturalActionPlanner {
             List<NaturalActionStep> steps,
             double trust,
             String explanation) {
-        return new NaturalActionPlan(id(), request.intent(), steps, trust, explanation);
+        return NaturalActionPlan.of(id(), request.intent(), steps, trust, explanation);
     }
 
     private static String extractFieldLabel(String intent) {

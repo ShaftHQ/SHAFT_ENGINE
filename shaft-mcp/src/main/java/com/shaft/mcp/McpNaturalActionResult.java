@@ -9,6 +9,7 @@ package com.shaft.mcp;
  * @param planner effective planner identifier
  * @param aiFallbackEnabled whether optional provider fallback was enabled for this call
  * @param allowedActions effective allowed action target categories
+ * @param resolutionPath planner resolution path: deterministic or ai-fallback
  */
 public record McpNaturalActionResult(
         int intentLength,
@@ -16,7 +17,8 @@ public record McpNaturalActionResult(
         int minimumTrustPercentage,
         String planner,
         boolean aiFallbackEnabled,
-        String allowedActions) {
+        String allowedActions,
+        String resolutionPath) {
     /**
      * Creates a bounded immutable natural-action result.
      */
@@ -26,5 +28,6 @@ public record McpNaturalActionResult(
         minimumTrustPercentage = Math.max(0, Math.min(100, minimumTrustPercentage));
         planner = planner == null ? "" : planner.trim();
         allowedActions = allowedActions == null ? "" : allowedActions.trim();
+        resolutionPath = resolutionPath == null ? "" : resolutionPath.trim();
     }
 }

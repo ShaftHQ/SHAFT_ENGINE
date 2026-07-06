@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.natural.NaturalActionExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
@@ -48,20 +49,23 @@ public class NaturalActionService {
         try {
             effective.applyEnabled();
             driver.act(intent, safeArguments.toArray(Object[]::new));
+            String resolutionPath = NaturalActionExecutor.getLastResolutionPath();
             logger.info(
-                    "Natural action completed (intent length: {}, argument count: {}, threshold: {}, planner: {}, aiFallback: {})",
+                    "Natural action completed (intent length: {}, argument count: {}, threshold: {}, planner: {}, aiFallback: {}, resolution: {})",
                     safeLength(intent),
                     safeArguments.size(),
                     effective.minimumTrustPercentage(),
                     effective.planner(),
-                    effective.aiFallbackEnabled());
+                    effective.aiFallbackEnabled(),
+                    resolutionPath);
             return new McpNaturalActionResult(
                     safeLength(intent),
                     safeArguments.size(),
                     effective.minimumTrustPercentage(),
                     effective.planner(),
                     effective.aiFallbackEnabled(),
-                    effective.allowedActions());
+                    effective.allowedActions(),
+                    resolutionPath);
         } catch (Exception exception) {
             logger.error(
                     "Natural action failed (intent length: {}, argument count: {}, threshold: {}, planner: {}, aiFallback: {})",
@@ -73,6 +77,7 @@ public class NaturalActionService {
                     exception);
             throw exception;
         } finally {
+            NaturalActionExecutor.clearLastResolutionPath();
             previous.apply();
         }
     }

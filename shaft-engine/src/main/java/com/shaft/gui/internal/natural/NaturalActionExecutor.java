@@ -28,9 +28,25 @@ public final class NaturalActionExecutor {
     private static final Pattern SECRET_ASSIGNMENT = Pattern.compile(
             "(?i)(password|passwd|secret|token|api[-_]?key|authorization|cookie)\\s*[:=]\\s*[^\\s,;]+");
     private static final Pattern LONG_TOKEN = Pattern.compile("\\b[a-zA-Z0-9_-]{32,}\\b");
+    private static final ThreadLocal<String> lastResolutionPath = new ThreadLocal<>();
 
     private NaturalActionExecutor() {
         throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Returns the resolution path of the last executed plan.
+     * Public for MCP integration.
+     *
+     * @return resolution path or empty string if not set
+     */
+    public static String getLastResolutionPath() {
+        String path = lastResolutionPath.get();
+        return path == null ? "" : path;
+    }
+
+    public static void clearLastResolutionPath() {
+        lastResolutionPath.remove();
     }
 
     /**
@@ -53,6 +69,8 @@ public final class NaturalActionExecutor {
                 DriverFactoryHelper.isMobileWebExecution());
         NaturalActionPlan planned = NaturalActionPlannerRegistry.plan(request);
         NaturalActionPlan validated = validate(driver, planned, allowedTargets());
+        String resolutionPath = validated.resolutionPath() != null ? validated.resolutionPath() : "";
+        lastResolutionPath.set(resolutionPath);
         double threshold = threshold();
         if (validated.steps().isEmpty() || validated.trust() < threshold) {
             String message = "Natural action was not executed because trust "
@@ -91,7 +109,9 @@ public final class NaturalActionExecutor {
                 plan.intent(),
                 plan.steps(),
                 aggregateTrust,
-                plan.explanation());
+                plan.explanation(),
+                plan.matchConfidence(),
+                plan.resolutionPath());
     }
 
     private static double locatorTrust(WebDriver driver, By locator) {

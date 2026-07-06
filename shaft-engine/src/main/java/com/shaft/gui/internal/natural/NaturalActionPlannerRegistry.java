@@ -12,36 +12,61 @@ import java.util.ServiceLoader;
 final class NaturalActionPlannerRegistry {
     private static final NaturalActionPlanner DETERMINISTIC = new DeterministicNaturalActionPlanner();
     private static volatile List<NaturalActionPlanner> cachedPlanners;
+    private static volatile List<NaturalActionPlanner> testPlanners;
 
     private NaturalActionPlannerRegistry() {
         throw new IllegalStateException("Utility class");
     }
 
+    static void setPlannersForTesting(List<NaturalActionPlanner> planners) {
+        testPlanners = planners;
+    }
+
+    static void resetPlanners() {
+        testPlanners = null;
+        cachedPlanners = null;
+    }
+
     static NaturalActionPlan plan(NaturalActionRequest request) {
         String configuredPlanner = normalize(SHAFT.Properties.naturalActions.planner());
         if (configuredPlanner.isBlank() || "deterministic".equals(configuredPlanner)) {
-            return DETERMINISTIC.plan(request);
+            NaturalActionPlan result = DETERMINISTIC.plan(request);
+            return tagResolutionPath(result, "deterministic");
         }
 
         List<NaturalActionPlanner> planners = planners();
         if ("auto".equals(configuredPlanner)) {
             NaturalActionPlan deterministic = DETERMINISTIC.plan(request);
-            if (!deterministic.steps().isEmpty() || !SHAFT.Properties.naturalActions.aiFallbackEnabled()) {
+            Double matchConfidence = deterministic.matchConfidence() != null
+                    ? deterministic.matchConfidence()
+                    : (deterministic.steps().isEmpty() ? 0.0 : deterministic.trust());
+            deterministic = tagResolutionPath(deterministic, "deterministic", matchConfidence);
+
+            double threshold = SHAFT.Properties.naturalActions.aiFallbackThreshold();
+            boolean shouldTryAiFallback = (deterministic.steps().isEmpty() || matchConfidence < threshold)
+                    && SHAFT.Properties.naturalActions.aiFallbackEnabled();
+
+            if (!shouldTryAiFallback) {
                 return deterministic;
             }
+
             return planners.stream()
                     .filter(planner -> !"deterministic".equals(planner.id()))
                     .filter(planner -> planner.supports(request))
                     .map(planner -> safePlan(planner, request))
                     .filter(plan -> !plan.steps().isEmpty())
                     .findFirst()
+                    .map(plan -> tagResolutionPath(plan, "ai-fallback"))
                     .orElse(deterministic);
         }
 
         return planners.stream()
                 .filter(planner -> configuredPlanner.equals(normalize(planner.id())))
                 .findFirst()
-                .map(planner -> safePlan(planner, request))
+                .map(planner -> {
+                    NaturalActionPlan plan = safePlan(planner, request);
+                    return tagResolutionPath(plan, planner.id());
+                })
                 .orElseGet(() -> {
                     ReportManager.logDiscrete("Natural action planner \"" + configuredPlanner
                             + "\" was requested but no matching provider was found.");
@@ -50,6 +75,39 @@ final class NaturalActionPlannerRegistry {
                             request.intent(),
                             "Requested natural-action planner is unavailable.");
                 });
+    }
+
+    private static NaturalActionPlan tagResolutionPath(
+            NaturalActionPlan plan,
+            String resolutionPath) {
+        if (plan.resolutionPath() != null && !plan.resolutionPath().isEmpty()) {
+            return plan;
+        }
+        Double confidence = plan.matchConfidence() != null
+                ? plan.matchConfidence()
+                : (plan.steps().isEmpty() ? null : plan.trust());
+        return NaturalActionPlan.of(
+                plan.plannerId(),
+                plan.intent(),
+                plan.steps(),
+                plan.trust(),
+                plan.explanation(),
+                confidence,
+                resolutionPath);
+    }
+
+    private static NaturalActionPlan tagResolutionPath(
+            NaturalActionPlan plan,
+            String resolutionPath,
+            Double confidence) {
+        return NaturalActionPlan.of(
+                plan.plannerId(),
+                plan.intent(),
+                plan.steps(),
+                plan.trust(),
+                plan.explanation(),
+                confidence,
+                resolutionPath);
     }
 
     private static NaturalActionPlan safePlan(NaturalActionPlanner planner, NaturalActionRequest request) {
@@ -74,6 +132,9 @@ final class NaturalActionPlannerRegistry {
     }
 
     private static List<NaturalActionPlanner> planners() {
+        if (testPlanners != null) {
+            return testPlanners;
+        }
         List<NaturalActionPlanner> planners = cachedPlanners;
         if (planners == null) {
             synchronized (NaturalActionPlannerRegistry.class) {
