@@ -12,23 +12,56 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * MCP planning tools for a repository-aware SHAFT IntelliJ coding partner.
  */
 @Service
 public class CodingPartnerService {
-    private final McpWorkspacePolicy workspacePolicy;
+    private final Supplier<McpWorkspacePolicy> workspacePolicySupplier;
 
     /**
      * Creates the default coding partner service.
+     *
+     * <p>Resolution of the effective MCP workspace root (which may probe or create local directories) is
+     * deferred until a tool method actually runs, so bean construction never performs filesystem access.</p>
      */
     public CodingPartnerService() {
-        this(McpWorkspacePolicy.current());
+        this(memoize(McpWorkspacePolicy::current));
     }
 
     CodingPartnerService(McpWorkspacePolicy workspacePolicy) {
-        this.workspacePolicy = workspacePolicy;
+        this(() -> workspacePolicy);
+    }
+
+    private CodingPartnerService(Supplier<McpWorkspacePolicy> workspacePolicySupplier) {
+        this.workspacePolicySupplier = workspacePolicySupplier;
+    }
+
+    private McpWorkspacePolicy workspacePolicy() {
+        return workspacePolicySupplier.get();
+    }
+
+    private static Supplier<McpWorkspacePolicy> memoize(Supplier<McpWorkspacePolicy> supplier) {
+        return new Supplier<>() {
+            private volatile McpWorkspacePolicy resolved;
+
+            @Override
+            public McpWorkspacePolicy get() {
+                McpWorkspacePolicy value = resolved;
+                if (value == null) {
+                    synchronized (this) {
+                        value = resolved;
+                        if (value == null) {
+                            value = supplier.get();
+                            resolved = value;
+                        }
+                    }
+                }
+                return value;
+            }
+        };
     }
 
     /**
@@ -54,7 +87,7 @@ public class CodingPartnerService {
             String selectedText,
             List<String> artifactPaths,
             int maxResults) {
-        Path repository = workspacePolicy.existing(repositoryPath, "Coding partner repository");
+        Path repository = workspacePolicy().existing(repositoryPath, "Coding partner repository");
         String normalizedBackend = backend(backend, selectedText);
         List<McpJavaTargetScanner.Candidate> reuseMatches =
                 new McpJavaTargetScanner().scan(repository, maxResults);
@@ -114,7 +147,7 @@ public class CodingPartnerService {
             String targetSourcePath,
             List<String> codeBlocks,
             String insertionAnchor) {
-        Path repository = workspacePolicy.existing(repositoryPath, "Coding partner repository");
+        Path repository = workspacePolicy().existing(repositoryPath, "Coding partner repository");
         String relativeTarget = normalizeCurrentSource(repository, targetSourcePath);
         if (relativeTarget.isBlank()) {
             throw new IllegalArgumentException("Coding partner diff requires a target source path.");
@@ -183,7 +216,7 @@ public class CodingPartnerService {
         Path raw = Path.of(value);
         Path candidate = raw.isAbsolute() ? raw : repository.resolve(raw);
         Path normalized = candidate.toAbsolutePath().normalize();
-        if (!normalized.startsWith(workspacePolicy.root()) || !normalized.startsWith(repository)) {
+        if (!normalized.startsWith(workspacePolicy().root()) || !normalized.startsWith(repository)) {
             throw new IllegalArgumentException(label + " is outside the MCP repository.");
         }
         return normalized;
