@@ -1,1 +1,2 @@
 scripts/mcp/*.sh text eol=lf
+.claude/workflows/*.js text eol=lf

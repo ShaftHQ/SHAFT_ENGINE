@@ -211,23 +211,26 @@ async function ownTask(task) {
   return { task: task.id, escalated: true, escalation, runLog };
 }
 
-export default async function run({ issue }) {
-  const plan = await withFallback("plan", PLAN_CHAIN, planPrompt(issue), {
-    effort: "high",
-    schema: PLAN_SCHEMA,
-  });
+// Workflow scripts run as top-level async code against the `args`
+// global, not as an exported function -- an `export default` here is a
+// syntax error under the runtime's non-module script evaluation.
+const { issue } = args;
 
-  // Single-task plans skip the orchestrator: routing one task is pure
-  // overhead.
-  const tasks =
-    plan.tasks.length > 1
-      ? (
-          await withFallback("orchestrate", ORCH_CHAIN, orchestratePrompt(plan), {
-            schema: TASKS_SCHEMA,
-          })
-        ).tasks
-      : plan.tasks;
+const plan = await withFallback("plan", PLAN_CHAIN, planPrompt(issue), {
+  effort: "high",
+  schema: PLAN_SCHEMA,
+});
 
-  const results = await pipeline(tasks, ownTask);
-  return { plan: plan.summary, results, runLog };
-}
+// Single-task plans skip the orchestrator: routing one task is pure
+// overhead.
+const tasks =
+  plan.tasks.length > 1
+    ? (
+        await withFallback("orchestrate", ORCH_CHAIN, orchestratePrompt(plan), {
+          schema: TASKS_SCHEMA,
+        })
+      ).tasks
+    : plan.tasks;
+
+const results = await pipeline(tasks, ownTask);
+return { plan: plan.summary, results, runLog };
