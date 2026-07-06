@@ -677,45 +677,43 @@ class ShaftPanelSetupTest {
 
         // Find the step row with agent controls (contains "Assistant family" label)
         JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
-        JLabel assistantFamilyLabel = null;
-        JComboBox<?> familyCombo = null;
+        AtomicReference<JLabel> assistantFamilyLabel = new AtomicReference<>();
+        AtomicReference<JComboBox<?>> familyCombo = new AtomicReference<>();
+        List<JPanel> childPanels = new ArrayList<>();
 
         // Walk the component tree to find labels and verify they render at full size
-        List<JLabel> foundLabels = new ArrayList<>();
-        List<JComponent> stepRowChildren = new ArrayList<>();
         walkComponents(chooseRow, comp -> {
             if (comp instanceof JLabel lbl && "Assistant family".equals(lbl.getText())) {
-                assistantFamilyLabel = lbl;
-                foundLabels.add(lbl);
+                assistantFamilyLabel.set(lbl);
             }
             if (comp instanceof JComboBox<?> cmb &&
                 "Assistant family".equals(cmb.getAccessibleContext().getAccessibleName())) {
-                familyCombo = cmb;
+                familyCombo.set(cmb);
             }
-            stepRowChildren.add((JComponent) comp);
+            if (comp instanceof JPanel pnl && comp != chooseRow) {
+                childPanels.add(pnl);
+            }
         });
 
         // Verify labels render without clipping
         assertAll(
-                () -> assertNotNull(assistantFamilyLabel, "Should find 'Assistant family' label"),
-                () -> assertNotNull(familyCombo, "Should find family combobox"),
-                () -> assertTrue(assistantFamilyLabel.getSize().width >= assistantFamilyLabel.getPreferredSize().width,
-                        "Assistant family label width " + assistantFamilyLabel.getSize().width +
-                        " should not be less than preferred " + assistantFamilyLabel.getPreferredSize().width),
-                () -> assertTrue(assistantFamilyLabel.getSize().height >= assistantFamilyLabel.getPreferredSize().height,
+                () -> assertNotNull(assistantFamilyLabel.get(), "Should find 'Assistant family' label"),
+                () -> assertNotNull(familyCombo.get(), "Should find family combobox"),
+                () -> assertTrue(assistantFamilyLabel.get().getSize().width >= assistantFamilyLabel.get().getPreferredSize().width,
+                        "Assistant family label width " + assistantFamilyLabel.get().getSize().width +
+                        " should not be less than preferred " + assistantFamilyLabel.get().getPreferredSize().width),
+                () -> assertTrue(assistantFamilyLabel.get().getSize().height >= assistantFamilyLabel.get().getPreferredSize().height,
                         "Assistant family label height should not be less than preferred"));
 
         // Verify step row child panels are non-opaque or painted with step background
         Color stepBackground = chooseRow.getBackground();
-        for (JComponent child : stepRowChildren) {
-            if (child instanceof JPanel && child != chooseRow) {
-                boolean isNonOpaque = !child.isOpaque();
-                boolean hasStepBackground = child.getBackground() != null &&
-                    child.getBackground().equals(stepBackground);
-                assertTrue(isNonOpaque || hasStepBackground,
-                        "Child panel should be non-opaque or have step background color. " +
-                        "Opaque: " + child.isOpaque() + ", Background matches step: " + hasStepBackground);
-            }
+        for (JPanel child : childPanels) {
+            boolean isNonOpaque = !child.isOpaque();
+            boolean hasStepBackground = child.getBackground() != null &&
+                child.getBackground().equals(stepBackground);
+            assertTrue(isNonOpaque || hasStepBackground,
+                    "Child panel should be non-opaque or have step background color. " +
+                    "Opaque: " + child.isOpaque() + ", Background matches step: " + hasStepBackground);
         }
     }
 

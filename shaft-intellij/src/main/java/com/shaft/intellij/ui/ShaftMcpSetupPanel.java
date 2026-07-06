@@ -293,6 +293,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         agentControls.add(labeledControl("Runtime", runtime));
         agentControls.add(recommendedAgent);
         JPanel checkActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        checkActions.setOpaque(false);
         checkActions.add(test);
         checkActions.add(progress);
         checkActions.add(assistStatus);
@@ -928,7 +929,6 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private static JLabel setupStatusLabel(String accessibleName) {
         JLabel label = new JLabel();
-        label.setPreferredSize(JBUI.size(180, 22));
         label.getAccessibleContext().setAccessibleName(accessibleName);
         return label;
     }
