@@ -4,6 +4,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.shaft.cli.SshConnectionOptions;
+import com.shaft.cli.SshShellOptions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import org.apache.commons.lang3.SystemUtils;
@@ -785,5 +786,31 @@ public class TerminalActionsUnitTest {
         String log = terminal.performTerminalCommand("echo legacy-string-api");
         Assert.assertTrue(log.contains("legacy-string-api"),
                 "Existing String API should still return command output for assertions");
+    }
+
+    @Test(description = "openShell should fail for local terminals")
+    public void openShellShouldFailForLocalTerminal() {
+        TerminalActions terminal = new TerminalActions();
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.openShell(SshShellOptions.builder().build()));
+        Assert.assertTrue(failure.getMessage().contains("remote SSH terminals"));
+    }
+
+    @Test(description = "openShell should fail for ephemeral remote terminals")
+    public void openShellShouldFailForEphemeralRemoteTerminal() {
+        TerminalActions terminal = new TerminalActions("host.example.com", 22, "user", "/keys/", "id_rsa");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.openShell(SshShellOptions.builder().build()));
+        Assert.assertTrue(failure.getMessage().contains("SHAFT.CLI.remoteTerminal"));
+    }
+
+    @Test(description = "openShell should fail for dockerized remote terminals")
+    @SuppressWarnings("deprecation")
+    public void openShellShouldFailForDockerizedRemoteTerminal() {
+        TerminalActions terminal = new TerminalActions(
+                "host.example.com", 22, "user", "/keys/", "id_rsa", "appContainer", "appUser");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.openShell(SshShellOptions.builder().build()));
+        Assert.assertTrue(failure.getMessage().contains("dockerized remote terminals"));
     }
 }
