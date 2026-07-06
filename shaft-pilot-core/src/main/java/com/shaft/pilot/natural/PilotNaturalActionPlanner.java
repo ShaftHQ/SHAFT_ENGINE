@@ -111,7 +111,7 @@ public class PilotNaturalActionPlanner implements NaturalActionPlanner {
             double trust = node.path("trust").asDouble(0);
             steps.add(new NaturalActionStep(kind, locator, data, trust, "Provider-planned " + kind.name() + "."));
         }
-        return new NaturalActionPlan(
+        return NaturalActionPlan.of(
                 id(),
                 request.intent(),
                 steps,

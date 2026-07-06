@@ -50,7 +50,7 @@ class McpResultRecordsTest {
 
     @Test
     void browserAndNaturalResultsKeepBoundedValues() {
-        McpNaturalActionResult natural = new McpNaturalActionResult(-1, -2, 120, " pilot ", false, " web ");
+        McpNaturalActionResult natural = new McpNaturalActionResult(-1, -2, 120, " pilot ", false, " web ", "ai-fallback");
         McpPageDomSnapshot dom = new McpPageDomSnapshot("url", "title", "<html/>", 7, false, List.of());
         McpScreenshotResult screenshot = new McpScreenshotResult("image/png", 4, "abcd", "out.png", List.of());
 

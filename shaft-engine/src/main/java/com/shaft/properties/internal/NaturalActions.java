@@ -40,6 +40,11 @@ public interface NaturalActions extends EngineProperties<NaturalActions> {
     @DefaultValue("false")
     boolean aiFallbackEnabled();
 
+    /** @return confidence threshold 0..1 below which AI fallback is triggered */
+    @Key("naturalActions.aiFallback.threshold")
+    @DefaultValue("0")
+    double aiFallbackThreshold();
+
     /** @return comma-separated action target categories allowed for execution */
     @Key("naturalActions.allowedActions")
     @DefaultValue("browser,element,touch")
@@ -79,6 +84,12 @@ public interface NaturalActions extends EngineProperties<NaturalActions> {
         /** @param value AI fallback enabled state @return this builder */
         public SetProperty aiFallbackEnabled(boolean value) {
             setProperty("naturalActions.aiFallback.enabled", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value confidence threshold 0..1 @return this builder */
+        public SetProperty aiFallbackThreshold(double value) {
+            setProperty("naturalActions.aiFallback.threshold", String.valueOf(Math.max(0, Math.min(1, value))));
             return this;
         }
 
