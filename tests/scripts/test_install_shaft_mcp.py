@@ -243,6 +243,54 @@ class InstallShaftMcpTest(unittest.TestCase):
                 )
             )
 
+    def test_parse_version_normalizes_empty_string_to_latest(self):
+        # Test explicit empty string argument
+        args = MODULE.parse_args(["--codex", "--version", ""])
+        self.assertEqual("LATEST", args.version)
+
+    def test_parse_version_normalizes_whitespace_to_latest(self):
+        # Test whitespace-only version argument
+        args = MODULE.parse_args(["--codex", "--version", "   "])
+        self.assertEqual("LATEST", args.version)
+
+    def test_parse_version_unset_defaults_to_latest(self):
+        # Test unset version with no environment variable
+        with temporary_environment(SHAFT_MCP_VERSION=""):
+            args = MODULE.parse_args(["--codex"])
+        self.assertEqual("LATEST", args.version)
+
+    def test_parse_version_env_variable_unset_defaults_to_latest(self):
+        # Test completely unset environment variable
+        original = os.environ.pop("SHAFT_MCP_VERSION", None)
+        try:
+            args = MODULE.parse_args(["--codex"])
+            self.assertEqual("LATEST", args.version)
+        finally:
+            if original is not None:
+                os.environ["SHAFT_MCP_VERSION"] = original
+
+    def test_parse_version_bare_flag_defaults_to_latest(self):
+        # Test bare --version flag without argument (using nargs='?')
+        args = MODULE.parse_args(["--codex", "--version"])
+        self.assertEqual("LATEST", args.version)
+
+    def test_parse_version_preserves_explicit_version(self):
+        # Test that explicit version strings are preserved
+        args = MODULE.parse_args(["--codex", "--version", "1.2.3"])
+        self.assertEqual("1.2.3", args.version)
+
+    def test_parse_version_from_environment_variable(self):
+        # Test that environment variable is read and trimmed
+        with temporary_environment(SHAFT_MCP_VERSION="0.5.0"):
+            args = MODULE.parse_args(["--codex"])
+        self.assertEqual("0.5.0", args.version)
+
+    def test_parse_version_env_variable_with_whitespace(self):
+        # Test that environment variable with surrounding whitespace is trimmed
+        with temporary_environment(SHAFT_MCP_VERSION="  0.5.0  "):
+            args = MODULE.parse_args(["--codex"])
+        self.assertEqual("0.5.0", args.version)
+
 
 if __name__ == "__main__":
     unittest.main()

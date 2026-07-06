@@ -1,6 +1,6 @@
 param(
     [string] $Client,
-    [string] $Version = $env:SHAFT_MCP_VERSION,
+    [string] $Version = $(if ([string]::IsNullOrWhiteSpace($env:SHAFT_MCP_VERSION)) { "" } else { $env:SHAFT_MCP_VERSION.Trim() }),
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $RemainingArguments = @()
 )
@@ -9,7 +9,7 @@ function Install-ShaftMcp {
     [CmdletBinding()]
     param(
         [string] $Client,
-        [string] $Version = $env:SHAFT_MCP_VERSION,
+        [string] $Version = $(if ([string]::IsNullOrWhiteSpace($env:SHAFT_MCP_VERSION)) { "" } else { $env:SHAFT_MCP_VERSION.Trim() }),
         [string[]] $Arguments = @()
     )
 
@@ -208,8 +208,9 @@ function Install-ShaftMcp {
     if (-not [string]::IsNullOrWhiteSpace($Client)) {
         $installerArguments += @("--client", $Client)
     }
-    if (-not [string]::IsNullOrWhiteSpace($Version)) {
-        $installerArguments += @("--version", $Version)
+    $trimmedVersion = if ([string]::IsNullOrWhiteSpace($Version)) { "" } else { $Version.Trim() }
+    if (-not [string]::IsNullOrWhiteSpace($trimmedVersion)) {
+        $installerArguments += @("--version", $trimmedVersion)
     }
     $hasShaftSkillsDecision = $false
     foreach ($argument in $Arguments) {
