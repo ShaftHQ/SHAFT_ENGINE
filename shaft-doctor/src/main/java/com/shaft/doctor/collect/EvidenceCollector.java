@@ -297,10 +297,8 @@ public final class EvidenceCollector {
             collectAllureAttachmentsInArray(attachments, resultFile, roots, request, redactor, items, state);
         }
         for (JsonNode child : node) {
-            if (child.isObject() || child.isArray()) {
-                if (!child.equals(attachments)) {
-                    collectAllureAttachments(child, resultFile, roots, request, redactor, items, state);
-                }
+            if ((child.isObject() || child.isArray()) && !child.equals(attachments)) {
+                collectAllureAttachments(child, resultFile, roots, request, redactor, items, state);
             }
         }
     }

@@ -287,19 +287,35 @@ public final class DoctorRedactor {
         if (bytes == null || bytes.length < 4) {
             return "png";
         }
-        if (bytes[0] == (byte) 0xFF && bytes[1] == (byte) 0xD8 && bytes[2] == (byte) 0xFF) {
+        if (isJpegSignature(bytes)) {
             return "jpg";
         }
-        if (bytes[0] == (byte) 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+        if (isPngSignature(bytes)) {
             return "png";
         }
-        if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
+        if (isGifSignature(bytes)) {
             return "gif";
         }
-        if (bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46) {
+        if (isWebpSignature(bytes)) {
             return "webp";
         }
         return "png";
+    }
+
+    private static boolean isJpegSignature(byte[] bytes) {
+        return bytes[0] == (byte) 0xFF && bytes[1] == (byte) 0xD8 && bytes[2] == (byte) 0xFF;
+    }
+
+    private static boolean isPngSignature(byte[] bytes) {
+        return bytes[0] == (byte) 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
+    }
+
+    private static boolean isGifSignature(byte[] bytes) {
+        return bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46;
+    }
+
+    private static boolean isWebpSignature(byte[] bytes) {
+        return bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
     }
 
     private record NamedPattern(String name, Pattern pattern) {
