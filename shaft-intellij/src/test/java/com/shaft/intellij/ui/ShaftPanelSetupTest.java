@@ -660,6 +660,66 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelHasNoLabelCroppingAndPaintsStepBackgroundContinuously() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+
+        // Lay out the panel at 800x600 to ensure label text can render
+        panel.setBounds(0, 0, 800, 600);
+        SwingUtilities.invokeAndWait(() -> {
+            panel.doLayout();
+            for (Component comp : panel.getComponents()) {
+                if (comp instanceof JComponent jcomp) {
+                    jcomp.doLayout();
+                }
+            }
+        });
+
+        // Find the step row with agent controls (contains "Assistant family" label)
+        JPanel chooseRow = (JPanel) getField(panel, "chooseRow");
+        JLabel assistantFamilyLabel = null;
+        JComboBox<?> familyCombo = null;
+
+        // Walk the component tree to find labels and verify they render at full size
+        List<JLabel> foundLabels = new ArrayList<>();
+        List<JComponent> stepRowChildren = new ArrayList<>();
+        walkComponents(chooseRow, comp -> {
+            if (comp instanceof JLabel lbl && "Assistant family".equals(lbl.getText())) {
+                assistantFamilyLabel = lbl;
+                foundLabels.add(lbl);
+            }
+            if (comp instanceof JComboBox<?> cmb &&
+                "Assistant family".equals(cmb.getAccessibleContext().getAccessibleName())) {
+                familyCombo = cmb;
+            }
+            stepRowChildren.add((JComponent) comp);
+        });
+
+        // Verify labels render without clipping
+        assertAll(
+                () -> assertNotNull(assistantFamilyLabel, "Should find 'Assistant family' label"),
+                () -> assertNotNull(familyCombo, "Should find family combobox"),
+                () -> assertTrue(assistantFamilyLabel.getSize().width >= assistantFamilyLabel.getPreferredSize().width,
+                        "Assistant family label width " + assistantFamilyLabel.getSize().width +
+                        " should not be less than preferred " + assistantFamilyLabel.getPreferredSize().width),
+                () -> assertTrue(assistantFamilyLabel.getSize().height >= assistantFamilyLabel.getPreferredSize().height,
+                        "Assistant family label height should not be less than preferred"));
+
+        // Verify step row child panels are non-opaque or painted with step background
+        Color stepBackground = chooseRow.getBackground();
+        for (JComponent child : stepRowChildren) {
+            if (child instanceof JPanel && child != chooseRow) {
+                boolean isNonOpaque = !child.isOpaque();
+                boolean hasStepBackground = child.getBackground() != null &&
+                    child.getBackground().equals(stepBackground);
+                assertTrue(isNonOpaque || hasStepBackground,
+                        "Child panel should be non-opaque or have step background color. " +
+                        "Opaque: " + child.isOpaque() + ", Background matches step: " + hasStepBackground);
+            }
+        }
+    }
+
+    @Test
     void toolWindowHidesAdvancedWorkflowsByDefault() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 
@@ -3251,5 +3311,14 @@ class ShaftPanelSetupTest {
     }
 
     private record CapturedInvocation(String toolName, JsonObject arguments) {
+    }
+
+    private static void walkComponents(Component component, Consumer<Component> visitor) {
+        visitor.accept(component);
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                walkComponents(child, visitor);
+            }
+        }
     }
 }

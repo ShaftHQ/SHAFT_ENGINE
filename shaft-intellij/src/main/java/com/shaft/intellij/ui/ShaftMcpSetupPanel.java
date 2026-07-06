@@ -288,6 +288,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         readyState = setupStateLabel("Start chatting setup state");
         JPanel agentControls = new JPanel();
         agentControls.setLayout(new javax.swing.BoxLayout(agentControls, javax.swing.BoxLayout.Y_AXIS));
+        agentControls.setOpaque(false);
         agentControls.add(labeledControl("Assistant family", family));
         agentControls.add(labeledControl("Runtime", runtime));
         agentControls.add(recommendedAgent);
@@ -934,7 +935,6 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private static JLabel setupStepLabel(String accessibleName) {
         JLabel label = new JLabel();
-        label.setPreferredSize(JBUI.size(132, 24));
         label.setBorder(JBUI.Borders.empty(2, 6));
         label.getAccessibleContext().setAccessibleName(accessibleName);
         return label;
@@ -1048,8 +1048,8 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private static JPanel labeledControl(String text, JComponent control) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        row.setOpaque(false);
         JLabel label = new JLabel(text);
-        label.setPreferredSize(JBUI.size(96, 24));
         label.setLabelFor(control);
         row.add(label);
         row.add(control);
