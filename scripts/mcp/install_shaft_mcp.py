@@ -1169,7 +1169,7 @@ def install(args: argparse.Namespace) -> None:
         log(f"Installing SHAFT skills to {skills_path}...")
         skills_path = install_shaft_skills(current_directory, root)
         skills_installed = True
-        log(f"Fetching agent validation script files...")
+        log("Fetching agent validation script files...")
         validation_script_dir = download_agent_validation_script_files(current_directory)
     else:
         log(f"Skipped SHAFT skills installation for {skills_path}.")
