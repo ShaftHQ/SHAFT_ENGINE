@@ -98,6 +98,7 @@
     {"name": "playwright_element_is_displayed", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "playwright_element_is_enabled", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "natural_act", "mutation": true, "sensitive": true, "deprecated": false},
+    {"name": "mobile_natural_act", "mutation": true, "sensitive": true, "deprecated": false},
     {"name": "capture_start", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "capture_start_codegen", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "capture_codegen_features", "mutation": false, "sensitive": false, "deprecated": false},

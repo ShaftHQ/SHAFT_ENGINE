@@ -51,6 +51,7 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public String pilotAiModel = "";
         public boolean passProviderApiKeysToMcp = false;
         public boolean advancedUiEnabled = false;
+        public boolean autoCompactEnabled = false;
 
         /**
          * Returns whether the configured MCP command has passed setup verification.

@@ -1,0 +1,19 @@
+{
+  "shipUnit": "serve-guidance-tools-on-stdio-manifest",
+  "capturedBy": "com.shaft.mcp.ShaftMcpStdioManifestIT#toolsListOverStdioAlwaysIncludesGuidanceAndCodegenTools",
+  "howToReproduce": "mvn -pl shaft-mcp test -DincludeMcpBrowserE2E -Dtest=ShaftMcpStdioManifestIT",
+  "notes": [
+    "The test boots the real ShaftMcpApplication in a child JVM over stdio, launched with its working directory set to a JUnit @TempDir outside the SHAFT_ENGINE repository, and with SHAFT_MCP_WORKSPACE_ROOT removed from the environment.",
+    "It sends an MCP initialize request, an initialized notification, and a tools/list request, and writes the raw tools/list result JSON alongside this manifest as stdio-tools-list.json.",
+    "This file is a real, captured tools/list response from that run (not hand-authored). It was regenerated as part of closing the QA gap where the test was previously never executed by Maven."
+  ],
+  "requiredGuidanceToolNames": [
+    "shaft_guide_search",
+    "test_automation_scenarios",
+    "shaft_coding_partner_plan",
+    "test_code_guardrails_check"
+  ],
+  "totalToolCount": 135,
+  "allRequiredGuidanceToolsPresent": true,
+  "fixForEvidenceGapClosedInThisChange": "shaft-mcp/pom.xml: the mcp-browser-e2e profile's <excludedGroups/> override did not clear the base configuration's <excludedGroups>external-e2e</excludedGroups> during Maven's per-execution configuration merge, so -DincludeMcpBrowserE2E left tests simultaneously included AND excluded by the external-e2e tag (JUnit Platform resolves that as excluded), and Surefire's default includes never matched *IT.java in the first place. Fixed by adding combine.self=\"override\" to the profile's <excludedGroups/> and adding an explicit <includes> with the *IT.java pattern to the base surefire configuration."
+}

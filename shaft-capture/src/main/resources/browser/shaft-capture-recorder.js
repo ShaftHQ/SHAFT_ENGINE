@@ -161,15 +161,9 @@
   const visibleLocation = () => text(String(location.href || "").split(/[?#]/)[0]);
   const sendControl = (action, data) =>
     send({kind: "control", page: page(), data: {action, ...(data || {})}});
-  const sendCheckpoint = (description, kind) =>
-    send({
-      kind: "checkpoint",
-      page: page(),
-      data: {
-        description: text(description) || "Captured browser checkpoint",
-        kind: kind || "USER_MARKER"
-      }
-    });
+  // Checkpoint kinds (USER_MARKER/FLOW_START/FLOW_END/RECOVERY/ASSERTION) remain internal
+  // CaptureEvent/Checkpoint metadata reachable through the CLI and MCP checkpoint APIs; this
+  // overlay intentionally exposes no standalone checkpoint control of its own.
   const sendVerification = (target, data) =>
     send({kind: "verification", page: page(), target, data});
   const inferredRole = element => {
@@ -209,7 +203,6 @@
     play: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>`,
     assert: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12.5 2.5 2.5 4.5-6"></path></svg>`,
     locator: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="M2 12h4"></path><path d="M18 12h4"></path></svg>`,
-    checkpoint: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>`,
     stop: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"></path></svg>`,
     edit: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`,
     delete: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 14h10l1-14"></path><path d="M10 11v5"></path><path d="M14 11v5"></path></svg>`,
@@ -511,13 +504,20 @@
     candidates.map(candidate => isPreferredLocator(logicalElementId, candidate)
       ? withUserProvidedSignal(candidate)
       : candidate);
-  const withLocatorPreference = (target, candidate) => ({
-    ...target,
-    locators: (target.locators || []).map(item =>
-      item.strategy === candidate.strategy && item.expression === candidate.expression
-        ? withUserProvidedSignal(item)
-        : item)
-  });
+  const withLocatorPreference = (target, candidate) => {
+    const existing = target.locators || [];
+    const known = existing.some(item =>
+      item.strategy === candidate.strategy && item.expression === candidate.expression);
+    return {
+      ...target,
+      locators: known
+        ? existing.map(item =>
+          item.strategy === candidate.strategy && item.expression === candidate.expression
+            ? withUserProvidedSignal(item)
+            : item)
+        : [...existing, withUserProvidedSignal(candidate)]
+    };
+  };
   const eventElement = event => {
     const path = event.composedPath ? event.composedPath() : [];
     return path.find(item => item && item.nodeType === Node.ELEMENT_NODE) || event.target;
@@ -587,61 +587,25 @@
     return tag === "textarea" || (tag === "input" &&
       !["button", "submit", "reset", "checkbox", "radio", "file", "hidden"].includes(type));
   };
-  const assertionKind = value => {
-    const normalized = text(value).toLowerCase().replace(/[_-]+/g, " ");
-    switch (normalized) {
-      case "visible":
-      case "element visible":
-        return "ELEMENT_VISIBLE";
-      case "enabled":
-      case "element enabled":
-        return "ELEMENT_ENABLED";
-      case "selected":
-      case "element selected":
-        return "ELEMENT_SELECTED";
-      case "text equals":
-      case "text equal":
-      case "value equals":
-      case "value equal":
-        return "TEXT_EQUALS";
-      case "text contains":
-      case "value contains":
-        return "TEXT_CONTAINS";
-      case "attribute equals":
-      case "attribute equal":
-        return "ATTRIBUTE_EQUALS";
-      case "url equals":
-      case "url equal":
-        return "URL_EQUALS";
-      case "url contains":
-        return "URL_CONTAINS";
-      case "title equals":
-      case "title equal":
-        return "TITLE_EQUALS";
-      case "title contains":
-        return "TITLE_CONTAINS";
-      case "page source contains":
-      case "page text contains":
-        return "PAGE_TEXT_CONTAINS";
-      case "image matches":
-      case "element image matches":
-      case "image does not match":
-      case "element image does not match":
-        return "ELEMENT_IMAGE_MATCHES";
-      default:
-        return "";
-    }
-  };
-  const assertionLabel = kind => kind.toLowerCase().replace(/_/g, " ");
-  const expectsValue = kind =>
-    ["TEXT_EQUALS", "TEXT_CONTAINS", "ATTRIBUTE_EQUALS", "URL_EQUALS", "URL_CONTAINS",
-      "TITLE_EQUALS", "TITLE_CONTAINS", "PAGE_TEXT_CONTAINS"]
-      .includes(kind);
-  const pageAssertion = kind =>
-    ["URL_EQUALS", "URL_CONTAINS", "TITLE_EQUALS", "TITLE_CONTAINS", "PAGE_TEXT_CONTAINS"].includes(kind);
-  const defaultAttribute = element =>
-    ["value", "aria-label", "title", "href", "id", "name"]
-      .find(name => element && element.hasAttribute && element.hasAttribute(name)) || "value";
+  // Deterministic, fixed assertion catalogs. These mirror CaptureEvent.VerificationKind
+  // 1:1 so every choice maps directly to a SHAFT Validations API call in CaptureGenerator;
+  // nothing here is generated or inferred at runtime.
+  const ELEMENT_ASSERTIONS = [
+    {kind: "ELEMENT_VISIBLE", label: "Element is visible", needsValue: false, needsAttribute: false},
+    {kind: "ELEMENT_ENABLED", label: "Element is enabled", needsValue: false, needsAttribute: false},
+    {kind: "ELEMENT_SELECTED", label: "Element is selected", needsValue: false, needsAttribute: false},
+    {kind: "TEXT_EQUALS", label: "Text equals", needsValue: true, needsAttribute: false},
+    {kind: "TEXT_CONTAINS", label: "Text contains", needsValue: true, needsAttribute: false},
+    {kind: "ATTRIBUTE_EQUALS", label: "Attribute equals", needsValue: true, needsAttribute: true},
+    {kind: "ELEMENT_IMAGE_MATCHES", label: "Image matches reference", needsValue: false, needsAttribute: false}
+  ];
+  const BROWSER_ASSERTIONS = [
+    {kind: "URL_EQUALS", label: "URL equals", needsValue: true, needsAttribute: false},
+    {kind: "URL_CONTAINS", label: "URL contains", needsValue: true, needsAttribute: false},
+    {kind: "TITLE_EQUALS", label: "Title equals", needsValue: true, needsAttribute: false},
+    {kind: "TITLE_CONTAINS", label: "Title contains", needsValue: true, needsAttribute: false},
+    {kind: "PAGE_TEXT_CONTAINS", label: "Page text contains", needsValue: true, needsAttribute: false}
+  ];
   const currentValue = (kind, element, attributeName) => {
     if (kind === "URL_EQUALS" || kind === "URL_CONTAINS") return valueText(location.href);
     if (kind === "TITLE_EQUALS" || kind === "TITLE_CONTAINS") return valueText(document.title);
@@ -649,6 +613,30 @@
     if (kind === "ATTRIBUTE_EQUALS") return valueText(element && element.getAttribute(attributeName));
     if (isTextInput(element)) return valueText(element.value);
     return text(element && (element.innerText || element.textContent));
+  };
+  const defaultAttribute = element =>
+    ["value", "aria-label", "title", "href", "id", "name"]
+      .find(name => element && element.hasAttribute && element.hasAttribute(name)) || "value";
+  // Renders the same SHAFT locator syntax CaptureGenerator emits (see
+  // CaptureGenerator#locatorExpression) so the picker shows exactly what generated code will use.
+  const shaftLocatorSyntax = candidate => {
+    const expression = String(candidate.expression || "");
+    switch (candidate.strategy) {
+      case "TEST_ID":
+      case "CSS":
+        return `SHAFT.GUI.Locator.cssSelector("${expression}")`;
+      case "ID":
+        return `SHAFT.GUI.Locator.id("${expression}")`;
+      case "NAME":
+        return `SHAFT.GUI.Locator.name("${expression}")`;
+      case "XPATH":
+        return `By.xpath("${expression}")`;
+      case "ROLE":
+      case "ACCESSIBLE_NAME":
+      case "LABEL":
+      default:
+        return `SHAFT.GUI.Locator.hasAnyTagName().containsText("${expression}").build()`;
+    }
   };
   const closeDialog = () => {
     const dialog = document.getElementById("shaft-capture-dialog");
@@ -716,73 +704,215 @@
     const first = dialog.querySelector("select,input");
     if (first) first.focus();
   };
-  const browserCheckpoint = () => {
-    showDialog("Browser checkpoint", [
-      {
-        name: "kind",
-        label: "Assertion",
-        type: "select",
-        value: "URL_CONTAINS",
-        options: [
-          {value: "URL_CONTAINS", label: "URL contains"},
-          {value: "URL_EQUALS", label: "URL equals"},
-          {value: "TITLE_CONTAINS", label: "Title contains"},
-          {value: "TITLE_EQUALS", label: "Title equals"},
-          {value: "PAGE_TEXT_CONTAINS", label: "Page text contains"}
-        ]
-      },
-      {name: "expected", label: "Expected value", value: currentValue("URL_CONTAINS", null, "")}
-    ], data => {
-      const kind = assertionKind(data.kind);
-      if (!kind || !pageAssertion(kind)) return;
-      announce("Assert " + assertionLabel(kind) + " on page");
-      sendVerification(null, {verification: kind, expected: valueText(data.expected)});
-    });
-    return true;
+  // --- Single "Assertion" entry point -----------------------------------------------------
+  // Two deterministic branches: Element (pick -> scored locator -> fixed catalog -> data)
+  // and Browser (fixed catalog -> data). No checkpoint kind is ever surfaced as its own
+  // button; USER_MARKER/FLOW_START/FLOW_END/RECOVERY remain internal event metadata only,
+  // reachable from the CLI/MCP checkpoint API rather than this overlay.
+  const closeAssertionPanel = () => {
+    const panel = document.getElementById("shaft-capture-assertion-panel");
+    if (panel) panel.remove();
   };
-  const showElementAssertionDialog = (target, element) => {
-    showDialog("Element checkpoint", [
-      {
-        name: "kind",
-        label: "Assertion",
-        type: "select",
-        value: "ELEMENT_VISIBLE",
-        options: [
-          {value: "ELEMENT_VISIBLE", label: "Visible"},
-          {value: "ELEMENT_ENABLED", label: "Enabled"},
-          {value: "ELEMENT_SELECTED", label: "Selected"},
-          {value: "TEXT_EQUALS", label: "Text equals"},
-          {value: "TEXT_CONTAINS", label: "Text contains"},
-          {value: "ATTRIBUTE_EQUALS", label: "Attribute equals"},
-          {value: "ELEMENT_IMAGE_MATCHES", label: "Image matches"}
-        ]
-      },
-      {name: "attributeName", label: "Attribute", value: defaultAttribute(element)},
-      {name: "expected", label: "Expected value", value: currentValue("TEXT_CONTAINS", element, "")}
-    ], data => {
-      const kind = assertionKind(data.kind);
-      if (!kind || pageAssertion(kind)) return;
-      const payload = {
-        verification: kind,
-        negated: false
-      };
-      if (kind === "ATTRIBUTE_EQUALS") {
-        payload.attributeName = text(data.attributeName);
+  const manualLocatorCandidate = (strategy, expression) => ({
+    strategy,
+    expression: text(expression),
+    uniquenessCount: 1,
+    visible: true,
+    stable: true,
+    signals: ["USER_PROVIDED"]
+  });
+  const detectManualStrategy = value => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("/") || trimmed.startsWith("(") || trimmed.startsWith(".")) return "XPATH";
+    return "CSS";
+  };
+  const topLocatorCandidates = target => (target.locators || [])
+    .map(candidate => ({candidate, score: locatorScore(candidate)}))
+    .sort((left, right) => right.score - left.score
+      || left.candidate.strategy.localeCompare(right.candidate.strategy)
+      || left.candidate.expression.localeCompare(right.candidate.expression))
+    .slice(0, 4);
+  const renderAssertionPanel = (title, body) => {
+    const host = document.getElementById("shaft-capture-ui");
+    if (!host) return null;
+    closeAssertionPanel();
+    const panel = document.createElement("section");
+    panel.id = "shaft-capture-assertion-panel";
+    panel.setAttribute("data-shaft-capture-control", "true");
+    const heading = document.createElement("h2");
+    heading.textContent = title;
+    panel.appendChild(heading);
+    body.forEach(node => panel.appendChild(node));
+    const status = document.getElementById("shaft-capture-status");
+    if (status && status.nextSibling) {
+      host.insertBefore(panel, status.nextSibling);
+    } else {
+      host.appendChild(panel);
+    }
+    return panel;
+  };
+  const assertionButton = (label, onClick, kind) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "assertion-choice";
+    button.textContent = label;
+    if (kind) button.dataset.assertionKind = kind;
+    button.addEventListener("click", onClick);
+    return button;
+  };
+  const cancelAssertionRow = onCancel => {
+    const row = document.createElement("div");
+    row.className = "dialog-actions";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", onCancel);
+    row.appendChild(cancel);
+    return row;
+  };
+  const finishAssertion = (target, payload, summaryText) => {
+    announce(summaryText, "", target ? {
+      kind: "verification",
+      target,
+      locator: bestLocatorSummary(target),
+      readiness: "READY",
+      warning: ""
+    } : {kind: "verification", readiness: "READY", warning: ""});
+    sendVerification(target, payload);
+    closeAssertionPanel();
+    uiState.assertionMode = false;
+    uiState.locatorMode = false;
+    persist();
+    setStatus();
+  };
+  const showAssertionDataStep = (catalogEntry, target, element) => {
+    const list = document.createElement("div");
+    list.className = "assertion-data-step";
+    const fields = [];
+    if (catalogEntry.needsAttribute) {
+      const label = document.createElement("label");
+      const caption = document.createElement("span");
+      caption.textContent = "Attribute";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.name = "attributeName";
+      input.value = defaultAttribute(element);
+      label.append(caption, input);
+      list.appendChild(label);
+      fields.push(input);
+    }
+    let valueInput = null;
+    if (catalogEntry.needsValue) {
+      const label = document.createElement("label");
+      const caption = document.createElement("span");
+      caption.textContent = "Expected value";
+      valueInput = document.createElement("input");
+      valueInput.type = "text";
+      valueInput.name = "expected";
+      valueInput.value = currentValue(catalogEntry.kind, element,
+        fields.length ? fields[0].value : "");
+      label.append(caption, valueInput);
+      list.appendChild(label);
+    }
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.textContent = "Save assertion";
+    confirm.addEventListener("click", () => {
+      const payload = {verification: catalogEntry.kind, negated: false};
+      if (catalogEntry.needsAttribute) {
+        payload.attributeName = text(fields[0].value);
         if (!payload.attributeName) return;
       }
-      if (expectsValue(kind)) {
-        payload.expected = valueText(data.expected);
+      if (catalogEntry.needsValue) {
+        payload.expected = valueText(valueInput.value);
       }
-      announce("Assert " + assertionLabel(kind) + " on " + targetName(target), "", {
-        kind: "verification",
-        target,
-        locator: bestLocatorSummary(target),
-        readiness: "READY",
-        warning: ""
-      });
-      sendVerification(target, payload);
-      setStatus();
+      const name = target ? targetName(target) : "page";
+      finishAssertion(target, payload, "Assert " + catalogEntry.label.toLowerCase() + " on " + name);
     });
+    const actions = cancelAssertionRow(closeAssertionPanel);
+    actions.appendChild(confirm);
+    renderAssertionPanel(catalogEntry.label, [list, actions]);
+    const first = list.querySelector("input");
+    if (first) first.focus();
+  };
+  const showAssertionCatalogStep = (catalog, target, element) => {
+    const list = document.createElement("div");
+    list.className = "assertion-catalog-step";
+    catalog.forEach(entry => {
+      list.appendChild(assertionButton(entry.label,
+        () => showAssertionDataStep(entry, target, element), entry.kind));
+    });
+    const actions = cancelAssertionRow(closeAssertionPanel);
+    renderAssertionPanel(target ? "Element assertion" : "Browser assertion", [list, actions]);
+  };
+  const showLocatorPickStep = (target, element) => {
+    const list = document.createElement("ol");
+    list.className = "assertion-locator-step";
+    topLocatorCandidates(target).forEach(item => {
+      const row = document.createElement("li");
+      const expression = document.createElement("span");
+      expression.className = "locator-expression";
+      expression.textContent = shaftLocatorSyntax(item.candidate);
+      const meta = document.createElement("span");
+      meta.className = "locator-meta";
+      meta.textContent = item.candidate.strategy + " | score " + item.score
+        + " | matches " + item.candidate.uniquenessCount;
+      const choose = document.createElement("button");
+      choose.type = "button";
+      choose.textContent = "Use this locator";
+      choose.addEventListener("click", () =>
+        showAssertionCatalogStep(ELEMENT_ASSERTIONS, withLocatorPreference(target, item.candidate), element));
+      row.append(expression, meta, choose);
+      list.appendChild(row);
+    });
+    const manualLabel = document.createElement("label");
+    const manualCaption = document.createElement("span");
+    manualCaption.textContent = "Manual locator (XPath or CSS)";
+    const manualInput = document.createElement("input");
+    manualInput.type = "text";
+    manualInput.name = "manualLocator";
+    manualInput.placeholder = "//button[@id='submit'] or #submit";
+    manualLabel.append(manualCaption, manualInput);
+    const manualUse = document.createElement("button");
+    manualUse.type = "button";
+    manualUse.textContent = "Use manual locator";
+    manualUse.addEventListener("click", () => {
+      const strategy = detectManualStrategy(manualInput.value);
+      if (!strategy) return;
+      const candidate = manualLocatorCandidate(strategy, manualInput.value);
+      showAssertionCatalogStep(ELEMENT_ASSERTIONS, withLocatorPreference(target, candidate), element);
+    });
+    const manualRow = document.createElement("div");
+    manualRow.className = "assertion-manual-locator";
+    manualRow.append(manualLabel, manualUse);
+    const actions = cancelAssertionRow(closeAssertionPanel);
+    renderAssertionPanel(targetName(target), [list, manualRow, actions]);
+  };
+  const beginElementAssertion = () => {
+    uiState.assertionMode = true;
+    uiState.locatorMode = false;
+    clearLocatorHighlight();
+    renderLocatorPanel(null);
+    persist();
+    announce("Element assertion: click the target element");
+    setStatus();
+  };
+  const beginBrowserAssertion = () => {
+    closeAssertionPanel();
+    showAssertionCatalogStep(BROWSER_ASSERTIONS, null, null);
+  };
+  const showAssertionEntryPoint = () => {
+    if (uiState.stopped) return;
+    const list = document.createElement("div");
+    list.className = "assertion-catalog-step";
+    list.appendChild(assertionButton("Element", () => {
+      closeAssertionPanel();
+      beginElementAssertion();
+    }));
+    list.appendChild(assertionButton("Browser", beginBrowserAssertion));
+    const actions = cancelAssertionRow(closeAssertionPanel);
+    renderAssertionPanel("Add assertion", [list, actions]);
   };
   const captureAssertion = event => {
     if (!uiState.assertionMode || uiState.locatorMode || uiState.stopped || uiState.paused) return false;
@@ -794,7 +924,7 @@
     if (!target) return true;
     uiState.assertionMode = false;
     persist();
-    showElementAssertionDialog(target, element);
+    showLocatorPickStep(target, element);
     setStatus();
     return true;
   };
@@ -1028,6 +1158,94 @@
         color: var(--shaft-text-muted);
         font-size: 12px;
       }
+      #shaft-capture-assertion-panel {
+        display: grid;
+        gap: 8px;
+        margin: 8px 10px 0;
+        padding: 8px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 6px;
+        background: var(--shaft-bg);
+      }
+      #shaft-capture-assertion-panel h2 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      #shaft-capture-assertion-panel label {
+        display: grid;
+        gap: 3px;
+        color: var(--shaft-text-muted);
+        font-size: 12px;
+      }
+      #shaft-capture-assertion-panel input {
+        min-width: 0;
+        height: 30px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 6px;
+        background: var(--shaft-surface);
+        color: var(--shaft-text);
+        padding: 4px 7px;
+      }
+      #shaft-capture-assertion-panel .assertion-catalog-step {
+        display: grid;
+        gap: 6px;
+      }
+      #shaft-capture-assertion-panel button.assertion-choice {
+        width: auto;
+        height: auto;
+        justify-content: flex-start;
+        padding: 7px 10px;
+        text-align: left;
+      }
+      #shaft-capture-assertion-panel .assertion-locator-step {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      #shaft-capture-assertion-panel .assertion-locator-step li {
+        display: grid;
+        gap: 4px;
+        padding: 7px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 6px;
+        background: var(--shaft-surface);
+      }
+      #shaft-capture-assertion-panel .assertion-locator-step .locator-expression {
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      #shaft-capture-assertion-panel .assertion-locator-step .locator-meta {
+        color: var(--shaft-text-muted);
+        font-size: 12px;
+      }
+      #shaft-capture-assertion-panel .assertion-locator-step button {
+        width: auto;
+        justify-self: start;
+        padding: 0 10px;
+      }
+      #shaft-capture-assertion-panel .assertion-manual-locator {
+        display: grid;
+        gap: 6px;
+      }
+      #shaft-capture-assertion-panel .assertion-data-step {
+        display: grid;
+        gap: 7px;
+      }
+      #shaft-capture-assertion-panel .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+      #shaft-capture-assertion-panel .dialog-actions button {
+        width: auto;
+        min-width: 64px;
+        padding: 0 10px;
+        line-height: 1;
+      }
       #shaft-capture-locator-highlight {
         position: fixed;
         z-index: 2147483646;
@@ -1052,6 +1270,12 @@
       renderLocatorPanel(null);
       persist();
     }
+    if ((uiState.stopped || uiState.paused) && uiState.assertionMode) {
+      uiState.assertionMode = false;
+      closeAssertionPanel();
+      persist();
+    }
+    const assertionPanelOpen = Boolean(document.getElementById("shaft-capture-assertion-panel"));
     const latestWarning = uiState.readinessWarnings[uiState.readinessWarnings.length - 1] || "";
     const base = uiState.readinessState + " | " + uiState.actions.length + " events";
     const mode = uiState.stopped
@@ -1061,14 +1285,16 @@
         : uiState.locatorMode
           ? "Locator picker active."
           : uiState.assertionMode
-            ? "Assertion mode. Click an element to capture a verification."
-            : "Recording browser actions.";
+            ? "Assertion mode. Click an element to capture the assertion target."
+            : assertionPanelOpen
+              ? "Choose an assertion."
+              : "Recording browser actions.";
     status.dataset.readiness = uiState.readinessState;
     status.textContent = latestWarning ? base + " | " + latestWarning : base + " | " + mode;
     pause.innerHTML = icon(uiState.paused ? "play" : "pause");
     pause.title = uiState.paused ? "Resume recording" : "Pause recording";
     pause.setAttribute("aria-label", pause.title);
-    assert.setAttribute("aria-pressed", String(uiState.assertionMode));
+    assert.setAttribute("aria-pressed", String(uiState.assertionMode || assertionPanelOpen));
     assert.disabled = uiState.stopped || uiState.paused || uiState.locatorMode;
     pick.setAttribute("aria-pressed", String(uiState.locatorMode));
     pick.disabled = uiState.stopped || uiState.paused;
@@ -1309,9 +1535,8 @@
         <span class="brand-mark" aria-hidden="true">S</span>
         <strong>SHAFT Capture</strong>
         <button id="shaft-capture-pause" type="button"></button>
-        <button id="shaft-capture-assert" type="button" title="Toggle assertion mode" aria-label="Toggle assertion mode" aria-pressed="false">${icon("assert")}</button>
+        <button id="shaft-capture-assert" type="button" title="Add assertion" aria-label="Add assertion" aria-pressed="false">${icon("assert")}</button>
         <button id="shaft-capture-pick" type="button" title="Toggle locator picker" aria-label="Toggle locator picker" aria-pressed="false">${icon("locator")}</button>
-        <button id="shaft-capture-checkpoint" type="button" title="Add checkpoint" aria-label="Add checkpoint">${icon("checkpoint")}</button>
         <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
       </header>
       <div id="shaft-capture-status" class="status-chip shaft-capture-readiness"></div>
@@ -1333,64 +1558,32 @@
     });
     document.getElementById("shaft-capture-assert").addEventListener("click", () => {
       if (uiState.stopped || uiState.paused) return;
-      uiState.assertionMode = !uiState.assertionMode;
-      if (uiState.assertionMode) {
-        uiState.locatorMode = false;
-        clearLocatorHighlight();
-        renderLocatorPanel(null);
+      if (uiState.assertionMode || document.getElementById("shaft-capture-assertion-panel")) {
+        uiState.assertionMode = false;
+        closeAssertionPanel();
+        persist();
+        setStatus();
+        return;
       }
+      uiState.locatorMode = false;
+      clearLocatorHighlight();
+      renderLocatorPanel(null);
       persist();
       setStatus();
+      showAssertionEntryPoint();
     });
     document.getElementById("shaft-capture-pick").addEventListener("click", () => {
       if (uiState.stopped || uiState.paused) return;
       uiState.locatorMode = !uiState.locatorMode;
       if (uiState.locatorMode) {
         uiState.assertionMode = false;
+        closeAssertionPanel();
       } else {
         clearLocatorHighlight();
         renderLocatorPanel(null);
       }
       persist();
       setStatus();
-    });
-    document.getElementById("shaft-capture-checkpoint").addEventListener("click", () => {
-      if (uiState.stopped) return;
-      showDialog("Add checkpoint", [
-        {
-          name: "scope",
-          label: "Type",
-          type: "select",
-          value: "Browser checkpoint",
-          options: [
-            {value: "Browser checkpoint", label: "Browser checkpoint"},
-            {value: "Element checkpoint", label: "Element checkpoint"},
-            {value: "USER_MARKER", label: "User marker"},
-            {value: "FLOW_START", label: "Flow start"},
-            {value: "FLOW_END", label: "Flow end"},
-            {value: "RECOVERY", label: "Recovery"}
-          ]
-        },
-        {name: "description", label: "Description", value: ""}
-      ], data => {
-        const scope = text(data.scope).toLowerCase();
-        if (scope.startsWith("browser")) {
-          browserCheckpoint();
-          return;
-        }
-        if (scope.startsWith("element")) {
-          uiState.assertionMode = true;
-          uiState.locatorMode = false;
-          persist();
-          announce("Element checkpoint: click the target element");
-          setStatus();
-          return;
-        }
-        const kind = text(data.scope) || "USER_MARKER";
-        const description = text(data.description) || kind.toLowerCase().replace(/_/g, " ");
-        announce("Checkpoint: " + description);
-        sendCheckpoint(description, kind);
-      });
     });
     document.getElementById("shaft-capture-stop").addEventListener("click", () => {
       if (uiState.stopped) return;
@@ -1440,9 +1633,22 @@
     clickCount: 2
     });
   }, true);
+  const editingKeys = new Set(["Backspace", "Delete", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  const isEditingKey = key => editingKeys.has(key);
   addEventListener("input", event => {
     if (!isTextInput(event.target)) return;
     emit("input", event, {value: String(event.target.value || "")});
+  }, true);
+  addEventListener("blur", event => {
+    const element = event.target;
+    if (!isTextInput(element)) return;
+    const target = snapshot(event);
+    if (!target) return;
+    const key = "input:" + target.logicalElementId;
+    if (uiState.currentInputActionKey === key) {
+      uiState.currentInputActionKey = "";
+      persist();
+    }
   }, true);
   addEventListener("change", event => {
     const element = event.target;
@@ -1484,6 +1690,15 @@
     // shortcut here, so typing a sentence does not fragment into one action per shifted
     // character and does not flush the in-progress "input" merge early.
     const hasShortcutModifier = event.metaKey || (event.ctrlKey !== event.altKey);
+    const element = eventElement(event);
+    // Suppress standalone editing key actions (Backspace, Delete, arrow keys) when
+    // focus is inside a text-entry element. These are coalesced into the input's
+    // final value, emitted on blur/change/submit or before the next non-typing action.
+    // Non-input contexts (e.g. Backspace as page-navigation on a focused button)
+    // still record the keyboard action.
+    if (isEditingKey(key) && isTextInput(element) && !hasShortcutModifier) {
+      return;
+    }
     if (!named && !hasShortcutModifier) return;
     emit("keyboard", event, {keys: [...modifiers, key.toUpperCase()]});
   }, true);

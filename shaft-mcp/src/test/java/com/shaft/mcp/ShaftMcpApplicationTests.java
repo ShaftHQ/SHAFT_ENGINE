@@ -24,6 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(properties = "spring.ai.mcp.server.enabled=false")
 class ShaftMcpApplicationTests {
     private static final Pattern GENERIC_PARAMETER_NAME = Pattern.compile("\"arg\\d+\"");
+    private static final Set<String> GUIDANCE_AND_CODEGEN_TOOL_NAMES = Set.of(
+            "shaft_guide_search",
+            "test_automation_scenarios",
+            "shaft_coding_partner_plan",
+            "test_code_guardrails_check");
 
     @Autowired
     private ApplicationContext context;
@@ -95,6 +100,24 @@ class ShaftMcpApplicationTests {
         assertFalse(toolNames.contains("element_click_semantic"));
         assertFalse(toolNames.contains("element_type_semantic"));
         assertFalse(toolNames.contains("element_click_ai"));
+    }
+
+    @Test
+    void shaftToolsBeanAlwaysRegistersGuidanceAndCodegenTools() {
+        Object bean = context.getBean("shaftTools");
+        assertTrue(bean instanceof List<?>);
+        List<?> callbacks = (List<?>) bean;
+
+        Set<String> toolNames = callbacks.stream()
+                .map(ToolCallback.class::cast)
+                .map(callback -> callback.getToolDefinition().name())
+                .collect(Collectors.toSet());
+
+        Set<String> missing = GUIDANCE_AND_CODEGEN_TOOL_NAMES.stream()
+                .filter(name -> !toolNames.contains(name))
+                .collect(Collectors.toSet());
+        assertTrue(missing.isEmpty(),
+                "shaftTools bean is missing guidance/codegen tools independent of launch directory: " + missing);
     }
 
     @Test

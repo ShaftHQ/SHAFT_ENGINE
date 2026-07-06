@@ -416,72 +416,42 @@ final class AssistantTranscriptView extends JPanel {
                 continue;
             }
             if (trimmed.startsWith("```")) {
-                appendParagraph(html, paragraph);
-                if (inUnorderedList) {
-                    html.append("</ul>");
-                    inUnorderedList = false;
-                }
-                if (inOrderedList) {
-                    html.append("</ol>");
-                    inOrderedList = false;
-                }
+                closeOpenLists(html, paragraph, inUnorderedList, inOrderedList);
                 fenceLanguage = firstToken(trimmed.substring(3));
                 inFence = true;
+                inUnorderedList = false;
+                inOrderedList = false;
                 continue;
             }
             if (trimmed.isBlank()) {
-                appendParagraph(html, paragraph);
-                if (inUnorderedList) {
-                    html.append("</ul>");
-                    inUnorderedList = false;
-                }
-                if (inOrderedList) {
-                    html.append("</ol>");
-                    inOrderedList = false;
-                }
+                closeOpenLists(html, paragraph, inUnorderedList, inOrderedList);
+                inUnorderedList = false;
+                inOrderedList = false;
                 continue;
             }
             if (isTableHeader(lines, index)) {
-                appendParagraph(html, paragraph);
-                if (inUnorderedList) {
-                    html.append("</ul>");
-                    inUnorderedList = false;
-                }
-                if (inOrderedList) {
-                    html.append("</ol>");
-                    inOrderedList = false;
-                }
+                closeOpenLists(html, paragraph, inUnorderedList, inOrderedList);
                 index = appendTable(html, lines, index);
+                inUnorderedList = false;
+                inOrderedList = false;
                 continue;
             }
             int headingLevel = headingLevel(trimmed);
             if (headingLevel > 0) {
-                appendParagraph(html, paragraph);
-                if (inUnorderedList) {
-                    html.append("</ul>");
-                    inUnorderedList = false;
-                }
-                if (inOrderedList) {
-                    html.append("</ol>");
-                    inOrderedList = false;
-                }
+                closeOpenLists(html, paragraph, inUnorderedList, inOrderedList);
                 String heading = trimmed.substring(headingLevel).trim();
                 html.append("<h").append(headingLevel).append(">")
                         .append(renderInline(heading))
                         .append("</h").append(headingLevel).append(">");
+                inUnorderedList = false;
+                inOrderedList = false;
                 continue;
             }
             if (isHorizontalRule(trimmed)) {
-                appendParagraph(html, paragraph);
-                if (inUnorderedList) {
-                    html.append("</ul>");
-                    inUnorderedList = false;
-                }
-                if (inOrderedList) {
-                    html.append("</ol>");
-                    inOrderedList = false;
-                }
+                closeOpenLists(html, paragraph, inUnorderedList, inOrderedList);
                 html.append("<hr>");
+                inUnorderedList = false;
+                inOrderedList = false;
                 continue;
             }
             Matcher unordered = UNORDERED_LIST_ITEM.matcher(trimmed);
@@ -512,30 +482,34 @@ final class AssistantTranscriptView extends JPanel {
                 html.append("<li>").append(renderInline(ordered.group(1))).append("</li>");
                 continue;
             }
-            if (inUnorderedList) {
-                html.append("</ul>");
-                inUnorderedList = false;
-            }
-            if (inOrderedList) {
-                html.append("</ol>");
-                inOrderedList = false;
-            }
+            closeOpenListsOnly(html, inUnorderedList, inOrderedList);
             if (!paragraph.isEmpty()) {
                 paragraph.append(' ');
             }
             paragraph.append(trimmed);
+            inUnorderedList = false;
+            inOrderedList = false;
         }
         if (inFence) {
             appendCodeBlock(html, fenceLanguage, fence.toString().stripTrailing());
         }
         appendParagraph(html, paragraph);
+        closeOpenListsOnly(html, inUnorderedList, inOrderedList);
+        return html.toString();
+    }
+
+    private static void closeOpenLists(StringBuilder html, StringBuilder paragraph, boolean inUnorderedList, boolean inOrderedList) {
+        appendParagraph(html, paragraph);
+        closeOpenListsOnly(html, inUnorderedList, inOrderedList);
+    }
+
+    private static void closeOpenListsOnly(StringBuilder html, boolean inUnorderedList, boolean inOrderedList) {
         if (inUnorderedList) {
             html.append("</ul>");
         }
         if (inOrderedList) {
             html.append("</ol>");
         }
-        return html.toString();
     }
 
     private static void appendParagraph(StringBuilder html, StringBuilder paragraph) {
