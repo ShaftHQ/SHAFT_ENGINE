@@ -93,12 +93,14 @@ final class DoctorConfidenceScorer {
         } else if (citedHypotheses > 0) {
             delta += 5;
         } else {
-            delta -= 25; // Uncited proposed fix: low band.
+            delta -= 25;
         }
         if (fullyActionCited) {
             delta += 10;
         } else if (citedActions > 0) {
             delta += 5;
+        } else if (!analysis.recommendedActions().isEmpty()) {
+            delta -= 50; // Uncited proposed fix: low band.
         }
         return delta;
     }
