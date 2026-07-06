@@ -15,6 +15,7 @@ import java.util.List;
  * @param minimumAllureResults minimum valid Allure result count expected from the run
  * @param maxItemBytes maximum retained bytes per evidence item
  * @param maxBundleBytes maximum retained bytes across the bundle
+ * @param redactScreenshots whether screenshots containing sensitive fields should be masked
  */
 public record DoctorAnalysisRequest(
         List<Path> inputPaths,
@@ -25,7 +26,8 @@ public record DoctorAnalysisRequest(
         boolean includePageSnapshots,
         int minimumAllureResults,
         long maxItemBytes,
-        long maxBundleBytes) {
+        long maxBundleBytes,
+        boolean redactScreenshots) {
     /**
      * Default maximum retained size for one evidence item.
      */
@@ -80,6 +82,6 @@ public record DoctorAnalysisRequest(
             List<Path> allowedRoots,
             Path outputDirectory) {
         return new DoctorAnalysisRequest(inputPaths, List.of(), allowedRoots, outputDirectory,
-                false, false, 1, DEFAULT_MAX_ITEM_BYTES, DEFAULT_MAX_BUNDLE_BYTES);
+                false, false, 1, DEFAULT_MAX_ITEM_BYTES, DEFAULT_MAX_BUNDLE_BYTES, true);
     }
 }

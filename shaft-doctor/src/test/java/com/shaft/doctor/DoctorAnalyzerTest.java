@@ -201,7 +201,8 @@ class DoctorAnalyzerTest {
                 false,
                 1,
                 128,
-                4_096));
+                4_096,
+                true));
 
         String bundleText = Files.readString(Path.of(result.bundlePath()), StandardCharsets.UTF_8);
         assertFalse(bundleText.contains("truncated-json-canary"));
@@ -405,7 +406,8 @@ class DoctorAnalyzerTest {
                 false,
                 1,
                 256,
-                512);
+                512,
+                true);
         assertThrows(IllegalArgumentException.class, () -> new DoctorAnalyzer().analyze(escaped));
 
         Path bounded = Files.createDirectories(allowed.resolve("bounded"));
@@ -420,7 +422,8 @@ class DoctorAnalyzerTest {
                 false,
                 1,
                 512,
-                1_024));
+                1_024,
+                true));
         assertTrue(result.bundle().evidence().stream().anyMatch(item -> item.truncated()));
         assertTrue(Long.parseLong(result.bundle().metadata().get("retainedBytes")) <= 1_024);
     }
@@ -447,7 +450,8 @@ class DoctorAnalyzerTest {
                 false,
                 1,
                 256,
-                512);
+                512,
+                true);
 
         assertThrows(IllegalArgumentException.class, () -> new DoctorAnalyzer().analyze(redirected));
     }
@@ -489,7 +493,8 @@ class DoctorAnalyzerTest {
                 false,
                 1,
                 DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
-                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES));
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
+                true));
 
         assertEquals(resource("golden/doctor-report.json"),
                 Files.readString(Path.of(result.jsonReportPath())).replace("\r\n", "\n"));
@@ -528,7 +533,8 @@ class DoctorAnalyzerTest {
                 pages,
                 minimumResults,
                 DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
-                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES));
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
+                true));
     }
 
     private static DoctorAnalysisRequest request(Path root, Path input, String outputName) {
@@ -541,7 +547,8 @@ class DoctorAnalyzerTest {
                 false,
                 1,
                 DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
-                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES);
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
+                true);
     }
 
     private static void writeResult(

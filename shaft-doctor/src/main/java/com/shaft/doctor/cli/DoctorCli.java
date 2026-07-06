@@ -116,7 +116,8 @@ public final class DoctorCli {
                     options.flag("include-page-snapshots"),
                     Math.toIntExact(options.positiveLong("minimum-results", 1)),
                     options.positiveLong("max-item-bytes", DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES),
-                    options.positiveLong("max-bundle-bytes", DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES));
+                    options.positiveLong("max-bundle-bytes", DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES),
+                    true);
             DoctorAnalyzer analyzer = new DoctorAnalyzer();
             DoctorAnalysisResult result;
             DoctorAdvisory advisory = null;

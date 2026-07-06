@@ -39,6 +39,16 @@ import java.util.zip.ZipInputStream;
  * Collects bounded local evidence through explicit allowlisted adapter boundaries.
  */
 public final class EvidenceCollector {
+    private record AttachmentInfo(
+            Path artifact,
+            String reference,
+            String name,
+            String type,
+            String extension,
+            String diagnosticName,
+            boolean isScreenshot,
+            boolean isPageSnapshot) {
+    }
     private static final int MAX_FILES = 10_000;
     private static final int MAX_ATTRIBUTE_LENGTH = 2_048;
     private static final Set<String> TEXT_EXTENSIONS = Set.of(
@@ -284,55 +294,140 @@ public final class EvidenceCollector {
             CollectionState state) {
         JsonNode attachments = node.path("attachments");
         if (attachments.isArray()) {
-            for (JsonNode attachment : attachments) {
-                String source = attachment.path("source").asText("");
-                if (source.isBlank()) {
-                    continue;
-                }
-                Path candidate = resultFile.getParent().resolve(source);
-                if (!Files.exists(candidate)) {
-                    continue;
-                }
-                Path artifact = allowedRealPath(candidate, roots);
-                if (!Files.isRegularFile(artifact)) {
-                    continue;
-                }
-                String name = attachment.path("name").asText("").toLowerCase(Locale.ROOT);
-                String type = attachment.path("type").asText("").toLowerCase(Locale.ROOT);
-                String extension = extension(artifact.getFileName().toString().toLowerCase(Locale.ROOT));
-                String reference = portableReference(artifact, roots);
-                String diagnosticName = name + " " + source.toLowerCase(Locale.ROOT);
-                if (type.startsWith("image/") || SCREENSHOT_EXTENSIONS.contains(extension)) {
-                    if (request.includeScreenshots()) {
-                        collectBinary(artifact, reference, EvidenceCategory.SCREENSHOT,
-                                type.isBlank() ? mediaType(extension) : type, request, items, state);
-                    } else {
-                        state.omittedItems++;
-                    }
-                } else if (type.contains("html") || type.contains("multipart/related")
-                        || name.contains("page source") || name.contains("snapshot")) {
-                    if (request.includePageSnapshots()) {
-                        collectText(artifact, reference, EvidenceCategory.PAGE_SNAPSHOT,
-                                type.isBlank() ? mediaType(extension) : type,
-                                request, redactor, items, state);
-                    } else {
-                        state.omittedItems++;
-                    }
-                } else if (isDiagnosticsZip(diagnosticName, type, extension)) {
-                    collectDiagnosticsZip(artifact, reference, request, redactor, items, state);
-                } else if (name.contains("log") || name.contains("action history")
-                        || name.contains("shaft")) {
-                    collectText(artifact, reference, EvidenceCategory.SHAFT_LOG,
-                            type.isBlank() ? mediaType(extension) : type,
-                            request, redactor, items, state);
-                }
-            }
+            collectAllureAttachmentsInArray(attachments, resultFile, roots, request, redactor, items, state);
         }
         for (JsonNode child : node) {
             if (child.isObject() || child.isArray()) {
-                collectAllureAttachments(child, resultFile, roots, request, redactor, items, state);
+                if (!child.equals(attachments)) {
+                    collectAllureAttachments(child, resultFile, roots, request, redactor, items, state);
+                }
             }
         }
+    }
+
+    private void collectAllureAttachmentsInArray(
+            JsonNode attachments,
+            Path resultFile,
+            List<Path> roots,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state) {
+        List<AttachmentInfo> infos = new ArrayList<>();
+        for (JsonNode attachment : attachments) {
+            String source = attachment.path("source").asText("");
+            if (source.isBlank()) {
+                continue;
+            }
+            Path candidate = resultFile.getParent().resolve(source);
+            if (!Files.exists(candidate)) {
+                continue;
+            }
+            Path artifact = allowedRealPath(candidate, roots);
+            if (!Files.isRegularFile(artifact)) {
+                continue;
+            }
+            String name = attachment.path("name").asText("").toLowerCase(Locale.ROOT);
+            String type = attachment.path("type").asText("").toLowerCase(Locale.ROOT);
+            String extension = extension(artifact.getFileName().toString().toLowerCase(Locale.ROOT));
+            String reference = portableReference(artifact, roots);
+            String diagnosticName = name + " " + source.toLowerCase(Locale.ROOT);
+            boolean isScreenshot = type.startsWith("image/") || SCREENSHOT_EXTENSIONS.contains(extension);
+            boolean isPageSnapshot = type.contains("html") || type.contains("multipart/related")
+                    || name.contains("page source") || name.contains("snapshot");
+            infos.add(new AttachmentInfo(artifact, reference, name, type, extension, diagnosticName,
+                    isScreenshot, isPageSnapshot));
+        }
+        for (int i = 0; i < infos.size(); i++) {
+            AttachmentInfo info = infos.get(i);
+            if (info.isScreenshot() && request.includeScreenshots()) {
+                AttachmentInfo matchingSnapshot = findMatchingPageSnapshot(infos, i);
+                collectBinaryWithOptionalRedaction(info, request, redactor, items, state, matchingSnapshot);
+            } else if (info.isScreenshot()) {
+                state.omittedItems++;
+            } else if (info.isPageSnapshot() && request.includePageSnapshots()) {
+                collectText(info.artifact(), info.reference(), EvidenceCategory.PAGE_SNAPSHOT,
+                        info.type().isBlank() ? mediaType(info.extension()) : info.type(),
+                        request, redactor, items, state);
+            } else if (info.isPageSnapshot()) {
+                state.omittedItems++;
+            } else if (isDiagnosticsZip(info.diagnosticName(), info.type(), info.extension())) {
+                collectDiagnosticsZip(info.artifact(), info.reference(), request, redactor, items, state);
+            } else if (info.name().contains("log") || info.name().contains("action history")
+                    || info.name().contains("shaft")) {
+                collectText(info.artifact(), info.reference(), EvidenceCategory.SHAFT_LOG,
+                        info.type().isBlank() ? mediaType(info.extension()) : info.type(),
+                        request, redactor, items, state);
+            }
+        }
+    }
+
+    private AttachmentInfo findMatchingPageSnapshot(List<AttachmentInfo> infos, int screenshotIndex) {
+        AttachmentInfo screenshot = infos.get(screenshotIndex);
+        AttachmentInfo precedingSnapshot = null;
+        for (int i = screenshotIndex - 1; i >= 0; i--) {
+            if (infos.get(i).isPageSnapshot()) {
+                precedingSnapshot = infos.get(i);
+                break;
+            }
+        }
+        if (precedingSnapshot != null) {
+            return precedingSnapshot;
+        }
+        for (int i = screenshotIndex + 1; i < infos.size(); i++) {
+            if (infos.get(i).isPageSnapshot()) {
+                return infos.get(i);
+            }
+        }
+        return null;
+    }
+
+    private void collectBinaryWithOptionalRedaction(
+            AttachmentInfo screenshot,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state,
+            AttachmentInfo matchingSnapshot) {
+        byte[] retained = readBounded(screenshot.artifact(), request.maxItemBytes());
+        boolean shouldRedact = request.redactScreenshots() && matchingSnapshot != null;
+        if (shouldRedact) {
+            try {
+                byte[] snapshotBytes = readBounded(matchingSnapshot.artifact(), request.maxItemBytes());
+                String snapshotContent = new String(snapshotBytes, StandardCharsets.UTF_8);
+                List<String> sensitiveRegions = redactor.extractSensitiveRegions(snapshotContent);
+                if (!sensitiveRegions.isEmpty()) {
+                    retained = redactor.redactScreenshot(retained, sensitiveRegions);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        boolean truncated = FilesSize.size(screenshot.artifact()) > retained.length;
+        if (state.retainedBytes + retained.length > request.maxBundleBytes()) {
+            state.omittedItems++;
+            return;
+        }
+        String digest = DoctorHashing.sha256(retained);
+        String id = evidenceId(EvidenceCategory.SCREENSHOT, screenshot.reference(), digest);
+        String extension = extension(screenshot.artifact().getFileName().toString().toLowerCase(Locale.ROOT));
+        String relativePath = "artifacts/" + id + extension;
+        Path destination = request.outputDirectory().resolve(relativePath).normalize();
+        if (!destination.startsWith(request.outputDirectory())) {
+            throw new IllegalArgumentException("Doctor artifact destination escaped the output directory.");
+        }
+        try {
+            Files.createDirectories(destination.getParent());
+            Files.write(destination, retained);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Doctor binary evidence could not be retained.", exception);
+        }
+        EvidenceItem item = new EvidenceItem(
+                id, EvidenceCategory.SCREENSHOT, screenshot.type().isBlank() ? mediaType(extension) : screenshot.type(),
+                relativePath, digest, retained.length, null,
+                false, truncated, Map.of(),
+                new EvidenceProvenance(adapter(EvidenceCategory.SCREENSHOT), screenshot.reference(), digest));
+        items.putIfAbsent(id, item);
+        state.retainedBytes += retained.length;
     }
 
     private void collectDiagnosticsText(
