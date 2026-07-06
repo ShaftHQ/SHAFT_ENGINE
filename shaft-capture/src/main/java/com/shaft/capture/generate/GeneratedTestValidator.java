@@ -91,6 +91,7 @@ public class GeneratedTestValidator {
         Path allureResults = replayDirectory.resolve("allure-results");
         Path testngOutput = replayDirectory.resolve("testng-output");
         Path outputLog = replayDirectory.resolve("replay.log");
+        Path chromeDriverLog = replayDirectory.resolve("chromedriver.log");
         try {
             Files.createDirectories(allureResults);
             Files.createDirectories(testngOutput);
@@ -99,6 +100,8 @@ public class GeneratedTestValidator {
             command.add("-Dallure.results.directory=" + allureResults.toAbsolutePath().normalize());
             command.add("-DheadlessExecution="
                     + System.getProperty("headlessExecution", "true"));
+            command.add("-Dwebdriver.chrome.verboseLogging=true");
+            command.add("-Dwebdriver.chrome.logfile=" + chromeDriverLog.toAbsolutePath().normalize());
             command.add("-cp");
             command.add(classesDirectory.toAbsolutePath().normalize()
                     + File.pathSeparator
@@ -131,6 +134,9 @@ public class GeneratedTestValidator {
             boolean passed = process.exitValue() == 0 && allure.count() > 0 && allure.failed() == 0;
             if (!passed) {
                 diagnostics.add(replayProcessOutputTail(outputLog));
+                if (Files.isRegularFile(chromeDriverLog)) {
+                    diagnostics.add(boundedFileTail("ChromeDriver log", chromeDriverLog));
+                }
             }
             return new CaptureGenerationReport.Validation(
                     passed
@@ -190,6 +196,17 @@ public class GeneratedTestValidator {
             return "Replay process output (filtered): " + bounded;
         } catch (IOException exception) {
             return "Replay process output could not be read.";
+        }
+    }
+
+    private static String boundedFileTail(String label, Path file) {
+        try {
+            List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+            String joined = String.join(" | ", lines).replaceAll("\\s+", " ").trim();
+            String tail = joined.length() > 3_000 ? joined.substring(joined.length() - 3_000) : joined;
+            return label + " (tail): " + tail;
+        } catch (IOException exception) {
+            return label + " could not be read.";
         }
     }
 
