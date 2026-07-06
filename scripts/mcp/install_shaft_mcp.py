@@ -55,8 +55,13 @@ SHAFT_SKILLS_SOURCE_MARKERS = (
     "analyzing-shaft-failures/SKILL.md",
     "verifying-and-applying-shaft-changes/SKILL.md",
 )
-AGENT_VALIDATION_SCRIPT_RELATIVE = "scripts/ci/validate_agent_setup.py"
-AGENT_VALIDATION_SCRIPT_TARGET_DIR = "scripts/ci"
+AGENT_VALIDATION_SCRIPT_FILES = (
+    "scripts/__init__.py",
+    "scripts/ci/__init__.py",
+    "scripts/ci/validate_agent_setup.py",
+    "scripts/ci/validate_agent_guidance.py",
+    "scripts/ci/validate_documentation_boundaries.py",
+)
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "intellij-plugin")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
@@ -643,10 +648,10 @@ def shaft_skills_raw_file_url(relative: str) -> str:
     return f"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/{quoted_ref}/{SHAFT_SKILLS_DIRECTORY}/{quoted_relative}"
 
 
-def agent_validation_raw_file_url() -> str:
+def shaft_agent_validation_raw_file_url(relative: str) -> str:
     ref = os.environ.get("SHAFT_MCP_INSTALLER_REF", "main").strip() or "main"
     quoted_ref = urllib.parse.quote(ref, safe="/")
-    quoted_relative = urllib.parse.quote(AGENT_VALIDATION_SCRIPT_RELATIVE, safe="/")
+    quoted_relative = urllib.parse.quote(relative, safe="/")
     return f"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/{quoted_ref}/{quoted_relative}"
 
 
@@ -668,21 +673,24 @@ def download_shaft_skills_files(target: Path) -> Path:
     return target
 
 
-def download_agent_validation_script(target: Path) -> Path:
+def download_agent_validation_script_files(target: Path) -> Path:
     target = target.resolve()
     target.mkdir(parents=True, exist_ok=True)
-    destination = (target / AGENT_VALIDATION_SCRIPT_RELATIVE.split("/")[-1]).resolve()
-    if target != destination and target not in destination.parents:
-        fail(f"Agent validation script path is unsafe: {AGENT_VALIDATION_SCRIPT_RELATIVE}", 4)
-    download_file(
-        agent_validation_raw_file_url(),
-        destination,
-        f"Agent validation script {AGENT_VALIDATION_SCRIPT_RELATIVE}",
-        show_progress=False,
-    )
-    if not destination.is_file():
-        fail("Agent validation script was not downloaded successfully.", 4)
-    return destination
+    for relative in AGENT_VALIDATION_SCRIPT_FILES:
+        destination = (target / relative).resolve()
+        if target != destination and target not in destination.parents:
+            fail(f"Agent validation script manifest contains an unsafe path: {relative}", 4)
+        download_file(
+            shaft_agent_validation_raw_file_url(relative),
+            destination,
+            f"Agent validation script {relative.split('/')[-1]}",
+            show_progress=False,
+        )
+    # Verify the main entry point was downloaded
+    main_script = target / "validate_agent_setup.py"
+    if not main_script.is_file():
+        fail("Agent validation script did not download correctly.", 4)
+    return target
 
 
 def install_shaft_skills(current_directory: Path, root: Path) -> Path:
@@ -1158,14 +1166,14 @@ def install(args: argparse.Namespace) -> None:
     current_directory = Path.cwd().resolve()
     skills_path = current_directory / SHAFT_SKILLS_DIRECTORY
     skills_installed = False
-    validation_script_path = None
+    validation_script_dir = None
     if should_install_shaft_skills(args, current_directory):
         log(f"Installing SHAFT skills to {skills_path}...")
         skills_path = install_shaft_skills(current_directory, root)
         skills_installed = True
-        log(f"Fetching agent validation script...")
-        validation_target = current_directory / AGENT_VALIDATION_SCRIPT_TARGET_DIR
-        validation_script_path = download_agent_validation_script(validation_target)
+        log(f"Fetching agent validation script files...")
+        validation_target = current_directory / "scripts" / "ci"
+        validation_script_dir = download_agent_validation_script_files(validation_target)
     else:
         log(f"Skipped SHAFT skills installation for {skills_path}.")
     result = {
@@ -1180,8 +1188,11 @@ def install(args: argparse.Namespace) -> None:
             "path": str(skills_path),
         },
     }
-    if skills_installed and validation_script_path:
-        result["agentValidationScript"] = str(validation_script_path)
+    if validation_script_dir:
+        result["agentValidationScript"] = {
+            "installed": True,
+            "path": str(validation_script_dir),
+        }
     if args.json:
         print(json.dumps(result, separators=(",", ":")))
     else:
@@ -1189,8 +1200,8 @@ def install(args: argparse.Namespace) -> None:
         print(f"shaft-mcp {version} is {action} {args.client}.")
         if skills_installed:
             print(f"SHAFT skills installed at {skills_path}.")
-            if validation_script_path:
-                print(f"Agent validation script available at {validation_script_path}.")
+            if validation_script_dir:
+                print(f"Agent validation script files installed at {validation_script_dir}.")
         else:
             print(f"SHAFT skills installation skipped for {skills_path}.")
         print(activation_hint(args.client))
