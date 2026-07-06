@@ -357,4 +357,94 @@ class DoctorAiAnalysisServiceTest {
             throw new IllegalStateException(exception);
         }
     }
+
+    @Test
+    void successfulAdvisoryIncludesConfidenceAndRationale(@TempDir Path temp) throws Exception {
+        DoctorAiAnalysisService service = service(request -> success(request, fixtureUnchecked("high-quality.json")));
+
+        DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
+                DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        assertEquals(DoctorAdvisory.Status.SUCCESS, advisory.status());
+        assertTrue(advisory.confidence() >= 0 && advisory.confidence() <= 100);
+        assertFalse(advisory.confidenceRationale().isEmpty());
+        assertTrue(advisory.confidenceRationale().length() <= 500);
+    }
+
+    @Test
+    void uncitedProposedFixScoresInLowBand(@TempDir Path temp) throws Exception {
+        ObjectNode payload = (ObjectNode) fixture("high-quality.json").deepCopy();
+        // Modify all actions to have no evidence references, simulating uncited recommendations.
+        payload.withArray("recommendedActions").forEach(action -> {
+            ((ObjectNode) action).putArray("evidenceIds");
+        });
+        DoctorAiAnalysisService service = service(request -> success(request, payload));
+
+        DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
+                DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        assertEquals(DoctorAdvisory.Status.SUCCESS, advisory.status());
+        assertTrue(advisory.confidence() < 40,
+                "Uncited proposed fix should score <40 (Low band), got: " + advisory.confidence());
+        assertTrue(advisory.confidenceRationale().contains("action") || advisory.confidenceRationale().contains("uncited"),
+                "Rationale should explain low citation: " + advisory.confidenceRationale());
+    }
+
+    @Test
+    void singleHighConfidenceFullyCitedAdvisoryScoresInHighBand(@TempDir Path temp) throws Exception {
+        ObjectNode payload = (ObjectNode) fixture("high-quality.json").deepCopy();
+        // Ensure single hypothesis with HIGH confidence and all items are cited.
+        var hypothesesArray = payload.withArray("hypotheses");
+        // Clear and rebuild with a single HIGH confidence hypothesis with evidence.
+        hypothesesArray.removeAll();
+        hypothesesArray.addObject()
+                .put("causeCategory", "LOCATOR")
+                .put("statement", "The element locator is outdated and does not match the current DOM.")
+                .put("confidence", "HIGH")
+                .putArray("evidenceIds").add("evidence-1");
+        // Ensure all observations and actions reference evidence.
+        payload.withArray("observations").forEach(obs -> {
+            if (((ObjectNode) obs).get("evidenceIds").size() == 0) {
+                ((ObjectNode) obs).putArray("evidenceIds").add("evidence-1");
+            }
+        });
+        payload.withArray("recommendedActions").forEach(action -> {
+            if (((ObjectNode) action).get("evidenceIds").size() == 0) {
+                ((ObjectNode) action).putArray("evidenceIds").add("evidence-1");
+            }
+        });
+        DoctorAiAnalysisService service = service(request -> success(request, payload));
+
+        DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
+                DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        assertEquals(DoctorAdvisory.Status.SUCCESS, advisory.status());
+        assertTrue(advisory.confidence() >= 75,
+                "Fully-cited single-hypothesis HIGH confidence advisory should score >=75 (High band), got: "
+                        + advisory.confidence());
+    }
+
+    @Test
+    void fallbackAdvisoryHasZeroConfidence(@TempDir Path temp) {
+        DoctorAiAnalysisService service = service(request ->
+                AiResponse.failure(AiResponseStatus.PROVIDER_UNAVAILABLE, "mock", "mock-model",
+                        "Provider is temporarily unavailable.",
+                        Duration.ofMillis(5), request.deterministicFallback()));
+
+        DoctorAdvisory advisory = service.analyze(bundle(), diagnosis(),
+                DoctorAiAnalysisRequest.defaults(APPROVED), temp);
+
+        assertEquals(DoctorAdvisory.Status.FALLBACK, advisory.status());
+        assertEquals(0, advisory.confidence());
+        assertFalse(advisory.confidenceRationale().isEmpty());
+    }
+
+    @Test
+    void disabledAdvisoryHasZeroConfidence() {
+        DoctorAdvisory advisory = DoctorAdvisory.disabled();
+
+        assertEquals(DoctorAdvisory.Status.DISABLED, advisory.status());
+        assertEquals(0, advisory.confidence());
+        assertEquals("", advisory.confidenceRationale());
+    }
 }
