@@ -10,6 +10,7 @@ public final class ShaftStatusPresentation {
     public static final String PENDING_ICON = "⏳";
     public static final String ERROR_ICON = "❌";
     public static final String WARNING_ICON = "⚠️";
+    public static final String DISCONNECTED_ICON = "⚡";
 
     private ShaftStatusPresentation() {
         throw new IllegalStateException("Utility class");
@@ -32,6 +33,11 @@ public final class ShaftStatusPresentation {
     public static Color error() {
         Color foreground = javax.swing.UIManager.getColor("ValidationTooltip.errorForeground");
         return foreground == null ? new Color(0xB42318) : foreground;
+    }
+
+    public static Color disconnected() {
+        Color foreground = javax.swing.UIManager.getColor("ValidationTooltip.warningForeground");
+        return foreground == null ? new Color(0xFF9800) : foreground;
     }
 
     public static Color tint(Color base, Color overlay, double overlayWeight) {

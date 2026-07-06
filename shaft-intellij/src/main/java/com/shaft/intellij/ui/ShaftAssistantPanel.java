@@ -16,6 +16,8 @@ import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.WrapLayout;
+import com.shaft.intellij.mcp.ShaftMcpConnectionState;
+import com.shaft.intellij.mcp.ShaftMcpHeartbeat;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
@@ -143,6 +145,9 @@ final class ShaftAssistantPanel extends JPanel {
     private StringBuilder sequenceMarkdown;
     private StringBuilder sequenceRawOutput;
     private JPopupMenu contextPopup;
+    private final ShaftMcpConnectionState connectionState;
+    private ShaftMcpHeartbeat heartbeat;
+    private JButton reconnect;
 
     ShaftAssistantPanel(Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -167,6 +172,7 @@ final class ShaftAssistantPanel extends JPanel {
         this.settings = settings;
         this.chatState = chatState;
         this.configureFlow = setupFlow;
+        this.connectionState = project.getService(ShaftMcpConnectionState.class);
         setBorder(JBUI.Borders.empty(8));
 
         chatSelector = new JComboBox<>();
@@ -355,6 +361,9 @@ final class ShaftAssistantPanel extends JPanel {
         cancel = button("Cancel", "Cancel assistant request", event -> cancelOrKillCurrent());
         ShaftIconButtons.apply(cancel, ShaftIcons.CANCEL);
         cancel.setEnabled(false);
+        reconnect = button("Reconnect", "Reconnect to MCP server", event -> reconnectMcp());
+        ShaftIconButtons.apply(reconnect, ShaftIcons.RERUN);
+        reconnect.setVisible(false);
         copyLastResponse = button("Copy response", "Copy last assistant response", event -> copyLastResponse());
         ShaftIconButtons.apply(copyLastResponse, ShaftIcons.COPY);
         copyLastResponse.setEnabled(false);
@@ -442,6 +451,7 @@ final class ShaftAssistantPanel extends JPanel {
         actionRow.add(copyTranscript);
         actionRow.add(clearTranscript);
         actionRow.add(rerunLastPrompt);
+        actionRow.add(reconnect);
         actionRow.add(cancel);
 
         JPanel routeRow = wrapRow();
@@ -499,6 +509,20 @@ final class ShaftAssistantPanel extends JPanel {
 
     JComponent preferredFocusComponent() {
         return prompt;
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        startHeartbeat();
+        connectionState.addStateChangeListener(this::onConnectionStateChanged);
+    }
+
+    @Override
+    public void removeNotify() {
+        stopHeartbeat();
+        connectionState.removeStateChangeListener(this::onConnectionStateChanged);
+        super.removeNotify();
     }
 
     static boolean requiresMcpSetup(AssistantCommand.Invocation invocation, boolean mcpConfigured) {
@@ -2275,6 +2299,50 @@ final class ShaftAssistantPanel extends JPanel {
     private static String string(JsonObject object, String key, String fallback) {
         JsonElement value = object == null ? null : object.get(key);
         return value != null && value.isJsonPrimitive() ? value.getAsString() : fallback;
+    }
+
+    private synchronized void startHeartbeat() {
+        if (heartbeat == null && project != null && mcpReady(settings)) {
+            heartbeat = new ShaftMcpHeartbeat(project, connectionState);
+            heartbeat.start();
+        }
+    }
+
+    private synchronized void stopHeartbeat() {
+        if (heartbeat != null) {
+            heartbeat.dispose();
+            heartbeat = null;
+        }
+    }
+
+    private void onConnectionStateChanged() {
+        ApplicationManager.getApplication().invokeLater(this::updateConnectionDisplay);
+    }
+
+    private void updateConnectionDisplay() {
+        boolean connected = connectionState.isConnected();
+        reconnect.setVisible(!connected);
+        if (!connected && !running) {
+            setStatus(ShaftStatusPresentation.DISCONNECTED_ICON + " MCP disconnected. Click 'Reconnect' to restore.");
+            status.setForeground(ShaftStatusPresentation.disconnected());
+        } else if (connected && status.getText().contains("MCP disconnected")) {
+            setStatus(READY_STATUS);
+            status.setForeground(javax.swing.UIManager.getColor("Label.foreground"));
+        }
+    }
+
+    private void reconnectMcp() {
+        ShaftMcpInvocationService invocationService = ShaftMcpInvocationService.getInstance(project);
+        invocationService.testConnection().future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(() -> {
+            if (error == null && result != null && result.success()) {
+                connectionState.setConnected(true);
+                setStatus("Reconnected successfully");
+                showTransientStatus("MCP reconnected. Ready to chat.");
+            } else {
+                connectionState.setConnected(false);
+                setStatus("Reconnect failed. Check the MCP command.");
+            }
+        }));
     }
 
     private enum RecordingBackend {
