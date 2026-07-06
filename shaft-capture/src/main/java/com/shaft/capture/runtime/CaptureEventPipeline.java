@@ -100,6 +100,16 @@ final class CaptureEventPipeline implements AutoCloseable {
                     }
                 }
                 case "click" -> pendingClicks.put(targetKey(signal), signal);
+                case "keyboard" -> {
+                    // Suppress standalone editing key actions (Backspace, Delete, arrow keys)
+                    // when recorded on a text-entry element without modifiers.
+                    // These are coalesced into the input value, not emitted as separate keyboard events.
+                    if (isStandaloneEditingKey(signal)) {
+                        return;
+                    }
+                    flushPendingBefore(signal.timestamp());
+                    emit(signal);
+                }
                 default -> {
                     flushPendingBefore(signal.timestamp());
                     emit(signal);
@@ -718,6 +728,41 @@ final class CaptureEventPipeline implements AutoCloseable {
     private static String targetKey(BrowserSignal signal) {
         String target = string(signal.target().get("logicalElementId"));
         return target.isBlank() ? signal.kind() + "-" + signal.browsingContextId() : target;
+    }
+
+    private static boolean isStandaloneEditingKey(BrowserSignal signal) {
+        if (!"keyboard".equals(signal.kind())) {
+            return false;
+        }
+        List<String> keys = signal.dataStrings("keys");
+        if (keys == null || keys.isEmpty()) {
+            return false;
+        }
+        // Single key without modifiers is an editing key: suppress it on text inputs
+        if (keys.size() != 1) {
+            return false;
+        }
+        String key = keys.getFirst().toUpperCase(Locale.ROOT);
+        if (!("BACKSPACE".equals(key) || "DELETE".equals(key)
+                || "ARROWUP".equals(key) || "ARROWDOWN".equals(key)
+                || "ARROWLEFT".equals(key) || "ARROWRIGHT".equals(key))) {
+            return false;
+        }
+        // Check if target is a text-entry element
+        String tagName = string(signal.target().get("tagName")).toLowerCase(Locale.ROOT);
+        String type = string(signal.target().get("attributes"));
+        if ("textarea".equals(tagName)) {
+            return true;
+        }
+        if ("input".equals(tagName)) {
+            Map<String, String> attributes = strings(signal.target().get("attributes"));
+            String inputType = attributes.getOrDefault("type", "text").toLowerCase(Locale.ROOT);
+            return !("button".equals(inputType) || "submit".equals(inputType)
+                    || "reset".equals(inputType) || "checkbox".equals(inputType)
+                    || "radio".equals(inputType) || "file".equals(inputType)
+                    || "hidden".equals(inputType));
+        }
+        return false;
     }
 
     private boolean isDuplicate(BrowserSignal signal) {
