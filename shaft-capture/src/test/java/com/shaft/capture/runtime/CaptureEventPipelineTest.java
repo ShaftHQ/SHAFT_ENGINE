@@ -283,7 +283,7 @@ class CaptureEventPipelineTest {
         List<CaptureEvent> events = store.read().events();
         // Should have exactly one TypeEvent (no keyboard events for Backspace)
         assertEquals(1, events.size());
-        CaptureEvent.TypeEvent typeEvent = assertInstanceOf(CaptureEvent.TypeEvent.class, events.getFirst());
+        assertInstanceOf(CaptureEvent.TypeEvent.class, events.getFirst());
         String dataJson = Files.readString(output.getParent().resolve("capture-data.json"),
                 StandardCharsets.UTF_8);
         // The final value should be "abxy" (after backspacing "cd")
