@@ -484,60 +484,82 @@ public class MobileService {
             boolean fallbackEnabled = aiFallbackEnabled == null ? SHAFT.Properties.naturalActions.aiFallbackEnabled() : aiFallbackEnabled;
 
             if (safeIntent.isBlank()) {
-                List<String> warnings = List.of("Intent is blank; cannot resolve a semantic action.");
-                logger.info("Mobile natural action failed (intent: blank)");
-                return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+                return blankIntentResult(safeIntent);
             }
-
             if (safeAccessibleName.isBlank()) {
-                List<String> warnings = fallbackEnabled
-                        ? List.of("accessibleName is blank; deterministic resolution skipped.")
-                        : List.of("accessibleName is blank and AI fallback is disabled.");
-                logger.info("Mobile natural action skipped deterministic resolution (accessibleName: blank, aiFallback: {})", fallbackEnabled);
-                return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+                return blankAccessibleNameResult(safeIntent, fallbackEnabled);
             }
 
             String source = getDriver().getDriver().getPageSource();
             if (source == null || source.isBlank()) {
-                List<String> warnings = List.of("Accessibility tree is empty; cannot resolve semantic action.");
-                logger.info("Mobile natural action failed (source: empty)");
-                return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+                return emptySourceResult(safeIntent);
             }
 
             var suggesterOpt = McpAppiumLocatorSuggester.parse(source);
             if (suggesterOpt.isEmpty()) {
-                List<String> warnings = fallbackEnabled
-                        ? List.of("Accessibility tree could not be parsed; deterministic resolution skipped.")
-                        : List.of("Accessibility tree could not be parsed and AI fallback is disabled.");
-                logger.info("Mobile natural action skipped deterministic resolution (parse failed, aiFallback: {})", fallbackEnabled);
-                return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+                return unparsableTreeResult(safeIntent, fallbackEnabled);
             }
 
             var locatorOpt = suggesterOpt.get().locatorByAccessibleName(safeAccessibleName);
             if (locatorOpt.isEmpty()) {
-                List<String> warnings = fallbackEnabled
-                        ? List.of("No deterministic locator matched the accessible name; AI fallback available.")
-                        : List.of("No deterministic locator matched the accessible name and AI fallback is disabled.");
-                logger.info("Mobile natural action could not resolve deterministically (accessibleName: {}, aiFallback: {})",
-                        safeAccessibleName, fallbackEnabled);
-                return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+                return unresolvedLocatorResult(safeIntent, safeAccessibleName, fallbackEnabled);
             }
 
-            var suggestion = locatorOpt.get();
-            boolean success = true;
-            List<String> warnings = List.of();
-            logger.info("Mobile natural action resolved deterministically (intent length: {}, accessibleName length: {}, strategy: {})",
-                    safeIntent.length(), safeAccessibleName.length(), suggestion.strategy().name());
-            return new McpMobileNaturalActionResult(
-                    safeIntent,
-                    suggestion.strategy().name(),
-                    suggestion.value(),
-                    success,
-                    warnings);
-        } catch (Exception exception) {
+            return resolvedLocatorResult(safeIntent, safeAccessibleName, locatorOpt.get());
+        } catch (RuntimeException exception) {
             logger.error("Mobile natural action failed", exception);
             throw exception;
         }
+    }
+
+    private McpMobileNaturalActionResult blankIntentResult(String safeIntent) {
+        logger.info("Mobile natural action failed (intent: blank)");
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false,
+                List.of("Intent is blank; cannot resolve a semantic action."));
+    }
+
+    private McpMobileNaturalActionResult blankAccessibleNameResult(String safeIntent, boolean fallbackEnabled) {
+        List<String> warnings = fallbackEnabled
+                ? List.of("accessibleName is blank; deterministic resolution skipped.")
+                : List.of("accessibleName is blank and AI fallback is disabled.");
+        logger.info("Mobile natural action skipped deterministic resolution (accessibleName: blank, aiFallback: {})", fallbackEnabled);
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+    }
+
+    private McpMobileNaturalActionResult emptySourceResult(String safeIntent) {
+        logger.info("Mobile natural action failed (source: empty)");
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false,
+                List.of("Accessibility tree is empty; cannot resolve semantic action."));
+    }
+
+    private McpMobileNaturalActionResult unparsableTreeResult(String safeIntent, boolean fallbackEnabled) {
+        List<String> warnings = fallbackEnabled
+                ? List.of("Accessibility tree could not be parsed; deterministic resolution skipped.")
+                : List.of("Accessibility tree could not be parsed and AI fallback is disabled.");
+        logger.info("Mobile natural action skipped deterministic resolution (parse failed, aiFallback: {})", fallbackEnabled);
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+    }
+
+    private McpMobileNaturalActionResult unresolvedLocatorResult(
+            String safeIntent, String safeAccessibleName, boolean fallbackEnabled) {
+        List<String> warnings = fallbackEnabled
+                ? List.of("No deterministic locator matched the accessible name; AI fallback available.")
+                : List.of("No deterministic locator matched the accessible name and AI fallback is disabled.");
+        logger.info("Mobile natural action could not resolve deterministically (accessibleName: {}, aiFallback: {})",
+                safeAccessibleName, fallbackEnabled);
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+    }
+
+    private McpMobileNaturalActionResult resolvedLocatorResult(
+            String safeIntent, String safeAccessibleName, McpAppiumLocatorSuggester.LocatorSuggestion suggestion) {
+        logger.info("Mobile natural action resolved deterministically (intent length: {}, accessibleName length: {}, strategy: {})",
+                safeIntent.length(), safeAccessibleName.length(), suggestion.strategy().name());
+        return new McpMobileNaturalActionResult(
+                safeIntent,
+                suggestion.strategy().name(),
+                suggestion.value(),
+                true,
+                List.of());
     }
 
     /**

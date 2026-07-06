@@ -40,6 +40,8 @@ public final class McpAppiumLocatorSuggester {
     };
     private static final List<String> XPATH_ATTRIBUTES = List.of(
             "name", "content-desc", "id", "resource-id", "accessibility-id", "label", "text", "value");
+    private static final List<String> ACCESSIBLE_NAME_ATTRIBUTES = List.of(
+            "name", "content-desc", "text", "label", "resource-id");
 
     private final Document document;
 
@@ -91,27 +93,12 @@ public final class McpAppiumLocatorSuggester {
     }
 
     private boolean matchesAccessibleName(Element element, String targetName) {
-        String name = attribute(element, "name");
-        if (!name.isBlank() && name.equalsIgnoreCase(targetName)) {
-            return true;
-        }
-        String contentDesc = attribute(element, "content-desc");
-        if (!contentDesc.isBlank() && contentDesc.equalsIgnoreCase(targetName)) {
-            return true;
-        }
-        String text = attribute(element, "text");
-        if (!text.isBlank() && text.equalsIgnoreCase(targetName)) {
-            return true;
-        }
-        String label = attribute(element, "label");
-        if (!label.isBlank() && label.equalsIgnoreCase(targetName)) {
-            return true;
-        }
-        String resourceId = attribute(element, "resource-id");
-        if (!resourceId.isBlank() && resourceId.equalsIgnoreCase(targetName)) {
-            return true;
-        }
-        return false;
+        return ACCESSIBLE_NAME_ATTRIBUTES.stream().anyMatch(name -> matchesAttribute(element, name, targetName));
+    }
+
+    private boolean matchesAttribute(Element element, String attributeName, String targetName) {
+        String value = attribute(element, attributeName);
+        return !value.isBlank() && value.equalsIgnoreCase(targetName);
     }
 
     private Optional<LocatorSuggestion> bestLocator(Element element) {
