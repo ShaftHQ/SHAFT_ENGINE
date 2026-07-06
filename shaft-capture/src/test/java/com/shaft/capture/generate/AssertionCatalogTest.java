@@ -40,17 +40,21 @@ class AssertionCatalogTest {
 
     @Test
     void onlyAttributeEqualsPromptsForAnAttributeName() {
-        AssertionCatalog.elementAssertions().forEach(entry -> assertEquals(
-                entry.kind() == CaptureEvent.VerificationKind.ATTRIBUTE_EQUALS,
-                entry.needsAttribute(),
-                entry.kind() + " attribute-name prompt flag"));
-        AssertionCatalog.browserAssertions().forEach(entry -> assertEquals(
-                false, entry.needsAttribute(), entry.kind() + " attribute-name prompt flag"));
+        for (AssertionCatalog.Entry entry : AssertionCatalog.elementAssertions()) {
+            assertEquals(
+                    entry.kind() == CaptureEvent.VerificationKind.ATTRIBUTE_EQUALS,
+                    entry.needsAttribute(),
+                    entry.kind() + " attribute-name prompt flag");
+        }
+        for (AssertionCatalog.Entry entry : AssertionCatalog.browserAssertions()) {
+            assertEquals(false, entry.needsAttribute(), entry.kind() + " attribute-name prompt flag");
+        }
     }
 
     @Test
     void everyBrowserAssertionPromptsForAnExpectedValue() {
-        AssertionCatalog.browserAssertions().forEach(entry ->
-                assertEquals(true, entry.needsValue(), entry.kind() + " expected-value prompt flag"));
+        for (AssertionCatalog.Entry entry : AssertionCatalog.browserAssertions()) {
+            assertEquals(true, entry.needsValue(), entry.kind() + " expected-value prompt flag");
+        }
     }
 }
