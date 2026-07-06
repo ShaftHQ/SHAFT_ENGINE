@@ -1449,13 +1449,9 @@
   addEventListener("blur", event => {
     const element = event.target;
     if (!isTextInput(element)) return;
-    const key = "input:" + text(
-      element.getAttribute("data-testid") ||
-      element.getAttribute("data-test") ||
-      element.id ||
-      element.name
-    ) || `${String(element.localName || "element")}-${Math.abs(cssPath(element).split("")
-      .reduce((hash, character) => ((hash << 5) - hash) + character.charCodeAt(0), 0))}`;
+    const target = snapshot(event);
+    if (!target) return;
+    const key = "input:" + target.logicalElementId;
     if (uiState.currentInputActionKey === key) {
       uiState.currentInputActionKey = "";
       persist();
