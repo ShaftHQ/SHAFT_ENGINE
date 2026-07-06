@@ -194,9 +194,15 @@ public class ShaftHealingProvider implements HealingProvider {
                 action);
         new HealingReportWriter(pending.configuration()).publish(updated);
         if (outcome.successful()) {
+            HealingHistoryStore store = new HealingHistoryStore(pending.configuration());
+            store.recordOutcome(
+                    pending.history().pageKey(),
+                    pending.history().originalLocator(),
+                    pending.history().context(),
+                    "healed-and-passed");
             String visualReference = new VisualEvidenceService(pending.configuration())
                     .saveReference(pending.history().key(), pending.selected().element());
-            new HealingHistoryStore(pending.configuration()).save(
+            store.save(
                     pending.history().pageKey(),
                     pending.history().originalLocator(),
                     pending.history().context(),

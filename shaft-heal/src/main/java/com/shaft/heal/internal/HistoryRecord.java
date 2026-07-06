@@ -4,6 +4,7 @@ import com.shaft.heal.model.HealingContext;
 import com.shaft.heal.model.HealingPlatform;
 import com.shaft.heal.model.LocatorFingerprint;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -19,6 +20,7 @@ import java.util.Objects;
  * @param visualReference optional local visual reference
  * @param updatedAt UTC timestamp
  * @param checksum record checksum
+ * @param outcomes list of healing outcomes
  */
 public record HistoryRecord(
         String schemaVersion,
@@ -30,7 +32,8 @@ public record HistoryRecord(
         LocatorFingerprint fingerprint,
         String visualReference,
         String updatedAt,
-        String checksum) {
+        String checksum,
+        List<HistoryOutcome> outcomes) {
     public static final String CURRENT_SCHEMA_VERSION = "2.0";
 
     /**
@@ -57,7 +60,7 @@ public record HistoryRecord(
                         "",
                         "",
                         ""),
-                fingerprint, visualReference, updatedAt, checksum);
+                fingerprint, visualReference, updatedAt, checksum, List.of());
     }
 
     /**
@@ -85,6 +88,7 @@ public record HistoryRecord(
         visualReference = Objects.requireNonNullElse(visualReference, "");
         updatedAt = Objects.requireNonNullElse(updatedAt, "");
         checksum = Objects.requireNonNullElse(checksum, "");
+        outcomes = outcomes == null ? List.of() : List.copyOf(outcomes);
     }
 
     /**
@@ -95,6 +99,19 @@ public record HistoryRecord(
      */
     public HistoryRecord withChecksum(String value) {
         return new HistoryRecord(schemaVersion, key, pageKey, originalLocator, context,
-                contextMetadata, fingerprint, visualReference, updatedAt, value);
+                contextMetadata, fingerprint, visualReference, updatedAt, value, outcomes);
+    }
+
+    /**
+     * Returns a copy with an appended outcome.
+     *
+     * @param outcome healing outcome to append
+     * @return record with outcome appended
+     */
+    public HistoryRecord withOutcome(HistoryOutcome outcome) {
+        List<HistoryOutcome> updated = new java.util.ArrayList<>(outcomes);
+        updated.add(outcome);
+        return new HistoryRecord(schemaVersion, key, pageKey, originalLocator, context,
+                contextMetadata, fingerprint, visualReference, updatedAt, checksum, updated);
     }
 }
