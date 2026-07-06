@@ -31,12 +31,11 @@ class MobileNaturalActionTest {
     @TempDir
     Path temp;
 
-    private EngineService engineService;
     private MobileService mobileService;
 
     @BeforeEach
     void setup() {
-        engineService = mock(EngineService.class);
+        EngineService engineService = mock(EngineService.class);
         mobileService = new MobileService(engineService, McpWorkspacePolicy.of(temp));
     }
 

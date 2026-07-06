@@ -479,37 +479,42 @@ public class MobileService {
             String accessibleName,
             Boolean aiFallbackEnabled) {
         try {
-            String safeIntent = intent == null ? "" : intent.trim();
-            String safeAccessibleName = accessibleName == null ? "" : accessibleName.trim();
-            boolean fallbackEnabled = aiFallbackEnabled == null ? SHAFT.Properties.naturalActions.aiFallbackEnabled() : aiFallbackEnabled;
-
-            if (safeIntent.isBlank()) {
-                return blankIntentResult(safeIntent);
-            }
-            if (safeAccessibleName.isBlank()) {
-                return blankAccessibleNameResult(safeIntent, fallbackEnabled);
-            }
-
-            String source = getDriver().getDriver().getPageSource();
-            if (source == null || source.isBlank()) {
-                return emptySourceResult(safeIntent);
-            }
-
-            var suggesterOpt = McpAppiumLocatorSuggester.parse(source);
-            if (suggesterOpt.isEmpty()) {
-                return unparsableTreeResult(safeIntent, fallbackEnabled);
-            }
-
-            var locatorOpt = suggesterOpt.get().locatorByAccessibleName(safeAccessibleName);
-            if (locatorOpt.isEmpty()) {
-                return unresolvedLocatorResult(safeIntent, safeAccessibleName, fallbackEnabled);
-            }
-
-            return resolvedLocatorResult(safeIntent, safeAccessibleName, locatorOpt.get());
+            return resolveNaturalAct(intent, accessibleName, aiFallbackEnabled);
         } catch (RuntimeException exception) {
             logger.error("Mobile natural action failed", exception);
             throw exception;
         }
+    }
+
+    private McpMobileNaturalActionResult resolveNaturalAct(
+            String intent, String accessibleName, Boolean aiFallbackEnabled) {
+        String safeIntent = intent == null ? "" : intent.trim();
+        String safeAccessibleName = accessibleName == null ? "" : accessibleName.trim();
+        boolean fallbackEnabled = aiFallbackEnabled == null ? SHAFT.Properties.naturalActions.aiFallbackEnabled() : aiFallbackEnabled;
+
+        if (safeIntent.isBlank()) {
+            return blankIntentResult(safeIntent);
+        }
+        if (safeAccessibleName.isBlank()) {
+            return blankAccessibleNameResult(safeIntent, fallbackEnabled);
+        }
+
+        String source = getDriver().getDriver().getPageSource();
+        if (source == null || source.isBlank()) {
+            return emptySourceResult(safeIntent);
+        }
+
+        var suggesterOpt = McpAppiumLocatorSuggester.parse(source);
+        if (suggesterOpt.isEmpty()) {
+            return unparsableTreeResult(safeIntent, fallbackEnabled);
+        }
+
+        var locatorOpt = suggesterOpt.get().locatorByAccessibleName(safeAccessibleName);
+        if (locatorOpt.isEmpty()) {
+            return unresolvedLocatorResult(safeIntent, safeAccessibleName, fallbackEnabled);
+        }
+
+        return resolvedLocatorResult(safeIntent, safeAccessibleName, locatorOpt.get());
     }
 
     private McpMobileNaturalActionResult blankIntentResult(String safeIntent) {
