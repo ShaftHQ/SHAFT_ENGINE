@@ -214,7 +214,13 @@ async function ownTask(task) {
 // Workflow scripts run as top-level async code against the `args`
 // global, not as an exported function -- an `export default` here is a
 // syntax error under the runtime's non-module script evaluation.
-const { issue } = args;
+//
+// The runtime hands `args` through as a JSON-encoded string even when
+// the caller passes a real object/array -- parse it back or every field
+// silently reads as undefined (array/object property lookups on a
+// string return undefined instead of throwing, so this fails silently).
+const parsedArgs = typeof args === "string" ? JSON.parse(args) : args;
+const { issue } = parsedArgs;
 
 const plan = await withFallback("plan", PLAN_CHAIN, planPrompt(issue), {
   effort: "high",
