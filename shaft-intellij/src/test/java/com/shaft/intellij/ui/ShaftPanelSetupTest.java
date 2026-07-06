@@ -3013,17 +3013,7 @@ class ShaftPanelSetupTest {
         if (fallbackPanel == null || fallbackPanel.getComponentCount() == 0) {
             return "";
         }
-        Component firstBubble = fallbackPanel.getComponent(0);
-        if (!(firstBubble instanceof JComponent jPanel)) {
-            return "";
-        }
-        for (int i = 0; i < jPanel.getComponentCount(); i++) {
-            Component component = jPanel.getComponent(i);
-            if (component instanceof JEditorPane editor) {
-                return editor.getText();
-            }
-        }
-        return "";
+        return transcriptRenderedHtml(fallbackPanel.getComponent(0));
     }
 
     private static String extractTranscriptContent(AssistantTranscriptView transcript) throws Exception {
