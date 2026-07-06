@@ -935,6 +935,7 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private static JLabel setupStepLabel(String accessibleName) {
         JLabel label = new JLabel();
+        // Don't clamp preferred size; let layout manager compute it from font metrics
         label.setBorder(JBUI.Borders.empty(2, 6));
         label.getAccessibleContext().setAccessibleName(accessibleName);
         return label;
@@ -1050,6 +1051,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         row.setOpaque(false);
         JLabel label = new JLabel(text);
+        // Don't clamp label size; use JBUI insets for consistent spacing
+        label.setBorder(JBUI.Borders.empty(2, 0, 0, 6));
         label.setLabelFor(control);
         row.add(label);
         row.add(control);

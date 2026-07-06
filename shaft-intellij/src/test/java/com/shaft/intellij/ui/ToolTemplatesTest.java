@@ -288,6 +288,45 @@ class ToolTemplatesTest {
     }
 
     @Test
+    void guideCommandInvocationResolvesAgainstProbedStdioToolList() {
+        String probedToolsList = """
+                {
+                  "tools": [
+                    {
+                      "name": "shaft_guide_search",
+                      "description": "searches the live official SHAFT user guide"
+                    },
+                    {
+                      "name": "test_automation_scenarios",
+                      "description": "returns SHAFT MCP usage scenarios"
+                    },
+                    {
+                      "name": "shaft_coding_partner_plan",
+                      "description": "plans a repository-aware SHAFT IntelliJ coding-partner workflow"
+                    },
+                    {
+                      "name": "test_code_guardrails_check",
+                      "description": "checks generated SHAFT test code for lexical anti-patterns"
+                    }
+                  ]
+                }
+                """;
+
+        AssistantCommand.Invocation guideInvocation = AssistantCommand.fromPrompt(
+                "/guide page objects locators", "CODEX", "AGENT", "C:/work/project", "", false);
+        assertEquals("shaft_guide_search", guideInvocation.toolName());
+
+        Map<String, ToolTemplate> mergedByTool = ToolTemplates.categories(probedToolsList).stream()
+                .flatMap(category -> category.templates().stream())
+                .collect(Collectors.toMap(ToolTemplate::toolName, template -> template, (first, second) -> first));
+
+        ToolTemplate resolved = mergedByTool.get(guideInvocation.toolName());
+        assertNotNull(resolved, "/guide invocation tool " + guideInvocation.toolName()
+                + " did not resolve against the probed stdio tools/list");
+        assertEquals("searches the live official SHAFT user guide", resolved.description());
+    }
+
+    @Test
     void mergeDiscoveredToolsFallsBackToMcpCategoryWhenEnvelopeStyle() {
         String toolsList = """
                 {

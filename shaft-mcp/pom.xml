@@ -213,6 +213,22 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.6</version>
                 <configuration>
+                    <!--
+                        Surefire's built-in default includes (Test*.java, *Test.java, *Tests.java,
+                        *TestCase.java) do NOT match *IT.java classes: that pattern is Failsafe's
+                        default, and this module does not bind Failsafe. Restate the default Test*
+                        patterns explicitly and add the *IT.java pattern so integration-style tests
+                        such as ShaftMcpStdioManifestIT are collected by `mvn test`; group filtering
+                        (below, and in the mcp-browser-e2e profile) still controls whether they
+                        actually execute.
+                    -->
+                    <includes>
+                        <include>**/Test*.java</include>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                        <include>**/*TestCase.java</include>
+                        <include>**/*IT.java</include>
+                    </includes>
                     <excludedGroups>external-e2e</excludedGroups>
                     <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                     <failIfNoTests>false</failIfNoTests>
@@ -236,7 +252,16 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <groups>external-e2e</groups>
-                            <excludedGroups/>
+                            <!--
+                                combine.self="override" is required here: without it, Maven's model
+                                merge combines this empty element with the base configuration's
+                                <excludedGroups>external-e2e</excludedGroups> instead of replacing
+                                it, leaving external-e2e simultaneously included AND excluded, which
+                                the JUnit Platform resolves as excluded, so `mvn test
+                                -DincludeMcpBrowserE2E` silently ran zero tests. Overriding forces
+                                this profile's (empty) value to win so the tagged tests actually run.
+                            -->
+                            <excludedGroups combine.self="override"/>
                         </configuration>
                     </plugin>
                 </plugins>

@@ -249,6 +249,75 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void suppressesStandaloneEditingKeysInTextInputsAndCoalescesIntoFinalValue(@TempDir Path temp) throws Exception {
+        // Type 'abcd', press Backspace twice (should not emit standalone keyboard events),
+        // type 'xy', commit. Should result in a single TypeEvent with final value 'abxy',
+        // zero standalone Backspace/keyboard events, and zero Delete actions.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("input", START, usernameTarget(),
+                Map.of("value", "a", "clientActionId", "ui-7"), Map.of()));
+        pipeline.accept(signal("input", START.plusMillis(10), usernameTarget(),
+                Map.of("value", "ab", "clientActionId", "ui-7"), Map.of()));
+        pipeline.accept(signal("input", START.plusMillis(20), usernameTarget(),
+                Map.of("value", "abc", "clientActionId", "ui-7"), Map.of()));
+        pipeline.accept(signal("input", START.plusMillis(30), usernameTarget(),
+                Map.of("value", "abcd", "clientActionId", "ui-7"), Map.of()));
+        // Simulate Backspace twice (editing key, no modifiers) — should be suppressed
+        pipeline.accept(signal("keyboard", START.plusMillis(40), usernameTarget(),
+                Map.of("keys", List.of("BACKSPACE")), Map.of()));
+        pipeline.accept(signal("keyboard", START.plusMillis(50), usernameTarget(),
+                Map.of("keys", List.of("BACKSPACE")), Map.of()));
+        // Type 'xy' after backspacing
+        pipeline.accept(signal("input", START.plusMillis(60), usernameTarget(),
+                Map.of("value", "abxy", "clientActionId", "ui-7"), Map.of()));
+        pipeline.accept(signal("input", START.plusMillis(70), usernameTarget(),
+                Map.of("value", "abxy", "committed", true, "clientActionId", "ui-7"), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        // Should have exactly one TypeEvent (no keyboard events for Backspace)
+        assertEquals(1, events.size());
+        assertInstanceOf(CaptureEvent.TypeEvent.class, events.getFirst());
+        String dataJson = Files.readString(output.getParent().resolve("capture-data.json"),
+                StandardCharsets.UTF_8);
+        // The final value should be "abxy" (after backspacing "cd")
+        assertTrue(dataJson.contains("abxy"));
+        // Intermediate values should not be stored
+        assertFalse(dataJson.contains("abcd"));
+        // No keyboard events should be recorded
+        boolean hasKeyboardEvent = events.stream().anyMatch(e -> e instanceof CaptureEvent.KeyboardEvent);
+        assertFalse(hasKeyboardEvent);
+    }
+
+    @Test
+    void preservesBackspaceOutsideTextInputElements(@TempDir Path temp) throws Exception {
+        // Backspace on a button should still record as a keyboard event (non-input context)
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("keyboard", START, buttonTarget(),
+                Map.of("keys", List.of("BACKSPACE")), Map.of()));
+        pipeline.accept(signal("click", START.plusMillis(1), buttonTarget(),
+                Map.of("button", 0, "clickCount", 1), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(2, events.size());
+        assertInstanceOf(CaptureEvent.KeyboardEvent.class, events.get(0));
+        assertInstanceOf(CaptureEvent.ClickEvent.class, events.get(1));
+    }
+
+    @Test
     void writesActionsBeforeStopAndStoresSanitizedDomEvidence(@TempDir Path temp) {
         Path output = temp.resolve("session.json");
         CaptureSessionStore store = startedStore(output);
