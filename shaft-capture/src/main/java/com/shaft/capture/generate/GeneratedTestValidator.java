@@ -95,11 +95,14 @@ public class GeneratedTestValidator {
         try {
             Files.createDirectories(allureResults);
             Files.createDirectories(testngOutput);
+            seedHeadlessCustomProperties(workDirectory);
             List<String> command = new ArrayList<>();
             command.add(javaCommand());
             command.add("-Dallure.results.directory=" + allureResults.toAbsolutePath().normalize());
-            command.add("-DheadlessExecution="
-                    + System.getProperty("headlessExecution", "true"));
+            // Always headless regardless of the outer process's own headlessExecution setting
+            // (e.g. shaft-capture's custom.properties defaults to false for local interactive
+            // development) -- this replay is a non-interactive validation run.
+            command.add("-DheadlessExecution=true");
             command.add("-Dwebdriver.chrome.verboseLogging=true");
             command.add("-Dwebdriver.chrome.logfile=" + chromeDriverLog.toAbsolutePath().normalize());
             command.add("-cp");
@@ -150,6 +153,27 @@ public class GeneratedTestValidator {
             Thread.currentThread().interrupt();
             return failed("Generated test replay was interrupted.");
         }
+    }
+
+    /**
+     * Pre-seeds a {@code custom.properties} at the path SHAFT's engine bootstrap looks for one
+     * relative to the replay's working directory, forcing headless/CI-safe Chrome flags.
+     *
+     * <p>Without this, the engine's own "create custom.properties from the bundled template if
+     * missing" bootstrap step fills that same file with the template's {@code headlessExecution=false}
+     * default and reloads it into system properties, silently discarding any headless override
+     * passed to the replay subprocess on the command line — Chrome then launches without
+     * {@code --headless} and crashes on runners with no display.
+     *
+     * @param workDirectory the replay subprocess's working directory
+     */
+    private static void seedHeadlessCustomProperties(Path workDirectory) throws IOException {
+        Path customProperties = workDirectory.resolve("src/main/resources/properties/custom.properties");
+        Files.createDirectories(customProperties.getParent());
+        Files.writeString(customProperties,
+                "headlessExecution=true" + System.lineSeparator()
+                        + "automaticallyAddRecommendedChromeOptions=true" + System.lineSeparator(),
+                StandardCharsets.UTF_8);
     }
 
     private static AllureSummary allure(Path directory) throws IOException {
