@@ -11,6 +11,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.mcp.McpInvocationError;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
@@ -246,7 +247,12 @@ final class ShaftFeaturePanel extends JPanel {
                     .getAsJsonObject();
         } catch (RuntimeException exception) {
             status.setText("Invalid JSON");
-            outputArea.setText("Invalid JSON: " + exception.getMessage());
+            JsonText.JsonErrorLocation location = JsonText.findErrorLocation(argumentsArea.getText());
+            String message = location != null ? "Invalid JSON at " + location : "Invalid JSON";
+            outputArea.setText(message);
+            if (location != null) {
+                selectJsonErrorLocation(location);
+            }
             copyOutputButton.setEnabled(true);
             return;
         }
@@ -288,11 +294,19 @@ final class ShaftFeaturePanel extends JPanel {
         }
         setRunning(false, error == null && result != null && result.success() ? "Finished" : "Failed");
         if (error != null) {
-            outputArea.setText(error.getMessage());
+            McpInvocationError category = McpInvocationError.categorize(error);
+            StringBuilder sb = new StringBuilder();
+            sb.append(category.message());
+            if (category.recoveryAction() != null) {
+                sb.append("\n\nRecovery: ").append(category.recoveryAction());
+            }
+            outputArea.setText(sb.toString());
         } else if (result == null) {
             outputArea.setText("No result returned.");
-        } else {
+        } else if (result.success()) {
             outputArea.setText(JsonText.prettyOrOriginal(result.output()));
+        } else {
+            formatErrorOutput(result);
         }
         copyOutputButton.setEnabled(!outputArea.getText().isBlank());
     }
@@ -311,9 +325,17 @@ final class ShaftFeaturePanel extends JPanel {
             reloadCategories();
             outputArea.setText(JsonText.prettyOrOriginal(result.output()));
         } else if (error != null) {
-            outputArea.setText(error.getMessage());
+            McpInvocationError category = McpInvocationError.categorize(error);
+            StringBuilder sb = new StringBuilder();
+            sb.append(category.message());
+            if (category.recoveryAction() != null) {
+                sb.append("\n\nRecovery: ").append(category.recoveryAction());
+            }
+            outputArea.setText(sb.toString());
+        } else if (result == null) {
+            outputArea.setText("No result returned.");
         } else {
-            outputArea.setText(result == null ? "No result returned." : result.output());
+            formatErrorOutput(result);
         }
         copyOutputButton.setEnabled(!outputArea.getText().isBlank());
     }
@@ -574,6 +596,42 @@ final class ShaftFeaturePanel extends JPanel {
 
     private static String description(ToolTemplate template) {
         return template.description().isBlank() ? template.toolName() : template.description();
+    }
+
+    private void formatErrorOutput(ShaftMcpToolResult result) {
+        if (result.errorCategory() != null) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(result.errorCategory().message());
+            if (result.recoveryAction() != null) {
+                sb.append("\n\nRecovery: ").append(result.recoveryAction());
+            }
+            outputArea.setText(sb.toString());
+        } else {
+            outputArea.setText(result.output());
+        }
+    }
+
+    private void selectJsonErrorLocation(JsonText.JsonErrorLocation location) {
+        String text = argumentsArea.getText();
+        int targetLine = location.line - 1;
+        int currentLine = 0;
+        int lineStart = 0;
+        for (int i = 0; i < text.length(); i++) {
+            if (currentLine == targetLine) {
+                int lineEnd = text.indexOf('\n', i);
+                if (lineEnd == -1) {
+                    lineEnd = text.length();
+                }
+                int selectStart = Math.min(lineStart + location.column, lineEnd);
+                argumentsArea.setCaretPosition(selectStart);
+                argumentsArea.moveCaretPosition(Math.min(selectStart + 1, lineEnd));
+                break;
+            }
+            if (text.charAt(i) == '\n') {
+                currentLine++;
+                lineStart = i + 1;
+            }
+        }
     }
 
     private record SimpleDocumentListener(Runnable callback) implements DocumentListener {
