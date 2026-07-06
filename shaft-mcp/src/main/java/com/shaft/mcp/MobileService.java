@@ -465,6 +465,125 @@ public class MobileService {
     }
 
     /**
+     * Performs a trust-gated natural-language touch action on the current mobile accessibility tree.
+     *
+     * @param intent semantic instruction describing the action (e.g., "tap button labeled OK")
+     * @param accessibleName accessible name/label to resolve deterministically from the tree
+     * @param aiFallbackEnabled optional AI fallback flag; when false, fails deterministic resolution
+     * @return mobile action result with matched locator strategy and value
+     */
+    @Tool(name = "mobile_natural_act",
+            description = "performs a trust-gated natural-language touch action by resolving the intent against the mobile accessibility tree")
+    public McpMobileNaturalActionResult naturalAct(
+            String intent,
+            String accessibleName,
+            Boolean aiFallbackEnabled) {
+        try {
+            return resolveNaturalAct(intent, accessibleName, aiFallbackEnabled);
+        } catch (RuntimeException exception) {
+            logger.error("Mobile natural action failed", exception);
+            throw exception;
+        }
+    }
+
+    private McpMobileNaturalActionResult resolveNaturalAct(
+            String intent, String accessibleName, Boolean aiFallbackEnabled) {
+        String safeIntent = safeTrim(intent);
+        String safeAccessibleName = safeTrim(accessibleName);
+        boolean fallbackEnabled = resolveFallbackEnabled(aiFallbackEnabled);
+
+        if (safeIntent.isBlank()) {
+            return blankIntentResult(safeIntent);
+        }
+        if (safeAccessibleName.isBlank()) {
+            return blankAccessibleNameResult(safeIntent, fallbackEnabled);
+        }
+        return resolveAgainstAccessibilityTree(safeIntent, safeAccessibleName, fallbackEnabled);
+    }
+
+    private static String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static boolean resolveFallbackEnabled(Boolean aiFallbackEnabled) {
+        return aiFallbackEnabled == null ? SHAFT.Properties.naturalActions.aiFallbackEnabled() : aiFallbackEnabled;
+    }
+
+    private McpMobileNaturalActionResult resolveAgainstAccessibilityTree(
+            String safeIntent, String safeAccessibleName, boolean fallbackEnabled) {
+        String source = getDriver().getDriver().getPageSource();
+        if (isBlank(source)) {
+            return emptySourceResult(safeIntent);
+        }
+
+        var suggesterOpt = McpAppiumLocatorSuggester.parse(source);
+        if (suggesterOpt.isEmpty()) {
+            return unparsableTreeResult(safeIntent, fallbackEnabled);
+        }
+
+        var locatorOpt = suggesterOpt.get().locatorByAccessibleName(safeAccessibleName);
+        if (locatorOpt.isEmpty()) {
+            return unresolvedLocatorResult(safeIntent, safeAccessibleName, fallbackEnabled);
+        }
+
+        return resolvedLocatorResult(safeIntent, safeAccessibleName, locatorOpt.get());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private McpMobileNaturalActionResult blankIntentResult(String safeIntent) {
+        logger.info("Mobile natural action failed (intent: blank)");
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false,
+                List.of("Intent is blank; cannot resolve a semantic action."));
+    }
+
+    private McpMobileNaturalActionResult blankAccessibleNameResult(String safeIntent, boolean fallbackEnabled) {
+        List<String> warnings = fallbackEnabled
+                ? List.of("accessibleName is blank; deterministic resolution skipped.")
+                : List.of("accessibleName is blank and AI fallback is disabled.");
+        logger.info("Mobile natural action skipped deterministic resolution (accessibleName: blank, aiFallback: {})", fallbackEnabled);
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+    }
+
+    private McpMobileNaturalActionResult emptySourceResult(String safeIntent) {
+        logger.info("Mobile natural action failed (source: empty)");
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false,
+                List.of("Accessibility tree is empty; cannot resolve semantic action."));
+    }
+
+    private McpMobileNaturalActionResult unparsableTreeResult(String safeIntent, boolean fallbackEnabled) {
+        List<String> warnings = fallbackEnabled
+                ? List.of("Accessibility tree could not be parsed; deterministic resolution skipped.")
+                : List.of("Accessibility tree could not be parsed and AI fallback is disabled.");
+        logger.info("Mobile natural action skipped deterministic resolution (parse failed, aiFallback: {})", fallbackEnabled);
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+    }
+
+    private McpMobileNaturalActionResult unresolvedLocatorResult(
+            String safeIntent, String safeAccessibleName, boolean fallbackEnabled) {
+        List<String> warnings = fallbackEnabled
+                ? List.of("No deterministic locator matched the accessible name; AI fallback available.")
+                : List.of("No deterministic locator matched the accessible name and AI fallback is disabled.");
+        logger.info("Mobile natural action could not resolve deterministically (accessibleName: {}, aiFallback: {})",
+                safeAccessibleName, fallbackEnabled);
+        return new McpMobileNaturalActionResult(safeIntent, "", "", false, warnings);
+    }
+
+    private McpMobileNaturalActionResult resolvedLocatorResult(
+            String safeIntent, String safeAccessibleName, McpAppiumLocatorSuggester.LocatorSuggestion suggestion) {
+        logger.info("Mobile natural action resolved deterministically (intent length: {}, accessibleName length: {}, strategy: {})",
+                safeIntent.length(), safeAccessibleName.length(), suggestion.strategy().name());
+        return new McpMobileNaturalActionResult(
+                safeIntent,
+                suggestion.strategy().name(),
+                suggestion.value(),
+                true,
+                List.of());
+    }
+
+    /**
      * Takes a PNG screenshot of the current mobile device viewport.
      *
      * @param outputPath optional workspace-relative or workspace-contained output file path
