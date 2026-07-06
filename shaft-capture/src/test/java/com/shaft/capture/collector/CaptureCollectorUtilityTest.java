@@ -70,7 +70,7 @@ class CaptureCollectorUtilityTest {
                 .contains("\"data-\\\"quoted\\\\path\""));
         assertTrue(preload.contains("SHAFT Capture"));
         assertTrue(preload.contains("kind: \"control\""));
-        assertTrue(preload.contains("kind: \"checkpoint\""));
+        assertTrue(preload.contains("kind: \"verification\""));
         assertTrue(preload.contains("Edit captured action"));
         assertTrue(preload.contains("Pause recording"));
         assertTrue(preload.contains("Stop recording"));
