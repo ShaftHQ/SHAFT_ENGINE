@@ -63,4 +63,32 @@ class BrowserEventSinkTest {
             sink.close();
         }
     }
+
+    @Test
+    void stepsAndEventEndpointsAnswerCorsPreflightsWithPrivateNetworkAccessHeaders() throws Exception {
+        BrowserEventSink sink = new BrowserEventSink(signal -> { }, warning -> { });
+        sink.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+
+            HttpResponse<String> stepsPreflight = client.send(HttpRequest.newBuilder()
+                    .uri(URI.create(sink.stepsEndpoint()))
+                    .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                    .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(204, stepsPreflight.statusCode());
+            assertEquals("true", stepsPreflight.headers().firstValue("Access-Control-Allow-Private-Network")
+                    .orElse(""));
+            assertEquals("*", stepsPreflight.headers().firstValue("Access-Control-Allow-Origin").orElse(""));
+
+            HttpResponse<String> eventPreflight = client.send(HttpRequest.newBuilder()
+                    .uri(URI.create(sink.endpoint()))
+                    .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                    .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(204, eventPreflight.statusCode());
+            assertEquals("true", eventPreflight.headers().firstValue("Access-Control-Allow-Private-Network")
+                    .orElse(""));
+        } finally {
+            sink.close();
+        }
+    }
 }

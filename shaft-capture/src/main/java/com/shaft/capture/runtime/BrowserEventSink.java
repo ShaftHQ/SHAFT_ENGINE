@@ -89,7 +89,10 @@ final class BrowserEventSink implements AutoCloseable {
 
     private void handle(HttpExchange exchange) throws IOException {
         try (exchange) {
-            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            applyCorsHeaders(exchange);
+            if (respondToPreflight(exchange)) {
+                return;
+            }
             if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 send(exchange, 405);
                 return;
@@ -106,7 +109,10 @@ final class BrowserEventSink implements AutoCloseable {
 
     private void handleSteps(HttpExchange exchange) throws IOException {
         try (exchange) {
-            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            applyCorsHeaders(exchange);
+            if (respondToPreflight(exchange)) {
+                return;
+            }
             if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
                 send(exchange, 405);
                 return;
@@ -126,6 +132,37 @@ final class BrowserEventSink implements AutoCloseable {
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);
         }
+    }
+
+    /**
+     * Applies the CORS and Chromium Private Network Access response headers every response needs,
+     * including preflights. Recorder pages served from a browser-classified "public" address space
+     * (which Chromium's PNA policy applies even between distinct loopback origins/ports in current
+     * versions) must see {@code Access-Control-Allow-Private-Network: true} on the preflight
+     * response, or the browser blocks the follow-up request before it reaches this handler.
+     *
+     * @param exchange in-flight HTTP exchange
+     */
+    private static void applyCorsHeaders(HttpExchange exchange) {
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Private-Network", "true");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type");
+    }
+
+    /**
+     * Answers a CORS/Private-Network-Access preflight with 204 so the browser proceeds with the
+     * actual request.
+     *
+     * @param exchange in-flight HTTP exchange
+     * @return {@code true} if this was a preflight and the exchange has already been answered
+     */
+    private static boolean respondToPreflight(HttpExchange exchange) throws IOException {
+        if (!"OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            return false;
+        }
+        send(exchange, 204);
+        return true;
     }
 
     private void accept(byte[] body) {
