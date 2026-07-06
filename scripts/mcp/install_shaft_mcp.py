@@ -169,7 +169,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("--client", choices=TARGETS)
-    parser.add_argument("--version", default=os.environ.get("SHAFT_MCP_VERSION", "LATEST"))
+    env_version = (os.environ.get("SHAFT_MCP_VERSION") or "").strip()
+    parser.add_argument("--version", nargs="?", const="LATEST", default=env_version or "LATEST")
     parser.add_argument("--json", action="store_true", help="Print machine-readable install details to stdout.")
     parser.add_argument(
         "--install-shaft-skills",
@@ -189,6 +190,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Optional target name: codex, claude, claude-desktop, copilot, or copilot-intellij.",
     )
     args = parser.parse_args(argv)
+
+    # Normalize empty or whitespace-only version to LATEST
+    if isinstance(args.version, str):
+        args.version = (args.version.strip() or "LATEST")
 
     selected: list[str] = []
     if args.client:
@@ -444,6 +449,8 @@ def java_home_for(java: Path) -> Path:
 
 def resolve_shaft_mcp_version(requested_version: str | None, repository: str, root: Path) -> str:
     requested = (requested_version or "LATEST").strip()
+    if not requested or requested == "":
+        requested = "LATEST"
     if requested and requested != "LATEST":
         return requested
     log("Resolving io.github.shafthq:shaft-mcp:LATEST...")
