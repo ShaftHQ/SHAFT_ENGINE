@@ -50,6 +50,29 @@ final class HealingHistoryStore {
         }
     }
 
+    Optional<HealingHistorySummary> summary(String pageKey, String originalLocator, String context) {
+        if (!configuration.historyEnabled()) {
+            return Optional.empty();
+        }
+        return find(pageKey, originalLocator, context).map(record -> {
+            List<HistoryOutcome> outcomes = record.outcomes();
+            int consecutiveHeals = 0;
+            for (int i = outcomes.size() - 1; i >= 0; i--) {
+                if ("healed-and-passed".equals(outcomes.get(i).result())) {
+                    consecutiveHeals++;
+                } else {
+                    break;
+                }
+            }
+            long acceptedCount = outcomes.stream()
+                    .filter(outcome -> "healed-and-passed".equals(outcome.result()))
+                    .count();
+            double acceptanceRate = outcomes.isEmpty() ? 0.0 : (double) acceptedCount / outcomes.size();
+            boolean isPromotionCandidate = consecutiveHeals >= 3;
+            return new HealingHistorySummary(consecutiveHeals, acceptanceRate, isPromotionCandidate);
+        });
+    }
+
     void save(
             String pageKey,
             String originalLocator,
@@ -75,9 +98,13 @@ final class HealingHistoryStore {
                 Map<String, HistoryRecord> records = new LinkedHashMap<>();
                 document.records().stream().filter(this::retained).filter(this::valid)
                         .forEach(record -> records.put(record.key(), record));
+                String recordKey = key(pageKey, originalLocator, context);
+                List<HistoryOutcome> existingOutcomes = records.containsKey(recordKey)
+                        ? records.get(recordKey).outcomes()
+                        : List.of();
                 HistoryRecord record = new HistoryRecord(
                         HistoryRecord.CURRENT_SCHEMA_VERSION,
-                        key(pageKey, originalLocator, context),
+                        recordKey,
                         pageKey,
                         originalLocator,
                         context,
@@ -85,8 +112,67 @@ final class HealingHistoryStore {
                         fingerprint,
                         visualReference,
                         Instant.now().toString(),
-                        "");
+                        "",
+                        existingOutcomes);
                 records.put(record.key(), record.withChecksum(checksum(record)));
+                List<HistoryRecord> retained = records.values().stream()
+                        .sorted(Comparator.comparing(HistoryRecord::updatedAt).reversed())
+                        .limit(configuration.historyMaxEntries())
+                        .toList();
+                write(new HistoryDocument(HistoryDocument.CURRENT_SCHEMA_VERSION, retained));
+                return null;
+            });
+        }
+    }
+
+    void recordOutcome(String pageKey, String originalLocator, String context, String result) {
+        if (!configuration.historyEnabled()) {
+            return;
+        }
+        synchronized (LOCK) {
+            withFileLock(() -> {
+                HistoryDocument document = load();
+                String recordKey = key(pageKey, originalLocator, context);
+                Optional<HistoryRecord> existing = document.records().stream()
+                        .filter(record -> record.key().equals(recordKey))
+                        .filter(this::valid)
+                        .findFirst();
+                HistoryRecord updated = existing
+                        .map(record -> record.withOutcome(new HistoryOutcome(result, Instant.now().toString())))
+                        .orElseGet(() -> new HistoryRecord(
+                                HistoryRecord.CURRENT_SCHEMA_VERSION,
+                                recordKey,
+                                pageKey,
+                                originalLocator,
+                                context,
+                                null,
+                                new LocatorFingerprint(
+                                        LocatorFingerprint.CURRENT_SCHEMA_VERSION,
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        Map.of(),
+                                        Map.of(),
+                                        ""),
+                                "",
+                                Instant.now().toString(),
+                                "",
+                                List.of(new HistoryOutcome(result, Instant.now().toString()))));
+                updated = updated.withChecksum(checksum(updated));
+                Map<String, HistoryRecord> records = new LinkedHashMap<>();
+                document.records().stream()
+                        .filter(record -> !record.key().equals(recordKey))
+                        .filter(this::retained)
+                        .filter(this::valid)
+                        .forEach(record -> records.put(record.key(), record));
+                records.put(updated.key(), updated);
                 List<HistoryRecord> retained = records.values().stream()
                         .sorted(Comparator.comparing(HistoryRecord::updatedAt).reversed())
                         .limit(configuration.historyMaxEntries())
@@ -186,6 +272,7 @@ final class HealingHistoryStore {
             content.put("fingerprint", record.fingerprint());
             content.put("visualReference", record.visualReference());
             content.put("updatedAt", record.updatedAt());
+            content.put("outcomes", record.outcomes());
             return HealingSupport.sha256(CHECKSUM_JSON.writeValueAsString(content));
         } catch (RuntimeException exception) {
             return "";
@@ -246,7 +333,8 @@ final class HealingHistoryStore {
                 fingerprint,
                 legacy.visualReference(),
                 legacy.updatedAt(),
-                "");
+                "",
+                legacy.outcomes());
         return migrated.withChecksum(checksum(migrated));
     }
 

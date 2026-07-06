@@ -3,6 +3,7 @@ package com.shaft.heal.internal;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.shaft.heal.HealingConfiguration;
+import com.shaft.heal.model.LocatorFingerprint;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -171,6 +172,28 @@ public class HealingHistoryStoreTest {
         Assert.assertFalse(sanitized.value().contains("eyJabcdefgh"));
         Assert.assertFalse(sanitized.value().contains("secret-value"));
         Assert.assertTrue(sanitized.redactedCount() > 0);
+    }
+
+    @Test
+    public void recordOutcomeThenSaveShouldPreserveOutcomesAcrossRuns() throws IOException {
+        HealingConfiguration configuration = configuration(10);
+        HealingHistoryStore store = new HealingHistoryStore(configuration);
+        String pageKey = "https://example.test/page";
+        String originalLocator = "By.id: promoted";
+        String context = "frame=";
+        LocatorFingerprint fingerprint = DeterministicScorerTest.fingerprint("promoted", "Promoted");
+
+        for (int run = 0; run < 3; run++) {
+            store.recordOutcome(pageKey, originalLocator, context, "healed-and-passed");
+            store.save(pageKey, originalLocator, context, fingerprint, "");
+        }
+
+        HealingHistorySummary summary = store.summary(pageKey, originalLocator, context)
+                .orElseThrow();
+
+        Assert.assertEquals(summary.consecutiveHeals(), 3);
+        Assert.assertEquals(summary.acceptanceRate(), 1.0);
+        Assert.assertTrue(summary.isPromotionCandidate());
     }
 
     private HealingConfiguration configuration(int maxEntries) throws IOException {
