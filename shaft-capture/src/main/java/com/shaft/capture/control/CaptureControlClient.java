@@ -1,8 +1,10 @@
 package com.shaft.capture.control;
 
 import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
+import com.shaft.capture.model.CaptureStep;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.runtime.CaptureStatus;
 
@@ -63,7 +65,7 @@ public final class CaptureControlClient {
             return last;
         }
         try {
-            return send("GET", "/status", "");
+            return send("GET", "/status", "", CaptureStatus.class);
         } catch (RuntimeException exception) {
             files.clearActiveControl();
             CaptureStatus last = files.readStatus();
@@ -97,7 +99,8 @@ public final class CaptureControlClient {
     public CaptureStatus checkpoint(String description, Checkpoint.CheckpointKind kind) {
         return sendJson("POST", "/checkpoint", Map.of(
                 "description", description == null ? "" : description,
-                "kind", kind == null ? Checkpoint.CheckpointKind.USER_MARKER.name() : kind.name()));
+                "kind", kind == null ? Checkpoint.CheckpointKind.USER_MARKER.name() : kind.name()),
+                CaptureStatus.class);
     }
 
     /**
@@ -107,18 +110,47 @@ public final class CaptureControlClient {
      * @return final status
      */
     public CaptureStatus stop(boolean discard) {
-        return sendJson("POST", "/stop", Map.of("discard", discard));
+        return sendJson("POST", "/stop", Map.of("discard", discard), CaptureStatus.class);
     }
 
-    private CaptureStatus sendJson(String method, String path, Object body) {
+    /**
+     * Returns the current server-side step list for the active session, so a recorder UI or
+     * control client can source its step list from the session store instead of page-scoped
+     * browser storage.
+     *
+     * @return ordered safe step summaries, or an empty list when no session is reachable
+     */
+    public List<CaptureStep> steps() {
+        if (!files.hasActiveControl()) {
+            return List.of();
+        }
         try {
-            return send(method, path, mapper.writeValueAsString(body));
+            return send("GET", "/steps", "", new TypeReference<List<CaptureStep>>() {
+            });
+        } catch (RuntimeException exception) {
+            return List.of();
+        }
+    }
+
+    private <T> T sendJson(String method, String path, Object body, Class<T> type) {
+        try {
+            return send(method, path, mapper.writeValueAsString(body), type);
         } catch (JacksonException exception) {
             throw new IllegalStateException("SHAFT Capture control request could not be serialized.", exception);
         }
     }
 
-    private CaptureStatus send(String method, String path, String body) {
+    private <T> T send(String method, String path, String body, Class<T> type) {
+        String responseBody = exchange(method, path, body);
+        return mapper.readValue(responseBody, type);
+    }
+
+    private <T> T send(String method, String path, String body, TypeReference<T> type) {
+        String responseBody = exchange(method, path, body);
+        return mapper.readValue(responseBody, type);
+    }
+
+    private String exchange(String method, String path, String body) {
         CaptureControlFiles.ControlDescriptor descriptor = files.readDescriptor();
         if (ProcessHandle.of(descriptor.processId()).isEmpty()) {
             throw new IllegalStateException("SHAFT Capture recorder process is not running.");
@@ -140,7 +172,7 @@ public final class CaptureControlClient {
             if (response.statusCode() != 200) {
                 throw new IllegalStateException("SHAFT Capture control endpoint rejected the request.");
             }
-            return mapper.readValue(response.body(), CaptureStatus.class);
+            return response.body();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("SHAFT Capture control request was interrupted.", exception);

@@ -6,6 +6,7 @@
   globalThis.__shaftCaptureQueue = globalThis.__shaftCaptureQueue || [];
 
   const testIdAttributes = ["data-testid", "data-test", "data-qa"];
+  const stepsEndpoint = {url: "", token: ""};
   const STORAGE_KEY = "shaft.capture.recorder.ui";
   const eventSink = sink && typeof sink === "object" ? sink : {};
   const text = value => String(value || "").replace(/\s+/g, " ").trim().slice(0, 500);
@@ -119,6 +120,56 @@
     persist();
     return pendingSignals.length ? pendingSignals : memorySignals;
   };
+  // Recorded steps are the source of truth on the server (CaptureSessionStore, reachable via the
+  // loopback control endpoint). Page-scoped sessionStorage does not survive a cross-origin
+  // navigation, so every fresh page instance re-synchronizes its visible step list from the
+  // server instead of trusting only what this page happens to remember.
+  let stepsSyncInFlight = false;
+  const syncStepsFromServer = () => {
+    if (!stepsEndpoint.url || !stepsEndpoint.token || typeof fetch !== "function" || stepsSyncInFlight) {
+      return;
+    }
+    stepsSyncInFlight = true;
+    fetch(stepsEndpoint.url + "?token=" + encodeURIComponent(stepsEndpoint.token), {method: "GET"})
+      .then(response => (response.ok ? response.json() : null))
+      .then(steps => {
+        if (Array.isArray(steps)) applyServerSteps(steps);
+      })
+      .catch(() => {
+        // The control endpoint may be briefly unavailable during startup or shutdown;
+        // the locally persisted state remains the best-effort fallback.
+      })
+      .finally(() => {
+        stepsSyncInFlight = false;
+      });
+  };
+  const applyServerSteps = steps => {
+    const localByRemoteId = new Map(
+      uiState.actions.filter(item => item.remoteId).map(item => [item.remoteId, item]));
+    const merged = steps
+      .filter(step => step && step.clientActionId)
+      .sort((left, right) => Number(left.sequence || 0) - Number(right.sequence || 0))
+      .map(step => {
+        const existing = localByRemoteId.get(step.clientActionId);
+        if (existing) {
+          existing.text = text(step.description) || existing.text;
+          return existing;
+        }
+        return {
+          id: uiState.nextId++,
+          remoteId: String(step.clientActionId),
+          text: text(step.description) || "Captured action",
+          timestamp: Date.now(),
+          mergeKey: "",
+          details: {}
+        };
+      });
+    if (merged.length === 0) return;
+    uiState.actions = merged.slice(-80);
+    uiState.currentInputActionKey = "";
+    persist();
+    renderActions();
+  };
   const framePath = () => {
     const path = [];
     let current = globalThis;
@@ -229,7 +280,7 @@
         return "Capture " + kind + " on " + name;
     }
   };
-  const clientActionId = item => uiState.instanceId + "-" + item.id;
+  const clientActionId = item => text(item.remoteId) || (uiState.instanceId + "-" + item.id);
   const announce = (value, mergeKey, details) => {
     const description = text(value);
     if (!description) return null;
@@ -564,7 +615,8 @@
       const readiness = readinessFor(kind, target);
       if (readiness) setReadiness(readiness.state, readiness.warning);
       const mergeKey = kind === "input" ? "input:" + target.logicalElementId : "";
-      const item = announce(describe(kind, target, action), mergeKey, {
+      const description = describe(kind, target, action);
+      const item = announce(description, mergeKey, {
         kind,
         target,
         locator: bestLocatorSummary(target),
@@ -577,6 +629,7 @@
       }
       if (item) {
         action.clientActionId = clientActionId(item);
+        action.stepDescription = description;
       }
       send({kind, page: page(), target, data: action});
     }
@@ -1707,8 +1760,21 @@
 
   if (topLevel) {
     schedulePanel();
-    if (uiState.actions.length === 0) {
-      announce("Open " + visibleLocation());
+    if (uiState.actions.length === 0 && stepsEndpoint.url && stepsEndpoint.token) {
+      // A fresh page (first load, or after a cross-origin navigation that reset page-scoped
+      // storage) waits for the authoritative server step list before showing a local-only
+      // "Open ..." breadcrumb, so a mid-session page does not briefly flash an empty state.
+      syncStepsFromServer();
+      setTimeout(() => {
+        if (uiState.actions.length === 0) {
+          announce("Open " + visibleLocation());
+        }
+      }, 400);
+    } else {
+      syncStepsFromServer();
+      if (uiState.actions.length === 0) {
+        announce("Open " + visibleLocation());
+      }
     }
     setInterval(() => {
       const current = String(location.href || "");
@@ -1716,6 +1782,7 @@
         uiState.lastUrl = current;
         persist();
         announce("Navigate to " + visibleLocation());
+        syncStepsFromServer();
       }
     }, 500);
   }

@@ -28,6 +28,7 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
     private final List<String> testIdAttributes;
     private final String eventEndpoint;
     private final String eventToken;
+    private final String stepsEndpoint;
     private final ObjectMapper mapper = new ObjectMapper();
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "shaft-capture-polling");
@@ -86,6 +87,28 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
             List<String> testIdAttributes,
             String eventEndpoint,
             String eventToken) {
+        this(driver, reportFallbackWarning, testIdAttributes, eventEndpoint, eventToken, "");
+    }
+
+    /**
+     * Creates a classic WebDriver collector with a steps-rehydration endpoint so the recorder UI
+     * can source its step list from the server-side session store across navigations, including
+     * cross-origin ones, instead of page-scoped storage.
+     *
+     * @param driver active driver
+     * @param reportFallbackWarning whether status should report reduced BiDi coverage
+     * @param testIdAttributes locator test-id attributes
+     * @param eventEndpoint optional loopback event endpoint
+     * @param eventToken optional loopback event token
+     * @param stepsEndpoint optional loopback steps query endpoint
+     */
+    public PollingBrowserEventCollector(
+            WebDriver driver,
+            boolean reportFallbackWarning,
+            List<String> testIdAttributes,
+            String eventEndpoint,
+            String eventToken,
+            String stepsEndpoint) {
         if (driver == null) {
             throw new IllegalArgumentException("Capture WebDriver is required.");
         }
@@ -94,6 +117,7 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
         this.testIdAttributes = testIdAttributes == null ? List.of() : List.copyOf(testIdAttributes);
         this.eventEndpoint = eventEndpoint == null ? "" : eventEndpoint;
         this.eventToken = eventToken == null ? "" : eventToken;
+        this.stepsEndpoint = stepsEndpoint == null ? "" : stepsEndpoint;
     }
 
     @Override
@@ -146,6 +170,8 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
             javascript.executeScript(BrowserEventScript.fallbackInstallation(
                     testIdAttributes,
                     eventEndpoint,
+                    eventToken,
+                    stepsEndpoint,
                     eventToken));
             Object drained = javascript.executeScript(BrowserEventScript.fallbackDrain());
             if (drained instanceof List<?> signals) {

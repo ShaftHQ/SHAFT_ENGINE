@@ -3,6 +3,7 @@ package com.shaft.capture.control;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
+import com.shaft.capture.model.CaptureStep;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStatus;
@@ -14,6 +15,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Executors;
 
@@ -60,6 +62,7 @@ public final class CaptureControlServer implements AutoCloseable {
         server.createContext("/status", exchange -> handle(exchange, this::status));
         server.createContext("/checkpoint", exchange -> handle(exchange, this::checkpoint));
         server.createContext("/stop", exchange -> handle(exchange, this::stop));
+        server.createContext("/steps", exchange -> handle(exchange, this::steps));
         server.setExecutor(Executors.newFixedThreadPool(2, runnable -> {
             Thread thread = new Thread(runnable, "shaft-capture-control");
             thread.setDaemon(true);
@@ -112,6 +115,11 @@ public final class CaptureControlServer implements AutoCloseable {
         CaptureStatus status = manager.stop(request.discard());
         files.writeStatus(status);
         return status;
+    }
+
+    private List<CaptureStep> steps(HttpExchange exchange) {
+        requireMethod(exchange, "GET");
+        return manager.steps();
     }
 
     private void handle(HttpExchange exchange, Handler handler) throws IOException {
@@ -170,7 +178,7 @@ public final class CaptureControlServer implements AutoCloseable {
 
     @FunctionalInterface
     private interface Handler {
-        CaptureStatus handle(HttpExchange exchange);
+        Object handle(HttpExchange exchange);
     }
 
     private record CheckpointRequest(String description, String kind) {

@@ -97,6 +97,18 @@ public final class CaptureManager implements AutoCloseable {
     }
 
     /**
+     * Returns the current server-side step list for the active session, so the recorder UI (or an
+     * external control client) can rehydrate its step list from the session store rather than
+     * page-scoped browser storage.
+     *
+     * @return ordered safe step summaries, or an empty list when no session is active
+     */
+    public synchronized java.util.List<com.shaft.capture.model.CaptureStep> steps() {
+        ManagedCaptureRecorder current = recorder;
+        return current == null ? java.util.List.of() : current.steps();
+    }
+
+    /**
      * Adds a human-review checkpoint to the active session.
      *
      * @param description checkpoint description
