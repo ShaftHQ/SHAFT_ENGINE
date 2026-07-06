@@ -143,3 +143,6 @@
 {"actor":"agent","event":"memory.created","id":"workflow.reset-core-and-user-guide-before-tasks","timestamp":"2026-07-05T08:31:01+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.intellij-assistant-codegen-avoids-live-browser-unless-explicit","timestamp":"2026-07-05T10:18:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.intellij-mcp-setup-copies-skills-install-flag","timestamp":"2026-07-05T10:18:19+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaft-auto-scaffolded-custom-properties-silently-overrides-d-system-properties","timestamp":"2026-07-06T23:25:17+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.diagnosing-shaft-browser-tests-that-pass-locally-but-fail-only-on-linux-ci","timestamp":"2026-07-06T23:25:17+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.release-candidate-pipeline-fails-fast-masking-later-stage-bugs","timestamp":"2026-07-06T23:25:17+03:00"}

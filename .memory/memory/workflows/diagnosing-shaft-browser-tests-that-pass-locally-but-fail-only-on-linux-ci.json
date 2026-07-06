@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/workflows/diagnosing-shaft-browser-tests-that-pass-locally-but-fail-only-on-linux-ci.md",
+  "content_hash": "sha256:4ae90614119dcf0a354e893c2f91d42af275b5ffda3dc9a2743403a1824db096",
+  "created_at": "2026-07-06T23:25:17+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      "shaft-capture/src/test/java/com/shaft/capture/generate/CaptureGeneratedReplayBrowserTest.java"
+    ],
+    "category": "workflow"
+  },
+  "id": "workflow.diagnosing-shaft-browser-tests-that-pass-locally-but-fail-only-on-linux-ci",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix release-candidate CI failures on PR #3344 (release/10.3.20260706)"
+  },
+  "status": "active",
+  "tags": [
+    "debugging",
+    "ci",
+    "browser-tests",
+    "chromedriver"
+  ],
+  "title": "Diagnosing SHAFT browser tests that pass locally but fail only on Linux CI",
+  "type": "workflow",
+  "updated_at": "2026-07-06T23:25:17+03:00"
+}

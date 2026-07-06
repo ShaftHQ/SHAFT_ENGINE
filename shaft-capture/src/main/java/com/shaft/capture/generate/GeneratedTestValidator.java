@@ -91,14 +91,20 @@ public class GeneratedTestValidator {
         Path allureResults = replayDirectory.resolve("allure-results");
         Path testngOutput = replayDirectory.resolve("testng-output");
         Path outputLog = replayDirectory.resolve("replay.log");
+        Path chromeDriverLog = replayDirectory.resolve("chromedriver.log");
         try {
             Files.createDirectories(allureResults);
             Files.createDirectories(testngOutput);
+            seedHeadlessCustomProperties(workDirectory);
             List<String> command = new ArrayList<>();
             command.add(javaCommand());
             command.add("-Dallure.results.directory=" + allureResults.toAbsolutePath().normalize());
-            command.add("-DheadlessExecution="
-                    + System.getProperty("headlessExecution", "true"));
+            // Always headless regardless of the outer process's own headlessExecution setting
+            // (e.g. shaft-capture's custom.properties defaults to false for local interactive
+            // development) -- this replay is a non-interactive validation run.
+            command.add("-DheadlessExecution=true");
+            command.add("-Dwebdriver.chrome.verboseLogging=true");
+            command.add("-Dwebdriver.chrome.logfile=" + chromeDriverLog.toAbsolutePath().normalize());
             command.add("-cp");
             command.add(classesDirectory.toAbsolutePath().normalize()
                     + File.pathSeparator
@@ -129,6 +135,12 @@ public class GeneratedTestValidator {
             }
             diagnostics.addAll(allure.diagnostics());
             boolean passed = process.exitValue() == 0 && allure.count() > 0 && allure.failed() == 0;
+            if (!passed) {
+                diagnostics.add(replayProcessOutputTail(outputLog));
+                if (Files.isRegularFile(chromeDriverLog)) {
+                    diagnostics.add(boundedFileTail("ChromeDriver log", chromeDriverLog));
+                }
+            }
             return new CaptureGenerationReport.Validation(
                     passed
                             ? CaptureGenerationReport.Validation.ValidationStatus.PASSED
@@ -143,24 +155,89 @@ public class GeneratedTestValidator {
         }
     }
 
+    /**
+     * Pre-seeds a {@code custom.properties} at the path SHAFT's engine bootstrap looks for one
+     * relative to the replay's working directory, forcing headless/CI-safe Chrome flags.
+     *
+     * <p>Without this, the engine's own "create custom.properties from the bundled template if
+     * missing" bootstrap step fills that same file with the template's {@code headlessExecution=false}
+     * default and reloads it into system properties, silently discarding any headless override
+     * passed to the replay subprocess on the command line — Chrome then launches without
+     * {@code --headless} and crashes on runners with no display.
+     *
+     * @param workDirectory the replay subprocess's working directory
+     */
+    private static void seedHeadlessCustomProperties(Path workDirectory) throws IOException {
+        Path customProperties = workDirectory.resolve("src/main/resources/properties/custom.properties");
+        Files.createDirectories(customProperties.getParent());
+        Files.writeString(customProperties,
+                "headlessExecution=true" + System.lineSeparator()
+                        + "automaticallyAddRecommendedChromeOptions=true" + System.lineSeparator(),
+                StandardCharsets.UTF_8);
+    }
+
     private static AllureSummary allure(Path directory) throws IOException {
         int count = 0;
         int failed = 0;
+        List<String> failureMessages = new ArrayList<>();
         try (Stream<Path> files = Files.list(directory)) {
             for (Path file : files.filter(path -> path.getFileName().toString().endsWith("-result.json")).toList()) {
                 count++;
                 JsonNode result = JSON.readTree(Files.readString(file, StandardCharsets.UTF_8));
                 if (!"passed".equalsIgnoreCase(result.path("status").asText())) {
                     failed++;
+                    String message = result.path("statusDetails").path("message").asText("");
+                    if (!message.isBlank() && failureMessages.size() < 5) {
+                        failureMessages.add(boundedFailureMessage(result.path("name").asText(""), message));
+                    }
                 }
             }
         }
-        List<String> diagnostics = count == 0
-                ? List.of("Replay produced no populated Allure result files.")
-                : failed == 0
-                ? List.of("Replay produced " + count + " passing Allure result file(s).")
-                : List.of("Replay produced " + failed + " non-passing Allure result file(s).");
-        return new AllureSummary(count, failed, diagnostics);
+        List<String> diagnostics = new ArrayList<>();
+        if (count == 0) {
+            diagnostics.add("Replay produced no populated Allure result files.");
+        } else if (failed == 0) {
+            diagnostics.add("Replay produced " + count + " passing Allure result file(s).");
+        } else {
+            diagnostics.add("Replay produced " + failed + " non-passing Allure result file(s).");
+            diagnostics.addAll(failureMessages);
+        }
+        return new AllureSummary(count, failed, List.copyOf(diagnostics));
+    }
+
+    private static final java.util.regex.Pattern RELEVANT_REPLAY_LOG_LINE = java.util.regex.Pattern.compile(
+            "(?i)attempt|webdriver|chrome|session|exception|driver factory|caused by");
+
+    private static String replayProcessOutputTail(Path outputLog) {
+        try {
+            List<String> lines = Files.readAllLines(outputLog, StandardCharsets.UTF_8);
+            List<String> relevant = lines.stream()
+                    .filter(line -> RELEVANT_REPLAY_LOG_LINE.matcher(line).find())
+                    .map(line -> line.replaceAll("\\s+", " ").trim())
+                    .toList();
+            String joined = String.join(" | ", relevant.isEmpty() ? lines : relevant);
+            String bounded = joined.length() > 3_000 ? joined.substring(0, 3_000) + "..." : joined;
+            return "Replay process output (filtered): " + bounded;
+        } catch (IOException exception) {
+            return "Replay process output could not be read.";
+        }
+    }
+
+    private static String boundedFileTail(String label, Path file) {
+        try {
+            List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+            String joined = String.join(" | ", lines).replaceAll("\\s+", " ").trim();
+            String tail = joined.length() > 3_000 ? joined.substring(joined.length() - 3_000) : joined;
+            return label + " (tail): " + tail;
+        } catch (IOException exception) {
+            return label + " could not be read.";
+        }
+    }
+
+    private static String boundedFailureMessage(String name, String message) {
+        String oneLine = message.replaceAll("\\s+", " ").trim();
+        String bounded = oneLine.length() > 2_000 ? oneLine.substring(0, 2_000) + "..." : oneLine;
+        return name.isBlank() ? bounded : name + ": " + bounded;
     }
 
     private static String diagnostic(Diagnostic<? extends JavaFileObject> diagnostic) {

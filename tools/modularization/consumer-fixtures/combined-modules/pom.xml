@@ -10,7 +10,7 @@
     <description>Validates the published BOM and all optional modules as one consumer graph.</description>
 
     <properties>
-        <shaft.version>10.3.20260705</shaft.version>
+        <shaft.version>10.3.20260706</shaft.version>
     </properties>
 
     <dependencyManagement>
@@ -21,6 +21,21 @@
                 <version>${shaft.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- org.python:jython-slim:2.7.4 (pulled in by shaft-sikulix's sikulixapi) declares two
+                 internally inconsistent versions of jffi across its own transitive graph: 1.3.13
+                 directly, and native:1.4.0 via jnr-ffi. Pin both to the newer version so the
+                 enforcer's dependency-convergence rule sees one resolved version. -->
+            <dependency>
+                <groupId>com.github.jnr</groupId>
+                <artifactId>jffi</artifactId>
+                <version>1.4.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.jnr</groupId>
+                <artifactId>jffi</artifactId>
+                <version>1.4.0</version>
+                <classifier>native</classifier>
             </dependency>
         </dependencies>
     </dependencyManagement>
