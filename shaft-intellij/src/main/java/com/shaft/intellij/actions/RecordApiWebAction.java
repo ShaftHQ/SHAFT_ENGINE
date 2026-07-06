@@ -39,14 +39,23 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
             return;
         }
 
-        JsonObject options = new JsonObject();
-        options.addProperty("includeStatic", false);
-        options.addProperty("includeXhrOnly", true);
-        options.addProperty("maxBodySizeBytes", 65536);
+        // Field names must match com.shaft.capture.runtime.NetworkCaptureOptions
+        // exactly -- the MCP layer binds JSON keys to that class's fields, so a
+        // mismatched shape here is silently ignored rather than rejected, and
+        // request/response bodies (the entire point of API recording) default
+        // to false unless captureRequestBodies/captureResponseBodies is set.
+        JsonObject networkOptions = new JsonObject();
+        networkOptions.addProperty("enabled", true);
+        networkOptions.addProperty("excludeAssets", true);
+        networkOptions.addProperty("captureRequestBodies", true);
+        networkOptions.addProperty("captureResponseBodies", true);
 
         JsonObject arguments = new JsonObject();
         arguments.addProperty("targetUrl", targetUrl.trim());
-        arguments.add("options", options);
+        // Visible browser: the user drives it interactively to generate traffic,
+        // matching AssistantCommand's analogous interactive capture_start flow.
+        arguments.addProperty("headless", false);
+        arguments.add("networkOptions", networkOptions);
 
         openApiRecordingTab(project, targetUrl.trim(), arguments);
         ShaftNotifier.info(project, "SHAFT", "API recording prepared for " + targetUrl.trim() + ".");
