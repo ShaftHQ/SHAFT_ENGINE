@@ -1,5 +1,7 @@
 package com.shaft.intellij.ui;
 
+import com.intellij.ide.ui.LafManager;
+import com.intellij.ide.ui.LafManagerListener;
 import com.intellij.lexer.Lexer;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
@@ -13,6 +15,7 @@ import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
+import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 
@@ -75,6 +78,7 @@ final class AssistantTranscriptView extends JPanel {
     private final JBScrollPane fallbackScrollPane;
     private final List<ShaftAssistantChatState.Message> messages = new ArrayList<>();
     private String markdown = "";
+    private final LafManagerListener lafListener;
     private int truncationBoundaryIndex = -1;
 
     AssistantTranscriptView() {
@@ -84,7 +88,8 @@ final class AssistantTranscriptView extends JPanel {
     AssistantTranscriptView(Project project) {
         super(new BorderLayout());
         this.project = project;
-        setBorder(BorderFactory.createLineBorder(resolvedColor("Component.borderColor", new Color(0xD0D7DE))));
+        Color borderColor = JBColor.namedColor("Component.borderColor", new Color(0xD0D7DE));
+        setBorder(BorderFactory.createLineBorder(borderColor));
         fallbackPanel = new JPanel();
         fallbackPanel.setLayout(new BoxLayout(fallbackPanel, BoxLayout.Y_AXIS));
         fallbackPanel.setBorder(JBUI.Borders.empty(8));
@@ -96,7 +101,28 @@ final class AssistantTranscriptView extends JPanel {
         fallbackScrollPane = createFallbackScrollPane(transcriptBackground);
         fallbackScrollPane.getAccessibleContext().setAccessibleName("Assistant transcript");
         add(fallbackScrollPane, BorderLayout.CENTER);
+
+        lafListener = lookAndFeel -> SwingUtilities.invokeLater(this::refresh);
+
         refresh();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        LafManager lafManager = LafManager.getInstance();
+        if (lafManager != null) {
+            lafManager.addLafManagerListener(lafListener);
+        }
+    }
+
+    @Override
+    public void removeNotify() {
+        LafManager lafManager = LafManager.getInstance();
+        if (lafManager != null) {
+            lafManager.removeLafManagerListener(lafListener);
+        }
+        super.removeNotify();
     }
 
     String markdown() {
@@ -301,11 +327,11 @@ final class AssistantTranscriptView extends JPanel {
 
     private String toFallbackHtml(String value, Color foreground, Color background) {
         boolean dark = isDarkBackground(resolvedColor("TextArea.background", Color.WHITE));
-        String codeBackground = dark ? "#24272b" : "#f6f8fa";
-        String toolbarBackground = dark ? "#2f3338" : "#eef2f7";
-        String border = dark ? "#6b7078" : "#d0d7de";
-        String codeForeground = dark ? "#e5e7eb" : "#24292f";
-        String copyForeground = dark ? "#ced0d6" : "#57606a";
+        String codeBackground = hex(dark ? new Color(0x24272b) : new Color(0xf6f8fa));
+        String toolbarBackground = hex(dark ? new Color(0x2f3338) : new Color(0xeef2f7));
+        String border = hex(dark ? new Color(0x6b7078) : new Color(0xd0d7de));
+        String codeForeground = hex(dark ? new Color(0xe5e7eb) : new Color(0x24292f));
+        String copyForeground = hex(dark ? new Color(0xced0d6) : new Color(0x57606a));
         return """
                 <html>
                 <head>
@@ -622,7 +648,8 @@ final class AssistantTranscriptView extends JPanel {
 
     private String addCodeCopyButtons(String html) {
         StringBuilder result = new StringBuilder();
-        String buttonStyle = "color:" + color("Button.foreground", "#202020")
+        Color buttonColor = JBColor.namedColor("Button.foreground", new Color(0x202020));
+        String buttonStyle = "color:" + hex(buttonColor)
                 + ";display:inline-block;width:24px;height:24px;padding:0;text-decoration:none;"
                 + "text-align:center;line-height:24px;vertical-align:middle;";
         int offset = 0;
@@ -925,9 +952,26 @@ final class AssistantTranscriptView extends JPanel {
     }
 
     private static CodePalette codePalette() {
-        return isDarkBackground(resolvedColor("TextArea.background", Color.WHITE))
-                ? new CodePalette("#cf8e6d", "#6aab73", "#2aacb8", "#7a7e85", "#b3ae60", "#c77dbb", "#56a8f5")
-                : new CodePalette("#000080", "#067d17", "#1750eb", "#8c8c8c", "#808000", "#000000", "#871094");
+        boolean dark = isDarkBackground(resolvedColor("TextArea.background", Color.WHITE));
+        if (dark) {
+            return new CodePalette(
+                    "#cf8e6d",
+                    "#6aab73",
+                    "#2aacb8",
+                    "#7a7e85",
+                    "#b3ae60",
+                    "#c77dbb",
+                    "#56a8f5");
+        } else {
+            return new CodePalette(
+                    "#000080",
+                    "#067d17",
+                    "#1750eb",
+                    "#8c8c8c",
+                    "#808000",
+                    "#000000",
+                    "#871094");
+        }
     }
 
     private static boolean isDarkBackground(Color color) {
@@ -1203,16 +1247,8 @@ final class AssistantTranscriptView extends JPanel {
         return Math.max(11, font == null ? 12 : font.getSize());
     }
 
-    private static String color(String uiKey, String fallback) {
-        Color resolved = UIManager.getColor(uiKey);
-        if (resolved == null) {
-            return fallback;
-        }
-        return hex(resolved);
-    }
-
     private static Color resolvedColor(String uiKey, Color fallback) {
-        Color resolved = UIManager.getColor(uiKey);
+        Color resolved = JBColor.namedColor(uiKey, fallback);
         return resolved == null ? fallback : resolved;
     }
 
