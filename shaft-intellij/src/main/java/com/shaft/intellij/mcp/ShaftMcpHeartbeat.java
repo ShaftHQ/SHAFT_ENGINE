@@ -78,7 +78,7 @@ public final class ShaftMcpHeartbeat implements Disposable {
             ShaftMcpToolResult result = ShaftMcpConnectionProbe.test(
                     getCommand(),
                     getSettings(),
-                    getProjectRoot()).get(15, TimeUnit.SECONDS);
+                    getProjectRoot()).get(PING_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
             connectionState.setConnected(result.success());
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
