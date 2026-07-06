@@ -24,6 +24,7 @@ import javax.swing.JLabel;
 import javax.swing.KeyStroke;
 import javax.swing.JList;
 import javax.swing.ListCellRenderer;
+import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
@@ -2979,6 +2980,65 @@ class ShaftPanelSetupTest {
             return '\0';
         } else {
             return null;
+        }
+    }
+
+    @Test
+    void assistantTranscriptRerendersWhenThemeChanges() throws Exception {
+        AssistantTranscriptView transcript = new AssistantTranscriptView(null);
+        transcript.append("user", "test user message");
+        transcript.append("assistant", "test response with **bold** and `code`");
+
+        String originalHtml = extractRenderedHtml(transcript);
+        String originalContent = extractTranscriptContent(transcript);
+
+        triggerLafManagerListener(transcript);
+
+        String rerenderedHtml = extractRenderedHtml(transcript);
+        String rerenderedContent = extractTranscriptContent(transcript);
+
+        assertAll(
+                () -> assertNotNull(originalHtml, "Original HTML should be rendered"),
+                () -> assertFalse(originalHtml.isBlank(), "Original HTML should not be empty"),
+                () -> assertNotNull(rerenderedHtml, "Rerendered HTML should exist"),
+                () -> assertFalse(rerenderedHtml.isBlank(), "Rerendered HTML should not be empty"),
+                () -> assertEquals(originalContent, rerenderedContent,
+                        "Message content should remain unchanged after theme switch"),
+                () -> assertTrue(rerenderedHtml.contains("background:"), "Rerendered HTML should have color styles"),
+                () -> assertTrue(rerenderedHtml.contains("color:"), "Rerendered HTML should have text color styles"));
+    }
+
+    private static String extractRenderedHtml(AssistantTranscriptView transcript) throws Exception {
+        JPanel fallbackPanel = (JPanel) getField(transcript, "fallbackPanel");
+        if (fallbackPanel == null || fallbackPanel.getComponentCount() == 0) {
+            return "";
+        }
+        Component firstBubble = fallbackPanel.getComponent(0);
+        if (!(firstBubble instanceof JComponent jPanel)) {
+            return "";
+        }
+        for (int i = 0; i < jPanel.getComponentCount(); i++) {
+            Component component = jPanel.getComponent(i);
+            if (component instanceof JEditorPane editor) {
+                return editor.getText();
+            }
+        }
+        return "";
+    }
+
+    private static String extractTranscriptContent(AssistantTranscriptView transcript) throws Exception {
+        return transcript.markdown();
+    }
+
+    private static void triggerLafManagerListener(AssistantTranscriptView transcript) throws Exception {
+        java.lang.reflect.Field lafListenerField = AssistantTranscriptView.class.getDeclaredField("lafListener");
+        lafListenerField.setAccessible(true);
+        com.intellij.ide.ui.LafManagerListener lafListener =
+                (com.intellij.ide.ui.LafManagerListener) lafListenerField.get(transcript);
+        if (lafListener != null) {
+            lafListener.lookAndFeelChanged(null);
+            SwingUtilities.invokeAndWait(() -> {
+            });
         }
     }
 
