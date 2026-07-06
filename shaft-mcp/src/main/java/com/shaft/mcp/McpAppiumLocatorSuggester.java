@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 /**
  * Selects Appium locators from the current Inspector source using Appium Inspector's locator order.
  */
-final class McpAppiumLocatorSuggester {
+public final class McpAppiumLocatorSuggester {
     static final String COORDINATE_FALLBACK_WARNING = "Coordinate fallback used because no stable locator could be "
             + "resolved from the accessibility tree; this will probably fail when executed on a different device, "
             + "screen size, orientation, or app state.";
@@ -53,7 +53,7 @@ final class McpAppiumLocatorSuggester {
                 && action.toLowerCase(java.util.Locale.ROOT).contains("coordinates");
     }
 
-    static Optional<McpAppiumLocatorSuggester> parse(String sourceXml) {
+    public static Optional<McpAppiumLocatorSuggester> parse(String sourceXml) {
         if (sourceXml == null || sourceXml.isBlank()) {
             return Optional.empty();
         }
@@ -72,11 +72,46 @@ final class McpAppiumLocatorSuggester {
         }
     }
 
-    Optional<LocatorSuggestion> locatorAt(int x, int y) {
+    public Optional<LocatorSuggestion> locatorAt(int x, int y) {
         return elements().stream()
                 .filter(element -> bounds(element).map(rectangle -> rectangle.contains(x, y)).orElse(false))
                 .min(Comparator.comparingInt(element -> bounds(element).map(Rectangle::area).orElse(Integer.MAX_VALUE)))
                 .flatMap(this::bestLocator);
+    }
+
+    public Optional<LocatorSuggestion> locatorByAccessibleName(String accessibleName) {
+        if (accessibleName == null || accessibleName.isBlank()) {
+            return Optional.empty();
+        }
+        String targetName = accessibleName.trim();
+        return elements().stream()
+                .filter(element -> matchesAccessibleName(element, targetName))
+                .findFirst()
+                .flatMap(this::bestLocator);
+    }
+
+    private boolean matchesAccessibleName(Element element, String targetName) {
+        String name = attribute(element, "name");
+        if (!name.isBlank() && name.equalsIgnoreCase(targetName)) {
+            return true;
+        }
+        String contentDesc = attribute(element, "content-desc");
+        if (!contentDesc.isBlank() && contentDesc.equalsIgnoreCase(targetName)) {
+            return true;
+        }
+        String text = attribute(element, "text");
+        if (!text.isBlank() && text.equalsIgnoreCase(targetName)) {
+            return true;
+        }
+        String label = attribute(element, "label");
+        if (!label.isBlank() && label.equalsIgnoreCase(targetName)) {
+            return true;
+        }
+        String resourceId = attribute(element, "resource-id");
+        if (!resourceId.isBlank() && resourceId.equalsIgnoreCase(targetName)) {
+            return true;
+        }
+        return false;
     }
 
     private Optional<LocatorSuggestion> bestLocator(Element element) {
@@ -292,7 +327,7 @@ final class McpAppiumLocatorSuggester {
         return literal.append(")").toString();
     }
 
-    record LocatorSuggestion(locatorStrategy strategy, String value) {
+    public record LocatorSuggestion(locatorStrategy strategy, String value) {
     }
 
     private record Rectangle(int left, int top, int right, int bottom) {
