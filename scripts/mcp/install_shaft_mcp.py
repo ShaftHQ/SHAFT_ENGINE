@@ -56,11 +56,9 @@ SHAFT_SKILLS_SOURCE_MARKERS = (
     "verifying-and-applying-shaft-changes/SKILL.md",
 )
 AGENT_VALIDATION_SCRIPT_FILES = (
-    "scripts/__init__.py",
-    "scripts/ci/__init__.py",
-    "scripts/ci/validate_agent_setup.py",
-    "scripts/ci/validate_agent_guidance.py",
-    "scripts/ci/validate_documentation_boundaries.py",
+    "ci/validate_agent_setup.py",
+    "ci/validate_agent_guidance.py",
+    "ci/validate_documentation_boundaries.py",
 )
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "intellij-plugin")
 TARGET_CHOICES = (
@@ -687,10 +685,10 @@ def download_agent_validation_script_files(target: Path) -> Path:
             show_progress=False,
         )
     # Verify the main entry point was downloaded
-    main_script = target / "validate_agent_setup.py"
+    main_script = target / "ci" / "validate_agent_setup.py"
     if not main_script.is_file():
         fail("Agent validation script did not download correctly.", 4)
-    return target
+    return target / "ci"
 
 
 def install_shaft_skills(current_directory: Path, root: Path) -> Path:
@@ -1172,7 +1170,7 @@ def install(args: argparse.Namespace) -> None:
         skills_path = install_shaft_skills(current_directory, root)
         skills_installed = True
         log(f"Fetching agent validation script files...")
-        validation_target = current_directory / "scripts" / "ci"
+        validation_target = current_directory / "scripts"
         validation_script_dir = download_agent_validation_script_files(validation_target)
     else:
         log(f"Skipped SHAFT skills installation for {skills_path}.")
