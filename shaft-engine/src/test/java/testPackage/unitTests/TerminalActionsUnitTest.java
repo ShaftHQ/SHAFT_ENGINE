@@ -4,6 +4,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.shaft.cli.SshConnectionOptions;
+import com.shaft.cli.SshShellOptions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import org.apache.commons.lang3.SystemUtils;
@@ -777,6 +778,32 @@ public class TerminalActionsUnitTest {
         RuntimeException failure = Assert.expectThrows(RuntimeException.class,
                 () -> terminal.performSshCommand(" "));
         Assert.assertTrue(failure.getMessage().contains("SSH command"));
+    }
+
+    @Test(description = "openShell should reject local terminals")
+    public void openShellShouldRejectLocalTerminals() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.openShell(SshShellOptions.defaults()));
+        Assert.assertTrue(failure.getMessage().contains("remote SSH"));
+    }
+
+    @Test(description = "openShell should reject dockerized remote terminals")
+    @SuppressWarnings("deprecation")
+    public void openShellShouldRejectDockerizedRemoteTerminals() {
+        TerminalActions terminal = new TerminalActions("host.example.com", 22, "user", "", "",
+                "container", "root");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.openShell(SshShellOptions.defaults()));
+        Assert.assertTrue(failure.getMessage().contains("dockerized remote terminals"));
+    }
+
+    @Test(description = "openShell should reject non-reusable remote terminals")
+    public void openShellShouldRejectNonReusableRemoteTerminals() {
+        TerminalActions terminal = new TerminalActions("host.example.com", 22, "user", "", "");
+        RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                () -> terminal.openShell(SshShellOptions.defaults()));
+        Assert.assertTrue(failure.getMessage().contains("reusable remote terminal"));
     }
 
     @Test(description = "performTerminalCommand should remain backward compatible for local command output")

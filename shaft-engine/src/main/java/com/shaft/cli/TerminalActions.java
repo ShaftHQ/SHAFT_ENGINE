@@ -64,6 +64,7 @@ public class TerminalActions implements AutoCloseable {
     private ScheduledFuture<?> reusableSessionTimeoutTask;
     private final List<Integer> activeLocalPortForwards = new ArrayList<>();
     private final List<Integer> activeRemotePortForwards = new ArrayList<>();
+    private final List<SshShellSession> activeShellSessions = new ArrayList<>();
 
     private static final Pattern TERMINAL_LOG_SECRET_PATTERN = Pattern.compile(
             "(?i)(?<![A-Za-z0-9_])(password|passwd|token|secret|api[-_]?key|access[-_]?token|authorization)\\s*[=:]\\s*(?!\\*\\*\\*)\\S+");
@@ -444,6 +445,37 @@ public class TerminalActions implements AutoCloseable {
         return results;
     }
 
+    /**
+     * Opens an experimental prompt-response shell over the reusable SSH session.
+     *
+     * <p>Prefer {@link #performTerminalCommand(String)} or {@link #performSshCommand(String)}
+     * for non-interactive commands. Shell sessions are intended for CLIs that require prompts
+     * or a pseudo-terminal.</p>
+     *
+     * @param options shell channel options; use {@link SshShellOptions#defaults()} for defaults
+     * @return an open shell session that should be closed by the caller
+     */
+    public synchronized SshShellSession openShell(SshShellOptions options) {
+        verifyReusableRemoteSessionFeature();
+        SshShellOptions shellOptions = options == null ? SshShellOptions.defaults() : options;
+        Session remoteSession = getRemoteSession();
+        try {
+            ChannelShell shellChannel = (ChannelShell) remoteSession.openChannel("shell");
+            SshShellSession[] shellSessionHolder = new SshShellSession[1];
+            SshShellSession shellSession = new SshShellSession(shellChannel, shellOptions,
+                    () -> removeActiveShellSession(shellSessionHolder[0]));
+            shellSessionHolder[0] = shellSession;
+            activeShellSessions.add(shellSession);
+            passAction("openShell", "Host Name: \"" + sshHostName + "\" | SSH Port Number: \"" + sshPortNumber + "\"",
+                    "Opened SSH shell session.");
+            return shellSession;
+        } catch (JSchException | IOException exception) {
+            failAction("openShell", "Host Name: \"" + sshHostName + "\" | SSH Port Number: \"" + sshPortNumber + "\"",
+                    exception);
+            return null;
+        }
+    }
+
     private List<String> getValidCommands(List<String> commands) {
         if (commands == null || commands.isEmpty()) {
             failAction("Terminal command", new IllegalArgumentException("At least one terminal command must be provided."));
@@ -571,11 +603,13 @@ public class TerminalActions implements AutoCloseable {
      */
     public synchronized void quit() {
         cancelReusableSessionTimeoutTask();
+        closeActiveShellSessions();
         if (reusableRemoteSession != null && reusableRemoteSession.isConnected()) {
             clearPortForwards(reusableRemoteSession);
             reusableRemoteSession.disconnect();
         }
         reusableRemoteSession = null;
+        activeShellSessions.clear();
         activeLocalPortForwards.clear();
         activeRemotePortForwards.clear();
         if (reusableSessionTimeoutScheduler != null) {
@@ -785,6 +819,20 @@ public class TerminalActions implements AutoCloseable {
         if (reusableSessionTimeoutTask != null) {
             reusableSessionTimeoutTask.cancel(false);
             reusableSessionTimeoutTask = null;
+        }
+    }
+
+    private synchronized void removeActiveShellSession(SshShellSession shellSession) {
+        activeShellSessions.remove(shellSession);
+    }
+
+    private synchronized void closeActiveShellSessions() {
+        for (SshShellSession shellSession : new ArrayList<>(activeShellSessions)) {
+            try {
+                shellSession.close();
+            } catch (Exception exception) {
+                ReportManager.logDiscrete("Could not close SSH shell session: " + exception.getMessage());
+            }
         }
     }
 
