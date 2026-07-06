@@ -175,12 +175,19 @@ public class GeneratedTestValidator {
         return new AllureSummary(count, failed, List.copyOf(diagnostics));
     }
 
+    private static final java.util.regex.Pattern RELEVANT_REPLAY_LOG_LINE = java.util.regex.Pattern.compile(
+            "(?i)attempt|webdriver|chrome|session|exception|driver factory|caused by");
+
     private static String replayProcessOutputTail(Path outputLog) {
         try {
-            String content = Files.readString(outputLog, StandardCharsets.UTF_8);
-            String oneLine = content.replaceAll("\\s+", " ").trim();
-            String tail = oneLine.length() > 3_000 ? oneLine.substring(oneLine.length() - 3_000) : oneLine;
-            return "Replay process output (tail): " + tail;
+            List<String> lines = Files.readAllLines(outputLog, StandardCharsets.UTF_8);
+            List<String> relevant = lines.stream()
+                    .filter(line -> RELEVANT_REPLAY_LOG_LINE.matcher(line).find())
+                    .map(line -> line.replaceAll("\\s+", " ").trim())
+                    .toList();
+            String joined = String.join(" | ", relevant.isEmpty() ? lines : relevant);
+            String bounded = joined.length() > 3_000 ? joined.substring(0, 3_000) + "..." : joined;
+            return "Replay process output (filtered): " + bounded;
         } catch (IOException exception) {
             return "Replay process output could not be read.";
         }
