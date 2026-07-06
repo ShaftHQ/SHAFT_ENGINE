@@ -1,6 +1,6 @@
 param(
     [string] $Client,
-    [string] $Version = $env:SHAFT_MCP_VERSION,
+    [string] $Version = $(if ([string]::IsNullOrWhiteSpace($env:SHAFT_MCP_VERSION)) { "" } else { $env:SHAFT_MCP_VERSION.Trim() }),
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $RemainingArguments = @()
 )
@@ -9,7 +9,7 @@ function Install-ShaftMcp {
     [CmdletBinding()]
     param(
         [string] $Client,
-        [string] $Version = $env:SHAFT_MCP_VERSION,
+        [string] $Version = $(if ([string]::IsNullOrWhiteSpace($env:SHAFT_MCP_VERSION)) { "" } else { $env:SHAFT_MCP_VERSION.Trim() }),
         [string[]] $Arguments = @()
     )
 
