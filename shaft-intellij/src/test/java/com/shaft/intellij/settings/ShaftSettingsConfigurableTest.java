@@ -363,19 +363,19 @@ class ShaftSettingsConfigurableTest {
             ShaftMcpToolResult result) throws Exception {
         Method showProbeResult = ShaftSettingsConfigurable.class.getDeclaredMethod(
                 "showProbeResult", JPanel.class, JLabel.class, ShaftMcpToolResult.class);
-        showProbeResult.setAccessible(true);
+        showProbeResult.setAccessible(true); // NOPMD - reflective test invocation of a private completion handler, matching the established pattern in ShaftPanelSetupTest
         showProbeResult.invoke(configurable, host, statusLabel, result);
     }
 
     private static void invokeTestMcpConnection(ShaftSettingsConfigurable configurable) throws Exception {
         Method testMcpConnection = ShaftSettingsConfigurable.class.getDeclaredMethod("testMcpConnection");
-        testMcpConnection.setAccessible(true);
+        testMcpConnection.setAccessible(true); // NOPMD - reflective test invocation of a private completion handler, matching the established pattern in ShaftPanelSetupTest
         testMcpConnection.invoke(configurable);
     }
 
     private static Object getField(Object target, String name) throws Exception {
         Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
+        field.setAccessible(true); // NOPMD - test-only field inspection, matching the established getField/setField helpers in ShaftPanelSetupTest
         return field.get(target);
     }
 
