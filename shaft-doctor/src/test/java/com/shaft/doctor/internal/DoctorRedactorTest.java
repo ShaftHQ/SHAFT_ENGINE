@@ -75,7 +75,8 @@ class DoctorRedactorTest {
         byte[] originalImage = createMinimalPngImage();
         List<String> regions = List.of();
         byte[] result = redactor.redactScreenshot(originalImage, regions);
-        java.util.Arrays.equals(originalImage, result);
+        assertTrue(java.util.Arrays.equals(originalImage, result),
+                "Image should be returned unchanged when no regions are marked for masking");
     }
 
     @Test

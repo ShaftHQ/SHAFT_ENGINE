@@ -313,66 +313,97 @@ public final class EvidenceCollector {
             DoctorRedactor redactor,
             Map<String, EvidenceItem> items,
             CollectionState state) {
-        List<AttachmentInfo> infos = new ArrayList<>();
-        for (JsonNode attachment : attachments) {
-            String source = attachment.path("source").asText("");
-            if (source.isBlank()) {
-                continue;
-            }
-            Path candidate = resultFile.getParent().resolve(source);
-            if (!Files.exists(candidate)) {
-                continue;
-            }
-            Path artifact = allowedRealPath(candidate, roots);
-            if (!Files.isRegularFile(artifact)) {
-                continue;
-            }
-            String name = attachment.path("name").asText("").toLowerCase(Locale.ROOT);
-            String type = attachment.path("type").asText("").toLowerCase(Locale.ROOT);
-            String extension = extension(artifact.getFileName().toString().toLowerCase(Locale.ROOT));
-            String reference = portableReference(artifact, roots);
-            String diagnosticName = name + " " + source.toLowerCase(Locale.ROOT);
-            boolean isScreenshot = type.startsWith("image/") || SCREENSHOT_EXTENSIONS.contains(extension);
-            boolean isPageSnapshot = type.contains("html") || type.contains("multipart/related")
-                    || name.contains("page source") || name.contains("snapshot");
-            infos.add(new AttachmentInfo(artifact, reference, name, type, extension, diagnosticName,
-                    isScreenshot, isPageSnapshot));
-        }
+        List<AttachmentInfo> infos = describeAttachments(attachments, resultFile, roots);
         for (int i = 0; i < infos.size(); i++) {
-            AttachmentInfo info = infos.get(i);
-            if (info.isScreenshot() && request.includeScreenshots()) {
-                AttachmentInfo matchingSnapshot = findMatchingPageSnapshot(infos, i);
-                collectBinaryWithOptionalRedaction(info, request, redactor, items, state, matchingSnapshot);
-            } else if (info.isScreenshot()) {
-                state.omittedItems++;
-            } else if (info.isPageSnapshot() && request.includePageSnapshots()) {
-                collectText(info.artifact(), info.reference(), EvidenceCategory.PAGE_SNAPSHOT,
-                        info.type().isBlank() ? mediaType(info.extension()) : info.type(),
-                        request, redactor, items, state);
-            } else if (info.isPageSnapshot()) {
-                state.omittedItems++;
-            } else if (isDiagnosticsZip(info.diagnosticName(), info.type(), info.extension())) {
-                collectDiagnosticsZip(info.artifact(), info.reference(), request, redactor, items, state);
-            } else if (info.name().contains("log") || info.name().contains("action history")
-                    || info.name().contains("shaft")) {
-                collectText(info.artifact(), info.reference(), EvidenceCategory.SHAFT_LOG,
-                        info.type().isBlank() ? mediaType(info.extension()) : info.type(),
-                        request, redactor, items, state);
-            }
+            dispatchAttachment(infos, i, request, redactor, items, state);
         }
     }
 
-    private AttachmentInfo findMatchingPageSnapshot(List<AttachmentInfo> infos, int screenshotIndex) {
-        AttachmentInfo screenshot = infos.get(screenshotIndex);
-        AttachmentInfo precedingSnapshot = null;
-        for (int i = screenshotIndex - 1; i >= 0; i--) {
-            if (infos.get(i).isPageSnapshot()) {
-                precedingSnapshot = infos.get(i);
-                break;
+    private List<AttachmentInfo> describeAttachments(JsonNode attachments, Path resultFile, List<Path> roots) {
+        List<AttachmentInfo> infos = new ArrayList<>();
+        for (JsonNode attachment : attachments) {
+            AttachmentInfo info = describeAttachment(attachment, resultFile, roots);
+            if (info != null) {
+                infos.add(info);
             }
         }
-        if (precedingSnapshot != null) {
-            return precedingSnapshot;
+        return infos;
+    }
+
+    private AttachmentInfo describeAttachment(JsonNode attachment, Path resultFile, List<Path> roots) {
+        String source = attachment.path("source").asText("");
+        if (source.isBlank()) {
+            return null;
+        }
+        Path candidate = resultFile.getParent().resolve(source);
+        if (!Files.exists(candidate)) {
+            return null;
+        }
+        Path artifact = allowedRealPath(candidate, roots);
+        if (!Files.isRegularFile(artifact)) {
+            return null;
+        }
+        String name = attachment.path("name").asText("").toLowerCase(Locale.ROOT);
+        String type = attachment.path("type").asText("").toLowerCase(Locale.ROOT);
+        String extension = extension(artifact.getFileName().toString().toLowerCase(Locale.ROOT));
+        String reference = portableReference(artifact, roots);
+        String diagnosticName = name + " " + source.toLowerCase(Locale.ROOT);
+        boolean isScreenshot = type.startsWith("image/") || SCREENSHOT_EXTENSIONS.contains(extension);
+        boolean isPageSnapshot = type.contains("html") || type.contains("multipart/related")
+                || name.contains("page source") || name.contains("snapshot");
+        return new AttachmentInfo(artifact, reference, name, type, extension, diagnosticName,
+                isScreenshot, isPageSnapshot);
+    }
+
+    private void dispatchAttachment(
+            List<AttachmentInfo> infos,
+            int index,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state) {
+        AttachmentInfo info = infos.get(index);
+        if (info.isScreenshot()) {
+            if (request.includeScreenshots()) {
+                AttachmentInfo matchingSnapshot = findMatchingPageSnapshot(infos, index);
+                collectBinaryWithOptionalRedaction(info, request, redactor, items, state, matchingSnapshot);
+            } else {
+                state.omittedItems++;
+            }
+        } else if (info.isPageSnapshot()) {
+            if (request.includePageSnapshots()) {
+                collectText(info.artifact(), info.reference(), EvidenceCategory.PAGE_SNAPSHOT,
+                        info.type().isBlank() ? mediaType(info.extension()) : info.type(),
+                        request, redactor, items, state);
+            } else {
+                state.omittedItems++;
+            }
+        } else if (isDiagnosticsZip(info.diagnosticName(), info.type(), info.extension())) {
+            collectDiagnosticsZip(info.artifact(), info.reference(), request, redactor, items, state);
+        } else if (info.name().contains("log") || info.name().contains("action history")
+                || info.name().contains("shaft")) {
+            collectText(info.artifact(), info.reference(), EvidenceCategory.SHAFT_LOG,
+                    info.type().isBlank() ? mediaType(info.extension()) : info.type(),
+                    request, redactor, items, state);
+        }
+    }
+
+    /**
+     * Finds the page snapshot that best corresponds to the screenshot at {@code screenshotIndex},
+     * using a deterministic rule: the nearest preceding page snapshot in attachment order, else the
+     * nearest following one, else {@code null} when no snapshot exists in the same attachment list.
+     * This replaces the previous first-match-wins pairing that could correlate a screenshot with an
+     * unrelated snapshot's sensitive fields.
+     *
+     * @param infos ordered attachment descriptors for the enclosing Allure result
+     * @param screenshotIndex index of the screenshot within {@code infos}
+     * @return the paired page snapshot, or {@code null} if none is found
+     */
+    private AttachmentInfo findMatchingPageSnapshot(List<AttachmentInfo> infos, int screenshotIndex) {
+        for (int i = screenshotIndex - 1; i >= 0; i--) {
+            if (infos.get(i).isPageSnapshot()) {
+                return infos.get(i);
+            }
         }
         for (int i = screenshotIndex + 1; i < infos.size(); i++) {
             if (infos.get(i).isPageSnapshot()) {
@@ -390,17 +421,8 @@ public final class EvidenceCollector {
             CollectionState state,
             AttachmentInfo matchingSnapshot) {
         byte[] retained = readBounded(screenshot.artifact(), request.maxItemBytes());
-        boolean shouldRedact = request.redactScreenshots() && matchingSnapshot != null;
-        if (shouldRedact) {
-            try {
-                byte[] snapshotBytes = readBounded(matchingSnapshot.artifact(), request.maxItemBytes());
-                String snapshotContent = new String(snapshotBytes, StandardCharsets.UTF_8);
-                List<String> sensitiveRegions = redactor.extractSensitiveRegions(snapshotContent);
-                if (!sensitiveRegions.isEmpty()) {
-                    retained = redactor.redactScreenshot(retained, sensitiveRegions);
-                }
-            } catch (Exception ignored) {
-            }
+        if (request.redactScreenshots() && matchingSnapshot != null) {
+            retained = redactScreenshotIfSensitive(retained, matchingSnapshot, request, redactor);
         }
         boolean truncated = FilesSize.size(screenshot.artifact()) > retained.length;
         if (state.retainedBytes + retained.length > request.maxBundleBytes()) {
@@ -428,6 +450,38 @@ public final class EvidenceCollector {
                 new EvidenceProvenance(adapter(EvidenceCategory.SCREENSHOT), screenshot.reference(), digest));
         items.putIfAbsent(id, item);
         state.retainedBytes += retained.length;
+    }
+
+    /**
+     * Masks the given screenshot bytes when its paired page snapshot indicates sensitive fields.
+     *
+     * <p>This fails closed: if the paired snapshot cannot be read/decoded, or masking a screenshot
+     * that was determined to be sensitive fails, the evidence collection itself fails rather than
+     * silently retaining the unredacted screenshot bytes.
+     *
+     * @param screenshotBytes original screenshot bytes
+     * @param matchingSnapshot the paired page snapshot used to decide whether masking is required
+     * @param request active collection request (bounds the snapshot read size)
+     * @param redactor shared redactor used to detect sensitive fields and perform masking
+     * @return masked bytes if the paired snapshot has sensitive fields, otherwise the original bytes
+     */
+    private byte[] redactScreenshotIfSensitive(
+            byte[] screenshotBytes,
+            AttachmentInfo matchingSnapshot,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor) {
+        byte[] snapshotBytes = readBounded(matchingSnapshot.artifact(), request.maxItemBytes());
+        String snapshotContent = new String(snapshotBytes, StandardCharsets.UTF_8);
+        List<String> sensitiveRegions = redactor.extractSensitiveRegions(snapshotContent);
+        if (sensitiveRegions.isEmpty()) {
+            return screenshotBytes;
+        }
+        try {
+            return redactor.redactScreenshot(screenshotBytes, sensitiveRegions);
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Doctor screenshot evidence was marked sensitive but could not be redacted.", exception);
+        }
     }
 
     private void collectDiagnosticsText(

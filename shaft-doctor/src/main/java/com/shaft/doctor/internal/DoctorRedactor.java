@@ -25,6 +25,15 @@ import javax.imageio.ImageIO;
  * Structured and textual deterministic redaction for Doctor evidence.
  */
 public final class DoctorRedactor {
+    /**
+     * Marker returned by {@link #extractSensitiveRegions(String)} indicating that the whole
+     * screenshot must be masked because real per-field pixel coordinates cannot be derived
+     * from a static HTML snapshot.
+     */
+    private static final String WHOLE_IMAGE_MARKER = "WHOLE_IMAGE";
+    private static final List<String> WHOLE_IMAGE_REGIONS = List.of(WHOLE_IMAGE_MARKER);
+    private static final String SENSITIVE_FIELD_SELECTOR =
+            "input[type=password],[autocomplete=current-password],[autocomplete=new-password]";
     private static final Set<String> SENSITIVE_FIELDS = Set.of(
             "authorization", "proxy-authorization", "cookie", "set-cookie",
             "password", "passwd", "secret", "token", "access_token", "refresh_token",
@@ -207,68 +216,71 @@ public final class DoctorRedactor {
             return List.of();
         }
         Document document = Jsoup.parseBodyFragment(htmlContent);
-        boolean hasSensitiveFields = false;
-        for (Element element : document.select(
-                "input[type=password],[autocomplete=current-password],[autocomplete=new-password]")) {
-            hasSensitiveFields = true;
-            break;
-        }
-        if (!hasSensitiveFields) {
-            for (Element element : document.getAllElements()) {
-                for (org.jsoup.nodes.Attribute attribute : element.attributes().asList()) {
-                    if (isSensitive(attribute.getKey())) {
-                        hasSensitiveFields = true;
-                        break;
-                    }
-                }
-                if (hasSensitiveFields) {
-                    break;
+        boolean hasSensitiveFields = hasSensitiveInputElements(document) || hasSensitiveAttributes(document);
+        return hasSensitiveFields ? WHOLE_IMAGE_REGIONS : List.of();
+    }
+
+    private static boolean hasSensitiveInputElements(Document document) {
+        return !document.select(SENSITIVE_FIELD_SELECTOR).isEmpty();
+    }
+
+    private static boolean hasSensitiveAttributes(Document document) {
+        for (Element element : document.getAllElements()) {
+            for (org.jsoup.nodes.Attribute attribute : element.attributes().asList()) {
+                if (isSensitive(attribute.getKey())) {
+                    return true;
                 }
             }
         }
-        return hasSensitiveFields ? List.of("WHOLE_IMAGE") : List.of();
+        return false;
     }
 
     /**
      * Applies full-image opaque masking to screenshot bytes when sensitive regions are detected.
      * Only masks if regions list contains the whole-image marker.
      *
+     * <p>Redaction fails closed: if the sensitive regions marker is present but the image cannot
+     * be re-encoded after masking, this method throws rather than returning the original,
+     * still-sensitive bytes, since silently falling back would leak unredacted evidence.
+     *
      * @param screenshotBytes original screenshot image bytes
-     * @param regions masking decision (empty = no masking, contains "WHOLE_IMAGE" = mask entire image)
-     * @return masked image bytes, or original bytes if no masking needed
-     * @throws IOException if image reading/writing fails
+     * @param regions masking decision (empty = no masking, contains the whole-image marker = mask entire image)
+     * @return masked image bytes, or original bytes if no masking needed or the bytes are not a decodable image
+     * @throws IOException if a decodable image was masked but could not be re-encoded
      */
     public byte[] redactScreenshot(byte[] screenshotBytes, List<String> regions) throws IOException {
         if (screenshotBytes == null || screenshotBytes.length == 0) {
             return screenshotBytes;
         }
-        if (regions == null || regions.isEmpty() || !regions.contains("WHOLE_IMAGE")) {
+        if (regions == null || !regions.contains(WHOLE_IMAGE_MARKER)) {
             return screenshotBytes;
         }
-        try {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
-            if (image == null) {
-                return screenshotBytes;
-            }
-            int width = image.getWidth();
-            int height = image.getHeight();
-            BufferedImage masked = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-            int opaqueBlack = 0xFF000000;
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    masked.setRGB(x, y, opaqueBlack);
-                }
-            }
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            String extension = guessImageFormat(screenshotBytes);
-            if (extension == null || extension.isEmpty()) {
-                extension = "png";
-            }
-            ImageIO.write(masked, extension, outputStream);
-            return outputStream.toByteArray();
-        } catch (IOException exception) {
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
+        if (image == null) {
             return screenshotBytes;
         }
+        BufferedImage masked = paintOpaqueBlack(image);
+        return encodeImage(masked, guessImageFormat(screenshotBytes));
+    }
+
+    private static BufferedImage paintOpaqueBlack(BufferedImage source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+        BufferedImage masked = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        int opaqueBlack = 0xFF000000;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                masked.setRGB(x, y, opaqueBlack);
+            }
+        }
+        return masked;
+    }
+
+    private static byte[] encodeImage(BufferedImage image, String format) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        String extension = format == null || format.isEmpty() ? "png" : format;
+        ImageIO.write(image, extension, outputStream);
+        return outputStream.toByteArray();
     }
 
     private static String guessImageFormat(byte[] bytes) {

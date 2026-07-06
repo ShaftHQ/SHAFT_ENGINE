@@ -14,8 +14,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EvidenceCollectorPairingTest {
@@ -262,54 +260,12 @@ class EvidenceCollectorPairingTest {
         Files.write(inputDir.resolve("screenshot.png"), createMinimalPng());
     }
 
-    private void writeSensitivePageSnapshot(Path inputDir) throws IOException {
-        String resultJson = """
-                {
-                  "uuid": "sensitive-test",
-                  "name": "testSensitiveSnapshot",
-                  "status": "passed",
-                  "start": 1000,
-                  "stop": 2000,
-                  "attachments": [
-                    {
-                      "name": "Screenshot",
-                      "source": "screenshot.png",
-                      "type": "image/png"
-                    },
-                    {
-                      "name": "Page snapshot",
-                      "source": "snapshot.html",
-                      "type": "text/html"
-                    }
-                  ]
-                }
-                """;
-        Files.writeString(inputDir.resolve("test-result.json"), resultJson, StandardCharsets.UTF_8);
-        Files.write(inputDir.resolve("screenshot.png"), createMinimalPng());
-        Files.writeString(inputDir.resolve("snapshot.html"),
-                "<html><body><input type=\"password\" value=\"secret\"></body></html>",
-                StandardCharsets.UTF_8);
-    }
-
     private byte[] createMinimalPng() throws IOException {
         java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(
                 10, 10, java.awt.image.BufferedImage.TYPE_INT_RGB);
         for (int y = 0; y < 10; y++) {
             for (int x = 0; x < 10; x++) {
                 image.setRGB(x, y, 0xFFFFFFFF);
-            }
-        }
-        java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
-        javax.imageio.ImageIO.write(image, "png", output);
-        return output.toByteArray();
-    }
-
-    private byte[] createAllBlackPng() throws IOException {
-        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(
-                10, 10, java.awt.image.BufferedImage.TYPE_INT_RGB);
-        for (int y = 0; y < 10; y++) {
-            for (int x = 0; x < 10; x++) {
-                image.setRGB(x, y, 0xFF000000);
             }
         }
         java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
