@@ -13,6 +13,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.ColorUIResource;
@@ -32,8 +33,11 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -312,13 +316,17 @@ class ShaftPluginScreenshotRendererTest {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
-            JComponent component = new ShaftToolWindowPanel(screenshotProject(), new ShaftSettingsState.Settings());
-            component.setSize(new Dimension(width, height));
-            component.setPreferredSize(new Dimension(width, height));
-            SwingUtilities.updateComponentTreeUI(component);
-            component.doLayout();
-            layout(component, !dark);
-            image.set(render(component, width, height));
+            ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(screenshotProject(), new ShaftSettingsState.Settings());
+            toolWindow.setSize(new Dimension(width, height));
+            toolWindow.setPreferredSize(new Dimension(width, height));
+            SwingUtilities.updateComponentTreeUI(toolWindow);
+            toolWindow.doLayout();
+            layout(toolWindow, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(toolWindow);
+
+            image.set(render(toolWindow, width, height));
         });
         return image.get();
     }
@@ -345,6 +353,10 @@ class ShaftPluginScreenshotRendererTest {
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             layout(component, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(component);
+
             image.set(render(component, WIDTH, HEIGHT));
         });
         return image.get();
@@ -367,6 +379,10 @@ class ShaftPluginScreenshotRendererTest {
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             layout(component, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(component);
+
             image.set(render(component, WIDTH, HEIGHT));
         });
         return image.get();
@@ -586,5 +602,123 @@ class ShaftPluginScreenshotRendererTest {
         assertAll(
                 () -> assertTrue(image.getWidth() == width, imagePath + " width should be " + width),
                 () -> assertTrue(image.getHeight() == height, imagePath + " height should be " + height));
+    }
+
+    private static void verifySetupPanelRendering(JComponent component) {
+        // Find the setup panel within the component tree
+        final JComponent[] setupPanel = {null};
+        walkComponentsForVerification(component, comp -> {
+            if (comp instanceof ShaftMcpSetupPanel) {
+                setupPanel[0] = (JComponent) comp;
+            }
+        });
+
+        if (setupPanel[0] != null) {
+            verifySetupPanelLabelsAndBackground(setupPanel[0]);
+        }
+    }
+
+    private static void verifySetupPanelLabelsAndBackground(JComponent setupPanel) {
+        // Verify labels are not cropped by checking their preferred vs actual size.
+        // Components that are hidden (e.g. runtimeStatus before verification, or the
+        // "ready" chat row before setup completes) are intentionally zero-sized and
+        // must not be treated as cropping regressions.
+        final List<JLabel> labels = new ArrayList<>();
+        walkComponentsForVerification(setupPanel, comp -> {
+            if (comp instanceof JLabel lbl && lbl.getText() != null && !lbl.getText().isEmpty()
+                    && isEffectivelyVisible(lbl)) {
+                labels.add(lbl);
+            }
+        });
+
+        // Check that labels render at their preferred size (no cropping)
+        for (JLabel label : labels) {
+            assertTrue(label.getSize().width >= label.getPreferredSize().width || label.getPreferredSize().width == 0,
+                    "Label '" + label.getText() + "' should not be cropped horizontally. Size: " +
+                    label.getSize().width + ", Preferred: " + label.getPreferredSize().width);
+            assertTrue(label.getSize().height >= label.getPreferredSize().height || label.getPreferredSize().height == 0,
+                    "Label '" + label.getText() + "' should not be cropped vertically. Size: " +
+                    label.getSize().height + ", Preferred: " + label.getPreferredSize().height);
+        }
+
+        // Verify every step row's nested child panels are either non-opaque (so the
+        // step's accent background shows through) or explicitly painted with that same
+        // step's background color. Each wizard step (chooseRow, copyRow, terminalRow,
+        // checkRow, chatRow) can carry a different accent color, so continuity must be
+        // checked per-step-row rather than against one global background.
+        final List<JPanel> stepRows = new ArrayList<>();
+        for (Component child : setupPanel.getComponents()) {
+            collectStepRows(child, stepRows);
+        }
+
+        for (JPanel stepRow : stepRows) {
+            Color stepBackground = stepRow.getBackground();
+            final List<JPanel> nestedPanels = new ArrayList<>();
+            walkComponentsForVerification(stepRow, comp -> {
+                if (comp instanceof JPanel pnl && comp != stepRow) {
+                    nestedPanels.add(pnl);
+                }
+            });
+            for (JPanel nested : nestedPanels) {
+                boolean isNonOpaque = !nested.isOpaque();
+                boolean matchesStepBackground = stepBackground != null
+                        && stepBackground.equals(nested.getBackground());
+                assertTrue(isNonOpaque || matchesStepBackground,
+                        "Nested panel inside step row should be non-opaque or share the step's background color. "
+                        + "Opaque: " + nested.isOpaque()
+                        + ", panel background: " + nested.getBackground()
+                        + ", step background: " + stepBackground);
+            }
+        }
+    }
+
+    /** A component is effectively invisible for cropping purposes if it or any ancestor up to the
+     * setup panel has been explicitly hidden via {@link Component#setVisible(boolean)}. */
+    private static boolean isEffectivelyVisible(Component component) {
+        for (Component current = component; current != null; current = current.getParent()) {
+            if (!current.isVisible()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Recursively collects the top-level wizard-step row panels (as produced by
+     * {@code ShaftMcpSetupPanel#stepRow}) without descending into their own children,
+     * so each row's background is only compared against its own nested panels. */
+    private static void collectStepRows(Component component, List<JPanel> stepRows) {
+        if (component instanceof JPanel panel && isWizardStepRow(panel)) {
+            stepRows.add(panel);
+            return;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                collectStepRows(child, stepRows);
+            }
+        }
+    }
+
+    /** Wizard step rows are opaque JPanels whose direct children include a step label and a state
+     * label (see {@code ShaftMcpSetupPanel#stepRow}); plain layout containers are not opaque. */
+    private static boolean isWizardStepRow(JPanel panel) {
+        if (!panel.isOpaque()) {
+            return false;
+        }
+        int labelCount = 0;
+        for (Component child : panel.getComponents()) {
+            if (child instanceof JLabel) {
+                labelCount++;
+            }
+        }
+        return labelCount >= 2;
+    }
+
+    private static void walkComponentsForVerification(Component component, Consumer<Component> visitor) {
+        visitor.accept(component);
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                walkComponentsForVerification(child, visitor);
+            }
+        }
     }
 }
