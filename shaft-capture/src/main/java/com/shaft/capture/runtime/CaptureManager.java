@@ -109,6 +109,102 @@ public final class CaptureManager implements AutoCloseable {
     }
 
     /**
+     * Returns the list of network transactions from the active session.
+     *
+     * @return ordered network transaction summaries, or an empty list when no session is active
+     */
+    public synchronized java.util.List<NetworkTransaction> networkTransactions() {
+        ManagedCaptureRecorder current = recorder;
+        return current == null ? java.util.List.of() : current.networkTransactions();
+    }
+
+    /**
+     * Returns network transactions from the active session filtered per the supplied capture
+     * options, bounded to the most recent {@code limit} entries in capture order.
+     *
+     * @param options asset-noise and pattern filters; {@code null} applies no filtering
+     * @param limit maximum number of transactions to return; non-positive values are treated as
+     *              unbounded
+     * @return ordered, filtered, bounded network transaction summaries
+     */
+    public synchronized java.util.List<NetworkTransaction> networkTransactions(
+            NetworkCaptureOptions options, int limit) {
+        java.util.List<NetworkTransaction> transactions = networkTransactions();
+        if (transactions.isEmpty()) {
+            return transactions;
+        }
+        java.util.stream.Stream<NetworkTransaction> filtered = transactions.stream()
+                .filter(transaction -> matches(transaction, options));
+        if (limit > 0) {
+            filtered = filtered.limit(limit);
+        }
+        return filtered.toList();
+    }
+
+    private static boolean matches(NetworkTransaction transaction, NetworkCaptureOptions options) {
+        if (options == null) {
+            return true;
+        }
+        if (options.excludeAssets && isAssetResource(transaction.resourceKind())) {
+            return false;
+        }
+        if (!options.excludePattern.isBlank() && matchesGlob(transaction.url(), options.excludePattern)) {
+            return false;
+        }
+        if (!options.includePattern.isBlank() && !matchesGlob(transaction.url(), options.includePattern)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Reports whether a transaction's resource kind is asset-like noise rather than an API call.
+     *
+     * <p>Known gap: {@link NetworkTransaction#resourceKind()} built from a real captured session
+     * is populated from {@code com.shaft.capture.model.network.ResourceKind} (T1's canonical
+     * model), whose P1 vocabulary (XHR, FETCH, DOCUMENT, WEBSOCKET_HANDSHAKE, OTHER) does not
+     * distinguish images, fonts, stylesheets, or media from other non-API traffic -- they all
+     * collapse into {@code OTHER} at capture time. This lowercase "image"/"font"/"stylesheet"/
+     * "media" matching therefore only fires for callers (or fixtures) that populate
+     * {@code resourceKind} with those finer-grained labels directly; it will not currently
+     * exclude asset noise recorded by the real {@code CaptureNetworkRecorder} pipeline, since
+     * that pipeline emits T1's coarser enum. Growing a dedicated asset-type vocabulary in the
+     * capture model is tracked as a P2 follow-up.
+     */
+    private static boolean isAssetResource(String resourceKind) {
+        String kind = resourceKind == null ? "" : resourceKind.toLowerCase(java.util.Locale.ROOT);
+        return switch (kind) {
+            case "image", "font", "stylesheet", "media" -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean matchesGlob(String value, String globPattern) {
+        if (value == null || globPattern == null || globPattern.isBlank()) {
+            return false;
+        }
+        for (String pattern : globPattern.split("\\|")) {
+            String trimmed = pattern.trim();
+            if (!trimmed.isEmpty() && value.matches(globToRegex(trimmed))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String globToRegex(String glob) {
+        StringBuilder regex = new StringBuilder("(?i)");
+        for (char character : glob.toCharArray()) {
+            if (character == '*') {
+                regex.append(".*");
+            } else {
+                regex.append(java.util.regex.Pattern.quote(String.valueOf(character)));
+            }
+        }
+        return regex.toString();
+    }
+
+    /**
      * Adds a human-review checkpoint to the active session.
      *
      * @param description checkpoint description
@@ -273,6 +369,8 @@ public final class CaptureManager implements AutoCloseable {
                 status.outputPath(),
                 status.aiEnabled(),
                 status.processId(),
-                status.startedAt());
+                status.startedAt(),
+                status.networkTransactionCount(),
+                status.lastEndpoints());
     }
 }

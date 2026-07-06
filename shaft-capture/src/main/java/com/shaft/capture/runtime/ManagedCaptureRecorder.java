@@ -10,6 +10,8 @@ import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.model.CaptureReadiness;
+import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.network.CaptureNetworkRecorder;
 import com.shaft.capture.privacy.CapturePrivacyClassifier;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
@@ -75,6 +77,7 @@ class ManagedCaptureRecorder {
     private BrowserEventSink eventSink;
     private CaptureSessionStore store;
     private CaptureEventPipeline pipeline;
+    private CaptureNetworkRecorder networkRecorder;
     private String currentUrl;
     private volatile boolean paused;
     private volatile boolean uiStopRequested;
@@ -120,6 +123,7 @@ class ManagedCaptureRecorder {
                     this::warn);
             startEventSink();
             startCollector(driver);
+            startNetworkRecorder(driver);
             driver.navigate().to(request.targetUrl());
             if (driver instanceof JavascriptExecutor javascript) {
                 javascript.executeScript(
@@ -170,6 +174,13 @@ class ManagedCaptureRecorder {
 
     synchronized CaptureStatus status() {
         CaptureReadiness readiness = readiness();
+        List<NetworkTransaction> transactions = networkTransactions();
+        List<String> lastEndpoints = transactions.isEmpty()
+                ? List.of()
+                : transactions.stream()
+                    .skip(Math.max(0, transactions.size() - 5))
+                    .map(NetworkTransaction::url)
+                    .toList();
         return new CaptureStatus(
                 state,
                 sessionId,
@@ -181,7 +192,25 @@ class ManagedCaptureRecorder {
                 request.outputPath().toString(),
                 false,
                 ProcessHandle.current().pid(),
-                startedAt);
+                startedAt,
+                transactions.size(),
+                lastEndpoints);
+    }
+
+    /**
+     * Returns the list of captured network transactions from the active session.
+     *
+     * @return ordered network transaction summaries, or an empty list when none have been captured
+     */
+    synchronized List<NetworkTransaction> networkTransactions() {
+        if (store == null) {
+            return List.of();
+        }
+        try {
+            return store.networkTransactions();
+        } catch (RuntimeException exception) {
+            return List.of();
+        }
     }
 
     private CaptureReadiness readiness() {
@@ -616,6 +645,120 @@ class ManagedCaptureRecorder {
         }
     }
 
+    private void startNetworkRecorder(WebDriver activeDriver) {
+        if (!apiCaptureEnabled()) {
+            return;
+        }
+        if (!(activeDriver instanceof HasDevTools)) {
+            warn("API capture is enabled but this driver does not support DevTools; continuing with UI-only capture.");
+            return;
+        }
+        try {
+            Path bodiesDirectory = request.outputPath().getParent()
+                    .resolve(sessionId + "-network-bodies").toAbsolutePath().normalize();
+            networkRecorder = new CaptureNetworkRecorder(
+                    activeDriver, bodiesDirectory, resolvedNetworkCaptureOptions(), sessionId,
+                    this::acceptNetworkEvent, this::warn);
+            if (!networkRecorder.start()) {
+                networkRecorder = null;
+            }
+        } catch (RuntimeException exception) {
+            networkRecorder = null;
+            warn("API capture could not start for this session; continuing with UI-only capture.");
+        }
+    }
+
+    private boolean apiCaptureEnabled() {
+        if (request.options().apiCapture()) {
+            return true;
+        }
+        try {
+            return SHAFT.Properties.capture != null && SHAFT.Properties.capture.enabled();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private com.shaft.capture.network.NetworkCaptureOptions resolvedNetworkCaptureOptions() {
+        NetworkCaptureOptions requested = request.options().networkOptions();
+        if (requested != null && !isDefaultNetworkCaptureOptions(requested)) {
+            return translateNetworkCaptureOptions(requested);
+        }
+        try {
+            var capture = SHAFT.Properties.capture;
+            if (capture == null) {
+                return com.shaft.capture.network.NetworkCaptureOptions.defaults();
+            }
+            return new com.shaft.capture.network.NetworkCaptureOptions(
+                    capture.includeAssets(),
+                    globList(capture.urlIncludeGlobs()),
+                    globList(capture.urlExcludeGlobs()),
+                    capture.firstPartyOnly(),
+                    capture.maxTransactions(),
+                    capture.maxBodyBytes());
+        } catch (RuntimeException exception) {
+            return com.shaft.capture.network.NetworkCaptureOptions.defaults();
+        }
+    }
+
+    private static boolean isDefaultNetworkCaptureOptions(NetworkCaptureOptions options) {
+        NetworkCaptureOptions defaults = new NetworkCaptureOptions();
+        return options.enabled == defaults.enabled
+                && options.excludeAssets == defaults.excludeAssets
+                && options.excludePattern.equals(defaults.excludePattern)
+                && options.includePattern.equals(defaults.includePattern)
+                && options.captureResponseBodies == defaults.captureResponseBodies
+                && options.captureRequestBodies == defaults.captureRequestBodies;
+    }
+
+    private static com.shaft.capture.network.NetworkCaptureOptions translateNetworkCaptureOptions(
+            NetworkCaptureOptions options) {
+        return new com.shaft.capture.network.NetworkCaptureOptions(
+                !options.excludeAssets,
+                globList(options.includePattern),
+                globList(options.excludePattern),
+                true,
+                com.shaft.capture.network.NetworkCaptureOptions.DEFAULT_MAX_TRANSACTIONS,
+                com.shaft.capture.network.NetworkCaptureOptions.DEFAULT_MAX_BODY_BYTES);
+    }
+
+    private static List<String> globList(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(value.split("[,|]"))
+                .map(String::trim)
+                .filter(entry -> !entry.isBlank())
+                .toList();
+    }
+
+    void acceptNetworkEvent(CaptureNetworkRecorder.RecordedTransaction transaction) {
+        if (transaction == null || store == null) {
+            return;
+        }
+        try {
+            long sequence = store.nextSequence();
+            com.shaft.capture.model.PageContext page = new com.shaft.capture.model.PageContext(
+                    transaction.initiatorPageUrl(), "", safeWindowHandle(), List.of(), 0, 0);
+            com.shaft.capture.model.EventContext context = new com.shaft.capture.model.EventContext(
+                    sequence, Instant.now(), page,
+                    com.shaft.capture.model.EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
+            CaptureEvent.NetworkEvent event = new CaptureEvent.NetworkEvent(
+                    context,
+                    transaction.transactionId(),
+                    transaction.resourceKind(),
+                    transaction.request(),
+                    transaction.response(),
+                    transaction.timing(),
+                    transaction.failureReason(),
+                    transaction.initiatorPageUrl(),
+                    null);
+            store.append(event);
+        } catch (RuntimeException exception) {
+            warn("A network transaction could not be persisted to the capture session.");
+        }
+    }
+
     private void startEventSink() {
         try {
             eventSink = new BrowserEventSink(this::acceptSignal, this::warn);
@@ -714,6 +857,15 @@ class ManagedCaptureRecorder {
     }
 
     private void closeCollectorAndPipeline() {
+        if (networkRecorder != null) {
+            try {
+                networkRecorder.close();
+            } catch (RuntimeException ignored) {
+                warn("API capture had already stopped.");
+            } finally {
+                networkRecorder = null;
+            }
+        }
         if (collector != null) {
             try {
                 collector.close();

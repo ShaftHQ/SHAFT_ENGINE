@@ -32,6 +32,8 @@ import java.util.Set;
  * @param userAgent user-agent override
  * @param userDataDirectory persistent browser profile directory
  * @param sessionGoal human-readable recording goal
+ * @param apiCapture whether API network recording is enabled for this session
+ * @param networkOptions network capture filtering options; ignored unless {@code apiCapture} is set
  */
 public record CaptureStartOptions(
         String targetLanguage,
@@ -54,7 +56,9 @@ public record CaptureStartOptions(
         Duration timeout,
         String userAgent,
         Path userDataDirectory,
-        String sessionGoal) {
+        String sessionGoal,
+        boolean apiCapture,
+        NetworkCaptureOptions networkOptions) {
     private static final List<String> DEFAULT_TEST_ID_ATTRIBUTES = List.of("data-testid", "data-test", "data-qa");
 
     /**
@@ -84,10 +88,11 @@ public record CaptureStartOptions(
         }
         userDataDirectory = userDataDirectory == null ? null : userDataDirectory.toAbsolutePath().normalize();
         viewport(viewportSize);
+        networkOptions = networkOptions == null ? new NetworkCaptureOptions() : networkOptions;
     }
 
     /**
-     * Creates normalized capture options without a session goal.
+     * Creates normalized capture options without a session goal or API capture settings.
      */
     public CaptureStartOptions(
             String targetLanguage,
@@ -112,7 +117,61 @@ public record CaptureStartOptions(
             Path userDataDirectory) {
         this(targetLanguage, testIdAttribute, channel, deviceName, viewportSize, colorScheme, geolocation,
                 ignoreHttpsErrors, blockServiceWorkers, loadStoragePath, saveStoragePath, language, timezone,
-                proxyServer, proxyBypass, saveHarPath, saveHarGlob, timeout, userAgent, userDataDirectory, "");
+                proxyServer, proxyBypass, saveHarPath, saveHarGlob, timeout, userAgent, userDataDirectory, "",
+                false, null);
+    }
+
+    /**
+     * Creates normalized capture options with a session goal but without API capture settings.
+     *
+     * @param targetLanguage requested generation target
+     * @param testIdAttribute preferred test id attribute
+     * @param channel Chromium channel hint
+     * @param deviceName device emulation hint
+     * @param viewportSize viewport size as {@code width,height}
+     * @param colorScheme preferred color scheme hint
+     * @param geolocation geolocation as {@code latitude,longitude}
+     * @param ignoreHttpsErrors whether HTTPS certificate errors are ignored
+     * @param blockServiceWorkers whether service workers should be blocked
+     * @param loadStoragePath storage-state input path
+     * @param saveStoragePath storage-state output path
+     * @param language locale/language hint
+     * @param timezone timezone hint
+     * @param proxyServer proxy server URL
+     * @param proxyBypass comma-separated proxy bypass list
+     * @param saveHarPath HAR output path
+     * @param saveHarGlob HAR URL glob filter
+     * @param timeout maximum browser timeout
+     * @param userAgent user-agent override
+     * @param userDataDirectory persistent browser profile directory
+     * @param sessionGoal human-readable recording goal
+     */
+    public CaptureStartOptions(
+            String targetLanguage,
+            String testIdAttribute,
+            String channel,
+            String deviceName,
+            String viewportSize,
+            String colorScheme,
+            String geolocation,
+            boolean ignoreHttpsErrors,
+            boolean blockServiceWorkers,
+            String loadStoragePath,
+            String saveStoragePath,
+            String language,
+            String timezone,
+            String proxyServer,
+            String proxyBypass,
+            String saveHarPath,
+            String saveHarGlob,
+            Duration timeout,
+            String userAgent,
+            Path userDataDirectory,
+            String sessionGoal) {
+        this(targetLanguage, testIdAttribute, channel, deviceName, viewportSize, colorScheme, geolocation,
+                ignoreHttpsErrors, blockServiceWorkers, loadStoragePath, saveStoragePath, language, timezone,
+                proxyServer, proxyBypass, saveHarPath, saveHarGlob, timeout, userAgent, userDataDirectory,
+                sessionGoal, false, null);
     }
 
     /**
@@ -122,7 +181,7 @@ public record CaptureStartOptions(
      */
     public static CaptureStartOptions defaults() {
         return new CaptureStartOptions("", "", "", "", "", "", "", false, false,
-                "", "", "", "", "", "", "", "", Duration.ZERO, "", null, "");
+                "", "", "", "", "", "", "", "", Duration.ZERO, "", null, "", false, null);
     }
 
     /**

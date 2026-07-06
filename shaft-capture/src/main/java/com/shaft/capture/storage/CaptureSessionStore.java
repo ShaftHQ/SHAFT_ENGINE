@@ -90,6 +90,30 @@ public final class CaptureSessionStore {
     }
 
     /**
+     * Atomically reserves and returns the next unique event sequence number for this session,
+     * based on the highest sequence currently persisted. Intended for recorders (for example
+     * {@code CaptureNetworkRecorder}, via {@code ManagedCaptureRecorder}) that build a
+     * {@link CaptureEvent} off the main {@code CaptureEventPipeline} thread and must still avoid
+     * colliding with its independently-assigned sequence numbers.
+     *
+     * @return the next sequence number, one greater than the highest currently persisted
+     */
+    public long nextSequence() {
+        lock.lock();
+        try {
+            if (!Files.isRegularFile(path)) {
+                throw new IllegalStateException("Capture session has not been started.");
+            }
+            return codec.read(path).events().stream()
+                    .mapToLong(event -> event.context().sequence())
+                    .max()
+                    .orElse(0L) + 1;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
      * Adds a checkpoint and atomically publishes the updated session.
      *
      * @param checkpoint checkpoint to add
@@ -171,6 +195,63 @@ public final class CaptureSessionStore {
                 .map(CaptureSessionStore::step)
                 .filter(java.util.Objects::nonNull)
                 .toList();
+    }
+
+    /**
+     * Returns the current network transactions derived from the on-disk session.
+     *
+     * @return ordered safe network transaction summaries
+     */
+    public List<com.shaft.capture.runtime.NetworkTransaction> networkTransactions() {
+        return read().events().stream()
+                .flatMap(event -> java.util.stream.Stream.ofNullable(
+                        networkTransaction(event)))
+                .toList();
+    }
+
+    private static com.shaft.capture.runtime.NetworkTransaction networkTransaction(CaptureEvent event) {
+        if (!(event instanceof CaptureEvent.NetworkEvent networkEvent)) {
+            return null;
+        }
+        java.util.Map<String, Object> bodyRefMetadata = new java.util.LinkedHashMap<>();
+        putBodyRefMetadata(bodyRefMetadata, "request", networkEvent.request() == null
+                ? null : networkEvent.request().body());
+        putBodyRefMetadata(bodyRefMetadata, "response", networkEvent.response() == null
+                ? null : networkEvent.response().body());
+        return new com.shaft.capture.runtime.NetworkTransaction(
+                networkEvent.transactionId(),
+                networkEvent.request() == null ? "" : networkEvent.request().method(),
+                networkEvent.request() == null ? "" : networkEvent.request().url(),
+                networkEvent.response() == null ? 0 : networkEvent.response().statusCode(),
+                networkEvent.resourceKind() == null ? "" : networkEvent.resourceKind().name(),
+                timingMillis(networkEvent.timing()),
+                bodyRefMetadata,
+                networkEvent.correlatedUiSequence() == null
+                        ? List.of()
+                        : List.of(Math.toIntExact(Math.min(Integer.MAX_VALUE, networkEvent.correlatedUiSequence()))));
+    }
+
+    private static void putBodyRefMetadata(
+            java.util.Map<String, Object> target, String key, com.shaft.capture.model.network.BodyRef bodyRef) {
+        if (bodyRef == null) {
+            return;
+        }
+        target.put(key, java.util.Map.of(
+                "ref", bodyRef.ref(),
+                "sizeBytes", bodyRef.sizeBytes(),
+                "truncated", bodyRef.truncated()));
+    }
+
+    private static long timingMillis(com.shaft.capture.model.network.NetworkTiming timing) {
+        if (timing == null) {
+            return 0L;
+        }
+        return java.util.stream.Stream.of(
+                        timing.blocked(), timing.dns(), timing.connect(),
+                        timing.send(), timing.ttfb(), timing.receive())
+                .filter(java.util.Objects::nonNull)
+                .mapToLong(java.time.Duration::toMillis)
+                .sum();
     }
 
     private static com.shaft.capture.model.CaptureStep step(CaptureEvent event) {

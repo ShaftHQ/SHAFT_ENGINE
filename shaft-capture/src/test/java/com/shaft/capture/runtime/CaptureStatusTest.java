@@ -22,7 +22,7 @@ class CaptureStatusTest {
                 List.of(),
                 "capture.json",
                 false,
-                123,
+                123L,
                 Instant.parse("2026-01-02T03:04:05Z"));
         CaptureStatus risky = new CaptureStatus(
                 CaptureStatus.State.ACTIVE,
@@ -34,13 +34,21 @@ class CaptureStatusTest {
                 List.of("Step 1 uses generated positional CSS."),
                 "capture.json",
                 false,
-                123,
-                Instant.parse("2026-01-02T03:04:05Z"));
+                123L,
+                Instant.parse("2026-01-02T03:04:05Z"),
+                0,
+                List.of());
 
         String json = new ObjectMapper().writeValueAsString(risky);
 
         assertEquals(CaptureReadiness.State.READY, oldStyle.readiness());
         assertEquals(CaptureReadiness.State.RISKY, risky.readiness());
         assertTrue(json.contains("\"readiness\":\"RISKY\""));
+
+        // Verify network fields are present and initialized
+        assertEquals(0, oldStyle.networkTransactionCount());
+        assertEquals(0, risky.networkTransactionCount());
+        assertTrue(oldStyle.lastEndpoints().isEmpty());
+        assertTrue(risky.lastEndpoints().isEmpty());
     }
 }

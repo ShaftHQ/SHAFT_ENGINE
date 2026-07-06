@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CaptureManagerLifecycleTest {
     @TempDir
@@ -120,6 +121,39 @@ class CaptureManagerLifecycleTest {
                 outputPath,
                 temp.resolve("runtime"),
                 true);
+    }
+
+    @Test
+    void managerRejectsSecondConcurrentSessionRegardlessOfApiCaptureFlag() {
+        AtomicReference<FakeRecorder> recorderRef = new AtomicReference<>();
+        CaptureManager manager = new CaptureManager(request -> {
+            FakeRecorder recorder = new FakeRecorder(request);
+            recorderRef.set(recorder);
+            return recorder;
+        });
+
+        assertEquals(CaptureStatus.State.ACTIVE, manager.start(request("first.json")).state());
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> manager.start(apiCaptureRequest("second.json")));
+
+        assertTrue(failure.getMessage().contains("already active"));
+        assertEquals(CaptureStatus.State.ACTIVE, manager.status().state());
+        manager.stop(false);
+        manager.close();
+    }
+
+    private CaptureStartRequest apiCaptureRequest(String outputName) {
+        NetworkCaptureOptions networkOptions = new NetworkCaptureOptions();
+        return new CaptureStartRequest(
+                "https://example.test",
+                CaptureBrowser.CHROME,
+                temp.resolve(outputName),
+                temp.resolve("runtime"),
+                true,
+                new CaptureStartOptions(
+                        "", "", "", "", "", "", "", false, false,
+                        "", "", "", "", "", "", "", "",
+                        java.time.Duration.ZERO, "", null, "", true, networkOptions));
     }
 
     @Test
