@@ -668,11 +668,13 @@ class ShaftPanelSetupTest {
         panel.setBounds(0, 0, 800, 600);
         SwingUtilities.invokeAndWait(() -> {
             panel.doLayout();
-            for (Component comp : panel.getComponents()) {
-                if (comp instanceof JComponent jcomp) {
-                    jcomp.doLayout();
+            // Recursively layout all nested components (not just immediate children)
+            walkComponents(panel, comp -> {
+                if (comp instanceof JComponent jc && comp != panel) {
+                    jc.doLayout();
                 }
-            }
+            });
+            panel.validate();
         });
 
         // Find the step row with agent controls (contains "Assistant family" label)

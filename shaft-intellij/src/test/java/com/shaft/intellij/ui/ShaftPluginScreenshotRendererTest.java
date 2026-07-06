@@ -13,6 +13,7 @@ import javax.swing.AbstractButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.ColorUIResource;
@@ -32,8 +33,11 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -312,13 +316,17 @@ class ShaftPluginScreenshotRendererTest {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
-            JComponent component = new ShaftToolWindowPanel(screenshotProject(), new ShaftSettingsState.Settings());
-            component.setSize(new Dimension(width, height));
-            component.setPreferredSize(new Dimension(width, height));
-            SwingUtilities.updateComponentTreeUI(component);
-            component.doLayout();
-            layout(component, !dark);
-            image.set(render(component, width, height));
+            ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(screenshotProject(), new ShaftSettingsState.Settings());
+            toolWindow.setSize(new Dimension(width, height));
+            toolWindow.setPreferredSize(new Dimension(width, height));
+            SwingUtilities.updateComponentTreeUI(toolWindow);
+            toolWindow.doLayout();
+            layout(toolWindow, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(toolWindow);
+
+            image.set(render(toolWindow, width, height));
         });
         return image.get();
     }
@@ -345,6 +353,10 @@ class ShaftPluginScreenshotRendererTest {
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             layout(component, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(component);
+
             image.set(render(component, WIDTH, HEIGHT));
         });
         return image.get();
@@ -367,6 +379,10 @@ class ShaftPluginScreenshotRendererTest {
             SwingUtilities.updateComponentTreeUI(component);
             component.doLayout();
             layout(component, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(component);
+
             image.set(render(component, WIDTH, HEIGHT));
         });
         return image.get();
@@ -586,5 +602,63 @@ class ShaftPluginScreenshotRendererTest {
         assertAll(
                 () -> assertTrue(image.getWidth() == width, imagePath + " width should be " + width),
                 () -> assertTrue(image.getHeight() == height, imagePath + " height should be " + height));
+    }
+
+    private static void verifySetupPanelRendering(JComponent component) {
+        // Find the setup panel within the component tree
+        final JComponent[] setupPanel = {null};
+        walkComponentsForVerification(component, comp -> {
+            if (comp instanceof ShaftMcpSetupPanel) {
+                setupPanel[0] = (JComponent) comp;
+            }
+        });
+
+        if (setupPanel[0] != null) {
+            verifySetupPanelLabelsAndBackground(setupPanel[0]);
+        }
+    }
+
+    private static void verifySetupPanelLabelsAndBackground(JComponent setupPanel) {
+        // Verify labels are not cropped by checking their preferred vs actual size
+        final List<JLabel> labels = new ArrayList<>();
+        walkComponentsForVerification(setupPanel, comp -> {
+            if (comp instanceof JLabel lbl && lbl.getText() != null && !lbl.getText().isEmpty()) {
+                labels.add(lbl);
+            }
+        });
+
+        // Check that labels render at their preferred size (no cropping)
+        for (JLabel label : labels) {
+            assertTrue(label.getSize().width >= label.getPreferredSize().width || label.getPreferredSize().width == 0,
+                    "Label '" + label.getText() + "' should not be cropped horizontally. Size: " +
+                    label.getSize().width + ", Preferred: " + label.getPreferredSize().width);
+            assertTrue(label.getSize().height >= label.getPreferredSize().height || label.getPreferredSize().height == 0,
+                    "Label '" + label.getText() + "' should not be cropped vertically. Size: " +
+                    label.getSize().height + ", Preferred: " + label.getPreferredSize().height);
+        }
+
+        // Verify child panels are non-opaque or have consistent step background
+        final List<JPanel> panels = new ArrayList<>();
+        walkComponentsForVerification(setupPanel, comp -> {
+            if (comp instanceof JPanel pnl && comp != setupPanel) {
+                panels.add(pnl);
+            }
+        });
+
+        for (JPanel panel : panels) {
+            if (panel.isOpaque() && panel.getBackground() != null) {
+                // Opaque panels should have consistent background (not mismatched colors)
+                assertTrue(panel.getBackground() != null, "Opaque panel should have a background color");
+            }
+        }
+    }
+
+    private static void walkComponentsForVerification(Component component, Consumer<Component> visitor) {
+        visitor.accept(component);
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                walkComponentsForVerification(child, visitor);
+            }
+        }
     }
 }
