@@ -111,6 +111,15 @@ jobs:
           -DincludeCaptureBrowserE2E
           -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
           -Dgpg.skip
+      - name: Diagnose runner resources on capture journey failure
+        if: failure()
+        run: |
+          echo "--- disk space ---"
+          df -h
+          echo "--- memory ---"
+          free -h
+          echo "--- chrome/chromedriver processes ---"
+          ps aux | grep -i -E "chrome|chromedriver" || true
       - name: Upload coverage to Codecov
         if: always() && github.event_name != 'pull_request'
         uses: ./.github/actions/upload-jacoco-coverage
