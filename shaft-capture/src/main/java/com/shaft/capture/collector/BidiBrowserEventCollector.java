@@ -19,6 +19,8 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
 
     private final WebDriver driver;
     private final List<String> testIdAttributes;
+    private final String stepsEndpoint;
+    private final String stepsToken;
     private final Map<String, String> promptTypes = new ConcurrentHashMap<>();
     private Script script;
     private BrowsingContextInspector contexts;
@@ -40,11 +42,31 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
      * @param testIdAttributes locator test-id attributes
      */
     public BidiBrowserEventCollector(WebDriver driver, List<String> testIdAttributes) {
+        this(driver, testIdAttributes, "", "");
+    }
+
+    /**
+     * Creates a BiDi collector with a steps-rehydration endpoint so the recorder UI can source its
+     * step list from the server-side session store across navigations, including cross-origin
+     * ones, instead of page-scoped storage.
+     *
+     * @param driver BiDi-capable driver
+     * @param testIdAttributes locator test-id attributes
+     * @param stepsEndpoint optional loopback steps query endpoint
+     * @param stepsToken optional loopback steps query token
+     */
+    public BidiBrowserEventCollector(
+            WebDriver driver,
+            List<String> testIdAttributes,
+            String stepsEndpoint,
+            String stepsToken) {
         if (driver == null) {
             throw new IllegalArgumentException("Capture WebDriver is required.");
         }
         this.driver = driver;
         this.testIdAttributes = testIdAttributes == null ? List.of() : List.copyOf(testIdAttributes);
+        this.stepsEndpoint = stepsEndpoint == null ? "" : stepsEndpoint;
+        this.stepsToken = stepsToken == null ? "" : stepsToken;
     }
 
     @Override
@@ -66,7 +88,7 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
             }
         });
         preloadId = script.addPreloadScript(
-                BrowserEventScript.preloadFunction(testIdAttributes),
+                BrowserEventScript.preloadFunction(testIdAttributes, stepsEndpoint, stepsToken),
                 List.of(new ChannelValue(CHANNEL)));
 
         contexts = new BrowsingContextInspector(driver);

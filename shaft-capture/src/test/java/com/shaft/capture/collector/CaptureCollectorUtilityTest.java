@@ -90,6 +90,28 @@ class CaptureCollectorUtilityTest {
     }
 
     @Test
+    void browserEventScriptEmbedsStepsEndpointForServerSideRehydration() {
+        String fallback = BrowserEventScript.fallbackInstallation(
+                List.of("data-pw"),
+                "http://127.0.0.1:1234/event",
+                "event-token",
+                "http://127.0.0.1:1234/steps",
+                "steps-token");
+        assertTrue(fallback.contains(
+                "const stepsEndpoint = {url: \"http://127.0.0.1:1234/steps\", token: \"steps-token\"};"));
+
+        String preload = BrowserEventScript.preloadFunction(
+                List.of("data-pw"), "http://127.0.0.1:5678/steps", "preload-steps-token");
+        assertTrue(preload.contains(
+                "const stepsEndpoint = {url: \"http://127.0.0.1:5678/steps\", token: \"preload-steps-token\"};"));
+
+        assertTrue(BrowserEventScript.preloadFunction().contains(
+                "const stepsEndpoint = {url: \"\", token: \"\"};"));
+        assertTrue(BrowserEventScript.fallbackInstallation(List.of(), "http://event", "token")
+                .contains("const stepsEndpoint = {url: \"\", token: \"\"};"));
+    }
+
+    @Test
     void compositeCollectorStartsAndClosesInOrderAndCleansStartedCollectorsOnFailure() {
         List<String> calls = new ArrayList<>();
         RecordingCollector first = new RecordingCollector("first", calls, false);

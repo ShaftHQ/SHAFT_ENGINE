@@ -1,17 +1,22 @@
 package com.shaft.capture.storage;
 
+import tools.jackson.databind.node.StringNode;
 import com.shaft.capture.CaptureFixtures;
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.CaptureStep;
 import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.model.EventContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -105,5 +110,71 @@ class CaptureSessionStoreTest {
         CaptureSession persisted = store.read();
         assertEquals(1, persisted.events().size());
         assertTrue(persisted.events().getFirst() instanceof CaptureEvent.NavigationEvent);
+    }
+
+    @Test
+    void stepsExposeServerAuthoritativeDescriptionsAndSurviveDeletion(@TempDir Path temp) {
+        Path path = temp.resolve("steps.json");
+        CaptureSessionStore store = new CaptureSessionStore(path);
+        store.start(CaptureSession.start("steps", CaptureFixtures.STARTED, CaptureFixtures.browser()));
+
+        store.append(new CaptureEvent.NavigationEvent(
+                contextWithAction(1, "instance-a-1", "Open https://a.test/"),
+                CaptureEvent.NavigationAction.OPEN, "https://a.test/"));
+        store.append(new CaptureEvent.NavigationEvent(
+                contextWithAction(2, "instance-a-2", "Click submit"),
+                CaptureEvent.NavigationAction.REFRESH, ""));
+
+        List<CaptureStep> steps = store.steps();
+        assertEquals(2, steps.size());
+        assertEquals("instance-a-1", steps.get(0).clientActionId());
+        assertEquals("Open https://a.test/", steps.get(0).description());
+        assertEquals("instance-a-2", steps.get(1).clientActionId());
+        assertEquals("Click submit", steps.get(1).description());
+
+        store.updateEvents(events -> events.stream()
+                .filter(event -> !"instance-a-1".equals(
+                        event.context().extensions().get("clientActionId").asText("")))
+                .toList());
+
+        List<CaptureStep> afterDelete = store.steps();
+        assertEquals(1, afterDelete.size());
+        assertEquals("instance-a-2", afterDelete.getFirst().clientActionId());
+    }
+
+    @Test
+    void stepsPreferUserEditedDescriptionOverOriginal(@TempDir Path temp) {
+        Path path = temp.resolve("steps-edited.json");
+        CaptureSessionStore store = new CaptureSessionStore(path);
+        store.start(CaptureSession.start("steps-edited", CaptureFixtures.STARTED, CaptureFixtures.browser()));
+        store.append(new CaptureEvent.NavigationEvent(
+                contextWithAction(1, "instance-a-1", "Open https://a.test/"),
+                CaptureEvent.NavigationAction.OPEN, "https://a.test/"));
+
+        store.updateEvents(events -> events.stream()
+                .<CaptureEvent>map(event -> new CaptureEvent.NavigationEvent(
+                        withUserDescription(event.context(), "Edited: go to homepage"),
+                        ((CaptureEvent.NavigationEvent) event).action(),
+                        ((CaptureEvent.NavigationEvent) event).targetUrl()))
+                .toList());
+
+        List<CaptureStep> steps = store.steps();
+        assertEquals(1, steps.size());
+        assertEquals("Edited: go to homepage", steps.getFirst().description());
+    }
+
+    private static EventContext contextWithAction(long sequence, String clientActionId, String description) {
+        Map<String, tools.jackson.databind.JsonNode> extensions = new LinkedHashMap<>();
+        extensions.put("clientActionId", StringNode.valueOf(clientActionId));
+        extensions.put("stepDescription", StringNode.valueOf(description));
+        return new EventContext(sequence, CaptureFixtures.STARTED.plusSeconds(sequence), CaptureFixtures.page(),
+                EventContext.ReplayStatus.NOT_REPLAYED, List.of(), extensions);
+    }
+
+    private static EventContext withUserDescription(EventContext context, String description) {
+        Map<String, tools.jackson.databind.JsonNode> extensions = new LinkedHashMap<>(context.extensions());
+        extensions.put("userDescription", StringNode.valueOf(description));
+        return new EventContext(context.sequence(), context.timestamp(), context.page(),
+                context.replayStatus(), context.evidence(), extensions);
     }
 }

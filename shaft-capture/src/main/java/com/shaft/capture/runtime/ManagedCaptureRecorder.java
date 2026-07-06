@@ -126,6 +126,8 @@ class ManagedCaptureRecorder {
                         com.shaft.capture.collector.BrowserEventScript.fallbackInstallation(
                                 request.options().testIdAttributes(),
                                 eventSinkEndpoint(),
+                                eventSinkToken(),
+                                eventSinkStepsEndpoint(),
                                 eventSinkToken()));
             }
             pipeline.accept(BrowserSignal.generated(
@@ -192,6 +194,24 @@ class ManagedCaptureRecorder {
             return CaptureReadiness.from(store.read(), warnings);
         } catch (RuntimeException exception) {
             return new CaptureReadiness(CaptureReadiness.State.RISKY, warnings);
+        }
+    }
+
+    /**
+     * Returns the current server-side step list so external control channels
+     * (CaptureControlServer/CaptureControlClient) can source the recorder UI step list from the
+     * session store instead of page-scoped browser storage.
+     *
+     * @return ordered safe step summaries, or an empty list before the session has started
+     */
+    synchronized List<com.shaft.capture.model.CaptureStep> steps() {
+        if (store == null) {
+            return List.of();
+        }
+        try {
+            return store.steps();
+        } catch (RuntimeException exception) {
+            return List.of();
         }
     }
 
@@ -567,13 +587,18 @@ class ManagedCaptureRecorder {
     private void startCollector(WebDriver activeDriver) {
         try {
             collector = new CompositeBrowserEventCollector(List.of(
-                    new BidiBrowserEventCollector(activeDriver, request.options().testIdAttributes()),
+                    new BidiBrowserEventCollector(
+                            activeDriver,
+                            request.options().testIdAttributes(),
+                            eventSinkStepsEndpoint(),
+                            eventSinkToken()),
                     new PollingBrowserEventCollector(
                             activeDriver,
                             false,
                             request.options().testIdAttributes(),
                             eventSinkEndpoint(),
-                            eventSinkToken())));
+                            eventSinkToken(),
+                            eventSinkStepsEndpoint())));
             collector.start(this::acceptSignal, this::warn);
         } catch (RuntimeException exception) {
             if (collector != null) {
@@ -585,7 +610,8 @@ class ManagedCaptureRecorder {
                     true,
                     request.options().testIdAttributes(),
                     eventSinkEndpoint(),
-                    eventSinkToken());
+                    eventSinkToken(),
+                    eventSinkStepsEndpoint());
             collector.start(this::acceptSignal, this::warn);
         }
     }
@@ -593,6 +619,7 @@ class ManagedCaptureRecorder {
     private void startEventSink() {
         try {
             eventSink = new BrowserEventSink(this::acceptSignal, this::warn);
+            eventSink.stepsSupplier(() -> store == null ? java.util.List.of() : store.steps());
             eventSink.start();
         } catch (RuntimeException exception) {
             eventSink = null;
@@ -606,6 +633,10 @@ class ManagedCaptureRecorder {
 
     private String eventSinkToken() {
         return eventSink == null ? "" : eventSink.eventToken();
+    }
+
+    private String eventSinkStepsEndpoint() {
+        return eventSink == null ? "" : eventSink.stepsEndpoint();
     }
 
     void acceptSignal(BrowserSignal signal) {

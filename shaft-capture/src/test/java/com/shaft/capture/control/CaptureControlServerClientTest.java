@@ -56,10 +56,23 @@ class CaptureControlServerClientTest {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString("{\"description\":\"mark\",\"kind\":\"bad\"}"))
                     .build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> steps = http.send(HttpRequest.newBuilder()
+                    .uri(URI.create("http://127.0.0.1:" + port + "/steps"))
+                    .header("Authorization", "Bearer token")
+                    .GET()
+                    .build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> unauthorizedSteps = http.send(HttpRequest.newBuilder()
+                    .uri(URI.create("http://127.0.0.1:" + port + "/steps"))
+                    .GET()
+                    .build(), HttpResponse.BodyHandlers.ofString());
 
             assertEquals(401, unauthorized.statusCode());
             assertEquals(400, badMethod.statusCode());
             assertEquals(400, badCheckpoint.statusCode());
+            assertEquals(200, steps.statusCode());
+            assertEquals("[]", steps.body());
+            assertEquals(401, unauthorizedSteps.statusCode());
+            assertTrue(new CaptureControlClient(temp).steps().isEmpty());
         } finally {
             server.close();
             manager.close();

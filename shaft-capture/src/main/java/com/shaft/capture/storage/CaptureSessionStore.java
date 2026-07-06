@@ -160,6 +160,37 @@ public final class CaptureSessionStore {
         }
     }
 
+    /**
+     * Returns the current step list derived from the on-disk session, so the recorder UI can
+     * rehydrate its step list from the server instead of page-scoped storage across navigations.
+     *
+     * @return ordered safe step summaries for every event carrying a client action ID
+     */
+    public List<com.shaft.capture.model.CaptureStep> steps() {
+        return read().events().stream()
+                .map(CaptureSessionStore::step)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    private static com.shaft.capture.model.CaptureStep step(CaptureEvent event) {
+        var extensions = event.context().extensions();
+        String clientActionId = text(extensions.get("clientActionId"));
+        if (clientActionId.isBlank()) {
+            return null;
+        }
+        String description = text(extensions.get("userDescription"));
+        if (description.isBlank()) {
+            description = text(extensions.get("stepDescription"));
+        }
+        return new com.shaft.capture.model.CaptureStep(
+                clientActionId, event.context().sequence(), description);
+    }
+
+    private static String text(tools.jackson.databind.JsonNode node) {
+        return node == null ? "" : node.asText("");
+    }
+
     private CaptureSession update(java.util.function.UnaryOperator<CaptureSession> operation) {
         lock.lock();
         try {

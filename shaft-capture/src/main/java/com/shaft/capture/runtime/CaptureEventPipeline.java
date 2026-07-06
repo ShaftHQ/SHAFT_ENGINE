@@ -621,6 +621,10 @@ final class CaptureEventPipeline implements AutoCloseable {
         if (!clientActionId.isBlank()) {
             result.put("clientActionId", StringNode.valueOf(clientActionId));
         }
+        String stepDescription = privacy.sanitizeText(signal.dataString("stepDescription")).value();
+        if (!stepDescription.isBlank()) {
+            result.put("stepDescription", StringNode.valueOf(stepDescription));
+        }
         if (!page.domSnapshot().isBlank()) {
             result.put("domSnapshot", StringNode.valueOf(page.domSnapshot()));
         }
