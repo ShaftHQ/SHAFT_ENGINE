@@ -488,9 +488,9 @@ public class MobileService {
 
     private McpMobileNaturalActionResult resolveNaturalAct(
             String intent, String accessibleName, Boolean aiFallbackEnabled) {
-        String safeIntent = intent == null ? "" : intent.trim();
-        String safeAccessibleName = accessibleName == null ? "" : accessibleName.trim();
-        boolean fallbackEnabled = aiFallbackEnabled == null ? SHAFT.Properties.naturalActions.aiFallbackEnabled() : aiFallbackEnabled;
+        String safeIntent = safeTrim(intent);
+        String safeAccessibleName = safeTrim(accessibleName);
+        boolean fallbackEnabled = resolveFallbackEnabled(aiFallbackEnabled);
 
         if (safeIntent.isBlank()) {
             return blankIntentResult(safeIntent);
@@ -498,9 +498,21 @@ public class MobileService {
         if (safeAccessibleName.isBlank()) {
             return blankAccessibleNameResult(safeIntent, fallbackEnabled);
         }
+        return resolveAgainstAccessibilityTree(safeIntent, safeAccessibleName, fallbackEnabled);
+    }
 
+    private static String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static boolean resolveFallbackEnabled(Boolean aiFallbackEnabled) {
+        return aiFallbackEnabled == null ? SHAFT.Properties.naturalActions.aiFallbackEnabled() : aiFallbackEnabled;
+    }
+
+    private McpMobileNaturalActionResult resolveAgainstAccessibilityTree(
+            String safeIntent, String safeAccessibleName, boolean fallbackEnabled) {
         String source = getDriver().getDriver().getPageSource();
-        if (source == null || source.isBlank()) {
+        if (isBlank(source)) {
             return emptySourceResult(safeIntent);
         }
 
@@ -515,6 +527,10 @@ public class MobileService {
         }
 
         return resolvedLocatorResult(safeIntent, safeAccessibleName, locatorOpt.get());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private McpMobileNaturalActionResult blankIntentResult(String safeIntent) {
