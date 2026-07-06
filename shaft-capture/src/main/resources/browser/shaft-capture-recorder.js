@@ -1440,9 +1440,26 @@
     clickCount: 2
     });
   }, true);
+  const editingKeys = new Set(["Backspace", "Delete", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  const isEditingKey = key => editingKeys.has(key);
   addEventListener("input", event => {
     if (!isTextInput(event.target)) return;
     emit("input", event, {value: String(event.target.value || "")});
+  }, true);
+  addEventListener("blur", event => {
+    const element = event.target;
+    if (!isTextInput(element)) return;
+    const key = "input:" + text(
+      element.getAttribute("data-testid") ||
+      element.getAttribute("data-test") ||
+      element.id ||
+      element.name
+    ) || `${String(element.localName || "element")}-${Math.abs(cssPath(element).split("")
+      .reduce((hash, character) => ((hash << 5) - hash) + character.charCodeAt(0), 0))}`;
+    if (uiState.currentInputActionKey === key) {
+      uiState.currentInputActionKey = "";
+      persist();
+    }
   }, true);
   addEventListener("change", event => {
     const element = event.target;
@@ -1484,6 +1501,15 @@
     // shortcut here, so typing a sentence does not fragment into one action per shifted
     // character and does not flush the in-progress "input" merge early.
     const hasShortcutModifier = event.metaKey || (event.ctrlKey !== event.altKey);
+    const element = eventElement(event);
+    // Suppress standalone editing key actions (Backspace, Delete, arrow keys) when
+    // focus is inside a text-entry element. These are coalesced into the input's
+    // final value, emitted on blur/change/submit or before the next non-typing action.
+    // Non-input contexts (e.g. Backspace as page-navigation on a focused button)
+    // still record the keyboard action.
+    if (isEditingKey(key) && isTextInput(element) && !hasShortcutModifier) {
+      return;
+    }
     if (!named && !hasShortcutModifier) return;
     emit("keyboard", event, {keys: [...modifiers, key.toUpperCase()]});
   }, true);
