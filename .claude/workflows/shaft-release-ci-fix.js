@@ -76,6 +76,30 @@ const VALIDATION_RULES = [
   "static checks, or a disposable copy.",
 ].join(" ");
 
+// Each isolation:"worktree" agent call gets a FRESH, randomly-picked
+// worktree -- not the same one across implement/fix/escalate rounds for
+// the same fix. Two consequences every implementer-role prompt must
+// carry: (1) your own worktree may already hold different leftover
+// state (or be clean) -- if the files this fix should have touched
+// aren't here, search sibling worktrees under `.claude/worktrees/` for
+// your own prior round's commits/diff before concluding nothing was
+// done; (2) the orchestrator can only discover your work via
+// `git log`/`git diff` on YOUR worktree, so uncommitted changes are
+// invisible and effectively lost once this call returns -- general
+// "don't commit unless asked" guidance does not apply here, commit is
+// mandatory.
+const COMMIT_INSTRUCTION = [
+  "IMPORTANT: this worktree is disposable and only discoverable via git.",
+  "Before you finish, `git add` every file you touched and `git commit`",
+  "with a descriptive message -- uncommitted changes are invisible to the",
+  "orchestrator and will be lost. This overrides any general instinct to",
+  "leave changes staged/uncommitted \"unless explicitly asked\"; committing",
+  "IS how you hand off a fix in this workflow. If the files this fix",
+  "expects aren't in your worktree, check sibling worktrees under",
+  "`.claude/worktrees/wf_*` for a prior round's commit before assuming no",
+  "work was done.",
+].join(" ");
+
 function triagePrompt(job) {
   return [
     "You are a READ-ONLY CI triage agent. Do not edit files or rerun",
@@ -114,6 +138,8 @@ function implementPrompt(fix) {
     "an explicit instruction in the fix goal.",
     "",
     JSON.stringify(fix, null, 2),
+    "",
+    COMMIT_INSTRUCTION,
   ].join("\n");
 }
 
@@ -145,6 +171,8 @@ function fixGapsPrompt(fix, gaps) {
     "",
     "Fix for reference:",
     JSON.stringify(fix, null, 2),
+    "",
+    COMMIT_INSTRUCTION,
   ].join("\n");
 }
 
@@ -159,6 +187,8 @@ function escalatePrompt(fix, gaps) {
     "",
     "Open gaps:",
     JSON.stringify(gaps, null, 2),
+    "",
+    COMMIT_INSTRUCTION,
   ].join("\n");
 }
 
