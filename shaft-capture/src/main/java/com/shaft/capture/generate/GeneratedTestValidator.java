@@ -129,6 +129,9 @@ public class GeneratedTestValidator {
             }
             diagnostics.addAll(allure.diagnostics());
             boolean passed = process.exitValue() == 0 && allure.count() > 0 && allure.failed() == 0;
+            if (!passed) {
+                diagnostics.add(replayProcessOutputTail(outputLog));
+            }
             return new CaptureGenerationReport.Validation(
                     passed
                             ? CaptureGenerationReport.Validation.ValidationStatus.PASSED
@@ -170,6 +173,17 @@ public class GeneratedTestValidator {
             diagnostics.addAll(failureMessages);
         }
         return new AllureSummary(count, failed, List.copyOf(diagnostics));
+    }
+
+    private static String replayProcessOutputTail(Path outputLog) {
+        try {
+            String content = Files.readString(outputLog, StandardCharsets.UTF_8);
+            String oneLine = content.replaceAll("\\s+", " ").trim();
+            String tail = oneLine.length() > 3_000 ? oneLine.substring(oneLine.length() - 3_000) : oneLine;
+            return "Replay process output (tail): " + tail;
+        } catch (IOException exception) {
+            return "Replay process output could not be read.";
+        }
     }
 
     private static String boundedFailureMessage(String name, String message) {
