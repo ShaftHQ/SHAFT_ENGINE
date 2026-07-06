@@ -146,21 +146,36 @@ public class GeneratedTestValidator {
     private static AllureSummary allure(Path directory) throws IOException {
         int count = 0;
         int failed = 0;
+        List<String> failureMessages = new ArrayList<>();
         try (Stream<Path> files = Files.list(directory)) {
             for (Path file : files.filter(path -> path.getFileName().toString().endsWith("-result.json")).toList()) {
                 count++;
                 JsonNode result = JSON.readTree(Files.readString(file, StandardCharsets.UTF_8));
                 if (!"passed".equalsIgnoreCase(result.path("status").asText())) {
                     failed++;
+                    String message = result.path("statusDetails").path("message").asText("");
+                    if (!message.isBlank() && failureMessages.size() < 5) {
+                        failureMessages.add(boundedFailureMessage(result.path("name").asText(""), message));
+                    }
                 }
             }
         }
-        List<String> diagnostics = count == 0
-                ? List.of("Replay produced no populated Allure result files.")
-                : failed == 0
-                ? List.of("Replay produced " + count + " passing Allure result file(s).")
-                : List.of("Replay produced " + failed + " non-passing Allure result file(s).");
-        return new AllureSummary(count, failed, diagnostics);
+        List<String> diagnostics = new ArrayList<>();
+        if (count == 0) {
+            diagnostics.add("Replay produced no populated Allure result files.");
+        } else if (failed == 0) {
+            diagnostics.add("Replay produced " + count + " passing Allure result file(s).");
+        } else {
+            diagnostics.add("Replay produced " + failed + " non-passing Allure result file(s).");
+            diagnostics.addAll(failureMessages);
+        }
+        return new AllureSummary(count, failed, List.copyOf(diagnostics));
+    }
+
+    private static String boundedFailureMessage(String name, String message) {
+        String oneLine = message.replaceAll("\\s+", " ").trim();
+        String bounded = oneLine.length() > 300 ? oneLine.substring(0, 300) + "..." : oneLine;
+        return name.isBlank() ? bounded : name + ": " + bounded;
     }
 
     private static String diagnostic(Diagnostic<? extends JavaFileObject> diagnostic) {
