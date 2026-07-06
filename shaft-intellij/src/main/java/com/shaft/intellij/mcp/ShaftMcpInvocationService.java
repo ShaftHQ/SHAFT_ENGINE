@@ -20,8 +20,10 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class ShaftMcpInvocationService {
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(90);
+    private static final String DISCONNECTED_MESSAGE = "MCP connection is disconnected. Click 'Reconnect' to restore service.";
 
     private final Project project;
+    private final ShaftMcpConnectionState connectionState;
 
     /**
      * Creates the project-scoped invocation service.
@@ -30,6 +32,7 @@ public final class ShaftMcpInvocationService {
      */
     public ShaftMcpInvocationService(@NotNull Project project) {
         this.project = project;
+        this.connectionState = project.getService(ShaftMcpConnectionState.class);
     }
 
     /**
@@ -95,6 +98,9 @@ public final class ShaftMcpInvocationService {
         List<String> command = verifiedCommand(settings);
         if (command.isEmpty()) {
             return completed(CONFIGURE_MESSAGE);
+        }
+        if (connectionState != null && !connectionState.isConnected()) {
+            return completed(DISCONNECTED_MESSAGE);
         }
         AtomicReference<ShaftMcpStdioClient> clientReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();

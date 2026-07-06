@@ -16,6 +16,7 @@
                     factoryClass="com.shaft.intellij.ShaftToolWindowFactory"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftSettingsState"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftCredentialService"/>
+        <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpConnectionState"/>
         <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpInvocationService"/>
         <projectService serviceImplementation="com.shaft.intellij.ui.ShaftAssistantChatState"/>
         <applicationConfigurable instance="com.shaft.intellij.settings.ShaftSettingsConfigurable"
