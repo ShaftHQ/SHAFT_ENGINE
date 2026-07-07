@@ -1,82 +1,83 @@
 #!/usr/bin/env python3
-"""
-Deterministic PreToolUse / SessionStart guardrail hook for SHAFT_ENGINE.
-
-Enforces (via code, not prose) the four hard safety rules from AGENTS.md /
-.memory gotchas that previously only existed as instructions an agent could
-forget or misread:
-
-  R1 Maven test scoping + headless execution
-     (mirrors .memory/memory/gotchas/
-      mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open.md
-      and the "-am test JVM crash" scoped-test-execution-policy memory)
-  R2 Never auto-open/serve Allure reports
-  R3 Never run GUI-opening commands on Windows (AGENTS.md Windows/Codex Safety)
-  R4 (documentation only, not mechanically enforceable here) one
-     branch/worktree/PR per session -- reported by --session-start as a
-     reminder since a PreToolUse hook has no cross-tool-call session state.
-
-Stdlib only. Must run under both `py -3` (Windows launcher, this repo's
-documented convention) and `python3` (Linux/CI/macOS), so avoid anything
-Windows-launcher-specific or POSIX-only.
-
---------------------------------------------------------------------------
-Hook protocol used (verified against the current Claude Code hooks docs at
-https://docs.anthropic.com/en/docs/claude-code/hooks via the claude-code-guide
-agent on 2026-07-07 -- NOT assumed from training-data memory):
-
-PreToolUse:
-  * Input: one JSON object on stdin. Relevant fields: "tool_name" (e.g.
-    "Bash") and "tool_input" (an object; for the Bash tool the shell command
-    string is at tool_input["command"]).
-  * ALLOW: exit 0 with no stdout output (or stdout that isn't the deny JSON
-    below) -- Claude Code falls through to its normal permission flow.
-  * DENY (the mechanism this script uses): exit 0 and print a single JSON
-    object to stdout of the form
-      {"hookSpecificOutput": {"hookEventName": "PreToolUse",
-                               "permissionDecision": "deny",
-                               "permissionDecisionReason": "<message>"}}
-    This is the CURRENT documented mechanism (permissionDecision one of
-    "allow" | "deny" | "ask" | "defer"). The legacy "exit code 2 + stderr"
-    mechanism still works per the docs but is not what this script uses,
-    since the JSON form is the documented current/recommended approach and
-    lets us attach a precise, structured reason string.
-
-SessionStart:
-  * Input: JSON on stdin with "hook_event_name": "SessionStart" (plus
-    session_id/cwd/source, unused here).
-  * Output: this repo's ask (task spec) wants a fast, dependency-free,
-    human-readable 4-line reminder. The documented mechanism for feeding
-    context back to Claude is
-      {"hookSpecificOutput": {"hookEventName": "SessionStart",
-                               "additionalContext": "<plain string>"}}
-    on stdout with exit 0. additionalContext is a plain string (not nested
-    JSON) that Claude Code inserts directly into the model's context. This
-    script emits that JSON envelope so the reminder actually reaches Claude
-    context (plain stdout text with no JSON envelope is not documented to be
-    read by Claude Code for SessionStart), while keeping the human-readable
-    4-line reminder as the literal value of additionalContext.
-
-settings.json wiring:
-  * PreToolUse matcher "Bash" (Claude Code's built-in tool for running shell
-    commands -- there is no separate "PowerShell" tool name; PowerShell
-    invocations in this environment still go through the "Bash" tool per the
-    docs, so a single "Bash" matcher covers both Bash-tool-call and
-    PowerShell-tool-call cases described in the task).
-  * ${CLAUDE_PROJECT_DIR} is expanded by Claude Code itself before the
-    process is spawned (confirmed via the claude-code-guide agent against
-    the current hooks docs), and is documented as reliable on Windows. To
-    avoid any shell-specific quoting differences (Windows hook commands may
-    be spawned via Git Bash or PowerShell depending on environment), this
-    repo's settings.json wires the hook using the exec-style
-    "command" + "args" array form (command: "py", args: ["-3",
-    "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"]) rather than a single
-    shell-parsed command string, so there is no shell in the loop to
-    reinterpret quoting/backslashes on either platform. The script is
-    invoked with `py -3` per this repo's documented Windows convention
-    (AGENTS.md Windows/Codex Safety: "Run via py -3, node, ...").
---------------------------------------------------------------------------
-"""
+"""Deterministic PreToolUse / SessionStart guardrail hook for SHAFT_ENGINE."""
+# Note on docstring style: Codacy runs both D212 and D213, so multi-line
+# docstrings always flag one of them; keep docstrings single-line and put
+# detail in comments like this block.
+#
+# Enforces (via code, not prose) the four hard safety rules from AGENTS.md /
+# .memory gotchas that previously only existed as instructions an agent could
+# forget or misread:
+#
+#   R1 Maven test scoping + headless execution
+#      (mirrors .memory/memory/gotchas/
+#       mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open.md
+#       and the "-am test JVM crash" scoped-test-execution-policy memory)
+#   R2 Never auto-open/serve Allure reports
+#   R3 Never run GUI-opening commands on Windows (AGENTS.md Windows/Codex Safety)
+#   R4 (documentation only, not mechanically enforceable here) one
+#      branch/worktree/PR per session -- reported by --session-start as a
+#      reminder since a PreToolUse hook has no cross-tool-call session state.
+#
+# Stdlib only. Must run under both `py -3` (Windows launcher, this repo's
+# documented convention) and `python3` (Linux/CI/macOS), so avoid anything
+# Windows-launcher-specific or POSIX-only.
+#
+# --------------------------------------------------------------------------
+# Hook protocol used (verified against the current Claude Code hooks docs at
+# https://docs.anthropic.com/en/docs/claude-code/hooks via the claude-code-guide
+# agent on 2026-07-07 -- NOT assumed from training-data memory):
+#
+# PreToolUse:
+#   * Input: one JSON object on stdin. Relevant fields: "tool_name" (e.g.
+#     "Bash") and "tool_input" (an object; for the Bash tool the shell command
+#     string is at tool_input["command"]).
+#   * ALLOW: exit 0 with no stdout output (or stdout that isn't the deny JSON
+#     below) -- Claude Code falls through to its normal permission flow.
+#   * DENY (the mechanism this script uses): exit 0 and print a single JSON
+#     object to stdout of the form
+#       {"hookSpecificOutput": {"hookEventName": "PreToolUse",
+#                                "permissionDecision": "deny",
+#                                "permissionDecisionReason": "<message>"}}
+#     This is the CURRENT documented mechanism (permissionDecision one of
+#     "allow" | "deny" | "ask" | "defer"). The legacy "exit code 2 + stderr"
+#     mechanism still works per the docs but is not what this script uses,
+#     since the JSON form is the documented current/recommended approach and
+#     lets us attach a precise, structured reason string.
+#
+# SessionStart:
+#   * Input: JSON on stdin with "hook_event_name": "SessionStart" (plus
+#     session_id/cwd/source, unused here).
+#   * Output: this repo's ask (task spec) wants a fast, dependency-free,
+#     human-readable 4-line reminder. The documented mechanism for feeding
+#     context back to Claude is
+#       {"hookSpecificOutput": {"hookEventName": "SessionStart",
+#                                "additionalContext": "<plain string>"}}
+#     on stdout with exit 0. additionalContext is a plain string (not nested
+#     JSON) that Claude Code inserts directly into the model's context. This
+#     script emits that JSON envelope so the reminder actually reaches Claude
+#     context (plain stdout text with no JSON envelope is not documented to be
+#     read by Claude Code for SessionStart), while keeping the human-readable
+#     4-line reminder as the literal value of additionalContext.
+#
+# settings.json wiring:
+#   * PreToolUse matcher "Bash" (Claude Code's built-in tool for running shell
+#     commands -- there is no separate "PowerShell" tool name; PowerShell
+#     invocations in this environment still go through the "Bash" tool per the
+#     docs, so a single "Bash" matcher covers both Bash-tool-call and
+#     PowerShell-tool-call cases described in the task).
+#   * ${CLAUDE_PROJECT_DIR} is expanded by Claude Code itself before the
+#     process is spawned (confirmed via the claude-code-guide agent against
+#     the current hooks docs), and is documented as reliable on Windows. To
+#     avoid any shell-specific quoting differences (Windows hook commands may
+#     be spawned via Git Bash or PowerShell depending on environment), this
+#     repo's settings.json wires the hook using the exec-style
+#     "command" + "args" array form (command: "py", args: ["-3",
+#     "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"]) rather than a single
+#     shell-parsed command string, so there is no shell in the loop to
+#     reinterpret quoting/backslashes on either platform. The script is
+#     invoked with `py -3` per this repo's documented Windows convention
+#     (AGENTS.md Windows/Codex Safety: "Run via py -3, node, ...").
+# --------------------------------------------------------------------------
 
 from __future__ import annotations
 
@@ -208,13 +209,10 @@ def _segments(command: str) -> list[str]:
 
 
 def _segment_starts_with_start(segment: str) -> bool:
-    """
-    True if `start` is the first word of this command segment.
-
-    Deliberately excludes lookalikes: "--start-maximized", "restart",
-    "capture_start" are NOT matches because they either are not the first
-    token or `start` is not a standalone word there.
-    """
+    """True if `start` is the first word of this command segment."""
+    # Deliberately excludes lookalikes: "--start-maximized", "restart",
+    # "capture_start" are NOT matches because they either are not the first
+    # token or `start` is not a standalone word there.
     stripped = segment.strip()
     # Only strip a leading PowerShell call operator "&" followed by whitespace;
     # do not attempt to skip past other prefixes -- we want `start` to be the

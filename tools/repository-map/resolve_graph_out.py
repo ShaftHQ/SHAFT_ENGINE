@@ -4,15 +4,22 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
+import shutil
+# Only used to run one fixed git command (list-args, no shell) with the
+# executable resolved to an absolute path below.
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
 
 def find_shared_graph_out(cwd: Path) -> Path:
     """Return the shared graphify-out/ path under the main checkout root."""
-    completed = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        raise RuntimeError("git is not on PATH")
+    # Absolute executable path, fixed internal arguments, no shell.
+    completed = subprocess.run(  # nosec B603
+        [git_executable, "rev-parse", "--git-common-dir"],
         cwd=cwd,
         capture_output=True,
         text=True,

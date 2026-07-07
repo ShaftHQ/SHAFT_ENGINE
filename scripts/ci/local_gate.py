@@ -1,69 +1,70 @@
 #!/usr/bin/env python3
-"""
-Local mirror of the checks that actually gate a merge in this repo.
-
-Issue #3302's retrospective found that PRs were passing local, ad-hoc QA
-and then breaking post-merge on exactly three CI gates. There is NO
-PR-blocking Maven test job in this repo. What actually blocks a merge is:
-
-1. ``.github/workflows/security.yml``
-   - ``dependency-review`` job: ``actions/dependency-review-action`` against
-     ``.github/dependency-review-config.yml`` (pull_request only).
-   - ``codeql`` job: GitHub CodeQL static analysis for Java, run against a
-     full multi-module build
-     (``mvn -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,
-     shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,
-     shaft-sikulix,shaft-mcp -am clean package -DskipTests -Dgpg.skip``).
-2. ``.github/workflows/intellij-plugin.yml``: path-filtered (``shaft-intellij/**``)
-   Gradle ``check buildPlugin verifyPlugin``. Out of scope for this script,
-   which only mirrors the Maven reactor gates; run Gradle directly for
-   ``shaft-intellij`` changes.
-3. The Maven Enforcer rules that fire on every ``mvn verify``/``package``/
-   ``install`` in the reactor:
-   - Root ``pom.xml`` ``<pluginManagement>`` (~line 555-605, execution id
-     ``enforce-toolchain``): ``requireJavaVersion``, ``requireMavenVersion``,
-     ``banDuplicatePomDependencyVersions``, ``dependencyConvergence``,
-     ``requireUpperBoundDeps``, ``bannedDependencies``.
-   - ``shaft-engine/pom.xml`` (~line 660-691, execution id
-     ``enforce-engine-dependency-boundary``): an additional
-     ``bannedDependencies`` rule that keeps the optional modules
-     (shaft-pilot-core, shaft-capture, shaft-doctor, shaft-ai, shaft-heal,
-     BrowserStack, desktop-video, visual-processing, SikuliX, etc.) out of
-     shaft-engine's own dependency graph.
-
-WHAT THIS SCRIPT CANNOT MIRROR LOCALLY:
-    Full CodeQL analysis requires the actual GitHub Action
-    (``github/codeql-action/init`` + ``analyze``) and its query packs; there
-    is no supported way to run equivalent CodeQL Java analysis from this
-    script. Do NOT claim CodeQL parity from a green run of this script --
-    it only proves the reactor compiles and the Enforcer rules
-    (dependencyConvergence, banned deps, toolchain) pass, which is the
-    other thing that silently broke post-merge in #3302. Likewise, the
-    ``dependency-review`` job diffs against GitHub's advisory database and
-    is not reproduced here.
-
-WHAT THIS SCRIPT DOES:
-    Runs a single scoped, test-free Maven reactor build:
-
-        mvn -pl <modules> -am -DskipTests -Dgpg.skip=true verify
-
-    ``-DskipTests`` skips Surefire/Failsafe entirely (no JVM fork storm,
-    compatible with the ``.claude/hooks/guard.py`` PreToolUse guard, which
-    explicitly allows this exact shape) while still running full compile
-    plus the Enforcer executions above, since Enforcer's default phase is
-    ``validate``/``verify`` regardless of ``-DskipTests``.
-
-Usage:
-    python3 scripts/ci/local_gate.py                      # auto-detect changed modules
-    python3 scripts/ci/local_gate.py --modules shaft-video # explicit scope
-    python3 scripts/ci/local_gate.py --dry-run             # print the mvn command only
-    python3 scripts/ci/local_gate.py --timeout 900         # bound the run
-
-Exit codes:
-    0   gate passed (or nothing relevant changed -- nothing to gate)
-    1   mvn verify failed (enforcer violation, compile error, etc.)
-    2   usage / environment error (e.g. mvn not on PATH, git failure)
-"""
+"""Local mirror of the checks that actually gate a merge in this repo."""
+# Codacy runs both D212 and D213, so multi-line docstrings always flag
+# one of them; detail therefore lives in this comment block.
+#
+#
+# Issue #3302's retrospective found that PRs were passing local, ad-hoc QA
+# and then breaking post-merge on exactly three CI gates. There is NO
+# PR-blocking Maven test job in this repo. What actually blocks a merge is:
+#
+# 1. ``.github/workflows/security.yml``
+#    - ``dependency-review`` job: ``actions/dependency-review-action`` against
+#      ``.github/dependency-review-config.yml`` (pull_request only).
+#    - ``codeql`` job: GitHub CodeQL static analysis for Java, run against a
+#      full multi-module build
+#      (``mvn -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,
+#      shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,
+#      shaft-sikulix,shaft-mcp -am clean package -DskipTests -Dgpg.skip``).
+# 2. ``.github/workflows/intellij-plugin.yml``: path-filtered (``shaft-intellij/**``)
+#    Gradle ``check buildPlugin verifyPlugin``. Out of scope for this script,
+#    which only mirrors the Maven reactor gates; run Gradle directly for
+#    ``shaft-intellij`` changes.
+# 3. The Maven Enforcer rules that fire on every ``mvn verify``/``package``/
+#    ``install`` in the reactor:
+#    - Root ``pom.xml`` ``<pluginManagement>`` (~line 555-605, execution id
+#      ``enforce-toolchain``): ``requireJavaVersion``, ``requireMavenVersion``,
+#      ``banDuplicatePomDependencyVersions``, ``dependencyConvergence``,
+#      ``requireUpperBoundDeps``, ``bannedDependencies``.
+#    - ``shaft-engine/pom.xml`` (~line 660-691, execution id
+#      ``enforce-engine-dependency-boundary``): an additional
+#      ``bannedDependencies`` rule that keeps the optional modules
+#      (shaft-pilot-core, shaft-capture, shaft-doctor, shaft-ai, shaft-heal,
+#      BrowserStack, desktop-video, visual-processing, SikuliX, etc.) out of
+#      shaft-engine's own dependency graph.
+#
+# WHAT THIS SCRIPT CANNOT MIRROR LOCALLY:
+#     Full CodeQL analysis requires the actual GitHub Action
+#     (``github/codeql-action/init`` + ``analyze``) and its query packs; there
+#     is no supported way to run equivalent CodeQL Java analysis from this
+#     script. Do NOT claim CodeQL parity from a green run of this script --
+#     it only proves the reactor compiles and the Enforcer rules
+#     (dependencyConvergence, banned deps, toolchain) pass, which is the
+#     other thing that silently broke post-merge in #3302. Likewise, the
+#     ``dependency-review`` job diffs against GitHub's advisory database and
+#     is not reproduced here.
+#
+# WHAT THIS SCRIPT DOES:
+#     Runs a single scoped, test-free Maven reactor build:
+#
+#         mvn -pl <modules> -am -DskipTests -Dgpg.skip=true verify
+#
+#     ``-DskipTests`` skips Surefire/Failsafe entirely (no JVM fork storm,
+#     compatible with the ``.claude/hooks/guard.py`` PreToolUse guard, which
+#     explicitly allows this exact shape) while still running full compile
+#     plus the Enforcer executions above, since Enforcer's default phase is
+#     ``validate``/``verify`` regardless of ``-DskipTests``.
+#
+# Usage:
+#     python3 scripts/ci/local_gate.py                      # auto-detect changed modules
+#     python3 scripts/ci/local_gate.py --modules shaft-video # explicit scope
+#     python3 scripts/ci/local_gate.py --dry-run             # print the mvn command only
+#     python3 scripts/ci/local_gate.py --timeout 900         # bound the run
+#
+# Exit codes:
+#     0   gate passed (or nothing relevant changed -- nothing to gate)
+#     1   mvn verify failed (enforcer violation, compile error, etc.)
+#     2   usage / environment error (e.g. mvn not on PATH, git failure)
 
 from __future__ import annotations
 
@@ -116,15 +117,11 @@ def run_git(args: list[str], root: Path) -> str:
 
 
 def changed_paths(root: Path) -> list[str]:
-    """
-    Return paths changed on this branch relative to origin/main.
-
-    Prefers a three-dot diff against the merge base
-    (``origin/main...HEAD``); falls back to a plain two-dot diff against
-    ``origin/main`` (matching the semantics of ``git diff --name-only
-    origin/main``) if the merge base cannot be resolved (e.g. shallow
-    clone, detached history).
-    """
+    """Return paths changed on this branch relative to origin/main."""
+    # Prefers a three-dot diff against the merge base (origin/main...HEAD);
+    # falls back to a plain two-dot diff against origin/main (matching the
+    # semantics of `git diff --name-only origin/main`) if the merge base
+    # cannot be resolved (e.g. shallow clone, detached history).
     try:
         run_git(["fetch", "--quiet", "origin", "main"], root)
     except RuntimeError:
@@ -141,14 +138,11 @@ def changed_paths(root: Path) -> list[str]:
 
 
 def map_paths_to_modules(paths: list[str], module_dirs: list[str]) -> tuple[set[str], bool]:
-    """
-    Map changed paths to top-level module directories.
-
-    Returns (matched_modules, has_root_scope_change) where
-    has_root_scope_change is True if any changed path falls outside every
-    known module directory (root pom, scripts/, .github/, etc.) and
-    therefore requires the default reactor root scope.
-    """
+    """Map changed paths to top-level module directories."""
+    # Returns (matched_modules, has_root_scope_change) where
+    # has_root_scope_change is True if any changed path falls outside every
+    # known module directory (root pom, scripts/, .github/, etc.) and
+    # therefore requires the default reactor root scope.
     matched: set[str] = set()
     root_scope = False
     for path in paths:
