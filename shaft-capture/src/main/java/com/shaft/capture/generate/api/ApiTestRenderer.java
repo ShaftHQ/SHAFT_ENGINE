@@ -68,11 +68,41 @@ public final class ApiTestRenderer {
             List<ApiTransaction> transactions,
             ApiCodegenStyle style,
             ApiValidationDepth depth) {
+        return render(packageName, className, transactions, style, depth, Map.of());
+    }
+
+    /**
+     * Renders one API test class, as {@link #render(String, String, List, ApiCodegenStyle,
+     * ApiValidationDepth)}, additionally accepting pre-rendered UI action source lines for
+     * {@link ApiCodegenStyle#HYBRID_UI_API}.
+     *
+     * @param packageName generated class package
+     * @param className generated class name
+     * @param transactions renderable transactions in recorded order
+     * @param style how transactions are grouped into test methods
+     * @param depth how thoroughly each response is validated
+     * @param uiActionsBySequence for {@link ApiCodegenStyle#HYBRID_UI_API} only: caller-supplied
+     *                            UI action source lines (e.g. {@code driver.element().click(...);})
+     *                            keyed by the capture-session sequence number they were recorded
+     *                            at. Ignored by every other style. May be empty, in which case the
+     *                            hybrid method still renders deterministically -- it degrades to
+     *                            API-only assertions with no interleaved UI lines.
+     * @return generated source, any test-data artifacts it references, and any transaction IDs
+     *         skipped because SHAFT.API has no builder for their HTTP method
+     */
+    public static RenderedApiTest render(
+            String packageName,
+            String className,
+            List<ApiTransaction> transactions,
+            ApiCodegenStyle style,
+            ApiValidationDepth depth,
+            Map<Long, List<String>> uiActionsBySequence) {
         Map<String, List<ApiTransaction>> byOrigin = groupByOrigin(transactions);
         List<String> origins = List.copyOf(byOrigin.keySet());
         Map<String, String> fieldNames = fieldNamesByOrigin(origins);
         Map<String, String> artifacts = new LinkedHashMap<>();
         List<String> skippedTransactionIds = new ArrayList<>();
+        boolean hybrid = style == ApiCodegenStyle.HYBRID_UI_API;
 
         StringBuilder source = new StringBuilder();
         line(source, "package " + packageName + ";");
@@ -86,12 +116,18 @@ public final class ApiTestRenderer {
         line(source, " * recording instead.");
         line(source, " */");
         line(source, "public class " + className + " {");
+        if (hybrid) {
+            line(source, "    private SHAFT.GUI.WebDriver driver;");
+        }
         for (String origin : origins) {
             line(source, "    private SHAFT.API " + fieldNames.get(origin) + ";");
         }
         line(source, "");
         line(source, "    @BeforeClass(alwaysRun = true)");
         line(source, "    public void setupApiSessions() {");
+        if (hybrid) {
+            line(source, "        driver = new SHAFT.GUI.WebDriver();");
+        }
         for (String origin : origins) {
             String field = fieldNames.get(origin);
             line(source, "        " + field + " = new SHAFT.API(\"" + escape(origin) + "\");");
@@ -103,7 +139,15 @@ public final class ApiTestRenderer {
         line(source, "    }");
         line(source, "");
 
-        if (style == ApiCodegenStyle.SCENARIO) {
+        if (hybrid) {
+            int scenarioIndex = 0;
+            for (String origin : origins) {
+                scenarioIndex++;
+                String methodName = origins.size() == 1 ? "recordedHybridScenario" : "recordedHybridScenario" + scenarioIndex;
+                renderHybridScenario(source, artifacts, skippedTransactionIds, className, methodName,
+                        byOrigin.get(origin), depth, uiActionsBySequence);
+            }
+        } else if (style == ApiCodegenStyle.SCENARIO) {
             int scenarioIndex = 0;
             for (String origin : origins) {
                 scenarioIndex++;
@@ -120,11 +164,111 @@ public final class ApiTestRenderer {
             }
         }
 
+        if (hybrid) {
+            line(source, "    @org.testng.annotations.AfterClass(alwaysRun = true)");
+            line(source, "    public void tearDownDriver() {");
+            line(source, "        driver.quit();");
+            line(source, "    }");
+            line(source, "");
+        }
         renderHelperMethods(source);
         line(source, "}");
         line(source, "");
 
         return new RenderedApiTest(source.toString(), artifacts, List.copyOf(skippedTransactionIds));
+    }
+
+    // ---- HYBRID_UI_API style: UI codegen lines interleaved with API assertResponse(...) blocks ----
+
+    /**
+     * Renders one {@code @Test} method per origin that interleaves caller-supplied UI action
+     * lines with a {@code driver.browser().interceptRequest()....assertResponse(...)} block for
+     * each transaction, placed immediately after the UI anchor (keyed by
+     * {@link ApiTransaction#correlatedUiSequence()}) that triggered it. Transactions with no
+     * correlated UI sequence -- e.g. recorded before hybrid correlation existed, or fired with no
+     * observable UI trigger -- are appended, in recorded order, after every anchored transaction.
+     * This keeps the method deterministic and always valid even when {@code uiActionsBySequence}
+     * is empty (pure API-assertion rendering, no UI lines at all).
+     */
+    private static void renderHybridScenario(
+            StringBuilder source,
+            Map<String, String> artifacts,
+            List<String> skippedTransactionIds,
+            String className,
+            String methodName,
+            List<ApiTransaction> originTransactions,
+            ApiValidationDepth depth,
+            Map<Long, List<String>> uiActionsBySequence) {
+        List<ApiTransaction> anchored = new ArrayList<>();
+        List<ApiTransaction> unanchored = new ArrayList<>();
+        for (ApiTransaction transaction : originTransactions) {
+            (transaction.correlatedUiSequence() == null ? unanchored : anchored).add(transaction);
+        }
+        anchored.sort(java.util.Comparator.comparingLong(ApiTransaction::correlatedUiSequence));
+
+        line(source, "    @Test");
+        line(source, "    public void " + methodName + "() {");
+        Set<Long> renderedSequences = new LinkedHashSet<>();
+        for (ApiTransaction transaction : anchored) {
+            long sequence = transaction.correlatedUiSequence();
+            if (renderedSequences.add(sequence)) {
+                for (String uiLine : uiActionsBySequence.getOrDefault(sequence, List.of())) {
+                    line(source, "        " + uiLine);
+                }
+            }
+            renderHybridAssertion(source, artifacts, skippedTransactionIds, className, transaction, depth);
+        }
+        for (ApiTransaction transaction : unanchored) {
+            renderHybridAssertion(source, artifacts, skippedTransactionIds, className, transaction, depth);
+        }
+        line(source, "    }");
+        line(source, "");
+    }
+
+    private static void renderHybridAssertion(
+            StringBuilder source,
+            Map<String, String> artifacts,
+            List<String> skippedTransactionIds,
+            String className,
+            ApiTransaction transaction,
+            ApiValidationDepth depth) {
+        if (requestMethodFor(transaction.method()) == null) {
+            skippedTransactionIds.add(transaction.transactionId());
+            line(source, "        // Skipped " + transaction.method() + " " + escape(transaction.url())
+                    + " -- SHAFT.API has no builder for this HTTP method.");
+            return;
+        }
+        line(source, "        // Recorded UI action above triggered: " + transaction.method() + " "
+                + escape(relativePath(transaction)) + " (" + transaction.statusCode() + ")");
+        line(source, "        driver.browser().interceptRequest()");
+        line(source, "                .urlContains(\"" + escape(relativePath(transaction)) + "\")");
+        line(source, "                .assertResponse(v -> {");
+        line(source, "                    v.time().isLessThan(30000L).perform();");
+        renderHybridBodyAssertion(source, artifacts, className, transaction, depth);
+        line(source, "                });");
+    }
+
+    private static void renderHybridBodyAssertion(
+            StringBuilder source,
+            Map<String, String> artifacts,
+            String className,
+            ApiTransaction transaction,
+            ApiValidationDepth depth) {
+        if (depth != ApiValidationDepth.SCHEMA && depth != ApiValidationDepth.FULL_BODY) {
+            return;
+        }
+        if (transaction.responseBody().isBlank()) {
+            return;
+        }
+        if (depth == ApiValidationDepth.SCHEMA) {
+            String relativePath = "api-capture/" + className + "-" + sanitizeIdentifier(transaction.transactionId()) + "-schema.json";
+            artifacts.put(relativePath, JsonSchemaInferencer.infer(transaction.responseBody()));
+            line(source, "                    v.matchesSchema(\"" + escape(relativePath) + "\").perform();");
+        } else {
+            String relativePath = "api-capture/" + className + "-" + sanitizeIdentifier(transaction.transactionId()) + "-body.json";
+            artifacts.put(relativePath, normalizeForGoldenFile(transaction.responseBody(), transaction.responseLeaves()));
+            line(source, "                    v.isEqualToFileContentIgnoringOrder(\"" + escape(relativePath) + "\").perform();");
+        }
     }
 
     // ---- SCENARIO style: one @Test per origin, chaining correlated values via local variables ----

@@ -252,7 +252,8 @@ public final class ApiCaptureGenerator {
                 response.statusCode(),
                 response.headers(),
                 responseBody,
-                ResponseNormalizer.classify(responseBody));
+                ResponseNormalizer.classify(responseBody),
+                event.correlatedUiSequence());
     }
 
     private String resolveBody(BodyRef bodyRef, Path bodiesDirectory) {
