@@ -9,6 +9,10 @@
 // this workflow. Watching a rerun afterwards is recurring observation:
 // that belongs to /loop or Monitor, deliberately NOT encoded here so
 // the workflow terminates.
+//
+// Bounded watching: `python3 scripts/ci/watch_pr_checks.py` polls the
+// current PR's checks a capped number of times and, on red, prints the
+// exact {failingJobs} JSON this workflow takes as args.
 
 export const meta = {
   name: "shaft-release-ci-fix",
