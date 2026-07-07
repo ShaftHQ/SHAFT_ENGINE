@@ -2,7 +2,10 @@ package com.shaft.capture.generate.api;
 
 import com.shaft.capture.format.CaptureFormatException;
 import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.generate.CaptureEnrichmentPreview;
+import com.shaft.capture.generate.CaptureEnrichmentService;
 import com.shaft.capture.generate.CaptureGenerationReport;
+import com.shaft.capture.generate.CaptureGenerationRequest;
 import com.shaft.capture.generate.GeneratedTestValidator;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureReadiness;
@@ -40,15 +43,33 @@ public final class ApiCaptureGenerator {
     private final CaptureJsonCodec codec;
     private final GeneratedTestValidator validator;
     private final NetworkBodyStore bodyStore;
+    private final CaptureEnrichmentService enrichmentService;
 
     public ApiCaptureGenerator() {
-        this(new CaptureJsonCodec(), new GeneratedTestValidator(), new NetworkBodyStore());
+        this(new CaptureJsonCodec(), new GeneratedTestValidator(), new NetworkBodyStore(), new CaptureEnrichmentService());
     }
 
     public ApiCaptureGenerator(CaptureJsonCodec codec, GeneratedTestValidator validator, NetworkBodyStore bodyStore) {
+        this(codec, validator, bodyStore, new CaptureEnrichmentService());
+    }
+
+    /**
+     * Creates a generator with an injectable AI naming-enrichment service, for tests that need to
+     * fake the provider boundary without any network/process call.
+     *
+     * @param codec session codec
+     * @param validator compile/replay validator
+     * @param bodyStore network body resolver
+     * @param enrichmentService AI naming-enrichment service (see
+     *                          {@link CaptureEnrichmentService#previewApiScenarioName})
+     */
+    public ApiCaptureGenerator(
+            CaptureJsonCodec codec, GeneratedTestValidator validator, NetworkBodyStore bodyStore,
+            CaptureEnrichmentService enrichmentService) {
         this.codec = codec;
         this.validator = validator;
         this.bodyStore = bodyStore;
+        this.enrichmentService = enrichmentService;
     }
 
     /**
@@ -113,9 +134,15 @@ public final class ApiCaptureGenerator {
     private ApiCaptureGenerationResult renderCompileAndReport(
             ApiCaptureGenerationRequest request, Path outputRoot, Path reportPath, CaptureSession session,
             Analysis analysis) {
+        EnrichmentOutcome enrichmentOutcome = resolveEnrichment(request, session, outputRoot, analysis.className());
+        if (!enrichmentOutcome.unsupported().isEmpty()) {
+            return failure(reportPath, session.sessionId(), enrichmentOutcome.unsupported(), request.overwrite());
+        }
+        String className = enrichmentOutcome.className();
+
         Path sourcePath = outputRoot.resolve("src/test/java")
                 .resolve(request.packageName().replace('.', '/'))
-                .resolve(analysis.className() + ".java")
+                .resolve(className + ".java")
                 .normalize();
         Path testDataDirectory = outputRoot.resolve("src/test/resources/test-data/api-capture").normalize();
         Path classesDirectory = outputRoot.resolve("target/shaft-capture/classes").normalize();
@@ -123,7 +150,7 @@ public final class ApiCaptureGenerator {
         ensureWithin(outputRoot, testDataDirectory);
         ensureWithin(outputRoot, classesDirectory);
 
-        RenderedApiTest rendered = ApiTestRenderer.render(request.packageName(), analysis.className(),
+        RenderedApiTest rendered = ApiTestRenderer.render(request.packageName(), className,
                 analysis.transactions(), request.style(), request.validationDepth());
         List<String> warnings = warningsFor(rendered);
 
@@ -140,8 +167,102 @@ public final class ApiCaptureGenerator {
                     List.of("Generated artifacts could not be written: " + safeMessage(writeFailure)), request.overwrite());
         }
 
-        return compileAndReport(request, session, analysis, sourcePath, testDataDirectory,
-                classesDirectory, warnings, reportPath, outputRoot);
+        return compileAndReport(request, session, new Analysis(className, analysis.transactions(), List.of()),
+                sourcePath, testDataDirectory, classesDirectory, warnings, reportPath, outputRoot,
+                enrichmentOutcome.enrichment());
+    }
+
+    /**
+     * Resolves the class name AI naming enrichment may apply, gated by {@code ApprovalPolicy} via
+     * {@link CaptureEnrichmentService#previewApiScenarioName}. Only {@link ApiCodegenStyle#HYBRID_UI_API}
+     * uses AI naming; every other style, and {@code enrichmentMode == NONE} (the default), returns the
+     * deterministic class name unchanged and never calls AI. {@code PREVIEW} writes a reviewable
+     * preview file and keeps the deterministic name; {@code APPLY} reads a previously reviewed
+     * preview file and requires {@code enrichmentApproved} (enforced by
+     * {@link ApiCaptureGenerationRequest}'s constructor) plus a matching deterministic fingerprint.
+     */
+    private EnrichmentOutcome resolveEnrichment(
+            ApiCaptureGenerationRequest request, CaptureSession session, Path outputRoot, String deterministicClassName) {
+        CaptureGenerationReport.Enrichment notRequested = CaptureGenerationReport.Enrichment.notRequested();
+        if (request.style() != ApiCodegenStyle.HYBRID_UI_API
+                || request.enrichmentMode() == CaptureGenerationRequest.EnrichmentMode.NONE) {
+            return new EnrichmentOutcome(deterministicClassName, notRequested, List.of());
+        }
+        Path previewPath = request.enrichmentPreviewPath().toAbsolutePath().normalize();
+        String deterministicMethodName = "recordedHybridScenario";
+        String fingerprint = fingerprint(session.sessionId(), deterministicClassName, deterministicMethodName);
+
+        if (request.enrichmentMode() == CaptureGenerationRequest.EnrichmentMode.PREVIEW) {
+            CaptureEnrichmentPreview preview = enrichmentService.previewApiScenarioName(
+                    session.sessionId(), fingerprint, transactionSummaries(session),
+                    deterministicClassName, deterministicMethodName, request.aiApprovalPolicy());
+            atomicWrite(previewPath, writeJson(preview));
+            CaptureGenerationReport.Enrichment enrichment = new CaptureGenerationReport.Enrichment(
+                    CaptureGenerationReport.Enrichment.EnrichmentStatus.PREVIEWED,
+                    relative(outputRoot, previewPath), preview.diff(), preview.provider());
+            return new EnrichmentOutcome(deterministicClassName, enrichment, List.of());
+        }
+
+        CaptureEnrichmentPreview preview;
+        try {
+            preview = readJson(previewPath, CaptureEnrichmentPreview.class);
+        } catch (RuntimeException unreadable) {
+            return new EnrichmentOutcome(deterministicClassName, notRequested,
+                    List.of("AI enrichment preview could not be read: " + safeMessage(unreadable)));
+        }
+        if (!fingerprint.equals(preview.deterministicFingerprint())) {
+            return new EnrichmentOutcome(deterministicClassName, notRequested,
+                    List.of("AI enrichment preview does not match the deterministic source; regenerate the preview."));
+        }
+        String proposedClassName = preview.proposal().className();
+        boolean validProposedName = !proposedClassName.isBlank() && isValidJavaIdentifier(proposedClassName);
+        String resolvedClassName = validProposedName ? proposedClassName : deterministicClassName;
+        CaptureGenerationReport.Enrichment enrichment = new CaptureGenerationReport.Enrichment(
+                CaptureGenerationReport.Enrichment.EnrichmentStatus.APPLIED,
+                relative(outputRoot, previewPath), preview.diff(), preview.provider());
+        return new EnrichmentOutcome(resolvedClassName, enrichment, List.of());
+    }
+
+    private static List<String> transactionSummaries(CaptureSession session) {
+        List<String> summaries = new ArrayList<>();
+        for (CaptureEvent event : session.events()) {
+            if (event instanceof CaptureEvent.NetworkEvent networkEvent) {
+                summaries.add(networkEvent.request().method() + " " + networkEvent.request().url());
+            }
+        }
+        return List.copyOf(summaries);
+    }
+
+    private static String fingerprint(String sessionId, String className, String methodName) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest((sessionId + "\n" + className + "\n" + methodName)
+                    .getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(bytes);
+        } catch (java.security.NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable.", exception);
+        }
+    }
+
+    private static String writeJson(CaptureEnrichmentPreview preview) {
+        return new tools.jackson.databind.json.JsonMapper().writerWithDefaultPrettyPrinter().writeValueAsString(preview);
+    }
+
+    private static <T> T readJson(Path path, Class<T> type) {
+        try {
+            String content = Files.readString(path, StandardCharsets.UTF_8);
+            return new tools.jackson.databind.json.JsonMapper().readValue(content, type);
+        } catch (IOException | RuntimeException failure) {
+            throw new IllegalStateException("Could not read " + path + ": " + safeMessage(failure), failure);
+        }
+    }
+
+    /**
+     * Outcome of {@link #resolveEnrichment}: the class name to render with (deterministic, or an
+     * AI-applied replacement), the enrichment status to report, and any reasons generation must
+     * fail (empty when it can proceed).
+     */
+    private record EnrichmentOutcome(String className, CaptureGenerationReport.Enrichment enrichment, List<String> unsupported) {
     }
 
     private static List<String> warningsFor(RenderedApiTest rendered) {
@@ -164,7 +285,8 @@ public final class ApiCaptureGenerator {
 
     private ApiCaptureGenerationResult compileAndReport(
             ApiCaptureGenerationRequest request, CaptureSession session, Analysis analysis, Path sourcePath,
-            Path testDataDirectory, Path classesDirectory, List<String> warnings, Path reportPath, Path outputRoot) {
+            Path testDataDirectory, Path classesDirectory, List<String> warnings, Path reportPath, Path outputRoot,
+            CaptureGenerationReport.Enrichment enrichment) {
         String className = analysis.className();
         CaptureGenerationReport.Validation compilation = request.compile()
                 ? validator.compile(sourcePath, classesDirectory)
@@ -199,7 +321,7 @@ public final class ApiCaptureGenerator {
                 warnings,
                 compilation,
                 replay,
-                CaptureGenerationReport.Enrichment.notRequested(),
+                enrichment,
                 openApiCoverage(request, analysis.transactions()));
         writeReportIfPossible(reportPath, report, request.overwrite());
         return new ApiCaptureGenerationResult(sourcePath, testDataDirectory, reportPath, report);

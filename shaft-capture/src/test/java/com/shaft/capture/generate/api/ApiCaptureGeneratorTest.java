@@ -2,7 +2,10 @@ package com.shaft.capture.generate.api;
 
 import com.shaft.capture.CaptureFixtures;
 import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.generate.CaptureEnrichmentService;
 import com.shaft.capture.generate.CaptureGenerationReport;
+import com.shaft.capture.generate.CaptureGenerationRequest;
+import com.shaft.capture.generate.GeneratedTestValidator;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.network.BodyRef;
@@ -11,14 +14,22 @@ import com.shaft.capture.model.network.HttpResponseRecord;
 import com.shaft.capture.model.network.NetworkTiming;
 import com.shaft.capture.model.network.ResourceKind;
 import com.shaft.capture.storage.NetworkBodyStore;
+import com.shaft.pilot.ai.AiResponse;
+import com.shaft.pilot.ai.AiUsage;
+import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceCategory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -87,6 +98,137 @@ class ApiCaptureGeneratorTest {
 
         assertFalse(result.report().openApiCoverage().loadable());
         assertEquals(0, result.report().openApiCoverage().totalDeclaredOperations());
+    }
+
+    @Test
+    void hybridStyleWithNoEnrichmentModeNeverCallsAiAndUsesTheDeterministicName() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-hybrid-none"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-hybrid-none");
+        CaptureEnrichmentService neverCalled = new CaptureEnrichmentService(request -> {
+            throw new AssertionError("AI must never be called when enrichmentMode is NONE");
+        });
+
+        ApiCaptureGenerator generator = new ApiCaptureGenerator(
+                new CaptureJsonCodec(), new GeneratedTestValidator(), new NetworkBodyStore(), neverCalled);
+        ApiCaptureGenerationResult result = generator.generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS, true, false, true, null,
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false, null));
+
+        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status(),
+                "Unsupported: " + result.report().unsupportedEvents());
+        assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.NOT_REQUESTED,
+                result.report().enrichment().status());
+        assertTrue(result.sourcePath().toString().contains("ApiCaptureSession_hybrid_noneTest"));
+    }
+
+    @Test
+    void hybridStylePreviewModeWritesAReviewablePreviewWithoutChangingTheClassName() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-hybrid-preview"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-hybrid-preview");
+        Path previewPath = outputRoot.resolve("target/shaft-capture/api-enrichment-preview.json");
+        CaptureEnrichmentService fakeAi = fakeAiNaming("EnrichedApiScenarioTest", "checkoutThenReadOrder");
+
+        ApiCaptureGenerator generator = new ApiCaptureGenerator(
+                new CaptureJsonCodec(), new GeneratedTestValidator(), new NetworkBodyStore(), fakeAi);
+        ApiCaptureGenerationResult result = generator.generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS, true, false, true, null,
+                CaptureGenerationRequest.EnrichmentMode.PREVIEW, previewPath, false,
+                new ApprovalPolicy(true, true, Set.of(EvidenceCategory.TEXT))));
+
+        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status(),
+                "Unsupported: " + result.report().unsupportedEvents());
+        assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.PREVIEWED,
+                result.report().enrichment().status());
+        assertTrue(Files.exists(previewPath), "Preview file should be written");
+        assertTrue(Files.readString(previewPath).contains("EnrichedApiScenarioTest"));
+        assertFalse(result.sourcePath().toString().contains("EnrichedApiScenarioTest"),
+                "PREVIEW must never change the rendered class name");
+    }
+
+    @Test
+    void hybridStyleApplyModeUsesTheApprovedPreviewedName() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-hybrid-apply"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-hybrid-apply");
+        Path previewPath = outputRoot.resolve("target/shaft-capture/api-enrichment-preview.json");
+        CaptureEnrichmentService fakeAi = fakeAiNaming("EnrichedApiScenarioTest", "checkoutThenReadOrder");
+        ApiCaptureGenerator generator = new ApiCaptureGenerator(
+                new CaptureJsonCodec(), new GeneratedTestValidator(), new NetworkBodyStore(), fakeAi);
+
+        ApiCaptureGenerationResult previewResult = generator.generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS, true, false, true, null,
+                CaptureGenerationRequest.EnrichmentMode.PREVIEW, previewPath, false,
+                new ApprovalPolicy(true, true, Set.of(EvidenceCategory.TEXT))));
+        assertEquals(CaptureGenerationReport.Status.SUCCESS, previewResult.report().status());
+
+        ApiCaptureGenerationResult applied = generator.generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS, true, false, true, null,
+                CaptureGenerationRequest.EnrichmentMode.APPLY, previewPath, true, ApprovalPolicy.denyAll()));
+
+        assertEquals(CaptureGenerationReport.Status.SUCCESS, applied.report().status(),
+                "Unsupported: " + applied.report().unsupportedEvents());
+        assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.APPLIED,
+                applied.report().enrichment().status());
+        assertTrue(applied.sourcePath().toString().contains("EnrichedApiScenarioTest"),
+                "APPLY should use the AI-proposed, approved class name");
+        assertTrue(Files.readString(applied.sourcePath()).contains("public class EnrichedApiScenarioTest"));
+    }
+
+    @Test
+    void hybridStyleApplyModeRejectsAStalePreviewFingerprint() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-hybrid-stale"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-hybrid-stale");
+        Path previewPath = outputRoot.resolve("stale-preview.json");
+        Files.writeString(previewPath, """
+                {"schemaVersion":"1.0","deterministicFingerprint":"not-a-real-fingerprint",
+                 "provider":"mock","proposal":{"className":"HijackedTest","methodName":"m",
+                 "elementNames":{},"assertions":[]},"diff":[]}
+                """, StandardCharsets.UTF_8);
+
+        ApiCaptureGenerator generator = new ApiCaptureGenerator();
+        ApiCaptureGenerationResult result = generator.generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS, true, false, true, null,
+                CaptureGenerationRequest.EnrichmentMode.APPLY, previewPath, true, ApprovalPolicy.denyAll()));
+
+        assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        assertTrue(result.report().unsupportedEvents().stream().anyMatch(m -> m.contains("does not match")));
+    }
+
+    @Test
+    void nonHybridStyleIgnoresEnrichmentModeEvenIfRequested() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-scenario-enrichment"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-scenario-enrichment");
+        CaptureEnrichmentService neverCalled = new CaptureEnrichmentService(request -> {
+            throw new AssertionError("AI must never be called for non-hybrid styles");
+        });
+
+        ApiCaptureGenerator generator = new ApiCaptureGenerator(
+                new CaptureJsonCodec(), new GeneratedTestValidator(), new NetworkBodyStore(), neverCalled);
+        ApiCaptureGenerationResult result = generator.generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS, true, false, true, null,
+                CaptureGenerationRequest.EnrichmentMode.PREVIEW,
+                outputRoot.resolve("preview.json"), false,
+                new ApprovalPolicy(true, true, Set.of(EvidenceCategory.TEXT))));
+
+        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status());
+        assertEquals(CaptureGenerationReport.Enrichment.EnrichmentStatus.NOT_REQUESTED,
+                result.report().enrichment().status());
+    }
+
+    private static CaptureEnrichmentService fakeAiNaming(String className, String methodName) {
+        ObjectNode payload = new JsonMapper().createObjectNode();
+        payload.put("className", className);
+        payload.put("methodName", methodName);
+        payload.putObject("elementNames");
+        payload.putArray("assertions");
+        return new CaptureEnrichmentService(request ->
+                AiResponse.success("mock", "mock-model", payload, Duration.ZERO,
+                        AiUsage.empty(), request.deterministicFallback()));
     }
 
     @Test

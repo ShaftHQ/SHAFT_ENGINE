@@ -94,6 +94,88 @@ public final class CaptureEnrichmentService {
                 diff);
     }
 
+    /**
+     * Requests a review-only class/method naming proposal from a summary of recorded API
+     * transactions -- no element names or state assertions, since those apply only to UI capture.
+     * Used by the hybrid UI+API renderer to optionally propose a more descriptive scenario name
+     * than the deterministic default; deterministic output is always valid without calling this.
+     *
+     * @param sessionId source Capture session ID
+     * @param fingerprint deterministic source fingerprint
+     * @param transactionSummaries {@code "METHOD path"} summaries of the transactions in the
+     *                              rendered scenario, in recorded order, with no bodies or headers
+     * @param deterministicClassName current class name
+     * @param deterministicMethodName current method name
+     * @param approvalPolicy explicit provider approval
+     * @return reviewable preview
+     */
+    public CaptureEnrichmentPreview previewApiScenarioName(
+            String sessionId,
+            String fingerprint,
+            List<String> transactionSummaries,
+            String deterministicClassName,
+            String deterministicMethodName,
+            ApprovalPolicy approvalPolicy) {
+        Objects.requireNonNull(sessionId, "sessionId");
+        JsonNode fallback = JSON.valueToTree(CaptureEnrichmentPreview.Proposal.empty());
+        AiRequest request = AiRequest.builder("shaft-capture-api-generation-enrichment", apiNamingSchema())
+                .requestId("capture-api-enrichment-" + fingerprint.substring(0, Math.min(16, fingerprint.length())))
+                .text(apiNamingPrompt(sessionId, deterministicClassName, deterministicMethodName, transactionSummaries))
+                .timeout(Duration.ofSeconds(30))
+                .budget(new AiBudget(4_000, 500, BigDecimal.ZERO))
+                .approvalPolicy(approvalPolicy)
+                .deterministicFallback(fallback)
+                .build();
+        AiResponse response = executor.apply(request);
+        if (!response.successful()) {
+            throw new IllegalStateException("AI enrichment preview was not accepted: " + response.status()
+                    + (response.fallbackReason().isBlank() ? "" : " (" + response.fallbackReason() + ")"));
+        }
+        CaptureEnrichmentPreview.Proposal proposal = parseProposal(response.structuredPayload());
+        validateProposal(proposal, Map.of());
+        List<String> diff = diff(deterministicClassName, deterministicMethodName, Map.of(), proposal);
+        return new CaptureEnrichmentPreview(
+                CaptureEnrichmentPreview.CURRENT_SCHEMA_VERSION,
+                fingerprint,
+                response.provider(),
+                proposal,
+                diff);
+    }
+
+    private static String apiNamingPrompt(
+            String sessionId, String className, String methodName, List<String> transactionSummaries) {
+        ObjectNode root = JSON.createObjectNode();
+        root.put("instruction", "Suggest a concise Java class name and test method name describing this recorded "
+                + "API scenario. Do not suggest element names, locators, values, URLs, credentials, or assertions.");
+        root.put("sessionId", sessionId);
+        root.put("className", className);
+        root.put("methodName", methodName);
+        ArrayNode transactions = root.putArray("transactions");
+        transactionSummaries.forEach(transactions::add);
+        try {
+            return JSON.writeValueAsString(root);
+        } catch (JacksonException exception) {
+            throw new IllegalStateException("Sanitized enrichment context could not be serialized.", exception);
+        }
+    }
+
+    private static JsonNode apiNamingSchema() {
+        ObjectNode schema = JSON.createObjectNode();
+        schema.put("type", "object");
+        schema.putArray("required").add("className").add("methodName").add("elementNames").add("assertions");
+        ObjectNode properties = schema.putObject("properties");
+        properties.putObject("className").put("type", "string");
+        properties.putObject("methodName").put("type", "string");
+        ObjectNode emptyElementNames = properties.putObject("elementNames");
+        emptyElementNames.put("type", "object");
+        emptyElementNames.put("maxProperties", 0);
+        ObjectNode emptyAssertions = properties.putObject("assertions");
+        emptyAssertions.put("type", "array");
+        emptyAssertions.put("maxItems", 0);
+        schema.put("additionalProperties", false);
+        return schema;
+    }
+
     private static String prompt(
             CaptureSession session,
             String className,
