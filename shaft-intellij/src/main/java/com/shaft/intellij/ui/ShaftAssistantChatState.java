@@ -134,6 +134,26 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
         session.updatedAt = now();
     }
 
+    /**
+     * Clears every session (chat and prompt/search history) and the active session pointer,
+     * returning this state to a fresh-install baseline. Unlike {@link #sessions()}, this does not
+     * lazily recreate a session afterward.
+     */
+    public void clearAll() {
+        sessions.clear();
+        activeSessionId = "";
+    }
+
+    /**
+     * Indicates whether this state is at its fresh, pre-use baseline: no sessions and no active
+     * session id. Does not lazily create a session, unlike {@link #sessions()}.
+     *
+     * @return true if there are no sessions and the active session id is blank
+     */
+    public boolean isCleared() {
+        return sessions.isEmpty() && (activeSessionId == null || activeSessionId.isBlank());
+    }
+
     String activeMarkdown() {
         Session session = activeSession();
         List<String> parts = new ArrayList<>();

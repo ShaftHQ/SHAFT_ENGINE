@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.components.JBScrollPane;
@@ -12,6 +13,7 @@ import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.WrapLayout;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.settings.ShaftPluginResetService;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
@@ -105,6 +107,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton test;
     private final JButton startChatting;
     private final JButton resetAndReinstall;
+    private final JCheckBox expertMode;
+    private final JButton resetEverything;
     private final JProgressBar progress;
     private final JLabel runtimeStatus;
     private final JLabel assistStatus;
@@ -140,6 +144,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     private Consumer<String> copySink = ShaftMcpSetupPanel::copyToClipboard;
     private Consumer<String> toastSink = this::showToast;
     private Timer toastTimer;
+    private java.util.function.BooleanSupplier confirmReset = this::confirmResetDialog;
+    private Runnable resetAction = () -> ShaftPluginResetService.getInstance().resetEverything();
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected) {
@@ -252,6 +258,24 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(resetAndReinstall, ShaftIcons.RESET);
         resetAndReinstall.setVisible(false);
         resetAndReinstall.addActionListener(event -> resetAndCopyInstaller());
+        boolean postSetupReentry = settings.mcpReady();
+        expertMode = new JCheckBox("Enable expert mode");
+        expertMode.getAccessibleContext().setAccessibleName("Enable expert mode");
+        expertMode.setToolTipText("Show the full workflow selector (Guided, Recorder, Inspector, Triage, "
+                + "Evidence, Projects, Advanced) instead of just Assistant");
+        expertMode.setMnemonic(KeyEvent.VK_E);
+        expertMode.setSelected(settings.advancedUiEnabled);
+        expertMode.setVisible(postSetupReentry);
+        expertMode.addActionListener(event -> settings.advancedUiEnabled = expertMode.isSelected());
+        resetEverything = new JButton("Reset everything");
+        resetEverything.getAccessibleContext().setAccessibleName("Reset everything");
+        resetEverything.setToolTipText("Factory-reset SHAFT settings, saved provider API keys, tool approvals, "
+                + "and Assistant chat history. Your project source code is never touched.");
+        resetEverything.setMnemonic(KeyEvent.VK_V);
+        applyLabeledAction(resetEverything, ShaftIcons.RESET);
+        resetEverything.setForeground(ShaftStatusPresentation.error());
+        resetEverything.setVisible(postSetupReentry);
+        resetEverything.addActionListener(event -> confirmAndReset());
         runtimeStatus = setupStatusLabel("Assistant runtime setup status");
         assistStatus = setupStatusLabel("Assistant connection setup status");
         recommendedAgent = setupStatusLabel("Recommended assistant agent");
@@ -355,6 +379,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         diagnosticRow.add(copyDocs);
         JPanel secondaryActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         secondaryActions.add(resetAndReinstall);
+        JPanel postSetupControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        postSetupControls.getAccessibleContext().setAccessibleName("SHAFT plugin post-setup controls");
+        postSetupControls.add(expertMode);
+        postSetupControls.add(resetEverything);
         family.addActionListener(event -> assistantSelectionChanged());
         runtime.addActionListener(event -> assistantSelectionChanged());
         installerTarget.addActionListener(event -> installerTargetChanged());
@@ -382,6 +410,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 .addComponent(toast)
                 .addComponent(recoveryStatus)
                 .addComponent(secondaryActions)
+                .addComponent(postSetupControls)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
         detailsPanel = new JPanel(new BorderLayout(4, 4));
@@ -803,6 +832,30 @@ final class ShaftMcpSetupPanel extends JPanel {
         copy(installerCommand(), "Installer command copied. Run it in terminal, then check.");
         updateActionState(false);
         openTerminal.requestFocusInWindow();
+    }
+
+    /**
+     * Confirms with the user, then delegates to {@link ShaftPluginResetService#resetEverything()}.
+     * Cancelling the confirmation dialog is a no-op. Both the confirmation prompt and the reset
+     * action itself are indirected through overridable fields so tests can drive this without a
+     * real IntelliJ {@code Application}/dialog.
+     */
+    private void confirmAndReset() {
+        if (!confirmReset.getAsBoolean()) {
+            return;
+        }
+        resetAction.run();
+    }
+
+    private boolean confirmResetDialog() {
+        return Messages.showYesNoDialog(
+                project,
+                "This clears SHAFT settings, saved provider API keys, tool approvals, and Assistant chat "
+                        + "history.\n\nYour project source code is never touched.",
+                "Reset SHAFT Plugin",
+                "Reset everything",
+                "Cancel",
+                Messages.getWarningIcon()) == Messages.YES;
     }
 
     private void openIntellijTerminal() {

@@ -34,6 +34,21 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
     }
 
     /**
+     * Returns the documented factory-default settings bean used to reset the plugin to a
+     * fresh-install state. Every field matches {@link Settings}' own field defaults except
+     * {@link Settings#mcpSetupComplete}, which is explicitly forced to {@code false} here so the
+     * setup view renders after a reset even though the bean's own default is {@code true}.
+     *
+     * @return a new Settings instance holding the factory defaults
+     */
+    public static Settings factoryDefaults() {
+        Settings defaults = new Settings();
+        defaults.mcpCommand = "";
+        defaults.mcpSetupComplete = false;
+        return defaults;
+    }
+
+    /**
      * Mutable XML-serializable settings bean.
      */
     public static final class Settings {

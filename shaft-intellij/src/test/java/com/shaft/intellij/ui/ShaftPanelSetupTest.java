@@ -6,6 +6,8 @@ import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
+import com.shaft.intellij.approval.ToolApprovalDecision;
+import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -48,14 +50,20 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -2029,6 +2037,7 @@ class ShaftPanelSetupTest {
                 .flatMap(panel -> collectButtons(panel).stream())
                 .filter(button -> !isSetupPrimaryAction(button))
                 .filter(button -> !"Reset and reinstall SHAFT MCP".equals(accessibleName(button)))
+                .filter(button -> !"Reset everything".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
@@ -3222,6 +3231,311 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(truncationChip, "Truncation chip should exist"),
                 () -> assertTrue(truncationChip.getToolTipText().contains("Start a new chat"),
                         "Tooltip should suggest starting a new chat when context is truncated"));
+    }
+
+    @Test
+    void approveAllToolsCheckboxDefaultsUncheckedAndVisibleWhenAgentSupportsApprovals() {
+        // Claude Code is the only agent family whose CLI supports interactive mid-run approval
+        // (AgentApprovalCapability.CLAUDE_CODE), so it is the family that shows the checkbox.
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.defaultAutobotClient = "CLAUDE_CODE";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JCheckBox approveAllTools = findByAccessibleName(panel, "Approve all SHAFT tools", JCheckBox.class);
+
+        assertAll(
+                () -> assertNotNull(approveAllTools),
+                () -> assertFalse(approveAllTools.isSelected()),
+                () -> assertTrue(approveAllTools.isVisible()));
+    }
+
+    @Test
+    void approveAllToolsCheckboxIsHiddenForAgentFamiliesWithoutInteractiveApprovalSupport() {
+        // Codex and Copilot CLI have no interactive approval capability
+        // (AgentApprovalCapability.forClient -> supportsInteractiveApproval() == false), so per the
+        // ticket the checkbox only renders "if supported by the used agent". CODEX is the default
+        // client in blank settings.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox approveAllTools = findByAccessibleName(panel, "Approve all SHAFT tools", JCheckBox.class);
+
+        assertAll(
+                () -> assertNotNull(approveAllTools),
+                () -> assertFalse(approveAllTools.isVisible(),
+                        "the approve-all checkbox must be hidden while an agent without interactive"
+                                + " approval support (Codex) is selected"));
+    }
+
+    @Test
+    void agentApprovalHandlerForwardsRequestsToTheChatPromptAndReturnsTheUsersDecision() throws Exception {
+        // Claude Code is the family whose CLI actually emits mid-run approval requests, so the
+        // forwarded prompt must offer its full interactive scope set.
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.defaultAutobotClient = "CLAUDE_CODE";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        AssistantLocalAgentRunner.ApprovalRequestHandler handler = agentApprovalHandlerOf(panel);
+
+        ExecutorService runnerThread = Executors.newSingleThreadExecutor();
+        try {
+            Future<AssistantLocalAgentRunner.ApprovalDecision> decision =
+                    runnerThread.submit(() -> handler.onApprovalRequested("capture_start", new JsonObject()));
+            ToolApprovalPromptPanel prompt = awaitApprovalPrompt(panel);
+            JButton approveOnce = approvalDecisionButton(prompt, "Approve once");
+
+            SwingUtilities.invokeAndWait(approveOnce::doClick);
+
+            assertEquals(AssistantLocalAgentRunner.ApprovalDecision.APPROVE, decision.get(5, TimeUnit.SECONDS),
+                    "the user's approval must reach the runner as APPROVE");
+        } finally {
+            runnerThread.shutdownNow();
+        }
+    }
+
+    @Test
+    void agentApprovalHandlerApprovesSilentlyWhenApproveAllToolsIsAlreadyGranted() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
+        AssistantLocalAgentRunner.ApprovalRequestHandler handler = agentApprovalHandlerOf(panel);
+
+        ExecutorService runnerThread = Executors.newSingleThreadExecutor();
+        try {
+            Future<AssistantLocalAgentRunner.ApprovalDecision> decision =
+                    runnerThread.submit(() -> handler.onApprovalRequested("capture_start", new JsonObject()));
+
+            assertEquals(AssistantLocalAgentRunner.ApprovalDecision.APPROVE, decision.get(5, TimeUnit.SECONDS),
+                    "an approve-all grant must answer the runner without prompting");
+            SwingUtilities.invokeAndWait(() -> {
+            });
+            assertNull(transcriptWidget(panel), "approve-all must never render an approval prompt");
+        } finally {
+            runnerThread.shutdownNow();
+        }
+    }
+
+    @Test
+    void agentApprovalHandlerOffersOnlyDenyForAgentsWithoutInteractiveApprovalSupport() throws Exception {
+        // Default blank settings select Codex, whose AgentApprovalCapability has no interactive
+        // scopes -- the forwarded prompt hides every approve button and leaves only Deny.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        AssistantLocalAgentRunner.ApprovalRequestHandler handler = agentApprovalHandlerOf(panel);
+
+        ExecutorService runnerThread = Executors.newSingleThreadExecutor();
+        try {
+            Future<AssistantLocalAgentRunner.ApprovalDecision> decision =
+                    runnerThread.submit(() -> handler.onApprovalRequested("capture_start", new JsonObject()));
+            ToolApprovalPromptPanel prompt = awaitApprovalPrompt(panel);
+            assertTrue(prompt.decisionButtonsForTest().stream()
+                            .noneMatch(button -> button.getText().startsWith("Approve")),
+                    "no approve-scope buttons may render for an agent without interactive approval support");
+            JButton deny = approvalDecisionButton(prompt, "Deny");
+
+            SwingUtilities.invokeAndWait(deny::doClick);
+
+            assertEquals(AssistantLocalAgentRunner.ApprovalDecision.DENY, decision.get(5, TimeUnit.SECONDS),
+                    "the user's denial must reach the runner as DENY");
+        } finally {
+            runnerThread.shutdownNow();
+        }
+    }
+
+    @Test
+    void gateToolDispatchesImmediatelyWhenApproveAllToolsFlagIsSet() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
+        AssistantCommand.Invocation invocation = AssistantCommand.Invocation.tool("capture_start", new JsonObject());
+
+        Method startMcpInvocation = ShaftAssistantPanel.class.getDeclaredMethod(
+                "startMcpInvocation", AssistantCommand.Invocation.class);
+        startMcpInvocation.setAccessible(true);
+
+        InvocationTargetException thrown = assertThrows(InvocationTargetException.class,
+                () -> startMcpInvocation.invoke(panel, invocation));
+
+        assertAll(
+                () -> assertTrue(thrown.getCause() instanceof NullPointerException,
+                        "approve-all should skip the prompt and reach the real dispatch immediately"),
+                () -> assertNull(transcriptWidget(panel), "approve-all must never render an approval prompt"));
+    }
+
+    @Test
+    void gateToolDenialNeverDispatchesAndReturnsToReadyWithADenialMessage() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        AssistantCommand.Invocation invocation = AssistantCommand.Invocation.tool("capture_start", new JsonObject());
+        Method startMcpInvocation = ShaftAssistantPanel.class.getDeclaredMethod(
+                "startMcpInvocation", AssistantCommand.Invocation.class);
+        startMcpInvocation.setAccessible(true);
+        startMcpInvocation.invoke(panel, invocation);
+
+        JComponent widget = transcriptWidget(panel);
+        assertNotNull(widget, "an unapproved tool must render an approval prompt before dispatching");
+        JButton deny = approvalDecisionButton((ToolApprovalPromptPanel) widget, "Deny");
+
+        SwingUtilities.invokeAndWait(deny::doClick);
+
+        assertAll(
+                () -> assertNull(getField(panel, "currentInvocation"), "the invocation service must never be called"),
+                () -> assertNull(transcriptWidget(panel), "the prompt should clear once a decision is made"),
+                () -> assertTrue(transcriptMarkdown(panel).contains("Denied `capture_start`")),
+                () -> assertTrue(transcriptMarkdown(panel).contains("denied")));
+    }
+
+    @Test
+    void gateToolApprovedOnceDispatchesAndSkipsARepeatPromptForTheSameToolInTheSameRun() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        Method gateTool = ShaftAssistantPanel.class.getDeclaredMethod(
+                "gateTool", String.class, JsonObject.class, Runnable.class, Runnable.class);
+        gateTool.setAccessible(true);
+        AtomicInteger approvedCalls = new AtomicInteger();
+        Runnable onApproved = approvedCalls::incrementAndGet;
+        Runnable onDenied = () -> {
+        };
+
+        gateTool.invoke(panel, "capture_start", new JsonObject(), onApproved, onDenied);
+        JComponent widget = transcriptWidget(panel);
+        assertNotNull(widget, "an unapproved tool must render an approval prompt");
+        JButton approveOnce = approvalDecisionButton((ToolApprovalPromptPanel) widget, "Approve once");
+        SwingUtilities.invokeAndWait(approveOnce::doClick);
+
+        assertAll(
+                () -> assertEquals(1, approvedCalls.get(), "approve-once should invoke the invocation exactly once"),
+                () -> assertNull(transcriptWidget(panel), "the prompt should clear once approved"));
+
+        gateTool.invoke(panel, "capture_start", new JsonObject(), onApproved, onDenied);
+
+        assertAll(
+                () -> assertEquals(2, approvedCalls.get(),
+                        "a tool already approved this run must dispatch immediately without a second prompt"),
+                () -> assertNull(transcriptWidget(panel), "no widget should render for a repeat call in the same run"));
+    }
+
+    @Test
+    void sequenceSkipsARepeatPromptForAToolAlreadyApprovedThisRun() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "currentToolSequence", List.of(
+                new AssistantCommand.ToolCall("capture_start", new JsonObject()),
+                new AssistantCommand.ToolCall("capture_start", new JsonObject())));
+        setField(panel, "sequenceMarkdown", new StringBuilder());
+        setField(panel, "sequenceRawOutput", new StringBuilder());
+        @SuppressWarnings("unchecked")
+        Set<String> approvedThisRun = (Set<String>) getField(panel, "approvedToolsThisRun");
+        approvedThisRun.add("capture_start");
+
+        Method runNextSequenceCall = ShaftAssistantPanel.class.getDeclaredMethod("runNextSequenceCall", int.class);
+        runNextSequenceCall.setAccessible(true);
+
+        InvocationTargetException thrown = assertThrows(InvocationTargetException.class,
+                () -> runNextSequenceCall.invoke(panel, 1));
+
+        assertAll(
+                () -> assertTrue(thrown.getCause() instanceof NullPointerException,
+                        "the already-approved tool should reach the real dispatch immediately"),
+                () -> assertNull(transcriptWidget(panel),
+                        "an already-approved-this-run tool must not render a second prompt"));
+    }
+
+    @Test
+    void setupPanelHidesExpertModeAndResetDuringFirstRunSetup() {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+
+        assertAll(
+                () -> assertFalse(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()));
+    }
+
+    @Test
+    void setupPanelShowsExpertModeAndResetWhenReenteredAfterSetupIsComplete() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = true;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+
+        assertAll(
+                () -> assertTrue(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isVisible()),
+                () -> assertTrue(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isSelected(),
+                        "should be pre-selected because advancedUiEnabled is already true"),
+                () -> assertTrue(findByAccessibleName(panel, "Reset everything", JButton.class).isVisible()));
+    }
+
+    @Test
+    void setupPanelShowsExpertModeUncheckedWhenAdvancedUiIsDisabled() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = false;
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+
+        assertFalse(findByAccessibleName(panel, "Enable expert mode", JCheckBox.class).isSelected());
+    }
+
+    @Test
+    void expertModeCheckboxWritesAdvancedUiEnabled() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+        JCheckBox expertMode = findByAccessibleName(panel, "Enable expert mode", JCheckBox.class);
+
+        assertFalse(settings.advancedUiEnabled);
+        expertMode.doClick();
+
+        assertTrue(settings.advancedUiEnabled);
+    }
+
+    @Test
+    void resetButtonConfirmDelegatesToResetServiceAndCancelIsNoOp() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        });
+        AtomicInteger resetCalls = new AtomicInteger();
+        setField(panel, "resetAction", (Runnable) resetCalls::incrementAndGet);
+
+        setField(panel, "confirmReset", (java.util.function.BooleanSupplier) () -> false);
+        clickAccessible(panel, "Reset everything");
+        assertEquals(0, resetCalls.get(), "cancelling the confirmation dialog must be a no-op");
+
+        setField(panel, "confirmReset", (java.util.function.BooleanSupplier) () -> true);
+        clickAccessible(panel, "Reset everything");
+        assertEquals(1, resetCalls.get(), "confirming should invoke the reset service exactly once");
+    }
+
+    private static ToolApprovalService approvalServiceOf(ShaftAssistantPanel panel) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("approvalService");
+        method.setAccessible(true);
+        return (ToolApprovalService) method.invoke(panel);
+    }
+
+    private static JComponent transcriptWidget(ShaftAssistantPanel panel) throws Exception {
+        AssistantTranscriptView transcript = (AssistantTranscriptView) getField(panel, "transcript");
+        return transcript.pendingWidgetForTest();
+    }
+
+    private static AssistantLocalAgentRunner.ApprovalRequestHandler agentApprovalHandlerOf(
+            ShaftAssistantPanel panel) throws Exception {
+        Method factory = ShaftAssistantPanel.class.getDeclaredMethod("agentApprovalHandler");
+        factory.setAccessible(true);
+        return (AssistantLocalAgentRunner.ApprovalRequestHandler) factory.invoke(panel);
+    }
+
+    /**
+     * Waits for the approval prompt widget the agent approval handler renders asynchronously (its
+     * gate runs via runOnEdt from the runner's approval thread), flushing the EDT queue between
+     * polls so the invokeLater-scheduled gate actually executes.
+     */
+    private static ToolApprovalPromptPanel awaitApprovalPrompt(ShaftAssistantPanel panel) throws Exception {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (System.currentTimeMillis() < deadline) {
+            SwingUtilities.invokeAndWait(() -> {
+            });
+            if (transcriptWidget(panel) instanceof ToolApprovalPromptPanel prompt) {
+                return prompt;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("approval prompt widget never rendered");
+    }
+
+    private static JButton approvalDecisionButton(ToolApprovalPromptPanel panel, String label) {
+        return panel.decisionButtonsForTest().stream()
+                .filter(button -> label.equals(button.getText()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No \"" + label + "\" decision button rendered"));
     }
 
     private static ShaftSettingsState.Settings blankMcpSettings() {

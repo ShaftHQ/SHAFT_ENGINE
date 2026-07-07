@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonObject;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
@@ -118,6 +119,8 @@ class ShaftPluginScreenshotRendererTest {
         Path assistantDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-dark.png");
         Path assistantNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-narrow-dark.png");
         Path assistantLiveDarkScreenshot = outputPath.resolve("intellij-plugin-assistant-live-output-dark.png");
+        Path assistantApprovalPromptScreenshot = outputPath.resolve("intellij-plugin-assistant-approval-prompt.png");
+        Path mcpSetupPostSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-post-setup.png");
         Path guidedScreenshot = outputPath.resolve("intellij-plugin-guided.png");
         Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
         Path inspectorScreenshot = outputPath.resolve("intellij-plugin-inspector.png");
@@ -142,6 +145,8 @@ class ShaftPluginScreenshotRendererTest {
         write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
         write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
+        write(assistantApprovalPromptScreenshot, renderApprovalPrompt(LIGHT_THEME, false));
+        write(mcpSetupPostSetupScreenshot, renderPostSetupSettings(LIGHT_THEME, false));
         write(guidedScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
         write(recorderScreenshot, renderToolWindow(2, "", LIGHT_THEME, false));
         write(inspectorScreenshot, renderToolWindow(3, "", LIGHT_THEME, false));
@@ -166,6 +171,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(assistantDarkScreenshot) > 0, assistantDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantNarrowDarkScreenshot) > 0, assistantNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantLiveDarkScreenshot) > 0, assistantLiveDarkScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(assistantApprovalPromptScreenshot) > 0, assistantApprovalPromptScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupPostSetupScreenshot) > 0, mcpSetupPostSetupScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(guidedScreenshot) > 0, guidedScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(inspectorScreenshot) > 0, inspectorScreenshot + " should be non-empty"),
@@ -189,6 +196,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(assistantDarkScreenshot),
                 () -> assertDimensions(assistantNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(assistantLiveDarkScreenshot),
+                () -> assertDimensions(assistantApprovalPromptScreenshot),
+                () -> assertDimensions(mcpSetupPostSetupScreenshot),
                 () -> assertDimensions(guidedScreenshot),
                 () -> assertDimensions(recorderScreenshot),
                 () -> assertDimensions(inspectorScreenshot),
@@ -314,6 +323,69 @@ class ShaftPluginScreenshotRendererTest {
             invokeSetRunning(component, false, "Try asking me to do something...");
         });
         return image.get();
+    }
+
+    private static BufferedImage renderApprovalPrompt(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+            chatState.append("user", "/record-web https://example.com", "");
+            ShaftSettingsState.Settings settings = defaultSettings();
+            settings.defaultAutobotMode = "AGENT";
+            ShaftAssistantPanel component = new ShaftAssistantPanel(screenshotProject(), settings, chatState,
+                    () -> {
+                    });
+            selectButton(component, "Allow source edits");
+            invokeStartMcpInvocation(component, AssistantCommand.Invocation.tool(
+                    "capture_start", captureStartArguments()));
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static BufferedImage renderPostSetupSettings(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+            settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+            settings.mcpSetupComplete = true;
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(), settings,
+                    () -> {
+                    }, (client, runtime) -> ShaftMcpToolResult.success("Codex CLI executable is available on PATH."));
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static JsonObject captureStartArguments() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetUrl", "https://example.com");
+        arguments.addProperty("outputPath", "recordings/intellij-capture.json");
+        return arguments;
+    }
+
+    private static void invokeStartMcpInvocation(ShaftAssistantPanel component, AssistantCommand.Invocation invocation) {
+        try {
+            Method method = ShaftAssistantPanel.class.getDeclaredMethod("startMcpInvocation", AssistantCommand.Invocation.class);
+            method.setAccessible(true);
+            method.invoke(component, invocation);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to render the approval prompt widget", exception);
+        }
     }
 
     private static BufferedImage renderSetup(String lookAndFeelClassName, boolean dark)
