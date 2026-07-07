@@ -150,12 +150,33 @@ def normalize_client(value: str | None) -> str | None:
     return normalized or None
 
 
+def render_client_menu() -> list[str]:
+    """Render the interactive client-menu lines, grouped into labeled sections.
+
+    Entries are numbered contiguously in TARGET_CHOICES order; only section
+    headers and a one-line clarifier are inserted around them, so
+    choose_client()'s numeric-or-name input loop stays unaffected by the
+    grouping.
+    """
+    lines = ["Choose the MCP client to configure:", "AI agents:"]
+    for index, (target, label) in enumerate(TARGET_CHOICES, start=1):
+        if target == "intellij-plugin":
+            lines.append("Advanced / IDE integration:")
+            lines.append(f"  {index}. {label}")
+            lines.append(
+                "     (Configures the plugin's own MCP command; unnecessary "
+                "inside the plugin's guided setup.)"
+            )
+        else:
+            lines.append(f"  {index}. {label}")
+    return lines
+
+
 def choose_client() -> str:
     if not sys.stdin.isatty():
         fail("Pass a client target when running non-interactively.", 2)
-    print("Choose the MCP client to configure:")
-    for index, (_, label) in enumerate(TARGET_CHOICES, start=1):
-        print(f"  {index}. {label}")
+    for line in render_client_menu():
+        print(line)
     while True:
         answer = input("Enter a number: ").strip()
         if answer.isdigit():
