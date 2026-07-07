@@ -1,6 +1,6 @@
-// SHAFT release/CI incident workflow (#3300): parallel read-only Haiku
+// SHAFT release/CI incident workflow (#3300): parallel read-only Sonnet
 // triage of failing jobs -> Fable/Opus root-cause synthesis -> Sonnet
-// owns each fix, delegating implementation to Haiku with a capped QA
+// owns each fix, delegating implementation to Sonnet with a capped QA
 // loop. Encodes the release/CI-fix shape this repo runs manually, with
 // the ci-failure-investigator bridge rules loaded into triage prompts.
 //
@@ -17,18 +17,18 @@
 export const meta = {
   name: "shaft-release-ci-fix",
   description:
-    "Parallel Haiku triage of failing CI jobs, Fable/Opus root-cause synthesis, Sonnet-owned fixes with capped Haiku QA loops",
+    "Parallel Sonnet triage of failing CI jobs, Fable/Opus root-cause synthesis, Sonnet-owned fixes with capped Sonnet QA loops",
 };
 
 const SYNTH_CHAIN = ["fable", "opus"];
 
 // Risk tier drives both who implements and how many QA rounds are
 // allowed before escalation. "high" additionally turns on the adversarial
-// Haiku refuter after a passing QA verdict. Absent riskTier means "med".
+// Sonnet refuter after a passing QA verdict. Absent riskTier means "med".
 const RISK_TIERS = {
-  low: { implementer: "haiku", qaRounds: 1, refuter: false },
-  med: { implementer: "haiku", qaRounds: 2, refuter: false },
-  high: { implementer: "sonnet", qaRounds: 3, refuter: true },
+  low: { implementer: "sonnet", implementerEffort: "low", qaRounds: 1, refuter: false },
+  med: { implementer: "sonnet", implementerEffort: "low", qaRounds: 2, refuter: false },
+  high: { implementer: "sonnet", implementerEffort: "low", qaRounds: 3, refuter: true },
 };
 
 const runLog = [];
@@ -66,7 +66,7 @@ const FIX_PLAN_SCHEMA = {
           // Precisely-arranged core code (sync/wait internals, locator
           // resolution, shaft-intellij EDT threading), public API surface,
           // or release/build plumbing: riskTier="high" routes to Sonnet
-          // plus the adversarial refuter instead of the default Haiku
+          // plus the adversarial refuter instead of the default Sonnet
           // path. Absent riskTier means "med".
           riskTier: { type: "string", enum: ["low", "med", "high"] },
         },
@@ -369,10 +369,10 @@ async function ownFix(fix) {
 
     if (verdict.pass && tier.refuter) {
       const refutation = await agent(refutePrompt(fix, report.commitSha), {
-        model: "haiku",
+        model: "sonnet",
         schema: REFUTER_VERDICT,
       });
-      runLog.push({ phase: "refute:" + fix.id + ":" + round, model: "haiku" });
+      runLog.push({ phase: "refute:" + fix.id + ":" + round, model: "sonnet" });
       if (refutation.refuted) {
         verdict = { pass: false, gaps: refutation.reasons, checksRun: verdict.checksRun };
       }
@@ -414,10 +414,10 @@ const { failingJobs } = parsedArgs;
 
 const verdicts = await parallel(
   failingJobs.map((job) => () =>
-    agent(triagePrompt(job), { model: "haiku", schema: TRIAGE_VERDICT })
+    agent(triagePrompt(job), { model: "sonnet", schema: TRIAGE_VERDICT })
   )
 );
-runLog.push({ phase: "triage", model: "haiku", jobs: failingJobs.length });
+runLog.push({ phase: "triage", model: "sonnet", jobs: failingJobs.length });
 
 const plan = await withFallback("synthesize", SYNTH_CHAIN, synthesisPrompt(verdicts), {
   effort: "high",
@@ -429,7 +429,7 @@ const results = await pipeline(plan.fixes, ownFix);
 // Epilogue: persist the run log to the PR body and save a durable retro
 // to .memory/ so the run survives after this session ends. Plain-code
 // formatting first (no agent needed to build a markdown table); a single
-// Haiku agent handles the two side effects (PR update via gh, memory
+// Sonnet agent handles the two side effects (PR update via gh, memory
 // retro via the project CLI) because both require live shell commands
 // this script cannot run directly.
 const runLogTable = [
@@ -458,7 +458,7 @@ const epilogueMarkdown = [runLogTable, "", "### Fix outcomes", ...fixOutcomes].j
   "\n"
 );
 
-runLog.push({ phase: "epilogue", model: "haiku" });
+runLog.push({ phase: "epilogue", model: "sonnet" });
 
 const EPILOGUE_REPORT = {
   type: "object",
@@ -509,7 +509,7 @@ function epiloguePrompt(markdown) {
 let epilogueReport;
 try {
   epilogueReport = await agent(epiloguePrompt(epilogueMarkdown), {
-    model: "haiku",
+    model: "sonnet",
     schema: EPILOGUE_REPORT,
   });
 } catch (error) {

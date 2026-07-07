@@ -1,7 +1,8 @@
 // SHAFT feature-dev workflow (#3367 P2-11): Fable plans, Opus orchestrates,
-// Sonnet owns + QAs, Haiku implements a feature ticket. Fresh context per
-// agent; all handoffs are structured output; QA judges the diff, never
-// self-reports. Docs-sync and UI-evidence stages gate the finish.
+// Sonnet owns + QAs, Sonnet implements a feature ticket. Implementation runs
+// at low effort (maximum speed); QA runs at max effort (maximum focus).
+// Fresh context per agent; all handoffs are structured output; QA judges the
+// diff, never self-reports. Docs-sync and UI-evidence stages gate the finish.
 //
 // Bypass rule (AGENTS.md "Agent Hierarchy"): do NOT run this for
 // single-file features, doc edits, or version bumps -- a single Sonnet
@@ -11,7 +12,7 @@
 export const meta = {
   name: "shaft-feature-dev",
   description:
-    "Fable plans, Opus orchestrates, Sonnet owns + QAs, Haiku implements a feature ticket, then docs-sync and UI-evidence stages gate the finish",
+    "Fable plans, Opus orchestrates, Sonnet owns + QAs at max focus, Sonnet implements at max speed, then docs-sync and UI-evidence stages gate the finish",
 };
 
 // Fallback chains: advance only on model unavailability, never on a bad
@@ -20,13 +21,15 @@ export const meta = {
 const PLAN_CHAIN = ["fable", "opus"];
 const ORCH_CHAIN = ["opus", "sonnet"];
 
-// Risk tier drives both who implements and how many QA rounds are
-// allowed before escalation. "high" additionally turns on the adversarial
-// Haiku refuter after a passing QA verdict. Absent riskTier means "med".
+// Risk tier drives how many QA rounds are allowed before escalation.
+// Every tier implements with Sonnet at low effort (maximum speed); QA is
+// Sonnet at max effort (maximum focus). "high" additionally turns on the
+// adversarial Sonnet refuter after a passing QA verdict. Absent riskTier
+// means "med".
 const RISK_TIERS = {
-  low: { implementer: "haiku", qaRounds: 1, refuter: false },
-  med: { implementer: "haiku", qaRounds: 2, refuter: false },
-  high: { implementer: "sonnet", qaRounds: 3, refuter: true },
+  low: { implementer: "sonnet", implementerEffort: "low", qaRounds: 1, refuter: false },
+  med: { implementer: "sonnet", implementerEffort: "low", qaRounds: 2, refuter: false },
+  high: { implementer: "sonnet", implementerEffort: "low", qaRounds: 3, refuter: true },
 };
 
 const runLog = [];
@@ -42,7 +45,7 @@ const TASK_ITEM = {
     // Precisely-arranged core code (sync/wait internals, locator
     // resolution, shaft-intellij EDT threading), public API surface, or
     // release/build plumbing: riskTier="high" routes to Sonnet plus the
-    // adversarial refuter instead of the default Haiku path. Absent
+    // adversarial refuter instead of the default Sonnet path. Absent
     // riskTier means "med". Delegation is a default, not a dogma.
     riskTier: { type: "string", enum: ["low", "med", "high"] },
     // Task touches user-visible UI: IntelliJ plugin Swing surfaces,
@@ -357,13 +360,14 @@ function pushIfRealSha(commits, sha) {
 
 // Sonnet owns; the tier's implementer implements; loop until the QA
 // verdict dries out (capped per-tier), then the owner finishes directly
-// (no livelock). High-tier tasks additionally get one adversarial Haiku
+// (no livelock). High-tier tasks additionally get one adversarial Sonnet
 // refuter pass after a QA pass before the task is considered done.
 async function ownTask(task) {
   const tier = RISK_TIERS[task.riskTier] || RISK_TIERS.med;
   const implementerModel = tier.implementer;
   let report = await agent(implementPrompt(task), {
     model: implementerModel,
+    effort: tier.implementerEffort,
     isolation: "worktree",
     schema: IMPL_REPORT,
   });
@@ -381,16 +385,17 @@ async function ownTask(task) {
   for (let round = 0; round < tier.qaRounds; round++) {
     let verdict = await agent(qaPrompt(task, report, report.commitSha), {
       model: "sonnet",
+      effort: "max",
       schema: QA_VERDICT,
     });
     runLog.push({ phase: "qa:" + task.id + ":" + round, model: "sonnet" });
 
     if (verdict.pass && tier.refuter) {
       const refutation = await agent(refutePrompt(task, report.commitSha), {
-        model: "haiku",
+        model: "sonnet",
         schema: REFUTER_VERDICT,
       });
-      runLog.push({ phase: "refute:" + task.id + ":" + round, model: "haiku" });
+      runLog.push({ phase: "refute:" + task.id + ":" + round, model: "sonnet" });
       if (refutation.refuted) {
         verdict = { pass: false, gaps: refutation.reasons, checksRun: verdict.checksRun };
       }
@@ -400,6 +405,7 @@ async function ownTask(task) {
     gaps = verdict.gaps;
     report = await agent(fixPrompt(task, gaps, commits), {
       model: implementerModel,
+      effort: tier.implementerEffort,
       isolation: "worktree",
       schema: IMPL_REPORT,
     });
@@ -556,7 +562,7 @@ if (completedResults.some((result) => result.uiSurface)) {
 // Epilogue: persist the run log to the PR body and save a durable retro
 // to .memory/ so the run survives after this session ends. Plain-code
 // formatting first (no agent needed to build a markdown table); a single
-// Haiku agent handles the two side effects (PR update via gh, memory
+// Sonnet agent handles the two side effects (PR update via gh, memory
 // retro via the project CLI) because both require live shell commands
 // this script cannot run directly.
 const runLogTable = [
@@ -609,7 +615,7 @@ const epilogueMarkdown = [
   evidenceOutcome,
 ].join("\n");
 
-runLog.push({ phase: "epilogue", model: "haiku" });
+runLog.push({ phase: "epilogue", model: "sonnet" });
 
 const EPILOGUE_REPORT = {
   type: "object",
@@ -661,7 +667,7 @@ function epiloguePrompt(markdown) {
 let epilogueReport;
 try {
   epilogueReport = await agent(epiloguePrompt(epilogueMarkdown), {
-    model: "haiku",
+    model: "sonnet",
     schema: EPILOGUE_REPORT,
   });
 } catch (error) {
