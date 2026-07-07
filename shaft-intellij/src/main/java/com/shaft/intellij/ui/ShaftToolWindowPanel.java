@@ -75,7 +75,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private void showSetupView() {
         disposeApiRecordingPanel();
         removeAll();
-        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::showMainView, readinessProbe);
+        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::onSetupComplete, readinessProbe);
         preferredFocusComponent = setup.preferredFocusComponent();
         workflowSelector = null;
         workflowCards = null;
@@ -86,6 +86,11 @@ public final class ShaftToolWindowPanel extends JPanel {
         add(setup, BorderLayout.CENTER);
         revalidate();
         repaint();
+    }
+
+    private void onSetupComplete() {
+        assistantChatState.newSession();
+        showMainView();
     }
 
     private void showMainView() {

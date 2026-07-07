@@ -1128,6 +1128,106 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupCompleteCallbackCreatesNewSessionBeforeShowingMainView() throws Exception {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "previous message", "{}");
+        chatState.append("assistant", "previous answer", "{}");
+        int initialSessionCount = chatState.sessions().size();
+        String previousSessionId = chatState.activeSession().id;
+
+        // Create tool window with unverified MCP settings (shows setup panel)
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(chatState), unverifiedMcpSettings());
+
+        // Simulate successful setup and trigger callback by clicking "Start chatting"
+        ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
+        assertNotNull(setupPanel);
+        showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
+        JButton startChatting = findByAccessibleName(setupPanel, "Start chatting with SHAFT Assistant", JButton.class);
+        assertNotNull(startChatting);
+        startChatting.doClick();
+
+        assertAll(
+                () -> assertEquals(initialSessionCount + 1, chatState.sessions().size(),
+                        "Setup complete callback should create a new session"),
+                () -> assertTrue(chatState.activeMessages().isEmpty(),
+                        "New active session should have no messages"),
+                () -> assertNotEquals(previousSessionId, chatState.activeSession().id,
+                        "Active session should be the new one"),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class),
+                        "Main view should be displayed with empty chat"));
+    }
+
+    @Test
+    void setupCompleteDedupGuardPreventsDoubleSessionCreation() throws Exception {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "first chat", "{}");
+        chatState.newSession(); // Create empty session
+        int sessionCount = chatState.sessions().size();
+        String activeSessionId = chatState.activeSession().id;
+
+        // Invoke newSession() again while active session is empty
+        ShaftAssistantChatState.Session returned = chatState.newSession();
+
+        assertAll(
+                () -> assertEquals(sessionCount, chatState.sessions().size(),
+                        "Second newSession() on empty active session should not create new session"),
+                () -> assertEquals(activeSessionId, returned.id,
+                        "Should return the existing empty session"),
+                () -> assertEquals(activeSessionId, chatState.activeSession().id,
+                        "Active session ID should remain unchanged"));
+    }
+
+    @Test
+    void newSessionCreatesNewWhenActiveSesionHasMessages() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "existing message", "{}");
+        int initialSessionCount = chatState.sessions().size();
+        String initialActiveId = chatState.activeSession().id;
+
+        ShaftAssistantChatState.Session newSession = chatState.newSession();
+
+        assertAll(
+                () -> assertEquals(initialSessionCount + 1, chatState.sessions().size(),
+                        "Should create new session when active has messages"),
+                () -> assertNotEquals(initialActiveId, newSession.id,
+                        "New session should have different ID"),
+                () -> assertTrue(newSession.messages.isEmpty(),
+                        "New session should be empty"),
+                () -> assertEquals(newSession.id, chatState.activeSession().id,
+                        "New session should become active"));
+    }
+
+    @Test
+    void assistantPanelUiResetWorksWithDedupedSession() throws Exception {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "initial prompt", "{}");
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(fakeProject(chatState), blankMcpSettings(), chatState);
+
+        // Simulate clearing the active session and creating a new one (like "New chat" does internally)
+        chatState.clearActiveSession();
+        ShaftAssistantChatState.Session firstClear = chatState.activeSession();
+
+        // Call newSession() twice - second time should reuse the empty session instead of creating a new one
+        chatState.newSession();
+        ShaftAssistantChatState.Session afterFirstNew = chatState.activeSession();
+        int sessionCountAfterFirst = chatState.sessions().size();
+
+        chatState.newSession();
+        ShaftAssistantChatState.Session afterSecondNew = chatState.activeSession();
+        int sessionCountAfterSecond = chatState.sessions().size();
+
+        assertAll(
+                () -> assertTrue(chatState.activeMessages().isEmpty(),
+                        "Chat should be empty after newSession"),
+                () -> assertEquals(sessionCountAfterFirst, sessionCountAfterSecond,
+                        "Second newSession() on empty session should not create new session (dedup guard)"),
+                () -> assertEquals(afterFirstNew.id, afterSecondNew.id,
+                        "After second newSession(), should still be on the same empty session"),
+                () -> assertNotNull(findByAccessibleName(panel, "Assistant prompt", JTextComponent.class),
+                        "UI should still be functional"));
+    }
+
+    @Test
     void assistantKeepsCurrentSessionHistoryInDropdown() {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
         chatState.append("user", "first in-memory chat", "{}");
@@ -2311,13 +2411,16 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupSuccessPreservesExistingAssistantSession() throws Exception {
+    void setupSuccessOpensNewFreshSessionWithoutLosingSessions() throws Exception {
         ShaftSettingsState.Settings settings = blankMcpSettings();
         settings.mcpCommand = "cmd";
         settings.mcpSetupComplete = false;
         Project project = fakeProject();
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
         chatState.append("user", "Previous assistant conversation", "{}");
+        String previousSessionId = chatState.activeSession().id;
+        int initialSessionCount = chatState.sessions().size();
+
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings, readyProbe(), chatState);
 
         ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
@@ -2326,7 +2429,16 @@ class ShaftPanelSetupTest {
         clickAccessible(setupPanel, "Start chatting with SHAFT Assistant");
 
         assertAll(
-                () -> assertTrue(transcriptMarkdown(toolWindow).contains("Previous assistant conversation")),
+                () -> assertTrue(chatState.activeMessages().isEmpty(),
+                        "Setup complete should open a fresh (empty) session"),
+                () -> assertNotEquals(previousSessionId, chatState.activeSession().id,
+                        "Should have created a new session"),
+                () -> assertEquals(initialSessionCount + 1, chatState.sessions().size(),
+                        "Previous session should still exist in sessions list"),
+                () -> assertTrue(chatState.sessions().stream().anyMatch(s -> s.id.equals(previousSessionId)),
+                        "Previous session with conversation should still be selectable"),
+                () -> assertFalse(transcriptMarkdown(toolWindow).contains("Previous assistant conversation"),
+                        "Current transcript should show the new empty session, not previous conversation"),
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)));
     }
 
