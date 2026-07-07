@@ -283,6 +283,14 @@ class AssistantLocalAgentRunnerApprovalTest {
         }
 
         @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            if (closed) {
+                throw new IOException("stream closed");
+            }
+            buffer.write(b, off, len);
+        }
+
+        @Override
         public void close() {
             closed = true;
         }
