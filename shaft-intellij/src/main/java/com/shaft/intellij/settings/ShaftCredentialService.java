@@ -6,12 +6,23 @@ import com.intellij.ide.passwordSafe.PasswordSafe;
 import com.intellij.openapi.application.ApplicationManager;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Stores optional provider keys in IntelliJ Password Safe.
  */
 public final class ShaftCredentialService {
     private static final String SERVICE_PREFIX = "SHAFT Autobot ";
+
+    /**
+     * Every provider id the plugin ever writes to Password Safe, enumerated in one place so a
+     * factory reset (see {@code ShaftPluginResetService}) can clear all of them without missing one.
+     */
+    public static final List<String> KNOWN_PROVIDERS = List.of(
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "GEMINI_API_KEY",
+            "GITHUB_TOKEN");
 
     /**
      * Returns the application-level credential service.
@@ -64,6 +75,15 @@ public final class ShaftCredentialService {
         }
         String password = credentials.getPasswordAsString();
         return password != null && !password.isBlank();
+    }
+
+    /**
+     * Clears every provider key the plugin ever writes (see {@link #KNOWN_PROVIDERS}).
+     */
+    public void clearAll() {
+        for (String provider : KNOWN_PROVIDERS) {
+            setApiKey(provider, null);
+        }
     }
 
     private static CredentialAttributes attributes(String provider) {

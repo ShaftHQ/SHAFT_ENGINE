@@ -193,6 +193,15 @@ public final class ShaftToolWindowPanel extends JPanel {
         return preferredFocusComponent;
     }
 
+    /**
+     * Re-renders this panel back to the initial setup view, discarding any in-progress workflow
+     * state. Used by {@code ShaftPluginResetService} after a factory reset. Callers are responsible
+     * for marshaling this onto the EDT.
+     */
+    public void resetToSetupView() {
+        showSetupView();
+    }
+
     JComboBox<WorkflowView> workflowSelector() {
         return workflowSelector;
     }
