@@ -613,9 +613,55 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class).isVisible()),
                 () -> assertFalse(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isVisible()),
                 () -> assertTrue(settings.mcpSetupComplete),
-                () -> assertTrue(settings.agentGuidanceOptimizationPromptPending));
+                // fakeProject()'s base path has no AGENTS.md, so the guidance-optimization
+                // prompt (which references a validator only meaningful for a project that
+                // adopted that scaffold) must not be scheduled -- see
+                // setupSuccessSchedulesGuidanceOptimizationPromptOnlyWithAgentsMdScaffold
+                // for the case where the scaffold is present.
+                () -> assertFalse(settings.agentGuidanceOptimizationPromptPending));
         clickAccessible(panel, "Start chatting with SHAFT Assistant");
         assertTrue(connected.get());
+    }
+
+    @Test
+    void setupSuccessSchedulesGuidanceOptimizationPromptOnlyWithAgentsMdScaffold() throws Exception {
+        // Regression test for issue #3363 bug 9: the agent-guidance-optimization
+        // prompt tells the agent to rerun scripts/ci/validate_agent_setup.py, a
+        // validator that only works in a project that has actually adopted the
+        // AGENTS.md scaffold. Scheduling that prompt for any successfully
+        // configured project -- regardless of whether it has that scaffold --
+        // made the agent report back that required config/scaffold files were
+        // missing, because they never existed in the target project at all.
+        Path projectWithoutScaffold = Files.createTempDirectory("shaft-no-scaffold");
+        Path projectWithScaffold = Files.createTempDirectory("shaft-with-scaffold");
+        try {
+            Files.writeString(projectWithScaffold.resolve("AGENTS.md"), "# Guidance\n");
+
+            ShaftSettingsState.Settings withoutScaffoldSettings = unverifiedMcpSettings();
+            ShaftMcpSetupPanel withoutScaffoldPanel = new ShaftMcpSetupPanel(
+                    fakeProject(new ShaftAssistantChatState(), projectWithoutScaffold.toString()),
+                    withoutScaffoldSettings, () -> {
+                    }, readyProbe());
+            showTestResult(withoutScaffoldPanel, ShaftMcpToolResult.success("Probe OK"));
+
+            ShaftSettingsState.Settings withScaffoldSettings = unverifiedMcpSettings();
+            ShaftMcpSetupPanel withScaffoldPanel = new ShaftMcpSetupPanel(
+                    fakeProject(new ShaftAssistantChatState(), projectWithScaffold.toString()),
+                    withScaffoldSettings, () -> {
+                    }, readyProbe());
+            showTestResult(withScaffoldPanel, ShaftMcpToolResult.success("Probe OK"));
+
+            assertAll(
+                    () -> assertFalse(withoutScaffoldSettings.agentGuidanceOptimizationPromptPending,
+                            "No AGENTS.md scaffold: the guidance-optimization prompt must not be scheduled"),
+                    () -> assertTrue(withScaffoldSettings.agentGuidanceOptimizationPromptPending,
+                            "AGENTS.md scaffold present: the guidance-optimization prompt should be scheduled"));
+        } finally {
+            Files.deleteIfExists(projectWithoutScaffold.resolve("AGENTS.md"));
+            Files.deleteIfExists(projectWithoutScaffold);
+            Files.deleteIfExists(projectWithScaffold.resolve("AGENTS.md"));
+            Files.deleteIfExists(projectWithScaffold);
+        }
     }
 
     @Test
@@ -3827,6 +3873,10 @@ class ShaftPanelSetupTest {
     }
 
     private static Project fakeProject(ShaftAssistantChatState assistantChatState) {
+        return fakeProject(assistantChatState, "");
+    }
+
+    private static Project fakeProject(ShaftAssistantChatState assistantChatState, String basePath) {
         return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
                 (proxy, method, arguments) -> {
                     switch (method.getName()) {
@@ -3836,7 +3886,7 @@ class ShaftPanelSetupTest {
                         case "hashCode":
                             return System.identityHashCode(proxy);
                         case "getBasePath":
-                            return "";
+                            return basePath;
                         case "getName":
                             return "SHAFT test project";
                         case "getService":

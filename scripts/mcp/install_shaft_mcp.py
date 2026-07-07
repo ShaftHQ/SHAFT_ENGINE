@@ -59,7 +59,9 @@ AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/ci/validate_agent_setup.py",
     "scripts/ci/validate_agent_guidance.py",
     "scripts/ci/validate_documentation_boundaries.py",
+    "scripts/ci/agent_guidance_budget.json",
 )
+AGENT_GUIDANCE_SCAFFOLD_MARKER = "AGENTS.md"
 TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "intellij-plugin")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
@@ -699,6 +701,17 @@ def download_shaft_skills_files(target: Path) -> Path:
     return target
 
 
+def has_agent_guidance_scaffold(target: Path) -> bool:
+    """Whether the target project already carries the AGENTS.md guidance
+    scaffold this validator suite is designed to check. The suite validates
+    project-specific conventions (README.md content, host-context files,
+    guidance file budgets, etc.) that only exist in a project that has
+    deliberately adopted this scaffold -- installing it into an unrelated
+    project makes the onboarding-referenced validator crash on missing files
+    it has no reason to expect."""
+    return (target / AGENT_GUIDANCE_SCAFFOLD_MARKER).is_file()
+
+
 def download_agent_validation_script_files(target: Path) -> Path:
     target = target.resolve()
     target.mkdir(parents=True, exist_ok=True)
@@ -1197,8 +1210,12 @@ def install(args: argparse.Namespace) -> None:
         log(f"Installing SHAFT skills to {skills_path}...")
         skills_path = install_shaft_skills(current_directory, root)
         skills_installed = True
-        log("Fetching agent validation script files...")
-        validation_script_dir = download_agent_validation_script_files(current_directory)
+        if has_agent_guidance_scaffold(current_directory):
+            log("Fetching agent validation script files...")
+            validation_script_dir = download_agent_validation_script_files(current_directory)
+        else:
+            log(f"Skipped agent validation scripts: no {AGENT_GUIDANCE_SCAFFOLD_MARKER} guidance "
+                f"scaffold found in {current_directory}.")
     else:
         log(f"Skipped SHAFT skills installation for {skills_path}.")
     result = {

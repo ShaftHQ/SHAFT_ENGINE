@@ -98,6 +98,22 @@ class InstallShaftMcpTest(unittest.TestCase):
     def test_intellij_plugin_target_does_not_configure_external_client(self):
         MODULE.configure_client("intellij-plugin", Path("java"), Path("shaft-mcp.args"))
 
+    def test_has_agent_guidance_scaffold_requires_agents_md(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+
+            self.assertFalse(MODULE.has_agent_guidance_scaffold(root))
+
+            (root / "AGENTS.md").write_text("# Guidance\n", encoding="utf-8")
+            self.assertTrue(MODULE.has_agent_guidance_scaffold(root))
+
+    def test_agent_validation_script_files_includes_guidance_budget(self):
+        # Regression test for issue #3363 bug 9: a fresh onboarding install used to
+        # copy the validator scripts without the budget config they require,
+        # making the onboarding-referenced `validate_agent_setup.py` crash with
+        # FileNotFoundError on any project that installed them.
+        self.assertIn("scripts/ci/agent_guidance_budget.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+
     def test_render_client_menu_groups_ai_agents_and_advanced_sections(self):
         lines = MODULE.render_client_menu()
 
