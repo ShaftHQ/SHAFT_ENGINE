@@ -1574,7 +1574,10 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void refreshActionRowLayout() {
-        Container container = actionRow == null ? null : actionRow.getParent();
+        if (actionRow == null) {
+            return;
+        }
+        Container container = actionRow.getParent();
         if (container == null) {
             actionRow.revalidate();
             actionRow.repaint();

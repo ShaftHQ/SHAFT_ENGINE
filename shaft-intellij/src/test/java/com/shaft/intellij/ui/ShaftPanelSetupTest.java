@@ -1154,8 +1154,13 @@ class ShaftPanelSetupTest {
         int initialSessionCount = chatState.sessions().size();
         String previousSessionId = chatState.activeSession().id;
 
-        // Create tool window with unverified MCP settings (shows setup panel)
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(chatState), unverifiedMcpSettings());
+        // Create tool window with unverified MCP settings (shows setup panel). Use the stubbed
+        // readyProbe() rather than the real AssistantLocalAgentRunner::readiness default -- that
+        // real probe checks whether an actual agent CLI is installed on PATH, which made this test
+        // pass or fail depending on the machine running it (installed locally, absent on clean CI
+        // runners) instead of testing the session-reset behavior it's meant to cover.
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
+                fakeProject(chatState), unverifiedMcpSettings(), readyProbe(), chatState);
 
         // Simulate successful setup and trigger callback by clicking "Start chatting"
         ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
@@ -1224,7 +1229,6 @@ class ShaftPanelSetupTest {
 
         // Simulate clearing the active session and creating a new one (like "New chat" does internally)
         chatState.clearActiveSession();
-        ShaftAssistantChatState.Session firstClear = chatState.activeSession();
 
         // Call newSession() twice - second time should reuse the empty session instead of creating a new one
         chatState.newSession();
