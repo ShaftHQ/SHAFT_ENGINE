@@ -131,4 +131,44 @@ class NetworkBodyStoreTest {
             assertEquals((byte) i, storedContent[i], "Stored content should match truncated original");
         }
     }
+
+    @Test
+    void testReadStoredBody_RoundTripsExactContent() {
+        byte[] body = "{\"id\":\"abc-123\"}".getBytes(StandardCharsets.UTF_8);
+        BodyRef ref = store.store(body, "application/json", sessionDir);
+
+        String read = store.read(ref, sessionDir);
+
+        assertEquals("{\"id\":\"abc-123\"}", read);
+    }
+
+    @Test
+    void testReadNullRef_ReturnsEmptyString() {
+        assertEquals("", store.read(null, sessionDir));
+    }
+
+    @Test
+    void testReadMissingFile_ReturnsEmptyString() {
+        BodyRef missingRef = new BodyRef("does-not-exist.bin", "deadbeef", 10, "application/json", false);
+        assertEquals("", store.read(missingRef, sessionDir));
+    }
+
+    @Test
+    void testReadTamperedFile_DigestMismatchReturnsEmptyString() throws Exception {
+        byte[] body = "{\"id\":\"abc-123\"}".getBytes(StandardCharsets.UTF_8);
+        BodyRef ref = store.store(body, "application/json", sessionDir);
+        Files.write(sessionDir.resolve(ref.ref()), "{\"id\":\"tampered\"}".getBytes(StandardCharsets.UTF_8));
+
+        assertEquals("", store.read(ref, sessionDir));
+    }
+
+    @Test
+    void testReadTruncatedBody_SkipsDigestCheckAndReturnsStoredPrefix() {
+        byte[] body = "0123456789".getBytes(StandardCharsets.UTF_8);
+        BodyRef ref = store.store(body, "text/plain", sessionDir, 5);
+
+        String read = store.read(ref, sessionDir);
+
+        assertEquals("01234", read, "Truncated bodies read back their stored (truncated) content, not the original");
+    }
 }

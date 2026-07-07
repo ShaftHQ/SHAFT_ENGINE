@@ -1,10 +1,16 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.generate.CaptureGenerationReport;
 import com.shaft.capture.generate.CaptureGenerationRequest;
 import com.shaft.capture.generate.CaptureGenerationResult;
 import com.shaft.capture.generate.CaptureGenerator;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.capture.generate.CodegenFeatureCatalog;
+import com.shaft.capture.generate.api.ApiCaptureGenerationRequest;
+import com.shaft.capture.generate.api.ApiCaptureGenerationResult;
+import com.shaft.capture.generate.api.ApiCaptureGenerator;
+import com.shaft.capture.generate.api.ApiCodegenStyle;
+import com.shaft.capture.generate.api.ApiValidationDepth;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.runtime.CaptureBrowser;
 import com.shaft.capture.runtime.CaptureManager;
@@ -27,6 +33,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * MCP adapter for deterministic managed-browser SHAFT Capture recording.
@@ -275,6 +282,85 @@ public class CaptureService {
         filter.excludeAssets = !includeAssets;
         filter.excludePattern = excludePattern == null ? "" : excludePattern;
         return manager.networkTransactions(filter, 100);
+    }
+
+    /**
+     * Generates, compiles, and returns copy-paste {@code SHAFT.API} code blocks from a recorded
+     * session's API transactions.
+     *
+     * @param sessionPath persisted Capture JSON path inside the MCP workspace
+     * @param outputDirectory generated project root inside the MCP workspace; blank selects
+     *                        {@code generated-tests}
+     * @param packageName generated Java package
+     * @param className optional generated class name; blank derives one from the session ID
+     * @param style {@code SCENARIO} (default; chains correlated values through variables) or
+     *              {@code PER_REQUEST} (one independent test per transaction)
+     * @param validationDepth {@code STATUS}, {@code STATUS_HEADERS}, {@code SCHEMA} (default), or
+     *                        {@code FULL_BODY}
+     * @param overwrite whether existing artifacts may be replaced
+     * @param replay whether to execute the generated test after compiling (off by default; unsafe
+     *               to enable automatically for non-idempotent methods)
+     * @return generated artifacts, compile/replay result, and copy-paste code blocks
+     */
+    @Tool(name = "capture_api_generate",
+            description = "generates, compiles, and returns copy-paste SHAFT.API code blocks from recorded API transactions")
+    public McpCaptureReplayResult generateApi(
+            String sessionPath,
+            String outputDirectory,
+            String packageName,
+            String className,
+            String style,
+            String validationDepth,
+            boolean overwrite,
+            boolean replay) {
+        Path output = outputDirectory == null || outputDirectory.isBlank()
+                ? workspacePolicy.output("generated-tests", "Capture generation output directory")
+                : workspacePolicy.output(outputDirectory, "Capture generation output directory");
+        ApiCaptureGenerationResult result = new ApiCaptureGenerator().generate(new ApiCaptureGenerationRequest(
+                workspacePolicy.existing(sessionPath, "Capture session path"),
+                output,
+                packageName,
+                className,
+                parseStyle(style),
+                parseValidationDepth(validationDepth),
+                true,
+                replay,
+                overwrite));
+        boolean successful = result.report().status() == CaptureGenerationReport.Status.SUCCESS;
+        List<McpCodeBlock> blocks = successful && result.sourcePath() != null
+                ? codeBlocks.fromGeneratedSource(result.sourcePath(), "api", result.report())
+                : List.of();
+        return new McpCaptureReplayResult(
+                result.sourcePath(),
+                result.testDataDirectory(),
+                result.reportPath(),
+                null,
+                successful,
+                blocks,
+                result.report(),
+                result.report() == null ? List.of() : result.report().warnings());
+    }
+
+    private static ApiCodegenStyle parseStyle(String value) {
+        if (value == null || value.isBlank()) {
+            return ApiCodegenStyle.SCENARIO;
+        }
+        try {
+            return ApiCodegenStyle.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException invalid) {
+            return ApiCodegenStyle.SCENARIO;
+        }
+    }
+
+    private static ApiValidationDepth parseValidationDepth(String value) {
+        if (value == null || value.isBlank()) {
+            return ApiValidationDepth.SCHEMA;
+        }
+        try {
+            return ApiValidationDepth.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException invalid) {
+            return ApiValidationDepth.SCHEMA;
+        }
     }
 
     /**
