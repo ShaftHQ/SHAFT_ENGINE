@@ -143,6 +143,41 @@ public final class CaptureCertificateAuthority {
         }
     }
 
+    /**
+     * Issues a short-lived leaf certificate for {@code hostname}, signed by this CA, impersonating
+     * that host for MITM interception. The leaf never has CA capability (basic constraints
+     * {@code CA=false}) so it cannot itself be used to mint further certificates.
+     *
+     * @param hostname the host being impersonated (recorded as the certificate's CN and DNS SAN)
+     * @param leafPublicKey the public key the leaf certificate binds to
+     * @return a certificate for {@code hostname}, signed by this CA
+     */
+    public X509Certificate issueLeafCertificate(String hostname, java.security.PublicKey leafPublicKey) {
+        try {
+            Instant notBefore = Instant.now().minus(Duration.ofDays(1));
+            Instant notAfter = notBefore.plus(Duration.ofDays(825)); // under the ~825-day CA/Browser Forum cap
+            X500Name issuer = new X500Name(SUBJECT);
+            X500Name subject = new X500Name("CN=" + hostname);
+            BigInteger serial = new BigInteger(160, new SecureRandom());
+
+            X509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(
+                    issuer, serial, Date.from(notBefore), Date.from(notAfter), subject, leafPublicKey);
+            builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(false));
+            builder.addExtension(Extension.keyUsage, true,
+                    new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment));
+            builder.addExtension(Extension.subjectAlternativeName, false, new org.bouncycastle.asn1.x509.GeneralNames(
+                    new org.bouncycastle.asn1.x509.GeneralName(org.bouncycastle.asn1.x509.GeneralName.dNSName, hostname)));
+
+            ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")
+                    .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+                    .build(keyPair.getPrivate());
+            X509CertificateHolder holder = builder.build(signer);
+            return new JcaX509CertificateConverter().setProvider(BouncyCastleProvider.PROVIDER_NAME).getCertificate(holder);
+        } catch (IOException | GeneralSecurityException | org.bouncycastle.operator.OperatorCreationException failure) {
+            throw new CaptureProxyException("Leaf certificate for \"" + hostname + "\" could not be issued.", failure);
+        }
+    }
+
     private static Generated generate() throws GeneralSecurityException {
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
         keyPairGenerator.initialize(2048, new SecureRandom());

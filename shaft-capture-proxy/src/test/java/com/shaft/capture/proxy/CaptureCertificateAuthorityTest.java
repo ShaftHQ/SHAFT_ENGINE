@@ -92,4 +92,41 @@ class CaptureCertificateAuthorityTest {
 
         assertTrue(!pem.contains("PRIVATE KEY"), "Exported certificate PEM must never include the private key");
     }
+
+    @Test
+    void issuesALeafCertificateSignedByTheCaForAGivenHostname() throws Exception {
+        CaptureCertificateAuthority ca = new CaptureCertificateAuthority(tempDir.resolve("capture-ca-leaf"));
+        java.security.KeyPairGenerator keyPairGenerator = java.security.KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        java.security.KeyPair leafKeyPair = keyPairGenerator.generateKeyPair();
+
+        X509Certificate leaf = ca.issueLeafCertificate("api.example.test", leafKeyPair.getPublic());
+
+        assertEquals("CN=api.example.test", leaf.getSubjectX500Principal().getName());
+        assertEquals(ca.certificate().getSubjectX500Principal(), leaf.getIssuerX500Principal());
+        assertDoesNotThrow(() -> leaf.verify(ca.certificate().getPublicKey()),
+                "Leaf certificate must be signed by (and verify against) the CA's public key");
+        assertEquals(-1, leaf.getBasicConstraints(), "Leaf certificate must not itself be a CA");
+
+        boolean hasMatchingSan = leaf.getSubjectAlternativeNames().stream()
+                .anyMatch(san -> "api.example.test".equals(san.get(1)));
+        assertTrue(hasMatchingSan, "Leaf certificate must carry the hostname as a DNS SAN");
+
+        Instant now = Instant.now();
+        assertTrue(leaf.getNotAfter().toInstant().isBefore(now.plusSeconds(3600L * 24 * 900)),
+                "Leaf certificates must be short-lived, not reuse the root CA's 10-year validity");
+    }
+
+    @Test
+    void differentHostnamesGetDifferentLeafCertificates() throws Exception {
+        CaptureCertificateAuthority ca = new CaptureCertificateAuthority(tempDir.resolve("capture-ca-multi-host"));
+        java.security.KeyPairGenerator keyPairGenerator = java.security.KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        java.security.PublicKey leafPublicKey = keyPairGenerator.generateKeyPair().getPublic();
+
+        X509Certificate first = ca.issueLeafCertificate("a.example.test", leafPublicKey);
+        X509Certificate second = ca.issueLeafCertificate("b.example.test", leafPublicKey);
+
+        assertTrue(!first.getSubjectX500Principal().equals(second.getSubjectX500Principal()));
+    }
 }
