@@ -137,10 +137,11 @@ public final class ApiCaptureGenerator {
                         testDataDirectory.getParent(), outputRoot, Duration.ofMinutes(2))
                 : CaptureGenerationReport.Validation.skipped("Replay was not requested.");
 
-        CaptureGenerationReport.Status status =
-                compilation.status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED
-                        ? CaptureGenerationReport.Status.FAILED
-                        : CaptureGenerationReport.Status.SUCCESS;
+        boolean failed = compilation.status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED
+                || replay.status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED;
+        CaptureGenerationReport.Status status = failed
+                ? CaptureGenerationReport.Status.FAILED
+                : CaptureGenerationReport.Status.SUCCESS;
 
         CaptureGenerationReport report = new CaptureGenerationReport(
                 CaptureGenerationReport.CURRENT_SCHEMA_VERSION,

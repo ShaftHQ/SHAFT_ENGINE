@@ -108,6 +108,7 @@
     {"name": "capture_api_status", "mutation": false, "sensitive": false, "deprecated": false},
     {"name": "capture_api_stop", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "capture_api_transactions", "mutation": false, "sensitive": false, "deprecated": false},
+    {"name": "capture_api_generate", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "capture_checkpoint", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "capture_generate_replay", "mutation": true, "sensitive": false, "deprecated": false},
     {"name": "capture_code_blocks", "mutation": true, "sensitive": false, "deprecated": false},
