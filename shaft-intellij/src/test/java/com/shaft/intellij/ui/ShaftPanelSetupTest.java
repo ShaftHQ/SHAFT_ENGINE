@@ -28,6 +28,7 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
+import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.BorderLayout;
@@ -2430,13 +2431,25 @@ class ShaftPanelSetupTest {
         allowEdits.setSelected(true);
         assertTrue(allowEdits.isSelected());
 
+        AtomicInteger uncheckCount = new AtomicInteger();
+        allowEdits.addItemListener(event -> {
+            if (!allowEdits.isSelected()) {
+                uncheckCount.incrementAndGet();
+            }
+        });
+
         assistantMode.setSelectedItem("ASK");
-        assertFalse(allowEdits.isSelected(), "Switching away from Agent mode should uncheck source edits");
+        assertAll(
+                () -> assertFalse(allowEdits.isSelected(), "Switching away from Agent mode should uncheck source edits"),
+                () -> assertEquals(1, uncheckCount.get(), "Uncheck should fire exactly once, no listener re-entrancy loop"));
 
         assistantMode.setSelectedItem("AGENT");
         allowEdits.setSelected(true);
+        uncheckCount.set(0);
         assistantMode.setSelectedItem("PLAN");
-        assertFalse(allowEdits.isSelected(), "Switching to Plan mode should uncheck source edits");
+        assertAll(
+                () -> assertFalse(allowEdits.isSelected(), "Switching to Plan mode should uncheck source edits"),
+                () -> assertEquals(1, uncheckCount.get(), "Uncheck should fire exactly once, no listener re-entrancy loop"));
     }
 
     @Test
@@ -2444,10 +2457,12 @@ class ShaftPanelSetupTest {
         // The live cloud route is not reachable in this headless test harness: usesCloud()==true
         // makes updateControlVisibility() call updateCloudKeyStatus(), which needs
         // ApplicationManager.getApplication() (unavailable without IntelliJ Platform Test Framework
-        // fixtures, which this task's tests must not require/pull in). onModeOrRouteSelectionChanged()
-        // unchecks allowSourceMutation for the newly selected route *before* delegating to
-        // updateControlVisibility(), so the unchecking behavior under test is fully exercised
-        // regardless of whether updateControlVisibility() can complete afterward in this harness.
+        // fixtures, which this task's tests must not require/pull in). updateControlVisibility()
+        // forces mode back to PLAN (the behavior this test proves) *before* it reaches
+        // updateCloudKeyStatus(), so the NPE from the missing ApplicationManager happens strictly
+        // after both effects under test (uncheck + forced PLAN switch) have already taken place.
+        // The try/catch below only swallows that trailing, unrelated environment limitation; every
+        // assertion about the behavior under test runs after the mutation that can throw.
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.advancedUiEnabled = true;
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
@@ -2459,19 +2474,33 @@ class ShaftPanelSetupTest {
         assistantMode.setSelectedItem("AGENT");
         allowEdits.setSelected(true);
         assertTrue(allowEdits.isSelected());
+        assertEquals("AGENT", assistantMode.getSelectedItem());
+
+        AtomicInteger uncheckCount = new AtomicInteger();
+        allowEdits.addItemListener(event -> {
+            if (!allowEdits.isSelected()) {
+                uncheckCount.incrementAndGet();
+            }
+        });
 
         // Selecting CLOUD while in Agent mode makes onModeOrRouteSelectionChanged() uncheck the
-        // checkbox immediately, then forces mode back to PLAN inside updateControlVisibility().
-        // updateControlVisibility() itself throws further downstream in this bare harness (missing
-        // ApplicationManager); that is an unrelated, pre-existing environment limitation, not a
-        // re-entrancy bug, so it is tolerated here.
+        // checkbox immediately, then delegates to updateControlVisibility(), which forces mode back
+        // to PLAN before it reaches the cloud-key-status lookup that NPEs in this bare harness
+        // (missing ApplicationManager). That NPE is an unrelated, pre-existing environment
+        // limitation, not a re-entrancy bug, so it is tolerated here -- but only after the mode
+        // switch to PLAN has already happened, which the assertions below verify end-to-end.
         try {
             assistantProviderType.setSelectedItem("CLOUD");
         } catch (NullPointerException ignoredMissingApplicationManager) {
             // Expected in this headless harness; see comment above.
         }
 
-        assertFalse(allowEdits.isSelected(), "Cloud route should uncheck source edits exactly once");
+        assertAll(
+                () -> assertFalse(allowEdits.isSelected(), "Cloud route should uncheck source edits exactly once"),
+                () -> assertEquals(1, uncheckCount.get(),
+                        "Source edits checkbox should uncheck exactly once with no listener re-entrancy loop"),
+                () -> assertEquals("PLAN", assistantMode.getSelectedItem(),
+                        "Forcing cloud route while in Agent mode should switch mode to PLAN end-to-end"));
     }
 
     @Test
@@ -2503,10 +2532,23 @@ class ShaftPanelSetupTest {
         layoutPanel(panel);
         assertActionRowButtonsSaneAfterLayout(panel, true);
 
-        clickAccessible(panel, "Clear assistant transcript");
-        SwingUtilities.invokeAndWait(() -> {
-        });
-        layoutPanel(panel);
+        RevalidateSpy spy = RevalidateSpy.install();
+        try {
+            clickAccessible(panel, "Clear assistant transcript");
+            SwingUtilities.invokeAndWait(() -> {
+            });
+        } finally {
+            spy.uninstall();
+        }
+        assertTrue(spy.sawRevalidateFor(actionRowContainer(panel)),
+                "updateActionChrome() should revalidate the action row's container after Clear,"
+                        + " without relying on the test's manual layout walk");
+
+        // Do NOT call the manual layoutPanel() walker before asserting bounds here: that helper
+        // forces doLayout()/validate() on every component regardless of production behavior, which
+        // would make this assertion pass even if updateActionChrome()'s revalidate()/repaint() call
+        // were deleted. Instead, flush the revalidate/repaint that production code already scheduled.
+        flushPendingLayoutAndRepaint(panel);
 
         JButton clear = findByAccessibleName(panel, "Clear assistant transcript", JButton.class);
         JButton copyTranscript = findByAccessibleName(panel, "Copy assistant transcript", JButton.class);
@@ -2523,16 +2565,92 @@ class ShaftPanelSetupTest {
     @Test
     void actionRowButtonsAreLaidOutAfterAppendingMessages() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
-
-        panel.simulateAppendForTest("user", "Plan a resilient login test", "");
-        SwingUtilities.invokeAndWait(() -> {
-        });
-        panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
-        SwingUtilities.invokeAndWait(() -> {
-        });
         layoutPanel(panel);
 
+        RevalidateSpy spy = RevalidateSpy.install();
+        try {
+            panel.simulateAppendForTest("user", "Plan a resilient login test", "");
+            SwingUtilities.invokeAndWait(() -> {
+            });
+            panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
+            SwingUtilities.invokeAndWait(() -> {
+            });
+        } finally {
+            spy.uninstall();
+        }
+        assertTrue(spy.sawRevalidateFor(actionRowContainer(panel)),
+                "updateActionChrome() should revalidate the action row's container after appending"
+                        + " messages (a non-Clear caller), proving the fix lives in updateActionChrome()"
+                        + " rather than being Clear-specific");
+
+        // Same rationale as above: flush the production-scheduled revalidate/repaint instead of
+        // forcing layout manually, so a deleted refreshActionRowLayout() call would fail this test.
+        flushPendingLayoutAndRepaint(panel);
+
         assertActionRowButtonsSaneAfterLayout(panel, true);
+    }
+
+    /**
+     * Resolves the same container that {@code ShaftAssistantPanel.refreshActionRowLayout()}
+     * revalidates/repaints: the action row's parent, falling back to the action row itself.
+     */
+    private static Container actionRowContainer(ShaftAssistantPanel panel) throws Exception {
+        JPanel actionRow = (JPanel) getField(panel, "actionRow");
+        Container parent = actionRow.getParent();
+        return parent != null ? parent : actionRow;
+    }
+
+    /**
+     * Flushes a revalidate()/repaint() that production code already scheduled (via
+     * {@code RepaintManager}) into an actual layout pass. The spy assertion (run before this method)
+     * is what keeps the test sensitive to a deleted {@code refreshActionRowLayout()} call; this
+     * method's job is only to produce realized bounds afterward, so it mirrors {@link
+     * #layoutPanel(ShaftAssistantPanel)}'s recursive doLayout()/validate() walk rather than relying
+     * on {@code Container.validate()} to recurse into every nested panel on its own.
+     */
+    private static void flushPendingLayoutAndRepaint(ShaftAssistantPanel panel) throws Exception {
+        layoutPanel(panel);
+    }
+
+    /**
+     * A {@link RepaintManager} that records exactly which components had {@code revalidate()}
+     * invoked on them (via {@code addInvalidComponent}), so tests can assert that production code
+     * itself requested a layout refresh instead of relying on a test helper that forces layout
+     * unconditionally. Deliberately does NOT track {@code addDirtyRegion} (repaint): a plain
+     * {@link javax.swing.AbstractButton#doClick()} already marks the unrealized top-level panel
+     * dirty as a side effect of the button's own pressed/armed paint state (Swing's default
+     * RepaintManager walks up to the nearest showing-or-root ancestor), which would make a
+     * repaint-based check pass trivially even with no production revalidate/repaint call at all.
+     * revalidate() does not have that false-positive: only an explicit
+     * {@code JComponent.revalidate()} call adds the exact component to the invalid-component list.
+     */
+    private static final class RevalidateSpy extends RepaintManager {
+        private final RepaintManager delegate;
+        private final List<Component> invalidated = new ArrayList<>();
+
+        private RevalidateSpy(RepaintManager delegate) {
+            this.delegate = delegate;
+        }
+
+        static RevalidateSpy install() {
+            RevalidateSpy spy = new RevalidateSpy(RepaintManager.currentManager(null));
+            RepaintManager.setCurrentManager(spy);
+            return spy;
+        }
+
+        void uninstall() {
+            RepaintManager.setCurrentManager(delegate);
+        }
+
+        boolean sawRevalidateFor(Component target) {
+            return invalidated.contains(target);
+        }
+
+        @Override
+        public synchronized void addInvalidComponent(JComponent invalidComponent) {
+            invalidated.add(invalidComponent);
+            delegate.addInvalidComponent(invalidComponent);
+        }
     }
 
     private static void layoutPanel(ShaftAssistantPanel panel) throws Exception {
