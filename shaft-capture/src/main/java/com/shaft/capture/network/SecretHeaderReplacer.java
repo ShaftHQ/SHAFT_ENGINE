@@ -1,6 +1,7 @@
 package com.shaft.capture.network;
 
 import com.shaft.capture.format.CaptureFormatException;
+import com.shaft.capture.storage.OwnerOnlyFilePermissions;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -11,16 +12,9 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.AclEntry;
-import java.nio.file.attribute.AclEntryPermission;
-import java.nio.file.attribute.AclEntryType;
-import java.nio.file.attribute.AclFileAttributeView;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.UserPrincipal;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
@@ -192,7 +186,7 @@ public final class SecretHeaderReplacer {
             String json = MAPPER.writerWithDefaultPrettyPrinter()
                     .writeValueAsString(new TreeMap<>(secrets)) + "\n";
             atomicWrite(secretsPath, json);
-            setOwnerOnlyPermissions(secretsPath);
+            OwnerOnlyFilePermissions.restrictToOwner(secretsPath);
         } catch (IOException exception) {
             throw new CaptureFormatException("Secrets file could not be written.", exception);
         }
@@ -258,63 +252,4 @@ public final class SecretHeaderReplacer {
         }
     }
 
-    /**
-     * Sets owner-only permissions on a file.
-     * On POSIX systems, uses PosixFilePermissions (0600).
-     * On Windows (or any non-POSIX filesystem that supports ACLs), replaces the ACL
-     * with a single ALLOW entry for the owner covering read/write/delete, denying
-     * access to every other principal.
-     *
-     * @param path file path
-     */
-    private static void setOwnerOnlyPermissions(Path path) {
-        try {
-            // Try POSIX permissions (0600 = owner read+write only)
-            Set<PosixFilePermission> perms = new HashSet<>();
-            perms.add(PosixFilePermission.OWNER_READ);
-            perms.add(PosixFilePermission.OWNER_WRITE);
-            Files.setPosixFilePermissions(path, perms);
-        } catch (UnsupportedOperationException posixUnsupported) {
-            // Not a POSIX filesystem (e.g. Windows/NTFS); fall back to an owner-only ACL.
-            applyOwnerOnlyAcl(path);
-        } catch (IOException ignored) {
-            // Best-effort; log if critical to your use case
-        }
-    }
-
-    /**
-     * Restricts a file's ACL to a single owner-only ALLOW entry, used as the
-     * Windows fallback when POSIX permissions are unsupported.
-     *
-     * @param path file path
-     */
-    private static void applyOwnerOnlyAcl(Path path) {
-        try {
-            AclFileAttributeView aclView = Files.getFileAttributeView(path, AclFileAttributeView.class);
-            if (aclView == null) {
-                // Neither POSIX nor ACL views are supported on this filesystem; nothing more to do.
-                return;
-            }
-            UserPrincipal owner = aclView.getOwner();
-            AclEntry ownerEntry = AclEntry.newBuilder()
-                    .setType(AclEntryType.ALLOW)
-                    .setPrincipal(owner)
-                    .setPermissions(
-                            AclEntryPermission.READ_DATA,
-                            AclEntryPermission.WRITE_DATA,
-                            AclEntryPermission.APPEND_DATA,
-                            AclEntryPermission.READ_ATTRIBUTES,
-                            AclEntryPermission.WRITE_ATTRIBUTES,
-                            AclEntryPermission.READ_NAMED_ATTRS,
-                            AclEntryPermission.WRITE_NAMED_ATTRS,
-                            AclEntryPermission.READ_ACL,
-                            AclEntryPermission.WRITE_ACL,
-                            AclEntryPermission.DELETE,
-                            AclEntryPermission.SYNCHRONIZE)
-                    .build();
-            aclView.setAcl(java.util.List.of(ownerEntry));
-        } catch (IOException | UnsupportedOperationException ignored) {
-            // Best-effort; owner-only ACL could not be applied on this filesystem.
-        }
-    }
 }

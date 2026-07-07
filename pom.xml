@@ -32,6 +32,7 @@
         <module>shaft-engine</module>
         <module>shaft-pilot-core</module>
         <module>shaft-capture</module>
+        <module>shaft-capture-proxy</module>
         <module>shaft-doctor</module>
         <module>shaft-ai</module>
         <module>shaft-heal</module>
@@ -91,6 +92,7 @@
         <antlr.runtime.version>3.5.3</antlr.runtime.version>
         <commons.compress.version>1.28.0</commons.compress.version>
         <bouncycastle.version>1.84</bouncycastle.version>
+        <littleproxy.version>2.4.2</littleproxy.version>
         <ant.version>1.10.17</ant.version>
         <poi.version>5.5.1</poi.version>
         <axe.selenium.version>4.12.0</axe.selenium.version>
@@ -460,6 +462,11 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcutil-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.littleproxy</groupId>
+                <artifactId>littleproxy</artifactId>
+                <version>${littleproxy.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.ant</groupId>
