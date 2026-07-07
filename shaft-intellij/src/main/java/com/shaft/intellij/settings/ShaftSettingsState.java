@@ -45,6 +45,8 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public String assistantRuntime = "CLI";
         public String cloudProvider = "gemini";
         public String cloudModel = "gemini-3.5-flash";
+        public String localModel = "";
+        public String assistantEffort = "DEFAULT";
         public String defaultAutobotClient = "CODEX";
         public String defaultAutobotMode = "ASK";
         public String pilotAiProvider = "none";

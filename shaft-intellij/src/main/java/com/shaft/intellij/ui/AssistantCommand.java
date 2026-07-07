@@ -451,8 +451,15 @@ final class AssistantCommand {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("client", selection.client());
         arguments.addProperty("mode", mode);
-        arguments.addProperty("prompt", localAgentPrompt(text, mode, allowSourceMutation, openFileContext,
-                conversationContext));
+        arguments.addProperty("model", selection.localModel());
+        arguments.addProperty("effort", selection.effort());
+        // Codex receives the effort as a real CLI config flag in AssistantLocalAgentRunner; the
+        // other CLIs have no effort flag, so their prompt carries the preference instead.
+        String localPrompt = localAgentPrompt(text, mode, allowSourceMutation, openFileContext,
+                conversationContext);
+        arguments.addProperty("prompt", "CODEX".equals(selection.family())
+                ? localPrompt
+                : withEffortHint(localPrompt, selection.effort()));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.add("command", commandArray(customCommand));
         arguments.add("environment", new JsonObject());
@@ -472,7 +479,8 @@ final class AssistantCommand {
         arguments.addProperty("provider", selection.cloudProvider());
         arguments.addProperty("model", selection.cloudModel());
         arguments.addProperty("mode", mode);
-        arguments.addProperty("prompt", cloudPrompt(text, mode, openFileContext, conversationContext));
+        arguments.addProperty("prompt",
+                withEffortHint(cloudPrompt(text, mode, openFileContext, conversationContext), selection.effort()));
         arguments.addProperty("workingDirectory", workingDirectory == null ? "" : workingDirectory);
         arguments.addProperty("timeoutSeconds", DEFAULT_TIMEOUT_SECONDS);
         arguments.addProperty("allowSourceMutation", false);
@@ -1583,6 +1591,13 @@ final class AssistantCommand {
                 "duckduckgo");
     }
 
+    private static String withEffortHint(String prompt, String effort) {
+        if (!AssistantModelCatalog.isExplicitEffort(effort)) {
+            return prompt;
+        }
+        return "Use " + effort.toLowerCase(Locale.ROOT) + " reasoning effort for this request.\n\n" + prompt;
+    }
+
     private static String withConversationContext(String prompt, String conversationContext) {
         String context = text(conversationContext);
         if (context.isBlank()) {
@@ -1973,14 +1988,31 @@ final class AssistantCommand {
         }
     }
 
-    record Selection(boolean cloud, String family, String runtime, String cloudProvider, String cloudModel) {
+    record Selection(boolean cloud, String family, String runtime, String cloudProvider, String cloudModel,
+                     String localModel, String effort) {
         static Selection local(String family, String runtime) {
-            return new Selection(false, normalize(family, "CODEX"), normalize(runtime, "CLI"), "", "");
+            return local(family, runtime, "", "");
+        }
+
+        static Selection local(String family, String runtime, String model, String effort) {
+            return new Selection(false, normalize(family, "CODEX"), normalize(runtime, "CLI"), "", "",
+                    model == null ? "" : model.trim(), normalizeEffort(effort));
         }
 
         static Selection cloud(String provider, String model) {
+            return cloud(provider, model, "");
+        }
+
+        static Selection cloud(String provider, String model, String effort) {
             return new Selection(true, "", "", normalize(provider, "gemini").toLowerCase(Locale.ROOT),
-                    model == null ? "" : model.trim());
+                    model == null ? "" : model.trim(), "", normalizeEffort(effort));
+        }
+
+        private static String normalizeEffort(String effort) {
+            String normalized = normalize(effort, AssistantModelCatalog.DEFAULT_EFFORT);
+            return AssistantModelCatalog.isExplicitEffort(normalized)
+                    ? normalized
+                    : AssistantModelCatalog.DEFAULT_EFFORT;
         }
 
         static Selection fromClient(String client) {

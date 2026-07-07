@@ -686,6 +686,110 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelConfiguresGeminiCloudProviderWithStoredApiKey() throws Exception {
+        java.util.Map<String, String> storedKeys = new java.util.HashMap<>();
+        ShaftMcpSetupPanel.CloudKeyStore keyStore = fakeKeyStore(storedKeys);
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, (client, runtime) -> ShaftMcpToolResult.failure("local CLI readiness must not gate the cloud route"),
+                keyStore);
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+        javax.swing.JPasswordField apiKey =
+                findByAccessibleName(panel, "Gemini API key", javax.swing.JPasswordField.class);
+        JComponent runtimeRow = (JComponent) getField(panel, "runtimeRow");
+        JComponent apiKeyRow = (JComponent) getField(panel, "apiKeyRow");
+
+        assertAll(
+                () -> assertFalse(apiKeyRow.isVisible()),
+                () -> assertTrue(runtimeRow.isVisible()));
+
+        family.setSelectedItem("GEMINI");
+        assertAll(
+                () -> assertTrue(apiKeyRow.isVisible()),
+                () -> assertFalse(runtimeRow.isVisible()),
+                () -> assertTrue(containsText(panel, "Paste your Google AI Studio API key.")));
+
+        apiKey.setText("test-gemini-key");
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+
+        assertAll(
+                () -> assertEquals("test-gemini-key", storedKeys.get("GEMINI_API_KEY")),
+                () -> assertEquals(0, apiKey.getPassword().length),
+                () -> assertEquals("CLOUD", settings.assistantProviderType),
+                () -> assertEquals("gemini", settings.cloudProvider),
+                () -> assertEquals("gemini-3.5-flash", settings.cloudModel),
+                () -> assertTrue(settings.passProviderApiKeysToMcp),
+                () -> assertTrue(settings.mcpSetupComplete),
+                () -> assertTrue(containsText(panel, "Ready to chat. Verified Gemini cloud API.")),
+                () -> assertTrue(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class)
+                        .isVisible()));
+    }
+
+    @Test
+    void setupPanelBlocksGeminiConnectionWithoutStoredApiKey() throws Exception {
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, readyProbe(), fakeKeyStore(new java.util.HashMap<>()));
+        JComboBox<?> family = findByAccessibleName(panel, "Assistant family", JComboBox.class);
+
+        family.setSelectedItem("GEMINI");
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Assist: Error")),
+                () -> assertTrue(containsText(panel, "No Gemini API key stored")),
+                () -> assertFalse(settings.mcpSetupComplete),
+                () -> assertFalse(settings.agentGuidanceOptimizationPromptPending));
+    }
+
+    @Test
+    void assistantShowsModelAndEffortSelectorsWithoutAdvancedMode() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        JComboBox<?> localModel = findByAccessibleName(panel, "Assistant local agent model", JComboBox.class);
+        JComboBox<?> effort = findByAccessibleName(panel, "Assistant effort", JComboBox.class);
+
+        assertAll(
+                () -> assertTrue(localModel.isVisible()),
+                () -> assertTrue(effort.isVisible()),
+                () -> assertEquals("DEFAULT", effort.getSelectedItem()),
+                () -> assertTrue(effort.getItemCount() >= 4));
+    }
+
+    @Test
+    void assistantKeepsCloudRouteAndModelListFromSetupWithoutAdvancedMode() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.assistantProviderType = "CLOUD";
+        settings.cloudProvider = "gemini";
+        settings.cloudModel = "gemini-3.5-flash";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JComboBox<?> providerType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
+        JComboBox<?> cloudModel = findByAccessibleName(panel, "Assistant cloud model", JComboBox.class);
+        JComboBox<?> effort = findByAccessibleName(panel, "Assistant effort", JComboBox.class);
+
+        assertAll(
+                // Basic mode must not force the setup-selected cloud route back to LOCAL.
+                () -> assertEquals("CLOUD", providerType.getSelectedItem()),
+                () -> assertTrue(cloudModel.isVisible()),
+                () -> assertTrue(effort.isVisible()),
+                () -> assertEquals("gemini-3.5-flash", String.valueOf(cloudModel.getSelectedItem())),
+                () -> assertTrue(cloudModel.getItemCount() >= 2));
+    }
+
+    private static ShaftMcpSetupPanel.CloudKeyStore fakeKeyStore(java.util.Map<String, String> storedKeys) {
+        return new ShaftMcpSetupPanel.CloudKeyStore() {
+            @Override
+            public boolean hasKey(String keyName) {
+                return storedKeys.containsKey(keyName);
+            }
+
+            @Override
+            public void saveKey(String keyName, char[] secret) {
+                storedKeys.put(keyName, new String(secret));
+            }
+        };
+    }
+
+    @Test
     void assistantConsumesPendingGuidanceOptimizationPromptOnce() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.agentGuidanceOptimizationPromptPending = true;
