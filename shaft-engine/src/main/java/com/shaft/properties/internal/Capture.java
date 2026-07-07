@@ -71,58 +71,59 @@ public interface Capture extends EngineProperties<Capture> {
      *
      * @return current-thread property builder
      */
-    default SetProperty set() {
-        return new SetProperty();
+    @Override
+    default CapturePropertyBuilder set() {
+        return new CapturePropertyBuilder();
     }
 
     /**
      * Fluent current-thread overrides for API capture recording.
      */
-    class SetProperty implements EngineProperties.SetProperty {
+    class CapturePropertyBuilder implements EngineProperties.SetProperty {
         /** @param value enabled state @return this builder */
-        public SetProperty enabled(boolean value) {
+        public CapturePropertyBuilder enabled(boolean value) {
             setProperty("capture.api.enabled", String.valueOf(value));
             return this;
         }
 
         /** @param value maximum body size in bytes @return this builder */
-        public SetProperty maxBodyBytes(int value) {
+        public CapturePropertyBuilder maxBodyBytes(int value) {
             setProperty("capture.api.maxBodyBytes", String.valueOf(Math.max(0, value)));
             return this;
         }
 
         /** @param value whether to include asset requests @return this builder */
-        public SetProperty includeAssets(boolean value) {
+        public CapturePropertyBuilder includeAssets(boolean value) {
             setProperty("capture.api.includeAssets", String.valueOf(value));
             return this;
         }
 
         /** @param value whether to capture only same-origin requests @return this builder */
-        public SetProperty firstPartyOnly(boolean value) {
+        public CapturePropertyBuilder firstPartyOnly(boolean value) {
             setProperty("capture.api.firstPartyOnly", String.valueOf(value));
             return this;
         }
 
         /** @param value whether to store secrets locally @return this builder */
-        public SetProperty storeSecretsLocally(boolean value) {
+        public CapturePropertyBuilder storeSecretsLocally(boolean value) {
             setProperty("capture.api.storeSecretsLocally", String.valueOf(value));
             return this;
         }
 
         /** @param value maximum number of network transactions to retain per session @return this builder */
-        public SetProperty maxTransactions(int value) {
+        public CapturePropertyBuilder maxTransactions(int value) {
             setProperty("capture.api.maxTransactions", String.valueOf(Math.max(0, value)));
             return this;
         }
 
         /** @param value comma-separated URL include glob patterns @return this builder */
-        public SetProperty urlIncludeGlobs(String value) {
+        public CapturePropertyBuilder urlIncludeGlobs(String value) {
             setProperty("capture.api.urlIncludeGlobs", value == null ? "" : value);
             return this;
         }
 
         /** @param value comma-separated URL exclude glob patterns @return this builder */
-        public SetProperty urlExcludeGlobs(String value) {
+        public CapturePropertyBuilder urlExcludeGlobs(String value) {
             setProperty("capture.api.urlExcludeGlobs", value == null ? "" : value);
             return this;
         }

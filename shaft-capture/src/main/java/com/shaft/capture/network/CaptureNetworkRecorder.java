@@ -345,6 +345,16 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
         }
     }
 
+    /**
+     * Ordered classification rules, evaluated first-match-wins in exactly this order.
+     * A loop over a rule table (rather than a sequential if-return chain) keeps this
+     * method's own NPath complexity low regardless of rule count -- PMD's NPath metric
+     * is multiplicative across sequential branches in one method body, so a long guard
+     * chain explodes combinatorially even when each guard is a single trivial call.
+     */
+    private record ClassificationRule(BooleanSupplier matches, InternalResourceKind kind) {
+    }
+
     private static InternalResourceKind classify(HttpRequest request, HttpResponse response) {
         String accept = header(request, "Accept");
         String contentType = response == null ? "" : value(response.getContentType());
@@ -352,35 +362,24 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
             contentType = header(request, "Content-Type");
         }
         String path = pathOf(request.getUri());
+        String finalContentType = contentType;
 
-        if (isDocument(contentType, accept, path)) {
-            return InternalResourceKind.DOCUMENT;
+        List<ClassificationRule> rules = List.of(
+                new ClassificationRule(() -> isDocument(finalContentType, accept, path), InternalResourceKind.DOCUMENT),
+                new ClassificationRule(() -> isStylesheet(finalContentType, path), InternalResourceKind.STYLESHEET),
+                new ClassificationRule(() -> isScript(finalContentType, path), InternalResourceKind.SCRIPT),
+                new ClassificationRule(() -> isImage(finalContentType, path), InternalResourceKind.IMAGE),
+                new ClassificationRule(() -> isFont(finalContentType, path), InternalResourceKind.FONT),
+                new ClassificationRule(() -> isMedia(finalContentType, path), InternalResourceKind.MEDIA),
+                new ClassificationRule(() -> isWebSocket(request), InternalResourceKind.WEBSOCKET),
+                new ClassificationRule(() -> isXhrOrFetch(finalContentType, accept, request), InternalResourceKind.XHR_FETCH));
+
+        for (ClassificationRule rule : rules) {
+            if (rule.matches().getAsBoolean()) {
+                return rule.kind();
+            }
         }
-        if (isStylesheet(contentType, path)) {
-            return InternalResourceKind.STYLESHEET;
-        }
-        if (isScript(contentType, path)) {
-            return InternalResourceKind.SCRIPT;
-        }
-        if (isImage(contentType, path)) {
-            return InternalResourceKind.IMAGE;
-        }
-        if (isFont(contentType, path)) {
-            return InternalResourceKind.FONT;
-        }
-        if (isMedia(contentType, path)) {
-            return InternalResourceKind.MEDIA;
-        }
-        if (isWebSocket(request)) {
-            return InternalResourceKind.WEBSOCKET;
-        }
-        if (isXhrOrFetch(contentType, accept, request)) {
-            return InternalResourceKind.XHR_FETCH;
-        }
-        if (isBlankOrHtmlPath(path)) {
-            return InternalResourceKind.DOCUMENT;
-        }
-        return InternalResourceKind.XHR_FETCH;
+        return isBlankOrHtmlPath(path) ? InternalResourceKind.DOCUMENT : InternalResourceKind.XHR_FETCH;
     }
 
     private static boolean isDocument(String contentType, String accept, String path) {

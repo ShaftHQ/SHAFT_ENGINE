@@ -212,6 +212,7 @@ class CaptureNetworkRecorderTest {
 
         assertFalse(recorder.start());
         assertTrue(warnings.stream().anyMatch(warning -> warning.contains("DevTools") || warning.contains("driver")));
+        assertTrue(events.isEmpty(), "No transactions should be recorded when DevTools is unsupported.");
         recorder.close();
     }
 
@@ -269,7 +270,6 @@ class CaptureNetworkRecorderTest {
         // (registered via DriverFactoryHelper.registerBrowserNetworkInterceptionRule), replacing its
         // filter would silently break those rules with no warning. CaptureNetworkRecorder must
         // refuse to become the sole owner in that case rather than double-registering.
-        List<CaptureNetworkRecorder.RecordedTransaction> events = new ArrayList<>();
         WebDriver driver = devToolsDriver("https://example.test/app");
         DriverFactoryHelper helper = new DriverFactoryHelper();
 
@@ -286,7 +286,7 @@ class CaptureNetworkRecorderTest {
 
                 CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
                         driver, temp.resolve("bodies"), NetworkCaptureOptions.defaults(), "session-1",
-                        events::add, warnings::add);
+                        ignoredTransaction -> { }, warnings::add);
 
                 assertFalse(recorder.start(),
                         "The recorder must not double-register a competing DevTools network filter "

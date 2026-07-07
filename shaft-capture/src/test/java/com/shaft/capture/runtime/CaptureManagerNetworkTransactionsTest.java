@@ -123,7 +123,7 @@ class CaptureManagerNetworkTransactionsTest {
         }
 
         @Override
-        CaptureStatus status() {
+        synchronized CaptureStatus status() {
             return new CaptureStatus(
                     state,
                     "fake-session",
@@ -138,7 +138,7 @@ class CaptureManagerNetworkTransactionsTest {
         }
 
         @Override
-        List<NetworkTransaction> networkTransactions() {
+        synchronized List<NetworkTransaction> networkTransactions() {
             if (state != CaptureStatus.State.ACTIVE) {
                 return List.of();
             }
@@ -165,19 +165,19 @@ class CaptureManagerNetworkTransactionsTest {
         }
 
         @Override
-        CaptureStatus stop(boolean discard) {
+        synchronized CaptureStatus stop(boolean discard) {
             state = discard ? CaptureStatus.State.DISCARDED : CaptureStatus.State.COMPLETED;
             return status();
         }
 
         @Override
-        CaptureStatus interrupt() {
+        synchronized CaptureStatus interrupt() {
             state = CaptureStatus.State.INCOMPLETE;
             return status();
         }
 
         @Override
-        boolean isBrowserAlive() {
+        synchronized boolean isBrowserAlive() {
             return state == CaptureStatus.State.ACTIVE;
         }
     }
