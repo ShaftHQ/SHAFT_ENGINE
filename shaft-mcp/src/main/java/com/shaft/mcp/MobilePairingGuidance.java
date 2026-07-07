@@ -46,9 +46,11 @@ final class MobilePairingGuidance {
         guidance.add("This proxy binds to 127.0.0.1 only. Real (non-emulator/simulator) devices need a USB "
                 + "tunnel such as `adb reverse` (Android) or `iproxy` (iOS) to reach it; direct LAN pairing is "
                 + "not supported in this phase.");
-        guidance.add("Hybrid/webview traffic can be captured without any CA installation via the existing "
-                + "browser capture path (mobile_get_contexts to switch into a WEBVIEW context, then "
-                + "capture_start) since that path uses CDP rather than this proxy.");
+        guidance.add("Hybrid/webview traffic still goes through this MITM proxy today; the existing "
+                + "browser capture path (capture_start, driven by Selenium DevTools) does not attach to "
+                + "Appium's WEBVIEW_* contexts (mobile_get_contexts / mobile_switch_context), since Appium's "
+                + "mobile drivers do not implement Selenium's HasDevTools. A CA-free CDP bridge for webview "
+                + "contexts is a possible future improvement, not available in this phase.");
         return List.copyOf(guidance);
     }
 }

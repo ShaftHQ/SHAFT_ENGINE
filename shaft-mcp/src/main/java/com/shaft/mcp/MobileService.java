@@ -250,8 +250,9 @@ public class MobileService {
     /**
      * Starts a loopback MITM proxy that captures native mobile API traffic as a first-class
      * capture session, independent of any Appium/WebDriver session. HTTPS interception requires the
-     * device or emulator to trust the CA certificate returned in the status; plain HTTP traffic and
-     * Tier-2 hybrid/webview traffic (see {@code mobile_get_contexts}) need no such installation.
+     * device or emulator to trust the CA certificate returned in the status; plain HTTP traffic
+     * needs no such installation. See the returned status's warnings for platform-specific pairing
+     * steps and known limitations (Android 7+ CA trust restrictions, certificate pinning).
      *
      * @param platform "Android", "iOS", or a caller-supplied label, stored for reference only
      * @param deviceLabel emulator/simulator/device identifier, stored for reference only

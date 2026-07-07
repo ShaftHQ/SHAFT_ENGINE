@@ -33,8 +33,8 @@ class MobilePairingGuidanceTest {
                     "missing pinning warning for platform=" + platform);
             assertTrue(guidance.stream().anyMatch(line -> line.contains("127.0.0.1 only")),
                     "missing loopback-only warning for platform=" + platform);
-            assertTrue(guidance.stream().anyMatch(line -> line.contains("mobile_get_contexts")),
-                    "missing Tier-2 webview guidance for platform=" + platform);
+            assertTrue(guidance.stream().anyMatch(line -> line.contains("WEBVIEW_*")),
+                    "missing Tier-2 webview limitation for platform=" + platform);
         }
     }
 
