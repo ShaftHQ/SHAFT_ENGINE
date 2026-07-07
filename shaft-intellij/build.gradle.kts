@@ -1,3 +1,5 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+
 plugins {
     java
     id("org.jetbrains.intellij.platform") version "2.17.0"
@@ -76,6 +78,9 @@ intellijPlatform {
     pluginVerification {
         ides {
             current()
+            // Pin the build that rejected 10.3.20260707 (LafManager.removeLafManagerListener removal)
+            // so a future platform-API removal is caught locally instead of at Marketplace review time.
+            create(IntelliJPlatformType.IntellijIdeaUltimate, "262.8665.81")
         }
     }
 }
