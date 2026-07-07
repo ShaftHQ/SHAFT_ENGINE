@@ -91,6 +91,8 @@ final class AssistantTranscriptView extends JPanel {
     private int truncationBoundaryIndex = -1;
     private Runnable copyFullTranscriptAction = () -> { };
     private JPopupMenu lastMessageContextMenu;
+    private JComponent pendingWidget;
+    private String pendingWidgetRole = UNKNOWN_ROLE;
 
     AssistantTranscriptView() {
         this(null);
@@ -146,6 +148,7 @@ final class AssistantTranscriptView extends JPanel {
     void clear() {
         markdown = "";
         messages.clear();
+        pendingWidget = null;
         refresh();
     }
 
@@ -211,6 +214,33 @@ final class AssistantTranscriptView extends JPanel {
         return lastMessageContextMenu;
     }
 
+    /**
+     * Renders {@code component} as an interactive bubble at the end of the transcript, outside the
+     * persisted {@code messages}/markdown model. Used for ephemeral interactive UI, such as a
+     * pending {@link ToolApprovalPromptPanel}, that should never be serialized into chat history.
+     * Replaces any previously shown widget.
+     *
+     * @param role message role, used only to pick which side of the transcript the bubble renders on
+     * @param component the live Swing component to embed
+     */
+    void showWidget(String role, JComponent component) {
+        pendingWidgetRole = normalizedRole(role);
+        pendingWidget = component;
+        refresh();
+    }
+
+    /**
+     * Removes the widget shown by {@link #showWidget(String, JComponent)}, if any.
+     */
+    void clearWidget() {
+        pendingWidget = null;
+        refresh();
+    }
+
+    JComponent pendingWidgetForTest() {
+        return pendingWidget;
+    }
+
     private JBScrollPane createFallbackScrollPane(Color transcriptBackground) {
         JBScrollPane scrollPane = new JBScrollPane(fallbackPanel);
         scrollPane.setBorder(JBUI.Borders.empty());
@@ -258,8 +288,21 @@ final class AssistantTranscriptView extends JPanel {
             ShaftAssistantChatState.Message message = messages.get(i);
             fallbackPanel.add(fallbackMessage(message.role, message.markdown));
         }
+        if (pendingWidget != null) {
+            fallbackPanel.add(widgetRow(pendingWidgetRole, pendingWidget));
+        }
         fallbackPanel.revalidate();
         fallbackPanel.repaint();
+    }
+
+    private JComponent widgetRow(String role, JComponent component) {
+        boolean user = USER_ROLE.equals(role);
+        JPanel row = new PreferredHeightRow(new BorderLayout());
+        row.setOpaque(false);
+        row.setBorder(JBUI.Borders.emptyBottom(10));
+        row.getAccessibleContext().setAccessibleName("Assistant interactive message row");
+        row.add(component, user ? BorderLayout.EAST : BorderLayout.WEST);
+        return row;
     }
 
     private JComponent createTruncationDivider() {

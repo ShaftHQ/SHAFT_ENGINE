@@ -16,6 +16,8 @@ import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.WrapLayout;
+import com.shaft.intellij.approval.ToolApprovalDecision;
+import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.mcp.ShaftMcpConnectionState;
 import com.shaft.intellij.mcp.ShaftMcpHeartbeat;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
@@ -63,10 +65,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 /**
  * SHAFT Assistant chat-style panel.
@@ -99,6 +104,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final JBCheckBox allowSourceMutation;
     private final JBCheckBox verboseAgentOutput;
     private final JBCheckBox autoCompact;
+    private final JBCheckBox approveAllTools;
     private final JBTextArea prompt;
     private final AssistantTranscriptView transcript;
     private final JButton send;
@@ -149,6 +155,8 @@ final class ShaftAssistantPanel extends JPanel {
     private List<AssistantCommand.ToolCall> currentToolSequence = List.of();
     private StringBuilder sequenceMarkdown;
     private StringBuilder sequenceRawOutput;
+    private final Set<String> approvedToolsThisRun = new HashSet<>();
+    private ToolApprovalService approvalServiceOverride;
     private JPopupMenu contextPopup;
     private final ShaftMcpConnectionState connectionState;
     private ShaftMcpHeartbeat heartbeat;
@@ -335,6 +343,12 @@ final class ShaftAssistantPanel extends JPanel {
         autoCompact.setToolTipText("Send the agent CLI's compact/compress command before each new prompt, when supported");
         autoCompact.setSelected(settings.autoCompactEnabled);
         autoCompact.addActionListener(event -> settings.autoCompactEnabled = autoCompact.isSelected());
+        approveAllTools = new JBCheckBox("Approve all SHAFT tools");
+        approveAllTools.getAccessibleContext().setAccessibleName("Approve all SHAFT tools");
+        approveAllTools.setToolTipText("Skip the approval prompt for every SHAFT MCP tool call in this IDE session");
+        approveAllTools.setSelected(approvalService().getState().approveAllTools);
+        approveAllTools.addActionListener(event ->
+                approvalService().getState().approveAllTools = approveAllTools.isSelected());
         prompt = new JBTextArea(6, 40);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
@@ -492,6 +506,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(cloudModel);
         routeRow.add(localModel);
         routeRow.add(allowSourceMutation);
+        routeRow.add(approveAllTools);
         routeRow.add(verboseAgentOutput);
         routeRow.add(autoCompact);
 
@@ -775,6 +790,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         lastPrompt = text;
         rerunLastPrompt.setEnabled(true);
+        approvedToolsThisRun.clear();
         resetTimeline("Prompt received");
         AssistantCommand.Selection route = selectedRoute();
         boolean agentMode = "AGENT".equals(String.valueOf(mode.getSelectedItem()));
@@ -860,12 +876,24 @@ final class ShaftAssistantPanel extends JPanel {
             startToolSequence(invocation.toolCalls());
             return;
         }
+        gateTool(invocation.toolName(), invocation.arguments(),
+                () -> dispatchApprovedTool(invocation),
+                () -> showDeniedToolResult(invocation.toolName()));
+    }
+
+    private void dispatchApprovedTool(AssistantCommand.Invocation invocation) {
         addTimeline("Tool selected: " + invocation.toolName());
         addTimeline("Running");
         setRunning(true, "Running " + invocation.toolName() + "...");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(invocation.toolName(), result, error)));
+    }
+
+    private void showDeniedToolResult(String toolName) {
+        setRunning(false, "Denied " + toolName);
+        addTimeline("Denied");
+        showResponse("**SHAFT Assistant (" + toolName + " denied)**\n\nThe request was denied.", "");
     }
 
     private void startToolSequence(List<AssistantCommand.ToolCall> toolCalls) {
@@ -884,10 +912,111 @@ final class ShaftAssistantPanel extends JPanel {
             return;
         }
         AssistantCommand.ToolCall toolCall = currentToolSequence.get(index);
+        gateTool(toolCall.toolName(), toolCall.arguments(),
+                () -> dispatchApprovedSequenceTool(index, toolCall),
+                () -> showDeniedSequenceResult(toolCall));
+    }
+
+    private void dispatchApprovedSequenceTool(int index, AssistantCommand.ToolCall toolCall) {
         setRunning(true, "Running " + toolCall.toolName() + " (" + (index + 1) + "/" + currentToolSequence.size() + ")...");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(toolCall.toolName(), toolCall.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showSequenceResult(index, toolCall, result, error)));
+    }
+
+    private void showDeniedSequenceResult(AssistantCommand.ToolCall toolCall) {
+        sequenceMarkdown.append("### ")
+                .append(toolCall.toolName())
+                .append(" denied")
+                .append("\n\n")
+                .append("The request was denied.")
+                .append("\n\n");
+        setRunning(false, "Denied " + toolCall.toolName());
+        addTimeline("Denied");
+        showResponse("**SHAFT Assistant sequence denied**\n\n" + sequenceMarkdown, sequenceRawOutput.toString());
+        clearSequenceState();
+    }
+
+    /**
+     * Gates a SHAFT MCP tool call behind the shared approval flow: tools already approved
+     * (permanently, via approve-all, or already decided once in this run) dispatch immediately;
+     * anything else renders a {@link ToolApprovalPromptPanel} bubble in the transcript and waits
+     * for the user's decision before proceeding. A tool is prompted at most once per distinct name
+     * within a single run (tracked by {@link #approvedToolsThisRun}), so a sequence that repeats the
+     * same tool never prompt-storms the user.
+     *
+     * @param toolName MCP tool name about to be dispatched
+     * @param arguments tool arguments shown in the approval prompt
+     * @param onApproved invoked once the tool is approved (already, or via a fresh decision)
+     * @param onDenied invoked if the user denies the tool call
+     */
+    private void gateTool(String toolName, JsonObject arguments, Runnable onApproved, Runnable onDenied) {
+        if (approvedToolsThisRun.contains(toolName) || approvalService().isApproved(toolName)) {
+            approvedToolsThisRun.add(toolName);
+            onApproved.run();
+            return;
+        }
+        setStatus("Awaiting approval for " + toolName + "...");
+        requestToolApproval(toolName, arguments, decision -> {
+            if (decision == ToolApprovalDecision.DENY) {
+                onDenied.run();
+            } else {
+                approvedToolsThisRun.add(toolName);
+                onApproved.run();
+            }
+        });
+    }
+
+    /**
+     * Renders an interactive {@link ToolApprovalPromptPanel} bubble in the transcript and resolves
+     * {@code onDecision} once the user clicks a button. The button listener only completes a
+     * {@link CompletableFuture}; the continuation (recording the decision, clearing the widget,
+     * appending the outcome, and invoking {@code onDecision}) is marshaled back onto the EDT via
+     * {@link #runOnEdt} so no blocking {@code get()}/{@code join()} ever runs on the EDT.
+     */
+    private void requestToolApproval(String toolName, JsonObject arguments, Consumer<ToolApprovalDecision> onDecision) {
+        ToolApprovalPromptPanel.AgentApprovalCapability capability = currentApprovalCapability();
+        CompletableFuture<ToolApprovalDecision> future = new CompletableFuture<>();
+        ToolApprovalPromptPanel approvalPanel = new ToolApprovalPromptPanel(toolName, arguments, capability, future::complete);
+        transcript.showWidget("assistant", approvalPanel);
+        future.whenComplete((decision, error) -> runOnEdt(() -> {
+            transcript.clearWidget();
+            if (decision == null) {
+                return;
+            }
+            approvalService().record(decision, toolName);
+            append("assistant", approvalOutcomeMessage(toolName, decision), "");
+            onDecision.accept(decision);
+        }));
+    }
+
+    private static String approvalOutcomeMessage(String toolName, ToolApprovalDecision decision) {
+        return switch (decision) {
+            case DENY -> "Denied `" + toolName + "`.";
+            case APPROVE_ONCE -> "Approved `" + toolName + "` once.";
+            case APPROVE_TOOL_ALWAYS -> "Approved `" + toolName + "` for the rest of this session.";
+            case APPROVE_ALL_TOOLS -> "Approved all SHAFT tools for the rest of this session.";
+        };
+    }
+
+    private ToolApprovalPromptPanel.AgentApprovalCapability currentApprovalCapability() {
+        return ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD;
+    }
+
+    /**
+     * Returns the tool approval service: the real application-level singleton when running inside
+     * an IDE, or a per-panel fallback instance in headless/unit-test contexts where no
+     * {@link ApplicationManager} application is bootstrapped. Tests may also inject a stub directly
+     * via the {@code approvalServiceOverride} field.
+     */
+    private ToolApprovalService approvalService() {
+        if (ApplicationManager.getApplication() != null) {
+            return ToolApprovalService.getInstance();
+        }
+        if (approvalServiceOverride == null) {
+            approvalServiceOverride = new ToolApprovalService();
+        }
+        return approvalServiceOverride;
     }
 
     private void showSequenceResult(
@@ -1351,6 +1480,7 @@ final class ShaftAssistantPanel extends JPanel {
         customCommand.setEnabled(!running);
         commandAutocomplete.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
+        approveAllTools.setEnabled(!running && currentApprovalCapability().supportsApprovals());
         verboseAgentOutput.setEnabled(!running);
         autoCompact.setEnabled(!running);
         saveCloudApiKey.setEnabled(!running);
@@ -1489,6 +1619,9 @@ final class ShaftAssistantPanel extends JPanel {
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
+        boolean approvalsSupported = currentApprovalCapability().supportsApprovals();
+        approveAllTools.setVisible(approvalsSupported);
+        approveAllTools.setEnabled(controlsEnabled && approvalsSupported);
         verboseAgentOutput.setVisible(localAgent && localCli);
         verboseAgentOutput.setEnabled(controlsEnabled && localAgent && localCli);
         localModel.setVisible(advanced && !lockedRoute && localCli);
