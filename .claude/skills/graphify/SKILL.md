@@ -3,4 +3,4 @@ name: graphify
 description: Map SHAFT_ENGINE before broad search.
 ---
 # Graphify
-See `../../../tools/repository-map/README.md`; never commit `graphify-out`.
+Cache: `tools/repository-map/resolve_graph_out.py --check`; else `rg`/.memory. Never commit `graphify-out`.
