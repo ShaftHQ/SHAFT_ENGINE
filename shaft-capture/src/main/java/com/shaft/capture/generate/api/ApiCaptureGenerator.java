@@ -11,6 +11,7 @@ import com.shaft.capture.model.network.BodyRef;
 import com.shaft.capture.model.network.HttpRequestRecord;
 import com.shaft.capture.model.network.HttpResponseRecord;
 import com.shaft.capture.model.network.ResourceKind;
+import com.shaft.capture.generate.api.internal.OpenApiCoverageReporter;
 import com.shaft.capture.storage.NetworkBodyStore;
 
 import java.io.IOException;
@@ -139,7 +140,7 @@ public final class ApiCaptureGenerator {
                     List.of("Generated artifacts could not be written: " + safeMessage(writeFailure)), request.overwrite());
         }
 
-        return compileAndReport(request, session, analysis.className(), sourcePath, testDataDirectory,
+        return compileAndReport(request, session, analysis, sourcePath, testDataDirectory,
                 classesDirectory, warnings, reportPath, outputRoot);
     }
 
@@ -162,8 +163,9 @@ public final class ApiCaptureGenerator {
     }
 
     private ApiCaptureGenerationResult compileAndReport(
-            ApiCaptureGenerationRequest request, CaptureSession session, String className, Path sourcePath,
+            ApiCaptureGenerationRequest request, CaptureSession session, Analysis analysis, Path sourcePath,
             Path testDataDirectory, Path classesDirectory, List<String> warnings, Path reportPath, Path outputRoot) {
+        String className = analysis.className();
         CaptureGenerationReport.Validation compilation = request.compile()
                 ? validator.compile(sourcePath, classesDirectory)
                 : CaptureGenerationReport.Validation.skipped("Compilation was not requested.");
@@ -197,9 +199,27 @@ public final class ApiCaptureGenerator {
                 warnings,
                 compilation,
                 replay,
-                CaptureGenerationReport.Enrichment.notRequested());
+                CaptureGenerationReport.Enrichment.notRequested(),
+                openApiCoverage(request, analysis.transactions()));
         writeReportIfPossible(reportPath, report, request.overwrite());
         return new ApiCaptureGenerationResult(sourcePath, testDataDirectory, reportPath, report);
+    }
+
+    private static CaptureGenerationReport.OpenApiCoverage openApiCoverage(
+            ApiCaptureGenerationRequest request, List<ApiTransaction> transactions) {
+        if (request.openApiSpecPath() == null) {
+            return CaptureGenerationReport.OpenApiCoverage.notRequested();
+        }
+        OpenApiCoverageReporter.CoverageReport coverage =
+                OpenApiCoverageReporter.report(request.openApiSpecPath(), transactions);
+        return new CaptureGenerationReport.OpenApiCoverage(
+                coverage.loadable(),
+                coverage.loadFailureReason(),
+                coverage.coveredOperations(),
+                coverage.missingOperations(),
+                coverage.undeclaredOperations(),
+                coverage.totalDeclaredOperations(),
+                coverage.coverageRatio());
     }
 
     /**

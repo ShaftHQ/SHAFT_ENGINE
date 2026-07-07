@@ -54,6 +54,42 @@ class ApiCaptureGeneratorTest {
     }
 
     @Test
+    void openApiSpecPathReportsCoverageAlongsideSuccessfulGeneration() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-coverage"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-api-coverage");
+        Path specPath = outputRoot.resolve("openapi.json");
+        Files.writeString(specPath, """
+                {"paths": {"/orders": {"post": {}}, "/orders/{id}": {"get": {}}, "/health": {"get": {}}}}
+                """, StandardCharsets.UTF_8);
+
+        ApiCaptureGenerator generator = new ApiCaptureGenerator();
+        ApiCaptureGenerationResult result = generator.generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS, true, false, true, specPath));
+
+        assertEquals(CaptureGenerationReport.Status.SUCCESS, result.report().status());
+        CaptureGenerationReport.OpenApiCoverage coverage = result.report().openApiCoverage();
+        assertTrue(coverage.loadable(), "Coverage load failure: " + coverage.loadFailureReason());
+        assertEquals(3, coverage.totalDeclaredOperations());
+        assertTrue(coverage.coveredOperations().contains("POST /orders"));
+        assertTrue(coverage.coveredOperations().contains("GET /orders/{param}"));
+        assertTrue(coverage.missingOperations().contains("GET /health"));
+    }
+
+    @Test
+    void noOpenApiSpecPathLeavesCoverageNotRequested() throws Exception {
+        Path outputRoot = Files.createDirectories(tempDir.resolve("project-no-coverage"));
+        Path sessionPath = writeRecordedSession(outputRoot, "session-api-no-coverage");
+
+        ApiCaptureGenerationResult result = new ApiCaptureGenerator().generate(new ApiCaptureGenerationRequest(
+                sessionPath, outputRoot, "tests.generated", "",
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.STATUS, true, false, true));
+
+        assertFalse(result.report().openApiCoverage().loadable());
+        assertEquals(0, result.report().openApiCoverage().totalDeclaredOperations());
+    }
+
+    @Test
     void sessionWithNoNetworkEventsFailsWithAClearUnsupportedReason() throws Exception {
         Path outputRoot = Files.createDirectories(tempDir.resolve("project-empty"));
         CaptureSession session = CaptureFixtures.representativeSession();

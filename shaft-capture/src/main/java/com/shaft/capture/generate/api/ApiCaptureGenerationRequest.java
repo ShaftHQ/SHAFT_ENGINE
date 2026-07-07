@@ -16,6 +16,8 @@ import java.nio.file.Path;
  *               off by default at the caller level since replaying non-idempotent HTTP methods
  *               against a live service is unsafe to do automatically)
  * @param overwrite whether existing output files may be overwritten
+ * @param openApiSpecPath optional path to an OpenAPI (JSON or YAML) spec to cross-report recorded
+ *                        endpoints against; {@code null} skips coverage reporting entirely
  */
 public record ApiCaptureGenerationRequest(
         Path sessionPath,
@@ -26,11 +28,39 @@ public record ApiCaptureGenerationRequest(
         ApiValidationDepth validationDepth,
         boolean compile,
         boolean replay,
-        boolean overwrite) {
+        boolean overwrite,
+        Path openApiSpecPath) {
     public ApiCaptureGenerationRequest {
         packageName = packageName == null || packageName.isBlank() ? "tests.generated" : packageName;
         className = className == null ? "" : className.trim();
         style = style == null ? ApiCodegenStyle.SCENARIO : style;
         validationDepth = validationDepth == null ? ApiValidationDepth.SCHEMA : validationDepth;
+    }
+
+    /**
+     * Compatibility constructor for callers compiled before OpenAPI coverage reporting was added.
+     *
+     * @param sessionPath path to the recorded {@code CaptureSession} JSON file
+     * @param outputDirectory project root the generated source/test-data/report are written under
+     * @param packageName generated class package
+     * @param className generated class name; blank derives one deterministically from the session ID
+     * @param style how transactions are grouped into test methods
+     * @param validationDepth how thoroughly each response is validated
+     * @param compile whether to compile the generated source
+     * @param replay whether to replay the compiled class
+     * @param overwrite whether existing output files may be overwritten
+     */
+    public ApiCaptureGenerationRequest(
+            Path sessionPath,
+            Path outputDirectory,
+            String packageName,
+            String className,
+            ApiCodegenStyle style,
+            ApiValidationDepth validationDepth,
+            boolean compile,
+            boolean replay,
+            boolean overwrite) {
+        this(sessionPath, outputDirectory, packageName, className, style, validationDepth, compile, replay,
+                overwrite, null);
     }
 }

@@ -293,13 +293,17 @@ public class CaptureService {
      *                        {@code generated-tests}
      * @param packageName generated Java package
      * @param className optional generated class name; blank derives one from the session ID
-     * @param style {@code SCENARIO} (default; chains correlated values through variables) or
-     *              {@code PER_REQUEST} (one independent test per transaction)
+     * @param style {@code SCENARIO} (default; chains correlated values through variables),
+     *              {@code PER_REQUEST} (one independent test per transaction), or
+     *              {@code HYBRID_UI_API} (interleaves API assertions after their correlated UI
+     *              anchor; deterministic even with no AI enrichment)
      * @param validationDepth {@code STATUS}, {@code STATUS_HEADERS}, {@code SCHEMA} (default), or
      *                        {@code FULL_BODY}
      * @param overwrite whether existing artifacts may be replaced
      * @param replay whether to execute the generated test after compiling (off by default; unsafe
      *               to enable automatically for non-idempotent methods)
+     * @param openApiSpecPath optional path (inside the MCP workspace) to an OpenAPI JSON/YAML spec
+     *                        to cross-report recorded endpoints against; blank skips coverage
      * @return generated artifacts, compile/replay result, and copy-paste code blocks
      */
     @Tool(name = "capture_api_generate",
@@ -312,10 +316,14 @@ public class CaptureService {
             String style,
             String validationDepth,
             boolean overwrite,
-            boolean replay) {
+            boolean replay,
+            String openApiSpecPath) {
         Path output = outputDirectory == null || outputDirectory.isBlank()
                 ? workspacePolicy.output("generated-tests", "Capture generation output directory")
                 : workspacePolicy.output(outputDirectory, "Capture generation output directory");
+        Path openApiSpec = openApiSpecPath == null || openApiSpecPath.isBlank()
+                ? null
+                : workspacePolicy.existing(openApiSpecPath, "OpenAPI spec path");
         ApiCaptureGenerationResult result = new ApiCaptureGenerator().generate(new ApiCaptureGenerationRequest(
                 workspacePolicy.existing(sessionPath, "Capture session path"),
                 output,
@@ -325,7 +333,8 @@ public class CaptureService {
                 parseValidationDepth(validationDepth),
                 true,
                 replay,
-                overwrite));
+                overwrite,
+                openApiSpec));
         boolean successful = result.report().status() == CaptureGenerationReport.Status.SUCCESS;
         List<McpCodeBlock> blocks = successful && result.sourcePath() != null
                 ? codeBlocks.fromGeneratedSource(result.sourcePath(), "api", result.report())
