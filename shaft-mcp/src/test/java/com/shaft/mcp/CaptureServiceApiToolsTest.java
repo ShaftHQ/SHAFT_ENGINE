@@ -194,7 +194,7 @@ class CaptureServiceApiToolsTest {
                 McpWorkspacePolicy.of(temp),
                 new McpCaptureCodeBlockService());
         try {
-            Path sessionPath = writeRecordedSession();
+            writeRecordedSession();
             Path specPath = temp.resolve("openapi.json");
             Files.writeString(specPath,
                     "{\"paths\": {\"/orders\": {\"post\": {}}}}", StandardCharsets.UTF_8);

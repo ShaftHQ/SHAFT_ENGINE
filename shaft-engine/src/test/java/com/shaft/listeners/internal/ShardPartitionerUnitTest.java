@@ -31,6 +31,16 @@ public class ShardPartitionerUnitTest {
     }
 
     @Test
+    public void parseReturnsDisabledRatherThanThrowingWhenDigitsOverflowAnInt() {
+        // The regex only matches digit runs; a run far longer than Integer.MAX_VALUE's digits
+        // still matches the pattern but cannot fit in an int, so parse() must degrade to disabled
+        // rather than propagate a NumberFormatException.
+        ShardPartitioner.Spec spec = ShardPartitioner.parse("99999999999999999999/8");
+
+        Assert.assertFalse(spec.enabled());
+    }
+
+    @Test
     public void sameInputAlwaysYieldsTheSameShard() {
         int shardA = ShardPartitioner.shardOf("com.example.CheckoutTest", "payShouldSucceed", 8);
         int shardB = ShardPartitioner.shardOf("com.example.CheckoutTest", "payShouldSucceed", 8);

@@ -32,8 +32,17 @@ public final class ShardPartitioner {
         if (!matcher.matches()) {
             return Spec.disabled();
         }
-        int index = Integer.parseInt(matcher.group(1));
-        int total = Integer.parseInt(matcher.group(2));
+        int index;
+        int total;
+        try {
+            index = Integer.parseInt(matcher.group(1));
+            total = Integer.parseInt(matcher.group(2));
+        } catch (NumberFormatException tooManyDigitsToFitAnInt) {
+            // The regex only matches digit runs, but a pathologically long run (more digits than
+            // an int can hold) still fails to parse -- treat that the same as any other malformed
+            // spec rather than letting an unbounded system property crash test startup.
+            return Spec.disabled();
+        }
         if (total < 1 || index < 1 || index > total) {
             return Spec.disabled();
         }
