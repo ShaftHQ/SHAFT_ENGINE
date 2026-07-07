@@ -18,7 +18,15 @@ export const meta = {
 // fallback drift is visible in the PR body.
 const PLAN_CHAIN = ["fable", "opus"];
 const ORCH_CHAIN = ["opus", "sonnet"];
-const MAX_QA_ROUNDS = 3;
+
+// Risk tier drives both who implements and how many QA rounds are
+// allowed before escalation. "high" additionally turns on the adversarial
+// Haiku refuter after a passing QA verdict. Absent riskTier means "med".
+const RISK_TIERS = {
+  low: { implementer: "haiku", qaRounds: 1, refuter: false },
+  med: { implementer: "haiku", qaRounds: 2, refuter: false },
+  high: { implementer: "sonnet", qaRounds: 3, refuter: true },
+};
 
 const runLog = [];
 
@@ -31,9 +39,11 @@ const TASK_ITEM = {
     files: { type: "array", items: { type: "string" } },
     acceptance: { type: "array", items: { type: "string" } },
     // Precisely-arranged core code (sync/wait internals, locator
-    // resolution, shaft-intellij EDT threading): Sonnet implements
-    // directly instead of Haiku. Delegation is a default, not a dogma.
-    needsStrongImplementer: { type: "boolean" },
+    // resolution, shaft-intellij EDT threading), public API surface, or
+    // release/build plumbing: riskTier="high" routes to Sonnet plus the
+    // adversarial refuter instead of the default Haiku path. Absent
+    // riskTier means "med". Delegation is a default, not a dogma.
+    riskTier: { type: "string", enum: ["low", "med", "high"] },
   },
 };
 
@@ -64,21 +74,50 @@ const QA_VERDICT = {
   },
 };
 
+// Adversarial second opinion run only on high-tier tasks after a passing
+// QA verdict. Defaults toward suspicion: refuted=false requires a
+// deliberate finding of no concrete gap, not mere absence of complaint.
+const REFUTER_VERDICT = {
+  type: "object",
+  required: ["refuted", "reasons"],
+  properties: {
+    refuted: { type: "boolean" },
+    reasons: { type: "array", items: { type: "string" } },
+  },
+};
+
 // Structured report every implement/fix/escalate agent call returns. The
 // commitSha field is how work is handed off across the fresh, randomly
 // picked worktree each call gets: all worktrees share one git object
 // store, so any commit SHA is reachable repo-wide via `git show`/
-// `git cherry-pick` regardless of which worktree made it.
+// `git cherry-pick` regardless of which worktree made it. restatedGoal
+// and plannedFiles are the task-contract echo: the implementer must
+// commit to a goal/file-scope reading BEFORE writing code, so a
+// materially wrong reading surfaces as a bounce (commitSha:"BOUNCED")
+// instead of silently drifting into out-of-scope work.
 const IMPL_REPORT = {
   type: "object",
-  required: ["summary", "filesTouched", "commitSha"],
+  required: [
+    "summary",
+    "filesTouched",
+    "commitSha",
+    "restatedGoal",
+    "plannedFiles",
+  ],
   properties: {
     summary: { type: "string" },
     filesTouched: { type: "array", items: { type: "string" } },
     commitSha: { type: "string" },
     compileCheck: { type: "string" },
+    restatedGoal: { type: "string" },
+    plannedFiles: { type: "array", items: { type: "string" } },
   },
 };
+
+// Only strings that look like a real git SHA are ever pushed into a
+// commits[] handoff list; "BOUNCED" (or anything else non-SHA-shaped)
+// must never reach a cherry-pick instruction in a later prompt.
+const SHA_RE = /^[0-9a-f]{7,40}$/i;
 
 // Every prompt restates its contract because each agent starts with a
 // fresh context: nothing survives except what is written down.
@@ -125,10 +164,14 @@ function planPrompt(issue) {
     "Produce a spec: summary, overall acceptance checks, risk notes, and a",
     "list of independent tasks. Each task needs id, goal, likely files,",
     "and concrete acceptance checks an independent QA agent can verify",
-    "from the diff. Set needsStrongImplementer=true for tasks touching",
+    "from the diff. Assign riskTier per task: \"high\" is REQUIRED for",
     "precisely-arranged core code (sync/wait internals, locator",
-    "resolution, shaft-intellij EDT threading). Keep tasks minimal and",
-    "non-overlapping; do not include speculative refactors.",
+    "resolution -- shaft-engine element/browser sync + locator building --,",
+    "shaft-intellij EDT/Swing threading); \"high\" also for changes to",
+    "public API surface or release/build plumbing. \"low\" only for",
+    "mechanical single-file changes with a trivially checkable acceptance.",
+    "Default to \"med\" otherwise. Keep tasks minimal and non-overlapping;",
+    "do not include speculative refactors.",
   ].join("\n");
 }
 
@@ -136,7 +179,9 @@ function orchestratePrompt(plan) {
   return [
     "You are the dispatcher. Split this plan into independent tasks that",
     "can be implemented in isolated worktrees without conflicting edits;",
-    "merge or reorder tasks that overlap on the same files. Do not add",
+    "merge or reorder tasks that overlap on the same files. Preserve each",
+    "task's riskTier; if you merge tasks, the merged task's riskTier is",
+    "the highest of the tasks merged (high > med > low). Do not add",
     "scope. Plan:",
     "",
     JSON.stringify(plan, null, 2),
@@ -152,12 +197,21 @@ function implementPrompt(task) {
     "",
     JSON.stringify(task, null, 2),
     "",
+    "BEFORE writing any code: restate the task goal in one line",
+    "(restatedGoal) and list the files you plan to touch (plannedFiles).",
+    "If during work you find the task is materially different from its",
+    "stated goal, or requires touching files far outside task.files, STOP",
+    "without committing: set commitSha to the literal string \"BOUNCED\"",
+    "and explain why in summary -- do not force a fix into a task that",
+    "does not match reality.",
+    "",
     "Compile-check what you changed.",
     "",
     COMMIT_INSTRUCTION,
     "",
     "Your final structured report must carry the exact commit SHA from",
-    "`git rev-parse HEAD` after committing, plus the files you touched.",
+    "`git rev-parse HEAD` after committing, plus the files you touched,",
+    "unless you bounced (see above).",
   ].join("\n");
 }
 
@@ -210,10 +264,11 @@ function fixPrompt(task, gaps, commits) {
   ].join("\n");
 }
 
-function escalatePrompt(task, gaps, commits) {
+function escalatePrompt(task, gaps, commits, qaRounds) {
   return [
-    "You are Bruce, the task owner. The Haiku QA loop did not converge",
-    "after " + MAX_QA_ROUNDS + " rounds; finish the task directly.",
+    "You are Bruce, the task owner. The QA loop did not converge",
+    "after " + qaRounds + " round(s) (this task's riskTier caps it at",
+    qaRounds + "); finish the task directly.",
     "Read AGENTS.md, close these remaining gaps, and verify. " +
       VALIDATION_RULES,
     "",
@@ -237,6 +292,31 @@ function escalatePrompt(task, gaps, commits) {
   ].join("\n");
 }
 
+function refutePrompt(task, latestSha) {
+  return [
+    "You are an adversarial reviewer. A QA verdict just passed this task,",
+    "but this is a high-risk task -- precisely-arranged core code, public",
+    "API surface, or release/build plumbing -- so it gets a second,",
+    "skeptical pass before it is trusted. Your job is to try to REFUTE the",
+    "pass verdict, not to rubber-stamp it.",
+    "",
+    "Inspect the actual commit with `git show " + latestSha + "` (this SHA",
+    "is reachable from your worktree regardless of which worktree made",
+    "it -- all worktrees share one git object store). Hunt for stubs,",
+    "TODO-standing-in-for-logic, weakened or skipped assertions, and any",
+    "acceptance item of the task below that is not actually met:",
+    "",
+    JSON.stringify(task, null, 2),
+    "",
+    "Set refuted=true only for CONCRETE gaps: a specific file+line, or a",
+    "specific acceptance item with no evidence it was met. Style nits,",
+    "taste preferences, or \"could be better\" observations do NOT refute",
+    "the verdict. Default to refuted=false only after you have actively",
+    "looked and found nothing concrete -- do not default to false merely",
+    "because the QA verdict already said pass.",
+  ].join("\n");
+}
+
 async function withFallback(phase, chain, prompt, opts = {}) {
   let lastError;
   for (const model of chain) {
@@ -252,25 +332,53 @@ async function withFallback(phase, chain, prompt, opts = {}) {
   throw lastError;
 }
 
-// Sonnet owns; Haiku implements; loop until the QA verdict dries out,
-// hard-capped, then the owner finishes directly (no livelock).
+// Only ever hand a real SHA to a later cherry-pick instruction; a
+// bounced "BOUNCED" sentinel must never be pushed onto the commits chain.
+function pushIfRealSha(commits, sha) {
+  if (SHA_RE.test(sha)) commits.push(sha);
+}
+
+// Sonnet owns; the tier's implementer implements; loop until the QA
+// verdict dries out (capped per-tier), then the owner finishes directly
+// (no livelock). High-tier tasks additionally get one adversarial Haiku
+// refuter pass after a QA pass before the task is considered done.
 async function ownTask(task) {
-  const implementerModel = task.needsStrongImplementer ? "sonnet" : "haiku";
+  const tier = RISK_TIERS[task.riskTier] || RISK_TIERS.med;
+  const implementerModel = tier.implementer;
   let report = await agent(implementPrompt(task), {
     model: implementerModel,
     isolation: "worktree",
     schema: IMPL_REPORT,
   });
   runLog.push({ phase: "implement:" + task.id, model: implementerModel });
-  const commits = [report.commitSha];
+
+  if (report.commitSha === "BOUNCED") {
+    runLog.push({ phase: "bounce:" + task.id, model: implementerModel });
+    return { task: task.id, bounced: true, report, runLog };
+  }
+
+  const commits = [];
+  pushIfRealSha(commits, report.commitSha);
 
   let gaps = [];
-  for (let round = 0; round < MAX_QA_ROUNDS; round++) {
-    const verdict = await agent(qaPrompt(task, report, report.commitSha), {
+  for (let round = 0; round < tier.qaRounds; round++) {
+    let verdict = await agent(qaPrompt(task, report, report.commitSha), {
       model: "sonnet",
       schema: QA_VERDICT,
     });
     runLog.push({ phase: "qa:" + task.id + ":" + round, model: "sonnet" });
+
+    if (verdict.pass && tier.refuter) {
+      const refutation = await agent(refutePrompt(task, report.commitSha), {
+        model: "haiku",
+        schema: REFUTER_VERDICT,
+      });
+      runLog.push({ phase: "refute:" + task.id + ":" + round, model: "haiku" });
+      if (refutation.refuted) {
+        verdict = { pass: false, gaps: refutation.reasons, checksRun: verdict.checksRun };
+      }
+    }
+
     if (verdict.pass) return { task: task.id, verdict, commits, runLog };
     gaps = verdict.gaps;
     report = await agent(fixPrompt(task, gaps, commits), {
@@ -279,16 +387,15 @@ async function ownTask(task) {
       schema: IMPL_REPORT,
     });
     runLog.push({ phase: "fix:" + task.id + ":" + round, model: implementerModel });
-    commits.push(report.commitSha);
+    pushIfRealSha(commits, report.commitSha);
   }
 
-  const escalation = await agent(escalatePrompt(task, gaps, commits), {
-    model: "sonnet",
-    isolation: "worktree",
-    schema: IMPL_REPORT,
-  });
+  const escalation = await agent(
+    escalatePrompt(task, gaps, commits, tier.qaRounds),
+    { model: "sonnet", isolation: "worktree", schema: IMPL_REPORT }
+  );
   runLog.push({ phase: "escalate:" + task.id, model: "sonnet" });
-  commits.push(escalation.commitSha);
+  pushIfRealSha(commits, escalation.commitSha);
   return { task: task.id, escalated: true, escalation, commits, runLog };
 }
 

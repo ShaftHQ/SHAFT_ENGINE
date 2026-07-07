@@ -17,7 +17,15 @@ export const meta = {
 };
 
 const SYNTH_CHAIN = ["fable", "opus"];
-const MAX_QA_ROUNDS = 3;
+
+// Risk tier drives both who implements and how many QA rounds are
+// allowed before escalation. "high" additionally turns on the adversarial
+// Haiku refuter after a passing QA verdict. Absent riskTier means "med".
+const RISK_TIERS = {
+  low: { implementer: "haiku", qaRounds: 1, refuter: false },
+  med: { implementer: "haiku", qaRounds: 2, refuter: false },
+  high: { implementer: "sonnet", qaRounds: 3, refuter: true },
+};
 
 const runLog = [];
 
@@ -51,7 +59,12 @@ const FIX_PLAN_SCHEMA = {
           goal: { type: "string" },
           files: { type: "array", items: { type: "string" } },
           acceptance: { type: "array", items: { type: "string" } },
-          needsStrongImplementer: { type: "boolean" },
+          // Precisely-arranged core code (sync/wait internals, locator
+          // resolution, shaft-intellij EDT threading), public API surface,
+          // or release/build plumbing: riskTier="high" routes to Sonnet
+          // plus the adversarial refuter instead of the default Haiku
+          // path. Absent riskTier means "med".
+          riskTier: { type: "string", enum: ["low", "med", "high"] },
         },
       },
     },
@@ -68,21 +81,50 @@ const QA_VERDICT = {
   },
 };
 
+// Adversarial second opinion run only on high-tier fixes after a passing
+// QA verdict. Defaults toward suspicion: refuted=false requires a
+// deliberate finding of no concrete gap, not mere absence of complaint.
+const REFUTER_VERDICT = {
+  type: "object",
+  required: ["refuted", "reasons"],
+  properties: {
+    refuted: { type: "boolean" },
+    reasons: { type: "array", items: { type: "string" } },
+  },
+};
+
 // Structured report every implement/fix/escalate agent call returns. The
 // commitSha field is how work is handed off across the fresh, randomly
 // picked worktree each call gets: all worktrees share one git object
 // store, so any commit SHA is reachable repo-wide via `git show`/
-// `git cherry-pick` regardless of which worktree made it.
+// `git cherry-pick` regardless of which worktree made it. restatedGoal
+// and plannedFiles are the task-contract echo: the implementer must
+// commit to a goal/file-scope reading BEFORE writing code, so a
+// materially wrong reading surfaces as a bounce (commitSha:"BOUNCED")
+// instead of silently drifting into out-of-scope work.
 const IMPL_REPORT = {
   type: "object",
-  required: ["summary", "filesTouched", "commitSha"],
+  required: [
+    "summary",
+    "filesTouched",
+    "commitSha",
+    "restatedGoal",
+    "plannedFiles",
+  ],
   properties: {
     summary: { type: "string" },
     filesTouched: { type: "array", items: { type: "string" } },
     commitSha: { type: "string" },
     compileCheck: { type: "string" },
+    restatedGoal: { type: "string" },
+    plannedFiles: { type: "array", items: { type: "string" } },
   },
 };
+
+// Only strings that look like a real git SHA are ever pushed into a
+// commits[] handoff list; "BOUNCED" (or anything else non-SHA-shaped)
+// must never reach a cherry-pick instruction in a later prompt.
+const SHA_RE = /^[0-9a-f]{7,40}$/i;
 
 const VALIDATION_RULES = [
   "Follow AGENTS.md Validation exactly: run the smallest non-redundant",
@@ -141,9 +183,14 @@ function synthesisPrompt(verdicts) {
     "",
     "Group symptoms sharing one root cause into a single fix. Emit",
     "independent fixes with id, goal, files, and acceptance checks a QA",
-    "agent can verify from the diff. Mark needsStrongImplementer=true for",
-    "precisely-arranged core code. Flaky-only failures route to the",
-    "flaky-test-stabilizer bridge instead of a code fix.",
+    "agent can verify from the diff. Assign riskTier per fix: \"high\" is",
+    "REQUIRED for precisely-arranged core code (sync/wait internals,",
+    "locator resolution -- shaft-engine element/browser sync + locator",
+    "building --, shaft-intellij EDT/Swing threading); \"high\" also for",
+    "changes to public API surface or release/build plumbing. \"low\" only",
+    "for mechanical single-file changes with a trivially checkable",
+    "acceptance. Default to \"med\" otherwise. Flaky-only failures route to",
+    "the flaky-test-stabilizer bridge instead of a code fix.",
   ].join("\n");
 }
 
@@ -156,10 +203,19 @@ function implementPrompt(fix) {
     "",
     JSON.stringify(fix, null, 2),
     "",
+    "BEFORE writing any code: restate the task goal in one line",
+    "(restatedGoal) and list the files you plan to touch (plannedFiles).",
+    "If during work you find the fix is materially different from its",
+    "stated goal, or requires touching files far outside fix.files, STOP",
+    "without committing: set commitSha to the literal string \"BOUNCED\"",
+    "and explain why in summary -- do not force a fix into a task that",
+    "does not match reality.",
+    "",
     COMMIT_INSTRUCTION,
     "",
     "Your final structured report must carry the exact commit SHA from",
-    "`git rev-parse HEAD` after committing, plus the files you touched.",
+    "`git rev-parse HEAD` after committing, plus the files you touched,",
+    "unless you bounced (see above).",
   ].join("\n");
 }
 
@@ -209,10 +265,11 @@ function fixGapsPrompt(fix, gaps, commits) {
   ].join("\n");
 }
 
-function escalatePrompt(fix, gaps, commits) {
+function escalatePrompt(fix, gaps, commits, qaRounds) {
   return [
     "You are Bruce, the task owner. The QA loop did not converge after",
-    MAX_QA_ROUNDS + " rounds; finish this CI fix directly. Read AGENTS.md,",
+    qaRounds + " round(s) (this fix's riskTier caps it at " + qaRounds +
+      "); finish this CI fix directly. Read AGENTS.md,",
     "close the remaining gaps, verify. " + VALIDATION_RULES,
     "",
     "Fix:",
@@ -235,6 +292,31 @@ function escalatePrompt(fix, gaps, commits) {
   ].join("\n");
 }
 
+function refutePrompt(fix, latestSha) {
+  return [
+    "You are an adversarial reviewer. A QA verdict just passed this fix,",
+    "but this is a high-risk fix -- precisely-arranged core code, public",
+    "API surface, or release/build plumbing -- so it gets a second,",
+    "skeptical pass before it is trusted. Your job is to try to REFUTE the",
+    "pass verdict, not to rubber-stamp it.",
+    "",
+    "Inspect the actual commit with `git show " + latestSha + "` (this SHA",
+    "is reachable from your worktree regardless of which worktree made",
+    "it -- all worktrees share one git object store). Hunt for stubs,",
+    "TODO-standing-in-for-logic, weakened or skipped assertions, and any",
+    "acceptance item of the fix below that is not actually met:",
+    "",
+    JSON.stringify(fix, null, 2),
+    "",
+    "Set refuted=true only for CONCRETE gaps: a specific file+line, or a",
+    "specific acceptance item with no evidence it was met. Style nits,",
+    "taste preferences, or \"could be better\" observations do NOT refute",
+    "the verdict. Default to refuted=false only after you have actively",
+    "looked and found nothing concrete -- do not default to false merely",
+    "because the QA verdict already said pass.",
+  ].join("\n");
+}
+
 async function withFallback(phase, chain, prompt, opts = {}) {
   let lastError;
   for (const model of chain) {
@@ -249,23 +331,49 @@ async function withFallback(phase, chain, prompt, opts = {}) {
   throw lastError;
 }
 
+// Only ever hand a real SHA to a later cherry-pick instruction; a
+// bounced "BOUNCED" sentinel must never be pushed onto the commits chain.
+function pushIfRealSha(commits, sha) {
+  if (SHA_RE.test(sha)) commits.push(sha);
+}
+
 async function ownFix(fix) {
-  const implementerModel = fix.needsStrongImplementer ? "sonnet" : "haiku";
+  const tier = RISK_TIERS[fix.riskTier] || RISK_TIERS.med;
+  const implementerModel = tier.implementer;
   let report = await agent(implementPrompt(fix), {
     model: implementerModel,
     isolation: "worktree",
     schema: IMPL_REPORT,
   });
   runLog.push({ phase: "implement:" + fix.id, model: implementerModel });
-  const commits = [report.commitSha];
+
+  if (report.commitSha === "BOUNCED") {
+    runLog.push({ phase: "bounce:" + fix.id, model: implementerModel });
+    return { fix: fix.id, bounced: true, report, runLog };
+  }
+
+  const commits = [];
+  pushIfRealSha(commits, report.commitSha);
 
   let gaps = [];
-  for (let round = 0; round < MAX_QA_ROUNDS; round++) {
-    const verdict = await agent(qaPrompt(fix, report, report.commitSha), {
+  for (let round = 0; round < tier.qaRounds; round++) {
+    let verdict = await agent(qaPrompt(fix, report, report.commitSha), {
       model: "sonnet",
       schema: QA_VERDICT,
     });
     runLog.push({ phase: "qa:" + fix.id + ":" + round, model: "sonnet" });
+
+    if (verdict.pass && tier.refuter) {
+      const refutation = await agent(refutePrompt(fix, report.commitSha), {
+        model: "haiku",
+        schema: REFUTER_VERDICT,
+      });
+      runLog.push({ phase: "refute:" + fix.id + ":" + round, model: "haiku" });
+      if (refutation.refuted) {
+        verdict = { pass: false, gaps: refutation.reasons, checksRun: verdict.checksRun };
+      }
+    }
+
     if (verdict.pass) return { fix: fix.id, verdict, commits, runLog };
     gaps = verdict.gaps;
     report = await agent(fixGapsPrompt(fix, gaps, commits), {
@@ -274,16 +382,15 @@ async function ownFix(fix) {
       schema: IMPL_REPORT,
     });
     runLog.push({ phase: "fix:" + fix.id + ":" + round, model: implementerModel });
-    commits.push(report.commitSha);
+    pushIfRealSha(commits, report.commitSha);
   }
 
-  const escalation = await agent(escalatePrompt(fix, gaps, commits), {
-    model: "sonnet",
-    isolation: "worktree",
-    schema: IMPL_REPORT,
-  });
+  const escalation = await agent(
+    escalatePrompt(fix, gaps, commits, tier.qaRounds),
+    { model: "sonnet", isolation: "worktree", schema: IMPL_REPORT }
+  );
   runLog.push({ phase: "escalate:" + fix.id, model: "sonnet" });
-  commits.push(escalation.commitSha);
+  pushIfRealSha(commits, escalation.commitSha);
   return { fix: fix.id, escalated: true, escalation, commits, runLog };
 }
 
