@@ -3,6 +3,10 @@ package com.shaft.capture.model;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.shaft.capture.model.network.HttpRequestRecord;
+import com.shaft.capture.model.network.HttpResponseRecord;
+import com.shaft.capture.model.network.NetworkTiming;
+import com.shaft.capture.model.network.ResourceKind;
 
 import java.time.Duration;
 import java.util.List;
@@ -24,12 +28,13 @@ import java.util.List;
         @JsonSubTypes.Type(value = CaptureEvent.FrameEvent.class, name = "frame"),
         @JsonSubTypes.Type(value = CaptureEvent.AlertEvent.class, name = "alert"),
         @JsonSubTypes.Type(value = CaptureEvent.WaitEvent.class, name = "wait"),
-        @JsonSubTypes.Type(value = CaptureEvent.VerificationEvent.class, name = "verification")
+        @JsonSubTypes.Type(value = CaptureEvent.VerificationEvent.class, name = "verification"),
+        @JsonSubTypes.Type(value = CaptureEvent.NetworkEvent.class, name = "network")
 })
 public sealed interface CaptureEvent permits CaptureEvent.NavigationEvent, CaptureEvent.ClickEvent,
         CaptureEvent.TypeEvent, CaptureEvent.ClearEvent, CaptureEvent.SelectEvent, CaptureEvent.ToggleEvent,
         CaptureEvent.UploadEvent, CaptureEvent.KeyboardEvent, CaptureEvent.WindowEvent, CaptureEvent.FrameEvent,
-        CaptureEvent.AlertEvent, CaptureEvent.WaitEvent, CaptureEvent.VerificationEvent {
+        CaptureEvent.AlertEvent, CaptureEvent.WaitEvent, CaptureEvent.VerificationEvent, CaptureEvent.NetworkEvent {
     /**
      * Returns common event context.
      *
@@ -442,6 +447,49 @@ public sealed interface CaptureEvent permits CaptureEvent.NavigationEvent, Captu
         public VerificationEvent {
             requireContext(context);
             verification = verification == null ? VerificationKind.ELEMENT_PRESENT : verification;
+        }
+    }
+
+    /**
+     * Captured network transaction. The original request and response body content
+     * is never stored in this model; only safe references are retained.
+     *
+     * @param context common event context
+     * @param transactionId stable identifier correlating request and response evidence
+     * @param resourceKind category of network resource
+     * @param request sanitized outbound request evidence
+     * @param response sanitized inbound response evidence, when observed
+     * @param timing deterministic timing evidence
+     * @param failureReason sanitized failure reason when the transaction did not complete
+     * @param initiatorPageUrl sanitized URL of the page that initiated the transaction
+     * @param correlatedUiSequence sequence of a correlated UI event, when applicable
+     */
+    @JsonTypeName("network")
+    record NetworkEvent(
+            EventContext context,
+            String transactionId,
+            ResourceKind resourceKind,
+            HttpRequestRecord request,
+            HttpResponseRecord response,
+            NetworkTiming timing,
+            String failureReason,
+            String initiatorPageUrl,
+            Long correlatedUiSequence) implements CaptureEvent {
+        /**
+         * Creates a network event.
+         */
+        public NetworkEvent {
+            requireContext(context);
+            transactionId = ModelSupport.requireText(transactionId, "Network transaction ID");
+            resourceKind = resourceKind == null ? ResourceKind.OTHER : resourceKind;
+            if (request == null) {
+                throw new IllegalArgumentException("Network event request is required.");
+            }
+            failureReason = ModelSupport.text(failureReason);
+            initiatorPageUrl = ModelSupport.text(initiatorPageUrl);
+            if (correlatedUiSequence != null && correlatedUiSequence < 1) {
+                throw new IllegalArgumentException("Correlated UI sequence must be positive.");
+            }
         }
     }
 

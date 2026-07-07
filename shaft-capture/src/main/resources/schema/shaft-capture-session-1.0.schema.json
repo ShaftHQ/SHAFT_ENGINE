@@ -70,7 +70,8 @@
               "frame",
               "alert",
               "wait",
-              "verification"
+              "verification",
+              "network"
             ]
           },
           "context": {

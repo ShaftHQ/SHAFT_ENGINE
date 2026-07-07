@@ -11,6 +11,8 @@ import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStartRequest;
 import com.shaft.capture.runtime.CaptureStartOptions;
 import com.shaft.capture.runtime.CaptureStatus;
+import com.shaft.capture.runtime.NetworkCaptureOptions;
+import com.shaft.capture.runtime.NetworkTransaction;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceCategory;
 import jakarta.annotation.PreDestroy;
@@ -125,7 +127,9 @@ public class CaptureService {
                         options.userDataDirectory == null || options.userDataDirectory.isBlank()
                                 ? null
                                 : workspacePolicy.output(options.userDataDirectory, "Capture user data directory"),
-                        options.sessionGoal)));
+                        options.sessionGoal,
+                        options.apiCapture,
+                        options.networkOptions)));
     }
 
     /**
@@ -157,6 +161,8 @@ public class CaptureService {
         public String userAgent;
         public String userDataDirectory;
         public String sessionGoal;
+        public boolean apiCapture;
+        public NetworkCaptureOptions networkOptions;
     }
 
     /**
@@ -191,6 +197,84 @@ public class CaptureService {
             description = "stops SHAFT Capture; after COMPLETED, show outputPath and tell IntelliJ users to run /codegen <outputPath>")
     public CaptureStatus stop(boolean discard) {
         return manager.stop(discard);
+    }
+
+    /**
+     * Launches a fresh SHAFT-managed browser and starts API capture with network recording.
+     *
+     * @param targetUrl initial http, https, or file URL
+     * @param browser Chrome or Edge; blank selects Chrome
+     * @param headless whether to launch without a visible window; unspecified defaults to
+     *                  headless per repo policy
+     * @param networkOptions network capture filtering options; blank selects capture-all defaults
+     * @return safe recorder status with network transaction count
+     */
+    @Tool(name = "capture_api_start",
+            description = "starts SHAFT Capture with API network recording enabled")
+    public CaptureStatus apiStart(
+            String targetUrl,
+            String browser,
+            Boolean headless,
+            NetworkCaptureOptions networkOptions) {
+        CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
+        request.targetUrl = targetUrl;
+        request.browser = browser;
+        request.headless = resolveHeadless(headless);
+        request.apiCapture = true;
+        request.networkOptions = networkOptions == null ? new NetworkCaptureOptions() : networkOptions;
+        return startWithOptions(request);
+    }
+
+    /**
+     * Resolves the effective headless flag, defaulting to headless execution per repo policy
+     * when the caller does not specify a value.
+     *
+     * @param headless caller-supplied headless preference, or {@code null} when unspecified
+     * @return {@code true} unless the caller explicitly requested a visible window
+     */
+    static boolean resolveHeadless(Boolean headless) {
+        return headless == null || headless;
+    }
+
+    /**
+     * Returns safe recorder status with network transaction count and recent endpoints.
+     *
+     * @return current recorder status including network metrics
+     */
+    @Tool(name = "capture_api_status",
+            description = "returns SHAFT Capture session status including network transaction count and recent endpoints")
+    public CaptureStatus apiStatus() {
+        return manager.status();
+    }
+
+    /**
+     * Stops the active API capture recording.
+     *
+     * @param discard whether to delete capture artifacts after shutdown
+     * @return final recorder status
+     */
+    @Tool(name = "capture_api_stop",
+            description = "stops SHAFT API Capture with the same single-session lock guarantee as capture_stop")
+    public CaptureStatus apiStop(boolean discard) {
+        return manager.stop(discard);
+    }
+
+    /**
+     * Returns sanitized summaries of captured network transactions.
+     *
+     * @param includeAssets whether to include asset resource types (images, fonts, stylesheets, media)
+     * @param excludePattern optional {@code |}-separated glob pattern(s) of URLs to exclude
+     * @return ordered, bounded list of transaction summaries without sensitive data
+     */
+    @Tool(name = "capture_api_transactions",
+            description = "returns captured network transactions without bodies or sensitive headers; supports filtering asset noise")
+    public List<NetworkTransaction> apiTransactions(
+            boolean includeAssets,
+            String excludePattern) {
+        NetworkCaptureOptions filter = new NetworkCaptureOptions();
+        filter.excludeAssets = !includeAssets;
+        filter.excludePattern = excludePattern == null ? "" : excludePattern;
+        return manager.networkTransactions(filter, 100);
     }
 
     /**

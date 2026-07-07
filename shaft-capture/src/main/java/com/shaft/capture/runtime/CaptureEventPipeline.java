@@ -699,6 +699,16 @@ final class CaptureEventPipeline implements AutoCloseable {
                     context, value.condition(), value.timeout(), value.target(), value.expected());
             case CaptureEvent.VerificationEvent value -> new CaptureEvent.VerificationEvent(
                     context, value.verification(), value.target(), value.expected(), value.negated());
+            case CaptureEvent.NetworkEvent value -> new CaptureEvent.NetworkEvent(
+                    context,
+                    value.transactionId(),
+                    value.resourceKind(),
+                    value.request(),
+                    value.response(),
+                    value.timing(),
+                    value.failureReason(),
+                    value.initiatorPageUrl(),
+                    value.correlatedUiSequence());
         };
     }
 
@@ -721,6 +731,9 @@ final class CaptureEventPipeline implements AutoCloseable {
         if (event instanceof CaptureEvent.VerificationEvent value && value.expected() != null) {
             return List.of(value.expected());
         }
+        // NetworkEvent carries no ExternalTestDataReference (bodies are safe BodyRef
+        // references, not externalized test data); intentionally falls through to
+        // the empty default below. Wiring network evidence cleanup is P2 territory.
         return List.of();
     }
 

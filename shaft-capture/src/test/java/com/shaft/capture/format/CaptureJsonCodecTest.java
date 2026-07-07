@@ -39,12 +39,20 @@ class CaptureJsonCodecTest {
     }
 
     @Test
-    void canonicalGoldenFileRemainsStable() throws IOException {
+    void canonicalGoldenFileUpgradesAndRemainsStable() throws IOException {
         String golden = resource("golden-session-1.0.json");
+        String expectedUpgraded = resource("golden-session-1.1.json");
 
         CaptureSession session = codec.read(golden);
 
-        assertEquals(normalizeLineEndings(golden), normalizeLineEndings(codec.write(session)));
+        // Reading 1.0 migrates to 1.1; the canonical serialized form is byte-stable.
+        String serialized = codec.write(session);
+        assertEquals(normalizeLineEndings(expectedUpgraded), normalizeLineEndings(serialized));
+
+        CaptureSession restored = codec.read(serialized);
+        assertEquals(session, restored);
+        assertEquals(CaptureSession.CURRENT_SCHEMA_VERSION, session.schemaVersion());
+        assertEquals(CaptureSession.CURRENT_SCHEMA_VERSION, restored.schemaVersion());
     }
 
     @Test
@@ -53,8 +61,10 @@ class CaptureJsonCodecTest {
 
         assertEquals(CaptureSession.CURRENT_SCHEMA_VERSION, migrated.schemaVersion());
         assertEquals(CaptureSession.SessionStatus.INCOMPLETE, migrated.status());
-        assertEquals(1, migrated.events().size());
+        assertEquals(3, migrated.events().size());
         assertInstanceOf(CaptureEvent.NavigationEvent.class, migrated.events().getFirst());
+        assertInstanceOf(CaptureEvent.NavigationEvent.class, migrated.events().get(1));
+        assertInstanceOf(CaptureEvent.NavigationEvent.class, migrated.events().getLast());
         assertEquals("NOT_REPLAYED", migrated.events().getFirst().context().replayStatus().name());
     }
 

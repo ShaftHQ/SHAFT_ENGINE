@@ -98,6 +98,7 @@ public class PropertiesHelper {
         Properties.basePilot = ConfigFactory.create(Pilot.class);
         Properties.baseNaturalActions = ConfigFactory.create(NaturalActions.class);
         Properties.basePlaywright = ConfigFactory.create(Playwright.class);
+        Properties.baseCapture = ConfigFactory.create(Capture.class);
         Properties.initialized = true;
     }
 

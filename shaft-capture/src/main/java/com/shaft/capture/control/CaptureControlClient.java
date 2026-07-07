@@ -60,7 +60,9 @@ public final class CaptureControlClient {
                         last.outputPath(),
                         false,
                         last.processId(),
-                        last.startedAt());
+                        last.startedAt(),
+                        last.networkTransactionCount(),
+                        last.lastEndpoints());
             }
             return last;
         }
@@ -83,7 +85,9 @@ public final class CaptureControlClient {
                         last.outputPath(),
                         false,
                         last.processId(),
-                        last.startedAt());
+                        last.startedAt(),
+                        last.networkTransactionCount(),
+                        last.lastEndpoints());
             }
             return last;
         }

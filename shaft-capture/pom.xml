@@ -39,6 +39,18 @@
             <artifactId>allure-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.bytebuddy</groupId>
+                    <artifactId>byte-buddy</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
 
     <properties>
@@ -73,6 +85,7 @@
                 <configuration>
                     <excludedGroups>external-e2e</excludedGroups>
                     <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                    <argLine>@{argLine} ${surefireArgLine} ${mockitoAgentArgLine}</argLine>
                 </configuration>
             </plugin>
         </plugins>

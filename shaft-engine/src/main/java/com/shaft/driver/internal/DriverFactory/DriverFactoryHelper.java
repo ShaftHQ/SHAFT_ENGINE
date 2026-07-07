@@ -68,6 +68,7 @@ public class DriverFactoryHelper {
     private static final String SELENIUM_WEBSOCKET_LISTENER_LOGGER = "org.openqa.selenium.remote.http.WebSocket$Listener";
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
     private static final ThreadLocal<WebDriver> activeDriver = new ThreadLocal<>();
+    private static final ThreadLocal<DriverFactoryHelper> activeHelper = new ThreadLocal<>();
     private static final Object LOCAL_DRIVER_INITIALIZATION_LOCK = new Object();
     @Getter(AccessLevel.PUBLIC)
     private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
@@ -122,8 +123,12 @@ public class DriverFactoryHelper {
         this.driver = driver;
         if (driver == null) {
             activeDriver.remove();
+            if (activeHelper.get() == this) {
+                activeHelper.remove();
+            }
         } else {
             activeDriver.set(driver);
+            activeHelper.set(this);
         }
     }
 
@@ -152,6 +157,57 @@ public class DriverFactoryHelper {
      */
     public boolean startBrowserNetworkObservation() {
         return getBrowserNetworkInterceptor().startObserving();
+    }
+
+    /**
+     * Hands off sole ownership of {@code driver}'s DevTools network filter away from any
+     * {@link BrowserNetworkInterceptor} this helper started for trace/HAR observation, so a caller
+     * that is about to install its own {@code NetworkInterceptor} on the same driver (for example a
+     * dedicated API-capture recorder) does not silently race with and replace it.
+     *
+     * <p>Selenium's {@code NetworkInterceptor} registration is a single-slot replace, not a
+     * compose/stack: whichever interceptor registers last on a given driver silently wins, and the
+     * other's filter goes dead with no warning. Callers that are about to become the sole
+     * DevTools-network-filter owner for {@code driver} should call this first.
+     *
+     * <p>Does nothing (and returns {@code false}) when this helper's interceptor has active
+     * mock/validate rules registered: replacing that filter would silently drop the caller's
+     * expected mocking/validation behavior, so ownership is not released in that case and the
+     * caller must not double-register either.
+     *
+     * @param driver the WebDriver session the caller is about to attach its own network filter to
+     * @return {@code true} when passive trace/HAR observation was active and has been released so
+     *         the caller is safe to become the sole interceptor owner; {@code false} when there was
+     *         nothing to hand off, or when active interception rules block a safe handoff
+     */
+    public static boolean releaseBrowserNetworkObservationForHandoff(WebDriver driver) {
+        if (driver == null || driver != activeDriver.get()) {
+            return false;
+        }
+        DriverFactoryHelper helper = activeHelper.get();
+        if (helper == null || helper.browserNetworkInterceptor == null) {
+            return false;
+        }
+        return helper.browserNetworkInterceptor.releaseForHandoff();
+    }
+
+    /**
+     * Reports whether {@code driver} already has a {@code BrowserNetworkInterceptor} with active
+     * mock/validate rules registered, meaning a caller must not install its own competing DevTools
+     * network filter on this driver: doing so would silently replace Selenium's single-slot network
+     * filter and break those rules with no warning.
+     *
+     * @param driver the WebDriver session a caller is considering attaching its own network filter to
+     * @return {@code true} when this helper's interceptor for {@code driver} has active rules that
+     *         block another owner from safely taking over the DevTools network filter
+     */
+    public static boolean hasBlockingBrowserNetworkInterceptionRules(WebDriver driver) {
+        if (driver == null || driver != activeDriver.get()) {
+            return false;
+        }
+        DriverFactoryHelper helper = activeHelper.get();
+        return helper != null && helper.browserNetworkInterceptor != null
+                && helper.browserNetworkInterceptor.hasActiveRules();
     }
 
     private void closeBrowserNetworkInterceptor() {
@@ -727,6 +783,7 @@ public class DriverFactoryHelper {
     private static void clearThreadLocalDriverState() {
         webDriverManager.remove();
         activeDriver.remove();
+        activeHelper.remove();
         setTargetHubUrl(null);
     }
 

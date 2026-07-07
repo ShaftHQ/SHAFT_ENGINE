@@ -76,6 +76,41 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     }
 
     /**
+     * Reports whether this interceptor has one or more mock/validate rules registered.
+     *
+     * <p>Callers that want to take over sole ownership of the DevTools network filter (for example
+     * a dedicated API-capture recorder) must not do so while rules are registered here: replacing
+     * this interceptor's filter would silently drop active mocking/validation behavior with no
+     * warning to the caller that registered those rules.
+     *
+     * @return {@code true} when at least one interception rule is registered
+     */
+    public boolean hasActiveRules() {
+        return !rules.isEmpty();
+    }
+
+    /**
+     * Releases this interceptor's DevTools network filter so another owner (for example a
+     * dedicated API-capture recorder that composes the same trace/HAR observation inside its own
+     * filter) can become the sole registrant for this driver.
+     *
+     * <p>Only safe to call when {@link #hasActiveRules()} is {@code false}: this method does not
+     * clear registered rules, and calling it while rules exist would leave them registered here but
+     * inactive on the driver, silently breaking any mock/validate behavior callers still expect.
+     *
+     * @return {@code true} when passive observation was active and has been released
+     */
+    public synchronized boolean releaseForHandoff() {
+        if (hasActiveRules()) {
+            return false;
+        }
+        boolean wasActive = observing && activeInterceptor != null;
+        observing = false;
+        closeActiveInterceptor();
+        return wasActive;
+    }
+
+    /**
      * Clears all registered rules. Passive trace observation remains active when it was started for the session.
      */
     public synchronized void clear() {

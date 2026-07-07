@@ -40,7 +40,7 @@ public record CaptureSession(
     /**
      * Current persisted schema version.
      */
-    public static final String CURRENT_SCHEMA_VERSION = "1.0";
+    public static final String CURRENT_SCHEMA_VERSION = "1.1";
 
     /**
      * Session lifecycle states.
