@@ -189,8 +189,15 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void flushSignal(BrowserSignal signal) {
-        if (signal != null) {
+        if (signal == null) {
+            return;
+        }
+        try {
             emit(signal);
+        } catch (RuntimeException exception) {
+            // Debounced signals flush on the scheduled debounce thread, where an uncaught
+            // exception would cancel the flush loop forever; one bad signal must only skip itself.
+            warningConsumer.accept("A browser interaction could not be normalized and was skipped.");
         }
     }
 

@@ -2,10 +2,12 @@ package com.shaft.intellij.mcp;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -17,13 +19,25 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Project service that invokes SHAFT MCP tools through the configured stdio command.
+ *
+ * <p>Tool calls share one long-lived MCP server process per project. Session-starting tools
+ * (SHAFT Capture recordings, live browser/mobile drivers) keep their state inside that process,
+ * so it must survive across tool calls: a recording started by {@code capture_start} stays
+ * collecting until {@code capture_stop} arrives on the same process. The shared process is
+ * respawned transparently when it dies or when the configured command changes, and is shut down
+ * gracefully (stdin end-of-stream first) so live sessions can release their browsers.</p>
  */
-public final class ShaftMcpInvocationService {
+public final class ShaftMcpInvocationService implements Disposable {
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(90);
     private static final String DISCONNECTED_MESSAGE = "MCP connection is disconnected. Click 'Reconnect' to restore service.";
 
     private final Project project;
     private final ShaftMcpConnectionState connectionState;
+    private final Object clientLock = new Object();
+    private ShaftMcpStdioClient sharedClient;
+    private List<String> sharedCommand = List.of();
+    private Map<String, String> sharedEnvironment = Map.of();
+    private Path sharedWorkingDirectory;
 
     /**
      * Creates the project-scoped invocation service.
@@ -79,7 +93,8 @@ public final class ShaftMcpInvocationService {
         AtomicReference<ShaftMcpStdioClient> clientReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
-                () -> listTools(command, settings, clientReference, cancellationRequested));
+                () -> call(command, settings, clientReference, cancellationRequested,
+                        client -> client.listTools(DEFAULT_TIMEOUT)));
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(clientReference, cancellationRequested, false),
@@ -105,7 +120,9 @@ public final class ShaftMcpInvocationService {
         AtomicReference<ShaftMcpStdioClient> clientReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
-                () -> invoke(command, toolName, arguments, settings, clientReference, cancellationRequested));
+                () -> call(command, settings, clientReference, cancellationRequested,
+                        client -> client.callTool(toolName,
+                                arguments == null ? new JsonObject() : arguments, DEFAULT_TIMEOUT)));
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(clientReference, cancellationRequested, false),
@@ -133,35 +150,91 @@ public final class ShaftMcpInvocationService {
                 () -> cancel(clientReference, cancellationRequested, true));
     }
 
-    private ShaftMcpToolResult invoke(
+    @Override
+    public void dispose() {
+        synchronized (clientLock) {
+            closeSharedClientLocked();
+        }
+    }
+
+    private interface McpRequest {
+        JsonElement send(ShaftMcpStdioClient client) throws IOException;
+    }
+
+    private ShaftMcpToolResult call(
             List<String> command,
-            String toolName,
-            JsonObject arguments,
             ShaftSettingsState.Settings settings,
             AtomicReference<ShaftMcpStdioClient> clientReference,
-            AtomicBoolean cancellationRequested) {
+            AtomicBoolean cancellationRequested,
+            McpRequest request) {
         Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
+        ShaftMcpStdioClient client = null;
         try {
             Map<String, String> environment = ShaftMcpProjectScope.environmentForProject(
                     ShaftMcpEnvironment.forSettings(settings), workingDirectory);
             List<String> scopedCommand = ShaftMcpProjectScope.commandForProject(command, workingDirectory);
-            try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(scopedCommand, workingDirectory, environment)) {
-                clientReference.set(client);
-                if (cancellationRequested.get()) {
-                    throw new CancellationException("Operation cancelled");
-                }
-                JsonElement result = client.callTool(toolName, arguments == null ? new JsonObject() : arguments,
-                        DEFAULT_TIMEOUT);
-                return ShaftMcpToolResult.success(result.toString());
+            client = acquireClient(scopedCommand, workingDirectory, environment);
+            clientReference.set(client);
+            if (cancellationRequested.get()) {
+                throw new CancellationException("Operation cancelled");
             }
+            JsonElement result = request.send(client);
+            return ShaftMcpToolResult.success(result.toString());
         } catch (Exception exception) {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
             }
+            dropClientIfDead(client);
             McpInvocationError category = McpInvocationError.categorize(exception);
             return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
         } finally {
             clientReference.set(null);
+        }
+    }
+
+    /**
+     * Returns the shared MCP server client, spawning a fresh process when none is alive or the
+     * effective command, environment, or working directory changed since the last call.
+     */
+    private ShaftMcpStdioClient acquireClient(
+            List<String> scopedCommand,
+            Path workingDirectory,
+            Map<String, String> environment) throws IOException {
+        synchronized (clientLock) {
+            if (sharedClient != null
+                    && sharedClient.isAlive()
+                    && sharedCommand.equals(scopedCommand)
+                    && sharedEnvironment.equals(environment)
+                    && workingDirectory.equals(sharedWorkingDirectory)) {
+                return sharedClient;
+            }
+            closeSharedClientLocked();
+            sharedClient = new ShaftMcpStdioClient(scopedCommand, workingDirectory, environment);
+            sharedCommand = List.copyOf(scopedCommand);
+            sharedEnvironment = Map.copyOf(environment);
+            sharedWorkingDirectory = workingDirectory;
+            return sharedClient;
+        }
+    }
+
+    private void dropClientIfDead(ShaftMcpStdioClient client) {
+        if (client == null || client.isAlive()) {
+            return;
+        }
+        synchronized (clientLock) {
+            if (sharedClient == client) {
+                closeSharedClientLocked();
+            }
+        }
+    }
+
+    private void closeSharedClientLocked() {
+        if (sharedClient != null) {
+            sharedClient.close();
+            sharedClient = null;
+            sharedCommand = List.of();
+            sharedEnvironment = Map.of();
+            sharedWorkingDirectory = null;
         }
     }
 
@@ -193,51 +266,35 @@ public final class ShaftMcpInvocationService {
         }
     }
 
-    private ShaftMcpToolResult listTools(
-            List<String> command,
-            ShaftSettingsState.Settings settings,
-            AtomicReference<ShaftMcpStdioClient> clientReference,
-            AtomicBoolean cancellationRequested) {
-        Path workingDirectory = project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
-        try {
-            Map<String, String> environment = ShaftMcpProjectScope.environmentForProject(
-                    ShaftMcpEnvironment.forSettings(settings), workingDirectory);
-            List<String> scopedCommand = ShaftMcpProjectScope.commandForProject(command, workingDirectory);
-            try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(scopedCommand, workingDirectory, environment)) {
-                clientReference.set(client);
-                if (cancellationRequested.get()) {
-                    throw new CancellationException("Operation cancelled");
-                }
-                JsonElement result = client.listTools(DEFAULT_TIMEOUT);
-                return ShaftMcpToolResult.success(result.toString());
-            }
-        } catch (Exception exception) {
-            if (cancellationRequested.get() || exception instanceof CancellationException) {
-                throw new CancellationException("Operation cancelled");
-            }
-            McpInvocationError category = McpInvocationError.categorize(exception);
-            return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
-        } finally {
-            clientReference.set(null);
-        }
-    }
-
     private static ShaftMcpInvocation completed(String message) {
         return new ShaftMcpInvocation(CompletableFuture.completedFuture(ShaftMcpToolResult.failure(message)), () -> {
         });
     }
 
-    private static void cancel(AtomicReference<ShaftMcpStdioClient> clientReference,
-                               AtomicBoolean cancellationRequested,
-                               boolean force) {
+    private void cancel(AtomicReference<ShaftMcpStdioClient> clientReference,
+                        AtomicBoolean cancellationRequested,
+                        boolean force) {
         cancellationRequested.set(true);
         ShaftMcpStdioClient client = force ? clientReference.getAndSet(null) : clientReference.get();
-        if (client != null) {
-            if (force) {
-                client.kill();
-            } else {
-                client.cancel();
+        if (client == null) {
+            return;
+        }
+        if (force) {
+            // Force-kill terminates the shared server process; live sessions in it are lost and
+            // the next tool call spawns a fresh process.
+            synchronized (clientLock) {
+                if (sharedClient == client) {
+                    sharedClient = null;
+                    sharedCommand = List.of();
+                    sharedEnvironment = Map.of();
+                    sharedWorkingDirectory = null;
+                }
             }
+            client.kill();
+        } else {
+            // Graceful cancel abandons in-flight requests but keeps the shared server process
+            // (and any live capture or driver session inside it) running.
+            client.cancel();
         }
     }
 

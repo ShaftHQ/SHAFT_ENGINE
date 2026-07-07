@@ -19,6 +19,10 @@ import java.util.function.Function;
  */
 public final class CaptureManager implements AutoCloseable {
     private static final Duration HEALTH_INTERVAL = Duration.ofSeconds(1);
+    // Transient WebDriver hiccups (a busy page, a slow DevTools round trip) can make one
+    // liveness probe fail while the browser is perfectly healthy. Only consecutive failures
+    // may tear the session down, or a single flaky check silently discards the recording.
+    private static final int HEALTH_FAILURES_BEFORE_INTERRUPT = 3;
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "shaft-capture-manager");
@@ -33,6 +37,7 @@ public final class CaptureManager implements AutoCloseable {
     private volatile String mode = "record";
     private CaptureSingleSessionLock sessionLock;
     private ScheduledFuture<?> healthCheck;
+    private int consecutiveHealthFailures;
 
     /**
      * Creates the default managed recorder lifecycle.
@@ -76,6 +81,7 @@ public final class CaptureManager implements AutoCloseable {
                 recorder = recorderFactory.apply(request);
                 recorder.start();
                 lastStatus = recorder.status();
+                consecutiveHealthFailures = 0;
                 healthCheck = executor.scheduleWithFixedDelay(
                         this::verifyBrowserHealth,
                         HEALTH_INTERVAL.toMillis(),
@@ -307,12 +313,18 @@ public final class CaptureManager implements AutoCloseable {
             releaseLock();
             return;
         }
-        if (!current.isBrowserAlive()) {
-            cancelHealthCheck();
-            lastStatus = current.interrupt();
-            recorder = null;
-            releaseLock();
+        if (current.isBrowserAlive()) {
+            consecutiveHealthFailures = 0;
+            return;
         }
+        consecutiveHealthFailures++;
+        if (consecutiveHealthFailures < HEALTH_FAILURES_BEFORE_INTERRUPT) {
+            return;
+        }
+        cancelHealthCheck();
+        lastStatus = current.interrupt();
+        recorder = null;
+        releaseLock();
     }
 
     private ManagedCaptureRecorder requireRecorder() {

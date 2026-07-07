@@ -258,6 +258,120 @@ class ManagedCaptureRecorderBrowserTest {
                 "The final COMPLETE file must include the domain-B action.");
     }
 
+    /**
+     * Drives the in-page recorder overlay's guided assertion flow end to end, exactly as a user
+     * would (issue #3365): the single Assertion entry point offers Element and Browser branches;
+     * the Element branch captures the clicked target, offers scored locator candidates plus a
+     * manual locator, then a fixed assertion catalog including existence with a true/false
+     * expected choice; the Browser branch offers the fixed page-level catalog with an editable
+     * expected value. Both saved assertions must persist as {@code VerificationEvent}s in the
+     * session file and surface in the server-side step list.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void overlayGuidedAssertionFlowPersistsVerificationEvents(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve(browserName + "-assertions.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-assertions-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            // Element branch: entry point -> Element -> click target -> pick locator ->
+            // "Element exists" with expected=false (negated existence).
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            driver.findElement(By.id("username")).click();
+            waitFor(() -> elementPresent(driver, By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Use this locator']")));
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Use this locator']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='ELEMENT_PRESENT']")));
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='ELEMENT_PRESENT']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel select[name='expectedBoolean']")));
+            new Select(driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel select[name='expectedBoolean']"))).selectByValue("false");
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert not element exists")));
+
+            // Browser branch: entry point -> Browser -> "Title contains" with an edited value.
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Browser")));
+            driver.findElement(assertionChoice("Browser")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TITLE_CONTAINS']")));
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TITLE_CONTAINS']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']")));
+            WebElement expected = driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']"));
+            expected.clear();
+            expected.sendKeys("Capture Fixture");
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert title contains")));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, session.status());
+        List<CaptureEvent.VerificationEvent> verifications = session.events().stream()
+                .filter(CaptureEvent.VerificationEvent.class::isInstance)
+                .map(CaptureEvent.VerificationEvent.class::cast)
+                .toList();
+        CaptureEvent.VerificationEvent existence = verifications.stream()
+                .filter(event -> event.verification() == CaptureEvent.VerificationKind.ELEMENT_PRESENT)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "The Element branch must persist an ELEMENT_PRESENT verification event."));
+        assertTrue(existence.negated(),
+                "Choosing expected=false must persist the existence assertion as negated.");
+        assertTrue(existence.target() != null && !existence.target().locatorCandidates().isEmpty(),
+                "The element assertion must carry the picked target's locator candidates.");
+        CaptureEvent.VerificationEvent title = verifications.stream()
+                .filter(event -> event.verification() == CaptureEvent.VerificationKind.TITLE_CONTAINS)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "The Browser branch must persist a TITLE_CONTAINS verification event."));
+        assertFalse(title.negated(), "The browser assertion was not negated.");
+        assertTrue(title.expected() != null,
+                "The browser assertion must persist its expected value reference.");
+    }
+
+    private static By assertionChoice(String label) {
+        return By.xpath("//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='" + label + "']");
+    }
+
+    private static boolean elementPresent(WebDriver driver, By locator) {
+        try {
+            return !driver.findElements(locator).isEmpty();
+        } catch (WebDriverException ignored) {
+            return false;
+        }
+    }
+
     private static List<String> persistedDescriptions(CaptureSession session) {
         List<String> descriptions = new java.util.ArrayList<>();
         for (String field : List.of("userDescription", "stepDescription")) {
