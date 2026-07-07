@@ -23,9 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -70,6 +68,22 @@ public final class ApiCaptureGenerator {
             return failure(reportPath, "", List.of("Session could not be read: " + safeMessage(exception)), request.overwrite());
         }
 
+        Analysis analysis = analyze(request, session, sessionPath);
+        if (!analysis.unsupported().isEmpty()) {
+            return failure(reportPath, session.sessionId(), analysis.unsupported(), request.overwrite());
+        }
+
+        return renderCompileAndReport(request, outputRoot, reportPath, session, analysis);
+    }
+
+    /**
+     * Resolves the generated class name, validates it and the package name, and extracts
+     * renderable transactions. Isolated from {@link #generate} purely to keep that method's own
+     * cyclomatic/NPath complexity low -- PMD's NPath metric is multiplicative across sequential
+     * branches in one method body, so folding every validation step into a single method
+     * explodes combinatorially even though each step is simple.
+     */
+    private Analysis analyze(ApiCaptureGenerationRequest request, CaptureSession session, Path sessionPath) {
         String className = request.className().isBlank() ? defaultClassName(session) : request.className();
         List<String> unsupported = new ArrayList<>();
         if (!isValidJavaIdentifier(className)) {
@@ -78,22 +92,29 @@ public final class ApiCaptureGenerator {
         if (!isValidPackageName(request.packageName())) {
             unsupported.add("Package name \"" + request.packageName() + "\" is not a valid Java package name.");
         }
+        if (!unsupported.isEmpty()) {
+            return new Analysis(className, List.of(), unsupported);
+        }
 
         Path bodiesDirectory = sessionPath.getParent().resolve(session.sessionId() + "-network-bodies");
-        List<ApiTransaction> transactions = unsupported.isEmpty()
-                ? extractTransactions(session, bodiesDirectory)
-                : List.of();
-        if (unsupported.isEmpty() && transactions.isEmpty()) {
+        List<ApiTransaction> transactions = extractTransactions(session, bodiesDirectory);
+        if (transactions.isEmpty()) {
             unsupported.add("No renderable API transactions (XHR/FETCH with a recorded response) "
                     + "were found in this session.");
         }
-        if (!unsupported.isEmpty()) {
-            return failure(reportPath, session.sessionId(), unsupported, request.overwrite());
-        }
+        return new Analysis(className, transactions, unsupported);
+    }
 
+    /**
+     * Renders, writes, optionally compiles/replays, and reports one generated class. Isolated
+     * from {@link #generate} for the same NPath reason as {@link #analyze}.
+     */
+    private ApiCaptureGenerationResult renderCompileAndReport(
+            ApiCaptureGenerationRequest request, Path outputRoot, Path reportPath, CaptureSession session,
+            Analysis analysis) {
         Path sourcePath = outputRoot.resolve("src/test/java")
                 .resolve(request.packageName().replace('.', '/'))
-                .resolve(className + ".java")
+                .resolve(analysis.className() + ".java")
                 .normalize();
         Path testDataDirectory = outputRoot.resolve("src/test/resources/test-data/api-capture").normalize();
         Path classesDirectory = outputRoot.resolve("target/shaft-capture/classes").normalize();
@@ -101,40 +122,56 @@ public final class ApiCaptureGenerator {
         ensureWithin(outputRoot, testDataDirectory);
         ensureWithin(outputRoot, classesDirectory);
 
-        RenderedApiTest rendered = ApiTestRenderer.render(
-                request.packageName(), className, transactions, request.style(), request.validationDepth());
-
-        List<String> warnings = new ArrayList<>();
-        if (!rendered.skippedTransactionIds().isEmpty()) {
-            warnings.add("Skipped " + rendered.skippedTransactionIds().size()
-                    + " recorded transaction(s) with an HTTP method SHAFT.API cannot build: "
-                    + String.join(", ", rendered.skippedTransactionIds()));
-        }
+        RenderedApiTest rendered = ApiTestRenderer.render(request.packageName(), analysis.className(),
+                analysis.transactions(), request.style(), request.validationDepth());
+        List<String> warnings = warningsFor(rendered);
 
         if (!request.overwrite() && Files.exists(sourcePath)) {
-            unsupported.add("Generated source already exists at " + sourcePath + " and overwrite was not requested.");
-            return failure(reportPath, session.sessionId(), unsupported, request.overwrite());
+            return failure(reportPath, session.sessionId(),
+                    List.of("Generated source already exists at " + sourcePath + " and overwrite was not requested."),
+                    request.overwrite());
         }
 
         try {
-            atomicWrite(sourcePath, rendered.source());
-            for (Map.Entry<String, String> artifact : rendered.testDataArtifacts().entrySet()) {
-                Path artifactPath = outputRoot.resolve("src/test/resources/test-data").resolve(artifact.getKey()).normalize();
-                ensureWithin(outputRoot, artifactPath);
-                atomicWrite(artifactPath, artifact.getValue());
-            }
+            writeArtifacts(outputRoot, sourcePath, rendered);
         } catch (CaptureFormatException writeFailure) {
-            unsupported.add("Generated artifacts could not be written: " + safeMessage(writeFailure));
-            return failure(reportPath, session.sessionId(), unsupported, request.overwrite());
+            return failure(reportPath, session.sessionId(),
+                    List.of("Generated artifacts could not be written: " + safeMessage(writeFailure)), request.overwrite());
         }
 
+        return compileAndReport(request, session, analysis.className(), sourcePath, testDataDirectory,
+                classesDirectory, warnings, reportPath, outputRoot);
+    }
+
+    private static List<String> warningsFor(RenderedApiTest rendered) {
+        if (rendered.skippedTransactionIds().isEmpty()) {
+            return List.of();
+        }
+        return List.of("Skipped " + rendered.skippedTransactionIds().size()
+                + " recorded transaction(s) with an HTTP method SHAFT.API cannot build: "
+                + String.join(", ", rendered.skippedTransactionIds()));
+    }
+
+    private void writeArtifacts(Path outputRoot, Path sourcePath, RenderedApiTest rendered) {
+        atomicWrite(sourcePath, rendered.source());
+        for (Map.Entry<String, String> artifact : rendered.testDataArtifacts().entrySet()) {
+            Path artifactPath = outputRoot.resolve("src/test/resources/test-data").resolve(artifact.getKey()).normalize();
+            ensureWithin(outputRoot, artifactPath);
+            atomicWrite(artifactPath, artifact.getValue());
+        }
+    }
+
+    private ApiCaptureGenerationResult compileAndReport(
+            ApiCaptureGenerationRequest request, CaptureSession session, String className, Path sourcePath,
+            Path testDataDirectory, Path classesDirectory, List<String> warnings, Path reportPath, Path outputRoot) {
         CaptureGenerationReport.Validation compilation = request.compile()
                 ? validator.compile(sourcePath, classesDirectory)
                 : CaptureGenerationReport.Validation.skipped("Compilation was not requested.");
-        CaptureGenerationReport.Validation replay = (request.compile() && request.replay()
-                && compilation.status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED)
-                ? validator.replay(request.packageName() + "." + className, classesDirectory,
-                        testDataDirectory.getParent(), outputRoot, Duration.ofMinutes(2))
+        boolean replayEligible = request.compile() && request.replay()
+                && compilation.status() == CaptureGenerationReport.Validation.ValidationStatus.PASSED;
+        CaptureGenerationReport.Validation replay = replayEligible
+                ? validator.replay(request.packageName() + "." + className,
+                        classesDirectory, testDataDirectory.getParent(), outputRoot, Duration.ofMinutes(2))
                 : CaptureGenerationReport.Validation.skipped("Replay was not requested.");
 
         boolean failed = compilation.status() == CaptureGenerationReport.Validation.ValidationStatus.FAILED
@@ -163,6 +200,13 @@ public final class ApiCaptureGenerator {
                 CaptureGenerationReport.Enrichment.notRequested());
         writeReportIfPossible(reportPath, report, request.overwrite());
         return new ApiCaptureGenerationResult(sourcePath, testDataDirectory, reportPath, report);
+    }
+
+    /**
+     * Outcome of {@link #analyze}: the resolved class name, extracted transactions (empty when
+     * generation cannot proceed), and any reasons generation must fail (empty when it can).
+     */
+    private record Analysis(String className, List<ApiTransaction> transactions, List<String> unsupported) {
     }
 
     // ---- transaction extraction ----

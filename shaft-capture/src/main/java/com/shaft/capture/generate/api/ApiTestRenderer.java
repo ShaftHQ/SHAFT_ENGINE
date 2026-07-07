@@ -257,6 +257,7 @@ public final class ApiTestRenderer {
             case STATUS_HEADERS -> renderHeaderAssertions(source, apiField, transaction);
             case SCHEMA -> renderSchemaAssertion(source, artifacts, className, apiField, transaction);
             case FULL_BODY -> renderFullBodyAssertion(source, artifacts, className, apiField, transaction, leaves);
+            default -> throw new IllegalArgumentException("Unsupported validation depth: " + depth);
         }
     }
 

@@ -5,7 +5,6 @@ import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.generate.CaptureGenerationReport;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
-import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.network.BodyRef;
 import com.shaft.capture.model.network.HttpRequestRecord;
 import com.shaft.capture.model.network.HttpResponseRecord;
