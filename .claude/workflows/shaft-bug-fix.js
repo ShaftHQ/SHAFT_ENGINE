@@ -64,6 +64,22 @@ const QA_VERDICT = {
   },
 };
 
+// Structured report every implement/fix/escalate agent call returns. The
+// commitSha field is how work is handed off across the fresh, randomly
+// picked worktree each call gets: all worktrees share one git object
+// store, so any commit SHA is reachable repo-wide via `git show`/
+// `git cherry-pick` regardless of which worktree made it.
+const IMPL_REPORT = {
+  type: "object",
+  required: ["summary", "filesTouched", "commitSha"],
+  properties: {
+    summary: { type: "string" },
+    filesTouched: { type: "array", items: { type: "string" } },
+    commitSha: { type: "string" },
+    compileCheck: { type: "string" },
+  },
+};
+
 // Every prompt restates its contract because each agent starts with a
 // fresh context: nothing survives except what is written down.
 const VALIDATION_RULES = [
@@ -79,26 +95,24 @@ const VALIDATION_RULES = [
 
 // Each isolation:"worktree" agent call gets a FRESH, randomly-picked
 // worktree -- not the same one across implement/fix/escalate rounds for
-// the same task. Two consequences every implementer-role prompt must
-// carry: (1) your own worktree may already hold a *different* task's
-// leftover state (or be clean) -- if the files this task should have
-// touched aren't here, search sibling worktrees under
-// `.claude/worktrees/` for your own prior round's commits/diff before
-// concluding nothing was done; (2) the orchestrator can only discover
-// your work via `git log`/`git diff` on YOUR worktree, so uncommitted
-// changes are invisible and effectively lost once this call returns --
-// general "don't commit unless asked" guidance does not apply here,
-// commit is mandatory.
+// the same task. The orchestrator can only discover your work via git,
+// so uncommitted changes are invisible and effectively lost once this
+// call returns -- general "don't commit unless asked" guidance does not
+// apply here, commit is mandatory. All worktrees share ONE git object
+// store, so the commit SHA you report is reachable from any other
+// worktree (`git show <sha>`, `git cherry-pick <sha>`) -- the SHA, not
+// the worktree, is the handoff.
 const COMMIT_INSTRUCTION = [
   "IMPORTANT: this worktree is disposable and only discoverable via git.",
   "Before you finish, `git add` every file you touched and `git commit`",
   "with a descriptive message -- uncommitted changes are invisible to the",
   "orchestrator and will be lost. This overrides any general instinct to",
   "leave changes staged/uncommitted \"unless explicitly asked\"; committing",
-  "IS how you hand off a task in this workflow. If the files this task",
-  "expects aren't in your worktree, check sibling worktrees under",
-  "`.claude/worktrees/wf_*` for a prior round's commit before assuming no",
-  "work was done.",
+  "IS how you hand off a task in this workflow. In your structured report,",
+  "set commitSha to the exact output of `git rev-parse HEAD` after",
+  "committing -- all worktrees share one git object store, so this SHA is",
+  "how your work is found and reached (`git show`/`git cherry-pick`) from",
+  "any other worktree.",
 ].join(" ");
 
 function planPrompt(issue) {
@@ -138,17 +152,25 @@ function implementPrompt(task) {
     "",
     JSON.stringify(task, null, 2),
     "",
-    "Compile-check what you changed. Report the files you touched.",
+    "Compile-check what you changed.",
     "",
     COMMIT_INSTRUCTION,
+    "",
+    "Your final structured report must carry the exact commit SHA from",
+    "`git rev-parse HEAD` after committing, plus the files you touched.",
   ].join("\n");
 }
 
-function qaPrompt(task, implementerReport) {
+function qaPrompt(task, implementerReport, latestSha) {
   return [
     "You are Bruce, the PDCA checker, QAing a delegated implementation.",
-    "Judge the actual git diff and real checks -- NEVER trust the",
+    "Judge the actual commit and real checks -- NEVER trust the",
     "implementer's self-report (attached below only for orientation).",
+    "The implementation was committed as " + latestSha + "; this SHA is",
+    "reachable from your worktree regardless of which worktree made it",
+    "(all worktrees share one git object store). Inspect it with",
+    "`git show " + latestSha + "` or `git diff " + latestSha + "^.." + latestSha + "`",
+    "instead of hunting for an uncommitted diff.",
     VALIDATION_RULES,
     "Hunt specifically for reward hacking: placeholder/stubbed code paths,",
     "TODOs standing in for logic, assertions weakened or skipped so",
@@ -163,27 +185,37 @@ function qaPrompt(task, implementerReport) {
   ].join("\n");
 }
 
-function fixPrompt(task, gaps) {
+function fixPrompt(task, gaps, commits) {
   return [
     "You are Bob, the PDCA implementer, fixing QA findings on a task you",
-    "have no memory of (fresh context). Read AGENTS.md, inspect the",
-    "current diff, then close exactly these gaps -- nothing else:",
+    "have no memory of (fresh context). Read AGENTS.md, then close exactly",
+    "these gaps -- nothing else:",
     "",
     JSON.stringify(gaps, null, 2),
     "",
     "Task for reference:",
     JSON.stringify(task, null, 2),
     "",
+    "Prior rounds' work is committed as " + commits.join(", ") + " (oldest",
+    "first). All worktrees share one git object store: your fresh",
+    "worktree will NOT contain these changes as files -- first apply them",
+    "with `git cherry-pick " + commits.join(" ") + "` (oldest first,",
+    "resolve trivially if needed), inspect with `git show <sha>`, then",
+    "close the gaps above and commit on top.",
+    "",
     COMMIT_INSTRUCTION,
+    "",
+    "Your final structured report must carry the exact commit SHA from",
+    "`git rev-parse HEAD` after committing, plus the files you touched.",
   ].join("\n");
 }
 
-function escalatePrompt(task, gaps) {
+function escalatePrompt(task, gaps, commits) {
   return [
     "You are Bruce, the task owner. The Haiku QA loop did not converge",
     "after " + MAX_QA_ROUNDS + " rounds; finish the task directly.",
-    "Read AGENTS.md, review the current diff, close these remaining gaps,",
-    "and verify. " + VALIDATION_RULES,
+    "Read AGENTS.md, close these remaining gaps, and verify. " +
+      VALIDATION_RULES,
     "",
     "Task:",
     JSON.stringify(task, null, 2),
@@ -191,7 +223,17 @@ function escalatePrompt(task, gaps) {
     "Open gaps:",
     JSON.stringify(gaps, null, 2),
     "",
+    "Prior rounds' work is committed as " + commits.join(", ") + " (oldest",
+    "first). All worktrees share one git object store: your fresh",
+    "worktree will NOT contain these changes as files -- first apply them",
+    "with `git cherry-pick " + commits.join(" ") + "` (oldest first,",
+    "resolve trivially if needed), inspect with `git show <sha>`, then",
+    "close the gaps above and commit on top.",
+    "",
     COMMIT_INSTRUCTION,
+    "",
+    "Your final structured report must carry the exact commit SHA from",
+    "`git rev-parse HEAD` after committing, plus the files you touched.",
   ].join("\n");
 }
 
@@ -217,31 +259,37 @@ async function ownTask(task) {
   let report = await agent(implementPrompt(task), {
     model: implementerModel,
     isolation: "worktree",
+    schema: IMPL_REPORT,
   });
   runLog.push({ phase: "implement:" + task.id, model: implementerModel });
+  const commits = [report.commitSha];
 
   let gaps = [];
   for (let round = 0; round < MAX_QA_ROUNDS; round++) {
-    const verdict = await agent(qaPrompt(task, report), {
+    const verdict = await agent(qaPrompt(task, report, report.commitSha), {
       model: "sonnet",
       schema: QA_VERDICT,
     });
     runLog.push({ phase: "qa:" + task.id + ":" + round, model: "sonnet" });
-    if (verdict.pass) return { task: task.id, verdict, runLog };
+    if (verdict.pass) return { task: task.id, verdict, commits, runLog };
     gaps = verdict.gaps;
-    report = await agent(fixPrompt(task, gaps), {
+    report = await agent(fixPrompt(task, gaps, commits), {
       model: implementerModel,
       isolation: "worktree",
+      schema: IMPL_REPORT,
     });
     runLog.push({ phase: "fix:" + task.id + ":" + round, model: implementerModel });
+    commits.push(report.commitSha);
   }
 
-  const escalation = await agent(escalatePrompt(task, gaps), {
+  const escalation = await agent(escalatePrompt(task, gaps, commits), {
     model: "sonnet",
     isolation: "worktree",
+    schema: IMPL_REPORT,
   });
   runLog.push({ phase: "escalate:" + task.id, model: "sonnet" });
-  return { task: task.id, escalated: true, escalation, runLog };
+  commits.push(escalation.commitSha);
+  return { task: task.id, escalated: true, escalation, commits, runLog };
 }
 
 // Workflow scripts run as top-level async code against the `args`

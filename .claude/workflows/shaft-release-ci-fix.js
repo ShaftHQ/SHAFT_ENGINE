@@ -68,6 +68,22 @@ const QA_VERDICT = {
   },
 };
 
+// Structured report every implement/fix/escalate agent call returns. The
+// commitSha field is how work is handed off across the fresh, randomly
+// picked worktree each call gets: all worktrees share one git object
+// store, so any commit SHA is reachable repo-wide via `git show`/
+// `git cherry-pick` regardless of which worktree made it.
+const IMPL_REPORT = {
+  type: "object",
+  required: ["summary", "filesTouched", "commitSha"],
+  properties: {
+    summary: { type: "string" },
+    filesTouched: { type: "array", items: { type: "string" } },
+    commitSha: { type: "string" },
+    compileCheck: { type: "string" },
+  },
+};
+
 const VALIDATION_RULES = [
   "Follow AGENTS.md Validation exactly: run the smallest non-redundant",
   "real check for the change. Before ANY forked Maven/Surefire/TestNG",
@@ -81,26 +97,24 @@ const VALIDATION_RULES = [
 
 // Each isolation:"worktree" agent call gets a FRESH, randomly-picked
 // worktree -- not the same one across implement/fix/escalate rounds for
-// the same fix. Two consequences every implementer-role prompt must
-// carry: (1) your own worktree may already hold different leftover
-// state (or be clean) -- if the files this fix should have touched
-// aren't here, search sibling worktrees under `.claude/worktrees/` for
-// your own prior round's commits/diff before concluding nothing was
-// done; (2) the orchestrator can only discover your work via
-// `git log`/`git diff` on YOUR worktree, so uncommitted changes are
-// invisible and effectively lost once this call returns -- general
-// "don't commit unless asked" guidance does not apply here, commit is
-// mandatory.
+// the same fix. The orchestrator can only discover your work via git, so
+// uncommitted changes are invisible and effectively lost once this call
+// returns -- general "don't commit unless asked" guidance does not apply
+// here, commit is mandatory. All worktrees share ONE git object store,
+// so the commit SHA you report is reachable from any other worktree
+// (`git show <sha>`, `git cherry-pick <sha>`) -- the SHA, not the
+// worktree, is the handoff.
 const COMMIT_INSTRUCTION = [
   "IMPORTANT: this worktree is disposable and only discoverable via git.",
   "Before you finish, `git add` every file you touched and `git commit`",
   "with a descriptive message -- uncommitted changes are invisible to the",
   "orchestrator and will be lost. This overrides any general instinct to",
   "leave changes staged/uncommitted \"unless explicitly asked\"; committing",
-  "IS how you hand off a fix in this workflow. If the files this fix",
-  "expects aren't in your worktree, check sibling worktrees under",
-  "`.claude/worktrees/wf_*` for a prior round's commit before assuming no",
-  "work was done.",
+  "IS how you hand off a fix in this workflow. In your structured report,",
+  "set commitSha to the exact output of `git rev-parse HEAD` after",
+  "committing -- all worktrees share one git object store, so this SHA is",
+  "how your work is found and reached (`git show`/`git cherry-pick`) from",
+  "any other worktree.",
 ].join(" ");
 
 function triagePrompt(job) {
@@ -143,14 +157,21 @@ function implementPrompt(fix) {
     JSON.stringify(fix, null, 2),
     "",
     COMMIT_INSTRUCTION,
+    "",
+    "Your final structured report must carry the exact commit SHA from",
+    "`git rev-parse HEAD` after committing, plus the files you touched.",
   ].join("\n");
 }
 
-function qaPrompt(fix, implementerReport) {
+function qaPrompt(fix, implementerReport, latestSha) {
   return [
-    "You are Bruce, the PDCA checker. Judge the actual git diff and real",
+    "You are Bruce, the PDCA checker. Judge the actual commit and real",
     "checks -- never the implementer's self-report (attached only for",
-    "orientation). " + VALIDATION_RULES,
+    "orientation). The fix was committed as " + latestSha + "; this SHA is",
+    "reachable from your worktree regardless of which worktree made it",
+    "(all worktrees share one git object store). Inspect it with",
+    "`git show " + latestSha + "` or `git diff " + latestSha + "^.." + latestSha + "`",
+    "instead of hunting for an uncommitted diff. " + VALIDATION_RULES,
     "Hunt for reward hacking: stubs, TODOs standing in for logic,",
     "assertions weakened or tests skipped to go green. Verify every",
     "acceptance item:",
@@ -164,26 +185,35 @@ function qaPrompt(fix, implementerReport) {
   ].join("\n");
 }
 
-function fixGapsPrompt(fix, gaps) {
+function fixGapsPrompt(fix, gaps, commits) {
   return [
     "You are Bob, the PDCA implementer (fresh context). Read AGENTS.md,",
-    "inspect the current diff, then close exactly these QA gaps on the",
-    "fix below -- nothing else:",
+    "then close exactly these QA gaps on the fix below -- nothing else:",
     "",
     JSON.stringify(gaps, null, 2),
     "",
     "Fix for reference:",
     JSON.stringify(fix, null, 2),
     "",
+    "Prior rounds' work is committed as " + commits.join(", ") + " (oldest",
+    "first). All worktrees share one git object store: your fresh",
+    "worktree will NOT contain these changes as files -- first apply them",
+    "with `git cherry-pick " + commits.join(" ") + "` (oldest first,",
+    "resolve trivially if needed), inspect with `git show <sha>`, then",
+    "close the gaps above and commit on top.",
+    "",
     COMMIT_INSTRUCTION,
+    "",
+    "Your final structured report must carry the exact commit SHA from",
+    "`git rev-parse HEAD` after committing, plus the files you touched.",
   ].join("\n");
 }
 
-function escalatePrompt(fix, gaps) {
+function escalatePrompt(fix, gaps, commits) {
   return [
     "You are Bruce, the task owner. The QA loop did not converge after",
     MAX_QA_ROUNDS + " rounds; finish this CI fix directly. Read AGENTS.md,",
-    "review the diff, close the remaining gaps, verify. " + VALIDATION_RULES,
+    "close the remaining gaps, verify. " + VALIDATION_RULES,
     "",
     "Fix:",
     JSON.stringify(fix, null, 2),
@@ -191,7 +221,17 @@ function escalatePrompt(fix, gaps) {
     "Open gaps:",
     JSON.stringify(gaps, null, 2),
     "",
+    "Prior rounds' work is committed as " + commits.join(", ") + " (oldest",
+    "first). All worktrees share one git object store: your fresh",
+    "worktree will NOT contain these changes as files -- first apply them",
+    "with `git cherry-pick " + commits.join(" ") + "` (oldest first,",
+    "resolve trivially if needed), inspect with `git show <sha>`, then",
+    "close the gaps above and commit on top.",
+    "",
     COMMIT_INSTRUCTION,
+    "",
+    "Your final structured report must carry the exact commit SHA from",
+    "`git rev-parse HEAD` after committing, plus the files you touched.",
   ].join("\n");
 }
 
@@ -214,31 +254,37 @@ async function ownFix(fix) {
   let report = await agent(implementPrompt(fix), {
     model: implementerModel,
     isolation: "worktree",
+    schema: IMPL_REPORT,
   });
   runLog.push({ phase: "implement:" + fix.id, model: implementerModel });
+  const commits = [report.commitSha];
 
   let gaps = [];
   for (let round = 0; round < MAX_QA_ROUNDS; round++) {
-    const verdict = await agent(qaPrompt(fix, report), {
+    const verdict = await agent(qaPrompt(fix, report, report.commitSha), {
       model: "sonnet",
       schema: QA_VERDICT,
     });
     runLog.push({ phase: "qa:" + fix.id + ":" + round, model: "sonnet" });
-    if (verdict.pass) return { fix: fix.id, verdict, runLog };
+    if (verdict.pass) return { fix: fix.id, verdict, commits, runLog };
     gaps = verdict.gaps;
-    report = await agent(fixGapsPrompt(fix, gaps), {
+    report = await agent(fixGapsPrompt(fix, gaps, commits), {
       model: implementerModel,
       isolation: "worktree",
+      schema: IMPL_REPORT,
     });
     runLog.push({ phase: "fix:" + fix.id + ":" + round, model: implementerModel });
+    commits.push(report.commitSha);
   }
 
-  const escalation = await agent(escalatePrompt(fix, gaps), {
+  const escalation = await agent(escalatePrompt(fix, gaps, commits), {
     model: "sonnet",
     isolation: "worktree",
+    schema: IMPL_REPORT,
   });
   runLog.push({ phase: "escalate:" + fix.id, model: "sonnet" });
-  return { fix: fix.id, escalated: true, escalation, runLog };
+  commits.push(escalation.commitSha);
+  return { fix: fix.id, escalated: true, escalation, commits, runLog };
 }
 
 // Workflow scripts run as top-level async code against the `args`
