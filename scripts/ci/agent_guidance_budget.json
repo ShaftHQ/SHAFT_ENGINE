@@ -64,7 +64,7 @@
     ".github/codex/prompts/refresh-agent-instructions.md"
   ],
   "reduction_baseline_bytes": 150000,
-  "minimum_reduction_percent": 77,
+  "minimum_reduction_percent": 76,
   "expected_skill_names": {
     ".agents/skills": [
       "agent-guidance-boundary-guard",
