@@ -146,3 +146,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-auto-scaffolded-custom-properties-silently-overrides-d-system-properties","timestamp":"2026-07-06T23:25:17+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.diagnosing-shaft-browser-tests-that-pass-locally-but-fail-only-on-linux-ci","timestamp":"2026-07-06T23:25:17+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.release-candidate-pipeline-fails-fast-masking-later-stage-bugs","timestamp":"2026-07-06T23:25:17+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open","timestamp":"2026-07-07T10:57:29+03:00"}
