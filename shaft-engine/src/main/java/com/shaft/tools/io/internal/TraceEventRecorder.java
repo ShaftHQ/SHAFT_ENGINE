@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 public final class TraceEventRecorder {
     private static final ThreadLocal<List<ActionEvent>> EVENTS = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<Integer> NEXT_ID = ThreadLocal.withInitial(() -> 0);
+    private static final int MAX_DOM_SNAPSHOT_CHARACTERS = 200_000;
 
     private TraceEventRecorder() {
         throw new IllegalStateException("Utility class");
@@ -59,7 +60,9 @@ public final class TraceEventRecorder {
                 Instant.now().toString(),
                 System.nanoTime(),
                 value(locator),
-                currentUrl(driver));
+                currentUrl(driver),
+                domSnapshot(driver),
+                driver);
     }
 
     /**
@@ -148,7 +151,9 @@ public final class TraceEventRecorder {
                 exceptionMessage(exception),
                 attachmentSummaries == null ? List.of() : new ArrayList<>(attachmentSummaries),
                 metadata == null ? Map.of() : new LinkedHashMap<>(metadata),
-                actionability == null ? Map.of() : new LinkedHashMap<>(actionability)));
+                actionability == null ? Map.of() : new LinkedHashMap<>(actionability),
+                event.domSnapshotBefore(),
+                domSnapshot(event.driver())));
     }
 
     /**
@@ -213,9 +218,14 @@ public final class TraceEventRecorder {
             objectEnd(json, 3, true);
             stringArray(json, 3, "attachments", event.attachments(), true);
             boolean hasActionability = !event.actionability().isEmpty();
-            map(json, 3, "metadata", event.metadata(), hasActionability);
+            boolean hasDomSnapshots = !event.domSnapshotBefore().isEmpty() || !event.domSnapshotAfter().isEmpty();
+            map(json, 3, "metadata", event.metadata(), hasActionability || hasDomSnapshots);
             if (hasActionability) {
-                objectMap(json, 3, "actionability", event.actionability(), false);
+                objectMap(json, 3, "actionability", event.actionability(), hasDomSnapshots);
+            }
+            if (hasDomSnapshots) {
+                field(json, 3, "domSnapshotBefore", event.domSnapshotBefore(), true);
+                field(json, 3, "domSnapshotAfter", event.domSnapshotAfter(), false);
             }
             indent(json, 2).append("}");
         }
@@ -242,6 +252,40 @@ public final class TraceEventRecorder {
             return value(driver.getCurrentUrl());
         } catch (RuntimeException e) {
             return "";
+        }
+    }
+
+    /**
+     * Best-effort {@code document.documentElement.outerHTML} snapshot for the current thread's
+     * active driver, gated by {@code shaft.trace.includeDomSnapshots} and bounded to
+     * {@link #MAX_DOM_SNAPSHOT_CHARACTERS} so a single huge page never blows up trace artifact
+     * size. Never throws; capture failures degrade to an empty snapshot rather than failing the
+     * action being traced.
+     */
+    private static String domSnapshot(WebDriver driver) {
+        if (driver == null || !isDomSnapshotEnabled()) {
+            return "";
+        }
+        try {
+            if (!(driver instanceof org.openqa.selenium.JavascriptExecutor executor)) {
+                return "";
+            }
+            Object result = executor.executeScript(
+                    "return document.documentElement ? document.documentElement.outerHTML : '';");
+            String html = result == null ? "" : String.valueOf(result);
+            return html.length() > MAX_DOM_SNAPSHOT_CHARACTERS
+                    ? html.substring(0, MAX_DOM_SNAPSHOT_CHARACTERS)
+                    : html;
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    private static boolean isDomSnapshotEnabled() {
+        try {
+            return SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.traceIncludeDomSnapshots();
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 
@@ -410,17 +454,19 @@ public final class TraceEventRecorder {
     }
 
     /**
-     * Active action event handle.
+     * Active action event handle. {@code driver} is retained only to capture the "after" DOM
+     * snapshot at {@link #finish} time; it is never serialized or exposed outside this class.
      */
     public record Event(boolean enabled, String id, String category, String name, String startTime, long startNanos,
-                        String locator, String url) {
+                        String locator, String url, String domSnapshotBefore, WebDriver driver) {
         static Event disabled() {
-            return new Event(false, "", "", "", "", 0L, "", "");
+            return new Event(false, "", "", "", "", 0L, "", "", "", null);
         }
     }
 
     record ActionEvent(String id, String category, String name, String status, String startTime, long durationMs,
                        String locator, String url, String message, String exceptionType, String exceptionMessage,
-                       List<String> attachments, Map<String, String> metadata, Map<String, Object> actionability) {
+                       List<String> attachments, Map<String, String> metadata, Map<String, Object> actionability,
+                       String domSnapshotBefore, String domSnapshotAfter) {
     }
 }

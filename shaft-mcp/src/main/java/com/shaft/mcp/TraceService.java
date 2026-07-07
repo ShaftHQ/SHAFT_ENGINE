@@ -144,6 +144,65 @@ public class TraceService {
     }
 
     /**
+     * Resolves (extracting from the trace ZIP if needed) the static offline "SHAFT Trace Report.html"
+     * viewer for a persisted trace -- the same time-travel timeline / action-list / DOM-snapshot /
+     * network / console viewer produced at trace-generation time, so callers (an IDE panel, a CI
+     * step, or a human) can open a real file path without re-deriving the HTML themselves.
+     *
+     * @param tracePath trace path inside the MCP workspace (directory, index.json, or ZIP)
+     * @return the resolved viewer HTML path and whether it had to be freshly extracted
+     */
+    @Tool(name = "trace_open_viewer",
+            description = "resolves (extracting from the trace ZIP if needed) the offline SHAFT Trace Report HTML viewer for a persisted trace")
+    public McpTraceViewerResult traceOpenViewer(String tracePath) {
+        Path path = workspacePolicy.existing(tracePath, "Trace path");
+        Path directory = Files.isDirectory(path) ? path : path.getParent();
+        Path htmlPath = directory.resolve("SHAFT Trace Report.html");
+        if (Files.isRegularFile(htmlPath)) {
+            return new McpTraceViewerResult("1.0", relative(htmlPath), false, List.of());
+        }
+        Path archive = resolveArchiveForViewer(path, directory);
+        if (archive == null) {
+            return new McpTraceViewerResult("1.0", "", false,
+                    List.of("No SHAFT Trace Report.html or trace ZIP was found for " + relative(path) + "."));
+        }
+        try (InputStream input = Files.newInputStream(archive); ZipInputStream zip = new ZipInputStream(input)) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if ("SHAFT Trace Report.html".equals(entry.getName())) {
+                    Files.write(htmlPath, zip.readAllBytes());
+                    return new McpTraceViewerResult("1.0", relative(htmlPath), true, List.of());
+                }
+            }
+        } catch (IOException exception) {
+            return new McpTraceViewerResult("1.0", "", false,
+                    List.of("Trace ZIP could not be read: " + exception.getMessage()));
+        }
+        return new McpTraceViewerResult("1.0", "", false,
+                List.of("Trace ZIP " + relative(archive) + " does not contain SHAFT Trace Report.html."));
+    }
+
+    private Path resolveArchiveForViewer(Path path, Path directory) {
+        if (!Files.isDirectory(path) && path.getFileName().toString().endsWith(".zip")) {
+            return path;
+        }
+        String fileName = path.getFileName() == null ? "" : path.getFileName().toString();
+        if ("index.json".equals(fileName)) {
+            try {
+                JsonNode index = JSON.readTree(Files.readString(path, StandardCharsets.UTF_8));
+                Path fromIndex = archivePath(path, index);
+                if (fromIndex != null && Files.isRegularFile(fromIndex)) {
+                    return fromIndex;
+                }
+            } catch (IOException | RuntimeException ignored) {
+                // Fall through to the directory-default archive below.
+            }
+        }
+        Path fallback = directory.resolve("shaft-trace.zip");
+        return Files.isRegularFile(fallback) ? fallback : null;
+    }
+
+    /**
      * Analyzes a persisted SHAFT trace and returns the existing MCP Doctor remediation report shape.
      *
      * @param tracePath trace path inside the MCP workspace
@@ -674,6 +733,29 @@ public class TraceService {
             indexPath = indexPath == null ? "" : indexPath.trim();
             archivePath = archivePath == null ? "" : archivePath.trim();
             entries = entries == null ? Map.of() : Map.copyOf(entries);
+        }
+    }
+
+    /**
+     * Resolved offline SHAFT Trace Report HTML viewer path.
+     *
+     * @param schemaVersion result schema version
+     * @param viewerPath resolved viewer HTML path, or blank when it could not be resolved
+     * @param extracted whether the HTML was freshly extracted from the trace ZIP this call
+     * @param warnings safe warnings, non-empty only when {@code viewerPath} is blank
+     */
+    public record McpTraceViewerResult(
+            String schemaVersion,
+            String viewerPath,
+            boolean extracted,
+            List<String> warnings) {
+        /**
+         * Creates an immutable trace viewer result.
+         */
+        public McpTraceViewerResult {
+            schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? "1.0" : schemaVersion.trim();
+            viewerPath = viewerPath == null ? "" : viewerPath.trim();
+            warnings = warnings == null ? List.of() : List.copyOf(warnings);
         }
     }
 
