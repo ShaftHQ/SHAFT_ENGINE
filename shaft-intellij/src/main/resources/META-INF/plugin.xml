@@ -16,6 +16,8 @@
                     factoryClass="com.shaft.intellij.ShaftToolWindowFactory"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftSettingsState"/>
         <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftCredentialService"/>
+        <applicationService serviceImplementation="com.shaft.intellij.settings.ToolApprovalService"/>
+        <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftPluginResetService"/>
         <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpConnectionState"/>
         <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpInvocationService"/>
         <projectService serviceImplementation="com.shaft.intellij.ui.ShaftAssistantChatState"/>

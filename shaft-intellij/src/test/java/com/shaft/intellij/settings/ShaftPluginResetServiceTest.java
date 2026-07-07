@@ -5,9 +5,13 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -87,20 +91,32 @@ class ShaftPluginResetServiceTest {
     }
 
     @Test
-    void clearAllOnCredentialServiceClearsEveryKnownProvider() throws Exception {
-        // PasswordSafe requires a running IntelliJ Application (unavailable in this plain unit
-        // test), so the write-path itself is verified by source inspection rather than execution -
-        // mirroring the existing pattern in ShaftSettingsConfigurableTest. setApiKey(provider, null)
-        // is proven elsewhere to remove the stored credential (a blank/null secret clears the entry),
-        // so clearAll() looping setApiKey(provider, null) over every KNOWN_PROVIDERS entry leaves
-        // hasApiKey false for each.
-        String source = Files.readString(Path.of(
-                "src/main/java/com/shaft/intellij/settings/ShaftCredentialService.java"));
+    void clearAllOnCredentialServiceClearsEveryKnownProviderAndHasApiKeyIsFalseForEachAfterward() {
+        // ShaftCredentialService.clearAll() delegates to this exact package-visible algorithm (see
+        // ShaftCredentialService#clearAll(BiConsumer)) so it can be executed here against an in-memory
+        // store instead of the real Password Safe, which requires a running IntelliJ Application
+        // (unavailable in this plain unit test). Seed every known provider with a stored secret first
+        // so the assertions below prove clearAll() actually removes each one, rather than passing
+        // vacuously on an already-empty store.
+        Map<String, String> store = new HashMap<>();
+        for (String provider : ShaftCredentialService.KNOWN_PROVIDERS) {
+            store.put(provider, "stored-secret-for-" + provider);
+        }
+        BiConsumer<String, char[]> setter = (provider, secret) -> {
+            if (secret == null) {
+                store.remove(provider);
+            } else {
+                store.put(provider, new String(secret));
+            }
+        };
 
-        assertAll(
-                () -> assertTrue(source.contains("public void clearAll()")),
-                () -> assertTrue(source.contains("for (String provider : KNOWN_PROVIDERS)")),
-                () -> assertTrue(source.contains("setApiKey(provider, null)")));
+        ShaftCredentialService.clearAll(setter);
+
+        for (String provider : ShaftCredentialService.KNOWN_PROVIDERS) {
+            String remaining = store.get(provider);
+            boolean hasApiKey = remaining != null && !remaining.isBlank();
+            assertFalse(hasApiKey, "hasApiKey must be false for " + provider + " after clearAll()");
+        }
     }
 
     @Test
@@ -153,6 +169,46 @@ class ShaftPluginResetServiceTest {
                 () -> assertTrue(projectOne.isCleared(), "Every open project's chat state must be cleared"),
                 () -> assertTrue(projectTwo.isCleared(), "Every open project's chat state must be cleared"),
                 () -> assertTrue(toolWindowRerendered[0], "Tool window re-render step must run"));
+    }
+
+    @Test
+    void productionNoArgConstructorDoesNotEagerlyResolvePlatformServices() {
+        // The no-arg constructor (the one plugin.xml's <applicationService> instantiates) wires
+        // ShaftSettingsState.getInstance(), ShaftCredentialService.getInstance(),
+        // ToolApprovalService.getInstance(), and the tool-window rerenderer only inside deferred
+        // Runnable/Supplier lambda bodies. Constructing it here - with no running IntelliJ
+        // Application in this plain unit test - must not throw, proving those getInstance() calls
+        // are lazy and only fire when resetEverything() actually runs (which requires the real
+        // platform and is exercised by the other constructor-injected tests in this class instead).
+        assertDoesNotThrow(() -> {
+            new ShaftPluginResetService();
+        }, "production no-arg constructor must not eagerly resolve platform services");
+    }
+
+    @Test
+    void pluginXmlRegistersEveryServiceGetInstanceResolvesDuringReset() throws Exception {
+        // resetEverything() (via the production no-arg constructor) resolves ShaftPluginResetService
+        // itself, ShaftCredentialService, ToolApprovalService, and ShaftSettingsState through
+        // ApplicationManager.getApplication().getService(...), which throws at IDE runtime unless the
+        // class is registered as an <applicationService> in plugin.xml. Assert every one of them is
+        // registered so a future removal of an entry (as previously happened for ToolApprovalService
+        // and ShaftPluginResetService itself) fails this test instead of only failing inside a
+        // running IDE.
+        String pluginXml = Files.readString(Path.of("src/main/resources/META-INF/plugin.xml"));
+
+        assertAll(
+                () -> assertTrue(pluginXml.contains(
+                        "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ShaftSettingsState\"/>"),
+                        "ShaftSettingsState must be registered as an applicationService"),
+                () -> assertTrue(pluginXml.contains(
+                        "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ShaftCredentialService\"/>"),
+                        "ShaftCredentialService must be registered as an applicationService"),
+                () -> assertTrue(pluginXml.contains(
+                        "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ToolApprovalService\"/>"),
+                        "ToolApprovalService must be registered as an applicationService"),
+                () -> assertTrue(pluginXml.contains(
+                        "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ShaftPluginResetService\"/>"),
+                        "ShaftPluginResetService must be registered as an applicationService"));
     }
 
     private static ShaftAssistantChatState.StateData sessionWithOneMessage(String sessionId, String markdown) {
