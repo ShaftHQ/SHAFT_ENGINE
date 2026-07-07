@@ -20,5 +20,33 @@
     "mcp-server-dev@claude-plugins-official": true,
     "chrome-devtools-mcp@claude-plugins-official": true,
     "example-skills@anthropics/skills": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py",
+            "args": ["-3", "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py",
+            "args": ["-3", "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py", "--session-start"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }
