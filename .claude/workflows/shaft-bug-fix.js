@@ -427,4 +427,105 @@ const tasks =
     : plan.tasks;
 
 const results = await pipeline(tasks, ownTask);
-return { plan: plan.summary, results, runLog };
+
+// Epilogue: persist the run log to the PR body and save a durable retro
+// to .memory/ so the run survives after this session ends. Plain-code
+// formatting first (no agent needed to build a markdown table); a single
+// Haiku agent handles the two side effects (PR update via gh, memory
+// retro via the project CLI) because both require live shell commands
+// this script cannot run directly.
+const runLogTable = [
+  "## Workflow run log",
+  "",
+  "| Phase | Model |",
+  "|---|---|",
+  ...runLog.map((row) => "| " + row.phase + " | " + row.model + " |"),
+].join("\n");
+
+// filter null results -- skipped/dead agents never produced a result.
+const taskOutcomes = results
+  .filter((result) => result != null)
+  .map((result) => {
+    const id = result.task;
+    if (result.bounced) return "- " + id + ": bounced (no commit)";
+    if (result.escalated) {
+      return (
+        "- " + id + ": escalated -- commits: " + result.commits.join(", ")
+      );
+    }
+    return "- " + id + ": pass -- commits: " + result.commits.join(", ");
+  });
+
+const epilogueMarkdown = [runLogTable, "", "### Task outcomes", ...taskOutcomes].join(
+  "\n"
+);
+
+runLog.push({ phase: "epilogue", model: "haiku" });
+
+const EPILOGUE_REPORT = {
+  type: "object",
+  required: ["prUpdated", "memorySaved"],
+  properties: {
+    prUpdated: { type: "boolean" },
+    memorySaved: { type: "boolean" },
+    notes: { type: "string" },
+  },
+};
+
+function epiloguePrompt(markdown) {
+  return [
+    "You are closing out a shaft-bug-fix workflow run. Do exactly two",
+    "things.",
+    "",
+    "1. PR body: run `gh pr view --json number,body` for the CURRENT",
+    "branch. If a PR exists, take its body and either append the markdown",
+    "below as a new \"## Workflow run log\" section, or -- if a",
+    "\"## Workflow run log\" section already exists -- REPLACE that",
+    "existing section in place (so reruns stay idempotent and never",
+    "duplicate the section). Write the updated full body to a temp file",
+    "in the scratchpad dir (NEVER the repo working tree), then run",
+    "`gh pr edit <number> --body-file <tempfile>`. Set prUpdated=true only",
+    "if the edit succeeded. If no PR exists for the current branch, set",
+    "prUpdated=false and put the markdown verbatim into notes so the",
+    "outer session can use it instead.",
+    "",
+    "2. Memory retro: read",
+    "`.memory/memory/gotchas/memory-saves-use-intent-first-json-on-stdin.md`",
+    "first and follow it exactly -- routine writes use",
+    "`memory remember --stdin` with intent-first JSON on stdin, never a",
+    "stale `memory save` variant. First run `memory search` for this run's",
+    "topic; if a prior retro memory for this recurring workflow topic",
+    "exists, reuse its id instead of creating a duplicate. Save a durable",
+    "retro capturing: the issue/task ids involved, each task's outcome",
+    "(rounds used, refuted?, bounced?, escalated?), which model ran each",
+    "phase, and one lesson learned if any task needed more than one QA",
+    "round. No diary entries, no duplicates. Set memorySaved=true only if",
+    "the write actually succeeded.",
+    "",
+    "Workflow run log markdown to use for the PR section:",
+    "",
+    markdown,
+  ].join("\n");
+}
+
+let epilogueReport;
+try {
+  epilogueReport = await agent(epiloguePrompt(epilogueMarkdown), {
+    model: "haiku",
+    schema: EPILOGUE_REPORT,
+  });
+} catch (error) {
+  // An epilogue failure must never fail the workflow: hand the built
+  // markdown back so nothing is lost.
+  return {
+    plan: plan.summary,
+    results,
+    runLog,
+    epilogue: { prUpdated: false, memorySaved: false, notes: String(error) },
+    runLogMarkdown: epilogueMarkdown,
+  };
+}
+
+const finalReturn = { plan: plan.summary, results, runLog, epilogue: epilogueReport };
+if (!epilogueReport.prUpdated) finalReturn.runLogMarkdown = epilogueMarkdown;
+return finalReturn;
