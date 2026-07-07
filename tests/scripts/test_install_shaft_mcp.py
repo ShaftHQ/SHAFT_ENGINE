@@ -40,6 +40,24 @@ def temporary_current_directory(path: Path):
         os.chdir(original)
 
 
+class _InteractiveStdin(io.StringIO):
+    """A StringIO that reports isatty() == True, so choose_client() reads
+    scripted answers via input() instead of failing the non-interactive check."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+@contextlib.contextmanager
+def scripted_stdin(answer: str):
+    original_stdin = MODULE.sys.stdin
+    MODULE.sys.stdin = _InteractiveStdin(f"{answer}\n")
+    try:
+        yield
+    finally:
+        MODULE.sys.stdin = original_stdin
+
+
 class InstallShaftMcpTest(unittest.TestCase):
     def test_banner_is_not_repeated_after_bootstrap_banner(self):
         with temporary_environment(SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN="1"):
@@ -80,6 +98,75 @@ class InstallShaftMcpTest(unittest.TestCase):
     def test_intellij_plugin_target_does_not_configure_external_client(self):
         MODULE.configure_client("intellij-plugin", Path("java"), Path("shaft-mcp.args"))
 
+    def test_has_agent_guidance_scaffold_requires_agents_md(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+
+            self.assertFalse(MODULE.has_agent_guidance_scaffold(root))
+
+            (root / "AGENTS.md").write_text("# Guidance\n", encoding="utf-8")
+            self.assertTrue(MODULE.has_agent_guidance_scaffold(root))
+
+    def test_agent_validation_script_files_includes_guidance_budget(self):
+        # Regression test for issue #3363 bug 9: a fresh onboarding install used to
+        # copy the validator scripts without the budget config they require,
+        # making the onboarding-referenced `validate_agent_setup.py` crash with
+        # FileNotFoundError on any project that installed them.
+        self.assertIn("scripts/ci/agent_guidance_budget.json", MODULE.AGENT_VALIDATION_SCRIPT_FILES)
+
+    def test_render_client_menu_groups_ai_agents_and_advanced_sections(self):
+        lines = MODULE.render_client_menu()
+
+        self.assertIn("AI agents:", lines)
+        self.assertIn("Advanced / IDE integration:", lines)
+        ai_agents_index = lines.index("AI agents:")
+        advanced_index = lines.index("Advanced / IDE integration:")
+        self.assertLess(ai_agents_index, advanced_index)
+
+        # The intellij-plugin entry's label must appear only after the
+        # second (advanced) header, never mixed into the AI agents group.
+        plugin_label = dict(MODULE.TARGET_CHOICES)["intellij-plugin"]
+        label_line_indexes = [index for index, line in enumerate(lines) if plugin_label in line]
+        self.assertEqual(1, len(label_line_indexes))
+        self.assertGreater(label_line_indexes[0], advanced_index)
+
+        # Numbered entries stay contiguous 1..6, in TARGET_CHOICES order,
+        # regardless of which section they were printed under.
+        numbered_lines = [line.strip() for line in lines if line.strip()[:1].isdigit()]
+        expected_numbered_lines = [
+            f"{index}. {label}" for index, (_, label) in enumerate(MODULE.TARGET_CHOICES, start=1)
+        ]
+        self.assertEqual(expected_numbered_lines, numbered_lines)
+
+        # A one-line clarifier explains the plugin entry is unnecessary from
+        # inside the plugin's own guided setup.
+        self.assertTrue(
+            any(
+                "plugin's own MCP command" in line and "guided setup" in line
+                for line in lines
+            ),
+            f"Expected a clarifier line in: {lines}",
+        )
+
+    def test_choose_client_numeric_and_name_input_resolve_to_same_target(self):
+        results = []
+        for answer in ("6", "intellij-plugin"):
+            with scripted_stdin(answer):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    results.append(MODULE.choose_client())
+
+        self.assertEqual(["intellij-plugin", "intellij-plugin"], results)
+
+    def test_choose_client_prints_the_grouped_menu(self):
+        stdout = io.StringIO()
+        with scripted_stdin("6"):
+            with contextlib.redirect_stdout(stdout):
+                MODULE.choose_client()
+
+        printed_lines = stdout.getvalue().splitlines()
+        for line in MODULE.render_client_menu():
+            self.assertIn(line, printed_lines)
+
     def test_unattended_install_defaults_to_shaft_skills(self):
         args = MODULE.parse_args(["--intellij-plugin"])
 
@@ -106,7 +193,11 @@ class InstallShaftMcpTest(unittest.TestCase):
             with temporary_current_directory(root):
                 installed = MODULE.install_shaft_skills(Path.cwd(), root / "bootstrap")
 
-            self.assertEqual(root / MODULE.SHAFT_SKILLS_DIRECTORY, installed)
+            # Compare resolved paths: os.chdir(root) followed by Path.cwd() inside
+            # install_shaft_skills returns the OS's canonicalized cwd (symlinks resolved on
+            # macOS, short 8.3 names expanded on Windows), which textually differs from the
+            # unresolved `root` built from tempfile.TemporaryDirectory() on those platforms.
+            self.assertEqual((root / MODULE.SHAFT_SKILLS_DIRECTORY).resolve(), installed.resolve())
             self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
             self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
 

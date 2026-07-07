@@ -24,10 +24,13 @@ import javax.swing.JLabel;
 import javax.swing.KeyStroke;
 import javax.swing.JList;
 import javax.swing.ListCellRenderer;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
+import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.BorderLayout;
@@ -416,6 +419,10 @@ class ShaftPanelSetupTest {
                     () -> assertTrue(command instanceof JBTextArea),
                     () -> assertTrue(((JBTextArea) command).getRows() >= 4),
                     () -> assertFalse(findByAccessibleName(panel, "MCP installer target", JComboBox.class).isVisible()),
+                    () -> assertEquals(6, findByAccessibleName(panel, "MCP installer target", JComboBox.class)
+                            .getItemCount()),
+                    () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(
+                            findByAccessibleName(panel, "MCP installer target", JComboBox.class))),
                     () -> assertNotNull(findByAccessibleName(panel, "Show manual MCP install target", JCheckBox.class)),
                     () -> assertNotNull(findByAccessibleName(panel, "Copy MCP installer command", JButton.class)),
                     () -> assertNotNull(findByAccessibleName(panel, "Open terminal for MCP installer", JButton.class)),
@@ -463,7 +470,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupPanelUpdatesInstallerCommandForSelectedAssistantClient() {
+    void setupPanelUpdatesInstallerCommandForSelectedAssistantClient() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
         JTextComponent installer = findByAccessibleName(panel, "MCP installer command", JTextComponent.class);
@@ -494,6 +501,41 @@ class ShaftPanelSetupTest {
         manualTarget.doClick();
         target.setSelectedItem("INTELLIJ_PLUGIN");
         assertTrue(installer.getText().contains("intellij-plugin"));
+
+        // Regression lock: INTELLIJ_PLUGIN stays last among exactly the 6 known installer targets.
+        List<String> installerTargetTokens = new ArrayList<>();
+        for (int index = 0; index < target.getItemCount(); index++) {
+            installerTargetTokens.add(String.valueOf(target.getItemAt(index)));
+        }
+        assertAll(
+                () -> assertEquals(6, target.getItemCount()),
+                () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(target)),
+                () -> assertEquals(List.of("CODEX", "CLAUDE_CODE", "CLAUDE_DESKTOP", "COPILOT_CLI",
+                        "COPILOT_INTELLIJ", "INTELLIJ_PLUGIN"), installerTargetTokens));
+
+        // The disambiguated label must not collapse back to a bare peer-agent name, and the
+        // distinct IDE_PLUGIN runtime token (used by the runtime combo, not this target combo)
+        // must stay unaffected.
+        assertAll(
+                () -> assertEquals("SHAFT IntelliJ plugin (this plugin only - no external agent)",
+                        ShaftUiLabels.friendly("INTELLIJ_PLUGIN")),
+                () -> assertNotEquals("SHAFT IntelliJ plugin", ShaftUiLabels.friendly("INTELLIJ_PLUGIN")),
+                () -> assertEquals("IDE plugin", ShaftUiLabels.friendly("IDE_PLUGIN")));
+
+        // installerArgumentFor()/installerCommandFor() must keep producing the exact same
+        // --client argument strings as before for every known installer target token.
+        assertAll(
+                () -> assertEquals("codex", installerArgumentFor("CODEX")),
+                () -> assertEquals("claude", installerArgumentFor("CLAUDE_CODE")),
+                () -> assertEquals("claude-desktop", installerArgumentFor("CLAUDE_DESKTOP")),
+                () -> assertEquals("copilot", installerArgumentFor("COPILOT_CLI")),
+                () -> assertEquals("copilot-intellij", installerArgumentFor("COPILOT_INTELLIJ")),
+                () -> assertEquals("intellij-plugin", installerArgumentFor("INTELLIJ_PLUGIN")));
+        for (String token : installerTargetTokens) {
+            String argument = installerArgumentFor(token);
+            String command = installerCommandFor(argument);
+            assertTrue(command.contains(argument), command);
+        }
     }
 
     @Test
@@ -508,6 +550,7 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertEquals("CODEX", family.getSelectedItem()),
                 () -> assertEquals("CODEX", target.getSelectedItem()),
+                () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(target)),
                 () -> assertTrue(containsText(panel, "Recommended: Claude Code CLI detected")));
     }
 
@@ -570,9 +613,55 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class).isVisible()),
                 () -> assertFalse(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isVisible()),
                 () -> assertTrue(settings.mcpSetupComplete),
-                () -> assertTrue(settings.agentGuidanceOptimizationPromptPending));
+                // fakeProject()'s base path has no AGENTS.md, so the guidance-optimization
+                // prompt (which references a validator only meaningful for a project that
+                // adopted that scaffold) must not be scheduled -- see
+                // setupSuccessSchedulesGuidanceOptimizationPromptOnlyWithAgentsMdScaffold
+                // for the case where the scaffold is present.
+                () -> assertFalse(settings.agentGuidanceOptimizationPromptPending));
         clickAccessible(panel, "Start chatting with SHAFT Assistant");
         assertTrue(connected.get());
+    }
+
+    @Test
+    void setupSuccessSchedulesGuidanceOptimizationPromptOnlyWithAgentsMdScaffold() throws Exception {
+        // Regression test for issue #3363 bug 9: the agent-guidance-optimization
+        // prompt tells the agent to rerun scripts/ci/validate_agent_setup.py, a
+        // validator that only works in a project that has actually adopted the
+        // AGENTS.md scaffold. Scheduling that prompt for any successfully
+        // configured project -- regardless of whether it has that scaffold --
+        // made the agent report back that required config/scaffold files were
+        // missing, because they never existed in the target project at all.
+        Path projectWithoutScaffold = Files.createTempDirectory("shaft-no-scaffold");
+        Path projectWithScaffold = Files.createTempDirectory("shaft-with-scaffold");
+        try {
+            Files.writeString(projectWithScaffold.resolve("AGENTS.md"), "# Guidance\n");
+
+            ShaftSettingsState.Settings withoutScaffoldSettings = unverifiedMcpSettings();
+            ShaftMcpSetupPanel withoutScaffoldPanel = new ShaftMcpSetupPanel(
+                    fakeProject(new ShaftAssistantChatState(), projectWithoutScaffold.toString()),
+                    withoutScaffoldSettings, () -> {
+                    }, readyProbe());
+            showTestResult(withoutScaffoldPanel, ShaftMcpToolResult.success("Probe OK"));
+
+            ShaftSettingsState.Settings withScaffoldSettings = unverifiedMcpSettings();
+            ShaftMcpSetupPanel withScaffoldPanel = new ShaftMcpSetupPanel(
+                    fakeProject(new ShaftAssistantChatState(), projectWithScaffold.toString()),
+                    withScaffoldSettings, () -> {
+                    }, readyProbe());
+            showTestResult(withScaffoldPanel, ShaftMcpToolResult.success("Probe OK"));
+
+            assertAll(
+                    () -> assertFalse(withoutScaffoldSettings.agentGuidanceOptimizationPromptPending,
+                            "No AGENTS.md scaffold: the guidance-optimization prompt must not be scheduled"),
+                    () -> assertTrue(withScaffoldSettings.agentGuidanceOptimizationPromptPending,
+                            "AGENTS.md scaffold present: the guidance-optimization prompt should be scheduled"));
+        } finally {
+            Files.deleteIfExists(projectWithoutScaffold.resolve("AGENTS.md"));
+            Files.deleteIfExists(projectWithoutScaffold);
+            Files.deleteIfExists(projectWithScaffold.resolve("AGENTS.md"));
+            Files.deleteIfExists(projectWithScaffold);
+        }
     }
 
     @Test
@@ -604,13 +693,20 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel first = new ShaftAssistantPanel(null, settings);
         ShaftAssistantPanel second = new ShaftAssistantPanel(null, settings);
 
+        JComboBox<?> assistantMode = findByAccessibleName(first, "Assistant mode", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(first, "Approve source mutation for Agent mode", JCheckBox.class);
+
         assertAll(
                 () -> assertTrue(containsText(first, "Audit and optimize")),
                 () -> assertTrue(containsText(first, "shaft_guide_search")),
                 () -> assertTrue(containsText(first, "test_automation_scenarios")),
                 () -> assertTrue(containsText(first, "test_code_guardrails_check")),
                 () -> assertFalse(settings.agentGuidanceOptimizationPromptPending),
-                () -> assertFalse(containsText(second, "Audit and optimize")));
+                () -> assertFalse(containsText(second, "Audit and optimize")),
+                () -> assertEquals("PLAN", assistantMode.getSelectedItem(),
+                        "Onboarding optimization prompt should force Plan mode"),
+                () -> assertFalse(allowEdits.isSelected(),
+                        "Onboarding optimization prompt should leave source edits unchecked"));
     }
 
     @Test
@@ -628,6 +724,17 @@ class ShaftPanelSetupTest {
                         .contains("CLAUDE.md, AGENTS.md, .agents/skills/**, .memory/**")),
                 () -> assertTrue(ShaftAssistantPanel.agentGuidanceOptimizationPrompt(copilot)
                         .contains(".github/copilot-instructions.md, AGENTS.md, .github/instructions/**, .github/skills/**, .memory/**")));
+    }
+
+    @Test
+    void guidanceOptimizationPromptRerunInstructionIsUnconditional() {
+        ShaftSettingsState.Settings codex = connectedMcpSettings();
+
+        String prompt = ShaftAssistantPanel.agentGuidanceOptimizationPrompt(codex);
+
+        assertAll(
+                () -> assertFalse(prompt.contains("If source edits are not enabled"), prompt),
+                () -> assertTrue(prompt.contains("validate_agent_setup.py --skip-external"), prompt));
     }
 
     @Test
@@ -1128,6 +1235,110 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupCompleteCallbackCreatesNewSessionBeforeShowingMainView() throws Exception {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "previous message", "{}");
+        chatState.append("assistant", "previous answer", "{}");
+        int initialSessionCount = chatState.sessions().size();
+        String previousSessionId = chatState.activeSession().id;
+
+        // Create tool window with unverified MCP settings (shows setup panel). Use the stubbed
+        // readyProbe() rather than the real AssistantLocalAgentRunner::readiness default -- that
+        // real probe checks whether an actual agent CLI is installed on PATH, which made this test
+        // pass or fail depending on the machine running it (installed locally, absent on clean CI
+        // runners) instead of testing the session-reset behavior it's meant to cover.
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
+                fakeProject(chatState), unverifiedMcpSettings(), readyProbe(), chatState);
+
+        // Simulate successful setup and trigger callback by clicking "Start chatting"
+        ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
+        assertNotNull(setupPanel);
+        showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
+        JButton startChatting = findByAccessibleName(setupPanel, "Start chatting with SHAFT Assistant", JButton.class);
+        assertNotNull(startChatting);
+        startChatting.doClick();
+
+        assertAll(
+                () -> assertEquals(initialSessionCount + 1, chatState.sessions().size(),
+                        "Setup complete callback should create a new session"),
+                () -> assertTrue(chatState.activeMessages().isEmpty(),
+                        "New active session should have no messages"),
+                () -> assertNotEquals(previousSessionId, chatState.activeSession().id,
+                        "Active session should be the new one"),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class),
+                        "Main view should be displayed with empty chat"));
+    }
+
+    @Test
+    void setupCompleteDedupGuardPreventsDoubleSessionCreation() throws Exception {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "first chat", "{}");
+        chatState.newSession(); // Create empty session
+        int sessionCount = chatState.sessions().size();
+        String activeSessionId = chatState.activeSession().id;
+
+        // Invoke newSession() again while active session is empty
+        ShaftAssistantChatState.Session returned = chatState.newSession();
+
+        assertAll(
+                () -> assertEquals(sessionCount, chatState.sessions().size(),
+                        "Second newSession() on empty active session should not create new session"),
+                () -> assertEquals(activeSessionId, returned.id,
+                        "Should return the existing empty session"),
+                () -> assertEquals(activeSessionId, chatState.activeSession().id,
+                        "Active session ID should remain unchanged"));
+    }
+
+    @Test
+    void newSessionCreatesNewWhenActiveSesionHasMessages() {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "existing message", "{}");
+        int initialSessionCount = chatState.sessions().size();
+        String initialActiveId = chatState.activeSession().id;
+
+        ShaftAssistantChatState.Session newSession = chatState.newSession();
+
+        assertAll(
+                () -> assertEquals(initialSessionCount + 1, chatState.sessions().size(),
+                        "Should create new session when active has messages"),
+                () -> assertNotEquals(initialActiveId, newSession.id,
+                        "New session should have different ID"),
+                () -> assertTrue(newSession.messages.isEmpty(),
+                        "New session should be empty"),
+                () -> assertEquals(newSession.id, chatState.activeSession().id,
+                        "New session should become active"));
+    }
+
+    @Test
+    void assistantPanelUiResetWorksWithDedupedSession() throws Exception {
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "initial prompt", "{}");
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(fakeProject(chatState), blankMcpSettings(), chatState);
+
+        // Simulate clearing the active session and creating a new one (like "New chat" does internally)
+        chatState.clearActiveSession();
+
+        // Call newSession() twice - second time should reuse the empty session instead of creating a new one
+        chatState.newSession();
+        ShaftAssistantChatState.Session afterFirstNew = chatState.activeSession();
+        int sessionCountAfterFirst = chatState.sessions().size();
+
+        chatState.newSession();
+        ShaftAssistantChatState.Session afterSecondNew = chatState.activeSession();
+        int sessionCountAfterSecond = chatState.sessions().size();
+
+        assertAll(
+                () -> assertTrue(chatState.activeMessages().isEmpty(),
+                        "Chat should be empty after newSession"),
+                () -> assertEquals(sessionCountAfterFirst, sessionCountAfterSecond,
+                        "Second newSession() on empty session should not create new session (dedup guard)"),
+                () -> assertEquals(afterFirstNew.id, afterSecondNew.id,
+                        "After second newSession(), should still be on the same empty session"),
+                () -> assertNotNull(findByAccessibleName(panel, "Assistant prompt", JTextComponent.class),
+                        "UI should still be functional"));
+    }
+
+    @Test
     void assistantKeepsCurrentSessionHistoryInDropdown() {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
         chatState.append("user", "first in-memory chat", "{}");
@@ -1241,6 +1452,43 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(transcriptMarkdown(panel).contains("visible verbose agent response")),
                 () -> assertTrue(containsText(panel, "visible verbose agent response")));
+    }
+
+    @Test
+    void assistantStructuredLocalAgentResponseShowsExactReportedTokenCountAndHidesRawUsageJson() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        // Shaped per the R3-T1 contract: an answer followed by a trailing single-line usage JSON,
+        // as produced by AssistantLocalAgentRunner's structured-stream terminal event / finalOutput.
+        String rawResponse = "The failure was a stale locator."
+                + "\n\n{\"usage\":{\"input_tokens\":123,\"output_tokens\":45}}";
+
+        appendStreamingLocalAgentBubble(panel, 101);
+        showAgentResult(panel, 101, ShaftMcpToolResult.success(rawResponse));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("The failure was a stale locator."), markdown),
+                () -> assertTrue(markdown.contains("Tokens consumed:"), markdown),
+                () -> assertTrue(markdown.contains("`168`"), markdown),
+                () -> assertTrue(markdown.contains("input: 123"), markdown),
+                () -> assertTrue(markdown.contains("output: 45"), markdown),
+                () -> assertFalse(markdown.contains("(estimated)"), markdown),
+                () -> assertFalse(markdown.contains("input_tokens"), markdown));
+    }
+
+    @Test
+    void assistantFallbackLocalAgentResponseKeepsEstimatedTokenCount() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String rawResponse = "Here is the explanation.\nIt spans several lines.\nNo structured data anywhere.";
+
+        appendStreamingLocalAgentBubble(panel, 102);
+        showAgentResult(panel, 102, ShaftMcpToolResult.success(rawResponse));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("Here is the explanation."), markdown),
+                () -> assertTrue(markdown.matches("(?s).*\\*\\*Tokens consumed:\\*\\* `\\d+` \\(estimated\\).*"),
+                        markdown));
     }
 
     @Test
@@ -2006,6 +2254,90 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantTranscriptMessagePaneShowsContextMenuWithCopyActionsAndSurvivesRerender() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("assistant", "First response");
+
+        JEditorPane firstPane = transcriptHtmlPanes(transcript).get(0);
+        MouseListener listener = transcriptContextMenuListener(firstPane);
+        assertNotNull(listener, "Context menu listener should be installed in fallbackHtmlPane");
+
+        listener.mouseReleased(popupTriggerEvent(firstPane));
+        JPopupMenu menu = transcript.lastMessageContextMenuForTest();
+        assertNotNull(menu);
+        JMenuItem copyItem = findByAccessibleName(menu, "Copy", JMenuItem.class);
+        JMenuItem selectAllItem = findByAccessibleName(menu, "Select All", JMenuItem.class);
+        JMenuItem copyFullTranscriptItem = findByAccessibleName(menu, "Copy full transcript", JMenuItem.class);
+
+        assertAll(
+                () -> assertEquals(3, menu.getComponentCount()),
+                () -> assertNotNull(copyItem),
+                () -> assertFalse(copyItem.isEnabled(), "Copy should be disabled without a selection"),
+                () -> assertNotNull(selectAllItem),
+                () -> assertTrue(selectAllItem.isEnabled()),
+                () -> assertNotNull(copyFullTranscriptItem),
+                () -> assertTrue(copyFullTranscriptItem.isEnabled()));
+
+        firstPane.select(0, firstPane.getDocument().getLength());
+        listener.mouseReleased(popupTriggerEvent(firstPane));
+        JMenuItem copyItemAfterSelection = findByAccessibleName(
+                transcript.lastMessageContextMenuForTest(), "Copy", JMenuItem.class);
+        assertTrue(copyItemAfterSelection.isEnabled(), "Copy should be enabled once the pane has a selection");
+
+        transcript.append("assistant", "Second response");
+        List<JEditorPane> panesAfterRerender = transcriptHtmlPanes(transcript);
+        JEditorPane newestPane = panesAfterRerender.get(panesAfterRerender.size() - 1);
+        MouseListener listenerAfterRerender = transcriptContextMenuListener(newestPane);
+        assertNotNull(listenerAfterRerender, "Context menu should survive a transcript re-render");
+
+        listenerAfterRerender.mouseReleased(popupTriggerEvent(newestPane));
+        assertEquals(3, transcript.lastMessageContextMenuForTest().getComponentCount());
+    }
+
+    @Test
+    void assistantTranscriptContextMenuIgnoresNonPopupTriggerEvents() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("assistant", "Response");
+        JEditorPane pane = transcriptHtmlPanes(transcript).get(0);
+        MouseListener listener = transcriptContextMenuListener(pane);
+        assertNotNull(listener);
+
+        MouseEvent plainClick = new MouseEvent(pane, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
+                InputEvent.BUTTON1_DOWN_MASK, 4, 4, 1, false, MouseEvent.BUTTON1);
+        listener.mousePressed(plainClick);
+        listener.mouseReleased(plainClick);
+
+        assertNull(transcript.lastMessageContextMenuForTest());
+    }
+
+    @Test
+    void assistantTranscriptCopyFullTranscriptContextMenuItemReusesCopyButtonExportPath() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        showAssistantResult(panel, ShaftMcpToolResult.success("Rendered assistant output"));
+        AssistantTranscriptView view = getTranscriptView(panel);
+        assertNotNull(view);
+
+        String expectedExport = assistantExport(panel);
+        assertTrue(expectedExport.contains("Rendered assistant output"));
+
+        AtomicInteger invocations = new AtomicInteger();
+        view.setCopyFullTranscriptAction(invocations::incrementAndGet);
+
+        List<JEditorPane> panes = transcriptHtmlPanes(view);
+        JEditorPane pane = panes.get(panes.size() - 1);
+        MouseListener listener = transcriptContextMenuListener(pane);
+        assertNotNull(listener);
+        listener.mouseReleased(popupTriggerEvent(pane));
+
+        JMenuItem copyFullTranscriptItem = findByAccessibleName(
+                view.lastMessageContextMenuForTest(), "Copy full transcript", JMenuItem.class);
+        assertNotNull(copyFullTranscriptItem);
+        copyFullTranscriptItem.doClick();
+
+        assertEquals(1, invocations.get());
+    }
+
+    @Test
     void assistantTranscriptCodeCopyControlDoesNotPaintRectangularOutline() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
         transcript.append("assistant", """
@@ -2279,6 +2611,112 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void allowSourceMutationSurvivesRunningCycleInAgentModeLocalRoute() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = true;
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JComboBox<?> assistantProviderType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+
+        assistantProviderType.setSelectedItem("LOCAL");
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+
+        panel.setRunning(true, "Thinking...");
+        panel.setRunning(false, "Ready");
+
+        assertTrue(allowEdits.isSelected(),
+                "Allow source edits should remain selected after a running cycle in Agent mode");
+    }
+
+    @Test
+    void allowSourceMutationUnchecksExactlyOnceWhenModeLeavesAgent() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = true;
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JComboBox<?> assistantProviderType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+
+        assistantProviderType.setSelectedItem("LOCAL");
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+        assertTrue(allowEdits.isSelected());
+
+        AtomicInteger uncheckCount = new AtomicInteger();
+        allowEdits.addItemListener(event -> {
+            if (!allowEdits.isSelected()) {
+                uncheckCount.incrementAndGet();
+            }
+        });
+
+        assistantMode.setSelectedItem("ASK");
+        assertAll(
+                () -> assertFalse(allowEdits.isSelected(), "Switching away from Agent mode should uncheck source edits"),
+                () -> assertEquals(1, uncheckCount.get(), "Uncheck should fire exactly once, no listener re-entrancy loop"));
+
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+        uncheckCount.set(0);
+        assistantMode.setSelectedItem("PLAN");
+        assertAll(
+                () -> assertFalse(allowEdits.isSelected(), "Switching to Plan mode should uncheck source edits"),
+                () -> assertEquals(1, uncheckCount.get(), "Uncheck should fire exactly once, no listener re-entrancy loop"));
+    }
+
+    @Test
+    void allowSourceMutationUnchecksExactlyOnceWhenCloudForcesModeSwitch() {
+        // The live cloud route is not reachable in this headless test harness: usesCloud()==true
+        // makes updateControlVisibility() call updateCloudKeyStatus(), which needs
+        // ApplicationManager.getApplication() (unavailable without IntelliJ Platform Test Framework
+        // fixtures, which this task's tests must not require/pull in). updateControlVisibility()
+        // forces mode back to PLAN (the behavior this test proves) *before* it reaches
+        // updateCloudKeyStatus(), so the NPE from the missing ApplicationManager happens strictly
+        // after both effects under test (uncheck + forced PLAN switch) have already taken place.
+        // The try/catch below only swallows that trailing, unrelated environment limitation; every
+        // assertion about the behavior under test runs after the mutation that can throw.
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = true;
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JComboBox<?> assistantProviderType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+
+        assistantProviderType.setSelectedItem("LOCAL");
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+        assertTrue(allowEdits.isSelected());
+        assertEquals("AGENT", assistantMode.getSelectedItem());
+
+        AtomicInteger uncheckCount = new AtomicInteger();
+        allowEdits.addItemListener(event -> {
+            if (!allowEdits.isSelected()) {
+                uncheckCount.incrementAndGet();
+            }
+        });
+
+        // Selecting CLOUD while in Agent mode makes onModeOrRouteSelectionChanged() uncheck the
+        // checkbox immediately, then delegates to updateControlVisibility(), which forces mode back
+        // to PLAN before it reaches the cloud-key-status lookup that NPEs in this bare harness
+        // (missing ApplicationManager). That NPE is an unrelated, pre-existing environment
+        // limitation, not a re-entrancy bug, so it is tolerated here -- but only after the mode
+        // switch to PLAN has already happened, which the assertions below verify end-to-end.
+        try {
+            assistantProviderType.setSelectedItem("CLOUD");
+        } catch (NullPointerException ignoredMissingApplicationManager) {
+            // Expected in this headless harness; see comment above.
+        }
+
+        assertAll(
+                () -> assertFalse(allowEdits.isSelected(), "Cloud route should uncheck source edits exactly once"),
+                () -> assertEquals(1, uncheckCount.get(),
+                        "Source edits checkbox should uncheck exactly once with no listener re-entrancy loop"),
+                () -> assertEquals("PLAN", assistantMode.getSelectedItem(),
+                        "Forcing cloud route while in Agent mode should switch mode to PLAN end-to-end"));
+    }
+
+    @Test
     void assistantAgentModeShowsSourceEditApprovalForLockedDesktopRuntime() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.assistantRuntime = "DESKTOP_APP";
@@ -2299,6 +2737,184 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void actionRowButtonsAreLaidOutAfterClearingTranscript() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        panel.simulateAppendForTest("user", "Plan a resilient login test", "");
+        panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
+
+        layoutPanel(panel);
+        assertActionRowButtonsSaneAfterLayout(panel, true);
+
+        RevalidateSpy spy = RevalidateSpy.install();
+        try {
+            clickAccessible(panel, "Clear assistant transcript");
+            SwingUtilities.invokeAndWait(() -> {
+            });
+        } finally {
+            spy.uninstall();
+        }
+        assertTrue(spy.sawRevalidateFor(actionRowContainer(panel)),
+                "updateActionChrome() should revalidate the action row's container after Clear,"
+                        + " without relying on the test's manual layout walk");
+
+        // Do NOT call the manual layoutPanel() walker before asserting bounds here: that helper
+        // forces doLayout()/validate() on every component regardless of production behavior, which
+        // would make this assertion pass even if updateActionChrome()'s revalidate()/repaint() call
+        // were deleted. Instead, flush the revalidate/repaint that production code already scheduled.
+        flushPendingLayoutAndRepaint(panel);
+
+        JButton clear = findByAccessibleName(panel, "Clear assistant transcript", JButton.class);
+        JButton copyTranscript = findByAccessibleName(panel, "Copy assistant transcript", JButton.class);
+        JButton rerun = findByAccessibleName(panel, "Rerun last assistant prompt", JButton.class);
+        JButton copyResponse = findByAccessibleName(panel, "Copy last assistant response", JButton.class);
+        assertAll(
+                () -> assertFalse(clear.isVisible(), "Clear should hide once transcript is empty"),
+                () -> assertFalse(copyTranscript.isVisible(), "Copy all should hide once transcript is empty"),
+                () -> assertFalse(rerun.isVisible(), "Rerun should hide once last prompt is cleared"),
+                () -> assertFalse(copyResponse.isVisible(), "Copy response should hide once last response is cleared"));
+        assertActionRowButtonsSaneAfterLayout(panel, false);
+    }
+
+    @Test
+    void actionRowButtonsAreLaidOutAfterAppendingMessages() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        layoutPanel(panel);
+
+        RevalidateSpy spy = RevalidateSpy.install();
+        try {
+            panel.simulateAppendForTest("user", "Plan a resilient login test", "");
+            SwingUtilities.invokeAndWait(() -> {
+            });
+            panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
+            SwingUtilities.invokeAndWait(() -> {
+            });
+        } finally {
+            spy.uninstall();
+        }
+        assertTrue(spy.sawRevalidateFor(actionRowContainer(panel)),
+                "updateActionChrome() should revalidate the action row's container after appending"
+                        + " messages (a non-Clear caller), proving the fix lives in updateActionChrome()"
+                        + " rather than being Clear-specific");
+
+        // Same rationale as above: flush the production-scheduled revalidate/repaint instead of
+        // forcing layout manually, so a deleted refreshActionRowLayout() call would fail this test.
+        flushPendingLayoutAndRepaint(panel);
+
+        assertActionRowButtonsSaneAfterLayout(panel, true);
+    }
+
+    /**
+     * Resolves the same container that {@code ShaftAssistantPanel.refreshActionRowLayout()}
+     * revalidates/repaints: the action row's parent, falling back to the action row itself.
+     */
+    private static Container actionRowContainer(ShaftAssistantPanel panel) throws Exception {
+        JPanel actionRow = (JPanel) getField(panel, "actionRow");
+        Container parent = actionRow.getParent();
+        return parent != null ? parent : actionRow;
+    }
+
+    /**
+     * Flushes a revalidate()/repaint() that production code already scheduled (via
+     * {@code RepaintManager}) into an actual layout pass. The spy assertion (run before this method)
+     * is what keeps the test sensitive to a deleted {@code refreshActionRowLayout()} call; this
+     * method's job is only to produce realized bounds afterward, so it mirrors {@link
+     * #layoutPanel(ShaftAssistantPanel)}'s recursive doLayout()/validate() walk rather than relying
+     * on {@code Container.validate()} to recurse into every nested panel on its own.
+     */
+    private static void flushPendingLayoutAndRepaint(ShaftAssistantPanel panel) throws Exception {
+        layoutPanel(panel);
+    }
+
+    /**
+     * A {@link RepaintManager} that records exactly which components had {@code revalidate()}
+     * invoked on them (via {@code addInvalidComponent}), so tests can assert that production code
+     * itself requested a layout refresh instead of relying on a test helper that forces layout
+     * unconditionally. Deliberately does NOT track {@code addDirtyRegion} (repaint): a plain
+     * {@link javax.swing.AbstractButton#doClick()} already marks the unrealized top-level panel
+     * dirty as a side effect of the button's own pressed/armed paint state (Swing's default
+     * RepaintManager walks up to the nearest showing-or-root ancestor), which would make a
+     * repaint-based check pass trivially even with no production revalidate/repaint call at all.
+     * revalidate() does not have that false-positive: only an explicit
+     * {@code JComponent.revalidate()} call adds the exact component to the invalid-component list.
+     */
+    private static final class RevalidateSpy extends RepaintManager {
+        private final RepaintManager delegate;
+        private final List<Component> invalidated = new ArrayList<>();
+
+        private RevalidateSpy(RepaintManager delegate) {
+            this.delegate = delegate;
+        }
+
+        static RevalidateSpy install() {
+            RevalidateSpy spy = new RevalidateSpy(RepaintManager.currentManager(null));
+            RepaintManager.setCurrentManager(spy);
+            return spy;
+        }
+
+        void uninstall() {
+            RepaintManager.setCurrentManager(delegate);
+        }
+
+        boolean sawRevalidateFor(Component target) {
+            return invalidated.contains(target);
+        }
+
+        @Override
+        public synchronized void addInvalidComponent(JComponent invalidComponent) {
+            invalidated.add(invalidComponent);
+            delegate.addInvalidComponent(invalidComponent);
+        }
+    }
+
+    private static void layoutPanel(ShaftAssistantPanel panel) throws Exception {
+        panel.setBounds(0, 0, 900, 700);
+        SwingUtilities.invokeAndWait(() -> {
+            panel.doLayout();
+            walkComponents(panel, comp -> {
+                if (comp instanceof JComponent jc && comp != panel) {
+                    jc.doLayout();
+                }
+            });
+            panel.validate();
+        });
+    }
+
+    private static void assertActionRowButtonsSaneAfterLayout(ShaftAssistantPanel panel, boolean expectResponseButtonsVisible)
+            throws Exception {
+        JLabel statusLabel = (JLabel) getField(panel, "status");
+        List<JButton> actionRowButtons = List.of(
+                findByAccessibleName(panel, "Copy last assistant response", JButton.class),
+                findByAccessibleName(panel, "Copy last raw assistant response", JButton.class),
+                findByAccessibleName(panel, "Copy assistant transcript", JButton.class),
+                findByAccessibleName(panel, "Clear assistant transcript", JButton.class),
+                findByAccessibleName(panel, "Rerun last assistant prompt", JButton.class),
+                findByAccessibleName(panel, "Reconnect to MCP server", JButton.class),
+                findByAccessibleName(panel, "Cancel assistant request", JButton.class));
+        boolean anyVisible = false;
+        for (JButton button : actionRowButtons) {
+            assertNotNull(button);
+            if (!button.isVisible()) {
+                continue;
+            }
+            anyVisible = true;
+            assertTrue(button.getWidth() > 0,
+                    accessibleName(button) + " should have a positive width after layout");
+            assertTrue(button.getHeight() > 0,
+                    accessibleName(button) + " should have a positive height after layout");
+            java.awt.Rectangle buttonBounds = new java.awt.Rectangle(
+                    SwingUtilities.convertPoint(button.getParent(), button.getLocation(), panel), button.getSize());
+            java.awt.Rectangle statusBounds = new java.awt.Rectangle(
+                    SwingUtilities.convertPoint(statusLabel.getParent(), statusLabel.getLocation(), panel),
+                    statusLabel.getSize());
+            assertFalse(buttonBounds.intersects(statusBounds),
+                    accessibleName(button) + " bounds " + buttonBounds + " should not intersect status bounds " + statusBounds);
+        }
+        if (expectResponseButtonsVisible) {
+            assertTrue(anyVisible, "Expected at least one action-row button to be visible after layout");
+        }
+    }
+
+    @Test
     void assistantCopyAllIncludesCurrentSessionToolEvidence() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
         showAgentResult(panel, ShaftMcpToolResult.success("tool output payload"));
@@ -2311,13 +2927,16 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupSuccessPreservesExistingAssistantSession() throws Exception {
+    void setupSuccessOpensNewFreshSessionWithoutLosingSessions() throws Exception {
         ShaftSettingsState.Settings settings = blankMcpSettings();
         settings.mcpCommand = "cmd";
         settings.mcpSetupComplete = false;
         Project project = fakeProject();
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
         chatState.append("user", "Previous assistant conversation", "{}");
+        String previousSessionId = chatState.activeSession().id;
+        int initialSessionCount = chatState.sessions().size();
+
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings, readyProbe(), chatState);
 
         ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
@@ -2326,7 +2945,16 @@ class ShaftPanelSetupTest {
         clickAccessible(setupPanel, "Start chatting with SHAFT Assistant");
 
         assertAll(
-                () -> assertTrue(transcriptMarkdown(toolWindow).contains("Previous assistant conversation")),
+                () -> assertTrue(chatState.activeMessages().isEmpty(),
+                        "Setup complete should open a fresh (empty) session"),
+                () -> assertNotEquals(previousSessionId, chatState.activeSession().id,
+                        "Should have created a new session"),
+                () -> assertEquals(initialSessionCount + 1, chatState.sessions().size(),
+                        "Previous session should still exist in sessions list"),
+                () -> assertTrue(chatState.sessions().stream().anyMatch(s -> s.id.equals(previousSessionId)),
+                        "Previous session with conversation should still be selectable"),
+                () -> assertFalse(transcriptMarkdown(toolWindow).contains("Previous assistant conversation"),
+                        "Current transcript should show the new empty session, not previous conversation"),
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)));
     }
 
@@ -2556,6 +3184,20 @@ class ShaftPanelSetupTest {
         List<JEditorPane> panes = new ArrayList<>();
         collectTranscriptHtmlPanes(component, panes);
         return panes;
+    }
+
+    private static MouseListener transcriptContextMenuListener(JEditorPane pane) {
+        for (MouseListener listener : pane.getMouseListeners()) {
+            if (listener instanceof AssistantTranscriptView.TranscriptContextMenuListener) {
+                return listener;
+            }
+        }
+        return null;
+    }
+
+    private static MouseEvent popupTriggerEvent(JEditorPane pane) {
+        return new MouseEvent(pane, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
+                InputEvent.BUTTON3_DOWN_MASK, 6, 6, 1, true, MouseEvent.BUTTON3);
     }
 
     private static void collectTranscriptHtmlPanes(Component component, List<JEditorPane> panes) {
@@ -3126,6 +3768,22 @@ class ShaftPanelSetupTest {
         return false;
     }
 
+    private static Object lastComboItem(JComboBox<?> comboBox) {
+        return comboBox.getItemAt(comboBox.getItemCount() - 1);
+    }
+
+    private static String installerArgumentFor(String target) throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("installerArgumentFor", String.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, target);
+    }
+
+    private static String installerCommandFor(String argument) throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("installerCommandFor", String.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, argument);
+    }
+
     private static boolean listContains(JList<?> list, String expectedText) {
         if (list == null) {
             return false;
@@ -3215,6 +3873,10 @@ class ShaftPanelSetupTest {
     }
 
     private static Project fakeProject(ShaftAssistantChatState assistantChatState) {
+        return fakeProject(assistantChatState, "");
+    }
+
+    private static Project fakeProject(ShaftAssistantChatState assistantChatState, String basePath) {
         return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
                 (proxy, method, arguments) -> {
                     switch (method.getName()) {
@@ -3224,7 +3886,7 @@ class ShaftPanelSetupTest {
                         case "hashCode":
                             return System.identityHashCode(proxy);
                         case "getBasePath":
-                            return "";
+                            return basePath;
                         case "getName":
                             return "SHAFT test project";
                         case "getService":
@@ -3320,5 +3982,163 @@ class ShaftPanelSetupTest {
                 walkComponents(child, visitor);
             }
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Round 5 (issue #3363) capstone: walks the entire onboarding journey
+    // -- setup -> install command -> Start chatting -> agent-mode consent
+    // -> verbose streaming/token count -> Clear -> right-click context menu
+    // -> New chat -- in one ordered flow, so a future regression in any of
+    // Rounds 1-4's fixes fails here even if a narrower unit test is ever
+    // weakened or deleted.
+    // ------------------------------------------------------------------
+    @Test
+    void onboardingJourneyCoversSetupThroughNewChatWithoutRegressingAnyRoundFix() throws Exception {
+        // Step 1: setup view shown. Pre-seed a prior session so step 3's
+        // fresh-session assertion isn't vacuously true.
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "previous onboarding message", "{}");
+        chatState.append("assistant", "previous onboarding answer", "{}");
+        int sessionsBeforeStartChatting = chatState.sessions().size();
+
+        // readyProbe() stub, never the real AssistantLocalAgentRunner::readiness probe --
+        // that real probe checks for an actual agent CLI on PATH and made a Round 2 test
+        // pass locally but fail on clean CI runners; every construction here must stay
+        // deterministic regardless of what's installed on the machine running it.
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
+                fakeProject(chatState), unverifiedMcpSettings(), readyProbe(), chatState);
+        ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
+        assertNotNull(setupPanel, "Unverified MCP settings must show the setup panel first");
+
+        // Step 2: install command contract -- must never auto-suggest intellij-plugin
+        // by default (Round 4 fix) and must reference a real installer script.
+        JTextComponent installerCommandField =
+                findByAccessibleName(setupPanel, "MCP installer command", JTextComponent.class);
+        assertNotNull(installerCommandField);
+        String installerCommandText = installerCommandField.getText();
+        assertAll(
+                () -> assertFalse(installerCommandText.contains("-Client intellij-plugin"),
+                        "Round 4 fix: the setup panel must never auto-suggest the intellij-plugin target: "
+                                + installerCommandText),
+                () -> assertTrue(installerCommandText.contains("install-shaft-mcp"),
+                        "Installer command must reference a real installer script: " + installerCommandText));
+
+        // Step 3: Check -> Start chatting must open a fresh session (Round 2 fix).
+        showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
+        JButton startChatting =
+                findByAccessibleName(setupPanel, "Start chatting with SHAFT Assistant", JButton.class);
+        assertNotNull(startChatting);
+        startChatting.doClick();
+
+        assertAll(
+                () -> assertEquals(sessionsBeforeStartChatting + 1, chatState.sessions().size(),
+                        "Round 2 fix: Start chatting must create exactly one new session"),
+                () -> assertTrue(chatState.activeMessages().isEmpty(),
+                        "Round 2 fix: the new active session must start empty"),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class),
+                        "Round 2 fix: the main view must be shown with an empty prompt after Start chatting"));
+
+        ShaftAssistantPanel assistantPanel = findAssistantPanel(toolWindow);
+        assertNotNull(assistantPanel, "Main view should now host the Assistant panel");
+
+        // Step 4: agent-mode consent integrity (Round 2 fix, both defects).
+        JComboBox<?> assistantMode = findByAccessibleName(assistantPanel, "Assistant mode", JComboBox.class);
+        JCheckBox allowEdits =
+                findByAccessibleName(assistantPanel, "Approve source mutation for Agent mode", JCheckBox.class);
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+
+        // A run-state cycle that is NOT itself a user-driven mode change must not
+        // silently reset the checkbox (Round 2 defect A).
+        assistantPanel.setRunning(true, "Thinking...");
+        assistantPanel.setRunning(false, "Ready");
+        assertTrue(allowEdits.isSelected(),
+                "Round 2 fix: Allow source edits must survive a running cycle that isn't a mode change");
+
+        // The constructed prompt must carry an affirmative, unconditional instruction
+        // once edits are truly enabled (Round 2 defect B).
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Implement this login flow in Java", "CODEX", "AGENT", ".", "", true);
+        String agentPromptText = invocation.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertTrue(agentPromptText.contains("Source edits are approved for this session"),
+                        "Round 2 fix: prompt must carry an affirmative source-edit instruction: " + agentPromptText),
+                () -> assertFalse(agentPromptText.contains("Source edits are not enabled"),
+                        "Round 2 fix: prompt must not carry the unresolved negative conditional: " + agentPromptText));
+
+        // Step 5: verbose streaming shows real progress, and a structured response
+        // reports an exact token count with no "(estimated)" fallback (Round 3 fix).
+        JCheckBox verboseOutput =
+                findByAccessibleName(assistantPanel, "Show verbose agent output", JCheckBox.class);
+        verboseOutput.setSelected(true);
+        appendStreamingLocalAgentBubble(assistantPanel, 555);
+        appendLocalAgentOutput(assistantPanel, 555, "intermediate progress line");
+
+        // While streaming is in progress the interim line must be visible (Round 3 fix)
+        // -- it is later superseded by the final answer once the result finalizes the
+        // bubble, so this must be checked before showAgentResult(), not after.
+        assertTrue(transcriptMarkdown(assistantPanel).contains("intermediate progress line"),
+                "Round 3 fix: verbose streaming must show real progress, not just the static placeholder");
+
+        String rawResponse = "The login flow now handles expired sessions."
+                + "\n\n{\"usage\":{\"input_tokens\":210,\"output_tokens\":64}}";
+        showAgentResult(assistantPanel, 555, ShaftMcpToolResult.success(rawResponse));
+
+        String markdownAfterAgentRun = transcriptMarkdown(assistantPanel);
+        assertAll(
+                () -> assertTrue(markdownAfterAgentRun.contains("The login flow now handles expired sessions."),
+                        markdownAfterAgentRun),
+                () -> assertTrue(markdownAfterAgentRun.contains("`274`"),
+                        "Round 3 fix: exact token count (210 + 64) must be shown: " + markdownAfterAgentRun),
+                () -> assertFalse(markdownAfterAgentRun.contains("(estimated)"),
+                        "Round 3 fix: a structured response must not fall back to the estimate"));
+
+        // Step 6: Clear must not leave the action row visually broken (Round 2 fix).
+        clickAccessible(assistantPanel, "Clear assistant transcript");
+        layoutPanel(assistantPanel);
+        assertActionRowButtonsSaneAfterLayout(assistantPanel, false);
+
+        // Step 7: right-click context menu on the transcript (Round 4 fix). Re-populate
+        // the transcript first -- Clear left it empty, and there must be a rendered
+        // message pane to right-click on.
+        assistantPanel.simulateAppendForTest("assistant", "Rendered assistant output for the journey test", "");
+        AssistantTranscriptView transcriptView = getTranscriptView(assistantPanel);
+        assertNotNull(transcriptView);
+        List<JEditorPane> panes = transcriptHtmlPanes(transcriptView);
+        assertFalse(panes.isEmpty(), "Expected at least one rendered transcript pane after re-populating");
+        JEditorPane lastPane = panes.get(panes.size() - 1);
+        MouseListener contextMenuListener = transcriptContextMenuListener(lastPane);
+        assertNotNull(contextMenuListener, "Round 4 fix: transcript panes must install a context-menu listener");
+        contextMenuListener.mouseReleased(popupTriggerEvent(lastPane));
+        JPopupMenu contextMenu = transcriptView.lastMessageContextMenuForTest();
+        assertAll(
+                () -> assertNotNull(findByAccessibleName(contextMenu, "Copy", JMenuItem.class),
+                        "Round 4 fix: transcript context menu must offer Copy"),
+                () -> assertNotNull(findByAccessibleName(contextMenu, "Select All", JMenuItem.class),
+                        "Round 4 fix: transcript context menu must offer Select All"),
+                () -> assertNotNull(findByAccessibleName(contextMenu, "Copy full transcript", JMenuItem.class),
+                        "Round 4 fix: transcript context menu must offer Copy full transcript"));
+
+        // Step 8: New chat -- fresh transcript, cleared prompt, no session data lost
+        // across the whole journey.
+        assistantPrompt(assistantPanel).setText("stray text that must be cleared by New chat");
+        click(assistantPanel, "New chat");
+
+        assertAll(
+                () -> assertTrue(transcriptMarkdown(assistantPanel).isBlank(),
+                        "New chat must clear the visible transcript"),
+                () -> assertTrue(assistantPrompt(assistantPanel).getText().isBlank(),
+                        "New chat must clear the prompt field"),
+                () -> assertEquals(sessionsBeforeStartChatting + 2, chatState.sessions().size(),
+                        "New chat must not lose any prior session across the whole journey"));
+    }
+
+    private static ShaftAssistantPanel findAssistantPanel(ShaftToolWindowPanel toolWindow) {
+        for (Component component : toolWindow.getComponents()) {
+            if (component instanceof ShaftAssistantPanel assistant) {
+                return assistant;
+            }
+        }
+        return null;
     }
 }

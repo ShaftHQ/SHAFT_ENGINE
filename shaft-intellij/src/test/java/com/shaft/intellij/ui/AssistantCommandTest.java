@@ -97,9 +97,17 @@ class AssistantCommandTest {
                 Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                 For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
 
-                open duckduckgo and search for SHAFT Engine""",
+                open duckduckgo and search for SHAFT Engine
+
+                Source edits are approved for this session.
+                You may apply patches, write files, and run filesystem commands needed to make the requested source changes.""",
                 duckDuckGo.arguments().get("prompt").getAsString());
-        assertEquals("use shaft-mcp to open mobile app", alreadyExplicit.arguments().get("prompt").getAsString());
+        assertEquals("""
+                use shaft-mcp to open mobile app
+
+                Source edits are approved for this session.
+                You may apply patches, write files, and run filesystem commands needed to make the requested source changes.""",
+                alreadyExplicit.arguments().get("prompt").getAsString());
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
@@ -392,6 +400,40 @@ class AssistantCommandTest {
     }
 
     @Test
+    void agentModeWithSourceEditsAddsAffirmativeSourceApprovalInPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Implement this login flow in Java",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertTrue(prompt.contains("Source edits are approved for this session"), prompt),
+                () -> assertFalse(prompt.contains("Source edits are not enabled"), prompt));
+    }
+
+    @Test
+    void nonAgentModesOmitSourceMutationConstantsFromPrompt() {
+        AssistantCommand.Invocation askInvocation = AssistantCommand.fromPrompt(
+                "Explain this login flow", "CODEX", "ASK", ".", "", true);
+        AssistantCommand.Invocation planInvocation = AssistantCommand.fromPrompt(
+                "Plan this login flow", "CODEX", "PLAN", ".", "", true);
+
+        assertAll(
+                () -> assertFalse(askInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are not enabled")),
+                () -> assertFalse(askInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are approved")),
+                () -> assertFalse(planInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are not enabled")),
+                () -> assertFalse(planInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are approved")));
+    }
+
+    @Test
     void directLocalAgentRunnerUsesSelectedCliDefaults() {
         AssistantCommand.Invocation codexAsk = AssistantCommand.fromPrompt(
                 "Explain this failure", "CODEX", "ASK", ".", "", false);
@@ -404,13 +446,17 @@ class AssistantCommandTest {
         AssistantCommand.Invocation custom = AssistantCommand.fromPrompt(
                 "Explain this failure", "CODEX", "ASK", ".", "custom-agent --safe", false);
 
-        assertEquals(List.of("codex", "exec", "--sandbox", "read-only", "-"),
+        // Deliberate flag change (R3-T1): codex exec now always adds the experimental --json flag,
+        // and claude always adds --output-format stream-json --verbose, so the runner receives
+        // incremental NDJSON events instead of a single buffered blob. Custom commands are untouched.
+        assertEquals(List.of("codex", "exec", "--sandbox", "read-only", "--json", "-"),
                 AssistantLocalAgentRunner.commandFor(codexAsk.arguments()));
         assertEquals(List.of(
                 "codex", "exec",
                 "--sandbox", "workspace-write",
                 "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                 "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                "--json",
                 "-"),
                 AssistantLocalAgentRunner.commandFor(codexAgent.arguments()));
         assertEquals(List.of(
@@ -418,9 +464,11 @@ class AssistantCommandTest {
                 "--sandbox", "read-only",
                 "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                 "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                "--json",
                 "-"),
                 AssistantLocalAgentRunner.commandFor(codexAgentNoSource.arguments()));
-        assertEquals(List.of("claude", "--print", "--permission-mode", "plan"),
+        assertEquals(List.of("claude", "--print", "--permission-mode", "plan",
+                        "--output-format", "stream-json", "--verbose"),
                 AssistantLocalAgentRunner.commandFor(claudePlan.arguments()));
         assertEquals(List.of("custom-agent", "--safe"), AssistantLocalAgentRunner.commandFor(custom.arguments()));
     }
@@ -1036,6 +1084,92 @@ class AssistantCommandTest {
                 () -> assertEquals("line one", delivered.get(0)),
                 () -> assertEquals("line two", delivered.get(1)),
                 () -> assertEquals("line three", delivered.get(2)));
+    }
+
+    @Test
+    void structuredClaudeStreamProducesHumanReadableProgressAndParsesTerminalUsage() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CLAUDE_CODE", "ASK", ".", "", false);
+        String toolUseEvent = """
+                {"type":"assistant","message":{"content":[{"type":"tool_use","id":"tool_1","name":"shaft_guide_search","input":{}}]}}""";
+        String assistantTextEvent = """
+                {"type":"assistant","message":{"content":[{"type":"text","text":"Looking into the failure now."}]}}""";
+        String terminalEvent = """
+                {"type":"result","subtype":"success","result":"The failure was a stale locator.","usage":{"input_tokens":123,"output_tokens":45}}""";
+        FakeProcess process = FakeProcess.withStdout(
+                String.join("\n", toolUseEvent, assistantTextEvent, terminalEvent) + "\n", 0);
+        List<String> delivered = new CopyOnWriteArrayList<>();
+
+        // requireCommandAvailable=false: this exercises the real claude default command shape without
+        // depending on the claude CLI actually being installed on the test machine's PATH.
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, delivered::add, (command, workingDirectory, environment) -> process, false);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        AssistantLocalAgentRunner.TokenUsage usage = AssistantLocalAgentRunner.parseTokenUsage(result.output());
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertTrue(result.output().contains("The failure was a stale locator.")),
+                () -> assertFalse(delivered.isEmpty()),
+                () -> assertTrue(delivered.stream().anyMatch(line -> line.contains("shaft_guide_search")),
+                        "Expected a human-readable tool_use line: " + delivered),
+                () -> assertTrue(delivered.stream().anyMatch(line -> line.contains("Looking into the failure now.")),
+                        "Expected the assistant text to be delivered: " + delivered),
+                () -> assertTrue(delivered.stream().noneMatch(line -> line.startsWith("{")),
+                        "Consumer lines should be human-readable, not raw JSON: " + delivered),
+                () -> assertEquals(123, usage.inputTokens()),
+                () -> assertEquals(45, usage.outputTokens()),
+                () -> assertFalse(usage.estimated()));
+    }
+
+    @Test
+    void plainProseThroughCustomCommandNeverInventsUsageMetadata() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "stub-agent --print", false);
+        String prose = "Here is the explanation.\nIt spans several lines.\nNo structured data anywhere.";
+        FakeProcess process = FakeProcess.withStdout(prose + "\n", 0);
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, line -> { }, (command, workingDirectory, environment) -> process);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertEquals(prose, result.output()),
+                () -> assertNull(AssistantLocalAgentRunner.parseTokenUsage(result.output())));
+    }
+
+    @Test
+    void bufferedCopilotInvocationSendsExactlyOneHonestLiveOutputNotice() throws Exception {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Explain this failure", "COPILOT_CLI", "ASK", ".", "", false);
+        String bufferedResponse = "The full Copilot answer, delivered only once the process exits.";
+        FakeProcess process = FakeProcess.withStdout(bufferedResponse + "\n", 0);
+        List<String> delivered = new CopyOnWriteArrayList<>();
+
+        // requireCommandAvailable=false: this exercises the real "copilot ask" default command shape
+        // without depending on the copilot CLI actually being installed on the test machine's PATH.
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, delivered::add, (command, workingDirectory, environment) -> process, false);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertEquals(1, delivered.size(), "Expected exactly one notice line: " + delivered),
+                () -> assertTrue(delivered.get(0).toLowerCase(Locale.ROOT).contains("live output"),
+                        "Notice should explain live output is unavailable: " + delivered.get(0)),
+                () -> assertTrue(result.output().contains(bufferedResponse)));
+    }
+
+    @Test
+    void stripTrailingUsageMetadataRemovesUsageLineButKeepsProseAndAnswerText() {
+        String withUsage = "The answer text.\n\n{\"usage\":{\"input_tokens\":123,\"output_tokens\":45}}";
+        String plainProse = "Just a plain multi-line\nanswer with no usage metadata.";
+
+        assertAll(
+                () -> assertEquals("The answer text.", AssistantLocalAgentRunner.stripTrailingUsageMetadata(withUsage)),
+                () -> assertEquals(plainProse, AssistantLocalAgentRunner.stripTrailingUsageMetadata(plainProse)));
     }
 
     @Test

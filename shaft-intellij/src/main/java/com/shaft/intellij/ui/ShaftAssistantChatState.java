@@ -84,6 +84,17 @@ public final class ShaftAssistantChatState implements PersistentStateComponent<S
     }
 
     Session newSession() {
+        // Dedup guard: if sessions is non-empty and the current active session
+        // (resolved directly via sessionById, not activeSession() to avoid recursion)
+        // has zero messages, return/activate that existing empty session instead of creating a new one.
+        if (!sessions.isEmpty()) {
+            Session activeSession = sessionById(activeSessionId);
+            if (activeSession != null && activeSession.messages != null && activeSession.messages.isEmpty()) {
+                // Current session is already empty; return it without creating a new one
+                return activeSession;
+            }
+        }
+
         Session session = new Session();
         session.id = UUID.randomUUID().toString();
         session.title = "New chat";

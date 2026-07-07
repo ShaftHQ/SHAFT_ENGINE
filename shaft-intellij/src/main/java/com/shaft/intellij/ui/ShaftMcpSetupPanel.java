@@ -409,6 +409,18 @@ final class ShaftMcpSetupPanel extends JPanel {
         return project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
     }
 
+    /**
+     * Whether this project already carries the AGENTS.md guidance scaffold the
+     * agent-guidance-optimization prompt and its referenced validator script
+     * are designed for. Installing/prompting that validator into an unrelated
+     * project makes it crash on files (README.md, host-context files, guidance
+     * budgets) it has no reason to expect -- so the prompt must not be shown
+     * unless the project has actually adopted this scaffold.
+     */
+    private boolean hasAgentGuidanceScaffold() {
+        return Files.isRegularFile(projectRoot().resolve("AGENTS.md"));
+    }
+
     private void showTestResult(ShaftMcpToolResult result, Throwable error) {
         boolean success = error == null && result != null && result.success();
         setRunning(false, success ? "Connected" : "Test failed. Retry test.");
@@ -443,7 +455,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         }
         if (success) {
             settings.mcpSetupComplete = true;
-            settings.agentGuidanceOptimizationPromptPending = true;
+            settings.agentGuidanceOptimizationPromptPending = hasAgentGuidanceScaffold();
             startChatting.setVisible(true);
             startChatting.requestFocusInWindow();
         } else {

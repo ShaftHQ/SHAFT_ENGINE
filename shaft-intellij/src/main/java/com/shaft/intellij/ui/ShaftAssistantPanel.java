@@ -49,6 +49,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Component;
 import java.awt.FontMetrics;
@@ -113,6 +114,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final DefaultListModel<String> timelineModel;
     private final JList<String> timeline;
     private final JPanel timelinePanel;
+    private final JPanel actionRow;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
@@ -325,7 +327,9 @@ final class ShaftAssistantPanel extends JPanel {
         allowSourceMutation.setToolTipText("Enable only when Agent mode should edit local source files");
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
-        verboseAgentOutput.setToolTipText("Show live local agent output instead of only the final result");
+        verboseAgentOutput.setToolTipText("Show live local agent output instead of only the final result. "
+                + "GitHub Copilot CLI and custom agent commands cannot stream live output; "
+                + "their response is buffered until the command completes.");
         autoCompact = new JBCheckBox("Auto-compact");
         autoCompact.getAccessibleContext().setAccessibleName("Compact agent context before each request");
         autoCompact.setToolTipText("Send the agent CLI's compact/compress command before each new prompt, when supported");
@@ -339,6 +343,7 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView(project);
+        transcript.setCopyFullTranscriptAction(this::copyFullTranscript);
         if (!chatState.activeMarkdown().isBlank()) {
             transcript.setMessages(chatState.activeMessages());
             lastPrompt = latestUserPrompt();
@@ -391,7 +396,7 @@ final class ShaftAssistantPanel extends JPanel {
         ShaftIconButtons.apply(copyRawResponse, ShaftIcons.CODE);
         copyRawResponse.setEnabled(false);
         copyTranscript = button("Copy all", "Copy assistant transcript",
-                event -> copy(exportTranscriptWithEvidence(), "Copied transcript"));
+                event -> copyFullTranscript());
         ShaftIconButtons.apply(copyTranscript, ShaftIcons.COPY);
         captureReviewStatus = new JLabel("Capture review ready");
         captureReviewStatus.getAccessibleContext().setAccessibleName("Capture review status");
@@ -430,8 +435,8 @@ final class ShaftAssistantPanel extends JPanel {
         this.configure = button("Configure", "Open SHAFT MCP setup", event -> openSetup());
         ShaftIconButtons.apply(this.configure, ShaftIcons.SETTINGS);
 
-        mode.addActionListener(event -> updateControlVisibility());
-        providerType.addActionListener(event -> updateControlVisibility());
+        mode.addActionListener(event -> onModeOrRouteSelectionChanged());
+        providerType.addActionListener(event -> onModeOrRouteSelectionChanged());
         assistantFamily.addActionListener(event -> updateControlVisibility());
         assistantRuntime.addActionListener(event -> updateControlVisibility());
         cloudProvider.addActionListener(event -> updateControlVisibility());
@@ -466,7 +471,7 @@ final class ShaftAssistantPanel extends JPanel {
         header.add(new JLabel("SHAFT"), BorderLayout.NORTH);
         header.add(chatRow, BorderLayout.CENTER);
 
-        JPanel actionRow = wrapRow();
+        actionRow = wrapRow();
         actionRow.add(copyLastResponse);
         actionRow.add(copyRawResponse);
         actionRow.add(copyTranscript);
@@ -575,7 +580,7 @@ final class ShaftAssistantPanel extends JPanel {
                 Keep AGENTS.md canonical, host adapters thin, and memories durable, evidence-backed, and non-duplicative.
                 Do not edit product code, tests, workflows, manifests, dependencies, generated reports, binaries, or secrets without explicit user approval.
 
-                If source edits are not enabled, return a concise patch plan only. If edits are enabled, make the smallest guidance or memory updates and rerun `py -3 scripts/ci/validate_agent_setup.py --skip-external` on Windows or `python3 scripts/ci/validate_agent_setup.py --skip-external` elsewhere.
+                After making any guidance or memory updates, rerun `py -3 scripts/ci/validate_agent_setup.py --skip-external` on Windows or `python3 scripts/ci/validate_agent_setup.py --skip-external` elsewhere.
                 """.formatted(ShaftUiLabels.friendly(family), surfaces).strip();
     }
 
@@ -1195,9 +1200,13 @@ final class ShaftAssistantPanel extends JPanel {
         if (!output.isBlank() && !rejectedGeneratedJava) {
             appendToolEvidence("autobot_local_agent_run", output);
         }
+        // The raw output may carry a trailing usage-metadata JSON line (the structured-stream
+        // contract from AssistantLocalAgentRunner). That line is never meant for the transcript, so
+        // it is stripped before markdown normalization; withTokenUsage still receives the untouched
+        // raw `output` below so AssistantLocalAgentRunner.parseTokenUsage can read the usage from it.
         String response = rejectedGeneratedJava
                 ? AssistantMarkdown.nativeSeleniumRejectionMarkdown()
-                : AssistantMarkdown.normalizeMarkdown(output);
+                : AssistantMarkdown.normalizeMarkdown(AssistantLocalAgentRunner.stripTrailingUsageMetadata(output));
         if (rejectedGeneratedJava) {
             setStatus("Rejected generated code");
             addTimeline("Failed");
@@ -1435,6 +1444,15 @@ final class ShaftAssistantPanel extends JPanel {
         status.setVisible(!READY_STATUS.equals(value));
     }
 
+    private void onModeOrRouteSelectionChanged() {
+        boolean agentMode = "AGENT".equals(mode.getSelectedItem());
+        boolean cloud = usesCloud();
+        if (!agentMode || cloud) {
+            allowSourceMutation.setSelected(false);
+        }
+        updateControlVisibility();
+    }
+
     private void updateControlVisibility() {
         boolean advanced = settings.advancedUiEnabled;
         if (!advanced && usesCloud()) {
@@ -1479,9 +1497,6 @@ final class ShaftAssistantPanel extends JPanel {
         autoCompact.setEnabled(controlsEnabled && localAgent && localCli);
         configure.setVisible(lockedRoute);
         configure.setEnabled(controlsEnabled && lockedRoute);
-        if (!agentMode || !localAgent) {
-            allowSourceMutation.setSelected(false);
-        }
         if (!localAgent || !localCli) {
             verboseAgentOutput.setSelected(false);
         }
@@ -1556,6 +1571,21 @@ final class ShaftAssistantPanel extends JPanel {
         cancel.setEnabled(running);
         timelinePanel.setVisible(running || timelineModel.size() > 1);
         timelinePanel.revalidate();
+        refreshActionRowLayout();
+    }
+
+    private void refreshActionRowLayout() {
+        if (actionRow == null) {
+            return;
+        }
+        Container container = actionRow.getParent();
+        if (container == null) {
+            actionRow.revalidate();
+            actionRow.repaint();
+            return;
+        }
+        container.revalidate();
+        container.repaint();
     }
 
     private void insertSelectedCommand() {
@@ -1679,6 +1709,10 @@ final class ShaftAssistantPanel extends JPanel {
         if (!lastRawResponse.isBlank()) {
             copy(lastRawResponse, "Copied raw response");
         }
+    }
+
+    private void copyFullTranscript() {
+        copy(exportTranscriptWithEvidence(), "Copied transcript");
     }
 
     private String exportTranscriptWithEvidence() {
