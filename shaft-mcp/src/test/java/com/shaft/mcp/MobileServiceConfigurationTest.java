@@ -197,6 +197,34 @@ class MobileServiceConfigurationTest {
     }
 
     @Test
+    void mobileApiRecordToolsStartStatusAndStopACaptureSession() {
+        MobileService service = new MobileService(mock(EngineService.class), McpWorkspacePolicy.of(temp));
+
+        MobileApiCaptureStatus started = service.mobileApiRecordStart(
+                "Android", "emulator-5554", "recordings/mobile-api.json");
+        MobileApiCaptureStatus active = service.mobileApiRecordStatus();
+        MobileApiCaptureStatus stopped = service.mobileApiRecordStop(false);
+
+        assertTrue(started.active());
+        assertTrue(started.proxyPort() > 0);
+        assertTrue(started.caCertificatePem().contains("BEGIN CERTIFICATE"));
+        assertEquals(started.sessionId(), active.sessionId());
+        assertFalse(stopped.active());
+        assertTrue(Files.exists(temp.resolve("recordings/mobile-api.json")));
+    }
+
+    @Test
+    void mobileApiRecordStartGeneratesATimestampedPathWhenBlank() {
+        MobileService service = new MobileService(mock(EngineService.class), McpWorkspacePolicy.of(temp));
+
+        MobileApiCaptureStatus started = service.mobileApiRecordStart("iOS", "iPhone-Simulator", "");
+        service.mobileApiRecordStop(true);
+
+        assertTrue(started.active());
+        assertTrue(started.sessionId().startsWith("mobile-api-"));
+    }
+
+    @Test
     void replayRecordingRejectsUnsupportedRecordedAction() {
         McpMobileRecordingService recorder = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
         MobileService service = new MobileService(mock(EngineService.class), recorder);
