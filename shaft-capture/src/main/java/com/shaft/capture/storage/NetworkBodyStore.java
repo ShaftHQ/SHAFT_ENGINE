@@ -78,6 +78,33 @@ public final class NetworkBodyStore {
     }
 
     /**
+     * Reads back a body previously stored by {@link #store}, verifying it still matches its
+     * recorded SHA-256 digest. Returns an empty string for a {@code null} ref, a ref whose file is
+     * missing, or a ref whose file no longer matches its digest (evidence tampering/corruption) --
+     * callers that need bodies purely for codegen classification/rendering treat "unavailable" the
+     * same as "no body" rather than failing generation outright.
+     *
+     * @param bodyRef reference returned by a prior {@link #store} call, or {@code null}
+     * @param sessionDir directory the body was stored in (must match the {@code store} call)
+     * @return the stored body decoded as UTF-8 text, or {@code ""} if unavailable
+     */
+    public String read(BodyRef bodyRef, Path sessionDir) {
+        if (bodyRef == null || bodyRef.ref().isBlank()) {
+            return "";
+        }
+        Path storagePath = sessionDir.resolve(bodyRef.ref());
+        try {
+            byte[] bytes = Files.readAllBytes(storagePath);
+            if (!bodyRef.truncated() && !computeSha256(bytes).equalsIgnoreCase(bodyRef.sha256())) {
+                return "";
+            }
+            return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IOException | NoSuchAlgorithmException notAvailable) {
+            return "";
+        }
+    }
+
+    /**
      * Computes the SHA-256 hash of a byte array.
      *
      * @param data bytes to hash
