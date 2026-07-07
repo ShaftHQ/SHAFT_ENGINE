@@ -106,7 +106,11 @@ class InstallShaftMcpTest(unittest.TestCase):
             with temporary_current_directory(root):
                 installed = MODULE.install_shaft_skills(Path.cwd(), root / "bootstrap")
 
-            self.assertEqual(root / MODULE.SHAFT_SKILLS_DIRECTORY, installed)
+            # Compare resolved paths: os.chdir(root) followed by Path.cwd() inside
+            # install_shaft_skills returns the OS's canonicalized cwd (symlinks resolved on
+            # macOS, short 8.3 names expanded on Windows), which textually differs from the
+            # unresolved `root` built from tempfile.TemporaryDirectory() on those platforms.
+            self.assertEqual((root / MODULE.SHAFT_SKILLS_DIRECTORY).resolve(), installed.resolve())
             self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
             self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
 
