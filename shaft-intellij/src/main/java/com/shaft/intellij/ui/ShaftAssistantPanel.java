@@ -96,8 +96,9 @@ final class ShaftAssistantPanel extends JPanel {
     private final JComboBox<String> assistantFamily;
     private final JComboBox<String> assistantRuntime;
     private final JComboBox<String> cloudProvider;
-    private final JBTextField cloudModel;
+    private final JComboBox<String> cloudModel;
     private final JComboBox<String> localModel;
+    private final JComboBox<String> effort;
     private final JBTextField customCommand;
     private final JPanel cloudKeyPanel;
     private final JPasswordField cloudApiKey;
@@ -300,12 +301,15 @@ final class ShaftAssistantPanel extends JPanel {
                 "Read-only assistant agent configuration from the completed MCP setup flow.");
         cloudProvider = combo("Assistant cloud provider", "gemini", "openai", "anthropic", "github");
         cloudProvider.setSelectedItem(normalizeLower(settings.cloudProvider, "gemini"));
-        cloudModel = new JBTextField();
-        cloudModel.setColumns(16);
-        cloudModel.getEmptyText().setText("model");
+        cloudModel = new JComboBox<>();
+        cloudModel.setEditable(true);
         cloudModel.getAccessibleContext().setAccessibleName("Assistant cloud model");
-        cloudModel.setToolTipText("Optional provider model override");
-        cloudModel.setText(settings.cloudModel == null ? "" : settings.cloudModel);
+        cloudModel.setToolTipText("Models available for the selected cloud provider; type any other model name");
+        if (cloudModel.getEditor().getEditorComponent() instanceof JTextComponent cloudModelEditor) {
+            cloudModelEditor.getAccessibleContext().setAccessibleName("Assistant cloud model text");
+            cloudModelEditor.setToolTipText("Models available for the selected cloud provider; type any other model name");
+        }
+        applyCloudModelChoices(settings.cloudModel);
         localModel = new JComboBox<>();
         localModel.setEditable(true);
         localModel.getAccessibleContext().setAccessibleName("Assistant local agent model");
@@ -314,6 +318,13 @@ final class ShaftAssistantPanel extends JPanel {
             localModelEditor.getAccessibleContext().setAccessibleName("Assistant local agent model text");
             localModelEditor.setToolTipText("Model reported by the connected agent CLI");
         }
+        // Seed the selector from the curated catalog so it is never empty; the async CLI listing
+        // replaces these entries when the connected agent can report its own models.
+        applyLocalModels(resolveFamily(settings), List.of());
+        modelListFamily = "";
+        effort = combo("Assistant effort", AssistantModelCatalog.effortLevels().toArray(new String[0]));
+        effort.setSelectedItem(normalize(settings.assistantEffort, AssistantModelCatalog.DEFAULT_EFFORT));
+        effort.setToolTipText("Reasoning effort requested from the selected model");
         customCommand = new JBTextField();
         customCommand.setColumns(18);
         customCommand.getEmptyText().setText("Optional local agent command");
@@ -455,7 +466,10 @@ final class ShaftAssistantPanel extends JPanel {
         providerType.addActionListener(event -> onModeOrRouteSelectionChanged());
         assistantFamily.addActionListener(event -> updateControlVisibility());
         assistantRuntime.addActionListener(event -> updateControlVisibility());
-        cloudProvider.addActionListener(event -> updateControlVisibility());
+        cloudProvider.addActionListener(event -> {
+            applyCloudModelChoices("");
+            updateControlVisibility();
+        });
         bindKeyboard(project);
         bindContextInsertion();
 
@@ -507,6 +521,7 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(cloudProvider);
         routeRow.add(cloudModel);
         routeRow.add(localModel);
+        routeRow.add(effort);
         routeRow.add(allowSourceMutation);
         routeRow.add(approveAllTools);
         routeRow.add(verboseAgentOutput);
@@ -1221,14 +1236,18 @@ final class ShaftAssistantPanel extends JPanel {
         settings.assistantFamily = String.valueOf(assistantFamily.getSelectedItem());
         settings.assistantRuntime = String.valueOf(assistantRuntime.getSelectedItem());
         settings.cloudProvider = String.valueOf(cloudProvider.getSelectedItem());
-        settings.cloudModel = cloudModel.getText().trim();
+        settings.cloudModel = editableComboText(cloudModel);
+        settings.localModel = editableComboText(localModel);
+        settings.assistantEffort = String.valueOf(effort.getSelectedItem());
         settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
         if (usesCloud()) {
             settings.pilotAiProvider = settings.cloudProvider;
             settings.pilotAiModel = settings.cloudModel;
-            return AssistantCommand.Selection.cloud(settings.cloudProvider, settings.cloudModel);
+            return AssistantCommand.Selection.cloud(settings.cloudProvider, settings.cloudModel,
+                    settings.assistantEffort);
         }
-        return AssistantCommand.Selection.local(settings.assistantFamily, settings.assistantRuntime);
+        return AssistantCommand.Selection.local(settings.assistantFamily, settings.assistantRuntime,
+                settings.localModel, settings.assistantEffort);
     }
 
     private void showResult(String toolName, ShaftMcpToolResult result, Throwable error) {
@@ -1539,6 +1558,7 @@ final class ShaftAssistantPanel extends JPanel {
         cloudProvider.setEnabled(!running);
         cloudModel.setEnabled(!running);
         localModel.setEnabled(!running);
+        effort.setEnabled(!running);
         customCommand.setEnabled(!running);
         commandAutocomplete.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
@@ -1647,7 +1667,10 @@ final class ShaftAssistantPanel extends JPanel {
 
     private void updateControlVisibility() {
         boolean advanced = settings.advancedUiEnabled;
-        if (!advanced && usesCloud()) {
+        // A cloud provider chosen during first-run setup stays usable in the basic UI; only
+        // ad-hoc cloud switches remain an advanced-mode capability.
+        boolean cloudConfigured = "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"));
+        if (!advanced && usesCloud() && !cloudConfigured) {
             providerType.setSelectedItem("LOCAL");
         }
         boolean cloud = usesCloud();
@@ -1673,11 +1696,13 @@ final class ShaftAssistantPanel extends JPanel {
         customCommand.setEnabled(controlsEnabled && advanced && !lockedRoute && localCli);
         cloudProvider.setVisible(advanced && !lockedRoute && cloud);
         cloudProvider.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
-        cloudModel.setVisible(advanced && !lockedRoute && cloud);
-        cloudModel.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
-        cloudKeyPanel.setVisible(advanced && !lockedRoute && cloud);
-        cloudApiKey.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
-        saveCloudApiKey.setEnabled(controlsEnabled && advanced && !lockedRoute && cloud);
+        // Model and effort selectors stay visible for the active route in every UI mode so the
+        // user can always pick the right model after provider setup (issue #3369).
+        cloudModel.setVisible(cloud);
+        cloudModel.setEnabled(controlsEnabled && cloud);
+        cloudKeyPanel.setVisible(cloud);
+        cloudApiKey.setEnabled(controlsEnabled && cloud);
+        saveCloudApiKey.setEnabled(controlsEnabled && cloud);
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
@@ -1686,8 +1711,10 @@ final class ShaftAssistantPanel extends JPanel {
         approveAllTools.setEnabled(controlsEnabled && approvalsSupported);
         verboseAgentOutput.setVisible(localAgent && localCli);
         verboseAgentOutput.setEnabled(controlsEnabled && localAgent && localCli);
-        localModel.setVisible(advanced && !lockedRoute && localCli);
-        localModel.setEnabled(controlsEnabled && advanced && !lockedRoute && localCli);
+        localModel.setVisible(localCli);
+        localModel.setEnabled(controlsEnabled && localCli);
+        effort.setVisible(cloud || localCli);
+        effort.setEnabled(controlsEnabled && (cloud || localCli));
         autoCompact.setVisible(localAgent && localCli);
         autoCompact.setEnabled(controlsEnabled && localAgent && localCli);
         configure.setVisible(lockedRoute);
@@ -1723,13 +1750,33 @@ final class ShaftAssistantPanel extends JPanel {
         String previousSelection = localModel.getEditor() == null
                 ? null
                 : String.valueOf(localModel.getEditor().getItem());
-        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(models.toArray(new String[0]));
+        // The CLI-reported list wins; the curated catalog keeps the selector useful when the CLI
+        // cannot list its models (issue #3369).
+        List<String> effectiveModels = models.isEmpty() ? AssistantModelCatalog.localModels(family) : models;
+        DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(effectiveModels.toArray(new String[0]));
         localModel.setModel(model);
         if (previousSelection != null && !previousSelection.isBlank()) {
             localModel.setSelectedItem(previousSelection);
-        } else if (!models.isEmpty()) {
-            localModel.setSelectedItem(models.get(0));
+        } else if (settings.localModel != null && !settings.localModel.isBlank()) {
+            localModel.setSelectedItem(settings.localModel.trim());
+        } else if (!effectiveModels.isEmpty()) {
+            localModel.setSelectedItem(effectiveModels.get(0));
         }
+    }
+
+    private void applyCloudModelChoices(String preferredModel) {
+        String provider = normalizeLower(String.valueOf(cloudProvider.getSelectedItem()), "gemini");
+        List<String> models = AssistantModelCatalog.cloudModels(provider);
+        cloudModel.setModel(new DefaultComboBoxModel<>(models.toArray(new String[0])));
+        String preferred = preferredModel == null ? "" : preferredModel.trim();
+        cloudModel.setSelectedItem(preferred.isBlank() ? models.get(0) : preferred);
+    }
+
+    private static String editableComboText(JComboBox<String> combo) {
+        Object item = combo.isEditable() && combo.getEditor() != null
+                ? combo.getEditor().getItem()
+                : combo.getSelectedItem();
+        return item == null ? "" : item.toString().trim();
     }
 
     private static void runOnEdt(Runnable action) {
@@ -1836,7 +1883,7 @@ final class ShaftAssistantPanel extends JPanel {
     private void updateCloudKeyStatus() {
         String provider = String.valueOf(cloudProvider.getSelectedItem());
         String keyName = providerKeyName(provider);
-        boolean stored = !keyName.isBlank() && ShaftCredentialService.getInstance().hasApiKey(keyName);
+        boolean stored = !keyName.isBlank() && storedCloudKey(keyName);
         String providerLabel = ShaftUiLabels.friendly(provider);
         cloudKeyStatus.setText(stored ? providerLabel + " key stored" : "Enter " + providerLabel + " key");
         cloudApiKey.setVisible(!stored);
@@ -1858,7 +1905,13 @@ final class ShaftAssistantPanel extends JPanel {
 
     private boolean hasSelectedCloudKey() {
         String keyName = providerKeyName(String.valueOf(cloudProvider.getSelectedItem()));
-        return !keyName.isBlank() && ShaftCredentialService.getInstance().hasApiKey(keyName);
+        return !keyName.isBlank() && storedCloudKey(keyName);
+    }
+
+    private static boolean storedCloudKey(String keyName) {
+        // Password Safe needs a running IntelliJ application; headless panel tests have none.
+        return ApplicationManager.getApplication() != null
+                && ShaftCredentialService.getInstance().hasApiKey(keyName);
     }
 
     private void bindKeyboard(Project project) {
@@ -2592,7 +2645,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private String currentAgentConfigurationText() {
-        if (settings.advancedUiEnabled && "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
+        if ("CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
             String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " " + settings.cloudModel.trim();
             return ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "gemini")) + model;
         }
@@ -2601,7 +2654,7 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private String currentAgentConfigurationTooltip() {
-        if (settings.advancedUiEnabled && "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
+        if ("CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))) {
             String model = settings.cloudModel == null || settings.cloudModel.isBlank() ? "" : " / " + settings.cloudModel.trim();
             return "Agent: Cloud / " + ShaftUiLabels.friendly(normalizeLower(settings.cloudProvider, "gemini")) + model;
         }

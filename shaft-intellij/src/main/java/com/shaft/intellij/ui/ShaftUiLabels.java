@@ -70,6 +70,10 @@ public final class ShaftUiLabels {
             case "GITHUB" -> "GitHub";
             case "OLLAMA" -> "Ollama";
             case "NONE" -> "None";
+            case "DEFAULT" -> "Default effort";
+            case "LOW" -> "Low effort";
+            case "MEDIUM" -> "Medium effort";
+            case "HIGH" -> "High effort";
             default -> text;
         };
     }

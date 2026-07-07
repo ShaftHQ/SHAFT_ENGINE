@@ -161,7 +161,10 @@ public class AutobotService {
             AiRequest request = AiRequest.builder("autobot-provider-chat", codegenSchema())
                     .text(prompt == null ? "" : prompt)
                     .approvalPolicy(new ApprovalPolicy(false, true, EnumSet.of(EvidenceCategory.TEXT)))
-                    .budget(new AiBudget(8_000, 2_000, BigDecimal.ZERO))
+                    // Reasoning models spend thinking tokens from the same output budget; 2k
+                    // routinely truncated a full generated test class into malformed JSON
+                    // (live Gemini evidence in ShaftHQ/SHAFT_ENGINE#3369).
+                    .budget(new AiBudget(8_000, 8_000, BigDecimal.ZERO))
                     .timeout(Duration.ofSeconds(timeoutSeconds > 0 ? timeoutSeconds : DEFAULT_TIMEOUT_SECONDS))
                     .deterministicFallback(JSON.createObjectNode().put("answer", ""))
                     .build();

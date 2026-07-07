@@ -45,6 +45,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
+    static {
+        // Without an activated IconLoader this headless JVM paints placeholder glyphs instead of
+        // the plugin's SVG action icons, which makes screenshot evidence unrepresentative.
+        com.intellij.openapi.util.IconLoader.activate();
+    }
+
     private static final int WIDTH = 860;
     private static final int NARROW_WIDTH = 360;
     private static final int HEIGHT = 780;
@@ -126,6 +132,7 @@ class ShaftPluginScreenshotRendererTest {
         Path toolsLightScreenshot = outputPath.resolve("intellij-plugin-tools.png");
         Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
         Path mcpSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup.png");
+        Path mcpSetupGeminiScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-gemini.png");
         Path mcpSetupNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-narrow-dark.png");
         Path mcpSetupSuccessScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-success.png");
         Path mcpSetupErrorScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-error-dark.png");
@@ -151,6 +158,7 @@ class ShaftPluginScreenshotRendererTest {
         Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
+        write(mcpSetupGeminiScreenshot, renderSetupGemini(LIGHT_THEME, false));
         write(mcpSetupNarrowDarkScreenshot, renderSetup(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(mcpSetupSuccessScreenshot, renderSetupSuccess(LIGHT_THEME, false));
         write(mcpSetupErrorScreenshot, renderSetupError(DARK_THEME, true));
@@ -176,6 +184,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupScreenshot) > 0, mcpSetupScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(mcpSetupGeminiScreenshot) > 0, mcpSetupGeminiScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupNarrowDarkScreenshot) > 0, mcpSetupNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupSuccessScreenshot) > 0, mcpSetupSuccessScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupErrorScreenshot) > 0, mcpSetupErrorScreenshot + " should be non-empty"),
@@ -200,6 +209,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(toolsLightScreenshot),
                 () -> assertDimensions(toolsDarkScreenshot),
                 () -> assertDimensions(mcpSetupScreenshot),
+                () -> assertDimensions(mcpSetupGeminiScreenshot),
                 () -> assertDimensions(mcpSetupNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
                 () -> assertDimensions(mcpSetupSuccessScreenshot),
                 () -> assertDimensions(mcpSetupErrorScreenshot),
@@ -401,6 +411,60 @@ class ShaftPluginScreenshotRendererTest {
             image.set(render(toolWindow, width, height));
         });
         return image.get();
+    }
+
+    private static BufferedImage renderSetupGemini(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftMcpSetupPanel component = new ShaftMcpSetupPanel(screenshotProject(),
+                    new ShaftSettingsState.Settings(),
+                    () -> {
+                    }, (client, runtime) -> ShaftMcpToolResult.success("Codex CLI executable is available on PATH."),
+                    new ShaftMcpSetupPanel.CloudKeyStore() {
+                        @Override
+                        public boolean hasKey(String keyName) {
+                            return false;
+                        }
+
+                        @Override
+                        public void saveKey(String keyName, char[] secret) {
+                            // Screenshot rendering never stores real keys.
+                        }
+                    });
+            JComboBox<?> family = findComboByAccessibleName(component, "Assistant family");
+            if (family != null) {
+                family.setSelectedItem("GEMINI");
+            }
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+
+            // Verify setup panel labels are not cropped and backgrounds are continuous
+            verifySetupPanelRendering(component);
+
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    private static JComboBox<?> findComboByAccessibleName(java.awt.Component component, String accessibleName) {
+        if (component instanceof JComboBox<?> combo
+                && accessibleName.equals(combo.getAccessibleContext().getAccessibleName())) {
+            return combo;
+        }
+        if (component instanceof java.awt.Container container) {
+            for (java.awt.Component child : container.getComponents()) {
+                JComboBox<?> found = findComboByAccessibleName(child, accessibleName);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     private static BufferedImage renderSetupSuccess(String lookAndFeelClassName, boolean dark)

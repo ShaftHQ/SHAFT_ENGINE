@@ -68,21 +68,38 @@ final class ShaftMcpSetupPanel extends JPanel {
     private static final String GUIDE_SETUP_STEP =
             "Next: choose agent, copy command, open terminal, then check.";
     private static final String CHECK_NEXT_STEP = "Press Check now.";
+    private static final String GEMINI_FAMILY = "GEMINI";
+    private static final String GEMINI_KEY_NAME = "GEMINI_API_KEY";
 
     @FunctionalInterface
     interface AgentReadinessProbe {
         ShaftMcpToolResult test(String client, String runtime);
     }
 
+    /**
+     * Cloud provider API-key storage used by the setup check. Backed by IntelliJ Password Safe in
+     * production and injectable so tests never touch the real credential store.
+     */
+    interface CloudKeyStore {
+        boolean hasKey(String keyName);
+
+        void saveKey(String keyName, char[] secret);
+    }
+
     private final Project project;
     private final ShaftSettingsState.Settings settings;
     private final Runnable connected;
     private final AgentReadinessProbe readinessProbe;
+    private final CloudKeyStore cloudKeyStore;
     private final String recommendedFamily;
     private final JBTextArea installerCommand;
     private final JBTextArea mcpCommand;
     private final JComboBox<String> family;
     private final JComboBox<String> runtime;
+    private final javax.swing.JPasswordField geminiApiKey;
+    private final JLabel geminiKeyStatus;
+    private final JPanel runtimeRow;
+    private final JPanel apiKeyRow;
     private final JComboBox<String> installerTarget;
     private final JCheckBox manualInstallerTarget;
     private final JButton copyInstallerCommand;
@@ -137,11 +154,18 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe) {
+        this(project, settings, connected, readinessProbe, passwordSafeKeyStore());
+    }
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe,
+                       @NotNull CloudKeyStore cloudKeyStore) {
         super(new BorderLayout(8, 8));
         this.project = project;
         this.settings = settings;
         this.connected = connected;
         this.readinessProbe = readinessProbe;
+        this.cloudKeyStore = cloudKeyStore;
         recommendedFamily = recommendedFamily(settings);
         setBorder(JBUI.Borders.empty(12));
 
@@ -174,14 +198,19 @@ final class ShaftMcpSetupPanel extends JPanel {
         progress.setIndeterminate(true);
         progress.setVisible(false);
         progress.setPreferredSize(JBUI.size(96, 14));
-        family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT"});
+        family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT", GEMINI_FAMILY});
         ShaftUiLabels.applyFriendlyRenderer(family);
-        family.setSelectedItem(resolveFamily(settings));
+        family.setSelectedItem(initialFamily(settings));
         family.getAccessibleContext().setAccessibleName("Assistant family");
         runtime = new JComboBox<>(new String[]{"CLI", "IDE_PLUGIN", "DESKTOP_APP"});
         ShaftUiLabels.applyFriendlyRenderer(runtime);
         runtime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
         runtime.getAccessibleContext().setAccessibleName("Assistant runtime");
+        geminiApiKey = new javax.swing.JPasswordField(24);
+        geminiApiKey.getAccessibleContext().setAccessibleName("Gemini API key");
+        geminiApiKey.getAccessibleContext().setAccessibleDescription(
+                "Google AI Studio API key stored in IntelliJ Password Safe when the setup check passes.");
+        geminiKeyStatus = setupStatusLabel("Gemini API key status");
         installerTarget = new JComboBox<>(INSTALLER_TARGETS);
         ShaftUiLabels.applyFriendlyRenderer(installerTarget);
         installerTarget.setSelectedItem(suggestedInstallerTarget());
@@ -314,7 +343,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         agentControls.setLayout(new javax.swing.BoxLayout(agentControls, javax.swing.BoxLayout.Y_AXIS));
         agentControls.setOpaque(false);
         agentControls.add(labeledControl("Assistant family", family));
-        agentControls.add(labeledControl("Runtime", runtime));
+        runtimeRow = labeledControl("Runtime", runtime);
+        agentControls.add(runtimeRow);
+        apiKeyRow = labeledControl("Gemini API key", geminiApiKey);
+        apiKeyRow.add(geminiKeyStatus);
+        apiKeyRow.setVisible(false);
+        agentControls.add(apiKeyRow);
         agentControls.add(recommendedAgent);
         JPanel checkActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         checkActions.setOpaque(false);
@@ -354,6 +388,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         installerTarget.addActionListener(event -> installerTargetChanged());
         showRuntimeSelected();
         showAssistNotConfigured();
+        updateCloudControls();
         JPanel intro = new JPanel(new BorderLayout(4, 2));
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD));
@@ -404,10 +439,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             }
         }
         settings.mcpCommand = command;
-        settings.assistantProviderType = "LOCAL";
-        settings.assistantFamily = String.valueOf(family.getSelectedItem());
-        settings.assistantRuntime = String.valueOf(runtime.getSelectedItem());
-        settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
+        applySelectionToSettings();
         if (command.isBlank()) {
             showAssistError();
             settings.mcpSetupComplete = false;
@@ -463,7 +495,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         } else {
             if (result.success()) {
                 clearDiagnostics();
-                ShaftMcpToolResult readiness = readinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
+                ShaftMcpToolResult readiness = verifySelectedAgentReadiness();
                 if (readiness.success()) {
                     showAssistConfigured();
                     showRuntimeVerified();
@@ -505,6 +537,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         mcpCommand.setEnabled(!running);
         family.setEnabled(!running);
         runtime.setEnabled(!running);
+        geminiApiKey.setEnabled(!running);
         setStatusText(text);
     }
 
@@ -550,6 +583,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void assistantSelectionChanged() {
+        updateCloudControls();
         showRuntimeSelected();
         if (!manualInstallerTarget.isSelected()) {
             String suggestedTarget = suggestedInstallerTarget();
@@ -585,6 +619,99 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
             default -> "CODEX";
+        };
+    }
+
+    private static String initialFamily(ShaftSettingsState.Settings settings) {
+        boolean geminiCloudConfigured = "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))
+                && "gemini".equalsIgnoreCase(settings.cloudProvider == null ? "" : settings.cloudProvider.trim());
+        return geminiCloudConfigured ? GEMINI_FAMILY : resolveFamily(settings);
+    }
+
+    private boolean cloudFamilySelected() {
+        return GEMINI_FAMILY.equals(normalize(String.valueOf(family.getSelectedItem()), "CODEX"));
+    }
+
+    /**
+     * Writes the current agent selection into settings. A Gemini selection configures the cloud
+     * provider route (issue #3369) and never overwrites the last local family, so switching back
+     * to a local agent later restores the previous local configuration.
+     */
+    private void applySelectionToSettings() {
+        if (cloudFamilySelected()) {
+            settings.assistantProviderType = "CLOUD";
+            settings.cloudProvider = "gemini";
+            if (settings.cloudModel == null || settings.cloudModel.isBlank()) {
+                settings.cloudModel = AssistantModelCatalog.defaultCloudModel("gemini");
+            }
+            settings.passProviderApiKeysToMcp = true;
+            return;
+        }
+        settings.assistantProviderType = "LOCAL";
+        settings.assistantFamily = String.valueOf(family.getSelectedItem());
+        settings.assistantRuntime = String.valueOf(runtime.getSelectedItem());
+        settings.defaultAutobotClient = clientFromFamily(settings.assistantFamily);
+    }
+
+    /**
+     * Verifies the selected agent after a successful MCP probe: local families check their CLI
+     * runtime, while the Gemini cloud route stores the entered API key and checks that one is
+     * present in Password Safe.
+     */
+    private ShaftMcpToolResult verifySelectedAgentReadiness() {
+        if (!cloudFamilySelected()) {
+            return readinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
+        }
+        applySelectionToSettings();
+        storeEnteredGeminiKey();
+        updateCloudControls();
+        return cloudKeyStore.hasKey(GEMINI_KEY_NAME)
+                ? ShaftMcpToolResult.success("Gemini API key is stored in IntelliJ Password Safe.")
+                : ShaftMcpToolResult.failure(
+                "No Gemini API key stored. Paste your Google AI Studio API key, then check again.");
+    }
+
+    private void storeEnteredGeminiKey() {
+        char[] entered = geminiApiKey.getPassword();
+        boolean meaningful = false;
+        for (char character : entered) {
+            if (!Character.isWhitespace(character)) {
+                meaningful = true;
+                break;
+            }
+        }
+        if (meaningful) {
+            cloudKeyStore.saveKey(GEMINI_KEY_NAME, entered);
+            geminiApiKey.setText("");
+        } else {
+            java.util.Arrays.fill(entered, '\0');
+        }
+    }
+
+    private void updateCloudControls() {
+        boolean cloud = cloudFamilySelected();
+        runtimeRow.setVisible(!cloud);
+        apiKeyRow.setVisible(cloud);
+        // The CLI recommendation only applies to local agent families.
+        recommendedAgent.setVisible(!cloud);
+        if (cloud) {
+            geminiKeyStatus.setText(cloudKeyStore.hasKey(GEMINI_KEY_NAME)
+                    ? "Key stored in Password Safe."
+                    : "Paste your Google AI Studio API key.");
+        }
+    }
+
+    private static CloudKeyStore passwordSafeKeyStore() {
+        return new CloudKeyStore() {
+            @Override
+            public boolean hasKey(String keyName) {
+                return com.shaft.intellij.settings.ShaftCredentialService.getInstance().hasApiKey(keyName);
+            }
+
+            @Override
+            public void saveKey(String keyName, char[] secret) {
+                com.shaft.intellij.settings.ShaftCredentialService.getInstance().setApiKey(keyName, secret);
+            }
         };
     }
 
@@ -642,6 +769,9 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "COPILOT" -> "IDE_PLUGIN".equals(normalize(String.valueOf(runtime.getSelectedItem()), "CLI"))
                     ? "COPILOT_INTELLIJ"
                     : "COPILOT_CLI";
+            // Gemini prompts run through SHAFT MCP's provider chat, so only this plugin's own
+            // MCP integration needs installing.
+            case GEMINI_FAMILY -> "INTELLIJ_PLUGIN";
             default -> "CODEX";
         };
     }
@@ -873,6 +1003,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
             case "CLAUDE" -> "claude --version";
             case "COPILOT" -> "copilot --version";
+            case GEMINI_FAMILY -> "";
             default -> "codex --version";
         };
     }
@@ -960,6 +1091,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
             case "CLAUDE" -> "For Claude, run `claude mcp list` for Claude Code or restart Claude Desktop after desktop config changes.";
             case "COPILOT" -> "For GitHub Copilot, check the Copilot MCP client configuration and any organization MCP policy.";
+            case GEMINI_FAMILY -> "For Gemini, paste a valid Google AI Studio API key in the setup form, then check again.";
             default -> "For Codex, run `codex mcp list` and verify the SHAFT MCP server in the Codex config.";
         };
     }
@@ -979,6 +1111,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
             case "CLAUDE" -> "Claude";
             case "COPILOT" -> "GitHub Copilot";
+            case GEMINI_FAMILY -> "Gemini";
             default -> "Codex";
         };
     }
@@ -1164,6 +1297,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "COPILOT" -> "IDE_PLUGIN".equals(selectedRuntime)
                     ? "GitHub Copilot in IntelliJ"
                     : "GitHub Copilot CLI";
+            case GEMINI_FAMILY -> "Gemini cloud API";
             default -> "Codex " + ShaftUiLabels.friendly(selectedRuntime);
         };
     }
