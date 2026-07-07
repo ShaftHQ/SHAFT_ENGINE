@@ -44,6 +44,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPluginScreenshotRendererTest {
+    static {
+        // Without an activated IconLoader this headless JVM paints placeholder glyphs instead of
+        // the plugin's SVG action icons, which makes screenshot evidence unrepresentative.
+        com.intellij.openapi.util.IconLoader.activate();
+    }
+
     private static final int WIDTH = 860;
     private static final int NARROW_WIDTH = 360;
     private static final int HEIGHT = 780;
