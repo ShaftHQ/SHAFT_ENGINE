@@ -1,7 +1,0 @@
-
-[1;36m════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-                                                    ▶ Starting Dynamic Test Suite Execution:                                                    
-                  Test Method: 'com.shaft.capture.proxy.CaptureCertificateAuthorityTest.privateKeyFileIsRestrictedToOwnerOnly'                  
-                                           Test Description: 'privateKeyFileIsRestrictedToOwnerOnly()'                                           
-[1;36m════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-[0m
