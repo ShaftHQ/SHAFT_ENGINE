@@ -186,6 +186,28 @@ class TraceServiceTest {
     }
 
     @Test
+    void mergeShardsCombinesAllureResultsAndDetectsFlakyClusters(@TempDir Path temp) throws Exception {
+        Path shard1 = Files.createDirectories(temp.resolve("shard-blobs/1/allure-results"));
+        Files.writeString(shard1.resolve("a-result.json"),
+                "{\"fullName\":\"com.example.Test.a\",\"status\":\"passed\",\"start\":0,\"stop\":100}",
+                StandardCharsets.UTF_8);
+        Path shard2 = Files.createDirectories(temp.resolve("shard-blobs/2/allure-results"));
+        Files.writeString(shard2.resolve("b-result.json"),
+                "{\"fullName\":\"com.example.Test.a\",\"status\":\"failed\",\"start\":0,\"stop\":150}",
+                StandardCharsets.UTF_8);
+
+        var result = service(temp).reportMergeShards(
+                java.util.List.of("shard-blobs/1", "shard-blobs/2"), "");
+
+        assertEquals(2, result.shardCount());
+        assertEquals(2, result.totalResults());
+        assertEquals(1, result.flakyClusters().size());
+        assertEquals("com.example.Test.a", result.flakyClusters().getFirst().fullName());
+        assertTrue(Files.isDirectory(temp.resolve(result.mergedAllureResultsDirectory())));
+        assertTrue(Files.isRegularFile(temp.resolve(result.speedboardHtmlPath())));
+    }
+
+    @Test
     void openViewerWarnsWhenZipHasNoHtmlEntry(@TempDir Path temp) throws Exception {
         Path index = writeTrace(temp, "checkout-no-html",
                 traceJson("\"actions\": [], \"network\": [], \"console\": []"));

@@ -4,6 +4,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
+import com.shaft.doctor.shard.FlakyCluster;
+import com.shaft.doctor.shard.MergedReport;
+import com.shaft.doctor.shard.ShardMerger;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Confidence;
 import com.shaft.doctor.model.Diagnosis;
@@ -180,6 +183,35 @@ public class TraceService {
         }
         return new McpTraceViewerResult("1.0", "", false,
                 List.of("Trace ZIP " + relative(archive) + " does not contain SHAFT Trace Report.html."));
+    }
+
+    /**
+     * Merges N per-shard blobs (raw Allure results + optional traces + optional doctor
+     * {@code ExecutionIntelligence}, produced by independent {@code -Dshaft.shard=N/M} runs) into
+     * one Allure result set plus a timeline "speedboard" HTML and a cross-shard flaky-clustering
+     * summary. See {@link ShardMerger} for the merge semantics.
+     *
+     * @param shardBlobPaths shard blob root directories inside the MCP workspace, in merge order
+     * @param outputDirectory merged output directory inside the MCP workspace; blank selects
+     *                        {@code target/shaft-merged-report}
+     * @return merged Allure results directory, speedboard path, and flaky-clustering summary
+     */
+    @Tool(name = "report_merge_shards",
+            description = "merges N per-shard Allure/trace/doctor-intelligence blobs into one Allure result set plus a flaky-clustering speedboard HTML")
+    public McpMergeShardsResult reportMergeShards(List<String> shardBlobPaths, String outputDirectory) {
+        List<Path> shardRoots = workspacePolicy.existingList(shardBlobPaths, "Shard blob path");
+        Path output = outputDirectory == null || outputDirectory.isBlank()
+                ? workspacePolicy.output("target/shaft-merged-report", "Merged report output directory")
+                : workspacePolicy.output(outputDirectory, "Merged report output directory");
+        MergedReport report = ShardMerger.merge(shardRoots, output);
+        return new McpMergeShardsResult(
+                "1.0",
+                relative(report.mergedAllureResultsDirectory()),
+                relative(report.speedboardHtmlPath()),
+                report.shardCount(),
+                report.totalResults(),
+                report.flakyClusters(),
+                report.warnings());
     }
 
     private Path resolveArchiveForViewer(Path path, Path directory) {
@@ -755,6 +787,37 @@ public class TraceService {
         public McpTraceViewerResult {
             schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? "1.0" : schemaVersion.trim();
             viewerPath = viewerPath == null ? "" : viewerPath.trim();
+            warnings = warnings == null ? List.of() : List.copyOf(warnings);
+        }
+    }
+
+    /**
+     * Merged-shard report result.
+     *
+     * @param schemaVersion result schema version
+     * @param mergedAllureResultsDirectory merged Allure results directory, workspace-relative
+     * @param speedboardHtmlPath timeline speedboard HTML path, workspace-relative
+     * @param shardCount number of shard blobs merged
+     * @param totalResults total Allure result files merged
+     * @param flakyClusters tests observed with inconsistent pass/fail outcomes across shards
+     * @param warnings safe warnings (e.g. an unreadable shard blob was skipped)
+     */
+    public record McpMergeShardsResult(
+            String schemaVersion,
+            String mergedAllureResultsDirectory,
+            String speedboardHtmlPath,
+            int shardCount,
+            int totalResults,
+            List<FlakyCluster> flakyClusters,
+            List<String> warnings) {
+        /**
+         * Creates an immutable merge-shards result.
+         */
+        public McpMergeShardsResult {
+            schemaVersion = schemaVersion == null || schemaVersion.isBlank() ? "1.0" : schemaVersion.trim();
+            mergedAllureResultsDirectory = mergedAllureResultsDirectory == null ? "" : mergedAllureResultsDirectory.trim();
+            speedboardHtmlPath = speedboardHtmlPath == null ? "" : speedboardHtmlPath.trim();
+            flakyClusters = flakyClusters == null ? List.of() : List.copyOf(flakyClusters);
             warnings = warnings == null ? List.of() : List.copyOf(warnings);
         }
     }

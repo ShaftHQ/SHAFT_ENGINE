@@ -9,9 +9,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>report-aggregate</artifactId>
-    <packaging>pom</packaging>
+    <packaging>jar</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>Non-deployed aggregate quality reports for all Java-bearing SHAFT modules.</description>
+    <description>Non-deployed aggregate quality reports for all Java-bearing SHAFT modules, and the
+        deterministic per-shard blob merge CLI for sharded (-Dshaft.shard=N/M) test execution.</description>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
@@ -74,6 +75,28 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>shaft-mcp</artifactId>
             <version>${project.version}</version>
+            <exclusions>
+                <!-- shaft-mcp pulls Spring Boot's log4j-to-slf4j bridge, which conflicts at
+                     runtime with shaft-engine's log4j-slf4j2-impl bridge (both declare the
+                     Log4j2 LoggerContextFactory SPI). This module needs shaft-mcp only for its
+                     classes, never for its logging bootstrap, so the Spring Boot bridge is
+                     excluded and shaft-engine's bridge wins, matching how every other module in
+                     this reactor resolves logging. -->
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-to-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -100,6 +123,15 @@
                 <artifactId>maven-deploy-plugin</artifactId>
                 <configuration>
                     <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+                <configuration>
+                    <argLine>@{argLine} ${surefireArgLine} ${mockitoAgentArgLine}</argLine>
+                    <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                 </configuration>
             </plugin>
         </plugins>
