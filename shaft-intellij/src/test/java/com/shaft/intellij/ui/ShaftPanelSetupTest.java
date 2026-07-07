@@ -24,7 +24,9 @@ import javax.swing.JLabel;
 import javax.swing.KeyStroke;
 import javax.swing.JList;
 import javax.swing.ListCellRenderer;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
@@ -417,6 +419,10 @@ class ShaftPanelSetupTest {
                     () -> assertTrue(command instanceof JBTextArea),
                     () -> assertTrue(((JBTextArea) command).getRows() >= 4),
                     () -> assertFalse(findByAccessibleName(panel, "MCP installer target", JComboBox.class).isVisible()),
+                    () -> assertEquals(6, findByAccessibleName(panel, "MCP installer target", JComboBox.class)
+                            .getItemCount()),
+                    () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(
+                            findByAccessibleName(panel, "MCP installer target", JComboBox.class))),
                     () -> assertNotNull(findByAccessibleName(panel, "Show manual MCP install target", JCheckBox.class)),
                     () -> assertNotNull(findByAccessibleName(panel, "Copy MCP installer command", JButton.class)),
                     () -> assertNotNull(findByAccessibleName(panel, "Open terminal for MCP installer", JButton.class)),
@@ -464,7 +470,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupPanelUpdatesInstallerCommandForSelectedAssistantClient() {
+    void setupPanelUpdatesInstallerCommandForSelectedAssistantClient() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
         JTextComponent installer = findByAccessibleName(panel, "MCP installer command", JTextComponent.class);
@@ -495,6 +501,41 @@ class ShaftPanelSetupTest {
         manualTarget.doClick();
         target.setSelectedItem("INTELLIJ_PLUGIN");
         assertTrue(installer.getText().contains("intellij-plugin"));
+
+        // Regression lock: INTELLIJ_PLUGIN stays last among exactly the 6 known installer targets.
+        List<String> installerTargetTokens = new ArrayList<>();
+        for (int index = 0; index < target.getItemCount(); index++) {
+            installerTargetTokens.add(String.valueOf(target.getItemAt(index)));
+        }
+        assertAll(
+                () -> assertEquals(6, target.getItemCount()),
+                () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(target)),
+                () -> assertEquals(List.of("CODEX", "CLAUDE_CODE", "CLAUDE_DESKTOP", "COPILOT_CLI",
+                        "COPILOT_INTELLIJ", "INTELLIJ_PLUGIN"), installerTargetTokens));
+
+        // The disambiguated label must not collapse back to a bare peer-agent name, and the
+        // distinct IDE_PLUGIN runtime token (used by the runtime combo, not this target combo)
+        // must stay unaffected.
+        assertAll(
+                () -> assertEquals("SHAFT IntelliJ plugin (this plugin only - no external agent)",
+                        ShaftUiLabels.friendly("INTELLIJ_PLUGIN")),
+                () -> assertNotEquals("SHAFT IntelliJ plugin", ShaftUiLabels.friendly("INTELLIJ_PLUGIN")),
+                () -> assertEquals("IDE plugin", ShaftUiLabels.friendly("IDE_PLUGIN")));
+
+        // installerArgumentFor()/installerCommandFor() must keep producing the exact same
+        // --client argument strings as before for every known installer target token.
+        assertAll(
+                () -> assertEquals("codex", installerArgumentFor("CODEX")),
+                () -> assertEquals("claude", installerArgumentFor("CLAUDE_CODE")),
+                () -> assertEquals("claude-desktop", installerArgumentFor("CLAUDE_DESKTOP")),
+                () -> assertEquals("copilot", installerArgumentFor("COPILOT_CLI")),
+                () -> assertEquals("copilot-intellij", installerArgumentFor("COPILOT_INTELLIJ")),
+                () -> assertEquals("intellij-plugin", installerArgumentFor("INTELLIJ_PLUGIN")));
+        for (String token : installerTargetTokens) {
+            String argument = installerArgumentFor(token);
+            String command = installerCommandFor(argument);
+            assertTrue(command.contains(argument), command);
+        }
     }
 
     @Test
@@ -509,6 +550,7 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertEquals("CODEX", family.getSelectedItem()),
                 () -> assertEquals("CODEX", target.getSelectedItem()),
+                () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(target)),
                 () -> assertTrue(containsText(panel, "Recommended: Claude Code CLI detected")));
     }
 
@@ -2166,6 +2208,90 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantTranscriptMessagePaneShowsContextMenuWithCopyActionsAndSurvivesRerender() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("assistant", "First response");
+
+        JEditorPane firstPane = transcriptHtmlPanes(transcript).get(0);
+        MouseListener listener = transcriptContextMenuListener(firstPane);
+        assertNotNull(listener, "Context menu listener should be installed in fallbackHtmlPane");
+
+        listener.mouseReleased(popupTriggerEvent(firstPane));
+        JPopupMenu menu = transcript.lastMessageContextMenuForTest();
+        assertNotNull(menu);
+        JMenuItem copyItem = findByAccessibleName(menu, "Copy", JMenuItem.class);
+        JMenuItem selectAllItem = findByAccessibleName(menu, "Select All", JMenuItem.class);
+        JMenuItem copyFullTranscriptItem = findByAccessibleName(menu, "Copy full transcript", JMenuItem.class);
+
+        assertAll(
+                () -> assertEquals(3, menu.getComponentCount()),
+                () -> assertNotNull(copyItem),
+                () -> assertFalse(copyItem.isEnabled(), "Copy should be disabled without a selection"),
+                () -> assertNotNull(selectAllItem),
+                () -> assertTrue(selectAllItem.isEnabled()),
+                () -> assertNotNull(copyFullTranscriptItem),
+                () -> assertTrue(copyFullTranscriptItem.isEnabled()));
+
+        firstPane.select(0, firstPane.getDocument().getLength());
+        listener.mouseReleased(popupTriggerEvent(firstPane));
+        JMenuItem copyItemAfterSelection = findByAccessibleName(
+                transcript.lastMessageContextMenuForTest(), "Copy", JMenuItem.class);
+        assertTrue(copyItemAfterSelection.isEnabled(), "Copy should be enabled once the pane has a selection");
+
+        transcript.append("assistant", "Second response");
+        List<JEditorPane> panesAfterRerender = transcriptHtmlPanes(transcript);
+        JEditorPane newestPane = panesAfterRerender.get(panesAfterRerender.size() - 1);
+        MouseListener listenerAfterRerender = transcriptContextMenuListener(newestPane);
+        assertNotNull(listenerAfterRerender, "Context menu should survive a transcript re-render");
+
+        listenerAfterRerender.mouseReleased(popupTriggerEvent(newestPane));
+        assertEquals(3, transcript.lastMessageContextMenuForTest().getComponentCount());
+    }
+
+    @Test
+    void assistantTranscriptContextMenuIgnoresNonPopupTriggerEvents() {
+        AssistantTranscriptView transcript = new AssistantTranscriptView();
+        transcript.append("assistant", "Response");
+        JEditorPane pane = transcriptHtmlPanes(transcript).get(0);
+        MouseListener listener = transcriptContextMenuListener(pane);
+        assertNotNull(listener);
+
+        MouseEvent plainClick = new MouseEvent(pane, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
+                InputEvent.BUTTON1_DOWN_MASK, 4, 4, 1, false, MouseEvent.BUTTON1);
+        listener.mousePressed(plainClick);
+        listener.mouseReleased(plainClick);
+
+        assertNull(transcript.lastMessageContextMenuForTest());
+    }
+
+    @Test
+    void assistantTranscriptCopyFullTranscriptContextMenuItemReusesCopyButtonExportPath() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        showAssistantResult(panel, ShaftMcpToolResult.success("Rendered assistant output"));
+        AssistantTranscriptView view = getTranscriptView(panel);
+        assertNotNull(view);
+
+        String expectedExport = assistantExport(panel);
+        assertTrue(expectedExport.contains("Rendered assistant output"));
+
+        AtomicInteger invocations = new AtomicInteger();
+        view.setCopyFullTranscriptAction(invocations::incrementAndGet);
+
+        List<JEditorPane> panes = transcriptHtmlPanes(view);
+        JEditorPane pane = panes.get(panes.size() - 1);
+        MouseListener listener = transcriptContextMenuListener(pane);
+        assertNotNull(listener);
+        listener.mouseReleased(popupTriggerEvent(pane));
+
+        JMenuItem copyFullTranscriptItem = findByAccessibleName(
+                view.lastMessageContextMenuForTest(), "Copy full transcript", JMenuItem.class);
+        assertNotNull(copyFullTranscriptItem);
+        copyFullTranscriptItem.doClick();
+
+        assertEquals(1, invocations.get());
+    }
+
+    @Test
     void assistantTranscriptCodeCopyControlDoesNotPaintRectangularOutline() {
         AssistantTranscriptView transcript = new AssistantTranscriptView();
         transcript.append("assistant", """
@@ -3014,6 +3140,20 @@ class ShaftPanelSetupTest {
         return panes;
     }
 
+    private static MouseListener transcriptContextMenuListener(JEditorPane pane) {
+        for (MouseListener listener : pane.getMouseListeners()) {
+            if (listener instanceof AssistantTranscriptView.TranscriptContextMenuListener) {
+                return listener;
+            }
+        }
+        return null;
+    }
+
+    private static MouseEvent popupTriggerEvent(JEditorPane pane) {
+        return new MouseEvent(pane, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(),
+                InputEvent.BUTTON3_DOWN_MASK, 6, 6, 1, true, MouseEvent.BUTTON3);
+    }
+
     private static void collectTranscriptHtmlPanes(Component component, List<JEditorPane> panes) {
         if (component instanceof JEditorPane pane
                 && pane.getClientProperty(AssistantTranscriptView.TRANSCRIPT_RENDERED_HTML_PROPERTY) != null) {
@@ -3580,6 +3720,22 @@ class ShaftPanelSetupTest {
             }
         }
         return false;
+    }
+
+    private static Object lastComboItem(JComboBox<?> comboBox) {
+        return comboBox.getItemAt(comboBox.getItemCount() - 1);
+    }
+
+    private static String installerArgumentFor(String target) throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("installerArgumentFor", String.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, target);
+    }
+
+    private static String installerCommandFor(String argument) throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("installerCommandFor", String.class);
+        method.setAccessible(true);
+        return (String) method.invoke(null, argument);
     }
 
     private static boolean listContains(JList<?> list, String expectedText) {

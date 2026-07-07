@@ -343,6 +343,7 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView(project);
+        transcript.setCopyFullTranscriptAction(this::copyFullTranscript);
         if (!chatState.activeMarkdown().isBlank()) {
             transcript.setMessages(chatState.activeMessages());
             lastPrompt = latestUserPrompt();
@@ -395,7 +396,7 @@ final class ShaftAssistantPanel extends JPanel {
         ShaftIconButtons.apply(copyRawResponse, ShaftIcons.CODE);
         copyRawResponse.setEnabled(false);
         copyTranscript = button("Copy all", "Copy assistant transcript",
-                event -> copy(exportTranscriptWithEvidence(), "Copied transcript"));
+                event -> copyFullTranscript());
         ShaftIconButtons.apply(copyTranscript, ShaftIcons.COPY);
         captureReviewStatus = new JLabel("Capture review ready");
         captureReviewStatus.getAccessibleContext().setAccessibleName("Capture review status");
@@ -1708,6 +1709,10 @@ final class ShaftAssistantPanel extends JPanel {
         if (!lastRawResponse.isBlank()) {
             copy(lastRawResponse, "Copied raw response");
         }
+    }
+
+    private void copyFullTranscript() {
+        copy(exportTranscriptWithEvidence(), "Copied transcript");
     }
 
     private String exportTranscriptWithEvidence() {

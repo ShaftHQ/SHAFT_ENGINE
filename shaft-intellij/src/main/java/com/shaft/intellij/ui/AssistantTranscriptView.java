@@ -20,16 +20,20 @@ import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 
+import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollBar;
 import javax.swing.UIManager;
 import javax.swing.BoxLayout;
 import javax.swing.SwingUtilities;
 import javax.swing.BorderFactory;
 import javax.swing.event.HyperlinkEvent;
+import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.html.HTMLEditorKit;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -41,6 +45,9 @@ import java.awt.RenderingHints;
 import java.awt.Dimension;
 import java.awt.LayoutManager;
 import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -82,6 +89,8 @@ final class AssistantTranscriptView extends JPanel {
     private final LafManagerListener lafListener;
     private Disposable lafConnectionDisposable;
     private int truncationBoundaryIndex = -1;
+    private Runnable copyFullTranscriptAction = () -> { };
+    private JPopupMenu lastMessageContextMenu;
 
     AssistantTranscriptView() {
         this(null);
@@ -185,6 +194,21 @@ final class AssistantTranscriptView extends JPanel {
 
     void setTruncationBoundaryIndex(int index) {
         this.truncationBoundaryIndex = index;
+    }
+
+    /**
+     * Injects the action driven by the "Copy full transcript" context menu item.
+     * Callers (namely {@code ShaftAssistantPanel}) should reuse the exact same
+     * export-and-copy path used by their own "Copy assistant transcript" action.
+     *
+     * @param action callback invoked when a message pane's "Copy full transcript" item is clicked
+     */
+    void setCopyFullTranscriptAction(Runnable action) {
+        this.copyFullTranscriptAction = action == null ? () -> { } : action;
+    }
+
+    JPopupMenu lastMessageContextMenuForTest() {
+        return lastMessageContextMenu;
     }
 
     private JBScrollPane createFallbackScrollPane(Color transcriptBackground) {
@@ -309,6 +333,7 @@ final class AssistantTranscriptView extends JPanel {
         htmlPane.setBorder(JBUI.Borders.empty());
         htmlPane.setForeground(foreground);
         htmlPane.addHyperlinkListener(AssistantTranscriptView::copyCodeFromFallbackLink);
+        htmlPane.addMouseListener(new TranscriptContextMenuListener(htmlPane));
         String rendered = toFallbackHtml(html, foreground, background);
         htmlPane.putClientProperty(TRANSCRIPT_RENDERED_HTML_PROPERTY, rendered);
         htmlPane.setText(rendered);
@@ -328,6 +353,82 @@ final class AssistantTranscriptView extends JPanel {
         int bubblePadding = JBUI.scale(22);
         int bubbleWidth = (int) Math.floor(Math.max(JBUI.scale(180), viewportWidth - rowPadding) * 0.88D);
         return Math.max(JBUI.scale(140), bubbleWidth - bubblePadding);
+    }
+
+    private JPopupMenu buildMessageContextMenu(JEditorPane pane) {
+        JPopupMenu menu = new JPopupMenu("Assistant transcript message actions");
+        String selectedText = pane.getSelectedText();
+        boolean hasSelection = selectedText != null && !selectedText.isEmpty();
+
+        JMenuItem copyItem = new JMenuItem("Copy");
+        copyItem.getAccessibleContext().setAccessibleName("Copy");
+        copyItem.setEnabled(hasSelection);
+        copyItem.addActionListener(event -> copySelection(pane));
+
+        JMenuItem selectAllItem = new JMenuItem("Select All");
+        selectAllItem.getAccessibleContext().setAccessibleName("Select All");
+        selectAllItem.addActionListener(event -> pane.selectAll());
+
+        JMenuItem copyFullTranscriptItem = new JMenuItem("Copy full transcript");
+        copyFullTranscriptItem.getAccessibleContext().setAccessibleName("Copy full transcript");
+        copyFullTranscriptItem.addActionListener(event -> copyFullTranscriptAction.run());
+
+        menu.add(copyItem);
+        menu.add(selectAllItem);
+        menu.add(copyFullTranscriptItem);
+        return menu;
+    }
+
+    private static void copySelection(JEditorPane pane) {
+        Action copyAction = pane.getActionMap().get(DefaultEditorKit.copyAction);
+        if (copyAction != null) {
+            copyAction.actionPerformed(new ActionEvent(pane, ActionEvent.ACTION_PERFORMED, DefaultEditorKit.copyAction));
+        }
+    }
+
+    /**
+     * Right-click handler for a per-message HTML pane. Installed fresh on every
+     * pane created by {@link #fallbackHtmlPane}, so it survives transcript re-renders.
+     */
+    final class TranscriptContextMenuListener implements MouseListener {
+        private final JEditorPane pane;
+
+        private TranscriptContextMenuListener(JEditorPane pane) {
+            this.pane = pane;
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent event) {
+        }
+
+        @Override
+        public void mousePressed(MouseEvent event) {
+            maybeShowPopup(event);
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent event) {
+            maybeShowPopup(event);
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent event) {
+        }
+
+        @Override
+        public void mouseExited(MouseEvent event) {
+        }
+
+        private void maybeShowPopup(MouseEvent event) {
+            if (!event.isPopupTrigger()) {
+                return;
+            }
+            JPopupMenu menu = buildMessageContextMenu(pane);
+            lastMessageContextMenu = menu;
+            if (pane.isShowing()) {
+                menu.show(pane, event.getX(), event.getY());
+            }
+        }
     }
 
     private String toFallbackHtml(String value, Color foreground, Color background) {
