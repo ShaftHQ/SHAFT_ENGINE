@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -48,6 +49,7 @@ public class MobileService {
     private final McpMobileRecordingService recorder;
     private final McpMobileInspectorRecordingService inspectorRecorder;
     private final McpWorkspacePolicy workspacePolicy;
+    private final MobileApiCaptureController apiCaptureController;
 
     @Autowired
     public MobileService(EngineService engineService) {
@@ -72,10 +74,20 @@ public class MobileService {
             McpMobileRecordingService recorder,
             McpWorkspacePolicy workspacePolicy,
             McpMobileInspectorRecordingService inspectorRecorder) {
+        this(engineService, recorder, workspacePolicy, inspectorRecorder, new MobileApiCaptureController());
+    }
+
+    MobileService(
+            EngineService engineService,
+            McpMobileRecordingService recorder,
+            McpWorkspacePolicy workspacePolicy,
+            McpMobileInspectorRecordingService inspectorRecorder,
+            MobileApiCaptureController apiCaptureController) {
         this.engineService = engineService;
         this.recorder = recorder;
         this.workspacePolicy = workspacePolicy;
         this.inspectorRecorder = inspectorRecorder;
+        this.apiCaptureController = apiCaptureController;
     }
 
     /**
@@ -233,6 +245,54 @@ public class MobileService {
             description = "stops MCP mobile recording and optionally discards the JSON file")
     public McpMobileRecordingStatus recordStop(boolean discard) {
         return recorder.stop(discard);
+    }
+
+    /**
+     * Starts a loopback MITM proxy that captures native mobile API traffic as a first-class
+     * capture session, independent of any Appium/WebDriver session. HTTPS interception requires the
+     * device or emulator to trust the CA certificate returned in the status; plain HTTP traffic and
+     * Tier-2 hybrid/webview traffic (see {@code mobile_get_contexts}) need no such installation.
+     *
+     * @param platform "Android", "iOS", or a caller-supplied label, stored for reference only
+     * @param deviceLabel emulator/simulator/device identifier, stored for reference only
+     * @param outputPath workspace-contained JSON output path; blank generates a timestamped path
+     * @return capture status, including the loopback proxy port and the per-installation CA
+     *         certificate PEM to install as a trusted CA on the device before HTTPS traffic can be
+     *         captured
+     */
+    @Tool(name = "mobile_api_record_start",
+            description = "starts a loopback MITM proxy that captures native mobile API traffic to a workspace JSON capture session")
+    public MobileApiCaptureStatus mobileApiRecordStart(String platform, String deviceLabel, String outputPath) {
+        Path output = outputPath == null || outputPath.isBlank()
+                ? workspacePolicy.output(
+                        "recordings/mobile-api-" + Instant.now().toString().replace(':', '-') + ".json",
+                        "Mobile API capture output path")
+                : workspacePolicy.output(outputPath, "Mobile API capture output path");
+        return apiCaptureController.start(text(platform), text(deviceLabel), output);
+    }
+
+    /**
+     * Returns the active mobile API capture status without changing state.
+     *
+     * @return capture status, including the CA certificate PEM to install on the device and any
+     *         non-sensitive warnings (pairing limitations, transactions that could not be recorded)
+     */
+    @Tool(name = "mobile_api_record_status",
+            description = "returns the active mobile API capture status, including the CA certificate to install on the device")
+    public MobileApiCaptureStatus mobileApiRecordStatus() {
+        return apiCaptureController.status();
+    }
+
+    /**
+     * Stops mobile API capture, finalizing (or discarding) the persisted JSON capture session.
+     *
+     * @param discard whether to mark the session incomplete instead of completed
+     * @return final capture status
+     */
+    @Tool(name = "mobile_api_record_stop",
+            description = "stops mobile API capture, finalizing or discarding the JSON capture session")
+    public MobileApiCaptureStatus mobileApiRecordStop(boolean discard) {
+        return apiCaptureController.stop(discard);
     }
 
     /**
