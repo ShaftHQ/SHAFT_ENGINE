@@ -3933,4 +3933,162 @@ class ShaftPanelSetupTest {
             }
         }
     }
+
+    // ------------------------------------------------------------------
+    // Round 5 (issue #3363) capstone: walks the entire onboarding journey
+    // -- setup -> install command -> Start chatting -> agent-mode consent
+    // -> verbose streaming/token count -> Clear -> right-click context menu
+    // -> New chat -- in one ordered flow, so a future regression in any of
+    // Rounds 1-4's fixes fails here even if a narrower unit test is ever
+    // weakened or deleted.
+    // ------------------------------------------------------------------
+    @Test
+    void onboardingJourneyCoversSetupThroughNewChatWithoutRegressingAnyRoundFix() throws Exception {
+        // Step 1: setup view shown. Pre-seed a prior session so step 3's
+        // fresh-session assertion isn't vacuously true.
+        ShaftAssistantChatState chatState = new ShaftAssistantChatState();
+        chatState.append("user", "previous onboarding message", "{}");
+        chatState.append("assistant", "previous onboarding answer", "{}");
+        int sessionsBeforeStartChatting = chatState.sessions().size();
+
+        // readyProbe() stub, never the real AssistantLocalAgentRunner::readiness probe --
+        // that real probe checks for an actual agent CLI on PATH and made a Round 2 test
+        // pass locally but fail on clean CI runners; every construction here must stay
+        // deterministic regardless of what's installed on the machine running it.
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
+                fakeProject(chatState), unverifiedMcpSettings(), readyProbe(), chatState);
+        ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
+        assertNotNull(setupPanel, "Unverified MCP settings must show the setup panel first");
+
+        // Step 2: install command contract -- must never auto-suggest intellij-plugin
+        // by default (Round 4 fix) and must reference a real installer script.
+        JTextComponent installerCommandField =
+                findByAccessibleName(setupPanel, "MCP installer command", JTextComponent.class);
+        assertNotNull(installerCommandField);
+        String installerCommandText = installerCommandField.getText();
+        assertAll(
+                () -> assertFalse(installerCommandText.contains("-Client intellij-plugin"),
+                        "Round 4 fix: the setup panel must never auto-suggest the intellij-plugin target: "
+                                + installerCommandText),
+                () -> assertTrue(installerCommandText.contains("install-shaft-mcp"),
+                        "Installer command must reference a real installer script: " + installerCommandText));
+
+        // Step 3: Check -> Start chatting must open a fresh session (Round 2 fix).
+        showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
+        JButton startChatting =
+                findByAccessibleName(setupPanel, "Start chatting with SHAFT Assistant", JButton.class);
+        assertNotNull(startChatting);
+        startChatting.doClick();
+
+        assertAll(
+                () -> assertEquals(sessionsBeforeStartChatting + 1, chatState.sessions().size(),
+                        "Round 2 fix: Start chatting must create exactly one new session"),
+                () -> assertTrue(chatState.activeMessages().isEmpty(),
+                        "Round 2 fix: the new active session must start empty"),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class),
+                        "Round 2 fix: the main view must be shown with an empty prompt after Start chatting"));
+
+        ShaftAssistantPanel assistantPanel = findAssistantPanel(toolWindow);
+        assertNotNull(assistantPanel, "Main view should now host the Assistant panel");
+
+        // Step 4: agent-mode consent integrity (Round 2 fix, both defects).
+        JComboBox<?> assistantMode = findByAccessibleName(assistantPanel, "Assistant mode", JComboBox.class);
+        JCheckBox allowEdits =
+                findByAccessibleName(assistantPanel, "Approve source mutation for Agent mode", JCheckBox.class);
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+
+        // A run-state cycle that is NOT itself a user-driven mode change must not
+        // silently reset the checkbox (Round 2 defect A).
+        assistantPanel.setRunning(true, "Thinking...");
+        assistantPanel.setRunning(false, "Ready");
+        assertTrue(allowEdits.isSelected(),
+                "Round 2 fix: Allow source edits must survive a running cycle that isn't a mode change");
+
+        // The constructed prompt must carry an affirmative, unconditional instruction
+        // once edits are truly enabled (Round 2 defect B).
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Implement this login flow in Java", "CODEX", "AGENT", ".", "", true);
+        String agentPromptText = invocation.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertTrue(agentPromptText.contains("Source edits are approved for this session"),
+                        "Round 2 fix: prompt must carry an affirmative source-edit instruction: " + agentPromptText),
+                () -> assertFalse(agentPromptText.contains("Source edits are not enabled"),
+                        "Round 2 fix: prompt must not carry the unresolved negative conditional: " + agentPromptText));
+
+        // Step 5: verbose streaming shows real progress, and a structured response
+        // reports an exact token count with no "(estimated)" fallback (Round 3 fix).
+        JCheckBox verboseOutput =
+                findByAccessibleName(assistantPanel, "Show verbose agent output", JCheckBox.class);
+        verboseOutput.setSelected(true);
+        appendStreamingLocalAgentBubble(assistantPanel, 555);
+        appendLocalAgentOutput(assistantPanel, 555, "intermediate progress line");
+
+        // While streaming is in progress the interim line must be visible (Round 3 fix)
+        // -- it is later superseded by the final answer once the result finalizes the
+        // bubble, so this must be checked before showAgentResult(), not after.
+        assertTrue(transcriptMarkdown(assistantPanel).contains("intermediate progress line"),
+                "Round 3 fix: verbose streaming must show real progress, not just the static placeholder");
+
+        String rawResponse = "The login flow now handles expired sessions."
+                + "\n\n{\"usage\":{\"input_tokens\":210,\"output_tokens\":64}}";
+        showAgentResult(assistantPanel, 555, ShaftMcpToolResult.success(rawResponse));
+
+        String markdownAfterAgentRun = transcriptMarkdown(assistantPanel);
+        assertAll(
+                () -> assertTrue(markdownAfterAgentRun.contains("The login flow now handles expired sessions."),
+                        markdownAfterAgentRun),
+                () -> assertTrue(markdownAfterAgentRun.contains("`274`"),
+                        "Round 3 fix: exact token count (210 + 64) must be shown: " + markdownAfterAgentRun),
+                () -> assertFalse(markdownAfterAgentRun.contains("(estimated)"),
+                        "Round 3 fix: a structured response must not fall back to the estimate"));
+
+        // Step 6: Clear must not leave the action row visually broken (Round 2 fix).
+        clickAccessible(assistantPanel, "Clear assistant transcript");
+        layoutPanel(assistantPanel);
+        assertActionRowButtonsSaneAfterLayout(assistantPanel, false);
+
+        // Step 7: right-click context menu on the transcript (Round 4 fix). Re-populate
+        // the transcript first -- Clear left it empty, and there must be a rendered
+        // message pane to right-click on.
+        assistantPanel.simulateAppendForTest("assistant", "Rendered assistant output for the journey test", "");
+        AssistantTranscriptView transcriptView = getTranscriptView(assistantPanel);
+        assertNotNull(transcriptView);
+        List<JEditorPane> panes = transcriptHtmlPanes(transcriptView);
+        assertFalse(panes.isEmpty(), "Expected at least one rendered transcript pane after re-populating");
+        JEditorPane lastPane = panes.get(panes.size() - 1);
+        MouseListener contextMenuListener = transcriptContextMenuListener(lastPane);
+        assertNotNull(contextMenuListener, "Round 4 fix: transcript panes must install a context-menu listener");
+        contextMenuListener.mouseReleased(popupTriggerEvent(lastPane));
+        JPopupMenu contextMenu = transcriptView.lastMessageContextMenuForTest();
+        assertAll(
+                () -> assertNotNull(findByAccessibleName(contextMenu, "Copy", JMenuItem.class),
+                        "Round 4 fix: transcript context menu must offer Copy"),
+                () -> assertNotNull(findByAccessibleName(contextMenu, "Select All", JMenuItem.class),
+                        "Round 4 fix: transcript context menu must offer Select All"),
+                () -> assertNotNull(findByAccessibleName(contextMenu, "Copy full transcript", JMenuItem.class),
+                        "Round 4 fix: transcript context menu must offer Copy full transcript"));
+
+        // Step 8: New chat -- fresh transcript, cleared prompt, no session data lost
+        // across the whole journey.
+        assistantPrompt(assistantPanel).setText("stray text that must be cleared by New chat");
+        click(assistantPanel, "New chat");
+
+        assertAll(
+                () -> assertTrue(transcriptMarkdown(assistantPanel).isBlank(),
+                        "New chat must clear the visible transcript"),
+                () -> assertTrue(assistantPrompt(assistantPanel).getText().isBlank(),
+                        "New chat must clear the prompt field"),
+                () -> assertEquals(sessionsBeforeStartChatting + 2, chatState.sessions().size(),
+                        "New chat must not lose any prior session across the whole journey"));
+    }
+
+    private static ShaftAssistantPanel findAssistantPanel(ShaftToolWindowPanel toolWindow) {
+        for (Component component : toolWindow.getComponents()) {
+            if (component instanceof ShaftAssistantPanel assistant) {
+                return assistant;
+            }
+        }
+        return null;
+    }
 }
