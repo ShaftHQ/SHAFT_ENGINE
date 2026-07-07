@@ -73,7 +73,7 @@
         <protobuf.version>4.35.1</protobuf.version>
         <google.auth.library.version>1.48.0</google.auth.library.version>
         <kotlin.version>2.4.0</kotlin.version>
-        <netty.version>4.2.15.Final</netty.version>
+        <netty.version>4.2.16.Final</netty.version>
         <!-- Dependency Versions -->
         <log4j2.version>2.26.1</log4j2.version>
         <testng.version>7.12.0</testng.version>
