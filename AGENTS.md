@@ -10,7 +10,7 @@ Bridge: `framework-source-rules` main Java; `java-test-rules` tests; `ci-failure
 
 ## New Task Flow
 
-For edits: preserve work; at session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`; reuse for the whole session -- sub-tasks are commits, not new branches. Workflow-internal worktrees fold into the session branch before PR. Before PR sync default, resolve conflicts, rerun checks; commit, push, open one ready PR for the session. Draft only if blocked/incomplete/requested.
+For edits: preserve work; at session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`; reuse for the whole session -- sub-tasks are commits, not new branches. Before PR sync default, resolve conflicts, rerun checks; commit, push, open one ready PR for the session. Draft only if blocked/incomplete/requested.
 
 ## Working Rules
 
@@ -57,9 +57,7 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 
 ## Agent Hierarchy
 
-Fable plans (fallback Opus) -> Opus orchestrates multi-task plans (fallback Sonnet) -> Sonnet owns each task, delegates implementation to Sonnet at low effort (max speed), QAs the diff at max effort (max focus) with real checks, loops <=3 rounds, then finishes directly. Fresh context per spawned agent; handoffs serialize to files/structured output; log which model ran each phase. PDCA personas: Kevin=Fable/Opus, Bob=Sonnet, Bruce=Sonnet (`agentic-pdca-loop`). Saved workflows: `.claude/workflows/shaft-bug-fix.js`, `shaft-release-ci-fix.js`, `shaft-feature-dev.js`. Precisely-arranged core code (sync/wait internals, locator resolution, EDT threading): Sonnet implements directly. No repo `ralph-loop`: unbounded Stop-hook looping plus Maven fork gotchas risks Windows runaways; use the capped workflows.
-
-Use the hierarchy workflows for multi-module changes, release/CI incidents, or plans with 3+ independent tasks. For single-file fixes, doc edits, and version bumps, a single Sonnet session implements and verifies directly. Never spawn an orchestrator for a one-task plan.
+Main thread only. Never create or run workflows (no Workflow tool, no saved/named workflows -- `.claude/workflows/` stays deleted; never recreate it), never spawn orchestrators, and never delegate instructed actions to subagents: the session itself plans, implements, QAs with real checks, and verifies sequentially. Read-only search/context lookups are the sole permitted subagent use; anything that edits, runs commands, or produces deliverables happens on the main thread. PDCA personas Kevin (plan), Bob (implement), Bruce (check) are sequential phases of this one session, not spawned agents (`agentic-pdca-loop`). No `ralph-loop`: unbounded Stop-hook looping plus Maven fork gotchas risks Windows runaways.
 
 ## Completion
 
