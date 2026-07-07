@@ -154,6 +154,70 @@ class TraceServiceTest {
         }
     }
 
+    @Test
+    void openViewerExtractsHtmlFromTraceZipWhenNotAlreadyOnDisk(@TempDir Path temp) throws Exception {
+        Path index = writeTraceWithHtml(temp, "checkout-viewer",
+                traceJson("\"actions\": [], \"network\": [], \"console\": []"),
+                "<html><body>Trace Viewer</body></html>");
+
+        var result = service(temp).traceOpenViewer(relative(temp, index));
+
+        assertTrue(result.warnings().isEmpty(), result.warnings().toString());
+        assertTrue(result.extracted());
+        assertFalse(result.viewerPath().isBlank());
+        Path extracted = temp.resolve(result.viewerPath());
+        assertTrue(Files.isRegularFile(extracted));
+        assertTrue(Files.readString(extracted).contains("Trace Viewer"));
+    }
+
+    @Test
+    void openViewerReusesAlreadyExtractedHtmlWithoutReExtracting(@TempDir Path temp) throws Exception {
+        Path index = writeTraceWithHtml(temp, "checkout-cached",
+                traceJson("\"actions\": [], \"network\": [], \"console\": []"),
+                "<html><body>First</body></html>");
+        Path directory = index.getParent();
+        Path htmlPath = directory.resolve("SHAFT Trace Report.html");
+        Files.writeString(htmlPath, "<html><body>Already extracted</body></html>", StandardCharsets.UTF_8);
+
+        var result = service(temp).traceOpenViewer(relative(temp, index));
+
+        assertFalse(result.extracted(), "Should reuse the already-persisted HTML rather than re-extracting.");
+        assertTrue(Files.readString(temp.resolve(result.viewerPath())).contains("Already extracted"));
+    }
+
+    @Test
+    void mergeShardsCombinesAllureResultsAndDetectsFlakyClusters(@TempDir Path temp) throws Exception {
+        Path shard1 = Files.createDirectories(temp.resolve("shard-blobs/1/allure-results"));
+        Files.writeString(shard1.resolve("a-result.json"),
+                "{\"fullName\":\"com.example.Test.a\",\"status\":\"passed\",\"start\":0,\"stop\":100}",
+                StandardCharsets.UTF_8);
+        Path shard2 = Files.createDirectories(temp.resolve("shard-blobs/2/allure-results"));
+        Files.writeString(shard2.resolve("b-result.json"),
+                "{\"fullName\":\"com.example.Test.a\",\"status\":\"failed\",\"start\":0,\"stop\":150}",
+                StandardCharsets.UTF_8);
+
+        var result = service(temp).reportMergeShards(
+                java.util.List.of("shard-blobs/1", "shard-blobs/2"), "");
+
+        assertEquals(2, result.shardCount());
+        assertEquals(2, result.totalResults());
+        assertEquals(1, result.flakyClusters().size());
+        assertEquals("com.example.Test.a", result.flakyClusters().getFirst().fullName());
+        assertTrue(Files.isDirectory(temp.resolve(result.mergedAllureResultsDirectory())));
+        assertTrue(Files.isRegularFile(temp.resolve(result.speedboardHtmlPath())));
+    }
+
+    @Test
+    void openViewerWarnsWhenZipHasNoHtmlEntry(@TempDir Path temp) throws Exception {
+        Path index = writeTrace(temp, "checkout-no-html",
+                traceJson("\"actions\": [], \"network\": [], \"console\": []"));
+
+        var result = service(temp).traceOpenViewer(relative(temp, index));
+
+        assertTrue(result.viewerPath().isBlank());
+        assertTrue(result.warnings().stream().anyMatch(w -> w.contains("does not contain")));
+    }
+
     private static TraceService service(Path root) {
         return new TraceService(McpWorkspacePolicy.of(root), new McpDoctorRemediationService());
     }
@@ -178,10 +242,41 @@ class TraceServiceTest {
         return index;
     }
 
+    private static Path writeTraceWithHtml(Path root, String id, String json, String html) throws Exception {
+        Path directory = Files.createDirectories(root.resolve("target/shaft-traces").resolve(id));
+        Path archive = directory.resolve("shaft-trace.zip");
+        writeZipWithHtml(archive, json, html);
+        Path index = directory.resolve("index.json");
+        Files.writeString(index, """
+                {
+                  "testId": "%s",
+                  "generatedAt": "2026-06-26T10:00:00Z",
+                  "archive": "%s",
+                  "entries": {
+                    "html": "SHAFT Trace Report.html",
+                    "json": "shaft-trace.json",
+                    "network": "shaft-network.har"
+                  }
+                }
+                """.formatted(id, relative(root, archive)), StandardCharsets.UTF_8);
+        return index;
+    }
+
     private static void writeZip(Path archive, String json) throws Exception {
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive))) {
             zip.putNextEntry(new ZipEntry("shaft-trace.json"));
             zip.write(json.getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+    }
+
+    private static void writeZipWithHtml(Path archive, String json, String html) throws Exception {
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive))) {
+            zip.putNextEntry(new ZipEntry("shaft-trace.json"));
+            zip.write(json.getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("SHAFT Trace Report.html"));
+            zip.write(html.getBytes(StandardCharsets.UTF_8));
             zip.closeEntry();
         }
     }

@@ -145,6 +145,65 @@ class ApiTestRendererTest {
         assertTrue(rendered.source().contains(CREATED_ID));
     }
 
+    @Test
+    void hybridStyleInterleavesUiActionsWithApiAssertionsAfterTheirCorrelatedAnchor() throws Exception {
+        ApiTransaction createOrder = new ApiTransaction("tx-1", "POST", "https://api.example.test/orders",
+                "https://api.example.test", Map.of(), "{\"item\":\"widget\"}", 201, Map.of(),
+                "{\"id\":\"" + CREATED_ID + "\",\"status\":\"created\"}",
+                ResponseNormalizer.classify("{\"id\":\"" + CREATED_ID + "\",\"status\":\"created\"}"), 3L);
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedHybridTest_Basic", List.of(createOrder),
+                ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.SCHEMA,
+                Map.of(3L, List.of("driver.element().click(SHAFT.GUI.Locator.id(\"submit\"));")));
+
+        assertCompiles(rendered.source(), "RecordedHybridTest_Basic");
+        assertTrue(rendered.source().contains("driver.element().click(SHAFT.GUI.Locator.id(\"submit\"));"),
+                "Expected the UI action line to be rendered, got:\n" + rendered.source());
+        int uiLineIndex = rendered.source().indexOf("driver.element().click");
+        int assertionIndex = rendered.source().indexOf("driver.browser().interceptRequest()");
+        assertTrue(uiLineIndex >= 0 && assertionIndex > uiLineIndex,
+                "The API assertion must be rendered after its correlated UI anchor, got:\n" + rendered.source());
+        assertTrue(rendered.source().contains(".assertResponse(v -> {"));
+        assertTrue(rendered.source().contains(".matchesSchema("));
+    }
+
+    @Test
+    void hybridStyleRendersDeterministicallyWithNoUiActionsSupplied() throws Exception {
+        ApiTransaction createOrder = new ApiTransaction("tx-1", "POST", "https://api.example.test/orders",
+                "https://api.example.test", Map.of(), "{\"item\":\"widget\"}", 201, Map.of(),
+                "{\"id\":\"" + CREATED_ID + "\"}", ResponseNormalizer.classify("{\"id\":\"" + CREATED_ID + "\"}"), 3L);
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedHybridTest_NoUi", List.of(createOrder),
+                ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS);
+
+        assertCompiles(rendered.source(), "RecordedHybridTest_NoUi");
+        assertTrue(rendered.source().contains(".assertResponse(v -> {"),
+                "A hybrid render with no UI lines must still assert the API response, got:\n" + rendered.source());
+    }
+
+    @Test
+    void hybridStyleAppendsUncorrelatedTransactionsAfterAnchoredOnes() throws Exception {
+        ApiTransaction anchored = new ApiTransaction("tx-1", "GET", "https://api.example.test/a",
+                "https://api.example.test", Map.of(), "", 200, Map.of(), "{}",
+                ResponseNormalizer.classify("{}"), 1L);
+        ApiTransaction uncorrelated = new ApiTransaction("tx-2", "GET", "https://api.example.test/b",
+                "https://api.example.test", Map.of(), "", 200, Map.of(), "{}",
+                ResponseNormalizer.classify("{}"), null);
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedHybridTest_Order", List.of(uncorrelated, anchored),
+                ApiCodegenStyle.HYBRID_UI_API, ApiValidationDepth.STATUS,
+                Map.of(1L, List.of("driver.element().click(SHAFT.GUI.Locator.id(\"go\"));")));
+
+        assertCompiles(rendered.source(), "RecordedHybridTest_Order");
+        int anchoredIndex = rendered.source().indexOf("/a");
+        int uncorrelatedIndex = rendered.source().indexOf("/b");
+        assertTrue(anchoredIndex >= 0 && uncorrelatedIndex > anchoredIndex,
+                "The anchored transaction (/a) must render before the uncorrelated one (/b), got:\n" + rendered.source());
+    }
+
     private void assertCompiles(String source, String className) throws Exception {
         Path moduleDir = Files.createDirectories(tempDir.resolve(className));
         Path sourceFile = moduleDir.resolve(className + ".java");

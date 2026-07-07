@@ -10,14 +10,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 JAVA_MODULES = {
-    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-doctor", "shaft-ai", "shaft-heal",
-    "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-sikulix", "shaft-mcp",
+    "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-capture-proxy", "shaft-doctor",
+    "shaft-ai", "shaft-heal", "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-sikulix",
+    "shaft-mcp",
 }
 DEPENDABOT_DIRECTORIES = {
     "/",
     "/shaft-engine",
     "/shaft-pilot-core",
     "/shaft-capture",
+    "/shaft-capture-proxy",
     "/shaft-doctor",
     "/shaft-ai",
     "/shaft-heal",

@@ -24,6 +24,7 @@ import java.util.List;
  * @param compilation compilation result
  * @param replay replay result
  * @param enrichment enrichment result
+ * @param openApiCoverage OpenAPI coverage cross-report, or {@code null} when no spec was provided
  */
 public record CaptureGenerationReport(
         String schemaVersion,
@@ -42,8 +43,47 @@ public record CaptureGenerationReport(
         List<String> warnings,
         Validation compilation,
         Validation replay,
-        Enrichment enrichment) {
+        Enrichment enrichment,
+        OpenApiCoverage openApiCoverage) {
     public static final String CURRENT_SCHEMA_VERSION = "1.0";
+
+    /**
+     * Deterministic OpenAPI coverage cross-report (see {@code OpenApiCoverageReporter} in
+     * {@code com.shaft.capture.generate.api.internal}, which this record mirrors so the report can
+     * live in this module without an API-codegen-specific dependency).
+     *
+     * @param loadable whether the provided spec could be read and parsed
+     * @param loadFailureReason safe reason {@code loadable} is {@code false}; empty otherwise
+     * @param coveredOperations {@code METHOD normalized-path} operations recorded AND declared
+     * @param missingOperations {@code METHOD normalized-path} operations declared but never recorded
+     * @param undeclaredOperations {@code METHOD normalized-path} operations recorded but not declared
+     * @param totalDeclaredOperations total number of operations declared by the spec
+     * @param coverageRatio {@code coveredOperations.size() / totalDeclaredOperations}
+     */
+    public record OpenApiCoverage(
+            boolean loadable,
+            String loadFailureReason,
+            List<String> coveredOperations,
+            List<String> missingOperations,
+            List<String> undeclaredOperations,
+            int totalDeclaredOperations,
+            double coverageRatio) {
+        public OpenApiCoverage {
+            loadFailureReason = loadFailureReason == null ? "" : loadFailureReason;
+            coveredOperations = coveredOperations == null ? List.of() : List.copyOf(coveredOperations);
+            missingOperations = missingOperations == null ? List.of() : List.copyOf(missingOperations);
+            undeclaredOperations = undeclaredOperations == null ? List.of() : List.copyOf(undeclaredOperations);
+        }
+
+        /**
+         * Returns the default state when no OpenAPI spec was provided.
+         *
+         * @return not-requested coverage
+         */
+        public static OpenApiCoverage notRequested() {
+            return new OpenApiCoverage(false, "", List.of(), List.of(), List.of(), 0, 0.0);
+        }
+    }
 
     /**
      * Generation status.
@@ -201,6 +241,51 @@ public record CaptureGenerationReport(
         compilation = compilation == null ? Validation.skipped("Compilation was not requested.") : compilation;
         replay = replay == null ? Validation.skipped("Replay was not requested.") : replay;
         enrichment = enrichment == null ? Enrichment.notRequested() : enrichment;
+        openApiCoverage = openApiCoverage == null ? OpenApiCoverage.notRequested() : openApiCoverage;
+    }
+
+    /**
+     * Compatibility constructor for callers compiled before OpenAPI coverage was added.
+     *
+     * @param schemaVersion report schema version
+     * @param sessionId source Capture session
+     * @param status generation status
+     * @param sourcePath output-root-relative source path
+     * @param testDataPath output-root-relative test-data path
+     * @param readiness live capture readiness state
+     * @param readinessWarnings live capture readiness warnings
+     * @param locatorDecisions selected locator rationale
+     * @param unsupportedEvents unsupported event diagnostics
+     * @param flakySteps replay-risk diagnostics
+     * @param fallbackLocators available fallback locator diagnostics
+     * @param controlFlowSuggestions deterministic control-flow suggestions
+     * @param requiredUserInputs unresolved external inputs
+     * @param warnings safe warnings
+     * @param compilation compilation result
+     * @param replay replay result
+     * @param enrichment enrichment result
+     */
+    public CaptureGenerationReport(
+            String schemaVersion,
+            String sessionId,
+            Status status,
+            String sourcePath,
+            String testDataPath,
+            CaptureReadiness.State readiness,
+            List<String> readinessWarnings,
+            List<LocatorDecision> locatorDecisions,
+            List<String> unsupportedEvents,
+            List<String> flakySteps,
+            List<String> fallbackLocators,
+            List<ControlFlowSuggestion> controlFlowSuggestions,
+            List<String> requiredUserInputs,
+            List<String> warnings,
+            Validation compilation,
+            Validation replay,
+            Enrichment enrichment) {
+        this(schemaVersion, sessionId, status, sourcePath, testDataPath, readiness, readinessWarnings,
+                locatorDecisions, unsupportedEvents, flakySteps, fallbackLocators, controlFlowSuggestions,
+                requiredUserInputs, warnings, compilation, replay, enrichment, null);
     }
 
     /**

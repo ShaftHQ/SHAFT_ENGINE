@@ -17,5 +17,14 @@ public enum ApiCodegenStyle {
      * response value is asserted/replayed as its recorded literal rather than correlated, since
      * there is no shared later-request scope for a variable to be reused in.
      */
-    PER_REQUEST
+    PER_REQUEST,
+    /**
+     * One {@code @Test} method per origin, mirroring {@link #SCENARIO}'s correlation, but
+     * rendered by {@code ApiTestRenderer.render(..., Map)} which interleaves caller-supplied UI
+     * action source lines with API response assertions placed immediately after the UI anchor
+     * each transaction is correlated with ({@code correlatedUiSequence}). Transactions with no
+     * correlated UI sequence are appended at the end of the method, after every anchored
+     * transaction, in recorded order.
+     */
+    HYBRID_UI_API
 }

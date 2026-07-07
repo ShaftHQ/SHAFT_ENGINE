@@ -114,6 +114,10 @@ public interface Reporting extends EngineProperties<Reporting> {
     @DefaultValue("true")
     boolean traceIncludeFullPageSnapshots();
 
+    @Key("shaft.trace.includeDomSnapshots")
+    @DefaultValue("true")
+    boolean traceIncludeDomSnapshots();
+
     @Key("shaft.trace.includeNativePageSource")
     @DefaultValue("true")
     boolean traceIncludeNativePageSource();
@@ -265,6 +269,11 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty traceIncludeFullPageSnapshots(boolean value) {
             setProperty("shaft.trace.includeFullPageSnapshots", String.valueOf(value));
+            return this;
+        }
+
+        public SetProperty traceIncludeDomSnapshots(boolean value) {
+            setProperty("shaft.trace.includeDomSnapshots", String.valueOf(value));
             return this;
         }
 

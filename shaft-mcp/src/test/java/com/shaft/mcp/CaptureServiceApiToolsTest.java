@@ -1,16 +1,32 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.model.BrowserMetadata;
+import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.RedactionSummary;
+import com.shaft.capture.model.network.BodyRef;
+import com.shaft.capture.model.network.HttpRequestRecord;
+import com.shaft.capture.model.network.HttpResponseRecord;
+import com.shaft.capture.model.network.NetworkTiming;
+import com.shaft.capture.model.network.ResourceKind;
 import com.shaft.capture.runtime.CaptureBrowser;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStartRequest;
 import com.shaft.capture.runtime.CaptureStatus;
 import com.shaft.capture.runtime.NetworkCaptureOptions;
 import com.shaft.capture.runtime.NetworkTransaction;
+import com.shaft.capture.storage.NetworkBodyStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -169,6 +185,170 @@ class CaptureServiceApiToolsTest {
         assertTrue(manager.networkTransactions(excludeAssets, 100).isEmpty());
 
         manager.close();
+    }
+
+    @Test
+    void generateApiThreadsOpenApiSpecPathIntoTheGenerationReport() throws Exception {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            writeRecordedSession();
+            Path specPath = temp.resolve("openapi.json");
+            Files.writeString(specPath,
+                    "{\"paths\": {\"/orders\": {\"post\": {}}}}", StandardCharsets.UTF_8);
+
+            McpCaptureReplayResult result = service.generateApi(
+                    "recordings/session-mcp.json", "generated", "tests.generated", "",
+                    "SCENARIO", "STATUS", true, false, "openapi.json");
+
+            assertTrue(result.successful(), "Generation report: " + result.report());
+            assertNotNull(result.report().openApiCoverage());
+            assertTrue(result.report().openApiCoverage().loadable(),
+                    "Coverage load failure: " + result.report().openApiCoverage().loadFailureReason());
+            assertTrue(result.report().openApiCoverage().coveredOperations().contains("POST /orders"));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void generateApiLeavesCoverageNotRequestedWhenNoSpecPathGiven() throws Exception {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            writeRecordedSession();
+
+            McpCaptureReplayResult result = service.generateApi(
+                    "recordings/session-mcp.json", "generated", "tests.generated", "",
+                    "SCENARIO", "STATUS", true, false, "");
+
+            assertTrue(result.successful(), "Generation report: " + result.report());
+            assertFalse(result.report().openApiCoverage().loadable());
+        } finally {
+            service.close();
+        }
+    }
+
+    private Path writeRecordedSession() throws Exception {
+        Path sessionPath = temp.resolve("recordings/session-mcp.json");
+        Files.createDirectories(sessionPath.getParent());
+        Path bodiesDirectory = sessionPath.getParent().resolve("session-mcp-network-bodies");
+        Files.createDirectories(bodiesDirectory);
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        BodyRef responseRef = bodyStore.store(
+                "{\"id\":\"1\"}".getBytes(StandardCharsets.UTF_8), "application/json", bodiesDirectory);
+
+        Instant started = Instant.parse("2026-01-02T03:04:05Z");
+        BrowserMetadata browser = new BrowserMetadata("chrome", "137", "Windows 11", "browser-1", Map.of());
+        CaptureEvent.NetworkEvent createOrder = new CaptureEvent.NetworkEvent(
+                context(1, started),
+                "tx-1",
+                ResourceKind.FETCH,
+                new HttpRequestRecord("POST", "https://api.example.test/orders", headers(), null),
+                new HttpResponseRecord(201, headers(), responseRef),
+                new NetworkTiming(null, null, null, null, null, null),
+                "",
+                "https://app.example.test/",
+                null);
+
+        CaptureSession session = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "session-mcp",
+                CaptureSession.SessionStatus.COMPLETED,
+                started,
+                started.plusSeconds(5),
+                browser,
+                List.of(createOrder),
+                List.of(),
+                List.of(),
+                RedactionSummary.empty(),
+                Map.of());
+        new CaptureJsonCodec().write(sessionPath, session);
+        return sessionPath;
+    }
+
+    private static com.shaft.capture.model.EventContext context(long sequence, Instant started) {
+        com.shaft.capture.model.PageContext page = new com.shaft.capture.model.PageContext(
+                "https://app.example.test/", "App", "window-1", List.of(), 1280, 720);
+        return new com.shaft.capture.model.EventContext(sequence, started.plusSeconds(sequence), page,
+                com.shaft.capture.model.EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
+    }
+
+    private static Map<String, String> headers() {
+        Map<String, String> headers = new TreeMap<>();
+        headers.put("content-type", "application/json");
+        return headers;
+    }
+
+    @Test
+    void setModeReadsCurrentModeWithBlankArgumentAndTogglesWithAnExplicitOne() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            assertEquals("record", service.setMode(""));
+            assertEquals("inspect", service.setMode("inspect"));
+            assertEquals("inspect", service.setMode(null));
+            assertEquals("record", service.setMode("RECORD"));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void setModeRejectsUnsupportedMode() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            assertThrows(IllegalArgumentException.class, () -> service.setMode("not-a-mode"));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void pickLocatorRanksCandidatesBestFirstAndRendersASnippet() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            List<CaptureService.McpLocatorCandidate> candidates = List.of(
+                    new CaptureService.McpLocatorCandidate("CSS", "div.form > input", 1, true, false),
+                    new CaptureService.McpLocatorCandidate("ID", "username", 1, true, true));
+
+            CaptureService.McpPickLocatorResult result = service.pickLocator(candidates);
+
+            assertEquals("SHAFT.GUI.Locator.id(\"username\")", result.snippet());
+            assertEquals(2, result.ranked().size());
+            assertEquals("ID", result.ranked().getFirst().strategy());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void pickLocatorIgnoresUnsupportedStrategiesAndReturnsBlankWhenNoneAreValid() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            CaptureService.McpPickLocatorResult result = service.pickLocator(
+                    List.of(new CaptureService.McpLocatorCandidate("NOT_A_STRATEGY", "x", 1, true, true)));
+
+            assertTrue(result.snippet().isEmpty());
+            assertTrue(result.ranked().isEmpty());
+        } finally {
+            service.close();
+        }
     }
 
     @Test

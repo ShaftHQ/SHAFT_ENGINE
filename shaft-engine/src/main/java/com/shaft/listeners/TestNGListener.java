@@ -230,7 +230,33 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
                 .map(IMethodInstance::getMethod)
                 .filter(ITestNGMethod::isTest)
                 .forEach(method -> method.setRetryAnalyzerClass(RetryAnalyzer.class));
-        return methods;
+        return shardFilter(methods);
+    }
+
+    /**
+     * Deterministically partitions test methods by {@code -Dshaft.shard=N/M} (see
+     * {@link ShardPartitioner}), leaving every non-test (configuration) method untouched so
+     * {@code @BeforeSuite}/{@code @BeforeClass}/etc. still run normally for the methods that do
+     * remain. A blank, malformed, or absent {@code shaft.shard} property disables filtering
+     * entirely and returns {@code methods} unchanged.
+     */
+    private static List<IMethodInstance> shardFilter(List<IMethodInstance> methods) {
+        ShardPartitioner.Spec spec = ShardPartitioner.parse(System.getProperty("shaft.shard", ""));
+        if (!spec.enabled()) {
+            return methods;
+        }
+        return methods.stream()
+                .filter(instance -> {
+                    ITestNGMethod method = instance.getMethod();
+                    if (!method.isTest()) {
+                        return true;
+                    }
+                    String className = method.getTestClass() == null
+                            ? method.getRealClass().getName()
+                            : method.getTestClass().getName();
+                    return spec.includes(className, method.getMethodName());
+                })
+                .collect(Collectors.toList());
     }
 
     /**

@@ -188,10 +188,11 @@ public final class FailureTraceReporter {
                       <button type="button" class="secondary" onclick="copyJson()">Copy JSON</button>
                     </div>
                     <dl id="details"></dl>
-                    <div class="tabs">
+                    <div class="tabs" id="action-tabs">
                       <button data-tab="exception" class="selected">Exception</button>
                       <button data-tab="source">Source</button>
                       <button data-tab="snapshot">Snapshot</button>
+                      <button data-tab="domSnapshot">DOM Snapshot</button>
                       <button data-tab="locatorHealth">Locator Health</button>
                       <button data-tab="network">Network</button>
                       <button data-tab="console">Console</button>
@@ -201,6 +202,14 @@ public final class FailureTraceReporter {
                       <button data-tab="json">JSON</button>
                     </div>
                     <pre id="tab-content"></pre>
+                    <div id="dom-snapshot-panel" hidden>
+                      <div class="tabs" id="dom-snapshot-tabs">
+                        <button data-dom="before" class="selected">Before</button>
+                        <button data-dom="after">After</button>
+                      </div>
+                      <iframe id="dom-snapshot-frame" title="DOM snapshot" sandbox=""
+                              style="width:100%;height:420px;border:1px solid var(--shaft-border,#ccc);background:#fff"></iframe>
+                    </div>
                   </section>
                 </div>
                 </main>
@@ -257,17 +266,37 @@ public final class FailureTraceReporter {
                   details.innerHTML = row('Status', action.status) + row('Category', action.category) + row('Locator', action.locator) + row('URL', action.url) + row('Duration', action.durationMs == null ? '' : `${action.durationMs}ms`) + row('Message', action.message);
                   renderTab(document.querySelector('.tabs button.selected').dataset.tab);
                 }
+                const domSnapshotPanel = document.getElementById('dom-snapshot-panel');
+                const domSnapshotFrame = document.getElementById('dom-snapshot-frame');
+                let selectedDomSide = 'before';
+                function renderDomSnapshot(){
+                  const action = selected || {};
+                  const html = domSnapshotFrame && (selectedDomSide === 'after' ? action.domSnapshotAfter : action.domSnapshotBefore);
+                  if (domSnapshotFrame) {
+                    domSnapshotFrame.srcdoc = html || '<p>No DOM snapshot captured for this action.</p>';
+                  }
+                  document.querySelectorAll('#dom-snapshot-tabs button').forEach(button =>
+                      button.classList.toggle('selected', button.dataset.dom === selectedDomSide));
+                }
                 function renderTab(tab){
                   const action = selected || {};
-                  const data = tab === 'json' ? trace : tab === 'exception' && action.exception && (action.exception.type || action.exception.message) ? action.exception : trace[tab];
-                  tabContent.textContent = typeof data === 'string' ? data : JSON.stringify(data || {}, null, 2);
-                  document.querySelectorAll('.tabs button').forEach(button => button.classList.toggle('selected', button.dataset.tab === tab));
+                  const isDomSnapshot = tab === 'domSnapshot';
+                  tabContent.hidden = isDomSnapshot;
+                  domSnapshotPanel.hidden = !isDomSnapshot;
+                  if (isDomSnapshot) {
+                    renderDomSnapshot();
+                  } else {
+                    const data = tab === 'json' ? trace : tab === 'exception' && action.exception && (action.exception.type || action.exception.message) ? action.exception : trace[tab];
+                    tabContent.textContent = typeof data === 'string' ? data : JSON.stringify(data || {}, null, 2);
+                  }
+                  document.querySelectorAll('#action-tabs button').forEach(button => button.classList.toggle('selected', button.dataset.tab === tab));
                 }
                 async function copyJson(){
                   await navigator.clipboard.writeText(JSON.stringify(trace, null, 2));
                 }
                 actionSearch.addEventListener('input', renderActions);
-                document.querySelectorAll('.tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
+                document.querySelectorAll('#action-tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
+                document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
                 renderSummary();
                 renderActions();
                 renderDetails();

@@ -19,6 +19,7 @@ import org.openqa.selenium.Platform;
 import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.DesiredCapabilities;
@@ -77,6 +78,8 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(html.contains("--shaft-primary"), html);
                 Assert.assertTrue(html.contains("trace-summary"), html);
                 Assert.assertTrue(html.contains("copyJson()"), html);
+                Assert.assertTrue(html.contains("data-tab=\"domSnapshot\""), html);
+                Assert.assertTrue(html.contains("dom-snapshot-frame"), html);
             }
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"archive\": \"target/shaft-traces/id-failingScenario/shaft-trace.zip\""), index);
@@ -161,6 +164,136 @@ public class FailureTraceReporterTest {
         } finally {
             TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace JSON should include before/after DOM snapshots keyed per action when enabled")
+    public void traceJsonShouldIncludeDomSnapshotsWhenEnabled() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceIncludeDomSnapshots(true);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "<html><body>before</body></html>", "<html><body>after</body></html>");
+
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("boom"), Map.of(), List.of());
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertTrue(json.contains("\"domSnapshotBefore\": \"<html><body>before</body></html>\""), json);
+            Assert.assertTrue(json.contains("\"domSnapshotAfter\": \"<html><body>after</body></html>\""), json);
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace JSON should omit DOM snapshot fields when the property is disabled")
+    public void traceJsonShouldOmitDomSnapshotsWhenDisabled() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceIncludeDomSnapshots(false);
+            RecordingJavascriptExecutorDriver driver = new RecordingJavascriptExecutorDriver(
+                    "<html><body>before</body></html>", "<html><body>after</body></html>");
+
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), driver);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("boom"), Map.of(), List.of());
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertFalse(json.contains("domSnapshotBefore"), json);
+            Assert.assertFalse(json.contains("domSnapshotAfter"), json);
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    /**
+     * Minimal WebDriver + JavascriptExecutor fake returning a different outerHTML snapshot on
+     * each successive {@code executeScript} call, simulating DOM state changing between the
+     * before (start) and after (finish) capture points of one traced action.
+     */
+    private static final class RecordingJavascriptExecutorDriver implements WebDriver, org.openqa.selenium.JavascriptExecutor {
+        private final List<String> snapshots;
+        private int callIndex;
+
+        RecordingJavascriptExecutorDriver(String... snapshots) {
+            this.snapshots = List.of(snapshots);
+        }
+
+        @Override
+        public Object executeScript(String script, Object... args) {
+            String snapshot = snapshots.get(Math.min(callIndex, snapshots.size() - 1));
+            callIndex++;
+            return snapshot;
+        }
+
+        @Override
+        public Object executeAsyncScript(String script, Object... args) {
+            return null;
+        }
+
+        @Override
+        public void get(String url) {
+        }
+
+        @Override
+        public String getCurrentUrl() {
+            return "https://example.test";
+        }
+
+        @Override
+        public String getTitle() {
+            return "";
+        }
+
+        @Override
+        public List<WebElement> findElements(By by) {
+            return List.of();
+        }
+
+        @Override
+        public WebElement findElement(By by) {
+            return null;
+        }
+
+        @Override
+        public String getPageSource() {
+            return "";
+        }
+
+        @Override
+        public void close() {
+        }
+
+        @Override
+        public void quit() {
+        }
+
+        @Override
+        public java.util.Set<String> getWindowHandles() {
+            return java.util.Set.of();
+        }
+
+        @Override
+        public String getWindowHandle() {
+            return "";
+        }
+
+        @Override
+        public TargetLocator switchTo() {
+            return null;
+        }
+
+        @Override
+        public Navigation navigate() {
+            return null;
+        }
+
+        @Override
+        public Options manage() {
+            return null;
         }
     }
 
