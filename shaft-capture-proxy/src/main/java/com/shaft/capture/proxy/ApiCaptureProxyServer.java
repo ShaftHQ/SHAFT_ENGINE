@@ -53,14 +53,33 @@ public final class ApiCaptureProxyServer implements AutoCloseable {
     }
 
     /**
-     * Mutable set of hostnames known to use certificate pinning; a host in this set is tunneled
-     * without MITM interception (Tier-3, see {@code CapturingHttpFilters}) rather than having
-     * capture attempted and failing.
+     * Known-pinned hostnames tunneled without MITM interception (Tier-3, see
+     * {@code CapturingHttpFilters}) rather than having capture attempted and failing. Returns an
+     * immutable snapshot -- use {@link #addPinnedHost(String)}/{@link #removePinnedHost(String)} to
+     * mutate the underlying set rather than exposing it directly.
      *
-     * @return live, thread-safe set of pinned hostnames
+     * @return immutable snapshot of currently pinned hostnames
      */
     public Set<String> pinnedHosts() {
-        return pinnedHosts;
+        return Set.copyOf(pinnedHosts);
+    }
+
+    /**
+     * Adds a hostname to the pinned set so its traffic is tunneled without MITM interception.
+     *
+     * @param host hostname, without port
+     */
+    public void addPinnedHost(String host) {
+        pinnedHosts.add(host);
+    }
+
+    /**
+     * Removes a hostname from the pinned set, resuming MITM interception for it.
+     *
+     * @param host hostname, without port
+     */
+    public void removePinnedHost(String host) {
+        pinnedHosts.remove(host);
     }
 
     /**

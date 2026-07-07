@@ -147,7 +147,7 @@ final class MobileApiCaptureController {
      */
     synchronized void addPinnedHost(String host) {
         if (proxy != null && host != null && !host.isBlank()) {
-            proxy.pinnedHosts().add(host.trim());
+            proxy.addPinnedHost(host.trim());
         }
     }
 
