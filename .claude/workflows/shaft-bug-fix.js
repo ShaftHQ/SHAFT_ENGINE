@@ -74,6 +74,30 @@ const VALIDATION_RULES = [
   "static checks, or a disposable copy.",
 ].join(" ");
 
+// Each isolation:"worktree" agent call gets a FRESH, randomly-picked
+// worktree -- not the same one across implement/fix/escalate rounds for
+// the same task. Two consequences every implementer-role prompt must
+// carry: (1) your own worktree may already hold a *different* task's
+// leftover state (or be clean) -- if the files this task should have
+// touched aren't here, search sibling worktrees under
+// `.claude/worktrees/` for your own prior round's commits/diff before
+// concluding nothing was done; (2) the orchestrator can only discover
+// your work via `git log`/`git diff` on YOUR worktree, so uncommitted
+// changes are invisible and effectively lost once this call returns --
+// general "don't commit unless asked" guidance does not apply here,
+// commit is mandatory.
+const COMMIT_INSTRUCTION = [
+  "IMPORTANT: this worktree is disposable and only discoverable via git.",
+  "Before you finish, `git add` every file you touched and `git commit`",
+  "with a descriptive message -- uncommitted changes are invisible to the",
+  "orchestrator and will be lost. This overrides any general instinct to",
+  "leave changes staged/uncommitted \"unless explicitly asked\"; committing",
+  "IS how you hand off a task in this workflow. If the files this task",
+  "expects aren't in your worktree, check sibling worktrees under",
+  "`.claude/worktrees/wf_*` for a prior round's commit before assuming no",
+  "work was done.",
+].join(" ");
+
 function planPrompt(issue) {
   return [
     "You are Kevin, the PDCA planner (see .github/skills/agentic-pdca-loop/SKILL.md).",
@@ -112,6 +136,8 @@ function implementPrompt(task) {
     JSON.stringify(task, null, 2),
     "",
     "Compile-check what you changed. Report the files you touched.",
+    "",
+    COMMIT_INSTRUCTION,
   ].join("\n");
 }
 
@@ -144,6 +170,8 @@ function fixPrompt(task, gaps) {
     "",
     "Task for reference:",
     JSON.stringify(task, null, 2),
+    "",
+    COMMIT_INSTRUCTION,
   ].join("\n");
 }
 
@@ -159,6 +187,8 @@ function escalatePrompt(task, gaps) {
     "",
     "Open gaps:",
     JSON.stringify(gaps, null, 2),
+    "",
+    COMMIT_INSTRUCTION,
   ].join("\n");
 }
 
