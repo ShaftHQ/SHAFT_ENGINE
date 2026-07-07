@@ -1,8 +1,8 @@
 package com.shaft.intellij.ui;
 
-import com.intellij.ide.ui.LafManager;
 import com.intellij.ide.ui.LafManagerListener;
 import com.intellij.lexer.Lexer;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
@@ -15,6 +15,7 @@ import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
@@ -79,6 +80,7 @@ final class AssistantTranscriptView extends JPanel {
     private final List<ShaftAssistantChatState.Message> messages = new ArrayList<>();
     private String markdown = "";
     private final LafManagerListener lafListener;
+    private Disposable lafConnectionDisposable;
     private int truncationBoundaryIndex = -1;
 
     AssistantTranscriptView() {
@@ -110,17 +112,20 @@ final class AssistantTranscriptView extends JPanel {
     @Override
     public void addNotify() {
         super.addNotify();
-        LafManager lafManager = LafManager.getInstance();
-        if (lafManager != null) {
-            lafManager.addLafManagerListener(lafListener);
+        if (lafConnectionDisposable != null) {
+            return;
         }
+        lafConnectionDisposable = Disposer.newDisposable("ShaftAssistantTranscriptView.laf");
+        ApplicationManager.getApplication().getMessageBus()
+                .connect(lafConnectionDisposable)
+                .subscribe(LafManagerListener.TOPIC, lafListener);
     }
 
     @Override
     public void removeNotify() {
-        LafManager lafManager = LafManager.getInstance();
-        if (lafManager != null) {
-            lafManager.removeLafManagerListener(lafListener);
+        if (lafConnectionDisposable != null) {
+            Disposer.dispose(lafConnectionDisposable);
+            lafConnectionDisposable = null;
         }
         super.removeNotify();
     }
