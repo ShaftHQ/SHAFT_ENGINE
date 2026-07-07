@@ -12,6 +12,7 @@ import org.littleshoot.proxy.HttpFiltersAdapter;
 import java.io.ByteArrayOutputStream;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -19,18 +20,44 @@ import java.util.function.Consumer;
  * message as an {@link HttpRequest}/{@link HttpResponse} head followed by zero or more
  * {@link HttpContent} chunks and a terminal {@link LastHttpContent}) and emits one
  * {@link ProxyTransaction} to the sink once the response is fully received.
+ *
+ * <p>Tier-3 (certificate-pinned) hosts: {@link #proxyToServerAllowMitm()} consults a shared,
+ * mutable {@code pinnedHosts} set (see {@link ApiCaptureProxyServer#pinnedHosts()}) and returns
+ * {@code false} for any host in it, so LittleProxy tunnels that connection's raw encrypted bytes
+ * through untouched instead of attempting (and failing) MITM interception -- the app keeps
+ * working, just without capture for that host. Populating the set currently requires a caller to
+ * add a known-pinned host proactively (e.g. from prior knowledge of the app under test); this
+ * module has no direct signal for a device-side TLS rejection to add a host automatically.
  */
 final class CapturingHttpFilters extends HttpFiltersAdapter {
     private final Consumer<ProxyTransaction> sink;
     private final Consumer<String> warn;
+    private final Set<String> pinnedHosts;
     private final ByteArrayOutputStream requestBody = new ByteArrayOutputStream();
     private final ByteArrayOutputStream responseBody = new ByteArrayOutputStream();
     private HttpResponse capturedResponseHead;
 
-    CapturingHttpFilters(HttpRequest originalRequest, Consumer<ProxyTransaction> sink, Consumer<String> warn) {
+    CapturingHttpFilters(HttpRequest originalRequest, Consumer<ProxyTransaction> sink, Consumer<String> warn,
+            Set<String> pinnedHosts) {
         super(originalRequest);
         this.sink = sink;
         this.warn = warn;
+        this.pinnedHosts = pinnedHosts;
+    }
+
+    @Override
+    public boolean proxyToServerAllowMitm() {
+        String host = originalRequest.headers().get(io.netty.handler.codec.http.HttpHeaderNames.HOST);
+        if (host != null && pinnedHosts.contains(hostOnly(host))) {
+            warn.accept("\"" + host + "\" is a known certificate-pinned host; tunneling without capture.");
+            return false;
+        }
+        return true;
+    }
+
+    private static String hostOnly(String hostHeader) {
+        int colonIndex = hostHeader.indexOf(':');
+        return colonIndex < 0 ? hostHeader : hostHeader.substring(0, colonIndex);
     }
 
     @Override

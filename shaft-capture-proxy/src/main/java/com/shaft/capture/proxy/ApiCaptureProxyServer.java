@@ -6,6 +6,8 @@ import org.littleshoot.proxy.HttpProxyServer;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
 
 import java.net.InetSocketAddress;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -20,6 +22,7 @@ import java.util.function.Consumer;
  */
 public final class ApiCaptureProxyServer implements AutoCloseable {
     private final HttpProxyServer server;
+    private final Set<String> pinnedHosts = ConcurrentHashMap.newKeySet();
 
     /**
      * Starts the proxy on a loopback port.
@@ -43,10 +46,21 @@ public final class ApiCaptureProxyServer implements AutoCloseable {
                     public HttpFilters filterRequest(
                             io.netty.handler.codec.http.HttpRequest originalRequest,
                             io.netty.channel.ChannelHandlerContext ctx) {
-                        return new CapturingHttpFilters(originalRequest, sink, warn);
+                        return new CapturingHttpFilters(originalRequest, sink, warn, pinnedHosts);
                     }
                 })
                 .start();
+    }
+
+    /**
+     * Mutable set of hostnames known to use certificate pinning; a host in this set is tunneled
+     * without MITM interception (Tier-3, see {@code CapturingHttpFilters}) rather than having
+     * capture attempted and failing.
+     *
+     * @return live, thread-safe set of pinned hostnames
+     */
+    public Set<String> pinnedHosts() {
+        return pinnedHosts;
     }
 
     /**

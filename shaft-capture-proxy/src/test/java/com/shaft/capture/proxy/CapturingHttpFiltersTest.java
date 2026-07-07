@@ -27,7 +27,7 @@ class CapturingHttpFiltersTest {
         request.headers().set("Host", "api.example.test");
         request.headers().set("Content-Type", "application/json");
 
-        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { });
+        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { }, java.util.Set.of());
 
         filters.clientToProxyRequest(request);
 
@@ -54,7 +54,7 @@ class CapturingHttpFiltersTest {
                 Unpooled.EMPTY_BUFFER);
         request.headers().set("Host", "api.example.test");
 
-        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { });
+        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { }, java.util.Set.of());
         filters.clientToProxyRequest(request);
 
         var responseHead = new io.netty.handler.codec.http.DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
@@ -73,7 +73,7 @@ class CapturingHttpFiltersTest {
         var request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/v1/me", Unpooled.EMPTY_BUFFER);
         request.headers().set("Host", "secure.example.test");
 
-        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { });
+        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { }, java.util.Set.of());
         filters.clientToProxyRequest(request);
         filters.serverToProxyResponse(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.EMPTY_BUFFER));
 
@@ -86,7 +86,7 @@ class CapturingHttpFiltersTest {
         var request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET,
                 "http://api.example.test/plain", Unpooled.EMPTY_BUFFER);
 
-        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { });
+        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { }, java.util.Set.of());
         filters.clientToProxyRequest(request);
         filters.serverToProxyResponse(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.EMPTY_BUFFER));
 
@@ -102,9 +102,34 @@ class CapturingHttpFiltersTest {
         var request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/never-responds", Unpooled.EMPTY_BUFFER);
         request.headers().set("Host", "api.example.test");
 
-        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { });
+        CapturingHttpFilters filters = new CapturingHttpFilters(request, captured::add, warning -> { }, java.util.Set.of());
         filters.clientToProxyRequest(request);
 
         assertTrue(captured.isEmpty());
+    }
+
+    @Test
+    void aKnownPinnedHostIsNotAllowedMitmAndEmitsAWarning() {
+        var request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/v1/me", Unpooled.EMPTY_BUFFER);
+        request.headers().set("Host", "pinned.example.test:443");
+        List<String> warnings = new ArrayList<>();
+
+        CapturingHttpFilters filters = new CapturingHttpFilters(
+                request, transaction -> { }, warnings::add, java.util.Set.of("pinned.example.test"));
+
+        assertTrue(!filters.proxyToServerAllowMitm(), "A known-pinned host must not be MITM'd");
+        assertEquals(1, warnings.size());
+        assertTrue(warnings.get(0).contains("pinned.example.test"));
+    }
+
+    @Test
+    void anUnknownHostIsAllowedMitmByDefault() {
+        var request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/v1/me", Unpooled.EMPTY_BUFFER);
+        request.headers().set("Host", "api.example.test");
+
+        CapturingHttpFilters filters = new CapturingHttpFilters(
+                request, transaction -> { }, warning -> { }, java.util.Set.of());
+
+        assertTrue(filters.proxyToServerAllowMitm());
     }
 }
