@@ -459,10 +459,12 @@ class AssistantCommandTest {
                 "--json",
                 "-"),
                 AssistantLocalAgentRunner.commandFor(codexAgent.arguments()));
+        // T2-runner-approval-bridge: the auto-approve config flag is only emitted when the approval
+        // store grants it (allowSourceMutation is false here, so it must be absent) instead of being
+        // hard-coded unconditionally as it was before.
         assertEquals(List.of(
                 "codex", "exec",
                 "--sandbox", "read-only",
-                "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                 "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
                 "--json",
                 "-"),

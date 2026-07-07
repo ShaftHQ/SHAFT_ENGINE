@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import com.shaft.intellij.approval.AgentApprovalCapability;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 
@@ -12,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -40,6 +43,7 @@ final class AssistantLocalAgentRunner {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
     private static final int MODEL_LIST_TIMEOUT_SECONDS = 20;
     private static final int COMPACT_TIMEOUT_SECONDS = 30;
+    private static final int DEFAULT_APPROVAL_TIMEOUT_SECONDS = 30;
     private static final String CUSTOM_AGENT_APPROVAL_WARNING =
             "Custom Agent commands require Allow source edits because SHAFT cannot enforce read-only execution.";
     private static final String BUFFERED_MODE_NOTICE =
@@ -61,6 +65,20 @@ final class AssistantLocalAgentRunner {
 
     static ShaftMcpInvocation start(AssistantCommand.Invocation invocation, Consumer<String> outputConsumer) {
         return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    /**
+     * Overload that registers an {@link ApprovalRequestHandler} so a still-running interactive CLI
+     * (see {@link AgentApprovalCapability#supportsInteractiveApproval()}) can ask SHAFT to approve or
+     * deny a tool call mid-run. Behaves exactly like {@link #start(AssistantCommand.Invocation,
+     * Consumer)} in every other respect, including for CLIs that have no interactive approval
+     * capability, where {@code approvalHandler} is simply never invoked.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ApprovalRequestHandler approvalHandler) {
+        return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess, true, approvalHandler);
     }
 
     /**
@@ -87,12 +105,26 @@ final class AssistantLocalAgentRunner {
             Consumer<String> outputConsumer,
             ProcessLauncher processLauncher,
             boolean requireCommandAvailable) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, null);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process while also supplying an {@link
+     * ApprovalRequestHandler}, so both a substitute CLI process and its approval decisions can be
+     * scripted without spawning a real CLI executable or a real UI prompt.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            ApprovalRequestHandler approvalHandler) {
         JsonObject arguments = invocation.arguments();
         AtomicReference<Process> processReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> run(
                 arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
-                requireCommandAvailable));
+                requireCommandAvailable, approvalHandler));
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(processReference, cancellationRequested, false),
@@ -145,6 +177,33 @@ final class AssistantLocalAgentRunner {
     @FunctionalInterface
     interface ProcessLauncher {
         Process launch(List<String> command, Path workingDirectory, Map<String, String> environment) throws IOException;
+    }
+
+    /**
+     * Decision returned by an {@link ApprovalRequestHandler} for a single tool-call approval request
+     * parsed out of a CLI's structured NDJSON stream.
+     */
+    enum ApprovalDecision {
+        APPROVE,
+        DENY
+    }
+
+    /**
+     * Blocking callback invoked from the stdout-reading thread when a structured-stream CLI (see
+     * {@link AgentApprovalCapability#supportsInteractiveApproval()}) emits an approval-request event
+     * asking SHAFT to allow or deny a tool call before it runs. Implementations should return
+     * promptly: if no decision is reached before the runner's approval timeout elapses, the runner
+     * proceeds as though {@link ApprovalDecision#DENY} had been returned, without waiting on the
+     * handler any further.
+     */
+    @FunctionalInterface
+    interface ApprovalRequestHandler {
+        /**
+         * @param toolName the tool the CLI wants to invoke, or {@code null} if the event omitted one
+         * @param toolArguments the tool's raw argument object, or {@code null} if the event carried none
+         * @return the decision to write back to the CLI's stdin
+         */
+        ApprovalDecision onApprovalRequested(String toolName, JsonObject toolArguments);
     }
 
     private static Process launchProcess(List<String> command, Path workingDirectory, Map<String, String> environment)
@@ -200,6 +259,18 @@ final class AssistantLocalAgentRunner {
             Consumer<String> outputConsumer,
             ProcessLauncher processLauncher,
             boolean requireCommandAvailable) {
+        return run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
+                requireCommandAvailable, null);
+    }
+
+    private static ShaftMcpToolResult run(
+            JsonObject arguments,
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            ApprovalRequestHandler approvalHandler) {
         List<String> command = commandFor(arguments);
         if (command.isEmpty()) {
             return ShaftMcpToolResult.failure("No local assistant command was configured.");
@@ -214,21 +285,39 @@ final class AssistantLocalAgentRunner {
                     + " executable is not available on PATH.");
         }
         Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
+        Duration approvalTimeout =
+                Duration.ofSeconds(intValue(arguments, "approvalTimeoutSeconds", DEFAULT_APPROVAL_TIMEOUT_SECONDS));
         String stdin = string(arguments, "prompt", "");
         Path workingDirectory = workingDirectory(arguments);
         boolean isDefaultCommand = defaultCommand(arguments);
         StructuredStreamParser streamParser = isDefaultCommand ? structuredStreamParser(command) : null;
         Consumer<String> effectiveConsumer =
                 effectiveConsumer(outputConsumer, streamParser, isDefaultCommand);
+        // Only capability-declared interactive CLIs (today, Claude Code's stream-json output) keep
+        // stdin open past the initial prompt; every other path closes it immediately exactly as
+        // before, so a null approvalHandler (the overwhelming majority of call sites) is byte-identical
+        // to the pre-approval-bridge behavior.
+        boolean interactiveApproval = approvalHandler != null
+                && streamParser != null
+                && AgentApprovalCapability.forClient(string(arguments, "client", "CODEX")).supportsInteractiveApproval();
+        OutputStream stdinStream = null;
         try {
             Process process = processLauncher.launch(command, workingDirectory, environment(arguments));
             processReference.set(process);
             InputStream stdoutStream = process.getInputStream();
             InputStream stderrStream = process.getErrorStream();
+            stdinStream = process.getOutputStream();
+            if (interactiveApproval) {
+                streamParser.enableApprovalBridge(approvalHandler, approvalTimeout, stdinStream);
+            }
             CompletableFuture<String> stdout = readAsync(stdoutStream, effectiveConsumer);
             CompletableFuture<String> stderr = readAsync(stderrStream, effectiveConsumer);
-            process.getOutputStream().write(stdin.getBytes(StandardCharsets.UTF_8));
-            process.getOutputStream().close();
+            stdinStream.write(stdin.getBytes(StandardCharsets.UTF_8));
+            if (interactiveApproval) {
+                stdinStream.flush();
+            } else {
+                stdinStream.close();
+            }
 
             if (cancellationRequested.get()) {
                 throw new CancellationException("Operation cancelled");
@@ -266,6 +355,9 @@ final class AssistantLocalAgentRunner {
             }
             return ShaftMcpToolResult.failure(exception.getMessage());
         } finally {
+            if (interactiveApproval) {
+                closeQuietly(stdinStream);
+            }
             processReference.set(null);
         }
     }
@@ -339,9 +431,25 @@ final class AssistantLocalAgentRunner {
         private String answer;
         private Integer inputTokens;
         private Integer outputTokens;
+        private ApprovalRequestHandler approvalHandler;
+        private Duration approvalTimeout;
+        private OutputStream approvalReplyStream;
 
         StructuredStreamParser(Format format) {
             this.format = format;
+        }
+
+        /**
+         * Wires up the approval bridge so a subsequent {@code control_request}/{@code can_use_tool}
+         * event (the only approval-request shape today's Claude {@code stream-json} output emits) is
+         * handed to {@code handler} instead of being described as ordinary progress, and its decision
+         * is written back to {@code stdin} as a {@code control_response} line. Never called for CLIs
+         * whose {@link AgentApprovalCapability} has no interactive scopes.
+         */
+        synchronized void enableApprovalBridge(ApprovalRequestHandler handler, Duration timeout, OutputStream stdin) {
+            this.approvalHandler = handler;
+            this.approvalTimeout = timeout;
+            this.approvalReplyStream = stdin;
         }
 
         synchronized void accept(String line, Consumer<String> outputConsumer) {
@@ -356,9 +464,102 @@ final class AssistantLocalAgentRunner {
                 outputConsumer.accept(line);
                 return;
             }
+            if (format == Format.CLAUDE && approvalHandler != null && isApprovalRequestEvent(event)) {
+                handleApprovalRequest(event, outputConsumer);
+                return;
+            }
             String humanReadableLine = format == Format.CLAUDE ? describeClaudeEvent(event) : describeCodexEvent(event);
             if (humanReadableLine != null) {
                 outputConsumer.accept(humanReadableLine);
+            }
+        }
+
+        /**
+         * Recognizes the {@code control_request}/{@code can_use_tool} shape Claude Code's
+         * {@code stream-json} output uses to ask the caller whether a tool call may proceed.
+         */
+        private boolean isApprovalRequestEvent(JsonObject event) {
+            if (!"control_request".equals(stringField(event, "type"))) {
+                return false;
+            }
+            JsonObject request = objectField(event, "request");
+            return "can_use_tool".equals(stringField(request, "subtype"));
+        }
+
+        /**
+         * Resolves the approval decision (blocking on {@link #approvalHandler} up to {@link
+         * #approvalTimeout}, defaulting to {@link ApprovalDecision#DENY} on timeout or handler failure)
+         * and writes a {@code control_response} reply back to the CLI's still-open stdin.
+         */
+        private void handleApprovalRequest(JsonObject event, Consumer<String> outputConsumer) {
+            String requestId = stringField(event, "request_id");
+            JsonObject request = objectField(event, "request");
+            String toolName = stringField(request, "tool_name");
+            JsonObject toolArguments = objectField(request, "input");
+            ApprovalDecision decision = resolveDecision(toolName, toolArguments);
+            outputConsumer.accept("Approval " + (decision == ApprovalDecision.APPROVE ? "granted" : "denied")
+                    + " for tool " + (toolName == null ? "(unknown)" : toolName) + ".");
+            writeDecision(requestId, decision);
+        }
+
+        /**
+         * Runs {@link #approvalHandler} on its own dedicated, interruptible daemon thread rather than a
+         * shared pool: a handler that never answers (waiting on a UI prompt the user never dismisses,
+         * for example) must not be left running indefinitely once the timeout elapses, so on timeout this
+         * interrupts the handler thread instead of merely abandoning it. {@link CompletableFuture#cancel}
+         * would not have achieved this — a {@link CompletableFuture} has no way to interrupt the thread
+         * running its computation, so a hung handler would otherwise leak a blocked thread for the
+         * lifetime of the IDE process every time a user fails to respond in time.
+         */
+        private ApprovalDecision resolveDecision(String toolName, JsonObject toolArguments) {
+            AtomicReference<ApprovalDecision> decisionHolder = new AtomicReference<>();
+            CountDownLatch handlerFinished = new CountDownLatch(1);
+            Thread handlerThread = new Thread(() -> {
+                try {
+                    decisionHolder.set(approvalHandler.onApprovalRequested(toolName, toolArguments));
+                } catch (RuntimeException exception) {
+                    // Left unset: treated as DENY below, same as a timeout or an interrupted handler.
+                } finally {
+                    handlerFinished.countDown();
+                }
+            }, "shaft-approval-handler");
+            handlerThread.setDaemon(true);
+            handlerThread.start();
+            try {
+                if (!handlerFinished.await(approvalTimeout.toMillis(), TimeUnit.MILLISECONDS)) {
+                    handlerThread.interrupt();
+                    return ApprovalDecision.DENY;
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                handlerThread.interrupt();
+                return ApprovalDecision.DENY;
+            }
+            ApprovalDecision decision = decisionHolder.get();
+            return decision == null ? ApprovalDecision.DENY : decision;
+        }
+
+        private void writeDecision(String requestId, ApprovalDecision decision) {
+            if (approvalReplyStream == null) {
+                return;
+            }
+            JsonObject behavior = new JsonObject();
+            behavior.addProperty("behavior", decision == ApprovalDecision.APPROVE ? "allow" : "deny");
+            JsonObject response = new JsonObject();
+            response.addProperty("subtype", "success");
+            if (requestId != null) {
+                response.addProperty("request_id", requestId);
+            }
+            response.add("response", behavior);
+            JsonObject reply = new JsonObject();
+            reply.addProperty("type", "control_response");
+            reply.add("response", response);
+            try {
+                approvalReplyStream.write((reply + "\n").getBytes(StandardCharsets.UTF_8));
+                approvalReplyStream.flush();
+            } catch (IOException ignored) {
+                // The process may have already exited or closed its stdin; there is nothing more SHAFT
+                // can do to deliver the decision.
             }
         }
 
@@ -502,30 +703,46 @@ final class AssistantLocalAgentRunner {
      * instead of a single buffered blob. Because it is experimental, its event schema is subject to
      * drift between Codex CLI releases, so the NDJSON parser in {@link #run} is deliberately
      * tolerant: unrecognized event types or fields are skipped rather than treated as errors.
+     *
+     * <p>{@code mcp_servers.shaft-mcp.default_tools_approval_mode="approve"} is a launch-time
+     * pre-approval flag — see {@link AgentApprovalCapability#CODEX}, which has no interactive
+     * approval scopes, so this is the only approval mechanism available to Codex today. It is only
+     * added when {@link AgentApprovalCapability#isAutoApproveGranted(boolean)} grants it; otherwise
+     * Codex runs in AGENT mode with its default (deny-by-default) tool approval behavior, matching
+     * the read-only sandbox it also falls back to.
      */
     private static List<String> codexCommand(String mode, boolean allowSourceMutation) {
-        return switch (mode) {
-            case "AGENT" -> List.of(
-                    "codex", "exec",
-                    "--sandbox", allowSourceMutation ? "workspace-write" : "read-only",
-                    "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
-                    "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
-                    "--json",
-                    "-");
-            default -> List.of("codex", "exec", "--sandbox", "read-only", "--json", "-");
-        };
+        if (!"AGENT".equals(mode)) {
+            return List.of("codex", "exec", "--sandbox", "read-only", "--json", "-");
+        }
+        List<String> command = new ArrayList<>(List.of(
+                "codex", "exec",
+                "--sandbox", allowSourceMutation ? "workspace-write" : "read-only"));
+        if (AgentApprovalCapability.CODEX.isAutoApproveGranted(allowSourceMutation)) {
+            command.add("-c");
+            command.add("mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"");
+        }
+        command.add("-c");
+        command.add("mcp_servers.shaft-mcp.tool_timeout_sec=600");
+        command.add("--json");
+        command.add("-");
+        return List.copyOf(command);
     }
 
     /**
      * {@code --output-format stream-json} requires {@code --verbose} whenever it is paired with
      * {@code --print} (the CLI rejects the combination otherwise), so every mode below carries both
-     * flags together to receive incremental NDJSON events instead of a single buffered blob.
+     * flags together to receive incremental NDJSON events instead of a single buffered blob. The
+     * AGENT-mode permission mode is the Claude equivalent of an auto-approve flag: {@code
+     * acceptEdits} is only selected when {@link AgentApprovalCapability#isAutoApproveGranted(boolean)}
+     * grants it, otherwise AGENT mode falls back to {@code plan} exactly as before.
      */
     private static List<String> claudeCommand(String mode, boolean allowSourceMutation) {
         return switch (mode) {
             case "PLAN" -> List.of("claude", "--print", "--permission-mode", "plan",
                     "--output-format", "stream-json", "--verbose");
-            case "AGENT" -> List.of("claude", "--print", "--permission-mode", allowSourceMutation ? "acceptEdits" : "plan",
+            case "AGENT" -> List.of("claude", "--print", "--permission-mode",
+                    AgentApprovalCapability.CLAUDE_CODE.isAutoApproveGranted(allowSourceMutation) ? "acceptEdits" : "plan",
                     "--output-format", "stream-json", "--verbose");
             default -> List.of("claude", "--print", "--output-format", "stream-json", "--verbose");
         };
@@ -534,7 +751,8 @@ final class AssistantLocalAgentRunner {
     private static List<String> copilotCommand(String mode, boolean allowSourceMutation) {
         return switch (mode) {
             case "PLAN" -> List.of("copilot", "plan");
-            case "AGENT" -> List.of("copilot", allowSourceMutation ? "agent" : "ask");
+            case "AGENT" -> List.of("copilot",
+                    AgentApprovalCapability.COPILOT_CLI.isAutoApproveGranted(allowSourceMutation) ? "agent" : "ask");
             default -> List.of("copilot", "ask");
         };
     }
@@ -993,6 +1211,17 @@ final class AssistantLocalAgentRunner {
             stream.close();
         } catch (IOException ignored) {
             // Stream readers treat closed process streams as empty output.
+        }
+    }
+
+    private static void closeQuietly(OutputStream stream) {
+        if (stream == null) {
+            return;
+        }
+        try {
+            stream.close();
+        } catch (IOException ignored) {
+            // The process may have already exited and closed its own end of the pipe.
         }
     }
 
