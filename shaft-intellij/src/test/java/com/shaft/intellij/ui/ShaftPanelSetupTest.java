@@ -1363,6 +1363,43 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantStructuredLocalAgentResponseShowsExactReportedTokenCountAndHidesRawUsageJson() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        // Shaped per the R3-T1 contract: an answer followed by a trailing single-line usage JSON,
+        // as produced by AssistantLocalAgentRunner's structured-stream terminal event / finalOutput.
+        String rawResponse = "The failure was a stale locator."
+                + "\n\n{\"usage\":{\"input_tokens\":123,\"output_tokens\":45}}";
+
+        appendStreamingLocalAgentBubble(panel, 101);
+        showAgentResult(panel, 101, ShaftMcpToolResult.success(rawResponse));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("The failure was a stale locator."), markdown),
+                () -> assertTrue(markdown.contains("Tokens consumed:"), markdown),
+                () -> assertTrue(markdown.contains("`168`"), markdown),
+                () -> assertTrue(markdown.contains("input: 123"), markdown),
+                () -> assertTrue(markdown.contains("output: 45"), markdown),
+                () -> assertFalse(markdown.contains("(estimated)"), markdown),
+                () -> assertFalse(markdown.contains("input_tokens"), markdown));
+    }
+
+    @Test
+    void assistantFallbackLocalAgentResponseKeepsEstimatedTokenCount() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        String rawResponse = "Here is the explanation.\nIt spans several lines.\nNo structured data anywhere.";
+
+        appendStreamingLocalAgentBubble(panel, 102);
+        showAgentResult(panel, 102, ShaftMcpToolResult.success(rawResponse));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("Here is the explanation."), markdown),
+                () -> assertTrue(markdown.matches("(?s).*\\*\\*Tokens consumed:\\*\\* `\\d+` \\(estimated\\).*"),
+                        markdown));
+    }
+
+    @Test
     void assistantKillStopsLocalAgentStreamingImmediately() throws Exception {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
         JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);

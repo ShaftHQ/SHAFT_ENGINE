@@ -327,7 +327,9 @@ final class ShaftAssistantPanel extends JPanel {
         allowSourceMutation.setToolTipText("Enable only when Agent mode should edit local source files");
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
-        verboseAgentOutput.setToolTipText("Show live local agent output instead of only the final result");
+        verboseAgentOutput.setToolTipText("Show live local agent output instead of only the final result. "
+                + "GitHub Copilot CLI and custom agent commands cannot stream live output; "
+                + "their response is buffered until the command completes.");
         autoCompact = new JBCheckBox("Auto-compact");
         autoCompact.getAccessibleContext().setAccessibleName("Compact agent context before each request");
         autoCompact.setToolTipText("Send the agent CLI's compact/compress command before each new prompt, when supported");
@@ -1197,9 +1199,13 @@ final class ShaftAssistantPanel extends JPanel {
         if (!output.isBlank() && !rejectedGeneratedJava) {
             appendToolEvidence("autobot_local_agent_run", output);
         }
+        // The raw output may carry a trailing usage-metadata JSON line (the structured-stream
+        // contract from AssistantLocalAgentRunner). That line is never meant for the transcript, so
+        // it is stripped before markdown normalization; withTokenUsage still receives the untouched
+        // raw `output` below so AssistantLocalAgentRunner.parseTokenUsage can read the usage from it.
         String response = rejectedGeneratedJava
                 ? AssistantMarkdown.nativeSeleniumRejectionMarkdown()
-                : AssistantMarkdown.normalizeMarkdown(output);
+                : AssistantMarkdown.normalizeMarkdown(AssistantLocalAgentRunner.stripTrailingUsageMetadata(output));
         if (rejectedGeneratedJava) {
             setStatus("Rejected generated code");
             addTimeline("Failed");
