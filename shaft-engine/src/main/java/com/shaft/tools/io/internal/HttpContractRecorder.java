@@ -582,13 +582,31 @@ public final class HttpContractRecorder {
         return node.deepCopy();
     }
 
-    private static boolean isSensitiveKey(String key) {
+    /**
+     * Reports whether a request/response/header/query/JSON-body key is configured as sensitive
+     * (see {@code shaft.contract.sensitiveKeys}). Exposed for reuse by other contract-aware
+     * consumers (e.g. {@code com.shaft.capture.generate.api.ResponseNormalizer}) that need the
+     * exact same sensitive-key detection this class uses for contract redaction.
+     *
+     * @param key request/response/header/query/JSON-body key
+     * @return {@code true} when the key matches a configured sensitive fragment
+     */
+    public static boolean isSensitiveKey(String key) {
         String normalized = normalizeKey(key);
         return configuredKeys(SHAFT.Properties.api.contractSensitiveKeys()).stream()
                 .anyMatch(normalized::contains);
     }
 
-    private static boolean isVolatileKey(String key) {
+    /**
+     * Reports whether a request/response/header/query/JSON-body key is configured as volatile
+     * (see {@code shaft.contract.volatileKeys}). Exposed for reuse by other contract-aware
+     * consumers that need the exact same volatile-key detection this class uses for contract
+     * normalization.
+     *
+     * @param key request/response/header/query/JSON-body key
+     * @return {@code true} when the key matches a configured volatile name
+     */
+    public static boolean isVolatileKey(String key) {
         String normalized = normalizeKey(key);
         return configuredKeys(SHAFT.Properties.api.contractVolatileKeys()).stream()
                 .anyMatch(configured -> normalized.equals(configured) || normalized.endsWith(configured));
@@ -605,7 +623,14 @@ public final class HttpContractRecorder {
         return value(key).toLowerCase(Locale.ROOT).replace("-", "").replace("_", "").replace(":", "");
     }
 
-    private static boolean isVolatileValue(String rawValue) {
+    /**
+     * Reports whether a raw string value looks volatile (a UUID or an ISO-8601 instant),
+     * regardless of its key name. Exposed for reuse by other contract-aware consumers.
+     *
+     * @param rawValue candidate value
+     * @return {@code true} when the value matches a UUID or a parseable {@link Instant}
+     */
+    public static boolean isVolatileValue(String rawValue) {
         String value = value(rawValue).trim();
         if (UUID_PATTERN.matcher(value).matches()) {
             return true;
