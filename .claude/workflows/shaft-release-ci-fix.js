@@ -73,7 +73,10 @@ const VALIDATION_RULES = [
   "real check for the change. Before ANY forked Maven/Surefire/TestNG",
   "invocation, load the repo gotchas first (memory load \"maven\"); if the",
   "delete gotcha is active avoid `mvn test` and use compile/test-compile,",
-  "static checks, or a disposable copy.",
+  "static checks, or a disposable copy. Before returning pass=true, run",
+  "`python3 scripts/ci/local_gate.py` for the changed modules (the local",
+  "mirror of merge-time gates: enforcer convergence + full compile); a",
+  "failing gate is an automatic fail with the gate output quoted in gaps.",
 ].join(" ");
 
 // Each isolation:"worktree" agent call gets a FRESH, randomly-picked
