@@ -49,6 +49,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Component;
 import java.awt.FontMetrics;
@@ -113,6 +114,7 @@ final class ShaftAssistantPanel extends JPanel {
     private final DefaultListModel<String> timelineModel;
     private final JList<String> timeline;
     private final JPanel timelinePanel;
+    private final JPanel actionRow;
     private final JButton clearTranscript;
     private final JButton rerunLastPrompt;
     private final JLabel currentAgentConfiguration;
@@ -430,8 +432,8 @@ final class ShaftAssistantPanel extends JPanel {
         this.configure = button("Configure", "Open SHAFT MCP setup", event -> openSetup());
         ShaftIconButtons.apply(this.configure, ShaftIcons.SETTINGS);
 
-        mode.addActionListener(event -> updateControlVisibility());
-        providerType.addActionListener(event -> updateControlVisibility());
+        mode.addActionListener(event -> onModeOrRouteSelectionChanged());
+        providerType.addActionListener(event -> onModeOrRouteSelectionChanged());
         assistantFamily.addActionListener(event -> updateControlVisibility());
         assistantRuntime.addActionListener(event -> updateControlVisibility());
         cloudProvider.addActionListener(event -> updateControlVisibility());
@@ -466,7 +468,7 @@ final class ShaftAssistantPanel extends JPanel {
         header.add(new JLabel("SHAFT"), BorderLayout.NORTH);
         header.add(chatRow, BorderLayout.CENTER);
 
-        JPanel actionRow = wrapRow();
+        actionRow = wrapRow();
         actionRow.add(copyLastResponse);
         actionRow.add(copyRawResponse);
         actionRow.add(copyTranscript);
@@ -575,7 +577,7 @@ final class ShaftAssistantPanel extends JPanel {
                 Keep AGENTS.md canonical, host adapters thin, and memories durable, evidence-backed, and non-duplicative.
                 Do not edit product code, tests, workflows, manifests, dependencies, generated reports, binaries, or secrets without explicit user approval.
 
-                If source edits are not enabled, return a concise patch plan only. If edits are enabled, make the smallest guidance or memory updates and rerun `py -3 scripts/ci/validate_agent_setup.py --skip-external` on Windows or `python3 scripts/ci/validate_agent_setup.py --skip-external` elsewhere.
+                After making any guidance or memory updates, rerun `py -3 scripts/ci/validate_agent_setup.py --skip-external` on Windows or `python3 scripts/ci/validate_agent_setup.py --skip-external` elsewhere.
                 """.formatted(ShaftUiLabels.friendly(family), surfaces).strip();
     }
 
@@ -1435,6 +1437,15 @@ final class ShaftAssistantPanel extends JPanel {
         status.setVisible(!READY_STATUS.equals(value));
     }
 
+    private void onModeOrRouteSelectionChanged() {
+        boolean agentMode = "AGENT".equals(mode.getSelectedItem());
+        boolean cloud = usesCloud();
+        if (!agentMode || cloud) {
+            allowSourceMutation.setSelected(false);
+        }
+        updateControlVisibility();
+    }
+
     private void updateControlVisibility() {
         boolean advanced = settings.advancedUiEnabled;
         if (!advanced && usesCloud()) {
@@ -1479,9 +1490,6 @@ final class ShaftAssistantPanel extends JPanel {
         autoCompact.setEnabled(controlsEnabled && localAgent && localCli);
         configure.setVisible(lockedRoute);
         configure.setEnabled(controlsEnabled && lockedRoute);
-        if (!agentMode || !localAgent) {
-            allowSourceMutation.setSelected(false);
-        }
         if (!localAgent || !localCli) {
             verboseAgentOutput.setSelected(false);
         }
@@ -1556,6 +1564,18 @@ final class ShaftAssistantPanel extends JPanel {
         cancel.setEnabled(running);
         timelinePanel.setVisible(running || timelineModel.size() > 1);
         timelinePanel.revalidate();
+        refreshActionRowLayout();
+    }
+
+    private void refreshActionRowLayout() {
+        Container container = actionRow == null ? null : actionRow.getParent();
+        if (container == null) {
+            actionRow.revalidate();
+            actionRow.repaint();
+            return;
+        }
+        container.revalidate();
+        container.repaint();
     }
 
     private void insertSelectedCommand() {

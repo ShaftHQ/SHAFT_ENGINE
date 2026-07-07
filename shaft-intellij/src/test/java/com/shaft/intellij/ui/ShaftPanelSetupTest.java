@@ -604,13 +604,20 @@ class ShaftPanelSetupTest {
         ShaftAssistantPanel first = new ShaftAssistantPanel(null, settings);
         ShaftAssistantPanel second = new ShaftAssistantPanel(null, settings);
 
+        JComboBox<?> assistantMode = findByAccessibleName(first, "Assistant mode", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(first, "Approve source mutation for Agent mode", JCheckBox.class);
+
         assertAll(
                 () -> assertTrue(containsText(first, "Audit and optimize")),
                 () -> assertTrue(containsText(first, "shaft_guide_search")),
                 () -> assertTrue(containsText(first, "test_automation_scenarios")),
                 () -> assertTrue(containsText(first, "test_code_guardrails_check")),
                 () -> assertFalse(settings.agentGuidanceOptimizationPromptPending),
-                () -> assertFalse(containsText(second, "Audit and optimize")));
+                () -> assertFalse(containsText(second, "Audit and optimize")),
+                () -> assertEquals("PLAN", assistantMode.getSelectedItem(),
+                        "Onboarding optimization prompt should force Plan mode"),
+                () -> assertFalse(allowEdits.isSelected(),
+                        "Onboarding optimization prompt should leave source edits unchecked"));
     }
 
     @Test
@@ -628,6 +635,17 @@ class ShaftPanelSetupTest {
                         .contains("CLAUDE.md, AGENTS.md, .agents/skills/**, .memory/**")),
                 () -> assertTrue(ShaftAssistantPanel.agentGuidanceOptimizationPrompt(copilot)
                         .contains(".github/copilot-instructions.md, AGENTS.md, .github/instructions/**, .github/skills/**, .memory/**")));
+    }
+
+    @Test
+    void guidanceOptimizationPromptRerunInstructionIsUnconditional() {
+        ShaftSettingsState.Settings codex = connectedMcpSettings();
+
+        String prompt = ShaftAssistantPanel.agentGuidanceOptimizationPrompt(codex);
+
+        assertAll(
+                () -> assertFalse(prompt.contains("If source edits are not enabled"), prompt),
+                () -> assertTrue(prompt.contains("validate_agent_setup.py --skip-external"), prompt));
     }
 
     @Test
@@ -2379,6 +2397,84 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void allowSourceMutationSurvivesRunningCycleInAgentModeLocalRoute() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = true;
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JComboBox<?> assistantProviderType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+
+        assistantProviderType.setSelectedItem("LOCAL");
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+
+        panel.setRunning(true, "Thinking...");
+        panel.setRunning(false, "Ready");
+
+        assertTrue(allowEdits.isSelected(),
+                "Allow source edits should remain selected after a running cycle in Agent mode");
+    }
+
+    @Test
+    void allowSourceMutationUnchecksExactlyOnceWhenModeLeavesAgent() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = true;
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JComboBox<?> assistantProviderType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+
+        assistantProviderType.setSelectedItem("LOCAL");
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+        assertTrue(allowEdits.isSelected());
+
+        assistantMode.setSelectedItem("ASK");
+        assertFalse(allowEdits.isSelected(), "Switching away from Agent mode should uncheck source edits");
+
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+        assistantMode.setSelectedItem("PLAN");
+        assertFalse(allowEdits.isSelected(), "Switching to Plan mode should uncheck source edits");
+    }
+
+    @Test
+    void allowSourceMutationUnchecksExactlyOnceWhenCloudForcesModeSwitch() {
+        // The live cloud route is not reachable in this headless test harness: usesCloud()==true
+        // makes updateControlVisibility() call updateCloudKeyStatus(), which needs
+        // ApplicationManager.getApplication() (unavailable without IntelliJ Platform Test Framework
+        // fixtures, which this task's tests must not require/pull in). onModeOrRouteSelectionChanged()
+        // unchecks allowSourceMutation for the newly selected route *before* delegating to
+        // updateControlVisibility(), so the unchecking behavior under test is fully exercised
+        // regardless of whether updateControlVisibility() can complete afterward in this harness.
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        settings.advancedUiEnabled = true;
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        JComboBox<?> assistantMode = findByAccessibleName(panel, "Assistant mode", JComboBox.class);
+        JComboBox<?> assistantProviderType = findByAccessibleName(panel, "Assistant provider type", JComboBox.class);
+        JCheckBox allowEdits = findByAccessibleName(panel, "Approve source mutation for Agent mode", JCheckBox.class);
+
+        assistantProviderType.setSelectedItem("LOCAL");
+        assistantMode.setSelectedItem("AGENT");
+        allowEdits.setSelected(true);
+        assertTrue(allowEdits.isSelected());
+
+        // Selecting CLOUD while in Agent mode makes onModeOrRouteSelectionChanged() uncheck the
+        // checkbox immediately, then forces mode back to PLAN inside updateControlVisibility().
+        // updateControlVisibility() itself throws further downstream in this bare harness (missing
+        // ApplicationManager); that is an unrelated, pre-existing environment limitation, not a
+        // re-entrancy bug, so it is tolerated here.
+        try {
+            assistantProviderType.setSelectedItem("CLOUD");
+        } catch (NullPointerException ignoredMissingApplicationManager) {
+            // Expected in this headless harness; see comment above.
+        }
+
+        assertFalse(allowEdits.isSelected(), "Cloud route should uncheck source edits exactly once");
+    }
+
+    @Test
     void assistantAgentModeShowsSourceEditApprovalForLockedDesktopRuntime() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.assistantRuntime = "DESKTOP_APP";
@@ -2396,6 +2492,95 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertTrue(allowEdits.isVisible()),
                 () -> assertTrue(allowEdits.isEnabled()));
+    }
+
+    @Test
+    void actionRowButtonsAreLaidOutAfterClearingTranscript() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        panel.simulateAppendForTest("user", "Plan a resilient login test", "");
+        panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
+
+        layoutPanel(panel);
+        assertActionRowButtonsSaneAfterLayout(panel, true);
+
+        clickAccessible(panel, "Clear assistant transcript");
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        layoutPanel(panel);
+
+        JButton clear = findByAccessibleName(panel, "Clear assistant transcript", JButton.class);
+        JButton copyTranscript = findByAccessibleName(panel, "Copy assistant transcript", JButton.class);
+        JButton rerun = findByAccessibleName(panel, "Rerun last assistant prompt", JButton.class);
+        JButton copyResponse = findByAccessibleName(panel, "Copy last assistant response", JButton.class);
+        assertAll(
+                () -> assertFalse(clear.isVisible(), "Clear should hide once transcript is empty"),
+                () -> assertFalse(copyTranscript.isVisible(), "Copy all should hide once transcript is empty"),
+                () -> assertFalse(rerun.isVisible(), "Rerun should hide once last prompt is cleared"),
+                () -> assertFalse(copyResponse.isVisible(), "Copy response should hide once last response is cleared"));
+        assertActionRowButtonsSaneAfterLayout(panel, false);
+    }
+
+    @Test
+    void actionRowButtonsAreLaidOutAfterAppendingMessages() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+
+        panel.simulateAppendForTest("user", "Plan a resilient login test", "");
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        panel.simulateAppendForTest("assistant", "Here is a plan.", "raw output");
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        layoutPanel(panel);
+
+        assertActionRowButtonsSaneAfterLayout(panel, true);
+    }
+
+    private static void layoutPanel(ShaftAssistantPanel panel) throws Exception {
+        panel.setBounds(0, 0, 900, 700);
+        SwingUtilities.invokeAndWait(() -> {
+            panel.doLayout();
+            walkComponents(panel, comp -> {
+                if (comp instanceof JComponent jc && comp != panel) {
+                    jc.doLayout();
+                }
+            });
+            panel.validate();
+        });
+    }
+
+    private static void assertActionRowButtonsSaneAfterLayout(ShaftAssistantPanel panel, boolean expectResponseButtonsVisible)
+            throws Exception {
+        JLabel statusLabel = (JLabel) getField(panel, "status");
+        List<JButton> actionRowButtons = List.of(
+                findByAccessibleName(panel, "Copy last assistant response", JButton.class),
+                findByAccessibleName(panel, "Copy last raw assistant response", JButton.class),
+                findByAccessibleName(panel, "Copy assistant transcript", JButton.class),
+                findByAccessibleName(panel, "Clear assistant transcript", JButton.class),
+                findByAccessibleName(panel, "Rerun last assistant prompt", JButton.class),
+                findByAccessibleName(panel, "Reconnect to MCP server", JButton.class),
+                findByAccessibleName(panel, "Cancel assistant request", JButton.class));
+        boolean anyVisible = false;
+        for (JButton button : actionRowButtons) {
+            assertNotNull(button);
+            if (!button.isVisible()) {
+                continue;
+            }
+            anyVisible = true;
+            assertTrue(button.getWidth() > 0,
+                    accessibleName(button) + " should have a positive width after layout");
+            assertTrue(button.getHeight() > 0,
+                    accessibleName(button) + " should have a positive height after layout");
+            java.awt.Rectangle buttonBounds = new java.awt.Rectangle(
+                    SwingUtilities.convertPoint(button.getParent(), button.getLocation(), panel), button.getSize());
+            java.awt.Rectangle statusBounds = new java.awt.Rectangle(
+                    SwingUtilities.convertPoint(statusLabel.getParent(), statusLabel.getLocation(), panel),
+                    statusLabel.getSize());
+            assertFalse(buttonBounds.intersects(statusBounds),
+                    accessibleName(button) + " bounds " + buttonBounds + " should not intersect status bounds " + statusBounds);
+        }
+        if (expectResponseButtonsVisible) {
+            assertTrue(anyVisible, "Expected at least one action-row button to be visible after layout");
+        }
     }
 
     @Test

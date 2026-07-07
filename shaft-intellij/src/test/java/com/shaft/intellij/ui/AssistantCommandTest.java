@@ -97,9 +97,17 @@ class AssistantCommandTest {
                 Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
                 For repeated search-result anchors, scope the locator to the first result container; for DuckDuckGo use `(//article[@data-testid='result'])[1]//a[@data-testid='result-title-a']`.
 
-                open duckduckgo and search for SHAFT Engine""",
+                open duckduckgo and search for SHAFT Engine
+
+                Source edits are approved for this session.
+                You may apply patches, write files, and run filesystem commands needed to make the requested source changes.""",
                 duckDuckGo.arguments().get("prompt").getAsString());
-        assertEquals("use shaft-mcp to open mobile app", alreadyExplicit.arguments().get("prompt").getAsString());
+        assertEquals("""
+                use shaft-mcp to open mobile app
+
+                Source edits are approved for this session.
+                You may apply patches, write files, and run filesystem commands needed to make the requested source changes.""",
+                alreadyExplicit.arguments().get("prompt").getAsString());
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
@@ -389,6 +397,40 @@ class AssistantCommandTest {
 
         assertTrue(invocation.arguments().get("prompt").getAsString().contains("Source edits are not enabled for this session"));
         assertTrue(invocation.arguments().get("prompt").getAsString().contains("Do not apply patches"));
+    }
+
+    @Test
+    void agentModeWithSourceEditsAddsAffirmativeSourceApprovalInPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Implement this login flow in Java",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertTrue(prompt.contains("Source edits are approved for this session"), prompt),
+                () -> assertFalse(prompt.contains("Source edits are not enabled"), prompt));
+    }
+
+    @Test
+    void nonAgentModesOmitSourceMutationConstantsFromPrompt() {
+        AssistantCommand.Invocation askInvocation = AssistantCommand.fromPrompt(
+                "Explain this login flow", "CODEX", "ASK", ".", "", true);
+        AssistantCommand.Invocation planInvocation = AssistantCommand.fromPrompt(
+                "Plan this login flow", "CODEX", "PLAN", ".", "", true);
+
+        assertAll(
+                () -> assertFalse(askInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are not enabled")),
+                () -> assertFalse(askInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are approved")),
+                () -> assertFalse(planInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are not enabled")),
+                () -> assertFalse(planInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are approved")));
     }
 
     @Test

@@ -34,6 +34,11 @@ final class AssistantCommand {
                     Do not apply patches, write files, or run filesystem commands that would mutate source.
                     The user should decide whether and how to apply any suggested edits.
                     """.stripIndent().trim();
+    private static final String AGENT_SOURCE_APPROVAL =
+            """
+                    Source edits are approved for this session.
+                    You may apply patches, write files, and run filesystem commands needed to make the requested source changes.
+                    """.stripIndent().trim();
     private static final String SHAFT_MCP_USAGE_HINT =
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
@@ -1537,7 +1542,12 @@ final class AssistantCommand {
                 : text)
                 : hint + "\n\n" + text;
         withHint = withConversationContext(withHint, conversationContext);
-        return agentMode && !allowSourceMutation ? withHint + "\n\n" + AGENT_SOURCE_GUARD : withHint;
+        if (!agentMode) {
+            return withHint;
+        }
+        return allowSourceMutation
+                ? withHint + "\n\n" + AGENT_SOURCE_APPROVAL
+                : withHint + "\n\n" + AGENT_SOURCE_GUARD;
     }
 
     static boolean requiresAgentModeForMcp(String prompt, String mode, Invocation invocation) {
