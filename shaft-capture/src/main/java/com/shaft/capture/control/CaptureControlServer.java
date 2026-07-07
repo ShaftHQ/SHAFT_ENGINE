@@ -5,6 +5,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 import com.shaft.capture.model.CaptureStep;
 import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.runtime.CaptureManager;
 import com.shaft.capture.runtime.CaptureStatus;
 import com.sun.net.httpserver.HttpExchange;
@@ -15,8 +16,10 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.Executors;
 
 /**
@@ -63,6 +66,8 @@ public final class CaptureControlServer implements AutoCloseable {
         server.createContext("/checkpoint", exchange -> handle(exchange, this::checkpoint));
         server.createContext("/stop", exchange -> handle(exchange, this::stop));
         server.createContext("/steps", exchange -> handle(exchange, this::steps));
+        server.createContext("/mode", exchange -> handle(exchange, this::mode));
+        server.createContext("/locator/pick", exchange -> handle(exchange, this::pickLocator));
         server.setExecutor(Executors.newFixedThreadPool(2, runnable -> {
             Thread thread = new Thread(runnable, "shaft-capture-control");
             thread.setDaemon(true);
@@ -120,6 +125,73 @@ public final class CaptureControlServer implements AutoCloseable {
     private List<CaptureStep> steps(HttpExchange exchange) {
         requireMethod(exchange, "GET");
         return manager.steps();
+    }
+
+    /**
+     * Reads (GET) or toggles (POST) the recorder's live authoring mode: {@code record} (default;
+     * the recorder captures interactions as replayable steps) or {@code inspect} (the recorder
+     * overlay highlights hovered elements and reports the clicked element's locator candidates to
+     * {@link #pickLocator} instead of recording an interaction step). Delegates to
+     * {@link CaptureManager#mode()}/{@link CaptureManager#setMode(String)} so the same live mode is
+     * visible whether it's read/toggled in-process (MCP) or over this loopback endpoint (a
+     * detached recorder UI).
+     */
+    private ModeResponse mode(HttpExchange exchange) {
+        if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            ModeRequest request = read(exchange, ModeRequest.class);
+            try {
+                manager.setMode(request.mode());
+            } catch (IllegalArgumentException invalidMode) {
+                throw new BadRequestException(invalidMode.getMessage());
+            }
+        } else {
+            requireMethod(exchange, "GET");
+        }
+        return new ModeResponse(manager.mode());
+    }
+
+    /**
+     * Ranks caller-supplied locator candidates for one picked element (best-first, via
+     * {@link LocatorCandidate#BEST_FIRST}) and renders a copy-paste Java snippet for the winner.
+     * The recorder JS computes candidates client-side (it already has the live DOM) and posts them
+     * here rather than this server re-deriving them, since deriving locator evidence requires the
+     * live page the browser has and this control server does not.
+     */
+    private PickLocatorResponse pickLocator(HttpExchange exchange) {
+        requireMethod(exchange, "POST");
+        PickLocatorRequest request = read(exchange, PickLocatorRequest.class);
+        List<LocatorCandidate> candidates = toCandidates(request.candidates());
+        if (candidates.isEmpty()) {
+            throw new BadRequestException("At least one locator candidate is required.");
+        }
+        List<LocatorCandidate> ranked = candidates.stream().sorted(LocatorCandidate.BEST_FIRST).toList();
+        LocatorCandidate winner = ranked.getFirst();
+        List<RankedCandidate> rankedResponse = ranked.stream()
+                .map(candidate -> new RankedCandidate(
+                        candidate.strategy().name(), candidate.expression(), candidate.score(),
+                        PickedLocatorSnippetBuilder.snippet(candidate)))
+                .toList();
+        return new PickLocatorResponse(PickedLocatorSnippetBuilder.snippet(winner), rankedResponse);
+    }
+
+    private static List<LocatorCandidate> toCandidates(List<CandidateRequest> requested) {
+        if (requested == null) {
+            return List.of();
+        }
+        List<LocatorCandidate> candidates = new ArrayList<>();
+        for (CandidateRequest candidate : requested) {
+            LocatorCandidate.LocatorStrategy strategy;
+            try {
+                strategy = LocatorCandidate.LocatorStrategy.valueOf(
+                        (candidate.strategy() == null ? "" : candidate.strategy()).trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException invalidStrategy) {
+                throw new BadRequestException("Unsupported locator strategy: " + candidate.strategy());
+            }
+            candidates.add(new LocatorCandidate(
+                    strategy, candidate.expression(), candidate.uniquenessCount(),
+                    candidate.visible(), candidate.stable(), Set.of()));
+        }
+        return candidates;
     }
 
     private void handle(HttpExchange exchange, Handler handler) throws IOException {
@@ -185,6 +257,44 @@ public final class CaptureControlServer implements AutoCloseable {
     }
 
     private record StopRequest(boolean discard) {
+    }
+
+    private record ModeRequest(String mode) {
+    }
+
+    /**
+     * Current recorder authoring mode.
+     *
+     * @param mode {@code record} or {@code inspect}
+     */
+    public record ModeResponse(String mode) {
+    }
+
+    private record CandidateRequest(
+            String strategy, String expression, int uniquenessCount, boolean visible, boolean stable) {
+    }
+
+    private record PickLocatorRequest(List<CandidateRequest> candidates) {
+    }
+
+    /**
+     * One ranked locator candidate.
+     *
+     * @param strategy locator strategy name
+     * @param expression raw locator expression
+     * @param score deterministic {@link LocatorCandidate#score()}
+     * @param snippet copy-paste Java locator expression
+     */
+    public record RankedCandidate(String strategy, String expression, int score, String snippet) {
+    }
+
+    /**
+     * Pick-locator result: the best candidate's snippet plus every candidate ranked best-first.
+     *
+     * @param snippet winning candidate's copy-paste Java locator expression
+     * @param ranked every supplied candidate, ranked best-first
+     */
+    public record PickLocatorResponse(String snippet, List<RankedCandidate> ranked) {
     }
 
     private record ErrorResponse(String error) {

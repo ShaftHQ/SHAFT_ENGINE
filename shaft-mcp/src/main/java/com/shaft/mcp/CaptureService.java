@@ -390,6 +390,107 @@ public class CaptureService {
     }
 
     /**
+     * Reads or toggles the active recorder's live authoring mode.
+     *
+     * @param mode blank reads the current mode without changing it; {@code "record"} or
+     *             {@code "inspect"} (case-insensitive) sets it
+     * @return the mode now in effect
+     */
+    @Tool(name = "capture_set_mode",
+            description = "reads or toggles the active recorder's live authoring mode: record (default) or inspect")
+    public String setMode(String mode) {
+        return mode == null || mode.isBlank() ? manager.mode() : manager.setMode(mode);
+    }
+
+    /**
+     * Ranks caller-supplied locator candidates for one picked element (best-first) and renders a
+     * copy-paste {@code SHAFT.GUI.Locator...} Java snippet for the winner. Mirrors
+     * {@code CaptureControlServer}'s {@code /locator/pick} endpoint (used by a detached recorder
+     * UI); this MCP tool serves the same in-process, without a loopback HTTP round trip.
+     *
+     * @param candidates locator candidates observed for the picked element, e.g. from the recorder
+     *                   overlay's inspect-mode click handler
+     * @return the winning candidate's snippet plus every candidate ranked best-first
+     */
+    @Tool(name = "capture_pick_locator",
+            description = "ranks caller-supplied locator candidates for a picked element and returns a copy-paste SHAFT.GUI.Locator snippet")
+    public McpPickLocatorResult pickLocator(List<McpLocatorCandidate> candidates) {
+        List<com.shaft.capture.model.LocatorCandidate> parsed = parseCandidates(candidates);
+        if (parsed.isEmpty()) {
+            return new McpPickLocatorResult("", List.of());
+        }
+        List<com.shaft.capture.model.LocatorCandidate> ranked =
+                parsed.stream().sorted(com.shaft.capture.model.LocatorCandidate.BEST_FIRST).toList();
+        List<McpRankedLocatorCandidate> rankedResult = ranked.stream()
+                .map(candidate -> new McpRankedLocatorCandidate(
+                        candidate.strategy().name(), candidate.expression(), candidate.score(),
+                        com.shaft.capture.control.PickedLocatorSnippetBuilder.snippet(candidate)))
+                .toList();
+        return new McpPickLocatorResult(rankedResult.getFirst().snippet(), rankedResult);
+    }
+
+    private static List<com.shaft.capture.model.LocatorCandidate> parseCandidates(List<McpLocatorCandidate> candidates) {
+        if (candidates == null) {
+            return List.of();
+        }
+        List<com.shaft.capture.model.LocatorCandidate> parsed = new ArrayList<>();
+        for (McpLocatorCandidate candidate : candidates) {
+            com.shaft.capture.model.LocatorCandidate.LocatorStrategy strategy;
+            try {
+                strategy = com.shaft.capture.model.LocatorCandidate.LocatorStrategy.valueOf(
+                        (candidate.strategy() == null ? "" : candidate.strategy()).trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException invalidStrategy) {
+                continue;
+            }
+            parsed.add(new com.shaft.capture.model.LocatorCandidate(
+                    strategy, candidate.expression(), candidate.uniquenessCount(),
+                    candidate.visible(), candidate.stable(), java.util.Set.of()));
+        }
+        return parsed;
+    }
+
+    /**
+     * One locator candidate observed for a picked element.
+     *
+     * @param strategy locator strategy name (ROLE, ACCESSIBLE_NAME, LABEL, TEST_ID, ID, NAME, CSS, XPATH)
+     * @param expression raw locator expression
+     * @param uniquenessCount number of matching elements observed on the live page
+     * @param visible whether the target was visible
+     * @param stable whether the evidence appeared stable
+     */
+    public record McpLocatorCandidate(
+            String strategy, String expression, int uniquenessCount, boolean visible, boolean stable) {
+    }
+
+    /**
+     * One ranked locator candidate.
+     *
+     * @param strategy locator strategy name
+     * @param expression raw locator expression
+     * @param score deterministic score
+     * @param snippet copy-paste Java locator expression
+     */
+    public record McpRankedLocatorCandidate(String strategy, String expression, int score, String snippet) {
+    }
+
+    /**
+     * Pick-locator result.
+     *
+     * @param snippet winning candidate's copy-paste Java locator expression, blank when no valid
+     *                candidate was supplied
+     * @param ranked every valid supplied candidate, ranked best-first
+     */
+    public record McpPickLocatorResult(String snippet, List<McpRankedLocatorCandidate> ranked) {
+        /**
+         * Creates an immutable pick-locator result.
+         */
+        public McpPickLocatorResult {
+            snippet = snippet == null ? "" : snippet;
+            ranked = ranked == null ? List.of() : List.copyOf(ranked);
+        }
+    }
+
+    /**
      * Generates, compiles, and optionally replays a deterministic SHAFT TestNG test from a Capture session.
      *
      * @param sessionPath persisted Capture JSON path inside the MCP workspace

@@ -25,9 +25,12 @@ public final class CaptureManager implements AutoCloseable {
         thread.setDaemon(false);
         return thread;
     });
+    private static final java.util.Set<String> SUPPORTED_MODES = java.util.Set.of("record", "inspect");
+
     private final Function<CaptureStartRequest, ManagedCaptureRecorder> recorderFactory;
     private volatile ManagedCaptureRecorder recorder;
     private volatile CaptureStatus lastStatus = CaptureStatus.notRunning();
+    private volatile String mode = "record";
     private CaptureSingleSessionLock sessionLock;
     private ScheduledFuture<?> healthCheck;
 
@@ -106,6 +109,35 @@ public final class CaptureManager implements AutoCloseable {
     public synchronized java.util.List<com.shaft.capture.model.CaptureStep> steps() {
         ManagedCaptureRecorder current = recorder;
         return current == null ? java.util.List.of() : current.steps();
+    }
+
+    /**
+     * Returns the recorder's current live authoring mode: {@code record} (default; the recorder
+     * captures interactions as replayable steps) or {@code inspect} (the recorder overlay
+     * highlights hovered elements for a live locator pick instead of recording an interaction
+     * step). This is in-memory only, mirroring {@link #steps()}/{@link #status()}: it reflects the
+     * live recorder, not durable session state.
+     *
+     * @return {@code "record"} or {@code "inspect"}
+     */
+    public String mode() {
+        return mode;
+    }
+
+    /**
+     * Sets the recorder's live authoring mode.
+     *
+     * @param requestedMode {@code "record"} or {@code "inspect"} (case-insensitive)
+     * @return the mode now in effect
+     * @throws IllegalArgumentException when {@code requestedMode} is not a supported mode
+     */
+    public String setMode(String requestedMode) {
+        String normalized = requestedMode == null ? "" : requestedMode.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!SUPPORTED_MODES.contains(normalized)) {
+            throw new IllegalArgumentException("Unsupported capture mode. Supported: " + SUPPORTED_MODES);
+        }
+        mode = normalized;
+        return mode;
     }
 
     /**

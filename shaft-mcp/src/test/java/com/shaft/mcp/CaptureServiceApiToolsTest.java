@@ -285,6 +285,73 @@ class CaptureServiceApiToolsTest {
     }
 
     @Test
+    void setModeReadsCurrentModeWithBlankArgumentAndTogglesWithAnExplicitOne() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            assertEquals("record", service.setMode(""));
+            assertEquals("inspect", service.setMode("inspect"));
+            assertEquals("inspect", service.setMode(null));
+            assertEquals("record", service.setMode("RECORD"));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void setModeRejectsUnsupportedMode() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            assertThrows(IllegalArgumentException.class, () -> service.setMode("not-a-mode"));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void pickLocatorRanksCandidatesBestFirstAndRendersASnippet() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            List<CaptureService.McpLocatorCandidate> candidates = List.of(
+                    new CaptureService.McpLocatorCandidate("CSS", "div.form > input", 1, true, false),
+                    new CaptureService.McpLocatorCandidate("ID", "username", 1, true, true));
+
+            CaptureService.McpPickLocatorResult result = service.pickLocator(candidates);
+
+            assertEquals("SHAFT.GUI.Locator.id(\"username\")", result.snippet());
+            assertEquals(2, result.ranked().size());
+            assertEquals("ID", result.ranked().getFirst().strategy());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void pickLocatorIgnoresUnsupportedStrategiesAndReturnsBlankWhenNoneAreValid() {
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            CaptureService.McpPickLocatorResult result = service.pickLocator(
+                    List.of(new CaptureService.McpLocatorCandidate("NOT_A_STRATEGY", "x", 1, true, true)));
+
+            assertTrue(result.snippet().isEmpty());
+            assertTrue(result.ranked().isEmpty());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
     void networkTransactionRejectsNegativeValues() {
         IllegalArgumentException statusCodeError = assertThrows(IllegalArgumentException.class,
                 () -> new NetworkTransaction("tx-1", "GET", "https://example.com", -1, "xhr", 0,
