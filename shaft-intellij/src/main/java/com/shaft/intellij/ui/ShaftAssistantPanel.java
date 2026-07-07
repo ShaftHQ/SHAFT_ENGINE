@@ -16,6 +16,7 @@ import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.WrapLayout;
+import com.shaft.intellij.approval.AgentApprovalCapability;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.mcp.ShaftMcpConnectionState;
@@ -71,6 +72,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 /**
@@ -861,7 +863,8 @@ final class ShaftAssistantPanel extends JPanel {
                     invocation,
                     autoCompact.isSelected(),
                     output -> ApplicationManager.getApplication().invokeLater(
-                            () -> appendLocalAgentOutput(streamToken, output)));
+                            () -> appendLocalAgentOutput(streamToken, output)),
+                    agentApprovalHandler());
             currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                     () -> showAgentResult(streamToken, result, error)));
             return;
@@ -951,13 +954,23 @@ final class ShaftAssistantPanel extends JPanel {
      * @param onDenied invoked if the user denies the tool call
      */
     private void gateTool(String toolName, JsonObject arguments, Runnable onApproved, Runnable onDenied) {
+        // Direct dispatch: the panel itself executes the MCP call, so every approval scope SHAFT
+        // supports is offered regardless of which agent family is selected -- the selected agent
+        // is not involved in running the tool.
+        gateTool(toolName, arguments, ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD,
+                onApproved, onDenied);
+    }
+
+    private void gateTool(String toolName, JsonObject arguments,
+                          ToolApprovalPromptPanel.AgentApprovalCapability capability,
+                          Runnable onApproved, Runnable onDenied) {
         if (approvedToolsThisRun.contains(toolName) || approvalService().isApproved(toolName)) {
             approvedToolsThisRun.add(toolName);
             onApproved.run();
             return;
         }
         setStatus("Awaiting approval for " + toolName + "...");
-        requestToolApproval(toolName, arguments, decision -> {
+        requestToolApproval(toolName, arguments, capability, decision -> {
             if (decision == ToolApprovalDecision.DENY) {
                 onDenied.run();
             } else {
@@ -974,8 +987,9 @@ final class ShaftAssistantPanel extends JPanel {
      * appending the outcome, and invoking {@code onDecision}) is marshaled back onto the EDT via
      * {@link #runOnEdt} so no blocking {@code get()}/{@code join()} ever runs on the EDT.
      */
-    private void requestToolApproval(String toolName, JsonObject arguments, Consumer<ToolApprovalDecision> onDecision) {
-        ToolApprovalPromptPanel.AgentApprovalCapability capability = currentApprovalCapability();
+    private void requestToolApproval(String toolName, JsonObject arguments,
+                                     ToolApprovalPromptPanel.AgentApprovalCapability capability,
+                                     Consumer<ToolApprovalDecision> onDecision) {
         CompletableFuture<ToolApprovalDecision> future = new CompletableFuture<>();
         ToolApprovalPromptPanel approvalPanel = new ToolApprovalPromptPanel(toolName, arguments, capability, future::complete);
         transcript.showWidget("assistant", approvalPanel);
@@ -999,8 +1013,56 @@ final class ShaftAssistantPanel extends JPanel {
         };
     }
 
+    /**
+     * Resolves the approval capability of the currently selected assistant family (via
+     * {@link AgentApprovalCapability#forClient(String)}): families whose CLI supports interactive
+     * mid-run approval (Claude Code) get the standard scope set, while families that can only be
+     * pre-approved through launch-time flags (Codex, Copilot CLI) get {@code NONE}, which hides
+     * the "Approve all SHAFT tools" checkbox and the scope buttons on agent-forwarded approval
+     * prompts. Direct panel-dispatched MCP calls are gated with {@code STANDARD} instead -- see
+     * {@link #gateTool(String, JsonObject, Runnable, Runnable)}.
+     */
     private ToolApprovalPromptPanel.AgentApprovalCapability currentApprovalCapability() {
-        return ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD;
+        AgentApprovalCapability agentCapability = AgentApprovalCapability.forClient(
+                clientFromFamily(String.valueOf(assistantFamily.getSelectedItem())));
+        return agentCapability.supportsInteractiveApproval()
+                ? ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD
+                : ToolApprovalPromptPanel.AgentApprovalCapability.NONE;
+    }
+
+    /**
+     * Bridges a local agent CLI's mid-run approval requests (see
+     * {@link AssistantLocalAgentRunner.ApprovalRequestHandler}) into the shared chat approval
+     * flow. Invoked on the runner's dedicated approval thread, never the EDT; blocks that thread
+     * until the user decides in the transcript's approval bubble. The runner interrupts this
+     * thread and proceeds as {@code DENY} once its approval timeout elapses, so a prompt the user
+     * never answers cannot hang the stream reader.
+     */
+    private AssistantLocalAgentRunner.ApprovalRequestHandler agentApprovalHandler() {
+        return (toolName, toolArguments) -> {
+            String name = toolName == null || toolName.isBlank() ? "unknown_tool" : toolName;
+            CompletableFuture<Boolean> approved = new CompletableFuture<>();
+            runOnEdt(
+                    () -> gateTool(name, toolArguments, currentApprovalCapability(),
+                            () -> {
+                                setStatus("Thinking...");
+                                approved.complete(true);
+                            },
+                            () -> {
+                                setStatus("Thinking...");
+                                approved.complete(false);
+                            }));
+            try {
+                return approved.get()
+                        ? AssistantLocalAgentRunner.ApprovalDecision.APPROVE
+                        : AssistantLocalAgentRunner.ApprovalDecision.DENY;
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                return AssistantLocalAgentRunner.ApprovalDecision.DENY;
+            } catch (ExecutionException exception) {
+                return AssistantLocalAgentRunner.ApprovalDecision.DENY;
+            }
+        };
     }
 
     /**

@@ -6,6 +6,7 @@ import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.content.Content;
+import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.ui.ShaftAssistantChatState;
 import com.shaft.intellij.ui.ShaftToolWindowPanel;
 
@@ -40,7 +41,7 @@ public final class ShaftPluginResetService {
         this(
                 () -> resetSettings(ShaftSettingsState.getInstance()),
                 () -> ShaftCredentialService.getInstance().clearAll(),
-                () -> ToolApprovalService.getInstance().clearAll(),
+                () -> ToolApprovalService.getInstance().reset(),
                 ShaftPluginResetService::openProjectChatStates,
                 ShaftPluginResetService::rerenderOpenToolWindows);
     }

@@ -60,6 +60,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -3127,13 +3131,105 @@ class ShaftPanelSetupTest {
 
     @Test
     void approveAllToolsCheckboxDefaultsUncheckedAndVisibleWhenAgentSupportsApprovals() {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        // Claude Code is the only agent family whose CLI supports interactive mid-run approval
+        // (AgentApprovalCapability.CLAUDE_CODE), so it is the family that shows the checkbox.
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.defaultAutobotClient = "CLAUDE_CODE";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
         JCheckBox approveAllTools = findByAccessibleName(panel, "Approve all SHAFT tools", JCheckBox.class);
 
         assertAll(
                 () -> assertNotNull(approveAllTools),
                 () -> assertFalse(approveAllTools.isSelected()),
                 () -> assertTrue(approveAllTools.isVisible()));
+    }
+
+    @Test
+    void approveAllToolsCheckboxIsHiddenForAgentFamiliesWithoutInteractiveApprovalSupport() {
+        // Codex and Copilot CLI have no interactive approval capability
+        // (AgentApprovalCapability.forClient -> supportsInteractiveApproval() == false), so per the
+        // ticket the checkbox only renders "if supported by the used agent". CODEX is the default
+        // client in blank settings.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox approveAllTools = findByAccessibleName(panel, "Approve all SHAFT tools", JCheckBox.class);
+
+        assertAll(
+                () -> assertNotNull(approveAllTools),
+                () -> assertFalse(approveAllTools.isVisible(),
+                        "the approve-all checkbox must be hidden while an agent without interactive"
+                                + " approval support (Codex) is selected"));
+    }
+
+    @Test
+    void agentApprovalHandlerForwardsRequestsToTheChatPromptAndReturnsTheUsersDecision() throws Exception {
+        // Claude Code is the family whose CLI actually emits mid-run approval requests, so the
+        // forwarded prompt must offer its full interactive scope set.
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        settings.defaultAutobotClient = "CLAUDE_CODE";
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
+        AssistantLocalAgentRunner.ApprovalRequestHandler handler = agentApprovalHandlerOf(panel);
+
+        ExecutorService runnerThread = Executors.newSingleThreadExecutor();
+        try {
+            Future<AssistantLocalAgentRunner.ApprovalDecision> decision =
+                    runnerThread.submit(() -> handler.onApprovalRequested("capture_start", new JsonObject()));
+            ToolApprovalPromptPanel prompt = awaitApprovalPrompt(panel);
+            JButton approveOnce = approvalDecisionButton(prompt, "Approve once");
+
+            SwingUtilities.invokeAndWait(approveOnce::doClick);
+
+            assertEquals(AssistantLocalAgentRunner.ApprovalDecision.APPROVE, decision.get(5, TimeUnit.SECONDS),
+                    "the user's approval must reach the runner as APPROVE");
+        } finally {
+            runnerThread.shutdownNow();
+        }
+    }
+
+    @Test
+    void agentApprovalHandlerApprovesSilentlyWhenApproveAllToolsIsAlreadyGranted() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
+        AssistantLocalAgentRunner.ApprovalRequestHandler handler = agentApprovalHandlerOf(panel);
+
+        ExecutorService runnerThread = Executors.newSingleThreadExecutor();
+        try {
+            Future<AssistantLocalAgentRunner.ApprovalDecision> decision =
+                    runnerThread.submit(() -> handler.onApprovalRequested("capture_start", new JsonObject()));
+
+            assertEquals(AssistantLocalAgentRunner.ApprovalDecision.APPROVE, decision.get(5, TimeUnit.SECONDS),
+                    "an approve-all grant must answer the runner without prompting");
+            SwingUtilities.invokeAndWait(() -> {
+            });
+            assertNull(transcriptWidget(panel), "approve-all must never render an approval prompt");
+        } finally {
+            runnerThread.shutdownNow();
+        }
+    }
+
+    @Test
+    void agentApprovalHandlerOffersOnlyDenyForAgentsWithoutInteractiveApprovalSupport() throws Exception {
+        // Default blank settings select Codex, whose AgentApprovalCapability has no interactive
+        // scopes -- the forwarded prompt hides every approve button and leaves only Deny.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        AssistantLocalAgentRunner.ApprovalRequestHandler handler = agentApprovalHandlerOf(panel);
+
+        ExecutorService runnerThread = Executors.newSingleThreadExecutor();
+        try {
+            Future<AssistantLocalAgentRunner.ApprovalDecision> decision =
+                    runnerThread.submit(() -> handler.onApprovalRequested("capture_start", new JsonObject()));
+            ToolApprovalPromptPanel prompt = awaitApprovalPrompt(panel);
+            assertTrue(prompt.decisionButtonsForTest().stream()
+                            .noneMatch(button -> button.getText().startsWith("Approve")),
+                    "no approve-scope buttons may render for an agent without interactive approval support");
+            JButton deny = approvalDecisionButton(prompt, "Deny");
+
+            SwingUtilities.invokeAndWait(deny::doClick);
+
+            assertEquals(AssistantLocalAgentRunner.ApprovalDecision.DENY, decision.get(5, TimeUnit.SECONDS),
+                    "the user's denial must reach the runner as DENY");
+        } finally {
+            runnerThread.shutdownNow();
+        }
     }
 
     @Test
@@ -3304,6 +3400,31 @@ class ShaftPanelSetupTest {
     private static JComponent transcriptWidget(ShaftAssistantPanel panel) throws Exception {
         AssistantTranscriptView transcript = (AssistantTranscriptView) getField(panel, "transcript");
         return transcript.pendingWidgetForTest();
+    }
+
+    private static AssistantLocalAgentRunner.ApprovalRequestHandler agentApprovalHandlerOf(
+            ShaftAssistantPanel panel) throws Exception {
+        Method factory = ShaftAssistantPanel.class.getDeclaredMethod("agentApprovalHandler");
+        factory.setAccessible(true);
+        return (AssistantLocalAgentRunner.ApprovalRequestHandler) factory.invoke(panel);
+    }
+
+    /**
+     * Waits for the approval prompt widget the agent approval handler renders asynchronously (its
+     * gate runs via runOnEdt from the runner's approval thread), flushing the EDT queue between
+     * polls so the invokeLater-scheduled gate actually executes.
+     */
+    private static ToolApprovalPromptPanel awaitApprovalPrompt(ShaftAssistantPanel panel) throws Exception {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (System.currentTimeMillis() < deadline) {
+            SwingUtilities.invokeAndWait(() -> {
+            });
+            if (transcriptWidget(panel) instanceof ToolApprovalPromptPanel prompt) {
+                return prompt;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("approval prompt widget never rendered");
     }
 
     private static JButton approvalDecisionButton(ToolApprovalPromptPanel panel, String label) {

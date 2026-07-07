@@ -142,13 +142,28 @@ final class AssistantLocalAgentRunner {
             AssistantCommand.Invocation invocation,
             boolean autoCompactEnabled,
             Consumer<String> outputConsumer) {
+        return startWithOptionalCompact(invocation, autoCompactEnabled, outputConsumer, (ApprovalRequestHandler) null);
+    }
+
+    /**
+     * Overload of {@link #startWithOptionalCompact(AssistantCommand.Invocation, boolean, Consumer)}
+     * that also registers an {@link ApprovalRequestHandler} so a CLI with interactive approval
+     * capability (see {@link AgentApprovalCapability#supportsInteractiveApproval()}) can ask SHAFT
+     * to approve or deny a tool call mid-run. For CLIs with no interactive capability the handler
+     * is simply never invoked; the compact-preamble behavior is identical in every respect.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            ApprovalRequestHandler approvalHandler) {
         if (autoCompactEnabled) {
             ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments());
             if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
                 outputConsumer.accept(compactResult.output());
             }
         }
-        return start(invocation, outputConsumer);
+        return start(invocation, outputConsumer, approvalHandler);
     }
 
     /**

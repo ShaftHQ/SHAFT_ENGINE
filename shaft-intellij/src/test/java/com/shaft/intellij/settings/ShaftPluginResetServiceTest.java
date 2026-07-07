@@ -1,5 +1,7 @@
 package com.shaft.intellij.settings;
 
+import com.shaft.intellij.approval.ToolApprovalDecision;
+import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.ui.ShaftAssistantChatState;
 import org.junit.jupiter.api.Test;
 
@@ -131,14 +133,27 @@ class ShaftPluginResetServiceTest {
     }
 
     @Test
-    void toolApprovalServiceClearAllEmptiesTheApprovalStore() {
+    void toolApprovalServiceResetClearsPermanentApprovalsAndTheApproveAllFlag() {
+        // This must exercise com.shaft.intellij.approval.ToolApprovalService -- the store the chat
+        // approval UI (ShaftAssistantPanel/ToolApprovalPromptPanel) actually writes to via
+        // record()/isApproved(). A second, settings-package ToolApprovalService once existed and was
+        // reset instead, leaving the approve-all flag and permanent approvals alive after
+        // "Reset everything"; it has been deleted.
         ToolApprovalService approvals = new ToolApprovalService();
-        approvals.approve("capture_start");
-        assertFalse(approvals.isEmpty(), "Precondition: an approved tool should make the store non-empty");
+        approvals.record(ToolApprovalDecision.APPROVE_TOOL_ALWAYS, "capture_start");
+        approvals.record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "capture_stop");
+        assertTrue(approvals.isApproved("capture_start"),
+                "Precondition: a permanently approved tool should be approved");
+        assertTrue(approvals.getState().approveAllTools,
+                "Precondition: approve-all flag should be set");
 
-        approvals.clearAll();
+        approvals.reset();
 
-        assertTrue(approvals.isEmpty(), "clearAll() must leave the approval store empty");
+        assertAll(
+                () -> assertFalse(approvals.getState().approveAllTools,
+                        "reset() must clear the approve-all flag"),
+                () -> assertFalse(approvals.isApproved("capture_start"),
+                        "reset() must clear permanently approved tools"));
     }
 
     @Test
@@ -204,8 +219,9 @@ class ShaftPluginResetServiceTest {
                         "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ShaftCredentialService\"/>"),
                         "ShaftCredentialService must be registered as an applicationService"),
                 () -> assertTrue(pluginXml.contains(
-                        "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ToolApprovalService\"/>"),
-                        "ToolApprovalService must be registered as an applicationService"),
+                        "<applicationService serviceImplementation=\"com.shaft.intellij.approval.ToolApprovalService\"/>"),
+                        "The approval-package ToolApprovalService (the store the chat approval UI"
+                                + " writes to) must be registered as an applicationService"),
                 () -> assertTrue(pluginXml.contains(
                         "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ShaftPluginResetService\"/>"),
                         "ShaftPluginResetService must be registered as an applicationService"));
