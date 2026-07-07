@@ -474,6 +474,66 @@ class AssistantCommandTest {
     }
 
     @Test
+    void directLocalAgentRunnerAppliesSelectedModelAndEffort() {
+        AssistantCommand.Invocation codex = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.local("CODEX", "CLI", "gpt-5.2-codex", "HIGH"),
+                "ASK", ".", "", false);
+        AssistantCommand.Invocation claude = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.local("CLAUDE", "CLI", "claude-sonnet-5", "LOW"),
+                "ASK", ".", "", false);
+        AssistantCommand.Invocation copilot = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.local("COPILOT", "CLI", "gpt-5.2", "DEFAULT"),
+                "ASK", ".", "", false);
+
+        assertAll(
+                () -> assertEquals(List.of(
+                                "codex", "exec",
+                                "--model", "gpt-5.2-codex",
+                                "-c", "model_reasoning_effort=\"high\"",
+                                "--sandbox", "read-only", "--json", "-"),
+                        AssistantLocalAgentRunner.commandFor(codex.arguments())),
+                // Codex receives the effort as a CLI config flag, so its prompt stays clean.
+                () -> assertFalse(codex.arguments().get("prompt").getAsString()
+                        .contains("reasoning effort")),
+                () -> assertEquals(List.of(
+                                "claude", "--print",
+                                "--model", "claude-sonnet-5",
+                                "--output-format", "stream-json", "--verbose"),
+                        AssistantLocalAgentRunner.commandFor(claude.arguments())),
+                // Claude Code has no effort flag, so the prompt carries the preference instead.
+                () -> assertTrue(claude.arguments().get("prompt").getAsString()
+                        .startsWith("Use low reasoning effort for this request.")),
+                () -> assertEquals(List.of("copilot", "ask", "--model", "gpt-5.2"),
+                        AssistantLocalAgentRunner.commandFor(copilot.arguments())),
+                // Default effort adds neither a flag nor a prompt hint.
+                () -> assertFalse(copilot.arguments().get("prompt").getAsString()
+                        .contains("reasoning effort")));
+    }
+
+    @Test
+    void cloudInvocationCarriesSelectedModelAndEffortHint() {
+        AssistantCommand.Invocation withEffort = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.cloud("gemini", "gemini-3.5-pro", "MEDIUM"),
+                "ASK", ".", "", false);
+        AssistantCommand.Invocation defaultEffort = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.cloud("gemini", "", ""),
+                "ASK", ".", "", false);
+
+        assertAll(
+                () -> assertEquals("autobot_provider_chat", withEffort.toolName()),
+                () -> assertEquals("gemini-3.5-pro", withEffort.arguments().get("model").getAsString()),
+                () -> assertTrue(withEffort.arguments().get("prompt").getAsString()
+                        .startsWith("Use medium reasoning effort for this request.")),
+                () -> assertFalse(defaultEffort.arguments().get("prompt").getAsString()
+                        .contains("reasoning effort")));
+    }
+
+    @Test
     void directCustomAgentCommandRequiresSourceEditApprovalBecauseItCannotBeSandboxed() throws Exception {
         AssistantCommand.Invocation custom = AssistantCommand.fromPrompt(
                 "Inspect the browser",

@@ -177,10 +177,12 @@ final class AssistantLocalAgentRunner {
         }
         boolean allowSourceMutation = allowSourceMutation(arguments);
         String mode = normalize(string(arguments, "mode", "ASK"));
+        String model = string(arguments, "model", "").trim();
+        String effort = normalize(string(arguments, "effort", ""));
         return switch (normalize(string(arguments, "client", "CODEX"))) {
-            case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation);
-            case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation);
-            default -> codexCommand(mode, allowSourceMutation);
+            case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation, model);
+            case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation, model);
+            default -> codexCommand(mode, allowSourceMutation, model, effort);
         };
     }
 
@@ -503,17 +505,27 @@ final class AssistantLocalAgentRunner {
      * drift between Codex CLI releases, so the NDJSON parser in {@link #run} is deliberately
      * tolerant: unrecognized event types or fields are skipped rather than treated as errors.
      */
-    private static List<String> codexCommand(String mode, boolean allowSourceMutation) {
-        return switch (mode) {
-            case "AGENT" -> List.of(
-                    "codex", "exec",
-                    "--sandbox", allowSourceMutation ? "workspace-write" : "read-only",
-                    "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
-                    "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
-                    "--json",
-                    "-");
-            default -> List.of("codex", "exec", "--sandbox", "read-only", "--json", "-");
-        };
+    private static List<String> codexCommand(String mode, boolean allowSourceMutation, String model, String effort) {
+        List<String> command = new ArrayList<>(List.of("codex", "exec"));
+        if (!model.isBlank()) {
+            command.add("--model");
+            command.add(model);
+        }
+        if (AssistantModelCatalog.isExplicitEffort(effort)) {
+            command.add("-c");
+            command.add("model_reasoning_effort=\"" + effort.toLowerCase(Locale.ROOT) + "\"");
+        }
+        command.add("--sandbox");
+        command.add("AGENT".equals(mode) && allowSourceMutation ? "workspace-write" : "read-only");
+        if ("AGENT".equals(mode)) {
+            command.add("-c");
+            command.add("mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"");
+            command.add("-c");
+            command.add("mcp_servers.shaft-mcp.tool_timeout_sec=600");
+        }
+        command.add("--json");
+        command.add("-");
+        return List.copyOf(command);
     }
 
     /**
@@ -521,22 +533,35 @@ final class AssistantLocalAgentRunner {
      * {@code --print} (the CLI rejects the combination otherwise), so every mode below carries both
      * flags together to receive incremental NDJSON events instead of a single buffered blob.
      */
-    private static List<String> claudeCommand(String mode, boolean allowSourceMutation) {
-        return switch (mode) {
-            case "PLAN" -> List.of("claude", "--print", "--permission-mode", "plan",
-                    "--output-format", "stream-json", "--verbose");
-            case "AGENT" -> List.of("claude", "--print", "--permission-mode", allowSourceMutation ? "acceptEdits" : "plan",
-                    "--output-format", "stream-json", "--verbose");
-            default -> List.of("claude", "--print", "--output-format", "stream-json", "--verbose");
-        };
+    private static List<String> claudeCommand(String mode, boolean allowSourceMutation, String model) {
+        List<String> command = new ArrayList<>(List.of("claude", "--print"));
+        if (!model.isBlank()) {
+            command.add("--model");
+            command.add(model);
+        }
+        if ("PLAN".equals(mode) || "AGENT".equals(mode)) {
+            command.add("--permission-mode");
+            command.add("AGENT".equals(mode) && allowSourceMutation ? "acceptEdits" : "plan");
+        }
+        command.add("--output-format");
+        command.add("stream-json");
+        command.add("--verbose");
+        return List.copyOf(command);
     }
 
-    private static List<String> copilotCommand(String mode, boolean allowSourceMutation) {
-        return switch (mode) {
-            case "PLAN" -> List.of("copilot", "plan");
-            case "AGENT" -> List.of("copilot", allowSourceMutation ? "agent" : "ask");
-            default -> List.of("copilot", "ask");
-        };
+    private static List<String> copilotCommand(String mode, boolean allowSourceMutation, String model) {
+        List<String> command = new ArrayList<>();
+        command.add("copilot");
+        command.add(switch (mode) {
+            case "PLAN" -> "plan";
+            case "AGENT" -> allowSourceMutation ? "agent" : "ask";
+            default -> "ask";
+        });
+        if (!model.isBlank()) {
+            command.add("--model");
+            command.add(model);
+        }
+        return List.copyOf(command);
     }
 
     /**
