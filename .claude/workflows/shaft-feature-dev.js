@@ -1,16 +1,17 @@
-// SHAFT bug-fix workflow (#3300): Fable plans, Opus orchestrates,
-// Sonnet owns + QAs, Haiku implements. Fresh context per agent; all
-// handoffs are structured output; QA judges the diff, never self-reports.
+// SHAFT feature-dev workflow (#3367 P2-11): Fable plans, Opus orchestrates,
+// Sonnet owns + QAs, Haiku implements a feature ticket. Fresh context per
+// agent; all handoffs are structured output; QA judges the diff, never
+// self-reports. Docs-sync and UI-evidence stages gate the finish.
 //
 // Bypass rule (AGENTS.md "Agent Hierarchy"): do NOT run this for
-// single-file fixes, doc edits, or version bumps -- a single Sonnet
+// single-file features, doc edits, or version bumps -- a single Sonnet
 // session implements and verifies directly. Never spawn an orchestrator
 // for a one-task plan (enforced below).
 
 export const meta = {
-  name: "shaft-bug-fix",
+  name: "shaft-feature-dev",
   description:
-    "Fable plans, Opus orchestrates, Sonnet owns + QAs, Haiku implements (capped QA loop, worktree isolation)",
+    "Fable plans, Opus orchestrates, Sonnet owns + QAs, Haiku implements a feature ticket, then docs-sync and UI-evidence stages gate the finish",
 };
 
 // Fallback chains: advance only on model unavailability, never on a bad
@@ -44,17 +45,23 @@ const TASK_ITEM = {
     // adversarial refuter instead of the default Haiku path. Absent
     // riskTier means "med". Delegation is a default, not a dogma.
     riskTier: { type: "string", enum: ["low", "med", "high"] },
+    // Task touches user-visible UI: IntelliJ plugin Swing surfaces,
+    // docs/report web UI, or MCP tool UX. Drives the UI-evidence stage.
+    uiSurface: { type: "boolean" },
   },
 };
 
 const PLAN_SCHEMA = {
   type: "object",
-  required: ["summary", "acceptance", "risks", "tasks"],
+  required: ["summary", "acceptance", "risks", "tasks", "publicBehavior"],
   properties: {
     summary: { type: "string" },
     acceptance: { type: "array", items: { type: "string" } },
     risks: { type: "array", items: { type: "string" } },
     tasks: { type: "array", items: TASK_ITEM },
+    // Does the feature change public/user-facing behavior of SHAFT?
+    // Drives the docs-sync stage: "yes"/"unsure" run it, "no" skips it.
+    publicBehavior: { type: "string", enum: ["yes", "no", "unsure"] },
   },
 };
 
@@ -157,21 +164,30 @@ const COMMIT_INSTRUCTION = [
 function planPrompt(issue) {
   return [
     "You are Kevin, the PDCA planner (see .github/skills/agentic-pdca-loop/SKILL.md).",
-    "Read AGENTS.md, then plan the fix for this issue:",
+    "Read AGENTS.md, then plan the implementation for this feature ticket:",
     "",
     issue,
     "",
     "Produce a spec: summary, overall acceptance checks, risk notes, and a",
-    "list of independent tasks. Each task needs id, goal, likely files,",
-    "and concrete acceptance checks an independent QA agent can verify",
-    "from the diff. Assign riskTier per task: \"high\" is REQUIRED for",
-    "precisely-arranged core code (sync/wait internals, locator",
-    "resolution -- shaft-engine element/browser sync + locator building --,",
-    "shaft-intellij EDT/Swing threading); \"high\" also for changes to",
-    "public API surface or release/build plumbing. \"low\" only for",
-    "mechanical single-file changes with a trivially checkable acceptance.",
-    "Default to \"med\" otherwise. Keep tasks minimal and non-overlapping;",
-    "do not include speculative refactors.",
+    "list of independent tasks. Cover spec/value/acceptance/risks per the",
+    "PDCA skill. Each task needs id, goal, likely files, and concrete",
+    "acceptance checks an independent QA agent can verify from the diff.",
+    "Assign riskTier per task: \"high\" is REQUIRED for precisely-arranged",
+    "core code (sync/wait internals, locator resolution -- shaft-engine",
+    "element/browser sync + locator building --, shaft-intellij EDT/Swing",
+    "threading); \"high\" also for changes to public API surface or",
+    "release/build plumbing. \"low\" only for mechanical single-file changes",
+    "with a trivially checkable acceptance. Default to \"med\" otherwise.",
+    "Keep tasks minimal and non-overlapping; do not include speculative",
+    "refactors.",
+    "",
+    "Set uiSurface=true on any task that touches user-visible UI: IntelliJ",
+    "plugin Swing surfaces, docs/report web UI, or MCP tool UX; false",
+    "otherwise. Set the plan-level publicBehavior field to \"yes\" if this",
+    "feature changes public/user-facing behavior of SHAFT, \"no\" if it is",
+    "purely internal, or \"unsure\" if you cannot tell from the ticket --",
+    "\"unsure\" routes to the same docs-sync check as \"yes\" so ambiguity",
+    "never silently skips docs.",
   ].join("\n");
 }
 
@@ -181,8 +197,9 @@ function orchestratePrompt(plan) {
     "can be implemented in isolated worktrees without conflicting edits;",
     "merge or reorder tasks that overlap on the same files. Preserve each",
     "task's riskTier; if you merge tasks, the merged task's riskTier is",
-    "the highest of the tasks merged (high > med > low). Do not add",
-    "scope. Plan:",
+    "the highest of the tasks merged (high > med > low). Preserve each",
+    "task's uiSurface; a merged task is uiSurface=true if any of its",
+    "constituent tasks was. Do not add scope. Plan:",
     "",
     JSON.stringify(plan, null, 2),
   ].join("\n");
@@ -379,7 +396,7 @@ async function ownTask(task) {
       }
     }
 
-    if (verdict.pass) return { task: task.id, verdict, commits, runLog };
+    if (verdict.pass) return { task: task.id, uiSurface: !!task.uiSurface, verdict, commits, runLog };
     gaps = verdict.gaps;
     report = await agent(fixPrompt(task, gaps, commits), {
       model: implementerModel,
@@ -396,7 +413,7 @@ async function ownTask(task) {
   );
   runLog.push({ phase: "escalate:" + task.id, model: "sonnet" });
   pushIfRealSha(commits, escalation.commitSha);
-  return { task: task.id, escalated: true, escalation, commits, runLog };
+  return { task: task.id, uiSurface: !!task.uiSurface, escalated: true, escalation, commits, runLog };
 }
 
 // Workflow scripts run as top-level async code against the `args`
@@ -428,6 +445,114 @@ const tasks =
 
 const results = await pipeline(tasks, ownTask);
 
+// Completed (non-bounced) results only, for gating the two post-pipeline
+// stages below.
+const completedResults = results.filter((result) => result != null && !result.bounced);
+
+// DOCS-SYNC stage: runs when the plan's publicBehavior is "yes" or
+// "unsure" (ambiguity never silently skips docs). Collects every commit
+// SHA produced across all tasks and hands them to one Sonnet agent that
+// decides -- and, if warranted, implements -- the docs update on a new
+// LOCAL branch in the separate docs repo. That repo is the one place a
+// branch is allowed here: it is not this repo, so the single-branch/
+// worktree/PR rule for THIS session does not apply to it. No push, no PR:
+// the outer session decides that.
+const DOCS_REPORT = {
+  type: "object",
+  required: ["publicBehaviorChanged", "docsBranch", "summary"],
+  properties: {
+    publicBehaviorChanged: { type: "boolean" },
+    docsBranch: { type: "string" },
+    summary: { type: "string" },
+  },
+};
+
+function docsSyncPrompt(allCommits) {
+  return [
+    "Load the public-behavior-docs-synchronizer bridge first:",
+    "`.agents/skills/public-behavior-docs-synchronizer/SKILL.md`, which",
+    "points to the canonical playbook -- follow that playbook exactly.",
+    "",
+    "This workflow run produced these commits (oldest task first; all",
+    "reachable via `git show <sha>` from any worktree, one shared git",
+    "object store): " + allCommits.join(", "),
+    "",
+    "Inspect each commit's diff and decide whether public/user-facing",
+    "behavior of SHAFT actually changed -- do not trust the plan's",
+    "publicBehavior guess, verify against the real diffs.",
+    "",
+    "If YES: implement the matching user-guide updates in the docs repo",
+    "at C:\\Users\\Mohab\\IdeaProjects\\shafthq.github.io on a NEW LOCAL",
+    "branch there (this is the one place a branch is allowed -- it is a",
+    "different repo from this workflow's session repo). Commit locally.",
+    "DO NOT push and DO NOT open a PR -- the outer session decides that.",
+    "Report the branch name in docsBranch and a diffstat-style summary of",
+    "what changed.",
+    "",
+    "If NO: set publicBehaviorChanged=false, docsBranch=\"\", and explain",
+    "in summary why this is a \"no public-behavior change\" verdict.",
+  ].join("\n");
+}
+
+let docsReport = null;
+if (plan.publicBehavior === "yes" || plan.publicBehavior === "unsure") {
+  const allCommits = completedResults.flatMap((result) => result.commits || []);
+  docsReport = await agent(docsSyncPrompt(allCommits), {
+    model: "sonnet",
+    schema: DOCS_REPORT,
+  });
+  runLog.push({ phase: "docs-sync", model: "sonnet" });
+} else {
+  runLog.push({ phase: "docs-sync:skipped", model: "none" });
+}
+
+// UI-EVIDENCE stage: runs when any completed (non-bounced) task is
+// uiSurface=true. One Sonnet agent captures visual evidence -- IntelliJ
+// plugin screenshot renderer for Swing surfaces, headless capture for
+// docs/report web UI -- and saves artifacts OUTSIDE the repo working
+// tree so nothing generated lands in the working copy.
+const EVIDENCE_REPORT = {
+  type: "object",
+  required: ["evidenceCaptured", "artifacts", "summary"],
+  properties: {
+    evidenceCaptured: { type: "boolean" },
+    artifacts: { type: "array", items: { type: "string" } },
+    summary: { type: "string" },
+  },
+};
+
+function uiEvidencePrompt() {
+  return [
+    "Capture visual evidence for this run's UI-facing changes.",
+    "",
+    "For IntelliJ plugin Swing surfaces, use the screenshot renderer per",
+    "AGENTS.md Validation: `gradle -p shaft-intellij ... ",
+    "ShaftPluginScreenshotRendererTest",
+    "-Dshaft.intellij.screenshotDir=<scratchpad dir>` (Gradle 9+ + JDK 21).",
+    "For docs/report web UI, use headless capture.",
+    "",
+    "NEVER use headed browsers, NEVER run GUI-open commands -- the",
+    "PreToolUse guard denies them outright. Save every artifact OUTSIDE",
+    "the repo working tree (the scratchpad dir) and return their absolute",
+    "paths in artifacts.",
+    "",
+    "If evidence is genuinely not capturable in this environment, set",
+    "evidenceCaptured=false and give an honest reason in summary -- do",
+    "not fabricate a capture.",
+  ].join("\n");
+}
+
+let evidenceReport = null;
+if (completedResults.some((result) => result.uiSurface)) {
+  evidenceReport = await agent(uiEvidencePrompt(), {
+    model: "sonnet",
+    schema: EVIDENCE_REPORT,
+  });
+  runLog.push({ phase: "ui-evidence", model: "sonnet" });
+} else {
+  runLog.push({ phase: "ui-evidence:skipped", model: "none" });
+}
+
 // Epilogue: persist the run log to the PR body and save a durable retro
 // to .memory/ so the run survives after this session ends. Plain-code
 // formatting first (no agent needed to build a markdown table); a single
@@ -456,9 +581,33 @@ const taskOutcomes = results
     return "- " + id + ": pass -- commits: " + result.commits.join(", ");
   });
 
-const epilogueMarkdown = [runLogTable, "", "### Task outcomes", ...taskOutcomes].join(
-  "\n"
-);
+const docsOutcome = docsReport
+  ? "- docs-sync: publicBehaviorChanged=" +
+    docsReport.publicBehaviorChanged +
+    (docsReport.docsBranch ? " branch=" + docsReport.docsBranch : "") +
+    " -- " +
+    docsReport.summary
+  : "- docs-sync: skipped (plan.publicBehavior=\"no\")";
+
+const evidenceOutcome = evidenceReport
+  ? "- ui-evidence: evidenceCaptured=" +
+    evidenceReport.evidenceCaptured +
+    " artifacts=" +
+    evidenceReport.artifacts.length +
+    " -- " +
+    evidenceReport.summary
+  : "- ui-evidence: skipped (no uiSurface task)";
+
+const epilogueMarkdown = [
+  runLogTable,
+  "",
+  "### Task outcomes",
+  ...taskOutcomes,
+  "",
+  "### Docs-sync / UI-evidence outcomes",
+  docsOutcome,
+  evidenceOutcome,
+].join("\n");
 
 runLog.push({ phase: "epilogue", model: "haiku" });
 
@@ -474,7 +623,7 @@ const EPILOGUE_REPORT = {
 
 function epiloguePrompt(markdown) {
   return [
-    "You are closing out a shaft-bug-fix workflow run. Do exactly two",
+    "You are closing out a shaft-feature-dev workflow run. Do exactly two",
     "things.",
     "",
     "1. PR body: run `gh pr view --json number,body` for the CURRENT",
@@ -498,9 +647,10 @@ function epiloguePrompt(markdown) {
     "exists, reuse its id instead of creating a duplicate. Save a durable",
     "retro capturing: the issue/task ids involved, each task's outcome",
     "(rounds used, refuted?, bounced?, escalated?), which model ran each",
-    "phase, and one lesson learned if any task needed more than one QA",
-    "round. No diary entries, no duplicates. Set memorySaved=true only if",
-    "the write actually succeeded.",
+    "phase, the docs-sync and ui-evidence outcomes, and one lesson learned",
+    "if any task needed more than one QA round. No diary entries, no",
+    "duplicates. Set memorySaved=true only if the write actually",
+    "succeeded.",
     "",
     "Workflow run log markdown to use for the PR section:",
     "",
@@ -520,12 +670,21 @@ try {
   return {
     plan: plan.summary,
     results,
+    docs: docsReport,
+    evidence: evidenceReport,
     runLog,
     epilogue: { prUpdated: false, memorySaved: false, notes: String(error) },
     runLogMarkdown: epilogueMarkdown,
   };
 }
 
-const finalReturn = { plan: plan.summary, results, runLog, epilogue: epilogueReport };
+const finalReturn = {
+  plan: plan.summary,
+  results,
+  docs: docsReport,
+  evidence: evidenceReport,
+  runLog,
+  epilogue: epilogueReport,
+};
 if (!epilogueReport.prUpdated) finalReturn.runLogMarkdown = epilogueMarkdown;
 return finalReturn;

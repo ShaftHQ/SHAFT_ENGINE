@@ -20,5 +20,54 @@
     "mcp-server-dev@claude-plugins-official": true,
     "chrome-devtools-mcp@claude-plugins-official": true,
     "example-skills@anthropics/skills": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git log *)",
+      "Bash(git rev-parse *)",
+      "Bash(git worktree list)",
+      "Bash(rg *)",
+      "Bash(py -3 scripts/ci/validate_agent_setup.py)",
+      "Bash(python3 scripts/ci/validate_agent_setup.py)",
+      "Bash(py -3 scripts/ci/local_gate.py *)",
+      "Bash(python3 scripts/ci/local_gate.py *)",
+      "Bash(python3 .claude/hooks/guard.py *)",
+      "Bash(py -3 .claude/hooks/guard.py *)",
+      "Bash(python3 tools/repository-map/resolve_graph_out.py *)",
+      "Bash(memory load *)",
+      "Bash(memory search *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py", "--session-start"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

@@ -42,4 +42,13 @@ The default `.graphifyignore` keeps semantic document/media formats out of the g
 
 ## Git Hygiene
 
-`graphify-out/` is intentionally ignored. Do not commit generated graph reports, HTML, JSON, caches, or binary exports unless a maintainer explicitly asks for a reviewed snapshot.
+`graphify-out/` is intentionally ignored (`.gitignore`). Do not commit generated graph reports, HTML, JSON, caches, or binary exports unless a maintainer explicitly asks for a reviewed snapshot.
+
+## Shared cache across worktrees
+
+Because `graphify-out/` is gitignored, it never exists in a fresh `git worktree` clone. Rather than rebuilding per worktree, treat the **main checkout's** `graphify-out/` as one shared, read-only cache for all linked worktrees:
+
+- Resolve it from any worktree with `python3 tools/repository-map/resolve_graph_out.py` (prints the absolute path under the main checkout root, derived from `git rev-parse --git-common-dir`).
+- Check availability with `python3 tools/repository-map/resolve_graph_out.py --check`: exits `0` and prints the path if the cache exists and is non-empty, else exits `1` with a one-line fallback message on stderr.
+- Refresh the cache by rerunning `graphify .` from the **main checkout** (see Build above); worktree sessions only read it, they do not rebuild it.
+- The "mandatory entry point" rule is satisfied by running the `--check` resolve, not by building the graph. If the cache is absent, fall back to `rg` and `.memory` instead of blocking the session on a rebuild.
