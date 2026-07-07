@@ -30,6 +30,8 @@ class MobileApiCaptureControllerTest {
         assertTrue(started.active());
         assertTrue(started.proxyPort() > 0);
         assertTrue(started.caCertificatePem().contains("BEGIN CERTIFICATE"));
+        assertTrue(started.warnings().stream().anyMatch(warning -> warning.contains("adb reverse")),
+                "expected Android pairing guidance in warnings: " + started.warnings());
 
         Map<String, String> requestHeaders = new TreeMap<>();
         requestHeaders.put("Authorization", "Bearer super-secret-token");

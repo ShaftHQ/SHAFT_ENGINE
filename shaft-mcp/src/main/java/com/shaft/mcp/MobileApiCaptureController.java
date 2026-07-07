@@ -86,6 +86,7 @@ final class MobileApiCaptureController {
                     List.of(), List.of(), List.of(), null, Map.of()));
 
             proxy = new ApiCaptureProxyServer(certificateAuthority, 0, this::acceptTransaction, warnings::add);
+            warnings.addAll(MobilePairingGuidance.forPlatform(platform, proxy.port()));
             active = true;
         } catch (RuntimeException | java.io.IOException failure) {
             active = false;
