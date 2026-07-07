@@ -42,6 +42,8 @@ final class AssistantLocalAgentRunner {
     private static final int COMPACT_TIMEOUT_SECONDS = 30;
     private static final String CUSTOM_AGENT_APPROVAL_WARNING =
             "Custom Agent commands require Allow source edits because SHAFT cannot enforce read-only execution.";
+    private static final String BUFFERED_MODE_NOTICE =
+            "Live output is unavailable for this CLI; the full response will appear once it completes.";
     private static final Pattern MODEL_LINE_PATTERN = Pattern.compile("(claude-[a-z0-9.-]+|gpt-[a-z0-9.-]+|o[0-9][a-z0-9.-]*)",
             Pattern.CASE_INSENSITIVE);
 
@@ -69,11 +71,28 @@ final class AssistantLocalAgentRunner {
             AssistantCommand.Invocation invocation,
             Consumer<String> outputConsumer,
             ProcessLauncher processLauncher) {
+        return start(invocation, outputConsumer, processLauncher, true);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process for a default-command
+     * invocation (Claude/Codex/Copilot) whose real executable is not guaranteed to be installed on
+     * the test machine's PATH, bypassing the {@code isCommandAvailable} gate that protects the real
+     * CLI path in {@link #start(AssistantCommand.Invocation, Consumer, ProcessLauncher)}. Mirrors the
+     * existing bypass overloads for {@link #runCompactPreamble} and {@link #listModels(JsonObject,
+     * ProcessLauncher)}.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable) {
         JsonObject arguments = invocation.arguments();
         AtomicReference<Process> processReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
-        CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(
-                () -> run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher));
+        CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> run(
+                arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
+                requireCommandAvailable));
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(processReference, cancellationRequested, false),
@@ -171,6 +190,16 @@ final class AssistantLocalAgentRunner {
             AtomicBoolean cancellationRequested,
             Consumer<String> outputConsumer,
             ProcessLauncher processLauncher) {
+        return run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher, true);
+    }
+
+    private static ShaftMcpToolResult run(
+            JsonObject arguments,
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable) {
         List<String> command = commandFor(arguments);
         if (command.isEmpty()) {
             return ShaftMcpToolResult.failure("No local assistant command was configured.");
@@ -180,20 +209,24 @@ final class AssistantLocalAgentRunner {
                 && !allowSourceMutation(arguments)) {
             return ShaftMcpToolResult.failure(CUSTOM_AGENT_APPROVAL_WARNING);
         }
-        if (defaultCommand(arguments) && !isCommandAvailable(command.get(0))) {
+        if (requireCommandAvailable && defaultCommand(arguments) && !isCommandAvailable(command.get(0))) {
             return ShaftMcpToolResult.failure(displayName(string(arguments, "client", "CODEX"))
                     + " executable is not available on PATH.");
         }
         Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
         String stdin = string(arguments, "prompt", "");
         Path workingDirectory = workingDirectory(arguments);
+        boolean isDefaultCommand = defaultCommand(arguments);
+        StructuredStreamParser streamParser = isDefaultCommand ? structuredStreamParser(command) : null;
+        Consumer<String> effectiveConsumer =
+                effectiveConsumer(outputConsumer, streamParser, isDefaultCommand);
         try {
             Process process = processLauncher.launch(command, workingDirectory, environment(arguments));
             processReference.set(process);
             InputStream stdoutStream = process.getInputStream();
             InputStream stderrStream = process.getErrorStream();
-            CompletableFuture<String> stdout = readAsync(stdoutStream, outputConsumer);
-            CompletableFuture<String> stderr = readAsync(stderrStream, outputConsumer);
+            CompletableFuture<String> stdout = readAsync(stdoutStream, effectiveConsumer);
+            CompletableFuture<String> stderr = readAsync(stderrStream, effectiveConsumer);
             process.getOutputStream().write(stdin.getBytes(StandardCharsets.UTF_8));
             process.getOutputStream().close();
 
@@ -212,8 +245,13 @@ final class AssistantLocalAgentRunner {
                 stderrNow(stderr);
                 throw new CancellationException("Operation cancelled");
             }
-            String output = agentOutput(process.exitValue() == 0, stdoutNow(stdout), stderrNow(stderr), "");
-            return process.exitValue() == 0
+            boolean success = process.exitValue() == 0;
+            String rawStdout = stdoutNow(stdout);
+            String rawStderr = stderrNow(stderr);
+            String output = success && streamParser != null && streamParser.hasTerminalEvent()
+                    ? streamParser.finalOutput()
+                    : agentOutput(success, rawStdout, rawStderr, "");
+            return success
                     ? ShaftMcpToolResult.success(output)
                     : ShaftMcpToolResult.failure(output);
         } catch (InterruptedException exception) {
@@ -232,6 +270,216 @@ final class AssistantLocalAgentRunner {
         }
     }
 
+    /**
+     * Returns a stream-event parser when {@code command} is a structured-stream default command
+     * (Claude's {@code stream-json} output or Codex's experimental {@code --json} output), or
+     * {@code null} for buffered-output commands (Copilot, custom commands) so callers know to fall
+     * back to today's buffered {@link #agentOutput} handling untouched.
+     */
+    private static StructuredStreamParser structuredStreamParser(List<String> command) {
+        if (command.isEmpty()) {
+            return null;
+        }
+        String executable = command.get(0);
+        if ("claude".equals(executable) && command.contains("stream-json")) {
+            return new StructuredStreamParser(StructuredStreamParser.Format.CLAUDE);
+        }
+        if ("codex".equals(executable) && command.contains("--json")) {
+            return new StructuredStreamParser(StructuredStreamParser.Format.CODEX);
+        }
+        return null;
+    }
+
+    /**
+     * Wraps the caller's {@code outputConsumer} so that structured-stream default commands receive
+     * human-readable progress lines translated from NDJSON, while buffered-output <em>default</em>
+     * commands (Copilot, whose CLI has no known streaming flag) receive a single honest notice that
+     * live output is unavailable, followed by silence until the buffered response returns. Custom
+     * commands are never wrapped — SHAFT cannot know a hand-typed command's output shape, so its raw
+     * lines are forwarded unchanged exactly as before, the same pass-through behavior a slow custom
+     * CLI already relied on. A {@code null} caller consumer is left as {@code null} in every case
+     * since there is nothing to forward lines to.
+     */
+    private static Consumer<String> effectiveConsumer(
+            Consumer<String> outputConsumer, StructuredStreamParser streamParser, boolean isDefaultCommand) {
+        if (outputConsumer == null) {
+            return null;
+        }
+        if (streamParser != null) {
+            return line -> streamParser.accept(line, outputConsumer);
+        }
+        if (!isDefaultCommand) {
+            return outputConsumer;
+        }
+        AtomicBoolean notified = new AtomicBoolean();
+        return line -> {
+            if (notified.compareAndSet(false, true)) {
+                outputConsumer.accept(BUFFERED_MODE_NOTICE);
+            }
+        };
+    }
+
+    /**
+     * Translates a structured NDJSON stream (Claude {@code stream-json} or Codex experimental
+     * {@code --json} events) into human-readable progress lines delivered through the caller's
+     * {@code outputConsumer}, while separately capturing the terminal event's final answer text and
+     * usage object. Both CLIs' event schemas are experimental/subject to drift, so unrecognized event
+     * types, missing fields, and non-JSON lines are all skipped or passed through harmlessly rather
+     * than treated as parse failures — only a well-formed terminal event upgrades the result away
+     * from today's buffered {@link #agentOutput} fallback.
+     *
+     * <p>Not thread-safe: each invocation of {@link #run} creates its own instance, but stdout and
+     * stderr are each read on their own thread via {@link #readAsync}, so access to the mutable
+     * terminal-event fields is synchronized.
+     */
+    private static final class StructuredStreamParser {
+        enum Format { CLAUDE, CODEX }
+
+        private final Format format;
+        private String answer;
+        private Integer inputTokens;
+        private Integer outputTokens;
+
+        StructuredStreamParser(Format format) {
+            this.format = format;
+        }
+
+        synchronized void accept(String line, Consumer<String> outputConsumer) {
+            String trimmed = line == null ? "" : line.strip();
+            if (trimmed.isEmpty()) {
+                return;
+            }
+            JsonObject event = parseObject(trimmed);
+            if (event == null) {
+                // Non-JSON output (banners, warnings) is not part of the structured contract but is
+                // still useful progress information, so it passes through unchanged.
+                outputConsumer.accept(line);
+                return;
+            }
+            String humanReadableLine = format == Format.CLAUDE ? describeClaudeEvent(event) : describeCodexEvent(event);
+            if (humanReadableLine != null) {
+                outputConsumer.accept(humanReadableLine);
+            }
+        }
+
+        synchronized boolean hasTerminalEvent() {
+            return answer != null;
+        }
+
+        synchronized String finalOutput() {
+            JsonObject usage = new JsonObject();
+            usage.addProperty("input_tokens", orZero(inputTokens));
+            usage.addProperty("output_tokens", orZero(outputTokens));
+            JsonObject usageHolder = new JsonObject();
+            usageHolder.add("usage", usage);
+            return answer.strip() + "\n\n" + usageHolder;
+        }
+
+        private String describeClaudeEvent(JsonObject event) {
+            String type = stringField(event, "type");
+            if ("assistant".equals(type)) {
+                JsonObject message = objectField(event, "message");
+                JsonElement content = message == null ? null : message.get("content");
+                if (content != null && content.isJsonArray()) {
+                    for (JsonElement blockElement : content.getAsJsonArray()) {
+                        if (!blockElement.isJsonObject()) {
+                            continue;
+                        }
+                        JsonObject block = blockElement.getAsJsonObject();
+                        String blockType = stringField(block, "type");
+                        if ("tool_use".equals(blockType)) {
+                            String toolName = stringField(block, "name");
+                            return "Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...";
+                        }
+                        if ("text".equals(blockType)) {
+                            String text = stringField(block, "text");
+                            if (text != null && !text.isBlank()) {
+                                return text;
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+            if ("result".equals(type)) {
+                String resultText = stringField(event, "result");
+                answer = resultText == null ? "" : resultText;
+                JsonObject usage = objectField(event, "usage");
+                inputTokens = intField(usage, "input_tokens");
+                outputTokens = intField(usage, "output_tokens");
+                return null;
+            }
+            return null;
+        }
+
+        private String describeCodexEvent(JsonObject event) {
+            String type = stringField(event, "type");
+            if ("item.completed".equals(type) || "item.updated".equals(type)) {
+                JsonObject item = objectField(event, "item");
+                String itemType = stringField(item, "type");
+                if ("tool_call".equals(itemType) || "command_execution".equals(itemType) || "mcp_tool_call".equals(itemType)) {
+                    String toolName = firstNonBlank(stringField(item, "name"), stringField(item, "tool"), stringField(item, "command"));
+                    return "Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...";
+                }
+                if ("agent_message".equals(itemType)) {
+                    String text = stringField(item, "text");
+                    if (text != null && !text.isBlank()) {
+                        return text;
+                    }
+                }
+                return null;
+            }
+            if ("turn.completed".equals(type) || "turn.failed".equals(type)) {
+                JsonObject usage = objectField(event, "usage");
+                inputTokens = firstNonNull(intField(usage, "input_tokens"), inputTokens);
+                outputTokens = firstNonNull(intField(usage, "output_tokens"), outputTokens);
+                if ("turn.completed".equals(type)) {
+                    String lastAgentMessage = stringField(event, "last_agent_message");
+                    answer = lastAgentMessage != null ? lastAgentMessage : (answer == null ? "" : answer);
+                }
+                return null;
+            }
+            return null;
+        }
+
+        private static String firstNonBlank(String... candidates) {
+            for (String candidate : candidates) {
+                if (candidate != null && !candidate.isBlank()) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        private static Integer firstNonNull(Integer preferred, Integer fallback) {
+            return preferred != null ? preferred : fallback;
+        }
+
+        private static JsonObject parseObject(String candidate) {
+            if (!candidate.startsWith("{")) {
+                return null;
+            }
+            try {
+                JsonElement parsed = JsonParser.parseString(candidate);
+                return parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+            } catch (JsonParseException exception) {
+                return null;
+            }
+        }
+
+        private static String stringField(JsonObject object, String key) {
+            JsonElement value = object == null ? null : object.get(key);
+            return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()
+                    ? value.getAsString()
+                    : null;
+        }
+
+        private static JsonObject objectField(JsonObject object, String key) {
+            JsonElement value = object == null ? null : object.get(key);
+            return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
+        }
+    }
+
     private static void cancel(
             AtomicReference<Process> processReference,
             AtomicBoolean cancellationRequested,
@@ -247,6 +495,14 @@ final class AssistantLocalAgentRunner {
         }
     }
 
+    /**
+     * {@code --json} is an experimental Codex CLI flag (documented alongside its
+     * {@code --experimental-json} alias) that switches {@code codex exec} to emit newline-delimited
+     * JSON events (thread/turn/item lifecycle plus a final {@code turn.completed} usage summary)
+     * instead of a single buffered blob. Because it is experimental, its event schema is subject to
+     * drift between Codex CLI releases, so the NDJSON parser in {@link #run} is deliberately
+     * tolerant: unrecognized event types or fields are skipped rather than treated as errors.
+     */
     private static List<String> codexCommand(String mode, boolean allowSourceMutation) {
         return switch (mode) {
             case "AGENT" -> List.of(
@@ -254,16 +510,24 @@ final class AssistantLocalAgentRunner {
                     "--sandbox", allowSourceMutation ? "workspace-write" : "read-only",
                     "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
                     "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                    "--json",
                     "-");
-            default -> List.of("codex", "exec", "--sandbox", "read-only", "-");
+            default -> List.of("codex", "exec", "--sandbox", "read-only", "--json", "-");
         };
     }
 
+    /**
+     * {@code --output-format stream-json} requires {@code --verbose} whenever it is paired with
+     * {@code --print} (the CLI rejects the combination otherwise), so every mode below carries both
+     * flags together to receive incremental NDJSON events instead of a single buffered blob.
+     */
     private static List<String> claudeCommand(String mode, boolean allowSourceMutation) {
         return switch (mode) {
-            case "PLAN" -> List.of("claude", "--print", "--permission-mode", "plan");
-            case "AGENT" -> List.of("claude", "--print", "--permission-mode", allowSourceMutation ? "acceptEdits" : "plan");
-            default -> List.of("claude", "--print");
+            case "PLAN" -> List.of("claude", "--print", "--permission-mode", "plan",
+                    "--output-format", "stream-json", "--verbose");
+            case "AGENT" -> List.of("claude", "--print", "--permission-mode", allowSourceMutation ? "acceptEdits" : "plan",
+                    "--output-format", "stream-json", "--verbose");
+            default -> List.of("claude", "--print", "--output-format", "stream-json", "--verbose");
         };
     }
 
@@ -483,21 +747,63 @@ final class AssistantLocalAgentRunner {
     }
 
     /**
-     * Parses token usage from an agent's raw output. Looks for a JSON object anywhere in the text
-     * containing a {@code usage} field with {@code input_tokens}/{@code output_tokens} (the Claude
-     * CLI {@code --output-format json} shape), falling back to top-level
-     * {@code input_tokens}/{@code output_tokens} fields. Returns {@code null} when no structured
-     * usage metadata is present, so callers can fall back to an estimate and label it accordingly.
+     * Parses token usage from an agent's raw output. First tries the output as NDJSON: each line is
+     * parsed independently as a JSON object carrying (or holding a nested {@code usage} object with)
+     * {@code input_tokens}/{@code output_tokens}, and the <em>last</em> line that yields usage fields
+     * wins — matching a structured-stream terminal event that may be followed by later
+     * housekeeping/log lines. When no line parses to usage, falls back to the original
+     * first-brace/last-brace whole-text extraction (the Claude CLI {@code --output-format json}
+     * shape). Returns {@code null} when no structured usage metadata is present in either form, so
+     * callers can fall back to an estimate and label it accordingly.
      */
     static TokenUsage parseTokenUsage(String output) {
         String trimmed = output == null ? "" : output.strip();
         if (trimmed.isBlank()) {
             return null;
         }
+        TokenUsage fromLines = parseTokenUsageFromLines(trimmed);
+        if (fromLines != null) {
+            return fromLines;
+        }
         JsonObject usageHolder = extractJsonObject(trimmed);
         if (usageHolder == null) {
             return null;
         }
+        return usageFromHolder(usageHolder);
+    }
+
+    /**
+     * Scans {@code text} line by line, parsing each non-blank line as a standalone JSON object and
+     * keeping the usage parsed from the last line that has one. Lines that are not valid JSON (plain
+     * prose, partial output) are skipped rather than treated as errors, since NDJSON output is
+     * expected to interleave structured events with the occasional non-JSON banner line.
+     */
+    private static TokenUsage parseTokenUsageFromLines(String text) {
+        TokenUsage lastMatch = null;
+        for (String line : text.split("\\r?\\n")) {
+            String candidate = line.strip();
+            if (candidate.length() < 2 || !candidate.startsWith("{") || !candidate.endsWith("}")) {
+                continue;
+            }
+            JsonObject parsed;
+            try {
+                JsonElement element = JsonParser.parseString(candidate);
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                parsed = element.getAsJsonObject();
+            } catch (JsonParseException exception) {
+                continue;
+            }
+            TokenUsage usage = usageFromHolder(parsed);
+            if (usage != null) {
+                lastMatch = usage;
+            }
+        }
+        return lastMatch;
+    }
+
+    private static TokenUsage usageFromHolder(JsonObject usageHolder) {
         JsonObject usage = resolveUsageObject(usageHolder);
         Integer inputTokens = intField(usage, "input_tokens");
         Integer outputTokens = intField(usage, "output_tokens");
@@ -505,6 +811,45 @@ final class AssistantLocalAgentRunner {
             return null;
         }
         return TokenUsage.reported(orZero(inputTokens), orZero(outputTokens));
+    }
+
+    /**
+     * Returns {@code output} with its trailing usage-metadata JSON line removed, leaving only the
+     * human-facing answer text. This is the display-side counterpart to {@link #parseTokenUsage}:
+     * both inspect the same trailing line, so a change to one's line-detection rules must be mirrored
+     * in the other. When the last non-blank line is not a parseable usage object, {@code output} is
+     * returned unchanged (stripped of surrounding whitespace) so plain prose responses are never
+     * altered.
+     */
+    static String stripTrailingUsageMetadata(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return trimmed;
+        }
+        String[] lines = trimmed.split("\\r?\\n");
+        int lastLineIndex = lines.length - 1;
+        String lastLine = lines[lastLineIndex].strip();
+        if (lastLine.length() < 2 || !lastLine.startsWith("{") || !lastLine.endsWith("}")) {
+            return trimmed;
+        }
+        JsonObject parsed;
+        try {
+            JsonElement element = JsonParser.parseString(lastLine);
+            if (!element.isJsonObject()) {
+                return trimmed;
+            }
+            parsed = element.getAsJsonObject();
+        } catch (JsonParseException exception) {
+            return trimmed;
+        }
+        if (usageFromHolder(parsed) == null) {
+            return trimmed;
+        }
+        StringBuilder remainder = new StringBuilder();
+        for (int index = 0; index < lastLineIndex; index++) {
+            remainder.append(lines[index]).append('\n');
+        }
+        return remainder.toString().strip();
     }
 
     private static JsonObject resolveUsageObject(JsonObject usageHolder) {
