@@ -15,6 +15,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.IInvokedMethod;
+import org.testng.IMethodInstance;
 import org.testng.ITestContext;
 import org.testng.ITestClass;
 import org.testng.ITestNGMethod;
@@ -38,6 +39,63 @@ public class TestNGListenerCoverageUnitTest {
         setReportPortalEnabled(false);
         TestNGListenerHelper.setPendingConfigFailure(null);
         com.shaft.properties.internal.Properties.clearForCurrentThread();
+        System.clearProperty("shaft.shard");
+    }
+
+    @Test
+    public void interceptWithoutShardPropertyReturnsMethodsUnchanged() {
+        TestNGListener listener = new TestNGListener();
+        List<IMethodInstance> methods = List.of(
+                methodInstance("testPackage.unitTests.TestNGListenerCoverageUnitTest", "alpha", true),
+                methodInstance("testPackage.unitTests.TestNGListenerCoverageUnitTest", "beta", true));
+
+        List<IMethodInstance> result = listener.intercept(methods, Mockito.mock(ITestContext.class));
+
+        assertEquals(result.size(), 2);
+    }
+
+    @Test
+    public void interceptFiltersOutMethodsNotInTheRequestedShard() {
+        System.setProperty("shaft.shard", "1/2");
+        TestNGListener listener = new TestNGListener();
+        List<IMethodInstance> methods = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            methods.add(methodInstance("testPackage.unitTests.TestNGListenerCoverageUnitTest", "test" + i, true));
+        }
+
+        List<IMethodInstance> shardOne = listener.intercept(new ArrayList<>(methods), Mockito.mock(ITestContext.class));
+        System.setProperty("shaft.shard", "2/2");
+        List<IMethodInstance> shardTwo = listener.intercept(new ArrayList<>(methods), Mockito.mock(ITestContext.class));
+
+        Assert.assertTrue(shardOne.size() < methods.size(), "Shard 1/2 should drop some methods");
+        Assert.assertTrue(shardTwo.size() < methods.size(), "Shard 2/2 should drop some methods");
+        assertEquals(shardOne.size() + shardTwo.size(), methods.size(),
+                "The union of both shards must equal the full method list with no overlap");
+    }
+
+    @Test
+    public void interceptNeverFiltersOutConfigurationMethods() {
+        System.setProperty("shaft.shard", "1/4");
+        TestNGListener listener = new TestNGListener();
+        List<IMethodInstance> methods = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            methods.add(methodInstance("testPackage.unitTests.TestNGListenerCoverageUnitTest", "config" + i, false));
+        }
+
+        List<IMethodInstance> result = listener.intercept(methods, Mockito.mock(ITestContext.class));
+
+        assertEquals(result.size(), 10, "Non-test (configuration) methods must never be shard-filtered.");
+    }
+
+    private static IMethodInstance methodInstance(String className, String methodName, boolean isTest) {
+        IMethodInstance instance = Mockito.mock(IMethodInstance.class);
+        ITestNGMethod method = createTestMethod(methodName);
+        ITestClass testClass = Mockito.mock(ITestClass.class);
+        Mockito.when(testClass.getName()).thenReturn(className);
+        Mockito.when(method.getTestClass()).thenReturn(testClass);
+        Mockito.when(method.isTest()).thenReturn(isTest);
+        Mockito.when(instance.getMethod()).thenReturn(method);
+        return instance;
     }
 
     @Test
