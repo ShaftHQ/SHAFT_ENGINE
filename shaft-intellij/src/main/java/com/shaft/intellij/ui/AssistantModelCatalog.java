@@ -31,7 +31,7 @@ final class AssistantModelCatalog {
             case "openai" -> List.of("gpt-5.2", "gpt-5.2-codex", "gpt-5.1", "gpt-5.1-mini");
             case "anthropic" -> CLAUDE_MODELS;
             case "github" -> List.of("openai/gpt-4.1", "openai/gpt-4.1-mini", "openai/gpt-4o");
-            default -> List.of("gemini-3.5-flash", "gemini-3.5-pro", "gemini-3-flash", "gemini-3-pro");
+            default -> List.of("gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-flash-latest");
         };
     }
 

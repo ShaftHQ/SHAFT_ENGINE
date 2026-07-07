@@ -35,6 +35,9 @@ class AssistantGeminiLiveE2ETest {
         String commandLine = System.getProperty("shaft.intellij.liveMcpCommand", "").trim();
         Assumptions.assumeTrue(!commandLine.isBlank(),
                 "Set -Dshaft.intellij.liveMcpCommand to a SHAFT MCP stdio command.");
+        // The default flash model is periodically load-shed by Google with 503 "high demand"
+        // responses; override the model when live verification needs a less contended one.
+        String model = System.getProperty("shaft.intellij.liveGeminiModel", "gemini-3.5-flash").trim();
 
         Path workspace = Path.of(System.getProperty("shaft.intellij.workspaceRoot", ".."))
                 .toAbsolutePath()
@@ -42,7 +45,7 @@ class AssistantGeminiLiveE2ETest {
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
         settings.assistantProviderType = "CLOUD";
         settings.cloudProvider = "gemini";
-        settings.cloudModel = "gemini-3.5-flash";
+        settings.cloudModel = model;
         settings.passProviderApiKeysToMcp = false;
         Map<String, String> environment = new HashMap<>(mcpEnvironment(settings));
         environment.put("GEMINI_API_KEY", apiKey);
@@ -50,7 +53,7 @@ class AssistantGeminiLiveE2ETest {
 
         String options = environment.getOrDefault("JAVA_TOOL_OPTIONS", "");
         assertTrue(options.contains("-Dpilot.ai.provider=gemini"));
-        assertTrue(options.contains("-Dpilot.ai.gemini.model=gemini-3.5-flash"));
+        assertTrue(options.contains("-Dpilot.ai.gemini.model=" + model));
 
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 """
@@ -89,18 +92,29 @@ class AssistantGeminiLiveE2ETest {
             return;
         }
         String answer = response.get("answer").getAsString();
-        String lowerAnswer = answer.toLowerCase(Locale.ROOT);
+        // The provider may legitimately return the Java source inline in the answer or as
+        // structured codeBlocks with only a summary answer; verify the combined generation.
+        StringBuilder generatedBuilder = new StringBuilder(answer);
+        if (response.get("codeBlocks") != null && response.get("codeBlocks").isJsonArray()) {
+            for (JsonElement block : response.getAsJsonArray("codeBlocks")) {
+                if (block.isJsonObject() && block.getAsJsonObject().has("code")) {
+                    generatedBuilder.append('\n').append(block.getAsJsonObject().get("code").getAsString());
+                }
+            }
+        }
+        String generated = generatedBuilder.toString();
+        String lowerGenerated = generated.toLowerCase(Locale.ROOT);
         String markdown = AssistantMarkdown.fromMcpOutput(invocation.toolName(), result.toString());
 
         assertEquals("SUCCESS", response.get("status").getAsString(), response.toString());
         assertEquals("gemini", response.get("provider").getAsString());
-        assertEquals("gemini-3.5-flash", response.get("model").getAsString());
+        assertTrue(response.get("model").getAsString().startsWith(model), response.get("model").getAsString());
         assertEquals("ASK", response.get("mode").getAsString());
-        assertTrue(answer.contains("DuckDuckGoSearchTest"), answer);
-        assertTrue(answer.contains("SHAFT"), answer);
-        assertTrue(answer.contains("@Test"), answer);
-        assertTrue(lowerAnswer.contains("duckduckgo.com"), answer);
-        assertTrue(lowerAnswer.contains("search"), answer);
+        assertTrue(generated.contains("DuckDuckGoSearchTest"), generated);
+        assertTrue(generated.contains("SHAFT"), generated);
+        assertTrue(generated.contains("@Test"), generated);
+        assertTrue(lowerGenerated.contains("duckduckgo.com"), generated);
+        assertTrue(lowerGenerated.contains("search"), generated);
         assertFalse(AssistantMarkdown.containsRejectedGeneratedJava(markdown), markdown);
     }
 
