@@ -10,7 +10,7 @@ Bridge: `framework-source-rules` main Java; `java-test-rules` tests; `ci-failure
 
 ## New Task Flow
 
-For edits: preserve work; fetch/prune; branch fresh `codex/*` from `origin/main`; before PR sync default, resolve conflicts, rerun checks; commit, push, open ready PR. Draft only if blocked/incomplete/requested.
+For edits: preserve work; at session start fetch/prune, branch/worktree fresh `codex/*` from `origin/main`; reuse for the whole session -- sub-tasks are commits, not new branches. Workflow-internal worktrees fold into the session branch before PR. Before PR sync default, resolve conflicts, rerun checks; commit, push, open one ready PR for the session. Draft only if blocked/incomplete/requested.
 
 ## Working Rules
 
