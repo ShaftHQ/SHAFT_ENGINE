@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Deterministic PreToolUse / SessionStart guardrail hook for SHAFT_ENGINE.
+"""
+Deterministic PreToolUse / SessionStart guardrail hook for SHAFT_ENGINE.
 
 Enforces (via code, not prose) the four hard safety rules from AGENTS.md /
 .memory gotchas that previously only existed as instructions an agent could
@@ -207,14 +208,14 @@ def _segments(command: str) -> list[str]:
 
 
 def _segment_starts_with_start(segment: str) -> bool:
-    """True if `start` is the first word of this command segment.
+    """
+    True if `start` is the first word of this command segment.
 
     Deliberately excludes lookalikes: "--start-maximized", "restart",
     "capture_start" are NOT matches because they either are not the first
     token or `start` is not a standalone word there.
     """
     stripped = segment.strip()
-    match = re.match(r"^(py\s+-3\s+|python3?\s+|&\s*)?", stripped, re.IGNORECASE)
     # Only strip a leading PowerShell call operator "&" followed by whitespace;
     # do not attempt to skip past other prefixes -- we want `start` to be the
     # literal first word of the segment.

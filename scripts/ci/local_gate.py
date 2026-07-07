@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Local mirror of the checks that actually gate a merge in this repo.
+"""
+Local mirror of the checks that actually gate a merge in this repo.
 
 Issue #3302's retrospective found that PRs were passing local, ad-hoc QA
 and then breaking post-merge on exactly three CI gates. There is NO
@@ -68,7 +69,10 @@ from __future__ import annotations
 
 import argparse
 import shutil
-import subprocess
+# All subprocess use in this script is list-args (never shell=True) with
+# executables resolved to absolute paths via shutil.which and arguments
+# built from validated internal values only.
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -92,8 +96,13 @@ def discover_module_dirs(root: Path) -> list[str]:
 
 def run_git(args: list[str], root: Path) -> str:
     """Run one git command and return stripped stdout, raising on failure."""
-    completed = subprocess.run(
-        ["git", *args],
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        raise RuntimeError("git is not on PATH")
+    # List-args with an absolute executable and internally-built arguments;
+    # nothing here is attacker-controlled input.
+    completed = subprocess.run(  # nosec B603
+        [git_executable, *args],
         cwd=root,
         capture_output=True,
         text=True,
@@ -107,7 +116,8 @@ def run_git(args: list[str], root: Path) -> str:
 
 
 def changed_paths(root: Path) -> list[str]:
-    """Return paths changed on this branch relative to origin/main.
+    """
+    Return paths changed on this branch relative to origin/main.
 
     Prefers a three-dot diff against the merge base
     (``origin/main...HEAD``); falls back to a plain two-dot diff against
@@ -131,7 +141,8 @@ def changed_paths(root: Path) -> list[str]:
 
 
 def map_paths_to_modules(paths: list[str], module_dirs: list[str]) -> tuple[set[str], bool]:
-    """Map changed paths to top-level module directories.
+    """
+    Map changed paths to top-level module directories.
 
     Returns (matched_modules, has_root_scope_change) where
     has_root_scope_change is True if any changed path falls outside every
@@ -256,7 +267,9 @@ def main() -> int:
 
     print(f"local_gate: running {format_command_for_display(command)}")
     try:
-        completed = subprocess.run(
+        # List-args, absolute mvn path from shutil.which, no shell; the only
+        # variable inputs are local module directory names.
+        completed = subprocess.run(  # nosec B603
             command,
             cwd=root,
             capture_output=True,
