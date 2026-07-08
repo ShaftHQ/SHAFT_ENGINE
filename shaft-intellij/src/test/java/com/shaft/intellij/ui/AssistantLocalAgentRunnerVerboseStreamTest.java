@@ -13,63 +13,71 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pins what the "Verbose" local-agent toggle is allowed to surface to the chat transcript: SHAFT's
- * own translated progress ("Calling tool X...", the final answer text) — never a wrapped CLI's raw
- * non-JSON stdout or internal chain-of-thought (Claude {@code thinking} blocks, Codex
- * {@code reasoning} items). Without this, live streaming could leak whatever the wrapped CLI happens
- * to print, straight into the user-facing chat.
+ * Pins what the "Verbose" local-agent toggle surfaces to the chat transcript: the toggle exists so
+ * the user can watch what the wrapped CLI is actually doing, so its live stream is deliberately
+ * generous rather than sparse — raw non-JSON stdout still passes through, and Claude's
+ * {@code thinking} blocks / Codex's {@code reasoning} items are shown with a clear label instead of
+ * hidden, alongside tool-call notices and assistant text.
  */
 class AssistantLocalAgentRunnerVerboseStreamTest {
     @Test
-    void nonJsonStdoutLinesAreNeverForwardedToTheLiveOutputConsumer() throws Exception {
+    void nonJsonStdoutLinesAreForwardedToTheLiveOutputConsumer() throws Exception {
         List<String> lines = run(claudeInvocation(),
                 "2026-07-08 INFO some internal CLI banner\n"
                         + claudeAssistantTextEvent("hello") + "\n"
                         + claudeResultEvent("hello") + "\n");
 
-        assertFalse(lines.stream().anyMatch(line -> line.contains("internal CLI banner")),
-                "Raw non-JSON stdout must never reach the chat transcript: " + lines);
+        assertTrue(lines.stream().anyMatch(line -> line.contains("internal CLI banner")),
+                "Non-JSON stdout (banners, warnings) is useful live progress and must reach the chat: " + lines);
         assertTrue(lines.contains("hello"));
     }
 
     @Test
-    void claudeThinkingBlocksAreNeverForwardedEvenWhenAloneInAnEvent() throws Exception {
+    void claudeThinkingBlocksAreShownWithALabelEvenWhenAloneInAnEvent() throws Exception {
         String thinkingOnlyEvent = "{\"type\":\"assistant\",\"message\":{\"content\":"
-                + "[{\"type\":\"thinking\",\"thinking\":\"secret reasoning about the user's code\"}]}}";
+                + "[{\"type\":\"thinking\",\"thinking\":\"reasoning about the user's code\"}]}}";
 
         List<String> lines = run(claudeInvocation(), thinkingOnlyEvent + "\n" + claudeResultEvent("done") + "\n");
 
-        assertFalse(lines.stream().anyMatch(line -> line.contains("secret reasoning")),
-                "Claude's extended-thinking content must never reach the chat transcript: " + lines);
+        assertTrue(lines.contains("Thinking: reasoning about the user's code"),
+                "Claude's extended-thinking content should be surfaced with a label: " + lines);
     }
 
     @Test
-    void claudeThinkingBlockMixedWithTextOnlyShowsTheText() throws Exception {
+    void claudeThinkingBlockMixedWithTextShowsBothOnSeparateLines() throws Exception {
         String mixedEvent = "{\"type\":\"assistant\",\"message\":{\"content\":["
-                + "{\"type\":\"thinking\",\"thinking\":\"secret reasoning\"},"
+                + "{\"type\":\"thinking\",\"thinking\":\"weighing two approaches\"},"
                 + "{\"type\":\"text\",\"text\":\"visible answer\"}]}}";
 
         List<String> lines = run(claudeInvocation(), mixedEvent + "\n" + claudeResultEvent("visible answer") + "\n");
 
-        assertFalse(lines.stream().anyMatch(line -> line.contains("secret reasoning")), lines.toString());
-        assertTrue(lines.contains("visible answer"));
+        assertTrue(lines.contains("Thinking: weighing two approaches\nvisible answer"), lines.toString());
     }
 
     @Test
-    void codexReasoningItemsAreNeverForwardedButToolCallsStillAre() throws Exception {
+    void redactedThinkingBlocksShowANoteInsteadOfBeingDropped() throws Exception {
+        String redactedEvent = "{\"type\":\"assistant\",\"message\":{\"content\":"
+                + "[{\"type\":\"redacted_thinking\",\"data\":\"opaque\"}]}}";
+
+        List<String> lines = run(claudeInvocation(), redactedEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Thinking: (redacted by Claude for safety)"), lines.toString());
+    }
+
+    @Test
+    void codexReasoningItemsAreShownWithALabelAlongsideToolCalls() throws Exception {
         String reasoningEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"reasoning\","
-                + "\"text\":\"secret codex reasoning\"}}";
+                + "\"text\":\"deciding which file to inspect\"}}";
         String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"tool_call\",\"name\":\"shell\"}}";
         String turnCompleted = "{\"type\":\"turn.completed\",\"last_agent_message\":\"ok\","
                 + "\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}";
 
         List<String> lines = run(codexInvocation(), reasoningEvent + "\n" + toolEvent + "\n" + turnCompleted + "\n");
 
-        assertFalse(lines.stream().anyMatch(line -> line.contains("secret codex reasoning")), lines.toString());
+        assertTrue(lines.contains("Reasoning: deciding which file to inspect"), lines.toString());
         assertTrue(lines.stream().anyMatch(line -> line.contains("Calling tool shell")), lines.toString());
     }
 

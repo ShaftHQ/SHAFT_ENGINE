@@ -435,10 +435,10 @@ final class AssistantLocalAgentRunner {
      * usage object. Both CLIs' event schemas are experimental/subject to drift, so unrecognized event
      * types and missing fields are skipped rather than treated as parse failures — only a
      * well-formed terminal event upgrades the result away from today's buffered {@link #agentOutput}
-     * fallback. Lines that are not valid JSON, and recognized-but-internal content such as Claude's
-     * {@code thinking} blocks or Codex's {@code reasoning} items, are deliberately dropped rather than
-     * shown: the Verbose toggle promises the SHAFT Assistant's own live progress, not a raw, untranslated
-     * dump of the wrapped CLI's internal chain-of-thought or process banners.
+     * fallback. The Verbose toggle exists precisely so the user can watch what the wrapped CLI is
+     * doing, so this is deliberately generous rather than sparse: non-JSON output (banners, warnings)
+     * passes straight through, and internal chain-of-thought (Claude's {@code thinking} blocks,
+     * Codex's {@code reasoning} items) is surfaced with a clear label instead of hidden.
      *
      * <p>Not thread-safe: each invocation of {@link #run} creates its own instance, but stdout and
      * stderr are each read on their own thread via {@link #readAsync}, so access to the mutable
@@ -479,10 +479,9 @@ final class AssistantLocalAgentRunner {
             }
             JsonObject event = parseObject(trimmed);
             if (event == null) {
-                // Non-JSON output (banners, warnings, partial internal logging) is not part of the
-                // documented event contract, so it is dropped rather than shown: forwarding it verbatim
-                // would risk leaking whatever the wrapped CLI happens to print to stdout outside its
-                // structured stream, straight into the user-facing chat transcript.
+                // Non-JSON output (banners, warnings) is not part of the structured contract but is
+                // still useful progress information, so it passes through unchanged.
+                outputConsumer.accept(line);
                 return;
             }
             if (format == Format.CLAUDE && approvalHandler != null && isApprovalRequestEvent(event)) {
@@ -597,34 +596,43 @@ final class AssistantLocalAgentRunner {
             return answer.strip() + "\n\n" + usageHolder;
         }
 
+        /**
+         * Describes an "assistant" event as one or more human-readable lines (joined with newlines),
+         * covering every recognized block in the message rather than stopping at the first match: an
+         * extended-thinking block followed by a tool call and some text all become separate lines, so
+         * Verbose mode shows the CLI's full train of thought instead of only a fragment of it.
+         */
         private String describeClaudeEvent(JsonObject event) {
             String type = stringField(event, "type");
             if ("assistant".equals(type)) {
                 JsonObject message = objectField(event, "message");
                 JsonElement content = message == null ? null : message.get("content");
                 if (content != null && content.isJsonArray()) {
+                    List<String> lines = new ArrayList<>();
                     for (JsonElement blockElement : content.getAsJsonArray()) {
                         if (!blockElement.isJsonObject()) {
                             continue;
                         }
                         JsonObject block = blockElement.getAsJsonObject();
                         String blockType = stringField(block, "type");
-                        if ("thinking".equals(blockType) || "redacted_thinking".equals(blockType)) {
-                            // Extended-thinking content is Claude's internal chain-of-thought, never a
-                            // user-facing message; skip it and keep scanning this event's other blocks.
-                            continue;
-                        }
-                        if ("tool_use".equals(blockType)) {
+                        if ("thinking".equals(blockType)) {
+                            String thinking = stringField(block, "thinking");
+                            if (thinking != null && !thinking.isBlank()) {
+                                lines.add("Thinking: " + thinking);
+                            }
+                        } else if ("redacted_thinking".equals(blockType)) {
+                            lines.add("Thinking: (redacted by Claude for safety)");
+                        } else if ("tool_use".equals(blockType)) {
                             String toolName = stringField(block, "name");
-                            return "Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...";
-                        }
-                        if ("text".equals(blockType)) {
+                            lines.add("Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...");
+                        } else if ("text".equals(blockType)) {
                             String text = stringField(block, "text");
                             if (text != null && !text.isBlank()) {
-                                return text;
+                                lines.add(text);
                             }
                         }
                     }
+                    return lines.isEmpty() ? null : String.join("\n", lines);
                 }
                 return null;
             }
@@ -645,9 +653,8 @@ final class AssistantLocalAgentRunner {
                 JsonObject item = objectField(event, "item");
                 String itemType = stringField(item, "type");
                 if ("reasoning".equals(itemType)) {
-                    // Codex's chain-of-thought reasoning summaries are internal, never a user-facing
-                    // message.
-                    return null;
+                    String reasoning = firstNonBlank(stringField(item, "text"), stringField(item, "summary"));
+                    return reasoning == null ? null : "Reasoning: " + reasoning;
                 }
                 if ("tool_call".equals(itemType) || "command_execution".equals(itemType) || "mcp_tool_call".equals(itemType)) {
                     String toolName = firstNonBlank(stringField(item, "name"), stringField(item, "tool"), stringField(item, "command"));
