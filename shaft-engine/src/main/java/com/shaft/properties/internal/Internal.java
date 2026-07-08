@@ -18,7 +18,7 @@ import org.aeonbits.owner.Config.Sources;
 })
 public interface Internal extends EngineProperties<Internal> {
     @Key("shaftEngineVersion")
-    @DefaultValue("10.3.20260707")
+    @DefaultValue("10.3.20260708")
     String shaftEngineVersion();
 
     @Key("watermarkImagePath")
@@ -74,7 +74,7 @@ public interface Internal extends EngineProperties<Internal> {
      * and recording flows on macOS.
      */
     @Key("appiumXcuitestDriverVersion")
-    @DefaultValue("11.17.1")
+    @DefaultValue("11.17.2")
     String appiumXcuitestDriverVersion();
 
     /**
