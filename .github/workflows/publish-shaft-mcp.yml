@@ -1,10 +1,8 @@
 name: Publish shaft-mcp Distributions
 
 on:
-  workflow_run:
-    workflows: ["Maven Central Continuous Delivery"]
-    types: [completed]
-    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -14,13 +12,17 @@ permissions:
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Runs only for an actual published SHAFT release (created by mavenCentral_cd.yml's
+    # announce_release job), not merely because that workflow's run concluded successfully -
+    # its build_release_and_deliver job now also concludes successfully when it skips a
+    # no-op delivery for an already-published version, which must not re-publish here.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout released source
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
