@@ -2,10 +2,9 @@ name: Deploy shaft-mcp
 
 on:
   workflow_run:
-    # No branches filter: the upstream workflow now runs from `release: published`
-    # events (a release tag, not main), so head_branch here is the tag name.
     workflows: ["Publish shaft-mcp Distributions"]
     types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
