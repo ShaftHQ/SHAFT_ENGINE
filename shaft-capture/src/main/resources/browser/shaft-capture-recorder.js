@@ -1034,7 +1034,10 @@
         right: 16px;
         bottom: 16px;
         width: min(380px, calc(100vw - 32px));
-        max-height: min(520px, calc(100vh - 32px));
+        /* Fixed height (not max-height): the panel is bottom-anchored, so a shrink-to-fit
+           height lets every appended action row push the header/toolbar buttons upward on
+           screen, which can make a click land on stale coordinates right as a row appears. */
+        height: min(520px, calc(100vh - 32px));
         z-index: 2147483647;
         display: flex;
         flex-direction: column;
@@ -1124,6 +1127,8 @@
         background: rgba(197, 48, 48, .12);
       }
       #shaft-capture-actions {
+        flex: 1 1 auto;
+        min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
         padding: 8px 10px 10px;
