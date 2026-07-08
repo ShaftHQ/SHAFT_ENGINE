@@ -41,7 +41,8 @@ final class EvidenceTriagePanel extends JPanel {
                 ? "."
                 : project.getBasePath();
         allurePath = field("Allure results path", "allure-results");
-        tracePath = field("SHAFT trace path", "target/shaft-traces/latest.json");
+        tracePath = field("SHAFT trace directory or index.json (run trace_latest to find the newest run)",
+                "target/shaft-traces");
         repositoryRoot = field("Repository root", basePath);
         sourceAllowlist = field("Approved source paths", "src/test/java");
         sourcePath = field("Locator source path", "src/test/java/example/Page.java");

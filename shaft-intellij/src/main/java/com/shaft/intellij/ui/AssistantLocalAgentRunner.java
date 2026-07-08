@@ -433,9 +433,12 @@ final class AssistantLocalAgentRunner {
      * {@code --json} events) into human-readable progress lines delivered through the caller's
      * {@code outputConsumer}, while separately capturing the terminal event's final answer text and
      * usage object. Both CLIs' event schemas are experimental/subject to drift, so unrecognized event
-     * types, missing fields, and non-JSON lines are all skipped or passed through harmlessly rather
-     * than treated as parse failures — only a well-formed terminal event upgrades the result away
-     * from today's buffered {@link #agentOutput} fallback.
+     * types and missing fields are skipped rather than treated as parse failures — only a
+     * well-formed terminal event upgrades the result away from today's buffered {@link #agentOutput}
+     * fallback. Lines that are not valid JSON, and recognized-but-internal content such as Claude's
+     * {@code thinking} blocks or Codex's {@code reasoning} items, are deliberately dropped rather than
+     * shown: the Verbose toggle promises the SHAFT Assistant's own live progress, not a raw, untranslated
+     * dump of the wrapped CLI's internal chain-of-thought or process banners.
      *
      * <p>Not thread-safe: each invocation of {@link #run} creates its own instance, but stdout and
      * stderr are each read on their own thread via {@link #readAsync}, so access to the mutable
@@ -476,9 +479,10 @@ final class AssistantLocalAgentRunner {
             }
             JsonObject event = parseObject(trimmed);
             if (event == null) {
-                // Non-JSON output (banners, warnings) is not part of the structured contract but is
-                // still useful progress information, so it passes through unchanged.
-                outputConsumer.accept(line);
+                // Non-JSON output (banners, warnings, partial internal logging) is not part of the
+                // documented event contract, so it is dropped rather than shown: forwarding it verbatim
+                // would risk leaking whatever the wrapped CLI happens to print to stdout outside its
+                // structured stream, straight into the user-facing chat transcript.
                 return;
             }
             if (format == Format.CLAUDE && approvalHandler != null && isApprovalRequestEvent(event)) {
@@ -605,6 +609,11 @@ final class AssistantLocalAgentRunner {
                         }
                         JsonObject block = blockElement.getAsJsonObject();
                         String blockType = stringField(block, "type");
+                        if ("thinking".equals(blockType) || "redacted_thinking".equals(blockType)) {
+                            // Extended-thinking content is Claude's internal chain-of-thought, never a
+                            // user-facing message; skip it and keep scanning this event's other blocks.
+                            continue;
+                        }
                         if ("tool_use".equals(blockType)) {
                             String toolName = stringField(block, "name");
                             return "Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...";
@@ -635,6 +644,11 @@ final class AssistantLocalAgentRunner {
             if ("item.completed".equals(type) || "item.updated".equals(type)) {
                 JsonObject item = objectField(event, "item");
                 String itemType = stringField(item, "type");
+                if ("reasoning".equals(itemType)) {
+                    // Codex's chain-of-thought reasoning summaries are internal, never a user-facing
+                    // message.
+                    return null;
+                }
                 if ("tool_call".equals(itemType) || "command_execution".equals(itemType) || "mcp_tool_call".equals(itemType)) {
                     String toolName = firstNonBlank(stringField(item, "name"), stringField(item, "tool"), stringField(item, "command"));
                     return "Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...";

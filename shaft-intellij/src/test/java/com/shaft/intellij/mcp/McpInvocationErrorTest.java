@@ -84,4 +84,34 @@ class McpInvocationErrorTest {
         assertEquals("MCP server process exited.", category.message());
         assertEquals("Restart MCP server", category.recoveryAction());
     }
+
+    @Test
+    void detailPrefersTheExceptionsOwnMessageOverTheGenericCategoryMessage() {
+        IOException exception = new IOException("SHAFT MCP returned an error response.\n{\"code\":-32000,"
+                + "\"message\":\"Allure result path cannot be resolved inside the MCP workspace.\"}");
+        String detail = McpInvocationError.detail(exception, McpInvocationError.TOOL_ERROR);
+        assertEquals(exception.getMessage(), detail,
+                "The real server error text must reach the user instead of the fixed generic category message");
+    }
+
+    @Test
+    void detailAppendsTheCauseMessageWhenNotAlreadyContained() {
+        IOException cause = new IOException("Broken pipe");
+        IOException exception = new IOException("Failed to send SHAFT MCP request.", cause);
+        String detail = McpInvocationError.detail(exception, McpInvocationError.CONNECTION_LOST);
+        assertEquals("Failed to send SHAFT MCP request.\nBroken pipe", detail);
+    }
+
+    @Test
+    void detailFallsBackToTheCategoryMessageWhenNothingElseIsAvailable() {
+        IOException blankException = new IOException((String) null);
+        String detail = McpInvocationError.detail(blankException, McpInvocationError.TOOL_ERROR);
+        assertEquals(McpInvocationError.TOOL_ERROR.message(), detail);
+    }
+
+    @Test
+    void detailFallsBackToTheCategoryMessageForANullException() {
+        assertEquals(McpInvocationError.TOOL_ERROR.message(),
+                McpInvocationError.detail(null, McpInvocationError.TOOL_ERROR));
+    }
 }

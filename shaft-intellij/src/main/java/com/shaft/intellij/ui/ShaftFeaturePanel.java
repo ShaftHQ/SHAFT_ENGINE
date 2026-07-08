@@ -303,7 +303,7 @@ final class ShaftFeaturePanel extends JPanel {
         if (error != null) {
             McpInvocationError category = McpInvocationError.categorize(error);
             StringBuilder sb = new StringBuilder();
-            sb.append(category.message());
+            sb.append(McpInvocationError.detail(error, category));
             if (category.recoveryAction() != null) {
                 sb.append("\n\nRecovery: ").append(category.recoveryAction());
             }
@@ -339,7 +339,7 @@ final class ShaftFeaturePanel extends JPanel {
         } else if (error != null) {
             McpInvocationError category = McpInvocationError.categorize(error);
             StringBuilder sb = new StringBuilder();
-            sb.append(category.message());
+            sb.append(McpInvocationError.detail(error, category));
             if (category.recoveryAction() != null) {
                 sb.append("\n\nRecovery: ").append(category.recoveryAction());
             }
@@ -618,7 +618,7 @@ final class ShaftFeaturePanel extends JPanel {
     private void formatErrorOutput(ShaftMcpToolResult result) {
         if (result.errorCategory() != null) {
             StringBuilder sb = new StringBuilder();
-            sb.append(result.errorCategory().message());
+            sb.append(result.output());
             if (result.recoveryAction() != null) {
                 sb.append("\n\nRecovery: ").append(result.recoveryAction());
             }

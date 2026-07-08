@@ -10,6 +10,8 @@ import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.content.Content;
 import com.shaft.intellij.notifications.ShaftNotifier;
+import com.shaft.intellij.project.ShaftProjectDetector;
+import com.shaft.intellij.settings.ShaftSettingsState;
 import com.shaft.intellij.ui.ShaftToolWindowPanel;
 import org.jetbrains.annotations.NotNull;
 
@@ -57,13 +59,21 @@ public final class RecordApiWebAction extends AnAction implements DumbAware {
         arguments.addProperty("headless", false);
         arguments.add("networkOptions", networkOptions);
 
+        if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
+            // showApiRecordingTab silently no-ops while advanced workflows are off (the default), so
+            // notifying "prepared" here would claim a recording started when nothing actually did.
+            ShaftNotifier.warn(project, "SHAFT",
+                    "Enable advanced workflows in Settings | SHAFT to open the API Recording tab.");
+            return;
+        }
         openApiRecordingTab(project, targetUrl.trim(), arguments);
         ShaftNotifier.info(project, "SHAFT", "API recording prepared for " + targetUrl.trim() + ".");
     }
 
     @Override
     public void update(@NotNull AnActionEvent event) {
-        event.getPresentation().setEnabledAndVisible(event.getProject() != null);
+        Project project = event.getProject();
+        event.getPresentation().setEnabledAndVisible(project != null && ShaftProjectDetector.isShaftProject(project));
     }
 
     private static void openApiRecordingTab(Project project, String targetUrl, JsonObject arguments) {
