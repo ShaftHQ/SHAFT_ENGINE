@@ -1500,6 +1500,7 @@ public class Actions extends ElementActions {
         if (screenshot != null) {
             long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
             Allure.addAttachment(SCREENSHOT_ATTACHMENT_FORMATTER.format(ZonedDateTime.now()) + "_" + JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
+            TraceEventRecorder.recordScreenshot(event, screenshot);
             if (profilerStart != 0L) {
                 FlakeProfiler.recordEvidenceCapture("report attachment", action,
                         TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));

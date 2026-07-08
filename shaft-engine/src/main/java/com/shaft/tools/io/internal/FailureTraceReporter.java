@@ -18,8 +18,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -39,6 +42,7 @@ public final class FailureTraceReporter {
             "(?i)(\"(?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)\"\\s*:\\s*\")[^\"]*(\")");
     private static final int SNIPPET_RADIUS = 2;
     private static final ThreadLocal<String> CURRENT_NETWORK_JSON = ThreadLocal.withInitial(() -> "[]");
+    private static final ThreadLocal<Map<String, byte[]>> CURRENT_SCREENSHOTS = ThreadLocal.withInitial(Map::of);
 
     private FailureTraceReporter() {
         throw new IllegalStateException("Utility class");
@@ -59,13 +63,16 @@ public final class FailureTraceReporter {
             stopPlaywrightTraceIfRunning();
             String json = renderTraceJson(info, logText, attachments);
             String html = renderTraceHtml(json);
-            byte[] zip = renderTraceZip(json, html, CURRENT_NETWORK_JSON.get());
-            persistTraceArtifacts(info, zip);
+            Map<String, byte[]> screenshots = CURRENT_SCREENSHOTS.get();
+            byte[] zip = renderTraceZip(json, html, CURRENT_NETWORK_JSON.get(), screenshots);
+            persistTraceArtifacts(info, zip, screenshots);
             attach("zip", "shaft-trace.zip", zip, "shaft-trace.zip");
+            attach("html", "SHAFT Trace Report.html", html.getBytes(StandardCharsets.UTF_8), "SHAFT Trace Report.html");
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT trace report: " + e.getMessage(), Level.WARN);
         } finally {
             CURRENT_NETWORK_JSON.remove();
+            CURRENT_SCREENSHOTS.remove();
         }
     }
 
@@ -85,6 +92,7 @@ public final class FailureTraceReporter {
         SourceContext source = sourceContext(info);
         Snapshot snapshot = snapshot();
         List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
+        CURRENT_SCREENSHOTS.set(decodeScreenshots(actions));
         BrowserObservabilityRecorder.collectConsole(DriverFactoryHelper.getActiveDriver());
         String observabilityJson = BrowserObservabilityRecorder.drainMetadataJson();
         String networkJson = BrowserObservabilityRecorder.drainNetworkJson();
@@ -126,6 +134,27 @@ public final class FailureTraceReporter {
         array(json, 1, "attachments", attachmentEntries(attachments), false);
         json.append("}\n");
         return json.toString();
+    }
+
+    /**
+     * Decodes the base64 {@code screenshot} field each drained {@link TraceEventRecorder.ActionEvent}
+     * may carry back into raw PNG bytes, keyed by action id, so they can be persisted as standalone
+     * files alongside the trace zip/directory. Invalid entries are skipped rather than failing trace
+     * generation.
+     */
+    private static Map<String, byte[]> decodeScreenshots(List<TraceEventRecorder.ActionEvent> actions) {
+        Map<String, byte[]> screenshots = new LinkedHashMap<>();
+        for (TraceEventRecorder.ActionEvent action : actions) {
+            if (action.screenshot().isEmpty()) {
+                continue;
+            }
+            try {
+                screenshots.put(action.id(), Base64.getDecoder().decode(action.screenshot()));
+            } catch (IllegalArgumentException ignored) {
+                // Corrupt base64 must never fail trace generation; just skip persisting that file.
+            }
+        }
+        return screenshots;
     }
 
     static boolean shouldAttachTrace(TestExecutionInfo info) {
@@ -193,6 +222,7 @@ public final class FailureTraceReporter {
                       <button data-tab="source">Source</button>
                       <button data-tab="snapshot">Snapshot</button>
                       <button data-tab="domSnapshot">DOM Snapshot</button>
+                      <button data-tab="screenshot">Screenshot</button>
                       <button data-tab="locatorHealth">Locator Health</button>
                       <button data-tab="network">Network</button>
                       <button data-tab="console">Console</button>
@@ -209,6 +239,11 @@ public final class FailureTraceReporter {
                       </div>
                       <iframe id="dom-snapshot-frame" title="DOM snapshot" sandbox=""
                               style="width:100%;height:420px;border:1px solid var(--shaft-border,#ccc);background:#fff"></iframe>
+                    </div>
+                    <div id="screenshot-panel" hidden>
+                      <img id="screenshot-image" alt="Action screenshot"
+                           style="max-width:100%;border:1px solid var(--shaft-border,#ccc)">
+                      <p id="screenshot-empty" class="muted" hidden>No screenshot captured for this action.</p>
                     </div>
                   </section>
                 </div>
@@ -254,7 +289,7 @@ public final class FailureTraceReporter {
                   actions.filter(action => !query || JSON.stringify(action).toLowerCase().includes(query)).forEach(action => {
                     const button = document.createElement('button');
                     button.className = `action ${action.status}${selected && selected.id === action.id ? ' selected' : ''}`;
-                    button.innerHTML = `<strong>${esc(action.name || 'Action')}</strong><div class="muted">${esc(action.category)} - ${esc(action.status)} - ${esc(action.durationMs || 0)}ms</div>`;
+                    button.innerHTML = `<strong>${esc(action.name || 'Action')}</strong><div class="muted">${esc(action.category)} - ${esc(action.status)} - ${esc(action.durationMs || 0)}ms${action.screenshot ? ' 📷' : ''}</div>`;
                     button.addEventListener('click', () => { selected = action; renderActions(); renderDetails(); });
                     actionList.appendChild(button);
                   });
@@ -278,13 +313,29 @@ public final class FailureTraceReporter {
                   document.querySelectorAll('#dom-snapshot-tabs button').forEach(button =>
                       button.classList.toggle('selected', button.dataset.dom === selectedDomSide));
                 }
+                const screenshotPanel = document.getElementById('screenshot-panel');
+                const screenshotImage = document.getElementById('screenshot-image');
+                const screenshotEmpty = document.getElementById('screenshot-empty');
+                function renderScreenshot(){
+                  const action = selected || {};
+                  const hasScreenshot = Boolean(action.screenshot);
+                  screenshotImage.hidden = !hasScreenshot;
+                  screenshotEmpty.hidden = hasScreenshot;
+                  if (hasScreenshot) {
+                    screenshotImage.src = 'data:image/png;base64,' + action.screenshot;
+                  }
+                }
                 function renderTab(tab){
                   const action = selected || {};
                   const isDomSnapshot = tab === 'domSnapshot';
-                  tabContent.hidden = isDomSnapshot;
+                  const isScreenshot = tab === 'screenshot';
+                  tabContent.hidden = isDomSnapshot || isScreenshot;
                   domSnapshotPanel.hidden = !isDomSnapshot;
+                  screenshotPanel.hidden = !isScreenshot;
                   if (isDomSnapshot) {
                     renderDomSnapshot();
+                  } else if (isScreenshot) {
+                    renderScreenshot();
                   } else {
                     const data = tab === 'json' ? trace : tab === 'exception' && action.exception && (action.exception.type || action.exception.message) ? action.exception : trace[tab];
                     tabContent.textContent = typeof data === 'string' ? data : JSON.stringify(data || {}, null, 2);
@@ -306,7 +357,7 @@ public final class FailureTraceReporter {
                 """;
     }
 
-    private static byte[] renderTraceZip(String json, String html, String networkJson) {
+    private static byte[] renderTraceZip(String json, String html, String networkJson, Map<String, byte[]> screenshots) {
         int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
         try (ByteArrayOutputStream output = new ByteArrayOutputStream();
              ZipOutputStream zip = new ZipOutputStream(output)) {
@@ -314,6 +365,9 @@ public final class FailureTraceReporter {
             addZipEntry(zip, "shaft-network.har", BrowserObservabilityRecorder.networkHarJson(networkJson)
                     .getBytes(StandardCharsets.UTF_8), maxBytes);
             addZipEntry(zip, "SHAFT Trace Report.html", html.getBytes(StandardCharsets.UTF_8), maxBytes);
+            for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
+                addZipEntry(zip, "screenshots/" + entry.getKey() + ".png", entry.getValue(), maxBytes);
+            }
             Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
             if (playwrightTrace != null && Files.isRegularFile(playwrightTrace)) {
                 addZipEntry(zip, playwrightTrace.getFileName().toString(), Files.readAllBytes(playwrightTrace), maxBytes);
@@ -346,7 +400,7 @@ public final class FailureTraceReporter {
         AttachmentReporter.attachBasedOnFileType(type, name, output, description);
     }
 
-    private static void persistTraceArtifacts(TestExecutionInfo info, byte[] zip) {
+    private static void persistTraceArtifacts(TestExecutionInfo info, byte[] zip, Map<String, byte[]> screenshots) {
         try {
             Path directory = traceDirectory(info);
             Files.createDirectories(directory);
@@ -354,8 +408,15 @@ public final class FailureTraceReporter {
             Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
             Files.deleteIfExists(directory.resolve("shaft-trace.json"));
             Files.write(zipPath, zip);
-            Files.writeString(directory.resolve("index.json"), renderTraceIndexJson(info, zipPath),
-                    StandardCharsets.UTF_8);
+            if (!screenshots.isEmpty()) {
+                Path screenshotsDirectory = directory.resolve("screenshots");
+                Files.createDirectories(screenshotsDirectory);
+                for (Map.Entry<String, byte[]> entry : screenshots.entrySet()) {
+                    Files.write(screenshotsDirectory.resolve(entry.getKey() + ".png"), entry.getValue());
+                }
+            }
+            Files.writeString(directory.resolve("index.json"),
+                    renderTraceIndexJson(info, zipPath, !screenshots.isEmpty()), StandardCharsets.UTF_8);
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete("Could not persist SHAFT trace artifacts: " + e.getMessage(), Level.WARN);
         }
@@ -383,7 +444,7 @@ public final class FailureTraceReporter {
         return safeId.length() <= 120 ? safeId : safeId.substring(0, 120);
     }
 
-    private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath) {
+    private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots) {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         field(json, 1, "testId", safeTestId(info), true);
@@ -392,7 +453,10 @@ public final class FailureTraceReporter {
         objectStart(json, 1, "entries");
         field(json, 2, "html", "SHAFT Trace Report.html", true);
         field(json, 2, "json", "shaft-trace.json", true);
-        field(json, 2, "network", "shaft-network.har", false);
+        field(json, 2, "network", "shaft-network.har", hasScreenshots);
+        if (hasScreenshots) {
+            field(json, 2, "screenshots", "screenshots", false);
+        }
         objectEnd(json, 1, false);
         json.append("}\n");
         return json.toString();

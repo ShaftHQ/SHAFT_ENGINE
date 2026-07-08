@@ -1,5 +1,6 @@
 package com.shaft.doctor.shard;
 
+import com.shaft.doctor.model.ExecutionIntelligence;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -45,8 +46,10 @@ public final class ShardMerger {
     public static MergedReport merge(List<Path> shardRoots, Path outputDirectory) {
         Path output = outputDirectory.toAbsolutePath().normalize();
         Path mergedAllureResults = output.resolve("allure-results");
+        Path mergedTraces = output.resolve("shaft-traces");
         List<String> warnings = new ArrayList<>();
         List<AllureResultSummary> allResults = new ArrayList<>();
+        List<ShardIntelligence> shardIntelligence = new ArrayList<>();
 
         try {
             Files.createDirectories(mergedAllureResults);
@@ -64,6 +67,8 @@ public final class ShardMerger {
             shardCount++;
             String shardId = blob.root().getFileName() == null ? blob.root().toString() : blob.root().getFileName().toString();
             allResults.addAll(copyAllureResults(blob, shardId, mergedAllureResults, warnings));
+            copyTraces(blob, shardId, mergedTraces, warnings);
+            readShardIntelligence(blob, shardId, warnings).ifPresent(shardIntelligence::add);
         }
 
         Map<String, List<AllureResultSummary>> byFullName = new LinkedHashMap<>();
@@ -72,10 +77,63 @@ public final class ShardMerger {
         }
         List<FlakyCluster> flakyClusters = flakyClusters(byFullName);
         Path speedboard = output.resolve("speedboard.html");
-        writeSpeedboard(speedboard, allResults, flakyClusters, shardCount);
+        writeSpeedboard(speedboard, allResults, flakyClusters, shardCount, shardIntelligence);
 
         return new MergedReport(mergedAllureResults, speedboard, shardCount, allResults.size(),
-                flakyClusters, List.copyOf(warnings));
+                flakyClusters, List.copyOf(shardIntelligence), List.copyOf(warnings));
+    }
+
+    /**
+     * Copies a shard's {@code shaft-traces} directory (if present) through untouched into
+     * {@code <output>/shaft-traces/<shardId>/}, namespaced by shard id since two shards may
+     * otherwise persist traces for differently-numbered attempts of the same test id.
+     */
+    private static void copyTraces(ShardBlob blob, String shardId, Path mergedTraces, List<String> warnings) {
+        if (!Files.isDirectory(blob.traces())) {
+            return;
+        }
+        Path destination = mergedTraces.resolve(shardId);
+        try (Stream<Path> paths = Files.walk(blob.traces())) {
+            for (Path source : paths.toList()) {
+                Path target = destination.resolve(blob.traces().relativize(source).toString());
+                if (Files.isDirectory(source)) {
+                    Files.createDirectories(target);
+                } else {
+                    Files.createDirectories(target.getParent());
+                    Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        } catch (IOException exception) {
+            warnings.add("Could not copy shaft-traces for shard " + shardId + ": " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Reads and reduces a shard's optional {@code execution-intelligence.json} (produced by an
+     * out-of-band {@code shaft-doctor analyze} run against that shard's Allure results) into a
+     * {@link ShardIntelligence} digest for cross-shard doctor-triage aggregation. A shard without
+     * one, or with an unreadable one, is skipped with a warning rather than failing the merge.
+     */
+    private static java.util.Optional<ShardIntelligence> readShardIntelligence(
+            ShardBlob blob, String shardId, List<String> warnings) {
+        if (!Files.isRegularFile(blob.executionIntelligence())) {
+            return java.util.Optional.empty();
+        }
+        try {
+            ExecutionIntelligence intelligence = JSON.readValue(
+                    Files.readString(blob.executionIntelligence(), StandardCharsets.UTF_8), ExecutionIntelligence.class);
+            return java.util.Optional.of(new ShardIntelligence(
+                    shardId,
+                    intelligence.primaryCause() == null ? "UNKNOWN" : intelligence.primaryCause().name(),
+                    intelligence.confidence() == null ? "UNKNOWN" : intelligence.confidence().name(),
+                    intelligence.failingAttempts(),
+                    intelligence.hiddenRetryFailures(),
+                    intelligence.recurringFailures(),
+                    intelligence.summary()));
+        } catch (IOException | RuntimeException malformed) {
+            warnings.add("Could not read execution-intelligence.json for shard " + shardId + ": " + malformed.getMessage());
+            return java.util.Optional.empty();
+        }
     }
 
     private static List<AllureResultSummary> copyAllureResults(
@@ -141,7 +199,8 @@ public final class ShardMerger {
     }
 
     private static void writeSpeedboard(
-            Path destination, List<AllureResultSummary> results, List<FlakyCluster> flakyClusters, int shardCount) {
+            Path destination, List<AllureResultSummary> results, List<FlakyCluster> flakyClusters, int shardCount,
+            List<ShardIntelligence> shardIntelligence) {
         List<AllureResultSummary> slowestFirst = new ArrayList<>(results);
         slowestFirst.sort((a, b) -> Long.compare(b.durationMs(), a.durationMs()));
 
@@ -155,6 +214,25 @@ public final class ShardMerger {
                 .append("<p>Shards merged: ").append(shardCount)
                 .append(" &middot; Total results: ").append(results.size())
                 .append(" &middot; Flaky clusters: ").append(flakyClusters.size()).append("</p>");
+
+        html.append("<h2>Doctor triage across shards</h2>");
+        if (shardIntelligence.isEmpty()) {
+            html.append("<p>No per-shard execution-intelligence.json was available.</p>");
+        } else {
+            html.append("<table><tr><th>Shard</th><th>Primary Cause</th><th>Confidence</th>")
+                    .append("<th>Failing Attempts</th><th>Hidden Retry Failures</th><th>Recurring Failures</th>")
+                    .append("<th>Summary</th></tr>");
+            for (ShardIntelligence intelligence : shardIntelligence) {
+                html.append("<tr><td>").append(escape(intelligence.shardId())).append("</td><td>")
+                        .append(escape(intelligence.primaryCause())).append("</td><td>")
+                        .append(escape(intelligence.confidence())).append("</td><td>")
+                        .append(intelligence.failingAttempts()).append("</td><td>")
+                        .append(intelligence.hiddenRetryFailures()).append("</td><td>")
+                        .append(intelligence.recurringFailures()).append("</td><td>")
+                        .append(escape(intelligence.summary())).append("</td></tr>");
+            }
+            html.append("</table>");
+        }
 
         html.append("<h2>Flaky clusters (inconsistent pass/fail across shards)</h2>");
         if (flakyClusters.isEmpty()) {

@@ -35,11 +35,56 @@ class ShardMergeCliTest {
     }
 
     @Test
+    void mainMergesShardsWithExecutionIntelligenceAndTraces() throws Exception {
+        Path shard1 = writeShardWithIntelligence("shard-1", "com.example.Test.a", "failed", "LOCATOR", "HIGH");
+        Path shard2 = writeShardWithIntelligence("shard-2", "com.example.Test.b", "passed", "TIMING_SYNCHRONIZATION", "MEDIUM");
+        Path output = tempDir.resolve("merged");
+
+        String stdout = captureStdout(() -> ShardMergeCli.main(new String[]{
+                "--output", output.toString(), shard1.toString(), shard2.toString()}));
+
+        assertTrue(stdout.contains("Merged 2 shard(s), 2 Allure result(s)"), stdout);
+        assertTrue(Files.isDirectory(output.resolve("allure-results")));
+        assertTrue(Files.isRegularFile(output.resolve("speedboard.html")));
+        assertTrue(Files.isDirectory(output.resolve("shaft-traces").resolve("shard-1")));
+        assertTrue(Files.isDirectory(output.resolve("shaft-traces").resolve("shard-2")));
+        String speedboard = Files.readString(output.resolve("speedboard.html"), StandardCharsets.UTF_8);
+        assertTrue(speedboard.contains("Doctor triage across shards"), speedboard);
+        assertTrue(speedboard.contains("LOCATOR"), speedboard);
+        assertTrue(speedboard.contains("TIMING_SYNCHRONIZATION"), speedboard);
+    }
+
+    @Test
     void mainRequiresAtLeastOneShardDirectory() {
         IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
                 () -> ShardMergeCli.main(new String[]{"--output", tempDir.resolve("merged").toString()}));
 
         assertTrue(failure.getMessage().contains("At least one shard blob directory is required"));
+    }
+
+    private Path writeShardWithIntelligence(String shardName, String fullName, String status,
+            String primaryCause, String confidence) throws Exception {
+        Path shard = Files.createDirectories(tempDir.resolve(shardName).resolve("allure-results"));
+        Files.writeString(shard.resolve("t-result.json"),
+                "{\"fullName\":\"" + fullName + "\",\"status\":\"" + status + "\",\"start\":0,\"stop\":10}",
+                StandardCharsets.UTF_8);
+        Path traceDirectory = Files.createDirectories(
+                tempDir.resolve(shardName).resolve("shaft-traces").resolve(fullName));
+        Files.writeString(traceDirectory.resolve("index.json"), "{}", StandardCharsets.UTF_8);
+        Files.writeString(tempDir.resolve(shardName).resolve("execution-intelligence.json"), """
+                {
+                  "schemaVersion": "1.0",
+                  "bundleId": "bundle-1",
+                  "totalAllureResults": 1,
+                  "failingAttempts": 1,
+                  "hiddenRetryFailures": 0,
+                  "recurringFailures": 0,
+                  "primaryCause": "%s",
+                  "confidence": "%s",
+                  "summary": "Deterministic summary for %s."
+                }
+                """.formatted(primaryCause, confidence, shardName), StandardCharsets.UTF_8);
+        return shard.getParent();
     }
 
     private static String captureStdout(Runnable action) {

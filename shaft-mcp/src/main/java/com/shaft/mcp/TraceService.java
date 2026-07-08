@@ -6,6 +6,7 @@ import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
 import com.shaft.doctor.shard.FlakyCluster;
 import com.shaft.doctor.shard.MergedReport;
+import com.shaft.doctor.shard.ShardIntelligence;
 import com.shaft.doctor.shard.ShardMerger;
 import com.shaft.doctor.model.CauseCategory;
 import com.shaft.doctor.model.Confidence;
@@ -211,6 +212,7 @@ public class TraceService {
                 report.shardCount(),
                 report.totalResults(),
                 report.flakyClusters(),
+                report.shardIntelligence(),
                 report.warnings());
     }
 
@@ -800,6 +802,7 @@ public class TraceService {
      * @param shardCount number of shard blobs merged
      * @param totalResults total Allure result files merged
      * @param flakyClusters tests observed with inconsistent pass/fail outcomes across shards
+     * @param shardIntelligence per-shard doctor {@code ExecutionIntelligence} digests, for shards that had one
      * @param warnings safe warnings (e.g. an unreadable shard blob was skipped)
      */
     public record McpMergeShardsResult(
@@ -809,6 +812,7 @@ public class TraceService {
             int shardCount,
             int totalResults,
             List<FlakyCluster> flakyClusters,
+            List<ShardIntelligence> shardIntelligence,
             List<String> warnings) {
         /**
          * Creates an immutable merge-shards result.
@@ -818,6 +822,7 @@ public class TraceService {
             mergedAllureResultsDirectory = mergedAllureResultsDirectory == null ? "" : mergedAllureResultsDirectory.trim();
             speedboardHtmlPath = speedboardHtmlPath == null ? "" : speedboardHtmlPath.trim();
             flakyClusters = flakyClusters == null ? List.of() : List.copyOf(flakyClusters);
+            shardIntelligence = shardIntelligence == null ? List.of() : List.copyOf(shardIntelligence);
             warnings = warnings == null ? List.of() : List.copyOf(warnings);
         }
     }
