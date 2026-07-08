@@ -41,7 +41,7 @@ public final class ShaftPluginResetService {
         this(
                 () -> resetSettings(ShaftSettingsState.getInstance()),
                 () -> ShaftCredentialService.getInstance().clearAll(),
-                () -> ToolApprovalService.getInstance().reset(),
+                ShaftPluginResetService::resetOpenProjectApprovals,
                 ShaftPluginResetService::openProjectChatStates,
                 ShaftPluginResetService::rerenderOpenToolWindows);
     }
@@ -81,6 +81,12 @@ public final class ShaftPluginResetService {
      */
     static void resetSettings(ShaftSettingsState settingsState) {
         settingsState.loadState(ShaftSettingsState.factoryDefaults());
+    }
+
+    private static void resetOpenProjectApprovals() {
+        for (Project project : ProjectManager.getInstance().getOpenProjects()) {
+            ToolApprovalService.getInstance(project).reset();
+        }
     }
 
     private static List<ShaftAssistantChatState> openProjectChatStates() {

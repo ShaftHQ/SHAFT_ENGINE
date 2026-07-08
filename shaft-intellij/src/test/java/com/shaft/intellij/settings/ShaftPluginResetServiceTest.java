@@ -190,10 +190,10 @@ class ShaftPluginResetServiceTest {
     void productionNoArgConstructorDoesNotEagerlyResolvePlatformServices() {
         // The no-arg constructor (the one plugin.xml's <applicationService> instantiates) wires
         // ShaftSettingsState.getInstance(), ShaftCredentialService.getInstance(),
-        // ToolApprovalService.getInstance(), and the tool-window rerenderer only inside deferred
-        // Runnable/Supplier lambda bodies. Constructing it here - with no running IntelliJ
-        // Application in this plain unit test - must not throw, proving those getInstance() calls
-        // are lazy and only fire when resetEverything() actually runs (which requires the real
+        // the per-open-project ToolApprovalService reset loop, and the tool-window rerenderer only
+        // inside deferred Runnable/Supplier lambda bodies. Constructing it here - with no running
+        // IntelliJ Application in this plain unit test - must not throw, proving those getInstance()
+        // calls are lazy and only fire when resetEverything() actually runs (which requires the real
         // platform and is exercised by the other constructor-injected tests in this class instead).
         assertDoesNotThrow(() -> {
             new ShaftPluginResetService();
@@ -202,13 +202,14 @@ class ShaftPluginResetServiceTest {
 
     @Test
     void pluginXmlRegistersEveryServiceGetInstanceResolvesDuringReset() throws Exception {
-        // resetEverything() (via the production no-arg constructor) resolves ShaftPluginResetService
-        // itself, ShaftCredentialService, ToolApprovalService, and ShaftSettingsState through
+        // resetEverything() (via the production no-arg constructor) resolves ShaftPluginResetService,
+        // ShaftCredentialService, and ShaftSettingsState through
         // ApplicationManager.getApplication().getService(...), which throws at IDE runtime unless the
-        // class is registered as an <applicationService> in plugin.xml. Assert every one of them is
-        // registered so a future removal of an entry (as previously happened for ToolApprovalService
-        // and ShaftPluginResetService itself) fails this test instead of only failing inside a
-        // running IDE.
+        // class is registered as an <applicationService> in plugin.xml; it resolves ToolApprovalService
+        // per open project through Project.getService(...), which requires a <projectService>
+        // registration instead. Assert every one of them is registered so a future removal of an entry
+        // (as previously happened for ToolApprovalService and ShaftPluginResetService itself) fails
+        // this test instead of only failing inside a running IDE.
         String pluginXml = Files.readString(Path.of("src/main/resources/META-INF/plugin.xml"));
 
         assertAll(
@@ -219,9 +220,10 @@ class ShaftPluginResetServiceTest {
                         "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ShaftCredentialService\"/>"),
                         "ShaftCredentialService must be registered as an applicationService"),
                 () -> assertTrue(pluginXml.contains(
-                        "<applicationService serviceImplementation=\"com.shaft.intellij.approval.ToolApprovalService\"/>"),
+                        "<projectService serviceImplementation=\"com.shaft.intellij.approval.ToolApprovalService\"/>"),
                         "The approval-package ToolApprovalService (the store the chat approval UI"
-                                + " writes to) must be registered as an applicationService"),
+                                + " writes to) must be registered as a projectService so approvals never"
+                                + " leak from one open project to another"),
                 () -> assertTrue(pluginXml.contains(
                         "<applicationService serviceImplementation=\"com.shaft.intellij.settings.ShaftPluginResetService\"/>"),
                         "ShaftPluginResetService must be registered as an applicationService"));

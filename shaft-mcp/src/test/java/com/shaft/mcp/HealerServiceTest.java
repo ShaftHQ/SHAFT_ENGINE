@@ -135,6 +135,34 @@ class HealerServiceTest {
     }
 
     @Test
+    void nonShaftProjectStopsBeforeAnyMavenRun(@TempDir Path tempDir) throws Exception {
+        Path repository = Files.createDirectories(tempDir.resolve("repo"));
+        Files.writeString(repository.resolve("pom.xml"), "<project/>", StandardCharsets.UTF_8);
+        HealerService service = new HealerService(McpWorkspacePolicy.of(tempDir),
+                (command, directory, timeout) -> {
+                    throw new AssertionError("Maven must not run for a non-SHAFT repository");
+                });
+
+        McpHealerRunResult result = service.runFailedTest(
+                repository.toString(),
+                List.of("mvn", "test", "-Dtest=NoAllureTest"),
+                tempDir.resolve("target/healer").toString(),
+                1,
+                false,
+                false,
+                List.of(),
+                false,
+                false,
+                false,
+                false,
+                "driver");
+
+        assertEquals(McpHealerRunResult.Status.GUARDRAIL_STOPPED, result.status());
+        assertTrue(result.attempts().isEmpty());
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("does not look like a SHAFT project")));
+    }
+
+    @Test
     void maxAttemptsIsClampedAndRecorded(@TempDir Path tempDir) throws Exception {
         Path repository = fakeRepository(tempDir);
 
@@ -226,7 +254,10 @@ class HealerServiceTest {
 
     private static Path fakeRepository(Path root) throws Exception {
         Path repository = Files.createDirectories(root.resolve("repo"));
-        Files.writeString(repository.resolve("pom.xml"), "<project/>", StandardCharsets.UTF_8);
+        Files.writeString(repository.resolve("pom.xml"),
+                "<project><dependencies><dependency><groupId>io.github.shafthq</groupId>"
+                        + "<artifactId>shaft-engine</artifactId></dependency></dependencies></project>",
+                StandardCharsets.UTF_8);
         return repository;
     }
 

@@ -106,8 +106,8 @@ final class ToolApprovalPromptPanel extends JPanel {
     private static String buttonDescription(String toolName, ToolApprovalDecision decision) {
         return switch (decision) {
             case APPROVE_ONCE -> "Approve the " + toolName + " tool call once.";
-            case APPROVE_TOOL_ALWAYS -> "Approve every future call to " + toolName + " for the rest of this session.";
-            case APPROVE_ALL_TOOLS -> "Approve every SHAFT MCP tool call for the rest of this session.";
+            case APPROVE_TOOL_ALWAYS -> "Approve every future call to " + toolName + " in this project.";
+            case APPROVE_ALL_TOOLS -> "Approve every SHAFT MCP tool call in this project.";
             case DENY -> "Deny the " + toolName + " tool call.";
         };
     }

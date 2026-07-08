@@ -1,8 +1,11 @@
 package com.shaft.intellij.settings;
 
+import com.intellij.ide.DataManager;
+import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBTextField;
@@ -28,6 +31,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import java.awt.FlowLayout;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
@@ -617,7 +621,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         statusLabel.setText("Testing...");
         statusLabel.setForeground(ShaftStatusPresentation.progress());
         String command = mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
-        ShaftMcpConnectionProbe.test(command, formSettings()).whenComplete((result, error) ->
+        ShaftMcpConnectionProbe.test(command, formSettings(), resolveProjectRoot()).whenComplete((result, error) ->
                 ApplicationManager.getApplication().invokeLater(() -> {
                     if (button == null || statusLabel == null || host == null) {
                         return;
@@ -639,6 +643,23 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                         showProbeResult(host, statusLabel, result);
                     }
                 }));
+    }
+
+    /**
+     * Resolves the currently open project so "Test Connection" scopes the MCP workspace to it
+     * instead of the IDE process's own working directory. The Settings dialog carries the
+     * triggering project in its {@link com.intellij.openapi.actionSystem.DataContext}; falls back to
+     * the IDE process's cwd (the pre-existing behavior) when no project can be resolved, e.g. in
+     * headless/unit-test contexts.
+     *
+     * @return the open project's root, or {@code Path.of(".")} when no project is available
+     */
+    private Path resolveProjectRoot() {
+        if (panel == null || ApplicationManager.getApplication() == null) {
+            return Path.of(".");
+        }
+        Project project = CommonDataKeys.PROJECT.getData(DataManager.getInstance().getDataContext(panel));
+        return project != null && project.getBasePath() != null ? Path.of(project.getBasePath()) : Path.of(".");
     }
 
     private void showProbeResult(JPanel host, JLabel statusLabel, ShaftMcpToolResult result) {
