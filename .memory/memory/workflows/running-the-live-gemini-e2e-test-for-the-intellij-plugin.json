@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/workflows/running-the-live-gemini-e2e-test-for-the-intellij-plugin.md",
+  "content_hash": "sha256:6a840720fbcc3c955745166f34af2f1e6d46e317404c2e115810ed14a0b816c2",
+  "created_at": "2026-07-08T17:00:20+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      "shaft-intellij/src/test/java/com/shaft/intellij/ui/AssistantGeminiLiveE2ETest.java"
+    ],
+    "category": "workflow"
+  },
+  "id": "workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "gemini",
+    "e2e",
+    "testing"
+  ],
+  "title": "Running the live Gemini E2E test for the IntelliJ plugin",
+  "type": "workflow",
+  "updated_at": "2026-07-08T17:00:20+03:00"
+}

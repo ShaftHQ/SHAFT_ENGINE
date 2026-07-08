@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/constraints/memory-and-graphify-are-a-mandatory-session-entry-point.md",
+  "content_hash": "sha256:0e03a76230766dce08968946c0ae87a1c0eab1d6a76ff7a8fa7f0a533c8df1a2",
+  "created_at": "2026-07-08T17:00:20+03:00",
+  "evidence": [],
+  "id": "constraint.memory-and-graphify-are-a-mandatory-session-entry-point",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
+  },
+  "status": "active",
+  "tags": [
+    "memory",
+    "graphify",
+    "workflow"
+  ],
+  "title": ".memory/ and graphify are a mandatory session entry point",
+  "type": "constraint",
+  "updated_at": "2026-07-08T17:00:20+03:00"
+}

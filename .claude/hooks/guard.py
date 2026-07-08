@@ -11,7 +11,9 @@
 #   R1 Maven test scoping + headless execution
 #      (mirrors .memory/memory/gotchas/
 #       mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open.md
-#       and the "-am test JVM crash" scoped-test-execution-policy memory)
+#       and .memory/memory/gotchas/
+#       unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor.md --
+#       both repo-tracked so they travel with every clone/worktree)
 #   R2 Never auto-open/serve Allure reports
 #   R3 Never run GUI-opening commands on Windows (AGENTS.md Windows/Codex Safety)
 #   R4 (documentation only, not mechanically enforceable here) one

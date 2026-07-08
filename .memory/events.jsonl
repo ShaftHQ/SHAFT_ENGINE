@@ -157,3 +157,12 @@
 {"actor":"agent","event":"memory.marked_stale","id":"fact.intellij-mcp-setup-troubleshooting","reason":"References ShaftMcpInstaller.diagnosticInstallCommand(), which no longer exists in shaft-intellij/src/main -- ShaftSettingsConfigurableTest.java and ShaftPluginSecurityTest.java now assert its absence. Needs re-verification against the current ShaftMcpSetupPanel implementation before being trusted again.","timestamp":"2026-07-08T16:41:17+03:00"}
 {"actor":"agent","event":"memory.updated","id":"workflow.start-new-tasks-from-origin-main","timestamp":"2026-07-08T16:41:17+03:00"}
 {"actor":"agent","event":"memory.updated","id":"architecture.current","timestamp":"2026-07-08T16:41:17+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.worktree-housekeeping-at-session-start","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.one-branch-one-worktree-one-pr-per-session","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.memory-and-graphify-are-a-mandatory-session-entry-point","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.agent-hierarchy-main-thread-only-with-two-bounded-delegation-exceptions","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.installer-wrapper-scripts-must-gate-co-located-file-shortcuts-on-a-repo-checkout-marker","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shlex-split-eats-bare-backslashes-in-windows-paths","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin","timestamp":"2026-07-08T17:00:20+03:00"}
