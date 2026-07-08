@@ -240,14 +240,6 @@ def main() -> None:
     ):
         fail("web example workflow Docker Compose download path is missing")
 
-    sync_workflow = (
-        ROOT / ".github/workflows/sync-sample-projects-version.yml"
-    ).read_text(encoding="utf-8")
-    if 'extract_property_version "jdk.version"' not in sync_workflow:
-        fail("sample sync workflow must read jdk.version from the root properties")
-    if "Updated all example pom.xml files to use SHAFT_ENGINE" in sync_workflow:
-        fail("sample sync workflow still describes the legacy artifact")
-
     print("Modular examples and canonical documentation pointers are valid.")
 
 

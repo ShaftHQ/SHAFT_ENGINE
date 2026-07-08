@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: shaft-mcp-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   installer-script-tests:
     name: Installer script tests (${{ matrix.os }})
@@ -38,6 +42,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
@@ -78,28 +84,8 @@ jobs:
           mvn --batch-mode -pl shaft-mcp -am install -DskipTests -Dgpg.skip
           mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
           python3 scripts/ci/validate_shaft_mcp_transports.py
-      - name: Build container
-        run: docker build -f shaft-mcp/Dockerfile -t shaft-mcp:test .
-      - name: Smoke container startup
-        shell: bash
-        run: |
-          cleanup() {
-            docker rm -f shaft-mcp-smoke >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          docker run -d --name shaft-mcp-smoke \
-            -e SPRING_PROFILES_ACTIVE=http \
-            -p 127.0.0.1:8081:8081 \
-            shaft-mcp:test
-          for attempt in {1..60}; do
-            if curl --fail --silent --show-error \
-              -H 'Accept: application/json, text/event-stream' \
-              -H 'Content-Type: application/json' \
-              --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"container-smoke","version":"1.0"}}}' \
-              http://127.0.0.1:8081/mcp | grep -q '"name":"shaft-mcp"'; then
-              exit 0
-            fi
-            sleep 1
-          done
-          docker logs shaft-mcp-smoke
-          exit 1
+      - name: Build and smoke container
+        uses: ./.github/actions/mcp-container-smoke
+        with:
+          image-tag: shaft-mcp:test
+          container-name: shaft-mcp-smoke

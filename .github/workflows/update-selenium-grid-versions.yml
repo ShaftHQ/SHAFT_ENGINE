@@ -10,6 +10,10 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: update-selenium-grid-versions
+  cancel-in-progress: false
+
 jobs:
   update-versions:
     runs-on: ubuntu-22.04

@@ -17,6 +17,10 @@ permissions:
   pull-requests: read
   security-events: write
 
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -51,32 +55,14 @@ jobs:
           java-version: '25'
           distribution: 'zulu'
           check-latest: true
-          server-id: ossrh
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.5
 
-      - name: Setup Prerequisites
-        continue-on-error: true
-        run: |
-          git config --global user.signingKey ${{ secrets.GPG_KEYNAME }}
-          git config --global commit.gpgsign true
-          gpg --version
-          gpgconf --kill gpg-agent
-          gpg -K --keyid-format SHORT
-          export GPG_TTY=$(tty)
-
       - name: Build all Java-bearing SHAFT modules
-        env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-        run: mvn -B -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-sikulix,shaft-mcp -am clean package --file pom.xml -DskipTests -Dgpg.skip
+        run: mvn -B -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-sikulix,shaft-mcp,report-aggregate -am clean package --file pom.xml -DskipTests -Dgpg.skip
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

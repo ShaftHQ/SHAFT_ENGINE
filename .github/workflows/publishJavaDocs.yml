@@ -9,6 +9,13 @@ on:
       - 'main'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: javadocs-publisher
+  cancel-in-progress: false
+
 jobs:
   generate_java_docs:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'

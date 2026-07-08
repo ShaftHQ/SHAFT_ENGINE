@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
@@ -29,6 +30,7 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
     private final String eventEndpoint;
     private final String eventToken;
     private final String stepsEndpoint;
+    private final BooleanSupplier recentBidiActivity;
     private final ObjectMapper mapper = new ObjectMapper();
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "shaft-capture-polling");
@@ -109,6 +111,31 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
             String eventEndpoint,
             String eventToken,
             String stepsEndpoint) {
+        this(driver, reportFallbackWarning, testIdAttributes, eventEndpoint, eventToken, stepsEndpoint,
+                () -> false);
+    }
+
+    /**
+     * Creates a classic WebDriver collector that skips its own redundant script round-trips while
+     * {@code recentBidiActivity} reports that a BiDi collector running alongside it is already
+     * delivering the same signals, and resumes full-rate polling the moment BiDi goes quiet.
+     *
+     * @param driver active driver
+     * @param reportFallbackWarning whether status should report reduced BiDi coverage
+     * @param testIdAttributes locator test-id attributes
+     * @param eventEndpoint optional loopback event endpoint
+     * @param eventToken optional loopback event token
+     * @param stepsEndpoint optional loopback steps query endpoint
+     * @param recentBidiActivity reports true while BiDi is proven healthy
+     */
+    public PollingBrowserEventCollector(
+            WebDriver driver,
+            boolean reportFallbackWarning,
+            List<String> testIdAttributes,
+            String eventEndpoint,
+            String eventToken,
+            String stepsEndpoint,
+            BooleanSupplier recentBidiActivity) {
         if (driver == null) {
             throw new IllegalArgumentException("Capture WebDriver is required.");
         }
@@ -118,6 +145,7 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
         this.eventEndpoint = eventEndpoint == null ? "" : eventEndpoint;
         this.eventToken = eventToken == null ? "" : eventToken;
         this.stepsEndpoint = stepsEndpoint == null ? "" : stepsEndpoint;
+        this.recentBidiActivity = recentBidiActivity == null ? () -> false : recentBidiActivity;
     }
 
     @Override
@@ -144,26 +172,43 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
 
     private void poll(Consumer<BrowserSignal> signalConsumer, Consumer<String> warningConsumer) {
         try {
+            // While BiDi is proven healthy, this cycle still walks the same WebDriver-only cursors
+            // (window handles, current URL) so lastWindows/lastUrl never go stale -- otherwise the
+            // moment BiDi goes quiet, resuming full polling would misread the whole gap since the
+            // last real check as new and replay a burst of already-reported window/navigation
+            // signals. It just skips emitting duplicates of what BiDi already delivered, and skips
+            // the executeScript round-trips entirely, since those are this collector's only actual
+            // overhead on the page's renderer.
+            boolean bidiHealthy = recentBidiActivity.getAsBoolean();
+
             Set<String> windows = new LinkedHashSet<>(driver.getWindowHandles());
-            for (String opened : difference(windows, lastWindows)) {
-                signalConsumer.accept(BrowserSignal.generated(
-                        "window_open", opened, Map.of(), Map.of()));
-            }
-            for (String closed : difference(lastWindows, windows)) {
-                signalConsumer.accept(BrowserSignal.generated(
-                        "window_close", closed, Map.of(), Map.of()));
+            if (!bidiHealthy) {
+                for (String opened : difference(windows, lastWindows)) {
+                    signalConsumer.accept(BrowserSignal.generated(
+                            "window_open", opened, Map.of(), Map.of()));
+                }
+                for (String closed : difference(lastWindows, windows)) {
+                    signalConsumer.accept(BrowserSignal.generated(
+                            "window_close", closed, Map.of(), Map.of()));
+                }
             }
             lastWindows = Set.copyOf(windows);
 
             String contextId = driver.getWindowHandle();
             String currentUrl = driver.getCurrentUrl();
             if (!currentUrl.equals(lastUrl)) {
+                if (!bidiHealthy) {
+                    signalConsumer.accept(BrowserSignal.generated(
+                            "navigation",
+                            contextId,
+                            Map.of("url", currentUrl, "title", driver.getTitle()),
+                            Map.of("action", "OPEN")));
+                }
                 lastUrl = currentUrl;
-                signalConsumer.accept(BrowserSignal.generated(
-                        "navigation",
-                        contextId,
-                        Map.of("url", currentUrl, "title", driver.getTitle()),
-                        Map.of("action", "OPEN")));
+            }
+
+            if (bidiHealthy) {
+                return;
             }
 
             JavascriptExecutor javascript = (JavascriptExecutor) driver;
