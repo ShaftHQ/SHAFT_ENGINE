@@ -41,11 +41,11 @@ class CaptureJsonCodecTest {
     @Test
     void canonicalGoldenFileUpgradesAndRemainsStable() throws IOException {
         String golden = resource("golden-session-1.0.json");
-        String expectedUpgraded = resource("golden-session-1.1.json");
+        String expectedUpgraded = resource("golden-session-1.2.json");
 
         CaptureSession session = codec.read(golden);
 
-        // Reading 1.0 migrates to 1.1; the canonical serialized form is byte-stable.
+        // Reading 1.0 migrates to the current schema version; the canonical serialized form is byte-stable.
         String serialized = codec.write(session);
         assertEquals(normalizeLineEndings(expectedUpgraded), normalizeLineEndings(serialized));
 

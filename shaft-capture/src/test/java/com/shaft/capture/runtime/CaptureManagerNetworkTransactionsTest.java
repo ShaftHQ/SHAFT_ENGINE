@@ -72,8 +72,8 @@ class CaptureManagerNetworkTransactionsTest {
         List<NetworkTransaction> withoutAssets = manager.networkTransactions(excludeAssets, 100);
 
         assertEquals(2, withoutAssets.size());
-        assertTrue(withoutAssets.stream().noneMatch(tx -> "image".equals(tx.resourceKind())
-                || "stylesheet".equals(tx.resourceKind())));
+        assertTrue(withoutAssets.stream().noneMatch(tx -> "IMAGE".equals(tx.resourceKind())
+                || "STYLESHEET".equals(tx.resourceKind())));
 
         NetworkCaptureOptions includeAssets = new NetworkCaptureOptions();
         includeAssets.excludeAssets = false;
@@ -157,10 +157,10 @@ class CaptureManagerNetworkTransactionsTest {
                             Map.of("authorization", "[REDACTED]"),
                             List.of(2)),
                     new NetworkTransaction(
-                            "tx-3", "GET", "https://cdn.example.test/logo.png", 200, "image", 12L,
+                            "tx-3", "GET", "https://cdn.example.test/logo.png", 200, "IMAGE", 12L,
                             Map.of(), List.of()),
                     new NetworkTransaction(
-                            "tx-4", "GET", "https://cdn.example.test/app.css", 200, "stylesheet", 9L,
+                            "tx-4", "GET", "https://cdn.example.test/app.css", 200, "STYLESHEET", 9L,
                             Map.of(), List.of()));
         }
 

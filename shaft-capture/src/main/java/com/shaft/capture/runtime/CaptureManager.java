@@ -1,6 +1,7 @@
 package com.shaft.capture.runtime;
 
 import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.model.network.ResourceKind;
 import com.shaft.capture.storage.CaptureSessionStore;
 
 import java.io.IOException;
@@ -198,23 +199,18 @@ public final class CaptureManager implements AutoCloseable {
     /**
      * Reports whether a transaction's resource kind is asset-like noise rather than an API call.
      *
-     * <p>Known gap: {@link NetworkTransaction#resourceKind()} built from a real captured session
-     * is populated from {@code com.shaft.capture.model.network.ResourceKind} (T1's canonical
-     * model), whose P1 vocabulary (XHR, FETCH, DOCUMENT, WEBSOCKET_HANDSHAKE, OTHER) does not
-     * distinguish images, fonts, stylesheets, or media from other non-API traffic -- they all
-     * collapse into {@code OTHER} at capture time. This lowercase "image"/"font"/"stylesheet"/
-     * "media" matching therefore only fires for callers (or fixtures) that populate
-     * {@code resourceKind} with those finer-grained labels directly; it will not currently
-     * exclude asset noise recorded by the real {@code CaptureNetworkRecorder} pipeline, since
-     * that pipeline emits T1's coarser enum. Growing a dedicated asset-type vocabulary in the
-     * capture model is tracked as a P2 follow-up.
+     * @param resourceKind {@link com.shaft.capture.model.network.ResourceKind#name()} value, case-insensitive
+     * @return {@code true} when the resource kind is asset-type noise
      */
     private static boolean isAssetResource(String resourceKind) {
-        String kind = resourceKind == null ? "" : resourceKind.toLowerCase(java.util.Locale.ROOT);
-        return switch (kind) {
-            case "image", "font", "stylesheet", "media" -> true;
-            default -> false;
-        };
+        if (resourceKind == null || resourceKind.isBlank()) {
+            return false;
+        }
+        try {
+            return ResourceKind.valueOf(resourceKind.trim().toUpperCase(java.util.Locale.ROOT)).isAsset();
+        } catch (IllegalArgumentException unknownResourceKind) {
+            return false;
+        }
     }
 
     private static boolean matchesGlob(String value, String globPattern) {

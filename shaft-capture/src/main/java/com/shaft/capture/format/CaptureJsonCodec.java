@@ -26,7 +26,7 @@ import java.util.List;
  * Stable human-readable JSON codec with schema validation and migration.
  */
 public final class CaptureJsonCodec {
-    private static final String SCHEMA_RESOURCE = "/schema/shaft-capture-session-1.1.schema.json";
+    private static final String SCHEMA_RESOURCE = "/schema/shaft-capture-session-1.2.schema.json";
     private final ObjectMapper mapper;
     private final JsonNode schema;
     private final DefaultPrettyPrinter printer;
