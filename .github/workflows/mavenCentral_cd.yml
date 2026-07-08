@@ -2,6 +2,8 @@ name: Maven Central Continuous Delivery
 # Executed automatically when a new PR is merged to main.
 # Already-published immutable Maven Central versions skip delivery cleanly (see check_release_needed)
 # instead of failing, since most pushes to main land between releases with nothing new to deliver.
+# build_release_and_deliver's build/test/package steps are MIRRORED in shaft-pilot-release.yml's
+# release-candidate job (PR gate vs. real release execution of the same steps) - keep both in sync.
 
 on:
   push:
@@ -28,6 +30,8 @@ on:
       - '.github/actions/upload-jacoco-coverage/action.yml'
       - '.github/actions/reclaim-disk-space/action.yml'
       - '.github/workflows/mavenCentral_cd.yml'
+      - 'shaft-capture-proxy/**'
+      - 'shaft-intellij/**'
       - 'scripts/ci/check_maven_release_version.py'
       - 'scripts/ci/validate_reactor_versions.py'
       - 'scripts/ci/validate_modular_documentation.py'
@@ -40,6 +44,13 @@ on:
       - 'scripts/ci/verify_shaft_mcp_installer_release.py'
       - 'scripts/mcp/**'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-central-cd
+  cancel-in-progress: false
 
 jobs:
   check_release_needed:
@@ -72,7 +83,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-22.04
     permissions:
-      contents: write  # if you have a protection rule on your repository, you'll need to give write permission to the workflow.
+      contents: read  # only builds/tests/deploys to Maven Central; the GitHub Release is created by announce_release.
     outputs:
       release_version: ${{ steps.release_version.outputs.version }}
     steps:
@@ -184,29 +195,11 @@ jobs:
         with:
           prune-build-outputs: 'true'
       - name: Build and smoke shaft-mcp container
-        shell: bash
-        run: |
-          docker build -f shaft-mcp/Dockerfile -t shaft-pilot-release:test .
-          cleanup() {
-            docker rm -f shaft-pilot-release-smoke >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          docker run -d --name shaft-pilot-release-smoke \
-            -e SPRING_PROFILES_ACTIVE=http \
-            -p 127.0.0.1:8081:8081 \
-            shaft-pilot-release:test
-          for attempt in {1..60}; do
-            if curl --fail --silent --show-error \
-              -H "Accept: application/json, text/event-stream" \
-              -H "Content-Type: application/json" \
-              --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"release-smoke","version":"1.0"}}}' \
-              http://127.0.0.1:8081/mcp | grep -q '"name":"shaft-mcp"'; then
-              exit 0
-            fi
-            sleep 1
-          done
-          docker logs shaft-pilot-release-smoke
-          exit 1
+        uses: ./.github/actions/mcp-container-smoke
+        with:
+          image-tag: shaft-pilot-release:test
+          container-name: shaft-pilot-release-smoke
+          client-name: release-smoke
       - name: Setup Prerequisites
         run: |
           git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
@@ -267,9 +260,13 @@ jobs:
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1.21.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          # A release created with the default GITHUB_TOKEN does not emit a `release`
+          # event (GitHub's anti-recursion rule), so publish-intellij-plugin.yml,
+          # publish-shaft-mcp.yml, and sync-sample-projects-version.yml — which all
+          # listen for `release: published` — would never fire. BOT_TOKEN is a PAT,
+          # so its release does trigger those workflows.
+          token: ${{ secrets.BOT_TOKEN }}
           allowUpdates: false
           generateReleaseNotes: true
           bodyFile: /tmp/release_body.md

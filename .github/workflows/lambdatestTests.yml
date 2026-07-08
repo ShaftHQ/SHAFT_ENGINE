@@ -6,8 +6,11 @@ concurrency:
 
 on:
   schedule:
-    - cron: '00 1 * * *'
+    - cron: '00 2 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
