@@ -99,7 +99,7 @@ class CaptureManagerHealthCheckTest {
         }
 
         @Override
-        CaptureStatus status() {
+        synchronized CaptureStatus status() {
             return new CaptureStatus(
                     state,
                     "flaky-session",
@@ -114,25 +114,25 @@ class CaptureManagerHealthCheckTest {
         }
 
         @Override
-        void checkpoint(String description, Checkpoint.CheckpointKind kind) {
+        synchronized void checkpoint(String description, Checkpoint.CheckpointKind kind) {
             // Unused in health-check tests.
         }
 
         @Override
-        CaptureStatus stop(boolean discard) {
+        synchronized CaptureStatus stop(boolean discard) {
             state = discard ? CaptureStatus.State.DISCARDED : CaptureStatus.State.COMPLETED;
             return status();
         }
 
         @Override
-        CaptureStatus interrupt() {
+        synchronized CaptureStatus interrupt() {
             interruptCount.incrementAndGet();
             state = CaptureStatus.State.INCOMPLETE;
             return status();
         }
 
         @Override
-        boolean isBrowserAlive() {
+        synchronized boolean isBrowserAlive() {
             if (state != CaptureStatus.State.ACTIVE) {
                 return false;
             }
