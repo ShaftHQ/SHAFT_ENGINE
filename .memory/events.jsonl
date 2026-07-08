@@ -151,4 +151,20 @@
 {"actor":"agent","event":"memory.deleted","id":"workflow.record-shaft-intellij-plugin-onboarding-video","timestamp":"2026-07-07T14:41:54+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.mavencentral-cd-yml-skips-gracefully-when-the-version-is-already-released","timestamp":"2026-07-08T07:55:24+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.workflow-run-conclusion-success-is-not-a-reliable-real-delivery-signal","timestamp":"2026-07-08T07:55:24+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.intellij-plugin-gradle9-jdk21-screenshots","timestamp":"2026-07-08T16:02:23+03:00"}
+{"actor":"agent","event":"memory.marked_stale","id":"constraint.delegate-broadly-to-spark","reason":"Contradicts AGENTS.md Agent Hierarchy (main-thread-only; the only delegation permitted is read-only research or, as of 2026-07-08, narrowly-bounded minor mechanical edits under this session's direct review -- not broad parallel delegation to any lower-capability model without separate permission).","timestamp":"2026-07-08T16:41:17+03:00"}
+{"actor":"agent","event":"memory.marked_stale","id":"workflow.reset-core-and-user-guide-before-tasks","reason":"Contradicts AGENTS.md Working Rules ('preserve user work') and the worktree-housekeeping policy: never override local uncommitted changes or delete branches/worktrees, including in the sibling docs repo, without checking first.","timestamp":"2026-07-08T16:41:17+03:00"}
+{"actor":"agent","event":"memory.marked_stale","id":"fact.intellij-mcp-setup-troubleshooting","reason":"References ShaftMcpInstaller.diagnosticInstallCommand(), which no longer exists in shaft-intellij/src/main -- ShaftSettingsConfigurableTest.java and ShaftPluginSecurityTest.java now assert its absence. Needs re-verification against the current ShaftMcpSetupPanel implementation before being trusted again.","timestamp":"2026-07-08T16:41:17+03:00"}
+{"actor":"agent","event":"memory.updated","id":"workflow.start-new-tasks-from-origin-main","timestamp":"2026-07-08T16:41:17+03:00"}
+{"actor":"agent","event":"memory.updated","id":"architecture.current","timestamp":"2026-07-08T16:41:17+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.workflow-run-conclusion-success-is-not-a-reliable-real-delivery-signal","timestamp":"2026-07-08T16:52:18+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.worktree-housekeeping-at-session-start","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.one-branch-one-worktree-one-pr-per-session","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"constraint.memory-and-graphify-are-a-mandatory-session-entry-point","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.agent-hierarchy-main-thread-only-with-two-bounded-delegation-exceptions","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.installer-wrapper-scripts-must-gate-co-located-file-shortcuts-on-a-repo-checkout-marker","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shlex-split-eats-bare-backslashes-in-windows-paths","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge","timestamp":"2026-07-08T17:09:56+03:00"}

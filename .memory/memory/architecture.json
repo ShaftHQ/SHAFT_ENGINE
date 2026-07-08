@@ -1,6 +1,6 @@
 {
   "body_path": "memory/architecture.md",
-  "content_hash": "sha256:ac915d5d5503ffb8d96ee46b023965a416d84e7f7687be9fadac7c70306455a5",
+  "content_hash": "sha256:87a02328eea56096e42c1a442c054659a08aa2ee6eaba2d28ee59f3e93badc32",
   "created_at": "2026-06-15T16:59:56+03:00",
   "evidence": [
     {
@@ -35,5 +35,5 @@
   "tags": [],
   "title": "Current Architecture",
   "type": "architecture",
-  "updated_at": "2026-06-15T17:06:51+03:00"
+  "updated_at": "2026-07-08T16:41:17+03:00"
 }

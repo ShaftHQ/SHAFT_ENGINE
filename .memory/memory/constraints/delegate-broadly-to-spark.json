@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/delegate-broadly-to-spark.md",
-  "content_hash": "sha256:8c5b4f53feac186a348934456013a9346bb5b04d2e6a6a8ad0136b59ca593d5c",
+  "content_hash": "sha256:91c6d595ba3f56debef08289227e54425192b655e5c68119a94434d788b8f2d9",
   "created_at": "2026-06-21T10:28:12+03:00",
   "evidence": [
     {
@@ -30,7 +30,7 @@
     "kind": "agent",
     "task": "Remember delegation preference"
   },
-  "status": "active",
+  "status": "stale",
   "tags": [
     "delegation",
     "subagents",
@@ -38,5 +38,5 @@
   ],
   "title": "Delegate broadly to cheapest-counter capable agents",
   "type": "constraint",
-  "updated_at": "2026-06-24T12:10:00+03:00"
+  "updated_at": "2026-07-08T16:41:17+03:00"
 }

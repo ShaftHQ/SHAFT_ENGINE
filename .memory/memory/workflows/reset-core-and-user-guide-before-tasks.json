@@ -1,6 +1,6 @@
 {
   "body_path": "memory/workflows/reset-core-and-user-guide-before-tasks.md",
-  "content_hash": "sha256:8a57c1abf50feaec24b94e41c975438dc87e905a416de4ef0110847f84986c65",
+  "content_hash": "sha256:95d8f6e9ac67ea1e3492dab37858f65cd2ef37501d2cb5bbcc605754acb1f37c",
   "created_at": "2026-07-05T08:31:01+03:00",
   "evidence": [],
   "facets": {
@@ -17,7 +17,7 @@
     "kind": "agent",
     "task": "Remember user repo reset workflow preference from 2026-07-05"
   },
-  "status": "active",
+  "status": "stale",
   "tags": [
     "git",
     "workflow",
@@ -26,5 +26,5 @@
   ],
   "title": "Reset core and user guide repos before tasks",
   "type": "workflow",
-  "updated_at": "2026-07-05T08:31:01+03:00"
+  "updated_at": "2026-07-08T16:41:17+03:00"
 }

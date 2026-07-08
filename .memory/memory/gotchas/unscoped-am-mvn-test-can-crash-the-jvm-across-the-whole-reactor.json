@@ -1,0 +1,34 @@
+{
+  "body_path": "memory/gotchas/unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor.md",
+  "content_hash": "sha256:f31a5d98f1bfd8983982daf210e8d2d656081c5d6f87cff1f91260330d131e06",
+  "created_at": "2026-07-08T17:00:20+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      "pom.xml",
+      ".claude/hooks/guard.py"
+    ],
+    "category": "gotcha"
+  },
+  "id": "gotcha.unscoped-am-mvn-test-can-crash-the-jvm-across-the-whole-reactor",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
+  },
+  "status": "active",
+  "tags": [
+    "maven",
+    "testing",
+    "ci",
+    "performance"
+  ],
+  "title": "Unscoped `-am` mvn test can crash the JVM across the whole reactor",
+  "type": "gotcha",
+  "updated_at": "2026-07-08T17:00:20+03:00"
+}
