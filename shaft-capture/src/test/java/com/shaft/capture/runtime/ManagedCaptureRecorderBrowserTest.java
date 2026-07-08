@@ -13,6 +13,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.StaleElementReferenceException;
@@ -358,6 +359,73 @@ class ManagedCaptureRecorderBrowserTest {
         assertFalse(title.negated(), "The browser assertion was not negated.");
         assertTrue(title.expected() != null,
                 "The browser assertion must persist its expected value reference.");
+    }
+
+    /**
+     * Regression for issue #3378: the recorder overlay toolbar ({@code #shaft-capture-ui header})
+     * used to be bottom-anchored with a content-sized height, so every appended action row pushed
+     * the toolbar -- and the {@code #shaft-capture-assert} button inside it -- upward on screen. A
+     * click dispatched right as a row was appended could then land on stale coordinates and
+     * silently miss. Asserts the assert button's viewport position is unchanged as the recorded
+     * action list grows, which only holds when the panel has a fixed height and the action list is
+     * the flexible/scrolling region that absorbs growth.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void overlayToolbarStaysAnchoredWhileActionListGrows(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve(browserName + "-anchor.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-anchor-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            // Let the initial "Open ..." breadcrumb settle so the row count is deterministic.
+            waitFor(() -> actionRowCount(js) >= 1);
+            double baselineTop = assertButtonTop(js);
+            long baselineRows = actionRowCount(js);
+
+            // Append two more rows via real user actions, then wait for both to land before
+            // re-measuring; this proves the toolbar's position, not a timing coincidence.
+            driver.findElement(By.id("terms")).click();
+            new Select(driver.findElement(By.id("country"))).selectByVisibleText("Egypt");
+            waitFor(() -> actionRowCount(js) >= baselineRows + 2);
+
+            double grownTop = assertButtonTop(js);
+            recorder.stop(false);
+
+            assertEquals(baselineTop, grownTop, 1.5d,
+                    "The #shaft-capture-assert toolbar button must not move on screen as the "
+                            + "recorded-action list grows; a shifting toolbar lets a click that "
+                            + "started before a row appended land on stale coordinates (#3378).");
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    private static double assertButtonTop(JavascriptExecutor js) {
+        Object value = js.executeScript(
+                "return document.getElementById('shaft-capture-assert').getBoundingClientRect().top;");
+        return ((Number) value).doubleValue();
+    }
+
+    private static long actionRowCount(JavascriptExecutor js) {
+        Object value = js.executeScript(
+                "const l = document.getElementById('shaft-capture-action-list');"
+                        + "return l ? l.childElementCount : 0;");
+        return ((Number) value).longValue();
     }
 
     private static By assertionChoice(String label) {
