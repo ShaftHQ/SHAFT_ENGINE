@@ -84,4 +84,18 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
         return new NativeValidationsBuilder(this);
     }
 
+    /**
+     * Use this to check that the current page matches its visual-regression baseline screenshot
+     * (full-page pixel diff via OpenCV; see {@link VisualValidationsBuilder} for diff-budget/mask options).
+     * On the first test run this method takes a full-page screenshot and the test passes, saving it as
+     * the baseline for subsequent runs.
+     *
+     * @return a VisualValidationsBuilder to optionally set diff-budget/mask options and then perform() your validation
+     */
+    @Override
+    public VisualValidationsBuilder matchesScreenshot() {
+        reportMessageBuilder.append("page matches the visual regression baseline screenshot.");
+        return new VisualValidationsBuilder(validationCategory, driver, null, true, reportMessageBuilder);
+    }
+
 }

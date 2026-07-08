@@ -14,6 +14,7 @@ import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +44,10 @@ public class ValidationsExecutor {
     private String folderRelativePath;
     private String fileName;
     private boolean jsonIgnoringOrderComparison;
+    private Integer maxDiffPixels;
+    private Double maxDiffPixelRatio;
+    private List<By> maskLocators;
+    private String ariaSnapshotFileName;
 
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -51,7 +56,20 @@ public class ValidationsExecutor {
         this.validationType = webDriverElementValidationsBuilder.validationType;
         this.validationMethod = webDriverElementValidationsBuilder.validationMethod;
         this.visualValidationEngine = webDriverElementValidationsBuilder.visualValidationEngine;
+        this.ariaSnapshotFileName = webDriverElementValidationsBuilder.ariaSnapshotFileName;
         this.reportMessageBuilder = webDriverElementValidationsBuilder.reportMessageBuilder;
+    }
+
+    public ValidationsExecutor(VisualValidationsBuilder visualValidationsBuilder) {
+        this.validationCategory = visualValidationsBuilder.validationCategory;
+        this.driver.set(visualValidationsBuilder.driver);
+        this.locator = visualValidationsBuilder.locator;
+        this.validationType = visualValidationsBuilder.validationType;
+        this.validationMethod = visualValidationsBuilder.pageLevel ? "pageMatchesScreenshot" : "elementMatchesScreenshot";
+        this.maxDiffPixels = visualValidationsBuilder.maxDiffPixels;
+        this.maxDiffPixelRatio = visualValidationsBuilder.maxDiffPixelRatio;
+        this.maskLocators = visualValidationsBuilder.maskLocators;
+        this.reportMessageBuilder = visualValidationsBuilder.reportMessageBuilder;
     }
 
     public ValidationsExecutor(NativeValidationsBuilder nativeValidationsBuilder) {
@@ -184,6 +202,12 @@ public class ValidationsExecutor {
                     validationsHelper.validateElementExists(driver.get(), locator, validationType);
             case "elementMatches" ->
                     validationsHelper.validateElementMatches(driver.get(), locator, visualValidationEngine, validationType);
+            case "elementMatchesScreenshot" ->
+                    validationsHelper.validateMatchesScreenshot(driver.get(), locator, false, maskLocators, maxDiffPixels, maxDiffPixelRatio, validationType);
+            case "pageMatchesScreenshot" ->
+                    validationsHelper.validateMatchesScreenshot(driver.get(), locator, true, maskLocators, maxDiffPixels, maxDiffPixelRatio, validationType);
+            case "elementAriaSnapshotMatches" ->
+                    validationsHelper.validateElementAriaSnapshot(driver.get(), locator, ariaSnapshotFileName, validationType);
             case "elementAttributeEquals" ->
                     validationsHelper.validateElementAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
             case "elementDomAttributeEquals" ->

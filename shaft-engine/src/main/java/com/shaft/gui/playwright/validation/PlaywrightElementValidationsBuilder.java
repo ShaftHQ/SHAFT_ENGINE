@@ -6,6 +6,7 @@ import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.NativeValidationsBuilder;
 import com.shaft.validation.internal.ValidationsExecutor;
+import com.shaft.validation.internal.VisualValidationsBuilder;
 
 public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     private final ValidationEnums.ValidationCategory validationCategory;
@@ -154,6 +155,22 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     public NativeValidationsBuilder cssProperty(String elementCssProperty) {
         reportMessageBuilder.append("CSS property \"").append(elementCssProperty).append("\" ");
         return builder("elementCssPropertyEquals", null, elementCssProperty);
+    }
+
+    @Override
+    public ValidationsExecutor matchesAriaSnapshot(String snapshotFileName) {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append("matches the aria snapshot \"").append(snapshotFileName).append("\".");
+        var executor = builder("elementAriaSnapshotMatches", null, null).createAriaSnapshotExecutor(snapshotFileName);
+        executor.internalPerform();
+        return executor;
+    }
+
+    @Override
+    public VisualValidationsBuilder matchesScreenshot() {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append("matches the visual regression baseline screenshot.");
+        return new PlaywrightVisualValidationsBuilder(validationCategory, session, locator, locatorDescription, false, reportMessageBuilder);
     }
 
     private PlaywrightNativeValidationsBuilder builder(String validationMethod, String elementAttribute, String elementCssProperty) {

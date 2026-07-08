@@ -5,6 +5,7 @@ import com.microsoft.playwright.options.BoundingBox;
 import com.google.common.annotations.Beta;
 import com.shaft.gui.driver.ElementAssertions;
 import com.shaft.gui.driver.ShaftLocator;
+import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.gui.internal.locator.CompositeLocator;
 import com.shaft.gui.internal.locator.SmartLocators;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
@@ -438,6 +439,20 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
             ReportManagerHelper.attach("Playwright Screenshot", "element.png", new ByteArrayInputStream(screenshot));
             ReportManager.log("Captured Playwright element screenshot.");
         });
+    }
+
+    @Override
+    public String ariaSnapshot(By elementLocator) {
+        return ariaSnapshot(resolve(elementLocator));
+    }
+
+    @Override
+    public String ariaSnapshot(ShaftLocator elementLocator) {
+        return ariaSnapshot(resolve(elementLocator));
+    }
+
+    public String ariaSnapshot(Locator elementLocator) {
+        return AriaSnapshotHelper.captureAriaSnapshot(elementLocator);
     }
 
     private Locator resolve(By locator) {

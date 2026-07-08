@@ -8,8 +8,11 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.image.VisualProcessingProvider;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -35,6 +38,7 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -593,6 +597,154 @@ public class ValidationsHelper {
         updateAllureParameters(parameters);
         // force take page screenshot, (rather than element highlighted screenshot)
         reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments, visualComparisonAttached.get());
+    }
+
+    protected void validateMatchesScreenshot(WebDriver driver, By locator, boolean pageLevel, List<By> maskLocators,
+                                             Integer maxDiffPixels, Double maxDiffPixelRatio, ValidationEnums.ValidationType validationType) {
+        // read actual value based on desired existing state
+        // Note: do not try/catch this block as the upstream failure will already be reported along with any needed attachments
+        AtomicBoolean expected = new AtomicBoolean(false);
+        AtomicBoolean actual = new AtomicBoolean(false);
+        AtomicBoolean validationState = new AtomicBoolean(false);
+        List<List<Object>> attachments = new ArrayList<>();
+        AtomicBoolean visualComparisonAttached = new AtomicBoolean(false);
+        String pageBaselineKey = pageLevel ? "page_" + ReportManagerHelper.getCallingMethodFullName() : null;
+
+        try {
+            new SynchronizationManager(driver).fluentWait(true).until(f -> {
+                byte[] actualScreenshot;
+                if (pageLevel) {
+                    try {
+                        actualScreenshot = ScreenshotHelper.makeFullScreenshot(driver);
+                    } catch (IOException ioException) {
+                        ReportManagerHelper.logDiscrete(ioException);
+                        return false; // force the wait block to try again
+                    }
+                } else {
+                    try {
+                        actualScreenshot = driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
+                    } catch (WebDriverException webDriverException) {
+                        if (Objects.requireNonNull(webDriverException.getMessage()).contains("Cannot take screenshot with 0 width.")) {
+                            throw new NoSuchElementException("Cannot take screenshot with 0 width.");
+                        } else if (Objects.requireNonNull(webDriverException.getMessage()).contains("NS_ERROR_FAILURE")) {
+                            return false; // force the wait block to try again in case of unknown error with firefox
+                        } else {
+                            throw webDriverException;
+                        }
+                    }
+                }
+
+                List<int[]> maskRects = resolveMaskRects(driver, maskLocators);
+
+                byte[] baselineImage = pageLevel
+                        ? ImageProcessingActions.getReferenceImage(pageBaselineKey)
+                        : ImageProcessingActions.getReferenceImage(locator);
+
+                VisualProcessingProvider.ScreenshotComparisonResult comparisonResult = pageLevel
+                        ? ImageProcessingActions.compareScreenshotAgainstBaseline(pageBaselineKey, actualScreenshot, maskRects, maxDiffPixels, maxDiffPixelRatio)
+                        : ImageProcessingActions.compareScreenshotAgainstBaseline(locator, actualScreenshot, maskRects, maxDiffPixels, maxDiffPixelRatio);
+
+                if (baselineImage != null) {
+                    visualComparisonAttached.set(attachVisualComparison(baselineImage, actualScreenshot, comparisonResult.diffImage()));
+                }
+
+                expected.set(validationType.getValue());
+                actual.set(comparisonResult.matched());
+                // force validation type to be positive since the expected and actual values have been adjusted already
+                validationState.set(performValidation(expected.get(), actual.get(), ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE));
+                return validationState.get();
+            });
+        } catch (TimeoutException timeoutException) {
+            //timeout was exhausted and the validation failed
+        }
+        //reporting block
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put(pageLevel ? "Page" : "Locator", pageLevel ? "current page" : String.valueOf(locator));
+        parameters.put("Should match", String.valueOf(expected.get()));
+        parameters.put("Actual value", String.valueOf(actual.get()));
+        updateAllureParameters(parameters);
+        // force take page screenshot, (rather than element highlighted screenshot)
+        reportValidationState(validationState.get(), expected, actual, driver, pageLevel ? null : locator, attachments, visualComparisonAttached.get());
+    }
+
+    private static List<int[]> resolveMaskRects(WebDriver driver, List<By> maskLocators) {
+        if (maskLocators == null || maskLocators.isEmpty()) {
+            return List.of();
+        }
+        double scalingFactor = SHAFT.Properties.visuals.screenshotParamsScalingFactor();
+        List<int[]> rects = new ArrayList<>();
+        for (By mask : maskLocators) {
+            try {
+                var rect = driver.findElement(mask).getRect();
+                rects.add(new int[]{
+                        (int) Math.round(rect.getX() * scalingFactor),
+                        (int) Math.round(rect.getY() * scalingFactor),
+                        (int) Math.round(rect.getWidth() * scalingFactor),
+                        (int) Math.round(rect.getHeight() * scalingFactor)
+                });
+            } catch (NoSuchElementException noSuchElementException) {
+                ReportManagerHelper.logDiscrete("Mask locator \"" + mask + "\" did not match any element; skipping mask.", Level.DEBUG);
+            }
+        }
+        return rects;
+    }
+
+    protected void validateElementAriaSnapshot(WebDriver driver, By locator, String snapshotFileName, ValidationEnums.ValidationType validationType) {
+        AtomicBoolean expected = new AtomicBoolean(false);
+        AtomicBoolean actual = new AtomicBoolean(false);
+        AtomicBoolean validationState = new AtomicBoolean(false);
+        AtomicReference<List<List<Object>>> attachmentsRef = new AtomicReference<>(new ArrayList<>());
+        String baselinePath = resolveAriaSnapshotPath(snapshotFileName);
+
+        try {
+            new SynchronizationManager(driver).fluentWait(true).until(f -> {
+                List<List<Object>> attachments = new ArrayList<>();
+                String actualYaml = AriaSnapshotHelper.captureAriaSnapshot(driver, locator);
+                boolean updateSnapshots = SHAFT.Properties.visuals.updateSnapshots();
+                boolean baselineExists = FileActions.getInstance(true).doesFileExist(baselinePath);
+                boolean matched;
+                String baselineYaml;
+
+                if (!baselineExists || updateSnapshots) {
+                    ReportManager.logDiscrete("Passing the test and saving a reference aria snapshot baseline.");
+                    FileActions.getInstance(true).writeToFile(baselinePath, actualYaml);
+                    matched = true;
+                    baselineYaml = actualYaml;
+                } else {
+                    baselineYaml = FileActions.getInstance(true).readFile(baselinePath);
+                    var matchResult = AriaSnapshotHelper.match(baselineYaml, actualYaml);
+                    matched = matchResult.matched();
+                    if (!matched) {
+                        attachments.add(List.of("Aria Snapshot Diff", "aria-snapshot-diff.txt", matchResult.diffMessage()));
+                    }
+                }
+                attachments.add(List.of("Expected Aria Snapshot", snapshotFileName + ".yaml", baselineYaml));
+                attachments.add(List.of("Actual Aria Snapshot", snapshotFileName + "_actual.yaml", actualYaml));
+                attachmentsRef.set(attachments);
+
+                expected.set(validationType.getValue());
+                actual.set(matched);
+                // force validation type to be positive since the expected and actual values have been adjusted already
+                validationState.set(performValidation(expected.get(), actual.get(), ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE));
+                return validationState.get();
+            });
+        } catch (TimeoutException timeoutException) {
+            //timeout was exhausted and the validation failed
+        }
+        //reporting block
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
+        parameters.put("Snapshot file", snapshotFileName);
+        parameters.put("Should match", String.valueOf(expected.get()));
+        parameters.put("Actual value", String.valueOf(actual.get()));
+        updateAllureParameters(parameters);
+        reportValidationState(validationState.get(), expected, actual, driver, locator, attachmentsRef.get());
+    }
+
+    private static String resolveAriaSnapshotPath(String snapshotFileName) {
+        String fileName = snapshotFileName.endsWith(".yaml") || snapshotFileName.endsWith(".yml")
+                ? snapshotFileName : snapshotFileName + ".yaml";
+        return SHAFT.Properties.paths.ariaSnapshot() + fileName;
     }
 
     private static boolean attachVisualComparison(byte[] expectedImage, byte[] actualImage, byte[] differenceImage) {

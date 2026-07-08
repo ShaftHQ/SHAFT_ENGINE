@@ -5,9 +5,12 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.assertions.LocatorAssertions;
 import com.microsoft.playwright.assertions.PageAssertions;
 import com.microsoft.playwright.assertions.PlaywrightAssertions;
+import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.image.VisualProcessingProvider;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
 import com.shaft.tools.internal.support.JavaHelper;
@@ -48,6 +51,10 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     private final ValidationEnums.ValidationComparisonType validationComparisonType;
     private final Object expectedValue;
     private final StringBuilder reportMessageBuilder;
+    private final Integer maxDiffPixels;
+    private final Double maxDiffPixelRatio;
+    private final List<Locator> maskLocators;
+    private final String ariaSnapshotFileName;
     private String validationCategoryString;
     private String customReportMessage = "";
 
@@ -66,6 +73,31 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         this.elementCssProperty = builder.playwrightElementCssProperty();
         this.browserAttribute = builder.playwrightBrowserAttribute();
         this.reportMessageBuilder = builder.reportMessageBuilder();
+        this.maxDiffPixels = null;
+        this.maxDiffPixelRatio = null;
+        this.maskLocators = List.of();
+        this.ariaSnapshotFileName = builder.ariaSnapshotFileName();
+    }
+
+    PlaywrightValidationsExecutor(PlaywrightVisualValidationsBuilder builder) {
+        super(new SeedBuilder(builder.validationCategory()));
+        this.validationCategory = builder.validationCategory();
+        this.session = builder.session();
+        this.locator = builder.playwrightLocator();
+        this.locatorDescription = builder.playwrightLocatorDescription();
+        this.validationMethod = builder.pageLevel() ? "pageMatchesScreenshot" : "elementMatchesScreenshot";
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.visualValidationEngine = null;
+        this.validationComparisonType = null;
+        this.expectedValue = null;
+        this.elementAttribute = null;
+        this.elementCssProperty = null;
+        this.browserAttribute = null;
+        this.reportMessageBuilder = builder.reportMessageBuilder();
+        this.maxDiffPixels = builder.maxDiffPixelsValue();
+        this.maxDiffPixelRatio = builder.maxDiffPixelRatioValue();
+        this.maskLocators = builder.playwrightMaskLocators();
+        this.ariaSnapshotFileName = null;
     }
 
     @Override
@@ -114,6 +146,12 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     private Outcome evaluate() {
         if ("elementMatches".equals(validationMethod)) {
             return evaluateElementMatches();
+        }
+        if ("elementMatchesScreenshot".equals(validationMethod) || "pageMatchesScreenshot".equals(validationMethod)) {
+            return evaluateMatchesScreenshot();
+        }
+        if ("elementAriaSnapshotMatches".equals(validationMethod)) {
+            return evaluateAriaSnapshot();
         }
         Object reportedExpected = expectedValue;
         Supplier<Object> actualSupplier = this::readActual;
@@ -271,6 +309,81 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
                 visualAttachments, visualComparisonAttached);
     }
 
+    private Outcome evaluateMatchesScreenshot() {
+        boolean pageLevel = "pageMatchesScreenshot".equals(validationMethod);
+        byte[] actualScreenshot = pageLevel
+                ? session.page().screenshot(new Page.ScreenshotOptions().setFullPage(true))
+                : locator.screenshot();
+
+        String baselineKey = pageLevel ? "page_" + ReportManagerHelper.getCallingMethodFullName() : locatorDescription;
+        byte[] baselineImage = ImageProcessingActions.getReferenceImage(baselineKey);
+        List<int[]> maskRects = resolveMaskRects();
+
+        VisualProcessingProvider.ScreenshotComparisonResult comparisonResult = ImageProcessingActions
+                .compareScreenshotAgainstBaseline(baselineKey, actualScreenshot, maskRects, maxDiffPixels, maxDiffPixelRatio);
+
+        boolean visualComparisonAttached = baselineImage != null
+                && attachVisualComparison(baselineImage, actualScreenshot, comparisonResult.diffImage());
+
+        boolean expected = true;
+        boolean actual = comparisonResult.matched();
+        return new Outcome(expected == actual, expected, actual, commonParameters(expected, actual), List.of(), visualComparisonAttached);
+    }
+
+    private Outcome evaluateAriaSnapshot() {
+        String actualYaml = AriaSnapshotHelper.captureAriaSnapshot(locator);
+        String baselinePath = resolveAriaSnapshotPath(ariaSnapshotFileName);
+        boolean updateSnapshots = SHAFT.Properties.visuals.updateSnapshots();
+        boolean baselineExists = FileActions.getInstance(true).doesFileExist(baselinePath);
+        boolean matched;
+        String baselineYaml;
+        List<List<Object>> attachments = new ArrayList<>();
+
+        if (!baselineExists || updateSnapshots) {
+            FileActions.getInstance(true).writeToFile(baselinePath, actualYaml);
+            matched = true;
+            baselineYaml = actualYaml;
+        } else {
+            baselineYaml = FileActions.getInstance(true).readFile(baselinePath);
+            var matchResult = AriaSnapshotHelper.match(baselineYaml, actualYaml);
+            matched = matchResult.matched();
+            if (!matched) {
+                attachments.add(List.of("Aria Snapshot Diff", "aria-snapshot-diff.txt", matchResult.diffMessage()));
+            }
+        }
+        attachments.add(List.of("Expected Aria Snapshot", ariaSnapshotFileName + ".yaml", baselineYaml));
+        attachments.add(List.of("Actual Aria Snapshot", ariaSnapshotFileName + "_actual.yaml", actualYaml));
+
+        boolean expected = true;
+        return new Outcome(expected == matched, expected, matched, commonParameters(expected, matched), attachments, false);
+    }
+
+    private static String resolveAriaSnapshotPath(String snapshotFileName) {
+        String fileName = snapshotFileName.endsWith(".yaml") || snapshotFileName.endsWith(".yml")
+                ? snapshotFileName : snapshotFileName + ".yaml";
+        return SHAFT.Properties.paths.ariaSnapshot() + fileName;
+    }
+
+    private List<int[]> resolveMaskRects() {
+        if (maskLocators == null || maskLocators.isEmpty()) {
+            return List.of();
+        }
+        List<int[]> rects = new ArrayList<>();
+        for (Locator mask : maskLocators) {
+            var box = mask.boundingBox();
+            if (box == null) {
+                continue;
+            }
+            rects.add(new int[]{
+                    (int) Math.round(box.x),
+                    (int) Math.round(box.y),
+                    (int) Math.round(box.width),
+                    (int) Math.round(box.height)
+            });
+        }
+        return rects;
+    }
+
     private static boolean attachVisualComparison(byte[] expectedImage, byte[] actualImage, byte[] differenceImage) {
         try {
             var content = new JSONObject()
@@ -404,6 +517,17 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
             case "elementMatches" -> {
                 parameters.put("Should match", String.valueOf(expected));
                 parameters.put("Visual engine", visualValidationEngine.name());
+                parameters.put("Actual value", String.valueOf(actual));
+                return parameters;
+            }
+            case "elementMatchesScreenshot", "pageMatchesScreenshot" -> {
+                parameters.put("Should match", String.valueOf(expected));
+                parameters.put("Actual value", String.valueOf(actual));
+                return parameters;
+            }
+            case "elementAriaSnapshotMatches" -> {
+                parameters.put("Snapshot file", ariaSnapshotFileName);
+                parameters.put("Should match", String.valueOf(expected));
                 parameters.put("Actual value", String.valueOf(actual));
                 return parameters;
             }

@@ -4,6 +4,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.*;
@@ -473,6 +474,19 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
     @Override
     public Actions captureScreenshot(By elementLocator) {
         return new Actions(driverFactoryHelper).captureScreenshot(elementLocator);
+    }
+
+    /**
+     * Captures an accessible-name-tree ("aria") snapshot of the target element, serialized as YAML.
+     * Use with {@code assertThat(elementLocator).matchesAriaSnapshot(fileName)} for regression baselining.
+     *
+     * @param elementLocator the locator of the element to snapshot
+     * @return the captured snapshot serialized as YAML
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a>
+     */
+    @Override
+    public String ariaSnapshot(By elementLocator) {
+        return AriaSnapshotHelper.captureAriaSnapshot(driverFactoryHelper.getDriver(), elementLocator);
     }
 
 }

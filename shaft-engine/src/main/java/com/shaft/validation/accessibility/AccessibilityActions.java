@@ -373,6 +373,42 @@ public class AccessibilityActions {
     }
 
     /**
+     * Asserts (hard assertion) that the current page has no accessibility violations matching any
+     * of the supplied WCAG tags (e.g. {@code "wcag2a"}, {@code "wcag21aa"}, {@code "best-practice"}).
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.accessibility().assertIsAccessible("wcag2a", "wcag2aa");
+     * }</pre>
+     *
+     * @param wcagTags one or more axe-core WCAG tags to scope the audit to
+     * @return this {@code AccessibilityActions} instance for method chaining
+     */
+    public AccessibilityActions assertIsAccessible(String... wcagTags) {
+        boolean accessible = isAccessibleForTags(wcagTags);
+        assertCondition(accessible, "Assert the page is accessible for WCAG tags: " + String.join(", ", wcagTags));
+        return this;
+    }
+
+    /**
+     * Verifies (soft assertion) that the current page has no accessibility violations matching any
+     * of the supplied WCAG tags (e.g. {@code "wcag2a"}, {@code "wcag21aa"}, {@code "best-practice"}).
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.accessibility().verifyIsAccessible("wcag2a", "wcag2aa");
+     * }</pre>
+     *
+     * @param wcagTags one or more axe-core WCAG tags to scope the audit to
+     * @return this {@code AccessibilityActions} instance for method chaining
+     */
+    public AccessibilityActions verifyIsAccessible(String... wcagTags) {
+        boolean accessible = isAccessibleForTags(wcagTags);
+        verifyCondition(accessible, "Verify the page is accessible for WCAG tags: " + String.join(", ", wcagTags));
+        return this;
+    }
+
+    /**
      * Asserts (hard assertion) that the current page has no accessibility violations matching
      * any of the supplied impact levels.
      *
@@ -619,6 +655,12 @@ public class AccessibilityActions {
             return !analyzeAndReturn("CurrentPage", false).hasViolations();
         }
         return AccessibilityHelper.isAccessible(driver.getDriver());
+    }
+
+    private boolean isAccessibleForTags(String... wcagTags) {
+        AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig()
+                .setTags(Arrays.asList(wcagTags));
+        return !analyzeAndReturn("CurrentPage", config, false).hasViolations();
     }
 
     private WebDriver rawDriver() {

@@ -11,6 +11,9 @@ import org.aeonbits.owner.ConfigFactory;
  * <pre>{@code
  * SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Always");
  * }</pre>
+ *
+ * <p>Set {@code -Dshaft.updateSnapshots=true} to regenerate visual and aria-snapshot baselines instead of
+ * comparing against the existing ones.</p>
  */
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/VisualValidations.properties", "file:src/main/resources/properties/default/VisualValidations.properties", "classpath:VisualValidations.properties"})
@@ -76,6 +79,10 @@ public interface Visuals extends EngineProperties<Visuals> {
     @Key("whenToTakePageSourceSnapshot")
     @DefaultValue("failuresOnly")
     String whenToTakePageSourceSnapshot();
+
+    @Key("shaft.updateSnapshots")
+    @DefaultValue("false")
+    boolean updateSnapshots();
 
     default SetProperty set() {
         return new SetProperty();
@@ -150,6 +157,11 @@ public interface Visuals extends EngineProperties<Visuals> {
 
         public SetProperty whenToTakePageSourceSnapshot(String value) {
             setProperty("whenToTakePageSourceSnapshot", value);
+            return this;
+        }
+
+        public SetProperty updateSnapshots(boolean value) {
+            setProperty("shaft.updateSnapshots", String.valueOf(value));
             return this;
         }
 
