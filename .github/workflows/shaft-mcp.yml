@@ -2,7 +2,7 @@ name: shaft-mcp
 
 on:
   schedule:
-    - cron: '30 2 * * *'
+    - cron: '00 1 * * *'
   workflow_dispatch:
 
 permissions:
