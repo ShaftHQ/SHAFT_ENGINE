@@ -49,6 +49,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#restrictToOwner(java.nio.file.Path)" tabindex="0">restrictToOwner(Path)</a></li>
+<li><a href="#restrictDirectoryToOwner(java.nio.file.Path)" tabindex="0">restrictDirectoryToOwner(Path)</a></li>
 </ol>
 </li>
 </ol>
@@ -66,7 +67,7 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">OwnerOnlyFilePermissions</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">Restricts a file to owner-only access on any filesystem. Extracted from
+<div class="block">Restricts a file or directory to owner-only access on any filesystem. Extracted from
 <code>com.shaft.capture.network.SecretHeaderReplacer</code> so every locally-stored secret --
 captured header secrets, and the mobile capture proxy's CA private key -- goes through the same
 single, tested implementation of this security-sensitive operation rather than duplicating it.</div>
@@ -86,8 +87,13 @@ single, tested implementation of this security-sensitive operation rather than d
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#restrictToOwner(java.nio.file.Path)" class="member-name-link">restrictToOwner</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;path)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#restrictDirectoryToOwner(java.nio.file.Path)" class="member-name-link">restrictDirectoryToOwner</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;directory)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Sets owner-only permissions on a directory, keeping it traversable by its owner.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#restrictToOwner(java.nio.file.Path)" class="member-name-link">restrictToOwner</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;path)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Sets owner-only permissions on a file.</div>
 </div>
 </div>
@@ -119,6 +125,23 @@ ALLOW entry for the owner, denying access to every other principal.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>path</code> - file path</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="restrictDirectoryToOwner(java.nio.file.Path)">
+<h3>restrictDirectoryToOwner</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">restrictDirectoryToOwner</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;directory)</span></div>
+<div class="block">Sets owner-only permissions on a directory, keeping it traversable by its owner.
+Unlike <a href="#restrictToOwner(java.nio.file.Path)"><code>restrictToOwner(Path)</code></a>, this also grants the owner execute (search)
+permission -- on POSIX systems, a directory without its own execute bit cannot be
+traversed into by anyone, including its owner, so a plain owner-read/write-only directory
+would block every subsequent read or write of files inside it.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>directory</code> - directory path</dd>
 </dl>
 </div>
 </section>
