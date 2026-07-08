@@ -1,0 +1,93 @@
+name: Sharded Execution + Merged Report Demo
+
+# Dispatch-only demo of the D8 -Dshaft.shard=N/M sharding + merged-report
+# pipeline (issue #3347). Does NOT replace or touch the existing manual
+# class-filter partitioning in e2eTests.yml -- it is a separate, opt-in
+# recipe showing the shard -> assemble -> merge flow end to end using
+# scripts/ci/assemble_shard_blob.py and ShardMergeCli.
+#
+# The default test filter targets ShardPartitionerUnitTest itself (a fast,
+# browser-free TestNG unit test), so a dispatch run stays quick; point
+# test_filter at a broader suite to shard real end-to-end tests.
+
+concurrency:
+  group: sharded-merged-report-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_filter:
+        description: '-Dtest= filter passed to every shard'
+        required: false
+        default: '%regex[.*ShardPartitionerUnitTest.*]'
+
+env:
+  TOTAL_SHARDS: 3
+
+jobs:
+  shard:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: ''
+      - name: Run shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}
+        run: mvn -pl shaft-engine -am -e test "-Dshaft.shard=${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}" "-DheadlessExecution=true" "-Dtest=${{ github.event.inputs.test_filter }}"
+      - name: Assemble shard blob
+        run: python3 scripts/ci/assemble_shard_blob.py --shard ${{ matrix.shard }} --output "target/shard-blobs/shard-${{ matrix.shard }}" --zip
+      - name: Upload shard blob
+        uses: actions/upload-artifact@v7
+        with:
+          name: shard-blob-${{ matrix.shard }}
+          path: target/shard-blobs/shard-${{ matrix.shard }}.zip
+          if-no-files-found: error
+
+  merge:
+    needs: shard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: ''
+      - name: Download all shard blobs
+        uses: actions/download-artifact@v7
+        with:
+          pattern: shard-blob-*
+          path: downloaded-blobs
+      - name: Unzip shard blobs into ShardBlob layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/shard-blobs
+          for zip in downloaded-blobs/*/*.zip; do
+            name="$(basename "$zip" .zip)"
+            mkdir -p "target/shard-blobs/$name"
+            unzip -oq "$zip" -d "target/shard-blobs/$name"
+          done
+      - name: Build report-aggregate + shaft-doctor
+        run: mvn -q -pl report-aggregate -am -DskipTests -Dgpg.skip=true install
+      - name: Merge shards
+        shell: bash
+        run: |
+          set -euo pipefail
+          blobs=(target/shard-blobs/*/)
+          mvn -q -pl report-aggregate exec:java \
+            "-Dexec.mainClass=com.shaft.reportaggregate.ShardMergeCli" \
+            "-Dexec.args=--output target/merged-report ${blobs[*]}"
+      - name: Upload merged report
+        uses: actions/upload-artifact@v7
+        with:
+          name: merged-report
+          path: target/merged-report
+          if-no-files-found: error

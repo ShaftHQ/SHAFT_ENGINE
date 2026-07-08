@@ -83,7 +83,7 @@ public final class CaptureCertificateAuthority {
         this.directory = directory;
         try {
             Files.createDirectories(directory);
-            OwnerOnlyFilePermissions.restrictToOwner(directory);
+            OwnerOnlyFilePermissions.restrictDirectoryToOwner(directory);
             Path keyPath = directory.resolve(KEY_FILE);
             Path certPath = directory.resolve(CERT_FILE);
             if (Files.exists(keyPath) && Files.exists(certPath)) {

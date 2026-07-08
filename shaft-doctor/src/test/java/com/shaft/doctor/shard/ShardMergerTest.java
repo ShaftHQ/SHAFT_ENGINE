@@ -85,6 +85,85 @@ class ShardMergerTest {
         assertFalse(report.warnings().isEmpty());
     }
 
+    @Test
+    void copiesShaftTracesFromEveryShardIntoMergedOutputNamespacedByShard() throws Exception {
+        Path shard1 = writeShard("shard-1", result("test-a", "com.example.Test.a", "passed", 0, 100));
+        writeTrace(shard1, "com.example.Test.a", "{\"testId\": \"com.example.Test.a\"}");
+        Path shard2 = writeShard("shard-2", result("test-b", "com.example.Test.b", "passed", 0, 100));
+        writeTrace(shard2, "com.example.Test.b", "{\"testId\": \"com.example.Test.b\"}");
+
+        MergedReport report = ShardMerger.merge(List.of(shard1, shard2), tempDir.resolve("merged"));
+
+        Path mergedTraces = report.mergedAllureResultsDirectory().getParent().resolve("shaft-traces");
+        assertTrue(Files.exists(mergedTraces.resolve("shard-1").resolve("com.example.Test.a").resolve("index.json")));
+        assertTrue(Files.exists(mergedTraces.resolve("shard-2").resolve("com.example.Test.b").resolve("index.json")));
+        assertTrue(report.warnings().isEmpty(), report.warnings().toString());
+    }
+
+    @Test
+    void shardWithNoTracesDirectoryMergesWithoutWarning() throws Exception {
+        Path shard = writeShard("shard-1", result("test-a", "com.example.Test.a", "passed", 0, 100));
+
+        MergedReport report = ShardMerger.merge(List.of(shard), tempDir.resolve("merged"));
+
+        assertTrue(report.warnings().isEmpty(), report.warnings().toString());
+    }
+
+    @Test
+    void aggregatesExecutionIntelligenceAcrossShardsIntoSpeedboard() throws Exception {
+        Path shard1 = writeShard("shard-1", result("test-a", "com.example.Test.a", "failed", 0, 100));
+        writeExecutionIntelligence(shard1, "LOCATOR", "HIGH", 3, 1, 2, "Locator drift on shard 1.");
+        Path shard2 = writeShard("shard-2", result("test-b", "com.example.Test.b", "passed", 0, 100));
+        writeExecutionIntelligence(shard2, "TIMING_SYNCHRONIZATION", "MEDIUM", 1, 0, 0, "Timing flake on shard 2.");
+
+        MergedReport report = ShardMerger.merge(List.of(shard1, shard2), tempDir.resolve("merged"));
+
+        assertEquals(2, report.shardIntelligence().size());
+        ShardIntelligence first = report.shardIntelligence().get(0);
+        assertEquals("shard-1", first.shardId());
+        assertEquals("LOCATOR", first.primaryCause());
+        assertEquals("HIGH", first.confidence());
+        assertEquals(3, first.failingAttempts());
+        String speedboard = Files.readString(report.speedboardHtmlPath(), StandardCharsets.UTF_8);
+        assertTrue(speedboard.contains("Doctor triage across shards"), speedboard);
+        assertTrue(speedboard.contains("Locator drift on shard 1."), speedboard);
+        assertTrue(speedboard.contains("Timing flake on shard 2."), speedboard);
+    }
+
+    @Test
+    void malformedExecutionIntelligenceIsSkippedWithAWarningRatherThanThrowing() throws Exception {
+        Path shard = writeShard("shard-1", result("test-a", "com.example.Test.a", "passed", 0, 100));
+        Files.writeString(shard.resolve("execution-intelligence.json"), "{not valid json", StandardCharsets.UTF_8);
+
+        MergedReport report = ShardMerger.merge(List.of(shard), tempDir.resolve("merged"));
+
+        assertTrue(report.shardIntelligence().isEmpty());
+        assertFalse(report.warnings().isEmpty());
+    }
+
+    private void writeTrace(Path shard, String testId, String indexJson) throws Exception {
+        Path traceDirectory = Files.createDirectories(shard.resolve("shaft-traces").resolve(testId));
+        Files.writeString(traceDirectory.resolve("index.json"), indexJson, StandardCharsets.UTF_8);
+    }
+
+    private void writeExecutionIntelligence(Path shard, String primaryCause, String confidence,
+            int failingAttempts, int hiddenRetryFailures, int recurringFailures, String summary) throws Exception {
+        Files.writeString(shard.resolve("execution-intelligence.json"), """
+                {
+                  "schemaVersion": "1.0",
+                  "bundleId": "bundle-1",
+                  "totalAllureResults": 1,
+                  "failingAttempts": %d,
+                  "hiddenRetryFailures": %d,
+                  "recurringFailures": %d,
+                  "primaryCause": "%s",
+                  "confidence": "%s",
+                  "summary": "%s"
+                }
+                """.formatted(failingAttempts, hiddenRetryFailures, recurringFailures, primaryCause, confidence, summary),
+                StandardCharsets.UTF_8);
+    }
+
     private Path writeShard(String name, String... resultJsonFiles) throws Exception {
         Path shard = Files.createDirectories(tempDir.resolve(name));
         Path allureResults = Files.createDirectories(shard.resolve("allure-results"));

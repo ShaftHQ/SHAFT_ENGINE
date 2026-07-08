@@ -12,6 +12,7 @@ import java.util.List;
  * @param shardCount number of shard blobs merged
  * @param totalResults total Allure result files merged (containers/attachments not counted)
  * @param flakyClusters tests observed with inconsistent pass/fail outcomes across shards
+ * @param shardIntelligence per-shard doctor {@code ExecutionIntelligence} digests, for shards that had one
  * @param warnings safe warnings (e.g. an unreadable shard blob was skipped)
  */
 public record MergedReport(
@@ -20,9 +21,11 @@ public record MergedReport(
         int shardCount,
         int totalResults,
         List<FlakyCluster> flakyClusters,
+        List<ShardIntelligence> shardIntelligence,
         List<String> warnings) {
     public MergedReport {
         flakyClusters = flakyClusters == null ? List.of() : List.copyOf(flakyClusters);
+        shardIntelligence = shardIntelligence == null ? List.of() : List.copyOf(shardIntelligence);
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
     }
 }
