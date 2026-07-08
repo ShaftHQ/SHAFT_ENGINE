@@ -55,6 +55,7 @@ import java.awt.Color;
 import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Component;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
@@ -186,13 +187,13 @@ final class ShaftAssistantPanel extends JPanel {
                         @NotNull ShaftSettingsState.Settings settings,
                         @NotNull ShaftAssistantChatState chatState,
                         Runnable setupFlow) {
-        super(new BorderLayout(6, 6));
+        super(new BorderLayout(8, 8));
         this.project = project;
         this.settings = settings;
         this.chatState = chatState;
         this.configureFlow = setupFlow;
         this.connectionState = project == null ? null : project.getService(ShaftMcpConnectionState.class);
-        setBorder(JBUI.Borders.empty(8));
+        setBorder(JBUI.Borders.empty(12));
 
         chatSelector = new JComboBox<>();
         chatSelector.getAccessibleContext().setAccessibleName("Assistant chat");
@@ -496,9 +497,11 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel chatRow = new JPanel(new BorderLayout(6, 0));
         chatRow.add(chatSelector, BorderLayout.CENTER);
         chatRow.add(newChat, BorderLayout.EAST);
-        JPanel header = new JPanel(new BorderLayout(4, 4));
+        JPanel header = new JPanel(new BorderLayout(4, 2));
         header.getAccessibleContext().setAccessibleName("Assistant chat header");
-        header.add(new JLabel("SHAFT"), BorderLayout.NORTH);
+        JLabel title = new JLabel("SHAFT Assistant");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
+        header.add(title, BorderLayout.NORTH);
         header.add(chatRow, BorderLayout.CENTER);
 
         actionRow = wrapRow();
