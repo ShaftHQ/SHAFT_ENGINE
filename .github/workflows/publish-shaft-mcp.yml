@@ -10,6 +10,10 @@ permissions:
   packages: write
   id-token: write
 
+concurrency:
+  group: publish-shaft-mcp
+  cancel-in-progress: false
+
 jobs:
   publish:
     # Runs only for an actual published SHAFT release (created by mavenCentral_cd.yml's
