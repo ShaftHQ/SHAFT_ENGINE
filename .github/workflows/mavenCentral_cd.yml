@@ -26,6 +26,7 @@ on:
       - 'tools/modularization/consumer-fixtures/**'
       - '.github/RELEASE_BODY_TEMPLATE.md'
       - '.github/actions/upload-jacoco-coverage/action.yml'
+      - '.github/actions/reclaim-disk-space/action.yml'
       - '.github/workflows/mavenCentral_cd.yml'
       - 'scripts/ci/check_maven_release_version.py'
       - 'scripts/ci/validate_reactor_versions.py'
@@ -77,6 +78,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
@@ -176,6 +179,10 @@ jobs:
             "-Dshaft.version=${RELEASE_VERSION}"
           mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml verify \
             "-Dshaft.version=${RELEASE_VERSION}"
+      - name: Reclaim disk space before container build
+        uses: ./.github/actions/reclaim-disk-space
+        with:
+          prune-build-outputs: 'true'
       - name: Build and smoke shaft-mcp container
         shell: bash
         run: |

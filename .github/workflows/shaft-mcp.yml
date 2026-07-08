@@ -38,6 +38,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:

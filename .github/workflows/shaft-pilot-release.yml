@@ -52,6 +52,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
@@ -140,6 +142,10 @@ jobs:
             verify "-Dshaft.version=${VERSION}"
           mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml \
             verify "-Dshaft.version=${VERSION}"
+      - name: Reclaim disk space before container build
+        uses: ./.github/actions/reclaim-disk-space
+        with:
+          prune-build-outputs: 'true'
       - name: Build and smoke the release container
         shell: bash
         run: |
