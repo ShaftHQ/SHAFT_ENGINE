@@ -72,12 +72,14 @@ public final class CaptureCertificateAuthority {
     }
 
     /**
-     * Loads (or generates) the CA under an explicit directory. Package-visible for tests that
-     * must not touch the real {@code ~/.shaft} directory.
+     * Loads (or generates) the CA under an explicit directory. Production code should prefer the
+     * no-arg constructor's shared per-machine {@code ~/.shaft/capture-ca} directory; this overload
+     * exists for tests and tools that must not touch that real, persistent, shared location and
+     * need an isolated (for example {@code @TempDir}-backed) directory instead.
      *
      * @param directory directory the CA key/cert are stored in
      */
-    CaptureCertificateAuthority(Path directory) {
+    public CaptureCertificateAuthority(Path directory) {
         this.directory = directory;
         try {
             Files.createDirectories(directory);

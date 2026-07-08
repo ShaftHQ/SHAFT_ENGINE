@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 
 /**
  * Owns the lifecycle of one mobile API capture session: a loopback {@link ApiCaptureProxyServer}
@@ -46,6 +47,7 @@ final class MobileApiCaptureController {
     private final SecretHeaderReplacer secretHeaderReplacer = new SecretHeaderReplacer();
     private final List<String> warnings = new CopyOnWriteArrayList<>();
     private final AtomicLong transactionCount = new AtomicLong();
+    private final Supplier<CaptureCertificateAuthority> certificateAuthorityFactory;
 
     private CaptureCertificateAuthority certificateAuthority;
     private ApiCaptureProxyServer proxy;
@@ -53,6 +55,22 @@ final class MobileApiCaptureController {
     private Path bodiesDirectory;
     private String sessionId;
     private boolean active;
+
+    MobileApiCaptureController() {
+        this(CaptureCertificateAuthority::new);
+    }
+
+    /**
+     * Creates a controller with an injected CA factory, so tests can supply an isolated
+     * (for example {@code @TempDir}-backed) {@link CaptureCertificateAuthority} instead of
+     * touching the real per-machine {@code ~/.shaft/capture-ca} directory the no-arg constructor
+     * uses.
+     *
+     * @param certificateAuthorityFactory supplies the CA lazily when a session starts
+     */
+    MobileApiCaptureController(Supplier<CaptureCertificateAuthority> certificateAuthorityFactory) {
+        this.certificateAuthorityFactory = certificateAuthorityFactory;
+    }
 
     /**
      * Starts a new mobile API capture session, launching the loopback MITM proxy.
@@ -74,7 +92,7 @@ final class MobileApiCaptureController {
             bodiesDirectory = outputPath.getParent().resolve(sessionId + "-network-bodies");
             Files.createDirectories(bodiesDirectory);
 
-            certificateAuthority = new CaptureCertificateAuthority();
+            certificateAuthority = certificateAuthorityFactory.get();
             store = new CaptureSessionStore(outputPath);
             store.start(new CaptureSession(
                     CaptureSession.CURRENT_SCHEMA_VERSION,

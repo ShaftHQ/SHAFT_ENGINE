@@ -60,6 +60,13 @@ public class MobileService {
         this(engineService, new McpMobileRecordingService(workspacePolicy), workspacePolicy);
     }
 
+    MobileService(
+            EngineService engineService,
+            McpWorkspacePolicy workspacePolicy,
+            MobileApiCaptureController apiCaptureController) {
+        this(engineService, new McpMobileRecordingService(workspacePolicy), workspacePolicy, apiCaptureController);
+    }
+
     MobileService(EngineService engineService, McpMobileRecordingService recorder) {
         this(engineService, recorder, McpWorkspacePolicy.current());
     }
@@ -67,6 +74,15 @@ public class MobileService {
     MobileService(EngineService engineService, McpMobileRecordingService recorder, McpWorkspacePolicy workspacePolicy) {
         this(engineService, recorder, workspacePolicy,
                 new McpMobileInspectorRecordingService(workspacePolicy, recorder));
+    }
+
+    MobileService(
+            EngineService engineService,
+            McpMobileRecordingService recorder,
+            McpWorkspacePolicy workspacePolicy,
+            MobileApiCaptureController apiCaptureController) {
+        this(engineService, recorder, workspacePolicy,
+                new McpMobileInspectorRecordingService(workspacePolicy, recorder), apiCaptureController);
     }
 
     MobileService(
