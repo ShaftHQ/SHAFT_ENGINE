@@ -76,6 +76,8 @@
 <li><a href="#text()" tabindex="0">text()</a></li>
 <li><a href="#textTrimmed()" tabindex="0">textTrimmed()</a></li>
 <li><a href="#cssProperty(java.lang.String)" tabindex="0">cssProperty(String)</a></li>
+<li><a href="#matchesAriaSnapshot(java.lang.String)" tabindex="0">matchesAriaSnapshot(String)</a></li>
+<li><a href="#matchesScreenshot()" tabindex="0">matchesScreenshot()</a></li>
 </ol>
 </li>
 </ol>
@@ -182,11 +184,21 @@ implements <a href="../../driver/ElementAssertions.html" title="interface in com
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isVisible()" class="member-name-link">isVisible</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesReferenceImage()" class="member-name-link">matchesReferenceImage</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesAriaSnapshot(java.lang.String)" class="member-name-link">matchesAriaSnapshot</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;snapshotFileName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts an accessible-name-tree regression assertion against the element's baseline aria snapshot.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)" class="member-name-link">matchesReferenceImage</a><wbr>(<a href="../../../validation/ValidationEnums.VisualValidationEngine.html" title="enum class in com.shaft.validation">ValidationEnums.VisualValidationEngine</a>&nbsp;visualValidationEngine)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesReferenceImage()" class="member-name-link">matchesReferenceImage</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)" class="member-name-link">matchesReferenceImage</a><wbr>(<a href="../../../validation/ValidationEnums.VisualValidationEngine.html" title="enum class in com.shaft.validation">ValidationEnums.VisualValidationEngine</a>&nbsp;visualValidationEngine)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/VisualValidationsBuilder.html" title="class in com.shaft.validation.internal">VisualValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesScreenshot()" class="member-name-link">matchesScreenshot</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts a visual-regression assertion against the element's baseline screenshot.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#property(java.lang.String)" class="member-name-link">property</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
@@ -490,6 +502,40 @@ implements <a href="../../driver/ElementAssertions.html" title="interface in com
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#cssProperty(java.lang.String)">cssProperty</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="matchesAriaSnapshot(java.lang.String)">
+<h3>matchesAriaSnapshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">matchesAriaSnapshot</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;snapshotFileName)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#matchesAriaSnapshot(java.lang.String)">ElementAssertions</a></code></span></div>
+<div class="block">Starts an accessible-name-tree regression assertion against the element's baseline aria snapshot.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/ElementAssertions.html#matchesAriaSnapshot(java.lang.String)">matchesAriaSnapshot</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+<dt>Parameters:</dt>
+<dd><code>snapshotFileName</code> - the baseline file name (under the configured aria snapshot folder) to compare against or create</dd>
+<dt>Returns:</dt>
+<dd>a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="matchesScreenshot()">
+<h3>matchesScreenshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/VisualValidationsBuilder.html" title="class in com.shaft.validation.internal">VisualValidationsBuilder</a></span>&nbsp;<span class="element-name">matchesScreenshot</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#matchesScreenshot()">ElementAssertions</a></code></span></div>
+<div class="block">Starts a visual-regression assertion against the element's baseline screenshot.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/ElementAssertions.html#matchesScreenshot()">matchesScreenshot</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+<dt>Returns:</dt>
+<dd>a VisualValidationsBuilder to optionally set diff-budget/mask options and then perform() your validation</dd>
 </dl>
 </div>
 </section>

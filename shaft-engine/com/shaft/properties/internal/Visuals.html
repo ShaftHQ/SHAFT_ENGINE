@@ -63,6 +63,7 @@
 <li><a href="#videoParamsRecordVideo()" tabindex="0">videoParamsRecordVideo()</a></li>
 <li><a href="#videoParamsScope()" tabindex="0">videoParamsScope()</a></li>
 <li><a href="#whenToTakePageSourceSnapshot()" tabindex="0">whenToTakePageSourceSnapshot()</a></li>
+<li><a href="#updateSnapshots()" tabindex="0">updateSnapshots()</a></li>
 <li><a href="#set()" tabindex="0">set()</a></li>
 </ol>
 </li>
@@ -88,7 +89,10 @@ Controls screenshot capture, GIF recording, video recording, and visual comparis
 
 <p>Use <a href="#set()"><code>set()</code></a> to override values programmatically:
 <pre><code>SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Always");
-</code></pre></div>
+</code></pre>
+
+<p>Set <code>-Dshaft.updateSnapshots=true</code> to regenerate visual and aria-snapshot baselines instead of
+comparing against the existing ones.</p></div>
 </div>
 </section>
 <section class="summary">
@@ -159,17 +163,20 @@ Controls screenshot capture, GIF recording, video recording, and visual comparis
 of individual configuration properties at runtime.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#videoParamsRecordVideo()" class="member-name-link">videoParamsRecordVideo</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#updateSnapshots()" class="member-name-link">updateSnapshots</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#videoParamsScope()" class="member-name-link">videoParamsScope</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#videoParamsRecordVideo()" class="member-name-link">videoParamsRecordVideo</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#visualMatchingThreshold()" class="member-name-link">visualMatchingThreshold</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#videoParamsScope()" class="member-name-link">videoParamsScope</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#whenToTakePageSourceSnapshot()" class="member-name-link">whenToTakePageSourceSnapshot</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#visualMatchingThreshold()" class="member-name-link">visualMatchingThreshold</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#whenToTakePageSourceSnapshot()" class="member-name-link">whenToTakePageSourceSnapshot</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -321,6 +328,16 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("whenToTakePageSourceSnapshot")
 @DefaultValue("failuresOnly")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">whenToTakePageSourceSnapshot</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="updateSnapshots()">
+<h3>updateSnapshots</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("shaft.updateSnapshots")
+@DefaultValue("false")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">updateSnapshots</span>()</div>
 </div>
 </section>
 </li>

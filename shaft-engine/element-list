@@ -12,6 +12,7 @@ com.shaft.gui.browser.internal
 com.shaft.gui.driver
 com.shaft.gui.element
 com.shaft.gui.element.internal
+com.shaft.gui.internal.aria
 com.shaft.gui.internal.exceptions
 com.shaft.gui.internal.healing
 com.shaft.gui.internal.image

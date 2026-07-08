@@ -60,6 +60,8 @@
 <li><a href="#getShutterbugDifferencesImage(java.lang.String)" tabindex="0">getShutterbugDifferencesImage(String)</a></li>
 <li><a href="#compareAgainstBaseline(org.openqa.selenium.WebDriver,org.openqa.selenium.By,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine)" tabindex="0">compareAgainstBaseline(WebDriver, By, byte[], ImageProcessingActions.VisualValidationEngine)</a></li>
 <li><a href="#compareAgainstBaseline(java.lang.String,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine)" tabindex="0">compareAgainstBaseline(String, byte[], ImageProcessingActions.VisualValidationEngine)</a></li>
+<li><a href="#compareScreenshotAgainstBaseline(org.openqa.selenium.By,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" tabindex="0">compareScreenshotAgainstBaseline(By, byte[], List, Integer, Double)</a></li>
+<li><a href="#compareScreenshotAgainstBaseline(java.lang.String,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" tabindex="0">compareScreenshotAgainstBaseline(String, byte[], List, Integer, Double)</a></li>
 <li><a href="#loadOpenCV()" tabindex="0">loadOpenCV()</a></li>
 <li><a href="#loadOpenCVIfAvailable()" tabindex="0">loadOpenCVIfAvailable()</a></li>
 </ol>
@@ -127,6 +129,25 @@
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;testFolderPath,
  double&nbsp;threshold)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="VisualProcessingProvider.ScreenshotComparisonResult.html" title="class in com.shaft.gui.internal.image">VisualProcessingProvider.ScreenshotComparisonResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#compareScreenshotAgainstBaseline(java.lang.String,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" class="member-name-link">compareScreenshotAgainstBaseline</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;baselineKey,
+ byte[]&nbsp;actualScreenshot,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;int[]&gt;&nbsp;maskRects,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Compares a backend-neutral actual screenshot (e.g. a full-page capture) against its visual-regression
+baseline using a pixel-level diff.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="VisualProcessingProvider.ScreenshotComparisonResult.html" title="class in com.shaft.gui.internal.image">VisualProcessingProvider.ScreenshotComparisonResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#compareScreenshotAgainstBaseline(org.openqa.selenium.By,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" class="member-name-link">compareScreenshotAgainstBaseline</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+ byte[]&nbsp;actualScreenshot,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;int[]&gt;&nbsp;maskRects,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Compares an element's actual screenshot against its visual-regression baseline using a pixel-level diff.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
  byte[]&nbsp;currentPageScreenshot)</code></div>
@@ -327,6 +348,55 @@
 <dd><code>visualValidationEngine</code> - requested visual validation engine</dd>
 <dt>Returns:</dt>
 <dd><code>true</code> when the comparison passes or creates a new baseline</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="compareScreenshotAgainstBaseline(org.openqa.selenium.By,byte[],java.util.List,java.lang.Integer,java.lang.Double)">
+<h3>compareScreenshotAgainstBaseline</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="VisualProcessingProvider.ScreenshotComparisonResult.html" title="class in com.shaft.gui.internal.image">VisualProcessingProvider.ScreenshotComparisonResult</a></span>&nbsp;<span class="element-name">compareScreenshotAgainstBaseline</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator,
+ byte[]&nbsp;actualScreenshot,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;int[]&gt;&nbsp;maskRects,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</span></div>
+<div class="block">Compares an element's actual screenshot against its visual-regression baseline using a pixel-level diff.
+Saves the actual screenshot as the new baseline when none exists yet, or when <code>-Dshaft.updateSnapshots=true</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - locator of the element being compared</dd>
+<dd><code>actualScreenshot</code> - encoded screenshot bytes of the current state</dd>
+<dd><code>maskRects</code> - pixel-space <code>[x, y, width, height]</code> regions to exclude from comparison, or <code>null</code></dd>
+<dd><code>maxDiffPixels</code> - maximum allowed differing pixel count, or <code>null</code> to ignore this budget</dd>
+<dd><code>maxDiffPixelRatio</code> - maximum allowed differing pixel ratio (0.0-1.0), or <code>null</code> to ignore this budget</dd>
+<dt>Returns:</dt>
+<dd>the comparison result</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="compareScreenshotAgainstBaseline(java.lang.String,byte[],java.util.List,java.lang.Integer,java.lang.Double)">
+<h3>compareScreenshotAgainstBaseline</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="VisualProcessingProvider.ScreenshotComparisonResult.html" title="class in com.shaft.gui.internal.image">VisualProcessingProvider.ScreenshotComparisonResult</a></span>&nbsp;<span class="element-name">compareScreenshotAgainstBaseline</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;baselineKey,
+ byte[]&nbsp;actualScreenshot,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;int[]&gt;&nbsp;maskRects,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</span></div>
+<div class="block">Compares a backend-neutral actual screenshot (e.g. a full-page capture) against its visual-regression
+baseline using a pixel-level diff. Saves the actual screenshot as the new baseline when none exists yet,
+or when <code>-Dshaft.updateSnapshots=true</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>baselineKey</code> - stable backend-neutral baseline description</dd>
+<dd><code>actualScreenshot</code> - encoded screenshot bytes of the current state</dd>
+<dd><code>maskRects</code> - pixel-space <code>[x, y, width, height]</code> regions to exclude from comparison, or <code>null</code></dd>
+<dd><code>maxDiffPixels</code> - maximum allowed differing pixel count, or <code>null</code> to ignore this budget</dd>
+<dd><code>maxDiffPixelRatio</code> - maximum allowed differing pixel ratio (0.0-1.0), or <code>null</code> to ignore this budget</dd>
+<dt>Returns:</dt>
+<dd>the comparison result</dd>
 </dl>
 </div>
 </section>

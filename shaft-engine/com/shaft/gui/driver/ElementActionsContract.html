@@ -100,6 +100,8 @@
 <li><a href="#getTableRowsData(com.shaft.gui.driver.ShaftLocator)" tabindex="0">getTableRowsData(ShaftLocator)</a></li>
 <li><a href="#captureScreenshot(org.openqa.selenium.By)" tabindex="0">captureScreenshot(By)</a></li>
 <li><a href="#captureScreenshot(com.shaft.gui.driver.ShaftLocator)" tabindex="0">captureScreenshot(ShaftLocator)</a></li>
+<li><a href="#ariaSnapshot(org.openqa.selenium.By)" tabindex="0">ariaSnapshot(By)</a></li>
+<li><a href="#ariaSnapshot(com.shaft.gui.driver.ShaftLocator)" tabindex="0">ariaSnapshot(ShaftLocator)</a></li>
 </ol>
 </li>
 </ol>
@@ -136,6 +138,14 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#and()" class="member-name-link">and</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ariaSnapshot(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">ariaSnapshot</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#ariaSnapshot(org.openqa.selenium.By)" class="member-name-link">ariaSnapshot</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Captures an accessible-name-tree ("aria") snapshot of the target element, serialized as YAML.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#assertThat(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">assertThat</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
@@ -786,6 +796,29 @@
 <h3>captureScreenshot</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></span>&nbsp;<span class="element-name">captureScreenshot</span><wbr><span class="parameters">(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ariaSnapshot(org.openqa.selenium.By)">
+<h3>ariaSnapshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">ariaSnapshot</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Captures an accessible-name-tree ("aria") snapshot of the target element, serialized as YAML.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - the locator of the element to snapshot</dd>
+<dt>Returns:</dt>
+<dd>the captured snapshot serialized as YAML</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ariaSnapshot(com.shaft.gui.driver.ShaftLocator)">
+<h3>ariaSnapshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">ariaSnapshot</span><wbr><span class="parameters">(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</span></div>
 </div>
 </section>
 </li>

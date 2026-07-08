@@ -59,6 +59,7 @@
 <li><a href="#title()" tabindex="0">title()</a></li>
 <li><a href="#alertText()" tabindex="0">alertText()</a></li>
 <li><a href="#text()" tabindex="0">text()</a></li>
+<li><a href="#matchesScreenshot()" tabindex="0">matchesScreenshot()</a></li>
 </ol>
 </li>
 </ol>
@@ -121,19 +122,25 @@ implements <a href="../../gui/driver/BrowserAssertions.html" title="interface in
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Use this to check against a certain browser attribute</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="VisualValidationsBuilder.html" title="class in com.shaft.validation.internal">VisualValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesScreenshot()" class="member-name-link">matchesScreenshot</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Use this to check against the current page text content.</div>
+<div class="block">Use this to check that the current page matches its visual-regression baseline screenshot
+(full-page pixel diff via OpenCV; see <a href="VisualValidationsBuilder.html" title="class in com.shaft.validation.internal"><code>VisualValidationsBuilder</code></a> for diff-budget/mask options).</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#title()" class="member-name-link">title</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Use this to check against the current page title</div>
+<div class="block">Use this to check against the current page text content.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#url()" class="member-name-link">url</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#title()" class="member-name-link">title</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Use this to check against the current page title</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#url()" class="member-name-link">url</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Use this to check against the current page URL</div>
 </div>
 </div>
@@ -244,6 +251,24 @@ implements <a href="../../gui/driver/BrowserAssertions.html" title="interface in
 <dd><code><a href="../../gui/driver/BrowserAssertions.html#text()">text</a></code>&nbsp;in interface&nbsp;<code><a href="../../gui/driver/BrowserAssertions.html" title="interface in com.shaft.gui.driver">BrowserAssertions</a></code></dd>
 <dt>Returns:</dt>
 <dd>a NativeValidationsBuilder object to continue building your validation</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="matchesScreenshot()">
+<h3>matchesScreenshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="VisualValidationsBuilder.html" title="class in com.shaft.validation.internal">VisualValidationsBuilder</a></span>&nbsp;<span class="element-name">matchesScreenshot</span>()</div>
+<div class="block">Use this to check that the current page matches its visual-regression baseline screenshot
+(full-page pixel diff via OpenCV; see <a href="VisualValidationsBuilder.html" title="class in com.shaft.validation.internal"><code>VisualValidationsBuilder</code></a> for diff-budget/mask options).
+On the first test run this method takes a full-page screenshot and the test passes, saving it as
+the baseline for subsequent runs.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../gui/driver/BrowserAssertions.html#matchesScreenshot()">matchesScreenshot</a></code>&nbsp;in interface&nbsp;<code><a href="../../gui/driver/BrowserAssertions.html" title="interface in com.shaft.gui.driver">BrowserAssertions</a></code></dd>
+<dt>Returns:</dt>
+<dd>a VisualValidationsBuilder to optionally set diff-budget/mask options and then perform() your validation</dd>
 </dl>
 </div>
 </section>

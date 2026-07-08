@@ -45,6 +45,7 @@
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
+<li><a href="#nested-class-summary" tabindex="0">Nested Class Summary</a></li>
 <li><a href="#constructor-summary" tabindex="0">Constructor Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
@@ -57,6 +58,7 @@
 <li><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" tabindex="0">findImageWithinCurrentPage(String, byte[])</a></li>
 <li><a href="#compareAgainstBaseline(org.openqa.selenium.WebDriver,org.openqa.selenium.By,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" tabindex="0">compareAgainstBaseline(WebDriver, By, byte[], ImageProcessingActions.VisualValidationEngine, String, String)</a></li>
 <li><a href="#compareAgainstBaseline(java.lang.String,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" tabindex="0">compareAgainstBaseline(String, byte[], ImageProcessingActions.VisualValidationEngine, String, String)</a></li>
+<li><a href="#compareScreenshotAgainstBaseline(byte%5B%5D,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" tabindex="0">compareScreenshotAgainstBaseline(byte[], byte[], List, Integer, Double)</a></li>
 <li><a href="#load()" tabindex="0">load()</a></li>
 </ol>
 </li>
@@ -86,6 +88,15 @@ implements com.shaft.gui.internal.image.VisualProcessingProvider</span></div>
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="inherited-list">
+<h3 id="nested-classes-inherited-from-class-com.shaft.gui.internal.image.VisualProcessingProvider">Nested classes/interfaces inherited from interface&nbsp;com.shaft.gui.internal.image.VisualProcessingProvider</h3>
+<code>com.shaft.gui.internal.image.VisualProcessingProvider.ScreenshotComparisonResult</code></div>
+</section>
+</li>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
 <li>
 <section class="constructor-summary" id="constructor-summary">
@@ -125,13 +136,20 @@ implements com.shaft.gui.internal.image.VisualProcessingProvider</span></div>
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;differencesImagePath)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
- byte[]&nbsp;currentPageScreenshot)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.gui.internal.image.VisualProcessingProvider.ScreenshotComparisonResult</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#compareScreenshotAgainstBaseline(byte%5B%5D,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" class="member-name-link">compareScreenshotAgainstBaseline</a><wbr>(byte[]&nbsp;baselineImage,
+ byte[]&nbsp;actualImage,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;int[]&gt;&nbsp;maskRects,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#load()" class="member-name-link">load</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
+ byte[]&nbsp;currentPageScreenshot)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#load()" class="member-name-link">load</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -207,6 +225,22 @@ implements com.shaft.gui.internal.image.VisualProcessingProvider</span></div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code>compareAgainstBaseline</code>&nbsp;in interface&nbsp;<code>com.shaft.gui.internal.image.VisualProcessingProvider</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="compareScreenshotAgainstBaseline(byte[],byte[],java.util.List,java.lang.Integer,java.lang.Double)">
+<h3>compareScreenshotAgainstBaseline</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.gui.internal.image.VisualProcessingProvider.ScreenshotComparisonResult</span>&nbsp;<span class="element-name">compareScreenshotAgainstBaseline</span><wbr><span class="parameters">(byte[]&nbsp;baselineImage,
+ byte[]&nbsp;actualImage,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;int[]&gt;&nbsp;maskRects,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</span></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code>compareScreenshotAgainstBaseline</code>&nbsp;in interface&nbsp;<code>com.shaft.gui.internal.image.VisualProcessingProvider</code></dd>
 </dl>
 </div>
 </section>

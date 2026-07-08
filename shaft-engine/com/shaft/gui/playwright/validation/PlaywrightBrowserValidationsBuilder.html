@@ -59,6 +59,7 @@
 <li><a href="#title()" tabindex="0">title()</a></li>
 <li><a href="#alertText()" tabindex="0">alertText()</a></li>
 <li><a href="#text()" tabindex="0">text()</a></li>
+<li><a href="#matchesScreenshot()" tabindex="0">matchesScreenshot()</a></li>
 </ol>
 </li>
 </ol>
@@ -118,15 +119,20 @@ implements <a href="../../driver/BrowserAssertions.html" title="interface in com
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#attribute(java.lang.String)" class="member-name-link">attribute</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browserAttribute)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/VisualValidationsBuilder.html" title="class in com.shaft.validation.internal">VisualValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesScreenshot()" class="member-name-link">matchesScreenshot</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts a visual-regression assertion against the current page's baseline full-page screenshot.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#title()" class="member-name-link">title</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#url()" class="member-name-link">url</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#title()" class="member-name-link">title</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#url()" class="member-name-link">url</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -220,6 +226,22 @@ implements <a href="../../driver/BrowserAssertions.html" title="interface in com
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserAssertions.html#text()">text</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserAssertions.html" title="interface in com.shaft.gui.driver">BrowserAssertions</a></code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="matchesScreenshot()">
+<h3>matchesScreenshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/VisualValidationsBuilder.html" title="class in com.shaft.validation.internal">VisualValidationsBuilder</a></span>&nbsp;<span class="element-name">matchesScreenshot</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserAssertions.html#matchesScreenshot()">BrowserAssertions</a></code></span></div>
+<div class="block">Starts a visual-regression assertion against the current page's baseline full-page screenshot.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserAssertions.html#matchesScreenshot()">matchesScreenshot</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserAssertions.html" title="interface in com.shaft.gui.driver">BrowserAssertions</a></code></dd>
+<dt>Returns:</dt>
+<dd>a VisualValidationsBuilder to optionally set diff-budget/mask options and then perform() your validation</dd>
 </dl>
 </div>
 </section>

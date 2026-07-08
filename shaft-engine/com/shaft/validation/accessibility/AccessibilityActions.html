@@ -66,6 +66,8 @@
 <li><a href="#verifyNoCriticalViolations(java.lang.String)" tabindex="0">verifyNoCriticalViolations(String)</a></li>
 <li><a href="#assertIsAccessible()" tabindex="0">assertIsAccessible()</a></li>
 <li><a href="#verifyIsAccessible()" tabindex="0">verifyIsAccessible()</a></li>
+<li><a href="#assertIsAccessible(java.lang.String...)" tabindex="0">assertIsAccessible(String...)</a></li>
+<li><a href="#verifyIsAccessible(java.lang.String...)" tabindex="0">verifyIsAccessible(String...)</a></li>
 <li><a href="#assertNoViolationsByImpact(java.lang.String,java.lang.String...)" tabindex="0">assertNoViolationsByImpact(String, String...)</a></li>
 <li><a href="#failIfViolationsExist(java.lang.String)" tabindex="0">failIfViolationsExist(String)</a></li>
 <li><a href="#assertAccessibilityScoreAtLeast(java.lang.String,double)" tabindex="0">assertAccessibilityScoreAtLeast(String, double)</a></li>
@@ -248,40 +250,52 @@ and explicit control over report persistence.</div>
 <a href="AccessibilityHelper.html#isAccessible(org.openqa.selenium.WebDriver)"><code>AccessibilityHelper.isAccessible(WebDriver)</code></a>'s default criteria (zero violations).</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertNoCriticalViolations(java.lang.String)" class="member-name-link">assertNoCriticalViolations</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageName)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertIsAccessible(java.lang.String...)" class="member-name-link">assertIsAccessible</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;wcagTags)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Asserts (hard assertion) that the current page has no accessibility violations matching any
+of the supplied WCAG tags (e.g.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertNoCriticalViolations(java.lang.String)" class="member-name-link">assertNoCriticalViolations</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageName)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Asserts (hard assertion) that the current page has no accessibility violations with an
 impact level of <code>"critical"</code>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertNoViolationsByImpact(java.lang.String,java.lang.String...)" class="member-name-link">assertNoViolationsByImpact</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageName,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertNoViolationsByImpact(java.lang.String,java.lang.String...)" class="member-name-link">assertNoViolationsByImpact</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageName,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;impactLevels)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Asserts (hard assertion) that the current page has no accessibility violations matching
 any of the supplied impact levels.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../gui/browser/BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#backToBrowser()" class="member-name-link">backToBrowser</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../gui/browser/BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#backToBrowser()" class="member-name-link">backToBrowser</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the <a href="../../gui/browser/BrowserActions.html" title="class in com.shaft.gui.browser"><code>BrowserActions</code></a> instance that was used to create this
 <code>AccessibilityActions</code>, enabling fluent chaining back into browser-level operations.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#backToBrowserContract()" class="member-name-link">backToBrowserContract</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#backToBrowserContract()" class="member-name-link">backToBrowserContract</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the browser action contract that created this accessibility facade.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failIfViolationsExist(java.lang.String)" class="member-name-link">failIfViolationsExist</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failIfViolationsExist(java.lang.String)" class="member-name-link">failIfViolationsExist</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageName)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attaches a filtered Allure report for the given page and throws an <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/AssertionError.html" title="class or interface in java.lang" class="external-link"><code>AssertionError</code></a>
 if any accessibility violations exist.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyIsAccessible()" class="member-name-link">verifyIsAccessible</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyIsAccessible()" class="member-name-link">verifyIsAccessible</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Verifies (soft assertion) that the current page is fully accessible according to
 <a href="AccessibilityHelper.html#isAccessible(org.openqa.selenium.WebDriver)"><code>AccessibilityHelper.isAccessible(WebDriver)</code></a>'s default criteria (zero violations).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyIsAccessible(java.lang.String...)" class="member-name-link">verifyIsAccessible</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;wcagTags)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Verifies (soft assertion) that the current page has no accessibility violations matching any
+of the supplied WCAG tags (e.g.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyNoCriticalViolations(java.lang.String)" class="member-name-link">verifyNoCriticalViolations</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageName)</code></div>
@@ -625,6 +639,46 @@ end of the test.
 <pre><code>driver.accessibility().verifyIsAccessible();
 </code></pre></div>
 <dl class="notes">
+<dt>Returns:</dt>
+<dd>this <code>AccessibilityActions</code> instance for method chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="assertIsAccessible(java.lang.String...)">
+<h3>assertIsAccessible</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></span>&nbsp;<span class="element-name">assertIsAccessible</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;wcagTags)</span></div>
+<div class="block">Asserts (hard assertion) that the current page has no accessibility violations matching any
+of the supplied WCAG tags (e.g. <code>"wcag2a"</code>, <code>"wcag21aa"</code>, <code>"best-practice"</code>).
+
+<p>Example:
+<pre><code>driver.accessibility().assertIsAccessible("wcag2a", "wcag2aa");
+</code></pre></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>wcagTags</code> - one or more axe-core WCAG tags to scope the audit to</dd>
+<dt>Returns:</dt>
+<dd>this <code>AccessibilityActions</code> instance for method chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="verifyIsAccessible(java.lang.String...)">
+<h3>verifyIsAccessible</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></span>&nbsp;<span class="element-name">verifyIsAccessible</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;wcagTags)</span></div>
+<div class="block">Verifies (soft assertion) that the current page has no accessibility violations matching any
+of the supplied WCAG tags (e.g. <code>"wcag2a"</code>, <code>"wcag21aa"</code>, <code>"best-practice"</code>).
+
+<p>Example:
+<pre><code>driver.accessibility().verifyIsAccessible("wcag2a", "wcag2aa");
+</code></pre></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>wcagTags</code> - one or more axe-core WCAG tags to scope the audit to</dd>
 <dt>Returns:</dt>
 <dd>this <code>AccessibilityActions</code> instance for method chaining</dd>
 </dl>

@@ -45,6 +45,7 @@
 <div class="toc-header">Contents&nbsp;<input type="text" class="filter-input" disabled placeholder="Filter contents (type .)" aria-label="Filter table of contents" autocomplete="off" spellcheck="false"><input type="reset" class="reset-filter" disabled tabindex="-1" value="Reset"></div>
 <ol class="toc-list" tabindex="-1">
 <li><a href="#" tabindex="0">Description</a></li>
+<li><a href="#nested-class-summary" tabindex="0">Nested Class Summary</a></li>
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
@@ -52,6 +53,7 @@
 <li><a href="#compareAgainstBaseline(org.openqa.selenium.WebDriver,org.openqa.selenium.By,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" tabindex="0">compareAgainstBaseline(WebDriver, By, byte[], ImageProcessingActions.VisualValidationEngine, String, String)</a></li>
 <li><a href="#compareAgainstBaseline(java.lang.String,byte%5B%5D,com.shaft.gui.internal.image.ImageProcessingActions.VisualValidationEngine,java.lang.String,java.lang.String)" tabindex="0">compareAgainstBaseline(String, byte[], ImageProcessingActions.VisualValidationEngine, String, String)</a></li>
 <li><a href="#load()" tabindex="0">load()</a></li>
+<li><a href="#compareScreenshotAgainstBaseline(byte%5B%5D,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" tabindex="0">compareScreenshotAgainstBaseline(byte[], byte[], List, Integer, Double)</a></li>
 </ol>
 </li>
 </ol>
@@ -73,6 +75,23 @@ SHAFT and JDK types. Providers are discovered through <a href="https://docs.orac
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Interface</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="VisualProcessingProvider.ScreenshotComparisonResult.html" class="type-name-link" title="class in com.shaft.gui.internal.image">VisualProcessingProvider.ScreenshotComparisonResult</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Result of a pixel-level screenshot comparison against a baseline image.</div>
+</div>
+</div>
+</section>
+</li>
 <!-- ========== METHOD SUMMARY =========== -->
 <li>
 <section class="method-summary" id="method-summary">
@@ -103,15 +122,25 @@ SHAFT and JDK types. Providers are discovered through <a href="https://docs.orac
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Compares an element screenshot against its visual baseline using the requested optional engine.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="VisualProcessingProvider.ScreenshotComparisonResult.html" title="class in com.shaft.gui.internal.image">VisualProcessingProvider.ScreenshotComparisonResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#compareScreenshotAgainstBaseline(byte%5B%5D,byte%5B%5D,java.util.List,java.lang.Integer,java.lang.Double)" class="member-name-link">compareScreenshotAgainstBaseline</a><wbr>(byte[]&nbsp;baselineImage,
+ byte[]&nbsp;actualImage,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;int[]&gt;&nbsp;maskRects,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Compares raw screenshot bytes against a baseline image using a pixel-level diff, honoring optional
+mask rectangles and diff budgets.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#findImageWithinCurrentPage(java.lang.String,byte%5B%5D)" class="member-name-link">findImageWithinCurrentPage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;referenceImagePath,
  byte[]&nbsp;currentPageScreenshot)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Finds a reference image within a page screenshot.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#load()" class="member-name-link">load</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#load()" class="member-name-link">load</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Loads any native libraries required by this provider.</div>
 </div>
 </div>
@@ -204,6 +233,34 @@ screenshots may keep the default implementation, preserving compatibility with e
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type">void</span>&nbsp;<span class="element-name">load</span>()</div>
 <div class="block">Loads any native libraries required by this provider.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="compareScreenshotAgainstBaseline(byte[],byte[],java.util.List,java.lang.Integer,java.lang.Double)">
+<h3>compareScreenshotAgainstBaseline</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="VisualProcessingProvider.ScreenshotComparisonResult.html" title="class in com.shaft.gui.internal.image">VisualProcessingProvider.ScreenshotComparisonResult</a></span>&nbsp;<span class="element-name">compareScreenshotAgainstBaseline</span><wbr><span class="parameters">(byte[]&nbsp;baselineImage,
+ byte[]&nbsp;actualImage,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;int[]&gt;&nbsp;maskRects,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&nbsp;maxDiffPixels,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html" title="class or interface in java.lang" class="external-link">Double</a>&nbsp;maxDiffPixelRatio)</span></div>
+<div class="block">Compares raw screenshot bytes against a baseline image using a pixel-level diff, honoring optional
+mask rectangles and diff budgets. Used by the <code>matchesScreenshot()</code> visual-regression assertion.
+
+<p>Providers that cannot perform a pixel diff may keep the default implementation.</p></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>baselineImage</code> - encoded baseline (reference) image bytes</dd>
+<dd><code>actualImage</code> - encoded actual (current) screenshot bytes</dd>
+<dd><code>maskRects</code> - pixel-space <code>[x, y, width, height]</code> regions to exclude from comparison, or <code>null</code></dd>
+<dd><code>maxDiffPixels</code> - maximum allowed differing pixel count, or <code>null</code> to ignore this budget</dd>
+<dd><code>maxDiffPixelRatio</code> - maximum allowed differing pixel ratio (0.0-1.0), or <code>null</code> to ignore this budget</dd>
+<dt>Returns:</dt>
+<dd>the comparison result</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/UnsupportedOperationException.html" title="class or interface in java.lang" class="external-link">UnsupportedOperationException</a></code> - when the provider does not support pixel-diff screenshot comparison</dd>
+</dl>
 </div>
 </section>
 </li>
