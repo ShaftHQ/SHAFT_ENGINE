@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -19,7 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,10 +32,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Minimal JSON-RPC MCP stdio client used by the IntelliJ shell.
+ *
+ * <p>The client is safe to keep open across many tool calls: a dedicated reader thread routes
+ * responses to their callers by JSON-RPC id, so concurrent requests never consume each other's
+ * responses. Long-lived server-side sessions (an active SHAFT Capture recording, an initialized
+ * WebDriver) only survive while their server process is alive, so callers that start such
+ * sessions must reuse one client instead of closing it after every call.</p>
  */
 final class ShaftMcpStdioClient implements AutoCloseable {
     private static final Gson GSON = new Gson();
     private static final String PROTOCOL_VERSION = "2024-11-05";
+    private static final Duration GRACEFUL_EXIT_WAIT = Duration.ofSeconds(5);
 
     private final Process process;
     private final BufferedReader input;
@@ -43,6 +51,10 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     private final CompletableFuture<String> stderr;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final ExecutorService ioExecutor;
+    private final Map<Integer, CompletableFuture<JsonObject>> pendingRequests = new ConcurrentHashMap<>();
+    private final Object initializationLock = new Object();
+    private final Object sendLock = new Object();
+    private volatile boolean initialized;
 
     ShaftMcpStdioClient(List<String> command, Path workingDirectory, Map<String, String> environment)
             throws IOException {
@@ -54,6 +66,16 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         output = process.getOutputStream();
         ioExecutor = Executors.newFixedThreadPool(2, daemonThreadFactory());
         stderr = CompletableFuture.supplyAsync(() -> readAll(process.getErrorStream()), ioExecutor);
+        ioExecutor.execute(this::readResponses);
+    }
+
+    /**
+     * Reports whether the server process is still running.
+     *
+     * @return true while the process is alive and the client has not been closed
+     */
+    boolean isAlive() {
+        return !closed.get() && process.isAlive();
     }
 
     String initializeOnly(Duration timeout) throws IOException {
@@ -65,8 +87,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         initialize(timeout);
         int requestId = id.getAndIncrement();
         JsonObject request = request(requestId, "tools/list");
-        send(request);
-        return awaitResult(requestId, timeout);
+        return awaitResult(sendRequest(requestId, request), timeout);
     }
 
     JsonElement callTool(String toolName, JsonObject arguments, Duration timeout) throws IOException {
@@ -77,28 +98,32 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         params.addProperty("name", toolName);
         params.add("arguments", arguments);
         request.add("params", params);
-        send(request);
-        return awaitResult(requestId, timeout);
+        return awaitResult(sendRequest(requestId, request), timeout);
     }
 
     private void initialize(Duration timeout) throws IOException {
-        int requestId = id.getAndIncrement();
-        JsonObject request = request(requestId, "initialize");
-        JsonObject params = new JsonObject();
-        params.addProperty("protocolVersion", PROTOCOL_VERSION);
-        params.add("capabilities", new JsonObject());
-        JsonObject clientInfo = new JsonObject();
-        clientInfo.addProperty("name", "shaft-intellij");
-        clientInfo.addProperty("version", pluginVersion());
-        params.add("clientInfo", clientInfo);
-        request.add("params", params);
-        send(request);
-        awaitResult(requestId, timeout);
+        synchronized (initializationLock) {
+            if (initialized) {
+                return;
+            }
+            int requestId = id.getAndIncrement();
+            JsonObject request = request(requestId, "initialize");
+            JsonObject params = new JsonObject();
+            params.addProperty("protocolVersion", PROTOCOL_VERSION);
+            params.add("capabilities", new JsonObject());
+            JsonObject clientInfo = new JsonObject();
+            clientInfo.addProperty("name", "shaft-intellij");
+            clientInfo.addProperty("version", pluginVersion());
+            params.add("clientInfo", clientInfo);
+            request.add("params", params);
+            awaitResult(sendRequest(requestId, request), timeout);
 
-        JsonObject initialized = new JsonObject();
-        initialized.addProperty("jsonrpc", "2.0");
-        initialized.addProperty("method", "notifications/initialized");
-        send(initialized);
+            JsonObject initializedNotification = new JsonObject();
+            initializedNotification.addProperty("jsonrpc", "2.0");
+            initializedNotification.addProperty("method", "notifications/initialized");
+            send(initializedNotification);
+            initialized = true;
+        }
     }
 
     private static String pluginVersion() {
@@ -120,69 +145,111 @@ final class ShaftMcpStdioClient implements AutoCloseable {
 
     private void send(JsonObject payload) throws IOException {
         byte[] body = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
-        output.write(body);
-        output.write('\n');
-        output.flush();
+        synchronized (sendLock) {
+            output.write(body);
+            output.write('\n');
+            output.flush();
+        }
     }
 
-    private JsonElement awaitResult(int requestId, Duration timeout) throws IOException {
-        long deadline = System.nanoTime() + timeout.toNanos();
-        JsonElement response = null;
-        boolean waiting = true;
-        while (waiting && response == null && System.nanoTime() < deadline) {
-            long timeoutNanos = deadline - System.nanoTime();
-            JsonObject message = readMessage(timeoutNanos);
-            if (message == null) {
-                waiting = process.isAlive();
-            } else if (message.has("id") && matchesId(message, requestId)) {
-                if (message.has("error")) {
-                    throw withDiagnostics("SHAFT MCP returned an error response.",
-                            new IOException(message.get("error").toString()));
-                }
-                JsonElement result = message.get("result");
-                response = result == null || result.isJsonNull() ? new JsonObject() : result;
-            }
-        }
-        if (response != null) {
-            return response;
-        }
-        throw requestTimedOut();
-    }
-
-    private boolean matchesId(JsonObject message, int requestId) {
+    private PendingRequest sendRequest(int requestId, JsonObject request) throws IOException {
+        CompletableFuture<JsonObject> response = new CompletableFuture<>();
+        pendingRequests.put(requestId, response);
         try {
-            return message.get("id").getAsInt() == requestId;
-        } catch (IllegalStateException | ClassCastException exception) {
-            return false;
+            send(request);
+        } catch (IOException exception) {
+            pendingRequests.remove(requestId);
+            throw withDiagnostics("Failed to send SHAFT MCP request.", exception);
+        } catch (RuntimeException exception) {
+            pendingRequests.remove(requestId);
+            throw exception;
         }
+        return new PendingRequest(requestId, response);
     }
 
-    private JsonObject readMessage(long timeoutNanos) throws IOException {
-        if (timeoutNanos <= 0) {
-            return null;
-        }
-        CompletableFuture<JsonObject> future = CompletableFuture.supplyAsync(() -> {
-            try {
-                return readMessage();
-            } catch (IOException exception) {
-                throw new UncheckedIOException(exception);
-            }
-        }, ioExecutor);
-        long timeoutMillis = Math.max(1, TimeUnit.NANOSECONDS.toMillis(timeoutNanos));
+    private JsonElement awaitResult(PendingRequest pending, Duration timeout) throws IOException {
         try {
-            return future.get(timeoutMillis, TimeUnit.MILLISECONDS);
+            JsonObject message = pending.response().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            if (message.has("error")) {
+                throw withDiagnostics("SHAFT MCP returned an error response.",
+                        new IOException(message.get("error").toString()));
+            }
+            JsonElement result = message.get("result");
+            return result == null || result.isJsonNull() ? new JsonObject() : result;
         } catch (TimeoutException exception) {
-            future.cancel(true);
-            close();
             throw requestTimedOut();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw withDiagnostics("Interrupted while waiting for SHAFT MCP response.", exception);
+        } catch (CancellationException exception) {
+            throw exception;
         } catch (ExecutionException exception) {
-            if (exception.getCause() instanceof UncheckedIOException ioException) {
-                throw withDiagnostics("Failed to read SHAFT MCP response.", ioException.getCause());
+            Throwable cause = exception.getCause();
+            if (cause instanceof CancellationException cancellation) {
+                throw cancellation;
             }
-            throw withDiagnostics("Failed to read SHAFT MCP response.", exception);
+            throw withDiagnostics("Failed to read SHAFT MCP response.", cause == null ? exception : cause);
+        } finally {
+            pendingRequests.remove(pending.requestId());
+        }
+    }
+
+    /**
+     * Continuously reads JSON-RPC frames from the server and completes the matching pending
+     * request. Runs on a dedicated daemon thread for the lifetime of the process.
+     */
+    private void readResponses() {
+        try {
+            String line;
+            while ((line = input.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                dispatch(trimmed);
+            }
+        } catch (IOException ignored) {
+            // Stream closed with the process; pending requests fail below.
+        } finally {
+            IOException processExited = withDiagnostics("SHAFT MCP process exited.", (Throwable) null,
+                    failureDetails());
+            pendingRequests.values().forEach(pending -> pending.completeExceptionally(processExited));
+            pendingRequests.clear();
+        }
+    }
+
+    private void dispatch(String line) {
+        JsonObject message;
+        try {
+            JsonElement parsed = JsonParser.parseString(line);
+            if (!parsed.isJsonObject()) {
+                return;
+            }
+            message = parsed.getAsJsonObject();
+        } catch (JsonSyntaxException | IllegalStateException exception) {
+            // Spring Boot and tooling can write startup logs to stdout before MCP frames.
+            // Ignore those non-protocol lines and keep waiting for JSON-RPC messages.
+            return;
+        }
+        Integer requestId = messageId(message);
+        if (requestId == null) {
+            return;
+        }
+        CompletableFuture<JsonObject> pending = pendingRequests.remove(requestId);
+        if (pending != null) {
+            pending.complete(message);
+        }
+    }
+
+    private static Integer messageId(JsonObject message) {
+        if (!message.has("id")) {
+            return null;
+        }
+        try {
+            return message.get("id").getAsInt();
+        } catch (IllegalStateException | ClassCastException | NumberFormatException
+                 | UnsupportedOperationException exception) {
+            return null;
         }
     }
 
@@ -200,24 +267,6 @@ final class ShaftMcpStdioClient implements AutoCloseable {
             composed = message + "\n" + details;
         }
         return cause == null ? new IOException(composed) : new IOException(composed, cause);
-    }
-
-    private JsonObject readMessage() throws IOException {
-        String line;
-        while ((line = input.readLine()) != null) {
-            String trimmed = line.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-            try {
-                JsonElement message = JsonParser.parseString(trimmed);
-                return message.isJsonObject() ? message.getAsJsonObject() : null;
-            } catch (JsonSyntaxException | IllegalStateException exception) {
-                // Spring Boot and tooling can write startup logs to stdout before MCP frames.
-                // Ignore those non-protocol lines and keep waiting for a JSON-RPC message.
-            }
-        }
-        return null;
     }
 
     private static String readAll(InputStream stream) {
@@ -271,8 +320,14 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         close(false, true);
     }
 
+    /**
+     * Abandons every in-flight request without terminating the server process, so an active
+     * server-side session (for example a live SHAFT Capture recording) keeps running.
+     */
     void cancel() {
-        close(false, false);
+        pendingRequests.values().forEach(pending ->
+                pending.completeExceptionally(new CancellationException("Operation cancelled")));
+        pendingRequests.clear();
     }
 
     void kill() {
@@ -287,14 +342,24 @@ final class ShaftMcpStdioClient implements AutoCloseable {
             }
             return;
         }
+        cancel();
         if (force) {
             process.destroyForcibly();
         } else {
-            process.destroy();
+            // Closing stdin signals end-of-session to the stdio transport, letting the server
+            // shut down gracefully and release live sessions (an active SHAFT Capture recording
+            // quits its managed browser). Process.destroy() on Windows terminates immediately
+            // and would orphan those sessions, so it is only the fallback.
+            closeQuietly(output);
         }
         try {
-            if (awaitExit && !process.waitFor(2, TimeUnit.SECONDS)) {
+            // A server that never completed the handshake has no live sessions to release, so a
+            // long graceful wait would only delay probes of hung or misconfigured commands.
+            long exitWaitMillis = initialized ? GRACEFUL_EXIT_WAIT.toMillis() : 500;
+            if (awaitExit && !process.waitFor(exitWaitMillis, TimeUnit.MILLISECONDS)) {
                 process.destroyForcibly();
+            } else if (!awaitExit && !force) {
+                process.destroy();
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -304,11 +369,22 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         }
     }
 
+    private static void closeQuietly(OutputStream stream) {
+        try {
+            stream.close();
+        } catch (IOException ignored) {
+            // The process may already have exited.
+        }
+    }
+
     private static ThreadFactory daemonThreadFactory() {
         return runnable -> {
             Thread thread = new Thread(runnable, "shaft-mcp-stdio");
             thread.setDaemon(true);
             return thread;
         };
+    }
+
+    private record PendingRequest(int requestId, CompletableFuture<JsonObject> response) {
     }
 }

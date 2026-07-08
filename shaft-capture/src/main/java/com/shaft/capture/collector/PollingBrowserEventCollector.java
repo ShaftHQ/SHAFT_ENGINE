@@ -185,6 +185,12 @@ public final class PollingBrowserEventCollector implements BrowserEventCollector
             if (warned.compareAndSet(false, true)) {
                 warningConsumer.accept("The compatibility listener temporarily lost browser access.");
             }
+        } catch (RuntimeException exception) {
+            // Any other failure must not escape: an uncaught exception would silently cancel
+            // this scheduled poll forever and every later browser interaction would be lost.
+            if (warned.compareAndSet(false, true)) {
+                warningConsumer.accept("The compatibility listener skipped one polling cycle.");
+            }
         }
     }
 

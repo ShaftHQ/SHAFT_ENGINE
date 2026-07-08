@@ -174,6 +174,20 @@ install_portable_python() {
   printf '%s\n' "$python_path"
 }
 
+# Only a real SHAFT_ENGINE checkout has its own repo root pom.xml two directories up from
+# scripts/mcp (matching where this very script lives in-tree). A remote "copy command" run always
+# downloads install-shaft-mcp.sh into a scratch/temp directory instead, so this check reliably
+# tells a genuine in-repo invocation apart from that scratch directory -- otherwise a stale
+# install_shaft_mcp.py left behind by an earlier remote run in the same temp directory would be
+# reused forever instead of always fetching the latest installer.
+is_shaft_engine_repo_checkout() {
+  script_dir="$1"
+  [ -n "$script_dir" ] || return 1
+  repo_pom="$script_dir/../../pom.xml"
+  [ -f "$repo_pom" ] || return 1
+  grep -Eq '<artifactId>[[:space:]]*shaft-parent[[:space:]]*</artifactId>' "$repo_pom" 2>/dev/null
+}
+
 resolve_python_script() {
   root="$1"
   script_dir=""
@@ -182,7 +196,8 @@ resolve_python_script() {
       script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd -P || true)"
       ;;
   esac
-  if [ -n "$script_dir" ] && [ -f "$script_dir/install_shaft_mcp.py" ]; then
+  if [ -n "$script_dir" ] && is_shaft_engine_repo_checkout "$script_dir" \
+      && [ -f "$script_dir/install_shaft_mcp.py" ]; then
     printf '%s\n' "$script_dir/install_shaft_mcp.py"
     return 0
   fi

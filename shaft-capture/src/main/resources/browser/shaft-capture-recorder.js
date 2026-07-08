@@ -644,9 +644,10 @@
   // 1:1 so every choice maps directly to a SHAFT Validations API call in CaptureGenerator;
   // nothing here is generated or inferred at runtime.
   const ELEMENT_ASSERTIONS = [
-    {kind: "ELEMENT_VISIBLE", label: "Element is visible", needsValue: false, needsAttribute: false},
-    {kind: "ELEMENT_ENABLED", label: "Element is enabled", needsValue: false, needsAttribute: false},
-    {kind: "ELEMENT_SELECTED", label: "Element is selected", needsValue: false, needsAttribute: false},
+    {kind: "ELEMENT_PRESENT", label: "Element exists", needsValue: false, needsAttribute: false, booleanCheck: true},
+    {kind: "ELEMENT_VISIBLE", label: "Element is visible", needsValue: false, needsAttribute: false, booleanCheck: true},
+    {kind: "ELEMENT_ENABLED", label: "Element is enabled", needsValue: false, needsAttribute: false, booleanCheck: true},
+    {kind: "ELEMENT_SELECTED", label: "Element is selected", needsValue: false, needsAttribute: false, booleanCheck: true},
     {kind: "TEXT_EQUALS", label: "Text equals", needsValue: true, needsAttribute: false},
     {kind: "TEXT_CONTAINS", label: "Text contains", needsValue: true, needsAttribute: false},
     {kind: "ATTRIBUTE_EQUALS", label: "Attribute equals", needsValue: true, needsAttribute: true},
@@ -825,13 +826,20 @@
     return row;
   };
   const finishAssertion = (target, payload, summaryText) => {
-    announce(summaryText, "", target ? {
+    const item = announce(summaryText, "", target ? {
       kind: "verification",
       target,
       locator: bestLocatorSummary(target),
       readiness: "READY",
       warning: ""
     } : {kind: "verification", readiness: "READY", warning: ""});
+    if (item) {
+      // Carrying the client action id and description lets the persisted verification event
+      // surface in the server-side step list, so saved assertions rehydrate across navigations
+      // exactly like recorded interactions.
+      payload.clientActionId = clientActionId(item);
+      payload.stepDescription = text(summaryText);
+    }
     sendVerification(target, payload);
     closeAssertionPanel();
     uiState.assertionMode = false;
@@ -843,6 +851,22 @@
     const list = document.createElement("div");
     list.className = "assertion-data-step";
     const fields = [];
+    let expectedBooleanInput = null;
+    if (catalogEntry.booleanCheck) {
+      const label = document.createElement("label");
+      const caption = document.createElement("span");
+      caption.textContent = "Expected";
+      expectedBooleanInput = document.createElement("select");
+      expectedBooleanInput.name = "expectedBoolean";
+      [{value: "true", label: "true"}, {value: "false", label: "false"}].forEach(option => {
+        const item = document.createElement("option");
+        item.value = option.value;
+        item.textContent = option.label;
+        expectedBooleanInput.appendChild(item);
+      });
+      label.append(caption, expectedBooleanInput);
+      list.appendChild(label);
+    }
     if (catalogEntry.needsAttribute) {
       const label = document.createElement("label");
       const caption = document.createElement("span");
@@ -872,7 +896,8 @@
     confirm.type = "button";
     confirm.textContent = "Save assertion";
     confirm.addEventListener("click", () => {
-      const payload = {verification: catalogEntry.kind, negated: false};
+      const negated = Boolean(expectedBooleanInput && expectedBooleanInput.value === "false");
+      const payload = {verification: catalogEntry.kind, negated};
       if (catalogEntry.needsAttribute) {
         payload.attributeName = text(fields[0].value);
         if (!payload.attributeName) return;
@@ -881,12 +906,15 @@
         payload.expected = valueText(valueInput.value);
       }
       const name = target ? targetName(target) : "page";
-      finishAssertion(target, payload, "Assert " + catalogEntry.label.toLowerCase() + " on " + name);
+      const summary = negated
+        ? "Assert not " + catalogEntry.label.toLowerCase() + " on " + name
+        : "Assert " + catalogEntry.label.toLowerCase() + " on " + name;
+      finishAssertion(target, payload, summary);
     });
     const actions = cancelAssertionRow(closeAssertionPanel);
     actions.appendChild(confirm);
     renderAssertionPanel(catalogEntry.label, [list, actions]);
-    const first = list.querySelector("input");
+    const first = list.querySelector("select,input");
     if (first) first.focus();
   };
   const showAssertionCatalogStep = (catalog, target, element) => {
@@ -1231,7 +1259,8 @@
         color: var(--shaft-text-muted);
         font-size: 12px;
       }
-      #shaft-capture-assertion-panel input {
+      #shaft-capture-assertion-panel input,
+      #shaft-capture-assertion-panel select {
         min-width: 0;
         height: 30px;
         border: 1px solid var(--shaft-border);
@@ -1394,14 +1423,20 @@
   const quickAssertion = item => {
     const target = item.details && item.details.target;
     if (!target) return;
-    announce("Assert element visible on " + targetName(target), "", {
+    const summaryText = "Assert element visible on " + targetName(target);
+    const created = announce(summaryText, "", {
       kind: "verification",
       target,
       locator: bestLocatorSummary(target),
       readiness: "READY",
       warning: ""
     });
-    sendVerification(target, {verification: "ELEMENT_VISIBLE"});
+    const payload = {verification: "ELEMENT_VISIBLE"};
+    if (created) {
+      payload.clientActionId = clientActionId(created);
+      payload.stepDescription = text(summaryText);
+    }
+    sendVerification(target, payload);
   };
   const deleteAction = item => {
     uiState.actions = uiState.actions.filter(action => action.id !== item.id);

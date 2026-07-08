@@ -11,6 +11,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,7 +42,7 @@ class ShaftMcpStdioClientTest {
     }
 
     @Test
-    void initializeIgnoresNonProtocolStdoutBeforeJsonRpcMessage() throws IOException {
+    void initializeIgnoresNonProtocolStdoutBeforeJsonRpcMessage() throws Exception {
         String result = withClient("stdoutNoiseThenToolsList",
                 client -> client.initializeOnly(Duration.ofSeconds(2)));
 
@@ -48,7 +50,7 @@ class ShaftMcpStdioClientTest {
     }
 
     @Test
-    void listToolsReturnsRawJsonResult() throws IOException {
+    void listToolsReturnsRawJsonResult() throws Exception {
         JsonElement result = withClient("toolsList", client -> client.listTools(Duration.ofSeconds(2)));
 
         assertEquals("fake_tool", result.getAsJsonObject()
@@ -56,7 +58,76 @@ class ShaftMcpStdioClientTest {
     }
 
     @Test
-    void callToolPreservesNonObjectJsonResults() throws IOException {
+    void clientSurvivesAcrossSequentialToolCalls() throws Exception {
+        withClient("echoTool", client -> {
+            JsonElement first = client.callTool("capture_start", new JsonObject(), Duration.ofSeconds(5));
+            assertTrue(client.isAlive(),
+                    "The server process must stay alive between tool calls: session-starting tools "
+                            + "(capture_start) keep their live session inside it.");
+            JsonElement second = client.callTool("capture_status", new JsonObject(), Duration.ofSeconds(5));
+
+            assertEquals("capture_start", first.getAsJsonObject().get("echoedTool").getAsString());
+            assertEquals("capture_status", second.getAsJsonObject().get("echoedTool").getAsString());
+            assertTrue(client.isAlive());
+            return null;
+        });
+    }
+
+    @Test
+    void concurrentToolCallsReceiveTheirOwnResponses() throws Exception {
+        withClient("echoTool", client -> {
+            client.initializeOnly(Duration.ofSeconds(5));
+            CompletableFuture<JsonElement> first = CompletableFuture.supplyAsync(() -> callQuietly(
+                    client, "capture_status"));
+            CompletableFuture<JsonElement> second = CompletableFuture.supplyAsync(() -> callQuietly(
+                    client, "shaft_guide_search"));
+
+            assertEquals("capture_status", first.join()
+                    .getAsJsonObject().get("echoedTool").getAsString());
+            assertEquals("shaft_guide_search", second.join()
+                    .getAsJsonObject().get("echoedTool").getAsString());
+            return null;
+        });
+    }
+
+    @Test
+    void cancelAbandonsInFlightRequestWithoutKillingTheServerProcess() throws Exception {
+        withClient("silentToolCalls", client -> {
+            client.initializeOnly(Duration.ofSeconds(5));
+            CompletableFuture<Throwable> failure = CompletableFuture.supplyAsync(() -> {
+                try {
+                    client.callTool("never_answered", new JsonObject(), Duration.ofSeconds(30));
+                    return null;
+                } catch (IOException | RuntimeException exception) {
+                    return exception;
+                }
+            });
+            // The tool call registers asynchronously; keep cancelling until it has been abandoned.
+            for (int attempt = 0; attempt < 100 && !failure.isDone(); attempt++) {
+                client.cancel();
+                Thread.sleep(50);
+            }
+
+            Throwable outcome = failure.join();
+            assertTrue(outcome instanceof CancellationException,
+                    "Cancel must abandon the pending request, got: " + outcome);
+            assertTrue(client.isAlive(),
+                    "Cancel must not terminate the shared server process; live sessions "
+                            + "(an active recording) must keep running.");
+            return null;
+        });
+    }
+
+    private static JsonElement callQuietly(ShaftMcpStdioClient client, String toolName) {
+        try {
+            return client.callTool(toolName, new JsonObject(), Duration.ofSeconds(5));
+        } catch (IOException exception) {
+            throw new java.io.UncheckedIOException(exception);
+        }
+    }
+
+    @Test
+    void callToolPreservesNonObjectJsonResults() throws Exception {
         JsonElement array = withClient("toolResultArray",
                 client -> client.callTool("fake_tool", new JsonObject(), Duration.ofSeconds(2)));
         JsonElement string = withClient("toolResultString",
@@ -67,10 +138,10 @@ class ShaftMcpStdioClientTest {
     }
 
     private interface ClientAction<T> {
-        T call(ShaftMcpStdioClient client) throws IOException;
+        T call(ShaftMcpStdioClient client) throws Exception;
     }
 
-    private static <T> T withClient(String mode, ClientAction<T> action) throws IOException {
+    private static <T> T withClient(String mode, ClientAction<T> action) throws Exception {
         List<String> command = List.of(javaExecutable(), "-cp", System.getProperty("java.class.path"),
                 FakeMcpServer.class.getName(), mode);
         try (ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, Path.of("."), Map.of())) {
