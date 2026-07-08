@@ -73,6 +73,7 @@ is a reliable "a new version was really delivered" signal for these two.
 | `.github/actions/post-test-report` | `e2eTests.yml`, `e2eLocalTests.yml`, `lambdatestTests.yml` | Uploads JaCoCo coverage, creates Allure artifacts, writes summaries, and fails jobs from Allure/Surefire results. |
 | `.github/actions/consolidate-test-results` | `e2eTests.yml`, `e2eLocalTests.yml`, `lambdatestTests.yml` | Aggregates individual job results into one workflow summary table. |
 | `.github/actions/upload-jacoco-coverage` | `post-test-report`, `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `shaft-mcp.yml` | Generates required JaCoCo XML reports when needed and uploads coverage to Codecov. |
+| `.github/actions/reclaim-disk-space` | `mavenCentral_cd.yml`, `shaft-pilot-release.yml`, `shaft-mcp.yml` | Frees unused preinstalled runner toolchains and Docker images (optionally also build outputs) so the release container build doesn't run out of disk. |
 
 ## Generated PR Workflows
 
