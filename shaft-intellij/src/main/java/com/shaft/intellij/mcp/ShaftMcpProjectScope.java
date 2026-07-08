@@ -1,6 +1,7 @@
 package com.shaft.intellij.mcp;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Applies the current IntelliJ project as the workspace for MCP launches.
@@ -16,6 +18,21 @@ final class ShaftMcpProjectScope {
     static final String WORKSPACE_ENVIRONMENT_VARIABLE = "SHAFT_MCP_WORKSPACE_ROOT";
     private static final String USER_DIR_PROPERTY = "user.dir";
     private static final String WORKSPACE_PROPERTY = "shaft.mcp.workspaceRoot";
+
+    /**
+     * Caches the generated scoped argfile per (source argfile, project root) so repeated calls with
+     * unchanged inputs return the same path. {@link ShaftMcpInvocationService#acquireClient} reuses
+     * its shared MCP process only when the scoped command is unchanged; without this cache, every
+     * call minted a brand-new temp file and the shared process was torn down and respawned on every
+     * tool invocation, killing live sessions such as SHAFT Capture recordings within seconds.
+     */
+    private static final Map<ArgFileKey, ScopedArgFile> SCOPED_ARG_FILES = new ConcurrentHashMap<>();
+
+    private record ArgFileKey(Path source, Path projectRoot) {
+    }
+
+    private record ScopedArgFile(List<String> content, Path generated) {
+    }
 
     private ShaftMcpProjectScope() {
         throw new IllegalStateException("Utility class");
@@ -47,6 +64,33 @@ final class ShaftMcpProjectScope {
     }
 
     private static Path scopedArgFile(Path source, Path projectRoot) throws IOException {
+        List<String> content = materializeScopedArgFile(source, projectRoot);
+        ArgFileKey key = new ArgFileKey(source.toAbsolutePath().normalize(), projectRoot);
+        try {
+            ScopedArgFile entry = SCOPED_ARG_FILES.compute(key, (ignoredKey, existing) -> {
+                if (existing != null && existing.content().equals(content) && Files.exists(existing.generated())) {
+                    return existing;
+                }
+                Path generated;
+                try {
+                    generated = Files.createTempFile("shaft-intellij-mcp-", ".args");
+                    generated.toFile().deleteOnExit();
+                    Files.write(generated, content, StandardCharsets.UTF_8);
+                } catch (IOException exception) {
+                    throw new UncheckedIOException(exception);
+                }
+                if (existing != null) {
+                    deleteQuietly(existing.generated());
+                }
+                return new ScopedArgFile(List.copyOf(content), generated);
+            });
+            return entry.generated();
+        } catch (UncheckedIOException exception) {
+            throw exception.getCause();
+        }
+    }
+
+    private static List<String> materializeScopedArgFile(Path source, Path projectRoot) throws IOException {
         List<String> original = Files.readAllLines(source, StandardCharsets.UTF_8);
         List<String> scoped = new ArrayList<>(original.size() + 2);
         boolean sawUserDir = false;
@@ -71,11 +115,16 @@ final class ShaftMcpProjectScope {
             withRequiredProperties.add(systemProperty(WORKSPACE_PROPERTY, projectRoot));
         }
         withRequiredProperties.addAll(scoped);
+        return withRequiredProperties;
+    }
 
-        Path generated = Files.createTempFile("shaft-intellij-mcp-", ".args");
-        generated.toFile().deleteOnExit();
-        Files.write(generated, withRequiredProperties, StandardCharsets.UTF_8);
-        return generated;
+    private static void deleteQuietly(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ignored) {
+            // Windows can fail to delete a file while another process still holds a handle open;
+            // deleteOnExit() registered at creation time remains the backstop for cleanup.
+        }
     }
 
     private static String propertyName(String line) {

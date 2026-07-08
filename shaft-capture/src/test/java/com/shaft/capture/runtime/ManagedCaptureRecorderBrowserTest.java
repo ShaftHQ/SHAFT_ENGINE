@@ -106,6 +106,7 @@ class ManagedCaptureRecorderBrowserTest {
                 .map(Object::getClass)
                 .collect(java.util.stream.Collectors.toSet());
         assertTrue(eventTypes.contains(CaptureEvent.NavigationEvent.class));
+        assertTrue(eventTypes.contains(CaptureEvent.ClickEvent.class));
         assertTrue(eventTypes.contains(CaptureEvent.TypeEvent.class));
         assertTrue(eventTypes.contains(CaptureEvent.SelectEvent.class));
         assertTrue(eventTypes.contains(CaptureEvent.ToggleEvent.class));
@@ -113,6 +114,28 @@ class ManagedCaptureRecorderBrowserTest {
         assertTrue(eventTypes.contains(CaptureEvent.FrameEvent.class));
         assertTrue(eventTypes.contains(CaptureEvent.WindowEvent.class));
         assertTrue(eventTypes.contains(CaptureEvent.AlertEvent.class));
+
+        // Regression for issue #3393: a native double-click used to fire click(detail 1),
+        // click(detail 2), and dblclick, each emitting its own ClickEvent -- one user gesture
+        // produced up to three recorded actions. Exactly one ClickEvent with clickCount=2 must be
+        // persisted for the double-clicked element, and single clicks must stay single events.
+        List<CaptureEvent.ClickEvent> clicks = session.events().stream()
+                .filter(CaptureEvent.ClickEvent.class::isInstance)
+                .map(CaptureEvent.ClickEvent.class::cast)
+                .toList();
+        List<CaptureEvent.ClickEvent> doubleClicks = clicks.stream()
+                .filter(click -> "double".equals(click.target().logicalElementId()))
+                .toList();
+        assertEquals(1, doubleClicks.size(),
+                "One double-click gesture must persist exactly one ClickEvent, not one per native "
+                        + "click/dblclick DOM event.");
+        assertEquals(2, doubleClicks.get(0).clickCount());
+        List<CaptureEvent.ClickEvent> singleClicks = clicks.stream()
+                .filter(click -> "replace".equals(click.target().logicalElementId()))
+                .toList();
+        assertEquals(1, singleClicks.size(), "A single click must not be suppressed by the double-click fix.");
+        assertEquals(1, singleClicks.get(0).clickCount());
+
         assertFalse(Files.readString(output, StandardCharsets.UTF_8).contains(SECRET_CANARY));
         assertFalse(Files.readString(output.getParent().resolve("capture-data.json"),
                 StandardCharsets.UTF_8).contains(SECRET_CANARY));
@@ -309,6 +332,32 @@ class ManagedCaptureRecorderBrowserTest {
             waitFor(() -> stepDescriptions(recorder).stream()
                     .anyMatch(description -> description.startsWith("Assert not element exists")));
 
+            // Regression for issue #3393: the "Element assertion: click the target element"
+            // placeholder row used to persist in the overlay action list even after the real
+            // assertion was built; it must never appear, and exactly one row for the completed
+            // assertion must be present.
+            String actionListTextAfterElementAssertion =
+                    driver.findElement(By.id("shaft-capture-action-list")).getText();
+            assertFalse(actionListTextAfterElementAssertion.contains("click the target element"),
+                    "The assertion-mode placeholder row must never appear in the recorded action list.");
+            assertEquals(1, java.util.Arrays.stream(actionListTextAfterElementAssertion.split("\n"))
+                            .filter(line -> line.startsWith("Assert not element exists"))
+                            .count(),
+                    "Exactly one row for the completed element assertion must be present.");
+
+            // Begin-then-cancel must also leave no placeholder residue.
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-status")).getText()
+                    .contains("Assertion mode"));
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-status")).getText()
+                    .contains("Assertion mode"));
+            assertFalse(driver.findElement(By.id("shaft-capture-action-list")).getText()
+                            .contains("click the target element"),
+                    "Cancelling an in-progress element assertion must not leave a placeholder row.");
+
             // Browser branch: entry point -> Browser -> "Title contains" with an edited value.
             driver.findElement(By.id("shaft-capture-assert")).click();
             waitFor(() -> elementPresent(driver, assertionChoice("Browser")));
@@ -415,6 +464,52 @@ class ManagedCaptureRecorderBrowserTest {
         }
     }
 
+    /**
+     * Regression for issue #3393: the recorder overlay used to run two independent, redundant
+     * navigation-polling {@code setInterval} loops in the top-level frame, both announcing the
+     * same navigation with no de-duplication, so one navigation appended two "Navigate to" rows.
+     * Drives a real navigation and asserts exactly one such row lands in the overlay action list.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void singleNavigationAppendsExactlyOneNavigateRow(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+        Path output = temp.resolve(browserName + "-nav-dedup.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                baseUrl,
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-nav-dedup-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-action-list")));
+
+            driver.navigate().to(baseUrl + "popup");
+            waitFor(() -> navigateRowCount(js) >= 1);
+            // The (pre-fix, duplicate) navigation pollers both ran on a 500ms interval; sleeping
+            // across several ticks gives a reintroduced duplicate loop every chance to fire again
+            // before asserting the count stayed at exactly one.
+            Thread.sleep(1500);
+
+            assertEquals(1, navigateRowCount(js),
+                    "One navigation must append exactly one \"Navigate to\" row, not one per "
+                            + "redundant polling loop.");
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
     private static double assertButtonTop(JavascriptExecutor js) {
         Object value = js.executeScript(
                 "return document.getElementById('shaft-capture-assert').getBoundingClientRect().top;");
@@ -425,6 +520,15 @@ class ManagedCaptureRecorderBrowserTest {
         Object value = js.executeScript(
                 "const l = document.getElementById('shaft-capture-action-list');"
                         + "return l ? l.childElementCount : 0;");
+        return ((Number) value).longValue();
+    }
+
+    private static long navigateRowCount(JavascriptExecutor js) {
+        Object value = js.executeScript(
+                "const l = document.getElementById('shaft-capture-action-list');"
+                        + "if (!l) return 0;"
+                        + "return Array.from(l.querySelectorAll('li')).filter(li => "
+                        + "(li.textContent || '').includes('Navigate to')).length;");
         return ((Number) value).longValue();
     }
 

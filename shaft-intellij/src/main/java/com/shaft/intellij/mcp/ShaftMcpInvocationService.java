@@ -33,6 +33,7 @@ public final class ShaftMcpInvocationService implements Disposable {
 
     private final Project project;
     private final ShaftMcpConnectionState connectionState;
+    private final ShaftMcpClientFactory clientFactory;
     private final Object clientLock = new Object();
     private ShaftMcpStdioClient sharedClient;
     private List<String> sharedCommand = List.of();
@@ -45,8 +46,29 @@ public final class ShaftMcpInvocationService implements Disposable {
      * @param project IntelliJ project
      */
     public ShaftMcpInvocationService(@NotNull Project project) {
+        this(project, ShaftMcpStdioClient::new);
+    }
+
+    /**
+     * Test seam: tolerates a {@code null} project so unit tests can exercise the shared-client pool
+     * without the IntelliJ platform. Not public API.
+     *
+     * @param project       IntelliJ project, or {@code null} in tests
+     * @param clientFactory factory used to spawn the shared MCP server process
+     */
+    ShaftMcpInvocationService(Project project, ShaftMcpClientFactory clientFactory) {
         this.project = project;
-        this.connectionState = project.getService(ShaftMcpConnectionState.class);
+        this.connectionState = project == null ? null : project.getService(ShaftMcpConnectionState.class);
+        this.clientFactory = clientFactory;
+    }
+
+    /**
+     * Spawns the shared MCP server process; overridable in tests to avoid real process creation.
+     */
+    @FunctionalInterface
+    interface ShaftMcpClientFactory {
+        ShaftMcpStdioClient create(List<String> command, Path workingDirectory, Map<String, String> environment)
+                throws IOException;
     }
 
     /**
@@ -196,7 +218,7 @@ public final class ShaftMcpInvocationService implements Disposable {
      * Returns the shared MCP server client, spawning a fresh process when none is alive or the
      * effective command, environment, or working directory changed since the last call.
      */
-    private ShaftMcpStdioClient acquireClient(
+    ShaftMcpStdioClient acquireClient(
             List<String> scopedCommand,
             Path workingDirectory,
             Map<String, String> environment) throws IOException {
@@ -209,7 +231,7 @@ public final class ShaftMcpInvocationService implements Disposable {
                 return sharedClient;
             }
             closeSharedClientLocked();
-            sharedClient = new ShaftMcpStdioClient(scopedCommand, workingDirectory, environment);
+            sharedClient = clientFactory.create(scopedCommand, workingDirectory, environment);
             sharedCommand = List.copyOf(scopedCommand);
             sharedEnvironment = Map.copyOf(environment);
             sharedWorkingDirectory = workingDirectory;

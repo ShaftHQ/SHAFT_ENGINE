@@ -607,11 +607,27 @@
       selected: Boolean(element.checked || element.selected)
     };
   };
+  let lastClickEmission = null;
   const emit = (kind, event, data) => {
     if (uiState.paused || uiState.stopped || uiState.locatorMode) return;
     const target = snapshot(event);
     if (target) {
       const action = data || {};
+      // Root cause: one native double-click fires click(detail 1), click(detail 2), then
+      // dblclick. event.detail>=2 authoritatively marks the second click as a continuation of
+      // the first, so revoke the single-click row + its server step and replace it with one
+      // click carrying clickCount=2, instead of recording three separate actions.
+      if (kind === "click") {
+        if (Number(action.clickCount || 1) >= 2
+            && lastClickEmission
+            && lastClickEmission.logicalElementId === target.logicalElementId
+            && uiState.actions.some(existing => existing.id === lastClickEmission.item.id)) {
+          deleteAction(lastClickEmission.item);
+        }
+        lastClickEmission = null;
+      } else {
+        lastClickEmission = null;
+      }
       const readiness = readinessFor(kind, target);
       if (readiness) setReadiness(readiness.state, readiness.warning);
       const mergeKey = kind === "input" ? "input:" + target.logicalElementId : "";
@@ -630,6 +646,9 @@
       if (item) {
         action.clientActionId = clientActionId(item);
         action.stepDescription = description;
+      }
+      if (kind === "click" && item) {
+        lastClickEmission = {item, logicalElementId: target.logicalElementId};
       }
       send({kind, page: page(), target, data: action});
     }
@@ -976,7 +995,9 @@
     clearLocatorHighlight();
     renderLocatorPanel(null);
     persist();
-    announce("Element assertion: click the target element");
+    // The "click the target element" guidance is mode UI, not a recorded action, so it is
+    // surfaced through the status chip (see setStatus) rather than the action list. Announcing
+    // it as an action left a permanent placeholder row that nothing ever removed.
     setStatus();
   };
   const beginBrowserAssertion = () => {
@@ -1640,6 +1661,7 @@
     document.getElementById("shaft-capture-pause").addEventListener("click", () => {
       if (uiState.stopped) return;
       uiState.paused = !uiState.paused;
+      lastClickEmission = null;
       if (uiState.paused) {
         uiState.locatorMode = false;
         clearLocatorHighlight();
@@ -1681,6 +1703,7 @@
     document.getElementById("shaft-capture-stop").addEventListener("click", () => {
       if (uiState.stopped) return;
       uiState.stopped = true;
+      lastClickEmission = null;
       persist();
       announce("Stop recording");
       sendControl("STOP");
@@ -1696,10 +1719,16 @@
   };
   setInterval(() => {
     const current = String(location.href || "");
-    if (uiState.stopped || uiState.paused || current === uiState.lastUrl) return;
-    setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
+    if (current === uiState.lastUrl) return;
     uiState.lastUrl = current;
-    announce("Navigate to " + visibleLocation());
+    if (!uiState.stopped && !uiState.paused) {
+      setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
+      announce("Navigate to " + visibleLocation());
+      lastClickEmission = null;
+    }
+    if (topLevel) {
+      syncStepsFromServer();
+    }
     persist();
   }, 500);
 
@@ -1720,11 +1749,11 @@
     });
   }, true);
   addEventListener("dblclick", event => {
-    if (captureLocatorPick(event)) return;
-    emit("click", event, {
-    button: Number(event.button || 0),
-    clickCount: 2
-    });
+    // A native dblclick is always preceded by a click with detail=2, which the click listener
+    // above already emits with clickCount=2 (and coalesces with the preceding single click via
+    // lastClickEmission), so emitting again here would duplicate the action. Only the locator-pick
+    // guard still applies.
+    captureLocatorPick(event);
   }, true);
   const editingKeys = new Set(["Backspace", "Delete", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
   const isEditingKey = key => editingKeys.has(key);
@@ -1816,14 +1845,5 @@
         announce("Open " + visibleLocation());
       }
     }
-    setInterval(() => {
-      const current = String(location.href || "");
-      if (current !== uiState.lastUrl) {
-        uiState.lastUrl = current;
-        persist();
-        announce("Navigate to " + visibleLocation());
-        syncStepsFromServer();
-      }
-    }, 500);
   }
 }
