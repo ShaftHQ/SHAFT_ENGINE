@@ -72,6 +72,8 @@ class OwnerOnlyFilePermissionsTest {
 
     @Test
     void doesNotThrowForAMissingDirectory() {
-        OwnerOnlyFilePermissions.restrictDirectoryToOwner(tempDir.resolve("does-not-exist"));
+        // Best-effort by design: a missing path must not throw, since callers treat this as a
+        // hardening step applied after the directory was already created.
+        assertDoesNotThrow(() -> OwnerOnlyFilePermissions.restrictDirectoryToOwner(tempDir.resolve("does-not-exist")));
     }
 }
