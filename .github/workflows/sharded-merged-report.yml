@@ -22,6 +22,9 @@ on:
         required: false
         default: '%regex[.*ShardPartitionerUnitTest.*]'
 
+permissions:
+  contents: read
+
 env:
   TOTAL_SHARDS: 3
 

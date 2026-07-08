@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-shaft-mcp
+  cancel-in-progress: false
+
 jobs:
   deploy-render:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'

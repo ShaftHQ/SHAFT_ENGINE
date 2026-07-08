@@ -1,14 +1,22 @@
 name: SHAFT Pilot Release Candidate
+# MIRRORED in mavenCentral_cd.yml's build_release_and_deliver job (PR gate vs. real
+# release execution of the same steps) - keep both step sequences in sync.
 
 on:
   pull_request:
     paths:
       - "pom.xml"
       - ".github/workflows/shaft-pilot-release.yml"
+      - ".github/actions/reclaim-disk-space/action.yml"
+      - ".github/actions/upload-jacoco-coverage/action.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: shaft-pilot-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   detect-shaft-version-change:
@@ -28,6 +36,20 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          # Release-candidate infra (this workflow's own file or the composite actions
+          # it depends on) must be exercised on its own PR, not only on the next real
+          # version bump - this is exactly the class of change that caused the disk
+          # exhaustion regression fixed above.
+          infra_changed="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- \
+            .github/workflows/shaft-pilot-release.yml \
+            .github/actions/reclaim-disk-space/action.yml \
+            .github/actions/upload-jacoco-coverage/action.yml)"
+          if [ -n "${infra_changed}" ]; then
+            echo "Release-candidate infra changed: ${infra_changed}"
             echo "changed=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
@@ -77,9 +99,9 @@ jobs:
           distribution: "zulu"
           check-latest: true
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5
+        uses: stCarolas/setup-maven@v5.1
         with:
-          maven-version: 3.9.5
+          maven-version: 3.9.12
       - name: Validate release contracts
         run: |
           python3 scripts/ci/validate_reactor_versions.py
@@ -147,26 +169,8 @@ jobs:
         with:
           prune-build-outputs: 'true'
       - name: Build and smoke the release container
-        shell: bash
-        run: |
-          docker build -f shaft-mcp/Dockerfile -t shaft-pilot-release:test .
-          cleanup() {
-            docker rm -f shaft-pilot-release-smoke >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          docker run -d --name shaft-pilot-release-smoke \
-            -e SPRING_PROFILES_ACTIVE=http \
-            -p 127.0.0.1:8081:8081 \
-            shaft-pilot-release:test
-          for attempt in {1..60}; do
-            if curl --fail --silent --show-error \
-              -H "Accept: application/json, text/event-stream" \
-              -H "Content-Type: application/json" \
-              --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"release-smoke","version":"1.0"}}}' \
-              http://127.0.0.1:8081/mcp | grep -q '"name":"shaft-mcp"'; then
-              exit 0
-            fi
-            sleep 1
-          done
-          docker logs shaft-pilot-release-smoke
-          exit 1
+        uses: ./.github/actions/mcp-container-smoke
+        with:
+          image-tag: shaft-pilot-release:test
+          container-name: shaft-pilot-release-smoke
+          client-name: release-smoke
