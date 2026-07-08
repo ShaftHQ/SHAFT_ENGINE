@@ -50,17 +50,20 @@ class ShellInstallerRepoCheckoutDetectionTest(unittest.TestCase):
         self.functions_only = script[:boundary]
 
     def _detect(self, directory: Path) -> bool:
-        script = (
-            self.functions_only
-            + f'\nif is_shaft_engine_repo_checkout "{directory.as_posix()}"; '
-            + 'then echo REPO_CHECKOUT; else echo NOT_REPO_CHECKOUT; fi\n'
+        # The candidate directory is passed as a real argv entry ($1), never interpolated into
+        # the script text, so this cannot be mistaken for a shell-injection-shaped invocation.
+        script = self.functions_only + (
+            '\nis_shaft_engine_repo_checkout "$1" && echo REPO_CHECKOUT || echo NOT_REPO_CHECKOUT\n'
         )
-        result = subprocess.run(
-            ["sh", "-c", script],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        with tempfile.TemporaryDirectory() as script_dir:
+            script_path = Path(script_dir) / "detect.sh"
+            script_path.write_text(script, encoding="utf-8")
+            result = subprocess.run(
+                ["sh", str(script_path), str(directory)],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
         return "REPO_CHECKOUT" == result.stdout.strip()
 
     def test_genuine_repo_checkout_is_detected(self) -> None:
@@ -83,17 +86,25 @@ class PowerShellInstallerRepoCheckoutDetectionTest(unittest.TestCase):
         self.function_only = script[start:end]
 
     def _detect(self, directory: Path) -> bool:
-        command = (
-            self.function_only
-            + f'\nif (Test-ShaftEngineRepoCheckout "{directory}") '
-            + '{ Write-Output "REPO_CHECKOUT" } else { Write-Output "NOT_REPO_CHECKOUT" }'
+        # The candidate directory is bound through a real -Directory CLI parameter, never
+        # interpolated into the script text, so this cannot be mistaken for a command-injection-
+        # shaped invocation.
+        script = (
+            "param([string] $Directory)\n"
+            + self.function_only
+            + '\nif (Test-ShaftEngineRepoCheckout $Directory) '
+            + '{ Write-Output "REPO_CHECKOUT" } else { Write-Output "NOT_REPO_CHECKOUT" }\n'
         )
-        result = subprocess.run(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        with tempfile.TemporaryDirectory() as script_dir:
+            script_path = Path(script_dir) / "detect.ps1"
+            script_path.write_text(script, encoding="utf-8")
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-File", str(script_path), "-Directory", str(directory)],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
         return "REPO_CHECKOUT" == result.stdout.strip()
 
     def test_genuine_repo_checkout_is_detected(self) -> None:
