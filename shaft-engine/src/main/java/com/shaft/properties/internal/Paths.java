@@ -41,6 +41,10 @@ public interface Paths extends EngineProperties<Paths> {
     @DefaultValue("src/main/resources/dynamicObjectRepository/")
     String dynamicObjectRepository();
 
+    @Key("ariaSnapshotFolderPath")
+    @DefaultValue("src/test/resources/aria/")
+    String ariaSnapshot();
+
     @Key("testDataFolderPath")
     @DefaultValue("src/test/resources/testDataFiles/")
     String testData();
@@ -95,6 +99,11 @@ public interface Paths extends EngineProperties<Paths> {
 
         public SetProperty dynamicObjectRepository(String value) {
             setProperty("dynamicObjectRepositoryPath", value);
+            return this;
+        }
+
+        public SetProperty ariaSnapshot(String value) {
+            setProperty("ariaSnapshotFolderPath", value);
             return this;
         }
 

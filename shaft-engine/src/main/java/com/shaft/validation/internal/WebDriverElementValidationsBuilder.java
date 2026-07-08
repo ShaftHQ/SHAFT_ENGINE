@@ -16,6 +16,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
     protected ValidationEnums.VisualValidationEngine visualValidationEngine;
     protected String elementAttribute;
     protected String elementCssProperty;
+    protected String ariaSnapshotFileName;
 
     public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
@@ -120,6 +121,43 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
         appendVisualValidationMessage(false);
+        var executor = new ValidationsExecutor(this);
+        executor.internalPerform();
+        return executor;
+    }
+
+    /**
+     * Use this to check that the target element matches its visual-regression baseline screenshot
+     * (pixel diff via OpenCV; see {@link VisualValidationsBuilder} for diff-budget/mask options).
+     * On the first test run this method takes a screenshot of the target element and the test passes,
+     * saving it as the baseline for subsequent runs. Baselines are stored alongside the other visual
+     * baselines under the configured {@code dynamicObjectRepositoryPath}.
+     *
+     * @return a VisualValidationsBuilder to optionally set diff-budget/mask options and then perform() your validation
+     */
+    @Override
+    public VisualValidationsBuilder matchesScreenshot() {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append("matches the visual regression baseline screenshot.");
+        return new VisualValidationsBuilder(validationCategory, driver, locator, false, reportMessageBuilder);
+    }
+
+    /**
+     * Use this to check that the target element matches its accessible-name-tree ("aria") baseline snapshot,
+     * using partial-subset semantics (see {@link com.shaft.gui.internal.aria.AriaSnapshotHelper}).
+     * On the first test run this method saves the current snapshot as the baseline and the test passes,
+     * under the configured {@code ariaSnapshotFolderPath}.
+     *
+     * @param snapshotFileName the baseline file name (without extension) to compare against or create
+     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     */
+    @Override
+    public ValidationsExecutor matchesAriaSnapshot(String snapshotFileName) {
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.validationMethod = "elementAriaSnapshotMatches";
+        this.ariaSnapshotFileName = snapshotFileName;
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append("matches the aria snapshot \"").append(snapshotFileName).append("\".");
         var executor = new ValidationsExecutor(this);
         executor.internalPerform();
         return executor;

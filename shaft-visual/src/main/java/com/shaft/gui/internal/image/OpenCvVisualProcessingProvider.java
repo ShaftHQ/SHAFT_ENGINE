@@ -427,6 +427,79 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
     }
 
     @Override
+    public ScreenshotComparisonResult compareScreenshotAgainstBaseline(byte[] baselineImage, byte[] actualImage,
+                                                                        List<int[]> maskRects, Integer maxDiffPixels,
+                                                                        Double maxDiffPixelRatio) {
+        Mat baseline = Imgcodecs.imdecode(new MatOfByte(baselineImage), Imgcodecs.IMREAD_COLOR);
+        Mat actual = Imgcodecs.imdecode(new MatOfByte(actualImage), Imgcodecs.IMREAD_COLOR);
+        if (baseline.empty() || actual.empty()) {
+            return new ScreenshotComparisonResult(false, new byte[0], Long.MAX_VALUE, 1.0);
+        }
+        if (baseline.rows() != actual.rows() || baseline.cols() != actual.cols()) {
+            long totalPixels = (long) baseline.rows() * baseline.cols();
+            return new ScreenshotComparisonResult(false, encodePng(actual), totalPixels, 1.0);
+        }
+
+        applyMask(baseline, maskRects);
+        applyMask(actual, maskRects);
+
+        Mat diff = new Mat();
+        Core.absdiff(baseline, actual, diff);
+        Mat grayDiff = new Mat();
+        Imgproc.cvtColor(diff, grayDiff, Imgproc.COLOR_BGR2GRAY);
+        Mat thresholded = new Mat();
+        Imgproc.threshold(grayDiff, thresholded, 30, 255, Imgproc.THRESH_BINARY);
+
+        long diffPixels = Core.countNonZero(thresholded);
+        long totalPixels = (long) baseline.rows() * baseline.cols();
+        double diffRatio = totalPixels == 0 ? 0.0 : (double) diffPixels / totalPixels;
+
+        long allowedDiffPixels;
+        if (maxDiffPixels != null) {
+            allowedDiffPixels = maxDiffPixels;
+        } else if (maxDiffPixelRatio != null) {
+            allowedDiffPixels = Math.round(maxDiffPixelRatio * totalPixels);
+        } else {
+            allowedDiffPixels = 0;
+        }
+        boolean matched = diffPixels <= allowedDiffPixels;
+
+        byte[] diffImageBytes = new byte[0];
+        if (!matched) {
+            Mat highlighted = actual.clone();
+            highlighted.setTo(new Scalar(67, 176, 42), thresholded); // selenium-green highlight on differing pixels
+            diffImageBytes = encodePng(highlighted);
+        }
+
+        return new ScreenshotComparisonResult(matched, diffImageBytes, diffPixels, diffRatio);
+    }
+
+    private static void applyMask(Mat image, List<int[]> maskRects) {
+        if (maskRects == null) {
+            return;
+        }
+        for (int[] rect : maskRects) {
+            if (rect == null || rect.length < 4) {
+                continue;
+            }
+            int x = Math.max(0, rect[0]);
+            int y = Math.max(0, rect[1]);
+            int width = Math.min(rect[2], image.cols() - x);
+            int height = Math.min(rect[3], image.rows() - y);
+            if (width <= 0 || height <= 0) {
+                continue;
+            }
+            Imgproc.rectangle(image, new Point(x, y), new Point(x + width, y + height), new Scalar(0, 0, 0), -1);
+        }
+    }
+
+    private static byte[] encodePng(Mat mat) {
+        MatOfByte buffer = new MatOfByte();
+        Imgcodecs.imencode(".png", mat, buffer);
+        return buffer.toArray();
+    }
+
+    @Override
     public void load() {
         var libName = "";
         try {

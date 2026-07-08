@@ -4,6 +4,7 @@ import com.shaft.gui.driver.BrowserAssertions;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.internal.NativeValidationsBuilder;
+import com.shaft.validation.internal.VisualValidationsBuilder;
 
 public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     private final ValidationEnums.ValidationCategory validationCategory;
@@ -48,6 +49,12 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     public NativeValidationsBuilder text() {
         reportMessageBuilder.append("text ");
         return builder("text");
+    }
+
+    @Override
+    public VisualValidationsBuilder matchesScreenshot() {
+        reportMessageBuilder.append("page matches the visual regression baseline screenshot.");
+        return new PlaywrightVisualValidationsBuilder(validationCategory, session, null, null, true, reportMessageBuilder);
     }
 
     private NativeValidationsBuilder builder(String browserAttribute) {

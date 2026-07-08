@@ -7,6 +7,7 @@ import com.shaft.gui.driver.BrowserActionsContract;
 import com.shaft.properties.internal.Properties;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import com.shaft.validation.accessibility.AccessibilityHelper;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
@@ -123,6 +124,40 @@ public class AccessibilityActionsCoverageUnitTest {
             Assert.assertSame(accessibilityActions.verifyNoCriticalViolations("Safe"), accessibilityActions);
             Assert.assertSame(accessibilityActions.assertIsAccessible(), accessibilityActions);
             Assert.assertSame(accessibilityActions.verifyIsAccessible(), accessibilityActions);
+        }
+    }
+
+    @Test
+    public void shouldScopeTagFilteredAccessibilityAssertionsToRequestedWcagTags() {
+        AccessibilityHelper.AccessibilityResult accessibleResult = resultWithViolations(List.of(), 100.0);
+
+        try (MockedStatic<AccessibilityHelper> helper = Mockito.mockStatic(AccessibilityHelper.class)) {
+            helper.when(() -> AccessibilityHelper.analyzePageAccessibilityAndSave(any(WebDriver.class), Mockito.eq("CurrentPage"),
+                            any(AccessibilityHelper.AccessibilityConfig.class), Mockito.eq(false)))
+                    .thenReturn(accessibleResult);
+
+            Assert.assertSame(accessibilityActions.assertIsAccessible("wcag2a", "wcag2aa"), accessibilityActions);
+            Assert.assertSame(accessibilityActions.verifyIsAccessible("wcag2a", "wcag2aa"), accessibilityActions);
+
+            ArgumentCaptor<AccessibilityHelper.AccessibilityConfig> configCaptor =
+                    ArgumentCaptor.forClass(AccessibilityHelper.AccessibilityConfig.class);
+            helper.verify(() -> AccessibilityHelper.analyzePageAccessibilityAndSave(any(WebDriver.class), Mockito.eq("CurrentPage"),
+                    configCaptor.capture(), Mockito.eq(false)), times(2));
+            configCaptor.getAllValues().forEach(config ->
+                    Assert.assertEquals(config.getTags(), List.of("wcag2a", "wcag2aa")));
+        }
+    }
+
+    @Test
+    public void shouldFailTagFilteredAssertionWhenViolationsExistForRequestedTags() {
+        AccessibilityHelper.AccessibilityResult violatingResult = resultWithViolations(List.of(mockedRule("color-contrast", "critical")), 40.0);
+
+        try (MockedStatic<AccessibilityHelper> helper = Mockito.mockStatic(AccessibilityHelper.class)) {
+            helper.when(() -> AccessibilityHelper.analyzePageAccessibilityAndSave(any(WebDriver.class), Mockito.eq("CurrentPage"),
+                            any(AccessibilityHelper.AccessibilityConfig.class), Mockito.eq(false)))
+                    .thenReturn(violatingResult);
+
+            Assert.assertThrows(AssertionError.class, () -> accessibilityActions.assertIsAccessible("wcag2a"));
         }
     }
 

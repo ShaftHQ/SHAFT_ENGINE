@@ -185,4 +185,16 @@ public interface ElementActionsContract {
     default ElementActionsContract captureScreenshot(ShaftLocator elementLocator) {
         return captureScreenshot(elementLocator.toBy());
     }
+
+    /**
+     * Captures an accessible-name-tree ("aria") snapshot of the target element, serialized as YAML.
+     *
+     * @param elementLocator the locator of the element to snapshot
+     * @return the captured snapshot serialized as YAML
+     */
+    String ariaSnapshot(By elementLocator);
+
+    default String ariaSnapshot(ShaftLocator elementLocator) {
+        return ariaSnapshot(elementLocator.toBy());
+    }
 }

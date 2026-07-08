@@ -60,4 +60,35 @@ public interface VisualProcessingProvider {
      * Loads any native libraries required by this provider.
      */
     void load();
+
+    /**
+     * Result of a pixel-level screenshot comparison against a baseline image.
+     *
+     * @param matched   {@code true} when the observed pixel difference is within the configured budget
+     * @param diffImage encoded PNG highlighting the differing pixels, or an empty array when {@code matched} is {@code true}
+     * @param diffPixels number of pixels that differ after masking
+     * @param diffRatio  {@code diffPixels} divided by the total pixel count of the compared images
+     */
+    record ScreenshotComparisonResult(boolean matched, byte[] diffImage, long diffPixels, double diffRatio) {
+    }
+
+    /**
+     * Compares raw screenshot bytes against a baseline image using a pixel-level diff, honoring optional
+     * mask rectangles and diff budgets. Used by the {@code matchesScreenshot()} visual-regression assertion.
+     *
+     * <p>Providers that cannot perform a pixel diff may keep the default implementation.</p>
+     *
+     * @param baselineImage      encoded baseline (reference) image bytes
+     * @param actualImage        encoded actual (current) screenshot bytes
+     * @param maskRects          pixel-space {@code [x, y, width, height]} regions to exclude from comparison, or {@code null}
+     * @param maxDiffPixels      maximum allowed differing pixel count, or {@code null} to ignore this budget
+     * @param maxDiffPixelRatio  maximum allowed differing pixel ratio (0.0-1.0), or {@code null} to ignore this budget
+     * @return the comparison result
+     * @throws UnsupportedOperationException when the provider does not support pixel-diff screenshot comparison
+     */
+    default ScreenshotComparisonResult compareScreenshotAgainstBaseline(byte[] baselineImage, byte[] actualImage,
+                                                                         List<int[]> maskRects, Integer maxDiffPixels,
+                                                                         Double maxDiffPixelRatio) {
+        throw new UnsupportedOperationException("The configured visual processing provider does not support pixel-diff screenshot comparison.");
+    }
 }

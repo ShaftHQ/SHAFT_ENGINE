@@ -15,6 +15,7 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
     private final String playwrightElementCssProperty;
     private final String playwrightBrowserAttribute;
     private ValidationEnums.VisualValidationEngine visualValidationEngine;
+    private String ariaSnapshotFileName;
 
     PlaywrightNativeValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
                                        PlaywrightSession session,
@@ -48,6 +49,14 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.expectedValue = validationType.getValue();
         this.visualValidationEngine = visualValidationEngine;
+        return new PlaywrightValidationsExecutor(this);
+    }
+
+    PlaywrightValidationsExecutor createAriaSnapshotExecutor(String snapshotFileName) {
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
+        this.expectedValue = true;
+        this.ariaSnapshotFileName = snapshotFileName;
         return new PlaywrightValidationsExecutor(this);
     }
 
@@ -106,6 +115,10 @@ final class PlaywrightNativeValidationsBuilder extends NativeValidationsBuilder 
 
     ValidationEnums.VisualValidationEngine visualValidationEngine() {
         return visualValidationEngine;
+    }
+
+    String ariaSnapshotFileName() {
+        return ariaSnapshotFileName;
     }
 
     StringBuilder reportMessageBuilder() {

@@ -280,6 +280,60 @@ public class ImageProcessingActions {
                 visualBaselinePath + ".png", visualBaselinePath + "_shutterbug");
     }
 
+    /**
+     * Compares an element's actual screenshot against its visual-regression baseline using a pixel-level diff.
+     * Saves the actual screenshot as the new baseline when none exists yet, or when {@code -Dshaft.updateSnapshots=true}.
+     *
+     * @param elementLocator locator of the element being compared
+     * @param actualScreenshot encoded screenshot bytes of the current state
+     * @param maskRects pixel-space {@code [x, y, width, height]} regions to exclude from comparison, or {@code null}
+     * @param maxDiffPixels maximum allowed differing pixel count, or {@code null} to ignore this budget
+     * @param maxDiffPixelRatio maximum allowed differing pixel ratio (0.0-1.0), or {@code null} to ignore this budget
+     * @return the comparison result
+     */
+    public static VisualProcessingProvider.ScreenshotComparisonResult compareScreenshotAgainstBaseline(
+            By elementLocator, byte[] actualScreenshot, List<int[]> maskRects, Integer maxDiffPixels, Double maxDiffPixelRatio) {
+        return compareScreenshotAgainstBaselineByHash(formatElementLocatorToImagePath(elementLocator), actualScreenshot, maskRects, maxDiffPixels, maxDiffPixelRatio);
+    }
+
+    /**
+     * Compares a backend-neutral actual screenshot (e.g. a full-page capture) against its visual-regression
+     * baseline using a pixel-level diff. Saves the actual screenshot as the new baseline when none exists yet,
+     * or when {@code -Dshaft.updateSnapshots=true}.
+     *
+     * @param baselineKey stable backend-neutral baseline description
+     * @param actualScreenshot encoded screenshot bytes of the current state
+     * @param maskRects pixel-space {@code [x, y, width, height]} regions to exclude from comparison, or {@code null}
+     * @param maxDiffPixels maximum allowed differing pixel count, or {@code null} to ignore this budget
+     * @param maxDiffPixelRatio maximum allowed differing pixel ratio (0.0-1.0), or {@code null} to ignore this budget
+     * @return the comparison result
+     */
+    public static VisualProcessingProvider.ScreenshotComparisonResult compareScreenshotAgainstBaseline(
+            String baselineKey, byte[] actualScreenshot, List<int[]> maskRects, Integer maxDiffPixels, Double maxDiffPixelRatio) {
+        return compareScreenshotAgainstBaselineByHash(formatElementLocatorToImagePath(baselineKey), actualScreenshot, maskRects, maxDiffPixels, maxDiffPixelRatio);
+    }
+
+    private static VisualProcessingProvider.ScreenshotComparisonResult compareScreenshotAgainstBaselineByHash(
+            String hashedName, byte[] actualScreenshot, List<int[]> maskRects, Integer maxDiffPixels, Double maxDiffPixelRatio) {
+        String baselineImagePath = getAiFolderPath() + hashedName + ".png";
+        boolean updateSnapshots = SHAFT.Properties.visuals.updateSnapshots();
+
+        if (!FileActions.getInstance(true).doesFileExist(baselineImagePath) || updateSnapshots) {
+            ReportManager.logDiscrete("Passing the test and saving a reference screenshot baseline.");
+            FileActions.getInstance(true).writeToFile(baselineImagePath, actualScreenshot);
+            return new VisualProcessingProvider.ScreenshotComparisonResult(true, new byte[0], 0, 0.0);
+        }
+
+        byte[] baselineImage = FileActions.getInstance(true).readFileAsByteArray(baselineImagePath);
+        VisualProcessingProvider.ScreenshotComparisonResult result = VisualProcessingProviderRegistry.requireProvider()
+                .compareScreenshotAgainstBaseline(baselineImage, actualScreenshot, maskRects, maxDiffPixels, maxDiffPixelRatio);
+
+        if (!result.matched() && result.diffImage() != null && result.diffImage().length > 0) {
+            FileActions.getInstance(true).writeToFile(getAiFolderPath() + hashedName + "_diff.png", result.diffImage());
+        }
+        return result;
+    }
+
     private static void compareImageFolders(File[] referenceFiles, File[] testFiles, File testFolder, double threshold) throws IOException {
         int passedImagesCount = 0;
         int failedImagesCount = 0;

@@ -633,6 +633,8 @@
                 <directory>${project.basedir}/src/main/resources</directory>
                 <includes>
                     <include>junit-platform.properties</include>
+                    <include>axe.min.js</include>
+                    <include>ariaSnapshot.js</include>
                 </includes>
             </resource>
         </resources>
