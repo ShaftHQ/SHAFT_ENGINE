@@ -1,6 +1,7 @@
 package com.shaft.capture.runtime;
 
 import tools.jackson.databind.node.StringNode;
+import com.shaft.capture.collector.BidiActivityGate;
 import com.shaft.capture.collector.BidiBrowserEventCollector;
 import com.shaft.capture.collector.BrowserEventCollector;
 import com.shaft.capture.collector.BrowserSignal;
@@ -49,6 +50,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 /**
  * Owns one SHAFT-managed browser and its deterministic capture pipeline.
@@ -615,19 +617,39 @@ class ManagedCaptureRecorder {
 
     private void startCollector(WebDriver activeDriver) {
         try {
+            BidiActivityGate bidiActivityGate = new BidiActivityGate();
+            BidiBrowserEventCollector bidiCollector = new BidiBrowserEventCollector(
+                    activeDriver,
+                    request.options().testIdAttributes(),
+                    eventSinkStepsEndpoint(),
+                    eventSinkToken());
+            // The polling collector reads bidiActivityGate to back off its own redundant script
+            // round-trips once BiDi is proven healthy; this wrapper is what feeds that gate,
+            // without BidiBrowserEventCollector itself needing to know the polling collector exists.
+            BrowserEventCollector trackedBidiCollector = new BrowserEventCollector() {
+                @Override
+                public void start(Consumer<BrowserSignal> signalConsumer, Consumer<String> warningConsumer) {
+                    bidiCollector.start(signal -> {
+                        bidiActivityGate.recordActivity();
+                        signalConsumer.accept(signal);
+                    }, warningConsumer);
+                }
+
+                @Override
+                public void close() {
+                    bidiCollector.close();
+                }
+            };
             collector = new CompositeBrowserEventCollector(List.of(
-                    new BidiBrowserEventCollector(
-                            activeDriver,
-                            request.options().testIdAttributes(),
-                            eventSinkStepsEndpoint(),
-                            eventSinkToken()),
+                    trackedBidiCollector,
                     new PollingBrowserEventCollector(
                             activeDriver,
                             false,
                             request.options().testIdAttributes(),
                             eventSinkEndpoint(),
                             eventSinkToken(),
-                            eventSinkStepsEndpoint())));
+                            eventSinkStepsEndpoint(),
+                            bidiActivityGate)));
             collector.start(this::acceptSignal, this::warn);
         } catch (RuntimeException exception) {
             if (collector != null) {
