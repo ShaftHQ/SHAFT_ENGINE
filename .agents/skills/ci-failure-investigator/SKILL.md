@@ -1,6 +1,6 @@
 ---
 name: ci-failure-investigator
-description: Use for failed GitHub Actions, SHAFT Allure reports, or provider E2E runs; find the first actionable cause.
+description: Use for failed GitHub Actions, failed-run Allure reports, or provider E2E failures; find the first actionable cause.
 ---
 
 # CI Failure Investigator

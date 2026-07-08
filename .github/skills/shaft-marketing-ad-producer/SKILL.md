@@ -9,9 +9,9 @@ Plan SHAFT ads without fake claims.
 
 ## Stack
 
-- Strategy/scenes: use the relevant `creative-production:*` explorer.
-- Polish: `creative-production:generative-polish`, `imagegen`; keep exact copy, code, logos, and UI screenshots deterministic.
-- Capture: `browse` or `playwright`; use Chrome only for current profile state, and desktop/OBS/`ffmpeg` only if installed.
+- Strategy/scenes: plan in the brief/storyboard; no dedicated tool.
+- Visuals: keep exact copy, code, logos, and UI screenshots deterministic; no image-generation tool, so write a visual brief.
+- Capture: `webapp-testing`/Playwright for web; `chrome-devtools-mcp` for perf/network; desktop/OBS/`ffmpeg` if installed.
 - SHAFT proof: use MCP recorder, report, Doctor, Allure, and code-block tools.
 - Editing/audio: use existing video tools and approved or licensed audio; otherwise write a music brief.
 

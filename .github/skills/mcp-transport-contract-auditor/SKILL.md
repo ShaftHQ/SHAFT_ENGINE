@@ -1,6 +1,6 @@
 ---
 name: mcp-transport-contract-auditor
-description: Use when auditing shaft-mcp tool manifests, client fixtures, installers, containers, workflows, or local transport contracts.
+description: Use when auditing shaft-mcp tool manifests, client fixtures, installers, containers, startup, or local transport contracts.
 ---
 
 # MCP Transport Contract Auditor
