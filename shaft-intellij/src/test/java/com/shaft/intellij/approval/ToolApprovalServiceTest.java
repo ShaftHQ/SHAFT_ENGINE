@@ -121,6 +121,19 @@ class ToolApprovalServiceTest {
     }
 
     @Test
+    void independentInstancesDoNotShareApprovalState() {
+        ToolApprovalService other = new ToolApprovalService();
+        service.record(ToolApprovalDecision.APPROVE_ALL_TOOLS, null);
+        service.record(ToolApprovalDecision.APPROVE_TOOL_ALWAYS, "tool-shared-name");
+
+        assertAll(
+                () -> assertFalse(other.getState().approveAllTools,
+                        "approve-all recorded on one instance must not leak into another"),
+                () -> assertFalse(other.isApproved("tool-shared-name"),
+                        "a permanent grant recorded on one instance must not leak into another"));
+    }
+
+    @Test
     void enumDisplayLabelsAreCorrect() {
         assertAll(
                 () -> assertEquals("Approve once", ToolApprovalDecision.APPROVE_ONCE.getDisplayLabel()),

@@ -60,7 +60,7 @@ final class McpWorkspacePolicy {
             }
             return real;
         } catch (IOException exception) {
-            throw new IllegalArgumentException(label + " cannot be resolved inside the MCP workspace.", exception);
+            throw new IllegalArgumentException(notFoundMessage(label), exception);
         }
     }
 
@@ -91,7 +91,7 @@ final class McpWorkspacePolicy {
             }
             return resolved;
         } catch (IOException exception) {
-            throw new IllegalArgumentException(label + " cannot be resolved inside the MCP workspace.", exception);
+            throw new IllegalArgumentException(notFoundMessage(label), exception);
         }
     }
 
@@ -175,5 +175,10 @@ final class McpWorkspacePolicy {
 
     private static IllegalArgumentException outside(String label) {
         return new IllegalArgumentException(label + " is outside the MCP workspace.");
+    }
+
+    private String notFoundMessage(String label) {
+        return label + " was not found in this project (" + root + "). If this project has not run SHAFT yet, "
+                + "there is no SHAFT output to analyze here — run the test with SHAFT reporting enabled first.";
     }
 }

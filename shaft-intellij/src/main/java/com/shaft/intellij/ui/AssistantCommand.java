@@ -10,6 +10,7 @@ import com.shaft.intellij.mcp.ShaftCommandLine;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Builds SHAFT Assistant MCP invocations from prompt text.
@@ -926,6 +927,52 @@ final class AssistantCommand {
         return Invocation.local("""
                 Creating a SHAFT project writes files. Open the Projects workflow, choose Create SHAFT Project, set `outputDirectory` to `%s`, then press Run and confirm.
                 """.formatted(target).strip());
+    }
+
+    /**
+     * Tool names that mutate the project, run real Maven builds, or only make sense against SHAFT's
+     * own reporting shape (Allure results, healer/doctor triage). Gated behind
+     * {@link ShaftProjectDetector} so they never run unattended in an ordinary non-SHAFT project.
+     * Read-only/advisory tools (guide search, coding-partner planning, agent chat/codegen, browser and
+     * mobile control) are deliberately not in this set: they are legitimately useful precisely when a
+     * user is adopting SHAFT into a project that does not use it yet.
+     */
+    private static final Set<String> SHAFT_PROJECT_TOOLS = Set.of(
+            "shaft_project_upgrade",
+            "verify_run_focused",
+            "healer_run_failed_test",
+            "playwright_healer_run_failed_test",
+            "doctor_analyze_failed_allure",
+            "playwright_doctor_analyze_failed_allure",
+            "doctor_suggest_fix",
+            "playwright_doctor_suggest_fix",
+            "doctor_analyze_trace");
+
+    /**
+     * Returns whether the given invocation would dispatch at least one SHAFT-project-only tool.
+     *
+     * @param invocation the invocation about to be dispatched
+     * @return {@code true} when the invocation is not local and calls a SHAFT-project-only tool
+     */
+    static boolean requiresShaftProject(Invocation invocation) {
+        return invocation != null && !invocation.isLocal()
+                && invocation.toolCalls().stream().anyMatch(call -> SHAFT_PROJECT_TOOLS.contains(call.toolName()));
+    }
+
+    /**
+     * Builds the local chat message shown instead of dispatching a SHAFT-project-only tool in a
+     * project that does not depend on SHAFT.
+     *
+     * @param toolName the tool that was about to run
+     * @return a local invocation carrying the onboarding nudge
+     */
+    static Invocation shaftProjectRequiredNudge(String toolName) {
+        return Invocation.local("""
+                This doesn't look like a SHAFT project yet, so `%s` can't run here -- it needs SHAFT's setup \
+                (a SHAFT dependency in your `pom.xml`/`build.gradle`, Maven layout, Allure results). To get \
+                started, open the Projects workflow and choose **Create SHAFT Project**, or ask me to \
+                "search SHAFT docs for getting started." Once the build depends on SHAFT, send this again.
+                """.formatted(toolName).strip());
     }
 
     private static Invocation upgradeScript(String projectRoot) {

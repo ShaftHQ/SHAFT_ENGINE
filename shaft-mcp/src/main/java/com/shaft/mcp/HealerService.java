@@ -178,6 +178,13 @@ public class HealerService {
                 : workspacePolicy.output(outputDirectory, "Healer output directory");
         int attemptsLimit = Math.max(1, Math.min(maxAttempts <= 0 ? 2 : maxAttempts, MAX_ATTEMPTS));
         boolean expectsAllure = expectsAllure(command);
+        if (expectsAllure && !ShaftProjectMarker.isShaftRepository(repository)) {
+            return result(McpHealerRunResult.Status.GUARDRAIL_STOPPED, List.of(), null, backend, List.of(
+                    "This directory does not look like a SHAFT project (no SHAFT dependency in"
+                            + " pom.xml/build.gradle), so a guarded rerun cannot produce SHAFT Allure evidence.",
+                    "Add SHAFT to the project (io.github.shafthq / shaft-engine) and run the failing test with"
+                            + " SHAFT reporting enabled, then call the healer again."));
+        }
         List<McpHealerAttemptResult> attempts = new ArrayList<>();
         McpAnalysisReport latestAnalysis = null;
         for (int attempt = 1; attempt <= attemptsLimit; attempt++) {

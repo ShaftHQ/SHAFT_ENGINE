@@ -1005,6 +1005,45 @@ class AssistantCommandTest {
     }
 
     @Test
+    void requiresShaftProjectGatesOnlyMutatingOrShaftReportingSpecificTools() {
+        AssistantCommand.Invocation projectUpgrade = command("preview shaft upgrade .", "C:/work/project");
+        AssistantCommand.Invocation verify = command("/verify mvn -q test-compile");
+        AssistantCommand.Invocation doctor = command("run doctor on target/allure-results");
+        AssistantCommand.Invocation guideSearch = command("search SHAFT docs locators");
+        AssistantCommand.Invocation codeGuardrails = command("check generated Java code driver.element().click(locator);");
+        AssistantCommand.Invocation localAgentRun = command("Plan a resilient login test");
+        AssistantCommand.Invocation local = command("/help");
+
+        assertAll(
+                () -> assertTrue(AssistantCommand.requiresShaftProject(projectUpgrade),
+                        "shaft_project_upgrade mutates the project and must be gated"),
+                () -> assertTrue(AssistantCommand.requiresShaftProject(verify),
+                        "verify_run_focused runs a real Maven build and must be gated"),
+                () -> assertTrue(AssistantCommand.requiresShaftProject(doctor),
+                        "doctor_analyze_failed_allure only makes sense against SHAFT Allure evidence"),
+                () -> assertFalse(AssistantCommand.requiresShaftProject(guideSearch),
+                        "shaft_guide_search is read-only and useful while adopting SHAFT"),
+                () -> assertFalse(AssistantCommand.requiresShaftProject(codeGuardrails),
+                        "test_code_guardrails_check is read-only"),
+                () -> assertFalse(AssistantCommand.requiresShaftProject(localAgentRun),
+                        "autobot_local_agent_run is not SHAFT-project-specific"),
+                () -> assertFalse(AssistantCommand.requiresShaftProject(local),
+                        "local invocations never dispatch a tool"),
+                () -> assertFalse(AssistantCommand.requiresShaftProject(null)));
+    }
+
+    @Test
+    void shaftProjectRequiredNudgeIsALocalOnboardingMessage() {
+        AssistantCommand.Invocation nudge = AssistantCommand.shaftProjectRequiredNudge("verify_run_focused");
+
+        assertAll(
+                () -> assertTrue(nudge.isLocal()),
+                () -> assertTrue(nudge.localResponse().contains("verify_run_focused")),
+                () -> assertTrue(nudge.localResponse().contains("doesn't look like a SHAFT project")),
+                () -> assertTrue(nudge.localResponse().contains("Create SHAFT Project")));
+    }
+
+    @Test
     void naturalRecordingCommandsMapToSafeRecorderWorkflow() {
         AssistantCommand.Invocation simpleStart = command("start recording");
         AssistantCommand.Invocation articleStart = command("start a recording");
