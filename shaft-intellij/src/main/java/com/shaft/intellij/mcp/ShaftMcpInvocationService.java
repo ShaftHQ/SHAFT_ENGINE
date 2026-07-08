@@ -201,17 +201,63 @@ public final class ShaftMcpInvocationService implements Disposable {
                 throw new CancellationException("Operation cancelled");
             }
             JsonElement result = request.send(client);
-            return ShaftMcpToolResult.success(result.toString());
+            return toolResult(result);
         } catch (Exception exception) {
             if (cancellationRequested.get() || exception instanceof CancellationException) {
                 throw new CancellationException("Operation cancelled");
             }
             dropClientIfDead(client);
             McpInvocationError category = McpInvocationError.categorize(exception);
-            return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
+            return ShaftMcpToolResult.failure(
+                    McpInvocationError.detail(exception, category), category, category.recoveryAction());
         } finally {
             clientReference.set(null);
         }
+    }
+
+    /**
+     * Converts a successful JSON-RPC {@code result} into a tool result, treating an MCP
+     * {@code isError: true} tool-call response as a failure. Spring AI's MCP server reports a
+     * failing {@code @Tool} method this way inside a normal JSON-RPC success envelope, so without
+     * this check every failing tool call (missing SHAFT setup, bad arguments, etc.) was reported to
+     * the user as a success.
+     *
+     * @param result raw JSON-RPC result payload
+     * @return success, or failure with the tool's own error text
+     */
+    static ShaftMcpToolResult toolResult(JsonElement result) {
+        if (result != null && result.isJsonObject() && isToolError(result.getAsJsonObject())) {
+            return ShaftMcpToolResult.failure(
+                    toolErrorText(result.getAsJsonObject()), McpInvocationError.TOOL_ERROR,
+                    McpInvocationError.TOOL_ERROR.recoveryAction());
+        }
+        return ShaftMcpToolResult.success(result == null ? "{}" : result.toString());
+    }
+
+    private static boolean isToolError(JsonObject object) {
+        JsonElement isError = object.get("isError");
+        return isError != null && isError.isJsonPrimitive() && isError.getAsJsonPrimitive().isBoolean()
+                && isError.getAsBoolean();
+    }
+
+    private static String toolErrorText(JsonObject object) {
+        JsonElement content = object.get("content");
+        if (content != null && content.isJsonArray()) {
+            StringBuilder text = new StringBuilder();
+            for (JsonElement entry : content.getAsJsonArray()) {
+                JsonElement value = entry.isJsonObject() ? entry.getAsJsonObject().get("text") : null;
+                if (value != null && value.isJsonPrimitive()) {
+                    if (!text.isEmpty()) {
+                        text.append('\n');
+                    }
+                    text.append(value.getAsString());
+                }
+            }
+            if (!text.isEmpty()) {
+                return text.toString();
+            }
+        }
+        return object.toString();
     }
 
     /**
@@ -282,7 +328,8 @@ public final class ShaftMcpInvocationService implements Disposable {
                 throw new CancellationException("Operation cancelled");
             }
             McpInvocationError category = McpInvocationError.categorize(exception);
-            return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
+            return ShaftMcpToolResult.failure(
+                    McpInvocationError.detail(exception, category), category, category.recoveryAction());
         } finally {
             clientReference.set(null);
         }

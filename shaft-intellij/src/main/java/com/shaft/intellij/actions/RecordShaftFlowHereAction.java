@@ -16,6 +16,8 @@ import com.intellij.ui.content.Content;
 import com.shaft.intellij.java.JavaTargetContext;
 import com.shaft.intellij.java.JavaTargetContextResolver;
 import com.shaft.intellij.notifications.ShaftNotifier;
+import com.shaft.intellij.project.ShaftProjectDetector;
+import com.shaft.intellij.settings.ShaftSettingsState;
 import com.shaft.intellij.ui.ShaftToolWindowPanel;
 import org.jetbrains.annotations.NotNull;
 
@@ -55,6 +57,13 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
         request.addProperty("tool", "capture_record_at_target_code_blocks");
         request.add("arguments", arguments);
         CopyPasteManager.getInstance().setContents(new StringSelection(request.toString()));
+        if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
+            // prefillTool silently no-ops while advanced workflows are off (the default), so notifying
+            // "prepared" here would claim the tool window opened when nothing actually did.
+            ShaftNotifier.warn(project, "SHAFT", "Record-at-target request copied to the clipboard for "
+                    + context.displayName() + ". Enable advanced workflows in Settings | SHAFT to open it there.");
+            return;
+        }
         openToolWindow(project, arguments);
         ShaftNotifier.info(project, "SHAFT", "Record-at-target tool prepared for " + context.displayName() + ".");
     }
@@ -64,7 +73,7 @@ public final class RecordShaftFlowHereAction extends AnAction implements DumbAwa
         Project project = event.getProject();
         Editor editor = event.getData(CommonDataKeys.EDITOR);
         boolean available = false;
-        if (project != null && editor != null) {
+        if (project != null && editor != null && ShaftProjectDetector.isShaftProject(project)) {
             PsiFile file = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument());
             available = JavaTargetContextResolver.resolve(file, editor.getCaretModel().getOffset()) != null;
         }

@@ -88,7 +88,8 @@ public final class ShaftMcpConnectionProbe {
                 }
             } catch (Exception exception) {
                 McpInvocationError category = McpInvocationError.categorize(exception);
-                return ShaftMcpToolResult.failure(category.message(), category, category.recoveryAction());
+                return ShaftMcpToolResult.failure(
+                        McpInvocationError.detail(exception, category), category, category.recoveryAction());
             }
         });
     }
