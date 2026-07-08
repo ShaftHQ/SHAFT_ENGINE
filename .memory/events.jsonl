@@ -167,3 +167,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.installer-wrapper-scripts-must-gate-co-located-file-shortcuts-on-a-repo-checkout-marker","timestamp":"2026-07-08T17:00:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shlex-split-eats-bare-backslashes-in-windows-paths","timestamp":"2026-07-08T17:00:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin","timestamp":"2026-07-08T17:00:20+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge","timestamp":"2026-07-08T17:09:56+03:00"}
