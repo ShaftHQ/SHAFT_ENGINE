@@ -87,4 +87,89 @@ class ShaftMcpProjectScopeTest {
         assertEquals(project.toString(), environment.get(ShaftMcpProjectScope.WORKSPACE_ENVIRONMENT_VARIABLE));
         assertEquals("secret", environment.get("OPENAI_API_KEY"));
     }
+
+    @Test
+    void argFileCommandIsStableAcrossRepeatedCallsForUnchangedSource() throws IOException {
+        Path argsFile = temporary.resolve("shaft-mcp.args");
+        Files.writeString(argsFile, """
+                -cp
+                "shaft-mcp.jar"
+                com.shaft.mcp.ShaftMcpApplication
+                """);
+        Path project = temporary.resolve("project").toAbsolutePath().normalize();
+
+        List<String> first = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), project);
+        List<String> second = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), project);
+
+        assertEquals(first, second,
+                "Repeated calls with an unchanged source argfile must return the same scoped command so "
+                        + "ShaftMcpInvocationService.acquireClient can reuse its shared MCP process.");
+    }
+
+    @Test
+    void changedArgFileContentProducesNewScopedFileWithUpdatedContent() throws IOException {
+        Path argsFile = temporary.resolve("shaft-mcp.args");
+        Files.writeString(argsFile, """
+                -cp
+                "shaft-mcp.jar"
+                com.shaft.mcp.ShaftMcpApplication
+                """);
+        Path project = temporary.resolve("project").toAbsolutePath().normalize();
+
+        List<String> first = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), project);
+        Path firstScopedFile = Path.of(first.get(1).substring(1));
+
+        Files.writeString(argsFile, """
+                -cp
+                "shaft-mcp-updated.jar"
+                com.shaft.mcp.ShaftMcpApplication
+                """);
+        List<String> second = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), project);
+        Path secondScopedFile = Path.of(second.get(1).substring(1));
+
+        assertFalse(first.equals(second), "Changed source content must yield a different scoped command.");
+        assertTrue(Files.readString(secondScopedFile).contains("shaft-mcp-updated.jar"));
+        assertFalse(Files.exists(firstScopedFile), "The superseded scoped argfile should be cleaned up.");
+    }
+
+    @Test
+    void deletedScopedFileIsRegenerated() throws IOException {
+        Path argsFile = temporary.resolve("shaft-mcp.args");
+        Files.writeString(argsFile, """
+                -cp
+                "shaft-mcp.jar"
+                com.shaft.mcp.ShaftMcpApplication
+                """);
+        Path project = temporary.resolve("project").toAbsolutePath().normalize();
+
+        List<String> first = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), project);
+        Path firstScopedFile = Path.of(first.get(1).substring(1));
+        Files.delete(firstScopedFile);
+
+        List<String> second = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), project);
+        Path secondScopedFile = Path.of(second.get(1).substring(1));
+
+        assertTrue(Files.exists(secondScopedFile), "A missing scoped argfile must be regenerated, not left dangling.");
+        assertTrue(Files.readString(secondScopedFile).contains("shaft-mcp.jar"));
+    }
+
+    @Test
+    void differentProjectRootsProduceDistinctStableArgFiles() throws IOException {
+        Path argsFile = temporary.resolve("shaft-mcp.args");
+        Files.writeString(argsFile, """
+                -cp
+                "shaft-mcp.jar"
+                com.shaft.mcp.ShaftMcpApplication
+                """);
+        Path projectA = temporary.resolve("projectA").toAbsolutePath().normalize();
+        Path projectB = temporary.resolve("projectB").toAbsolutePath().normalize();
+
+        List<String> forA = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), projectA);
+        List<String> forB = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), projectB);
+        List<String> forARepeated = ShaftMcpProjectScope.commandForProject(List.of("java", "@" + argsFile), projectA);
+
+        assertFalse(forA.equals(forB), "Distinct project roots must not share a scoped argfile.");
+        assertEquals(forA, forARepeated,
+                "Serving project B must not evict or perturb project A's cached scoped argfile.");
+    }
 }
