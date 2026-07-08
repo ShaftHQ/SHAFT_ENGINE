@@ -64,7 +64,7 @@ jobs:
         with:
           node-version: ''
       - name: Download all shard blobs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: shard-blob-*
           path: downloaded-blobs
