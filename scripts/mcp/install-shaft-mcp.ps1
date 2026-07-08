@@ -176,8 +176,29 @@ function Install-ShaftMcp {
         return [pscustomobject] @{ Command = $python; Prefix = @() }
     }
 
+    function Test-ShaftEngineRepoCheckout([string] $ScriptDirectory) {
+        # Only a real SHAFT_ENGINE checkout has its own repo root pom.xml two directories up from
+        # scripts/mcp (matching where this very script lives in-tree). A remote "copy command" run
+        # always downloads install-shaft-mcp.ps1 into a scratch/temp directory instead, so this
+        # check reliably tells a genuine in-repo invocation apart from that scratch directory --
+        # otherwise a stale install_shaft_mcp.py left behind by an earlier remote run in the same
+        # temp directory would be reused forever instead of always fetching the latest installer.
+        if ([string]::IsNullOrWhiteSpace($ScriptDirectory)) {
+            return $false
+        }
+        $repoPom = Join-Path $ScriptDirectory "..\..\pom.xml"
+        if (-not (Test-Path -LiteralPath $repoPom)) {
+            return $false
+        }
+        try {
+            return (Get-Content -LiteralPath $repoPom -Raw) -match "<artifactId>\s*shaft-parent\s*</artifactId>"
+        } catch {
+            return $false
+        }
+    }
+
     function Resolve-PythonInstallerScript([string] $Root) {
-        if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+        if ((-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) -and (Test-ShaftEngineRepoCheckout $PSScriptRoot)) {
             $local = Join-Path $PSScriptRoot "install_shaft_mcp.py"
             if (Test-Path -LiteralPath $local) {
                 return (Resolve-Path -LiteralPath $local).Path
