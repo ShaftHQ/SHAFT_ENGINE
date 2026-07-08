@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.proxy.CaptureCertificateAuthority;
 import com.shaft.driver.SHAFT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -198,14 +199,15 @@ class MobileServiceConfigurationTest {
 
     @Test
     void mobileApiRecordToolsStartStatusAndStopACaptureSession() {
-        MobileService service = new MobileService(mock(EngineService.class), McpWorkspacePolicy.of(temp));
+        MobileService service = new MobileService(mock(EngineService.class), McpWorkspacePolicy.of(temp),
+                new MobileApiCaptureController(() -> new CaptureCertificateAuthority(temp.resolve("capture-ca"))));
 
         MobileApiCaptureStatus started = service.mobileApiRecordStart(
                 "Android", "emulator-5554", "recordings/mobile-api.json");
         MobileApiCaptureStatus active = service.mobileApiRecordStatus();
         MobileApiCaptureStatus stopped = service.mobileApiRecordStop(false);
 
-        assertTrue(started.active());
+        assertTrue(started.active(), "mobile API capture failed to start: " + started.warnings());
         assertTrue(started.proxyPort() > 0);
         assertTrue(started.caCertificatePem().contains("BEGIN CERTIFICATE"));
         assertEquals(started.sessionId(), active.sessionId());
@@ -215,12 +217,13 @@ class MobileServiceConfigurationTest {
 
     @Test
     void mobileApiRecordStartGeneratesATimestampedPathWhenBlank() {
-        MobileService service = new MobileService(mock(EngineService.class), McpWorkspacePolicy.of(temp));
+        MobileService service = new MobileService(mock(EngineService.class), McpWorkspacePolicy.of(temp),
+                new MobileApiCaptureController(() -> new CaptureCertificateAuthority(temp.resolve("capture-ca"))));
 
         MobileApiCaptureStatus started = service.mobileApiRecordStart("iOS", "iPhone-Simulator", "");
         service.mobileApiRecordStop(true);
 
-        assertTrue(started.active());
+        assertTrue(started.active(), "mobile API capture failed to start: " + started.warnings());
         assertTrue(started.sessionId().startsWith("mobile-api-"));
     }
 

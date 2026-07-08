@@ -2,6 +2,7 @@ package com.shaft.mcp;
 
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.proxy.CaptureCertificateAuthority;
 import com.shaft.capture.proxy.ProxyTransaction;
 import com.shaft.capture.storage.CaptureSessionStore;
 import org.junit.jupiter.api.Test;
@@ -23,11 +24,12 @@ class MobileApiCaptureControllerTest {
 
     @Test
     void startAcceptStopRoundTripsATransactionIntoAPersistedRedactedNetworkEvent() {
-        MobileApiCaptureController controller = new MobileApiCaptureController();
+        MobileApiCaptureController controller = new MobileApiCaptureController(
+                () -> new CaptureCertificateAuthority(tempDir.resolve("capture-ca")));
         Path sessionPath = tempDir.resolve("recordings/mobile-session.json");
 
         MobileApiCaptureStatus started = controller.start("Android", "emulator-5554", sessionPath);
-        assertTrue(started.active());
+        assertTrue(started.active(), "mobile API capture failed to start: " + started.warnings());
         assertTrue(started.proxyPort() > 0);
         assertTrue(started.caCertificatePem().contains("BEGIN CERTIFICATE"));
         assertTrue(started.warnings().stream().anyMatch(warning -> warning.contains("adb reverse")),
@@ -69,12 +71,14 @@ class MobileApiCaptureControllerTest {
 
     @Test
     void startingTwiceIsIdempotentAndDoesNotReplaceTheActiveSession() {
-        MobileApiCaptureController controller = new MobileApiCaptureController();
+        MobileApiCaptureController controller = new MobileApiCaptureController(
+                () -> new CaptureCertificateAuthority(tempDir.resolve("capture-ca")));
         Path sessionPath = tempDir.resolve("recordings/idempotent.json");
 
         MobileApiCaptureStatus first = controller.start("Android", "emulator-5554", sessionPath);
         MobileApiCaptureStatus second = controller.start("Android", "emulator-5554", sessionPath);
 
+        assertTrue(first.active(), "mobile API capture failed to start: " + first.warnings());
         assertEquals(first.sessionId(), second.sessionId());
         assertEquals(first.proxyPort(), second.proxyPort());
         controller.stop(true);
@@ -91,9 +95,11 @@ class MobileApiCaptureControllerTest {
 
     @Test
     void aTransactionWithNoResponseIsRecordedWithoutAResponseRecord() {
-        MobileApiCaptureController controller = new MobileApiCaptureController();
+        MobileApiCaptureController controller = new MobileApiCaptureController(
+                () -> new CaptureCertificateAuthority(tempDir.resolve("capture-ca")));
         Path sessionPath = tempDir.resolve("recordings/no-response.json");
-        controller.start("iOS", "iPhone-Simulator", sessionPath);
+        MobileApiCaptureStatus started = controller.start("iOS", "iPhone-Simulator", sessionPath);
+        assertTrue(started.active(), "mobile API capture failed to start: " + started.warnings());
 
         controller.acceptTransaction(new ProxyTransaction(
                 "GET", "https://api.example.test/timeout", Map.of(), new byte[0], 0, Map.of(), new byte[0]));
