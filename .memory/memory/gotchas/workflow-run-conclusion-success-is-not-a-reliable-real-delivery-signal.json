@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/workflow-run-conclusion-success-is-not-a-reliable-real-delivery-signal.md",
-  "content_hash": "sha256:2a8ebddbd425df80571a2a85110af9a9f3207eeda47a047496b3c3ff9f9b4c08",
+  "content_hash": "sha256:7125ad2b49e97879611cdf17b8355b1d0be136a977a2ece2e58ec798aa444b3c",
   "created_at": "2026-07-08T07:55:24+03:00",
   "evidence": [],
   "facets": {
@@ -32,5 +32,5 @@
   ],
   "title": "workflow_run conclusion=='success' is not a reliable real-delivery signal",
   "type": "gotcha",
-  "updated_at": "2026-07-08T07:55:24+03:00"
+  "updated_at": "2026-07-08T16:52:18+03:00"
 }
