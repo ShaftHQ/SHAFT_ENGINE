@@ -76,18 +76,18 @@ class CaptureSchemaMigratorTest {
 
         ObjectNode migrated = CaptureSchemaMigrator.migrate(original.deepCopy());
 
-        assertEquals("1.1", migrated.path("schemaVersion").asText());
+        assertEquals(CaptureSession.CURRENT_SCHEMA_VERSION, migrated.path("schemaVersion").asText());
         assertEquals(14, migrated.path("events").size());
         assertEquals(1, migrated.path("checkpoints").size());
         assertEquals(3, migrated.path("dataReferences").size());
 
         // Deep-equal on every pre-existing node except schemaVersion.
         ObjectNode originalWithUpgradedVersion = original.deepCopy();
-        originalWithUpgradedVersion.put("schemaVersion", "1.1");
+        originalWithUpgradedVersion.put("schemaVersion", CaptureSession.CURRENT_SCHEMA_VERSION);
         assertEquals(originalWithUpgradedVersion, migrated);
 
         // The migrated tree must itself be schema-valid and re-readable by the codec.
-        JsonNode schema = loadSchema("shaft-capture-session-1.1.schema.json");
+        JsonNode schema = loadSchema("shaft-capture-session-1.2.schema.json");
         List<String> errors = JsonSchemaValidator.validate(schema, migrated);
         assertTrue(errors.isEmpty(), "Migrated representative session should validate. Errors: " + errors);
 
@@ -97,13 +97,13 @@ class CaptureSchemaMigratorTest {
     }
 
     @Test
-    void version1_0SessionMigratesToVersion1_1() throws IOException {
+    void version1_0SessionMigratesToCurrentSchema() throws IOException {
         String golden = resource("golden-session-1.0.json");
         JsonNode parsed = mapper.readTree(golden);
 
         JsonNode migrated = CaptureSchemaMigrator.migrate(parsed);
 
-        assertEquals("1.1", migrated.path("schemaVersion").asText());
+        assertEquals(CaptureSession.CURRENT_SCHEMA_VERSION, migrated.path("schemaVersion").asText());
         assertEquals(0, migrated.path("events").size());
         assertNotNull(migrated.path("checkpoints"));
         assertNotNull(migrated.path("dataReferences"));
@@ -123,6 +123,7 @@ class CaptureSchemaMigratorTest {
         assertTrue(exception.getMessage().contains("0.9"));
         assertTrue(exception.getMessage().contains("1.0"));
         assertTrue(exception.getMessage().contains("1.1"));
+        assertTrue(exception.getMessage().contains("1.2"));
     }
 
     @Test
@@ -149,11 +150,11 @@ class CaptureSchemaMigratorTest {
         JsonNode parsed = mapper.readTree(golden);
         JsonNode migrated = CaptureSchemaMigrator.migrate(parsed);
 
-        // Ensure the migrated JSON validates against the 1.1 schema
-        JsonNode schema = loadSchema("shaft-capture-session-1.1.schema.json");
+        // Ensure the migrated JSON validates against the current schema
+        JsonNode schema = loadSchema("shaft-capture-session-1.2.schema.json");
         List<String> errors = JsonSchemaValidator.validate(schema, migrated);
 
-        assertTrue(errors.isEmpty(), "Migrated UI-only session should validate against 1.1 schema. Errors: " + errors);
+        assertTrue(errors.isEmpty(), "Migrated UI-only session should validate against current schema. Errors: " + errors);
     }
 
     @Test
@@ -238,6 +239,64 @@ class CaptureSchemaMigratorTest {
     }
 
     @Test
+    void assetResourceKindsAreValidInCurrentSchema() throws IOException {
+        // A 1.2 session with a minimal network event for each newly widened asset resourceKind
+        // must pass schema validation -- this is the exact write-time gap issue #3358's fix closes:
+        // without the widened enum, recording a real image/font/stylesheet/script/media transaction
+        // (e.g. with includeAssetTypes=true) would fail CaptureJsonCodec.write()'s schema validation.
+        for (String assetKind : List.of("STYLESHEET", "SCRIPT", "IMAGE", "FONT", "MEDIA")) {
+            ObjectNode session = mapper.createObjectNode();
+            session.put("schemaVersion", "1.2");
+            session.put("sessionId", "asset-session-" + assetKind);
+            session.put("status", "INCOMPLETE");
+            session.put("startedAt", "2026-01-02T03:04:05Z");
+
+            ObjectNode browser = session.putObject("browser");
+            browser.put("browserName", "chrome");
+            browser.put("logicalSessionId", "browser-1");
+            browser.set("capabilities", mapper.createObjectNode());
+
+            ObjectNode networkEvent = session.putArray("events").addObject();
+            networkEvent.put("type", "network");
+            networkEvent.put("transactionId", "txn-1");
+            networkEvent.put("resourceKind", assetKind);
+            ObjectNode context = networkEvent.putObject("context");
+            context.put("sequence", 1);
+            context.put("timestamp", "2026-01-02T03:04:06Z");
+            ObjectNode page = context.putObject("page");
+            page.put("url", "https://example.test");
+            page.put("title", "Example");
+            page.put("logicalWindowId", "window-1");
+            page.set("framePath", mapper.createArrayNode());
+            page.put("viewportWidth", 1280);
+            page.put("viewportHeight", 720);
+            context.put("replayStatus", "NOT_REPLAYED");
+            context.set("evidence", mapper.createArrayNode());
+            context.set("extensions", mapper.createObjectNode());
+
+            ObjectNode request = networkEvent.putObject("request");
+            request.put("method", "GET");
+            request.put("url", "https://example.test/static/asset");
+            request.set("headers", mapper.createObjectNode());
+
+            session.set("checkpoints", mapper.createArrayNode());
+            session.set("dataReferences", mapper.createArrayNode());
+            ObjectNode summary = session.putObject("redactionSummary");
+            summary.put("redactedValueCount", 0);
+            summary.put("removedAttributeCount", 0);
+            summary.put("redactedUrlParameterCount", 0);
+            summary.set("appliedRules", mapper.createArrayNode());
+            session.set("extensions", mapper.createObjectNode());
+
+            JsonNode schema = loadSchema("shaft-capture-session-1.2.schema.json");
+            List<String> errors = JsonSchemaValidator.validate(schema, session);
+
+            assertTrue(errors.isEmpty(),
+                    "Session with resourceKind=" + assetKind + " should validate. Errors: " + errors);
+        }
+    }
+
+    @Test
     void networkEventMissingBodyRefRequiredFieldsFailsSchemaValidation() throws IOException {
         ObjectNode session = mapper.createObjectNode();
         session.put("schemaVersion", "1.1");
@@ -290,12 +349,12 @@ class CaptureSchemaMigratorTest {
     }
 
     @Test
-    void migration0_9To1_0To1_1ChainPreservesData() throws IOException {
+    void migration0_9To1_0To1_1To1_2ChainPreservesData() throws IOException {
         String legacy = resource("legacy-session-0.9.json");
         JsonNode parsed = mapper.readTree(legacy);
         ObjectNode step1 = CaptureSchemaMigrator.migrate(parsed);
 
-        assertEquals("1.1", step1.path("schemaVersion").asText());
+        assertEquals(CaptureSession.CURRENT_SCHEMA_VERSION, step1.path("schemaVersion").asText());
         assertEquals("INCOMPLETE", step1.path("status").asText());
         assertEquals(3, step1.path("events").size());
 

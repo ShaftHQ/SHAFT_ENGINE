@@ -6,6 +6,7 @@ import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.PageContext;
+import com.shaft.capture.model.network.ResourceKind;
 import com.shaft.capture.storage.CaptureSessionStore;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
@@ -116,6 +117,35 @@ class CaptureNetworkRecorderTest {
             filterRef.get().apply(next).execute(assetRequest);
 
             assertTrue(events.isEmpty(), "Asset requests must be dropped when includeAssetTypes is false.");
+            recorder.close();
+        }
+    }
+
+    @Test
+    void recordsFineGrainedResourceKindForAssetRequestsWhenIncludeAssetTypesIsTrue() throws Exception {
+        // Regression for issue #3358: CaptureNetworkRecorder.classify() must surface its
+        // fine-grained classification all the way into RecordedTransaction.resourceKind() instead
+        // of collapsing every asset request down to the coarse OTHER bucket, since that collapse is
+        // what made CaptureManager.isAssetResource() a silent no-op against real capture data.
+        List<CaptureNetworkRecorder.RecordedTransaction> events = new ArrayList<>();
+        NetworkCaptureOptions options = new NetworkCaptureOptions(
+                true, List.of(), List.of(), false, 500, 0);
+        WebDriver driver = devToolsDriver("https://example.test/app");
+
+        AtomicReference<Filter> filterRef = new AtomicReference<>();
+        try (MockedConstruction<NetworkInterceptor> ignored = mockInterceptor(filterRef)) {
+            CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
+                    driver, temp.resolve("bodies"), options, "session-1", events::add, warnings::add);
+            assertTrue(recorder.start());
+
+            filterRef.get().apply(req -> new HttpResponse().setStatus(200).addHeader("Content-Type", "text/css"))
+                    .execute(new HttpRequest(HttpMethod.GET, "https://example.test/static/app.css"));
+            filterRef.get().apply(req -> new HttpResponse().setStatus(200).addHeader("Content-Type", "image/png"))
+                    .execute(new HttpRequest(HttpMethod.GET, "https://example.test/static/logo.png"));
+
+            assertEquals(2, events.size());
+            assertEquals(ResourceKind.STYLESHEET, events.get(0).resourceKind());
+            assertEquals(ResourceKind.IMAGE, events.get(1).resourceKind());
             recorder.close();
         }
     }

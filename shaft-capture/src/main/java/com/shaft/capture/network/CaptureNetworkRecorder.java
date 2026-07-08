@@ -235,8 +235,8 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
             byte[] responseBody,
             long startNanos,
             String failureReason) {
-        InternalResourceKind internalKind = classify(request, response);
-        if (!accepted(request, pageOrigin, internalKind)) {
+        ResourceKind resourceKind = classify(request, response);
+        if (!accepted(request, pageOrigin, resourceKind)) {
             return;
         }
         if (recordedCount.get() >= options.maxTransactions()) {
@@ -274,7 +274,7 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
 
         RecordedTransaction transaction = new RecordedTransaction(
                 String.valueOf(transactionId),
-                internalKind.canonicalKind(),
+                resourceKind,
                 requestRecord,
                 responseRecord,
                 timing,
@@ -293,7 +293,7 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
         }
     }
 
-    private boolean accepted(HttpRequest request, String pageOrigin, InternalResourceKind resourceKind) {
+    private boolean accepted(HttpRequest request, String pageOrigin, ResourceKind resourceKind) {
         if (!options.includeAssetTypes() && resourceKind.isAsset()) {
             return false;
         }
@@ -311,51 +311,16 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
     }
 
     /**
-     * Finer-grained internal resource classification used only for asset-type filtering.
-     * {@link com.shaft.capture.model.network.ResourceKind} (T1's canonical, persisted vocabulary)
-     * does not distinguish stylesheet/script/image/font/media from other non-API traffic, so this
-     * richer classification is translated down to {@link #canonicalKind()} at the point a
-     * transaction is recorded.
-     */
-    private enum InternalResourceKind {
-        DOCUMENT(ResourceKind.DOCUMENT, false),
-        XHR_FETCH(ResourceKind.XHR, false),
-        STYLESHEET(ResourceKind.OTHER, true),
-        SCRIPT(ResourceKind.OTHER, true),
-        IMAGE(ResourceKind.OTHER, true),
-        FONT(ResourceKind.OTHER, true),
-        MEDIA(ResourceKind.OTHER, true),
-        WEBSOCKET(ResourceKind.WEBSOCKET_HANDSHAKE, false),
-        OTHER(ResourceKind.OTHER, false);
-
-        private final ResourceKind canonicalKind;
-        private final boolean asset;
-
-        InternalResourceKind(ResourceKind canonicalKind, boolean asset) {
-            this.canonicalKind = canonicalKind;
-            this.asset = asset;
-        }
-
-        ResourceKind canonicalKind() {
-            return canonicalKind;
-        }
-
-        boolean isAsset() {
-            return asset;
-        }
-    }
-
-    /**
      * Ordered classification rules, evaluated first-match-wins in exactly this order.
      * A loop over a rule table (rather than a sequential if-return chain) keeps this
      * method's own NPath complexity low regardless of rule count -- PMD's NPath metric
      * is multiplicative across sequential branches in one method body, so a long guard
      * chain explodes combinatorially even when each guard is a single trivial call.
      */
-    private record ClassificationRule(BooleanSupplier matches, InternalResourceKind kind) {
+    private record ClassificationRule(BooleanSupplier matches, ResourceKind kind) {
     }
 
-    private static InternalResourceKind classify(HttpRequest request, HttpResponse response) {
+    private static ResourceKind classify(HttpRequest request, HttpResponse response) {
         String accept = header(request, "Accept");
         String contentType = response == null ? "" : value(response.getContentType());
         if (contentType.isBlank()) {
@@ -365,21 +330,21 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
         String finalContentType = contentType;
 
         List<ClassificationRule> rules = List.of(
-                new ClassificationRule(() -> isDocument(finalContentType, accept, path), InternalResourceKind.DOCUMENT),
-                new ClassificationRule(() -> isStylesheet(finalContentType, path), InternalResourceKind.STYLESHEET),
-                new ClassificationRule(() -> isScript(finalContentType, path), InternalResourceKind.SCRIPT),
-                new ClassificationRule(() -> isImage(finalContentType, path), InternalResourceKind.IMAGE),
-                new ClassificationRule(() -> isFont(finalContentType, path), InternalResourceKind.FONT),
-                new ClassificationRule(() -> isMedia(finalContentType, path), InternalResourceKind.MEDIA),
-                new ClassificationRule(() -> isWebSocket(request), InternalResourceKind.WEBSOCKET),
-                new ClassificationRule(() -> isXhrOrFetch(finalContentType, accept, request), InternalResourceKind.XHR_FETCH));
+                new ClassificationRule(() -> isDocument(finalContentType, accept, path), ResourceKind.DOCUMENT),
+                new ClassificationRule(() -> isStylesheet(finalContentType, path), ResourceKind.STYLESHEET),
+                new ClassificationRule(() -> isScript(finalContentType, path), ResourceKind.SCRIPT),
+                new ClassificationRule(() -> isImage(finalContentType, path), ResourceKind.IMAGE),
+                new ClassificationRule(() -> isFont(finalContentType, path), ResourceKind.FONT),
+                new ClassificationRule(() -> isMedia(finalContentType, path), ResourceKind.MEDIA),
+                new ClassificationRule(() -> isWebSocket(request), ResourceKind.WEBSOCKET_HANDSHAKE),
+                new ClassificationRule(() -> isXhrOrFetch(finalContentType, accept, request), ResourceKind.XHR));
 
         for (ClassificationRule rule : rules) {
             if (rule.matches().getAsBoolean()) {
                 return rule.kind();
             }
         }
-        return isBlankOrHtmlPath(path) ? InternalResourceKind.DOCUMENT : InternalResourceKind.XHR_FETCH;
+        return isBlankOrHtmlPath(path) ? ResourceKind.DOCUMENT : ResourceKind.XHR;
     }
 
     private static boolean isDocument(String contentType, String accept, String path) {
@@ -568,7 +533,7 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
      * {@code EventContext} (sequence, page, timestamp).
      *
      * @param transactionId stable identifier correlating request and response evidence
-     * @param resourceKind canonical (T1) resource classification
+     * @param resourceKind fine-grained resource classification
      * @param request sanitized outbound request evidence
      * @param response sanitized inbound response evidence, or {@code null} when the exchange failed
      *                 before a response was observed
