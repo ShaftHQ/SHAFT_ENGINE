@@ -21,6 +21,7 @@ For edits: preserve work; at session start fetch/prune, branch/worktree fresh `c
 - Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`/excerpts. Function changes need guide + docs PR.
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
+- Blockers/small issues hit while working: fix inline. Medium/large issues or enhancement ideas noticed: consolidate into one followup GitHub issue. Never go out of your way to hunt for either.
 
 ## Windows/Codex Safety
 
