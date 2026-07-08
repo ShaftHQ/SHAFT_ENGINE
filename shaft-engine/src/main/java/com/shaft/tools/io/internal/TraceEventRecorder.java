@@ -6,6 +6,7 @@ import org.openqa.selenium.WebDriver;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -18,6 +19,8 @@ import java.util.concurrent.TimeUnit;
 public final class TraceEventRecorder {
     private static final ThreadLocal<List<ActionEvent>> EVENTS = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<Integer> NEXT_ID = ThreadLocal.withInitial(() -> 0);
+    private static final ThreadLocal<Map<String, byte[]>> SCREENSHOTS = ThreadLocal.withInitial(LinkedHashMap::new);
+    private static final ThreadLocal<Long> SCREENSHOT_BYTES = ThreadLocal.withInitial(() -> 0L);
     private static final int MAX_DOM_SNAPSHOT_CHARACTERS = 200_000;
 
     private TraceEventRecorder() {
@@ -63,6 +66,27 @@ public final class TraceEventRecorder {
                 currentUrl(driver),
                 domSnapshot(driver),
                 driver);
+    }
+
+    /**
+     * Buffers a screenshot for the given action, keyed by {@link Event#id()}, so {@link #finish}
+     * can embed it in the action's trace JSON. Gated by {@code shaft.trace.includeScreenshots} and
+     * bounded by {@code shaft.trace.maxArtifactMb} so buffered PNGs can never grow unbounded within
+     * a single thread's trace. Never throws.
+     *
+     * @param event started event handle from {@link #start}
+     * @param png   screenshot bytes, or {@code null}
+     */
+    public static void recordScreenshot(Event event, byte[] png) {
+        if (event == null || !event.enabled() || png == null || png.length == 0 || !isScreenshotEnabled()) {
+            return;
+        }
+        long used = SCREENSHOT_BYTES.get();
+        if (used + png.length > screenshotBudgetBytes()) {
+            return;
+        }
+        SCREENSHOTS.get().put(event.id(), png);
+        SCREENSHOT_BYTES.set(used + png.length);
     }
 
     /**
@@ -153,7 +177,8 @@ public final class TraceEventRecorder {
                 metadata == null ? Map.of() : new LinkedHashMap<>(metadata),
                 actionability == null ? Map.of() : new LinkedHashMap<>(actionability),
                 event.domSnapshotBefore(),
-                domSnapshot(event.driver())));
+                domSnapshot(event.driver()),
+                screenshotBase64(event.id())));
     }
 
     /**
@@ -193,6 +218,18 @@ public final class TraceEventRecorder {
     public static void clear() {
         EVENTS.remove();
         NEXT_ID.remove();
+        SCREENSHOTS.remove();
+        SCREENSHOT_BYTES.remove();
+    }
+
+    /**
+     * Consumes the buffered screenshot for the given action id, base64-encoded for JSON
+     * embedding. Removes the entry from the buffer once consumed so screenshots never outlive
+     * the action they belong to.
+     */
+    private static String screenshotBase64(String id) {
+        byte[] png = SCREENSHOTS.get().remove(id);
+        return png == null ? "" : Base64.getEncoder().encodeToString(png);
     }
 
     static String toJson(List<ActionEvent> events) {
@@ -219,13 +256,17 @@ public final class TraceEventRecorder {
             stringArray(json, 3, "attachments", event.attachments(), true);
             boolean hasActionability = !event.actionability().isEmpty();
             boolean hasDomSnapshots = !event.domSnapshotBefore().isEmpty() || !event.domSnapshotAfter().isEmpty();
-            map(json, 3, "metadata", event.metadata(), hasActionability || hasDomSnapshots);
+            boolean hasScreenshot = !event.screenshot().isEmpty();
+            map(json, 3, "metadata", event.metadata(), hasActionability || hasDomSnapshots || hasScreenshot);
             if (hasActionability) {
-                objectMap(json, 3, "actionability", event.actionability(), hasDomSnapshots);
+                objectMap(json, 3, "actionability", event.actionability(), hasDomSnapshots || hasScreenshot);
             }
             if (hasDomSnapshots) {
                 field(json, 3, "domSnapshotBefore", event.domSnapshotBefore(), true);
-                field(json, 3, "domSnapshotAfter", event.domSnapshotAfter(), false);
+                field(json, 3, "domSnapshotAfter", event.domSnapshotAfter(), hasScreenshot);
+            }
+            if (hasScreenshot) {
+                field(json, 3, "screenshot", event.screenshot(), false);
             }
             indent(json, 2).append("}");
         }
@@ -286,6 +327,24 @@ public final class TraceEventRecorder {
             return SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.traceIncludeDomSnapshots();
         } catch (RuntimeException e) {
             return false;
+        }
+    }
+
+    private static boolean isScreenshotEnabled() {
+        try {
+            return SHAFT.Properties.reporting != null && SHAFT.Properties.reporting.traceIncludeScreenshots();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    private static long screenshotBudgetBytes() {
+        try {
+            return SHAFT.Properties.reporting == null
+                    ? Long.MAX_VALUE
+                    : (long) SHAFT.Properties.reporting.traceMaxArtifactMb() * 1024L * 1024L;
+        } catch (RuntimeException e) {
+            return Long.MAX_VALUE;
         }
     }
 
@@ -467,6 +526,6 @@ public final class TraceEventRecorder {
     record ActionEvent(String id, String category, String name, String status, String startTime, long durationMs,
                        String locator, String url, String message, String exceptionType, String exceptionMessage,
                        List<String> attachments, Map<String, String> metadata, Map<String, Object> actionability,
-                       String domSnapshotBefore, String domSnapshotAfter) {
+                       String domSnapshotBefore, String domSnapshotAfter, String screenshot) {
     }
 }

@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,13 +63,15 @@ public class FailureTraceReporterTest {
             FailureTraceReporter.attachOnFailure(failingInfo, "token=raw-secret", List.of());
 
             List<Attachment> added = attachments().subList(beforePassing, attachments().size());
-            Assert.assertEquals(added.size(), 1, "Only the trace archive should be attached.");
+            Assert.assertEquals(added.size(), 2, "The trace archive and the viewer HTML should both be attached.");
             Assert.assertEquals(added.getFirst().getName(), "shaft-trace.zip");
             Assert.assertEquals(added.getFirst().getType(), "application/zip");
-            Assert.assertFalse(added.stream().anyMatch(attachment -> "text/html".equals(attachment.getType())));
+            Assert.assertTrue(added.stream().anyMatch(attachment -> "text/html".equals(attachment.getType())
+                    && "SHAFT Trace Report.html".equals(attachment.getName())));
             Assert.assertFalse(added.stream().anyMatch(attachment -> "application/json".equals(attachment.getType())));
             Assert.assertFalse(Files.exists(traceDirectory.resolve("SHAFT Trace Report.html")));
             Assert.assertFalse(Files.exists(traceDirectory.resolve("shaft-trace.json")));
+            Assert.assertFalse(Files.isDirectory(traceDirectory.resolve("screenshots")));
             Assert.assertTrue(Files.exists(traceDirectory.resolve("shaft-trace.zip")));
             try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
                 Assert.assertNotNull(zip.getEntry("SHAFT Trace Report.html"));
@@ -80,12 +83,15 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(html.contains("copyJson()"), html);
                 Assert.assertTrue(html.contains("data-tab=\"domSnapshot\""), html);
                 Assert.assertTrue(html.contains("dom-snapshot-frame"), html);
+                Assert.assertTrue(html.contains("data-tab=\"screenshot\""), html);
+                Assert.assertTrue(html.contains("screenshot-image"), html);
             }
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"archive\": \"target/shaft-traces/id-failingScenario/shaft-trace.zip\""), index);
             Assert.assertTrue(index.contains("\"html\": \"SHAFT Trace Report.html\""), index);
             Assert.assertTrue(index.contains("\"json\": \"shaft-trace.json\""), index);
             Assert.assertTrue(index.contains("\"network\": \"shaft-network.har\""), index);
+            Assert.assertFalse(index.contains("\"screenshots\""), "No screenshots entry when nothing was buffered: " + index);
         } finally {
             TraceEventRecorder.clear();
             deleteDirectory(traceDirectory);
@@ -205,6 +211,81 @@ public class FailureTraceReporterTest {
             Assert.assertFalse(json.contains("domSnapshotAfter"), json);
         } finally {
             TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace JSON should embed a screenshot keyed by the action's traceActionId when enabled")
+    public void traceJsonShouldEmbedScreenshotKeyedByActionIdWhenEnabled() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceIncludeScreenshots(true);
+            byte[] png = "fake-png-bytes".getBytes(StandardCharsets.UTF_8);
+
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.recordScreenshot(event, png);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("boom"), Map.of(), List.of());
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertTrue(json.contains("\"id\": \"action-1\""), json);
+            Assert.assertTrue(json.contains("\"screenshot\": \""
+                    + Base64.getEncoder().encodeToString(png) + "\""), json);
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace JSON should omit the screenshot field when the property is disabled")
+    public void traceJsonShouldOmitScreenshotWhenDisabled() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceIncludeScreenshots(false);
+            byte[] png = "fake-png-bytes".getBytes(StandardCharsets.UTF_8);
+
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.recordScreenshot(event, png);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("boom"), Map.of(), List.of());
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+
+            Assert.assertFalse(json.contains("\"screenshot\":"), json);
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Buffered screenshots should persist as PNG files in the trace zip and directory, keyed by action id")
+    public void failureModeShouldPersistScreenshotsWhenBuffered() throws Exception {
+        TestExecutionInfo failingInfo = info("screenshotScenario", failure());
+        Path traceDirectory = FailureTraceReporter.traceDirectory(failingInfo);
+        try {
+            deleteDirectory(traceDirectory);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceIncludeScreenshots(true);
+            byte[] png = "fake-png-bytes".getBytes(StandardCharsets.UTF_8);
+
+            TraceEventRecorder.Event event = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.recordScreenshot(event, png);
+            TraceEventRecorder.finish(event, "failed", "Click failed",
+                    new RuntimeException("boom"), Map.of(), List.of());
+
+            FailureTraceReporter.attachOnFailure(failingInfo, "failed", List.of());
+
+            Path screenshotFile = traceDirectory.resolve("screenshots").resolve("action-1.png");
+            Assert.assertTrue(Files.exists(screenshotFile));
+            Assert.assertEquals(Files.readAllBytes(screenshotFile), png);
+
+            try (ZipFile zip = new ZipFile(traceDirectory.resolve("shaft-trace.zip").toFile())) {
+                Assert.assertNotNull(zip.getEntry("screenshots/action-1.png"));
+            }
+
+            String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
+            Assert.assertTrue(index.contains("\"screenshots\": \"screenshots\""), index);
+        } finally {
+            TraceEventRecorder.clear();
+            deleteDirectory(traceDirectory);
             Properties.clearForCurrentThread();
         }
     }
@@ -564,6 +645,7 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(SHAFT.Properties.reporting.traceMode(), "failure");
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeCodeContext());
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeFullPageSnapshots());
+            Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeScreenshots());
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeNativePageSource());
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeNetwork());
             Assert.assertTrue(SHAFT.Properties.reporting.traceIncludeConsole());
@@ -574,6 +656,7 @@ public class FailureTraceReporterTest {
                     .traceMode("always")
                     .traceIncludeCodeContext(false)
                     .traceIncludeFullPageSnapshots(false)
+                    .traceIncludeScreenshots(false)
                     .traceIncludeNativePageSource(false)
                     .traceIncludeNetwork(false)
                     .traceIncludeConsole(false)
@@ -583,6 +666,7 @@ public class FailureTraceReporterTest {
             Assert.assertEquals(SHAFT.Properties.reporting.traceMode(), "always");
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeCodeContext());
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeFullPageSnapshots());
+            Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeScreenshots());
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeNativePageSource());
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeNetwork());
             Assert.assertFalse(SHAFT.Properties.reporting.traceIncludeConsole());
