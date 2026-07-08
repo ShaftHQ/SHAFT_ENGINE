@@ -779,7 +779,7 @@ class ShaftPluginScreenshotRendererTest {
 
         // Verify every step row's nested child panels are either non-opaque (so the
         // step's accent background shows through) or explicitly painted with that same
-        // step's background color. Each wizard step (chooseRow, copyRow, terminalRow,
+        // step's background color. Each wizard step (upgradeRow, chooseRow, installRow,
         // checkRow, chatRow) can carry a different accent color, so continuity must be
         // checked per-step-row rather than against one global background.
         final List<JPanel> stepRows = new ArrayList<>();

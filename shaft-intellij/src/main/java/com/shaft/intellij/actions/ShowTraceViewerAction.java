@@ -8,6 +8,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.notifications.ShaftNotifier;
+import com.shaft.intellij.project.ShaftProjectDetector;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -56,7 +57,8 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
 
     @Override
     public void update(@NotNull AnActionEvent event) {
-        event.getPresentation().setEnabledAndVisible(event.getProject() != null);
+        Project project = event.getProject();
+        event.getPresentation().setEnabledAndVisible(project != null && ShaftProjectDetector.isShaftProject(project));
     }
 
     /**

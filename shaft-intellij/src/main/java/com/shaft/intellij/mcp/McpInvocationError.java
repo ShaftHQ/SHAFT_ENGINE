@@ -48,6 +48,32 @@ public enum McpInvocationError {
     }
 
     /**
+     * Returns the real diagnostic text for an exception, falling back to the category's generic
+     * message only when the exception (and its cause) carried no message of its own. Without this,
+     * every MCP failure rendered the same fixed string regardless of what actually went wrong.
+     *
+     * @param exception the exception that produced the failure, or {@code null}
+     * @param category the category the exception was classified into
+     * @return human-readable detail text
+     */
+    public static String detail(Throwable exception, McpInvocationError category) {
+        if (exception == null) {
+            return category.message();
+        }
+        String direct = safeMessage(exception);
+        String cause = exception.getCause() == null ? "" : safeMessage(exception.getCause());
+        String detail = !cause.isBlank() && !direct.contains(cause)
+                ? (direct.isBlank() ? cause : direct + "\n" + cause)
+                : direct;
+        return detail.isBlank() ? category.message() : detail;
+    }
+
+    private static String safeMessage(Throwable exception) {
+        String message = exception.getMessage();
+        return message == null ? "" : message.strip();
+    }
+
+    /**
      * Categorizes an exception based on its type and context.
      *
      * @param exception the exception to categorize

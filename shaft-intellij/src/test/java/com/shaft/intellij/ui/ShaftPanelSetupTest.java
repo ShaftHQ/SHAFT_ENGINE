@@ -56,6 +56,7 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -232,13 +233,13 @@ class ShaftPanelSetupTest {
 
         assertNull(toolWindowWorkflowSelector(toolWindow));
         assertTrue(containsText(toolWindow, "Runtime"));
-        assertTrue(containsText(toolWindow, "1 Pick agent"));
-        assertTrue(containsText(toolWindow, "2 Copy command"));
-        assertTrue(containsText(toolWindow, "3 Run in terminal"));
+        assertTrue(containsText(toolWindow, "1 Upgrade project"));
+        assertTrue(containsText(toolWindow, "2 Pick agent"));
+        assertTrue(containsText(toolWindow, "3 Install SHAFT MCP"));
         assertTrue(containsText(toolWindow, "4 Check setup"));
         assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
         assertTrue(containsText(toolWindow, "Installer source: main"));
-        assertNotNull(findByAccessibleName(toolWindow, "Copy command setup state", JLabel.class));
+        assertNotNull(findByAccessibleName(toolWindow, "Install SHAFT MCP setup state", JLabel.class));
         assertNull(findByAccessibleName(toolWindow, "SHAFT MCP command status", JLabel.class));
         assertFalse(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class).isVisible());
         assertFalse(findByAccessibleName(toolWindow, "Assistant connection setup status", JLabel.class).isVisible());
@@ -258,6 +259,8 @@ class ShaftPanelSetupTest {
         assertTrue(findByAccessibleName(toolWindow, "Copy MCP installer command", JButton.class).isVisible());
         assertFalse(findByAccessibleName(toolWindow, "Open terminal for MCP installer", JButton.class).isVisible());
         assertFalse(findByAccessibleName(toolWindow, "Test SHAFT MCP connection", JButton.class).isVisible());
+        assertTrue(findByAccessibleName(toolWindow, "Copy SHAFT upgrade command", JButton.class).isVisible());
+        assertFalse(findByAccessibleName(toolWindow, "Open terminal for SHAFT upgrade", JButton.class).isVisible());
     }
 
     @Test
@@ -440,7 +443,7 @@ class ShaftPanelSetupTest {
                     () -> assertNull(findButton(panel, "Install / Update SHAFT MCP")));
 
             clickAccessible(panel, "Copy MCP installer command");
-            assertSingleVisiblePrimarySetupAction(panel, "Open terminal for MCP installer");
+            assertVisiblePrimarySetupActions(panel, "Copy MCP installer command", "Open terminal for MCP installer");
             assertAll(
                     () -> assertTrue(copied.get().contains("install-shaft-mcp")),
                     () -> assertTrue(copied.get().contains("codex")),
@@ -448,7 +451,7 @@ class ShaftPanelSetupTest {
                     () -> assertTrue(copied.get().contains("/main/scripts/mcp/install-shaft-mcp")),
                     () -> assertFalse(copied.get().contains("SHAFT_MCP_INSTALLER_REF")),
                     () -> assertEquals("Command copied to clipboard", toast.get()),
-                    () -> assertFalse(findByAccessibleName(panel, "Copy MCP installer command", JButton.class).isVisible()),
+                    () -> assertTrue(findByAccessibleName(panel, "Copy MCP installer command", JButton.class).isVisible()),
                     () -> assertTrue(findByAccessibleName(panel, "Open terminal for MCP installer", JButton.class).isVisible()),
                     () -> assertFalse(installerDetailsPanel.isVisible()),
                     () -> assertFalse(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isVisible()));
@@ -462,11 +465,12 @@ class ShaftPanelSetupTest {
 
             clickAccessible(panel, "Open terminal for MCP installer");
             String inferred = ShaftMcpSetupPanel.inferInstalledStdioCommand(appData, bootstrap);
-            assertSingleVisiblePrimarySetupAction(panel, "Test SHAFT MCP connection");
+            assertVisiblePrimarySetupActions(panel,
+                    "Copy MCP installer command", "Open terminal for MCP installer", "Test SHAFT MCP connection");
 
             assertAll(
-                    () -> assertFalse(findByAccessibleName(panel, "Copy MCP installer command", JButton.class).isVisible()),
-                    () -> assertFalse(findByAccessibleName(panel, "Open terminal for MCP installer", JButton.class).isVisible()),
+                    () -> assertTrue(findByAccessibleName(panel, "Copy MCP installer command", JButton.class).isVisible()),
+                    () -> assertTrue(findByAccessibleName(panel, "Open terminal for MCP installer", JButton.class).isVisible()),
                     () -> assertTrue(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class).isVisible()),
                     () -> assertFalse(installerDetailsPanel.isVisible()),
                     () -> assertTrue(inferred.contains(java.toString())),
@@ -544,6 +548,55 @@ class ShaftPanelSetupTest {
             String command = installerCommandFor(argument);
             assertTrue(command.contains(argument), command);
         }
+    }
+
+    @Test
+    void upgradeCommandProducesCrossPlatformScriptCommand() throws Exception {
+        String command = upgradeCommand();
+
+        assertAll(
+                () -> assertTrue(command.contains("/main/shaft-upgrader/upgrade_to_modular_shaft.py"), command),
+                () -> assertTrue(command.contains("--project .")));
+        if (isWindowsOs()) {
+            assertAll(
+                    () -> assertTrue(command.contains("py -3")),
+                    () -> assertTrue(command.contains("-Command '$upgrader=Join-Path")));
+        } else {
+            assertAll(
+                    () -> assertTrue(command.contains("python3")),
+                    () -> assertTrue(command.contains("curl -fL")));
+        }
+    }
+
+    @Test
+    void setupPanelUpgradeStepCopyRevealsTerminalIndependentOfInstall() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        AtomicReference<String> copied = new AtomicReference<>();
+        setField(panel, "copySink", (Consumer<String>) copied::set);
+
+        assertAll(
+                () -> assertTrue(findByAccessibleName(panel, "Copy SHAFT upgrade command", JButton.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Open terminal for SHAFT upgrade", JButton.class)
+                        .isVisible()),
+                () -> assertTrue(containsText(panel, "1 Upgrade project")),
+                () -> assertTrue(containsText(panel, "Optional")));
+
+        clickAccessible(panel, "Copy SHAFT upgrade command");
+
+        assertAll(
+                () -> assertTrue(copied.get().contains("upgrade_to_modular_shaft.py")),
+                () -> assertTrue(copied.get().contains("/main/shaft-upgrader/upgrade_to_modular_shaft.py")),
+                () -> assertTrue(copied.get().contains("--project .")),
+                () -> assertTrue(findByAccessibleName(panel, "Copy SHAFT upgrade command", JButton.class).isVisible()),
+                () -> assertTrue(findByAccessibleName(panel, "Open terminal for SHAFT upgrade", JButton.class)
+                        .isVisible()),
+                // The upgrade step is independent of the SHAFT MCP install flow.
+                () -> assertTrue(findByAccessibleName(panel, "Copy MCP installer command", JButton.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Open terminal for MCP installer", JButton.class)
+                        .isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Test SHAFT MCP connection", JButton.class)
+                        .isVisible()));
     }
 
     @Test
@@ -2038,6 +2091,8 @@ class ShaftPanelSetupTest {
                 .filter(button -> !isSetupPrimaryAction(button))
                 .filter(button -> !"Reset and reinstall SHAFT MCP".equals(accessibleName(button)))
                 .filter(button -> !"Reset everything".equals(accessibleName(button)))
+                .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
+                .filter(button -> !"Open terminal for SHAFT upgrade".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
@@ -2168,6 +2223,8 @@ class ShaftPanelSetupTest {
                 () -> assertIcon(findByAccessibleName(panel, "Send assistant prompt", JButton.class)),
                 () -> assertIcon(findButton(setupPanel, "Copy MCP installer command")),
                 () -> assertIcon(findButton(setupPanel, "Open terminal for MCP installer")),
+                () -> assertIcon(findButton(setupPanel, "Copy SHAFT upgrade command")),
+                () -> assertIcon(findButton(setupPanel, "Open terminal for SHAFT upgrade")),
                 () -> assertIcon(findButton(setupPanel, "Test SHAFT MCP connection")),
                 () -> assertIcon(findButton(setupPanel, "Start chatting with SHAFT Assistant")),
                 () -> assertIcon(findButton(featurePanel, "Run")),
@@ -2505,7 +2562,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupPanelShowsOnePrimaryWorkflowActionAtEachStep() throws Exception {
+    void setupPanelShowsExpectedWorkflowActionsAtEachStep() throws Exception {
         Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
         Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
@@ -2517,16 +2574,18 @@ class ShaftPanelSetupTest {
             });
             setField(panel, "copySink", (Consumer<String>) value -> {
             });
-            assertSingleVisiblePrimarySetupAction(panel, "Copy MCP installer command");
+            assertVisiblePrimarySetupActions(panel, "Copy MCP installer command");
 
             clickAccessible(panel, "Copy MCP installer command");
-            assertSingleVisiblePrimarySetupAction(panel, "Open terminal for MCP installer");
+            assertVisiblePrimarySetupActions(panel, "Copy MCP installer command", "Open terminal for MCP installer");
 
             clickAccessible(panel, "Open terminal for MCP installer");
-            assertSingleVisiblePrimarySetupAction(panel, "Test SHAFT MCP connection");
+            assertVisiblePrimarySetupActions(panel,
+                    "Copy MCP installer command", "Open terminal for MCP installer", "Test SHAFT MCP connection");
 
             clickAccessible(panel, "Test SHAFT MCP connection");
-            assertSingleVisiblePrimarySetupAction(panel, "Test SHAFT MCP connection");
+            assertVisiblePrimarySetupActions(panel,
+                    "Copy MCP installer command", "Open terminal for MCP installer", "Test SHAFT MCP connection");
         } finally {
             restoreProperty("shaft.intellij.mcp.applicationDataRoot", oldAppData);
             restoreProperty("shaft.intellij.mcp.bootstrapRoot", oldBootstrap);
@@ -2535,10 +2594,10 @@ class ShaftPanelSetupTest {
         ShaftSettingsState.Settings settings = unverifiedMcpSettings();
         ShaftMcpSetupPanel connectedPanel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
         }, readyProbe());
-        assertSingleVisiblePrimarySetupAction(connectedPanel, "Test SHAFT MCP connection");
+        assertVisiblePrimarySetupActions(connectedPanel, "Test SHAFT MCP connection");
 
         showTestResult(connectedPanel, ShaftMcpToolResult.success("Probe OK"));
-        assertSingleVisiblePrimarySetupAction(connectedPanel, "Start chatting with SHAFT Assistant");
+        assertVisiblePrimarySetupActions(connectedPanel, "Start chatting with SHAFT Assistant");
     }
 
     @Test
@@ -2561,7 +2620,7 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(settings.agentGuidanceOptimizationPromptPending),
                 () -> assertTrue(copied.get().contains("install-shaft-mcp")),
                 () -> assertTrue(copied.get().contains("--install-shaft-skills")),
-                () -> assertSingleVisiblePrimarySetupAction(panel, "Open terminal for MCP installer"),
+                () -> assertVisiblePrimarySetupActions(panel, "Copy MCP installer command", "Open terminal for MCP installer"),
                 () -> assertTrue(containsText(panel, "Installer command copied. Run it in terminal, then check.")));
     }
 
@@ -4094,13 +4153,14 @@ class ShaftPanelSetupTest {
                 "Start chatting with SHAFT Assistant").contains(accessibleName(button));
     }
 
-    private static void assertSingleVisiblePrimarySetupAction(Component component, String accessibleName) {
-        List<JButton> visibleActions = collectButtons(component).stream()
+    private static void assertVisiblePrimarySetupActions(Component component, String... expected) {
+        List<String> actual = collectButtons(component).stream()
                 .filter(ShaftPanelSetupTest::isSetupPrimaryAction)
                 .filter(button -> button.isVisible() && button.isEnabled())
+                .map(ShaftPanelSetupTest::accessibleName)
+                .sorted()
                 .toList();
-        assertEquals(1, visibleActions.size());
-        assertEquals(accessibleName, accessibleName(visibleActions.get(0)));
+        assertEquals(Arrays.stream(expected).sorted().toList(), actual);
     }
 
     private static boolean hasText(String text) {
@@ -4200,6 +4260,12 @@ class ShaftPanelSetupTest {
         Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("installerCommandFor", String.class);
         method.setAccessible(true);
         return (String) method.invoke(null, argument);
+    }
+
+    private static String upgradeCommand() throws Exception {
+        Method method = ShaftMcpSetupPanel.class.getDeclaredMethod("upgradeCommand");
+        method.setAccessible(true);
+        return (String) method.invoke(null);
     }
 
     private static boolean listContains(JList<?> list, String expectedText) {

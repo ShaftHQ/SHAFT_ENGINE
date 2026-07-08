@@ -630,7 +630,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                         statusLabel.setForeground(ShaftStatusPresentation.error());
                         McpInvocationError category = McpInvocationError.categorize(error);
                         StringBuilder sb = new StringBuilder();
-                        sb.append(category.message());
+                        sb.append(McpInvocationError.detail(error, category));
                         if (category.recoveryAction() != null) {
                             sb.append("\n\nRecovery: ").append(category.recoveryAction());
                         }
@@ -665,7 +665,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         if (result.errorCategory() != null) {
             StringBuilder sb = new StringBuilder();
-            sb.append(result.errorCategory().message());
+            sb.append(result.output());
             if (result.recoveryAction() != null) {
                 sb.append("\n\nRecovery: ").append(result.recoveryAction());
             }
