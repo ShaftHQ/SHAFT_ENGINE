@@ -143,6 +143,7 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
 
         @Override
         public void destroy() {
+            // No-op: these tests never exercise cancellation/destroy, only completed-run streaming.
         }
 
         @Override
