@@ -51,6 +51,7 @@
 <ol class="toc-list">
 <li><a href="#start(java.lang.String,java.lang.String,org.openqa.selenium.By,org.openqa.selenium.WebDriver)" tabindex="0">start(String, String, By, WebDriver)</a></li>
 <li><a href="#start(java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver)" tabindex="0">start(String, String, String, WebDriver)</a></li>
+<li><a href="#recordScreenshot(com.shaft.tools.io.internal.TraceEventRecorder.Event,byte%5B%5D)" tabindex="0">recordScreenshot(TraceEventRecorder.Event, byte[])</a></li>
 <li><a href="#record(java.lang.String,java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List)" tabindex="0">record(String, String, String, String, WebDriver, String, Throwable, Map, List)</a></li>
 <li><a href="#record(java.lang.String,java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List,java.util.Map)" tabindex="0">record(String, String, String, String, WebDriver, String, Throwable, Map, List, Map)</a></li>
 <li><a href="#finish(com.shaft.tools.io.internal.TraceEventRecorder.Event,java.lang.String,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List)" tabindex="0">finish(TraceEventRecorder.Event, String, String, Throwable, Map, List)</a></li>
@@ -165,20 +166,27 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Records a finished action with actionability diagnostics without measuring an enclosing block.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordScreenshot(com.shaft.tools.io.internal.TraceEventRecorder.Event,byte%5B%5D)" class="member-name-link">recordScreenshot</a><wbr>(<a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a>&nbsp;event,
+ byte[]&nbsp;png)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Buffers a screenshot for the given action, keyed by <a href="TraceEventRecorder.Event.html#id()"><code>TraceEventRecorder.Event.id()</code></a>, so <a href="#finish(com.shaft.tools.io.internal.TraceEventRecorder.Event,java.lang.String,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List)"><code>finish(TraceEventRecorder.Event, String, String, Throwable, Map, List)</code></a>
+can embed it in the action's trace JSON.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locator,
  org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts timing a trace action for the current thread.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,org.openqa.selenium.By,org.openqa.selenium.WebDriver)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,org.openqa.selenium.By,org.openqa.selenium.WebDriver)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
  org.openqa.selenium.By&nbsp;locator,
  org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts timing a trace action for the current thread.</div>
 </div>
 </div>
@@ -236,6 +244,24 @@
 <dd><code>driver</code> - active WebDriver, or <code>null</code></dd>
 <dt>Returns:</dt>
 <dd>started event handle, or a disabled handle when tracing is off</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="recordScreenshot(com.shaft.tools.io.internal.TraceEventRecorder.Event,byte[])">
+<h3>recordScreenshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">recordScreenshot</span><wbr><span class="parameters">(<a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a>&nbsp;event,
+ byte[]&nbsp;png)</span></div>
+<div class="block">Buffers a screenshot for the given action, keyed by <a href="TraceEventRecorder.Event.html#id()"><code>TraceEventRecorder.Event.id()</code></a>, so <a href="#finish(com.shaft.tools.io.internal.TraceEventRecorder.Event,java.lang.String,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List)"><code>finish(TraceEventRecorder.Event, String, String, Throwable, Map, List)</code></a>
+can embed it in the action's trace JSON. Gated by <code>shaft.trace.includeScreenshots</code> and
+bounded by <code>shaft.trace.maxArtifactMb</code> so buffered PNGs can never grow unbounded within
+a single thread's trace. Never throws.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>event</code> - started event handle from <a href="#start(java.lang.String,java.lang.String,org.openqa.selenium.By,org.openqa.selenium.WebDriver)"><code>start(String, String, By, WebDriver)</code></a></dd>
+<dd><code>png</code> - screenshot bytes, or <code>null</code></dd>
 </dl>
 </div>
 </section>

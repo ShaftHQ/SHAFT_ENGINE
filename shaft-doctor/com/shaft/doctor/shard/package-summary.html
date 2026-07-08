@@ -91,8 +91,14 @@ cross-shard flaky-clustering summary.</div>
 <div class="col-last even-row-color class-summary class-summary-tab4">
 <div class="block">One resolved per-shard blob directory laid out by convention as:</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="ShardMerger.html" title="class in com.shaft.doctor.shard">ShardMerger</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="ShardIntelligence.html" title="class in com.shaft.doctor.shard">ShardIntelligence</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab4">
+<div class="block">One shard's doctor <code>ExecutionIntelligence</code> digest, reduced to the fields useful for
+cross-shard doctor-triage aggregation in the merged speedboard -- SHAFT's differentiator over
+Playwright's plain <code>merge-reports</code>, which carries no failure intelligence.</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="ShardMerger.html" title="class in com.shaft.doctor.shard">ShardMerger</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
 <div class="block">Merges N per-shard blobs (raw Allure results + optional traces + optional doctor
 <code>ExecutionIntelligence</code>) produced by independent <code>-Dshaft.shard=N/M</code> runs into one
 Allure result set plus a timeline "speedboard" HTML and a cross-shard flaky-clustering summary.</div>
