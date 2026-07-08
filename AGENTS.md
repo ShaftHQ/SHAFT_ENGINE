@@ -6,7 +6,7 @@ SHAFT_ENGINE is a Maven Java automation framework; config wins. Core `shaft-engi
 
 ## Routing
 
-Bridge: `framework-source-rules` main Java; `java-test-rules` tests; `ci-failure-investigator` CI; `flaky-test-stabilizer` flaky; `release-dependency-guard` release/deps; `graphify` graph; `shaft-ui-design` UI; `shaft-marketing-ad-producer` ads; `public-behavior-docs-synchronizer` docs; `mcp-transport-contract-auditor` MCP; `modular-boundary-auditor` modules; `allure-extent-report-operator` reports; `agent-guidance-boundary-guard` guidance.
+Bridge: `framework-source-rules` main Java; `java-test-rules` tests; `ci-failure-investigator` CI; `flaky-test-stabilizer` flaky; `release-dependency-guard` release/deps; `graphify` graph; `shaft-ui-design` UI; `shaft-marketing-ad-producer` ads; `public-behavior-docs-synchronizer` docs; `mcp-transport-contract-auditor` MCP; `modular-boundary-auditor` modules; `allure-extent-report-operator` reports; `agent-guidance-boundary-guard` guidance; `agentic-pdca-loop` PDCA phases.
 
 ## New Task Flow
 
@@ -58,7 +58,7 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 
 ## Agent Hierarchy
 
-Main thread only. Never create or run workflows (no Workflow tool, no saved/named workflows -- `.claude/workflows/` stays deleted; never recreate it), never spawn orchestrators, and never delegate instructed actions to subagents: the session itself plans, implements, QAs with real checks, and verifies sequentially. Read-only search/context lookups are the sole permitted subagent use; anything that edits, runs commands, or produces deliverables happens on the main thread. PDCA personas Kevin (plan), Bob (implement), Bruce (check) are sequential phases of this one session, not spawned agents (`agentic-pdca-loop`). No `ralph-loop`: unbounded Stop-hook looping plus Maven fork gotchas risks Windows runaways.
+Main thread only. Never create or run workflows (no Workflow tool, no saved/named workflows -- `.claude/workflows/` stays deleted; never recreate it), never spawn orchestrators. The main thread owns all substantive implementation, integration, and final verification/QA sequentially with real checks; never hand an instructed action's actual edits/commands/deliverables to a subagent. Two bounded exceptions: a Fable subagent (fallback Opus) may do read-only architecture/planning research that this session then reviews and applies itself; a Haiku subagent may make clearly minor, low-risk mechanical edits under this session's direction and review. PDCA personas Kevin (plan), Bob (implement), Bruce (check) are sequential phases of this one session, not spawned agents (`agentic-pdca-loop`). No `ralph-loop`: unbounded Stop-hook looping plus Maven fork gotchas risks Windows runaways.
 
 ## Completion
 

@@ -59,23 +59,22 @@
 #     read by Claude Code for SessionStart), while keeping the human-readable
 #     4-line reminder as the literal value of additionalContext.
 #
-# settings.json wiring:
-#   * PreToolUse matcher "Bash" (Claude Code's built-in tool for running shell
-#     commands -- there is no separate "PowerShell" tool name; PowerShell
-#     invocations in this environment still go through the "Bash" tool per the
-#     docs, so a single "Bash" matcher covers both Bash-tool-call and
-#     PowerShell-tool-call cases described in the task).
+# settings.json wiring (as actually configured, not assumed):
+#   * PreToolUse matcher "Bash|PowerShell" -- this harness exposes Bash and
+#     PowerShell as distinct tool names, so both are matched explicitly and
+#     `run_pretooluse` below checks `tool_name in ("Bash", "PowerShell")`.
 #   * ${CLAUDE_PROJECT_DIR} is expanded by Claude Code itself before the
 #     process is spawned (confirmed via the claude-code-guide agent against
 #     the current hooks docs), and is documented as reliable on Windows. To
 #     avoid any shell-specific quoting differences (Windows hook commands may
 #     be spawned via Git Bash or PowerShell depending on environment), this
 #     repo's settings.json wires the hook using the exec-style
-#     "command" + "args" array form (command: "py", args: ["-3",
-#     "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"]) rather than a single
+#     "command" + "args" array form (command: "python3", args:
+#     ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"]) rather than a single
 #     shell-parsed command string, so there is no shell in the loop to
-#     reinterpret quoting/backslashes on either platform. The script is
-#     invoked with `py -3` per this repo's documented Windows convention
+#     reinterpret quoting/backslashes on either platform. `python3` resolves
+#     on this machine (WindowsApps shim); `py -3` remains this repo's
+#     documented convention for commands run directly by an agent
 #     (AGENTS.md Windows/Codex Safety: "Run via py -3, node, ...").
 # --------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/intellij-plugin-gradle9-jdk21-screenshots.md",
-  "content_hash": "sha256:b55891c7d4a8fa6ef52a0ee3d99b1293116cd4842d2f55bbe3e32a74c799c944",
+  "content_hash": "sha256:e19c1483c824a0760cdb6e425a3bfbbab27f202b795669497da475b77b603101",
   "created_at": "2026-07-02T00:00:00Z",
   "evidence": [
     {
@@ -60,5 +60,5 @@
   ],
   "title": "Use Gradle 9 and JDK 21 for IntelliJ plugin screenshot tests",
   "type": "gotcha",
-  "updated_at": "2026-07-02T00:00:00Z"
+  "updated_at": "2026-07-08T16:02:23+03:00"
 }
