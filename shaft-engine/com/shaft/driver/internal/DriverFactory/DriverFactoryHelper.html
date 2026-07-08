@@ -60,6 +60,8 @@
 <li><a href="#registerBrowserNetworkInterceptionRule(com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule)" tabindex="0">registerBrowserNetworkInterceptionRule(BrowserNetworkInterceptionRule)</a></li>
 <li><a href="#clearBrowserNetworkInterceptors()" tabindex="0">clearBrowserNetworkInterceptors()</a></li>
 <li><a href="#startBrowserNetworkObservation()" tabindex="0">startBrowserNetworkObservation()</a></li>
+<li><a href="#releaseBrowserNetworkObservationForHandoff(org.openqa.selenium.WebDriver)" tabindex="0">releaseBrowserNetworkObservationForHandoff(WebDriver)</a></li>
+<li><a href="#hasBlockingBrowserNetworkInterceptionRules(org.openqa.selenium.WebDriver)" tabindex="0">hasBlockingBrowserNetworkInterceptionRules(WebDriver)</a></li>
 <li><a href="#isMobileNativeExecution()" tabindex="0">isMobileNativeExecution()</a></li>
 <li><a href="#isMobileWebExecution()" tabindex="0">isMobileWebExecution()</a></li>
 <li><a href="#isNotMobileExecution()" tabindex="0">isNotMobileExecution()</a></li>
@@ -147,66 +149,82 @@ handles dockerized driver cleanup, and removes the WebDriverManager reference.</
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns the WebDriver currently owned by this thread, when SHAFT created or attached one.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver()" class="member-name-link">initializeDriver</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#hasBlockingBrowserNetworkInterceptionRules(org.openqa.selenium.WebDriver)" class="member-name-link">hasBlockingBrowserNetworkInterceptionRules</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reports whether <code>driver</code> already has a <code>BrowserNetworkInterceptor</code> with active
+mock/validate rules registered, meaning a caller must not install its own competing DevTools
+network filter on this driver: doing so would silently replace Selenium's single-slot network
+filter and break those rules with no warning.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver()" class="member-name-link">initializeDriver</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Initializes a driver using the currently configured target browser/mobile settings.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(com.shaft.driver.DriverFactory.DriverType)" class="member-name-link">initializeDriver</a><wbr>(@NonNull <a href="../../DriverFactory.DriverType.html" title="enum class in com.shaft.driver">DriverFactory.DriverType</a>&nbsp;driverType)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(com.shaft.driver.DriverFactory.DriverType)" class="member-name-link">initializeDriver</a><wbr>(@NonNull <a href="../../DriverFactory.DriverType.html" title="enum class in com.shaft.driver">DriverFactory.DriverType</a>&nbsp;driverType)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Initializes a driver using the supplied driver type and default options.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(com.shaft.driver.DriverFactory.DriverType,org.openqa.selenium.MutableCapabilities)" class="member-name-link">initializeDriver</a><wbr>(@NonNull <a href="../../DriverFactory.DriverType.html" title="enum class in com.shaft.driver">DriverFactory.DriverType</a>&nbsp;driverType,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(com.shaft.driver.DriverFactory.DriverType,org.openqa.selenium.MutableCapabilities)" class="member-name-link">initializeDriver</a><wbr>(@NonNull <a href="../../DriverFactory.DriverType.html" title="enum class in com.shaft.driver">DriverFactory.DriverType</a>&nbsp;driverType,
  org.openqa.selenium.MutableCapabilities&nbsp;customDriverOptions)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Initializes a driver using an explicit driver type and optional custom capabilities.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(org.openqa.selenium.WebDriver)" class="member-name-link">initializeDriver</a><wbr>(@NonNull org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(org.openqa.selenium.WebDriver)" class="member-name-link">initializeDriver</a><wbr>(@NonNull org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Attaches the helper to an already initialized native WebDriver session.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(org.openqa.selenium.MutableCapabilities)" class="member-name-link">initializeDriver</a><wbr>(org.openqa.selenium.MutableCapabilities&nbsp;customDriverOptions)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initializeDriver(org.openqa.selenium.MutableCapabilities)" class="member-name-link">initializeDriver</a><wbr>(org.openqa.selenium.MutableCapabilities&nbsp;customDriverOptions)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Initializes a driver using configured browser name and custom capabilities.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#initializeSystemProperties()" class="member-name-link">initializeSystemProperties</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#initializeSystemProperties()" class="member-name-link">initializeSystemProperties</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Initializes and normalizes system-level execution properties before driver creation.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isMobileNativeExecution()" class="member-name-link">isMobileNativeExecution</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isMobileNativeExecution()" class="member-name-link">isMobileNativeExecution</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Checks to see if the execution is a mobile-native execution</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isMobileWebExecution()" class="member-name-link">isMobileWebExecution</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isMobileWebExecution()" class="member-name-link">isMobileWebExecution</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Checks to see if the execution is a mobile-web execution</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isNotMobileExecution()" class="member-name-link">isNotMobileExecution</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isNotMobileExecution()" class="member-name-link">isNotMobileExecution</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Checks to see if the execution is a web-based execution</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isWindowsAppiumExecution()" class="member-name-link">isWindowsAppiumExecution</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isWindowsAppiumExecution()" class="member-name-link">isWindowsAppiumExecution</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Checks to see if the execution is a Windows desktop Appium execution.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#preflightRemoteGridIfConfigured()" class="member-name-link">preflightRemoteGridIfConfigured</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#preflightRemoteGridIfConfigured()" class="member-name-link">preflightRemoteGridIfConfigured</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Performs configured Selenium Grid preflight during framework suite startup.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#registerBrowserNetworkInterceptionRule(com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule)" class="member-name-link">registerBrowserNetworkInterceptionRule</a><wbr>(<a href="../../../gui/browser/internal/BrowserNetworkInterceptionRule.html" title="class in com.shaft.gui.browser.internal">BrowserNetworkInterceptionRule</a>&nbsp;rule)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#registerBrowserNetworkInterceptionRule(com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule)" class="member-name-link">registerBrowserNetworkInterceptionRule</a><wbr>(<a href="../../../gui/browser/internal/BrowserNetworkInterceptionRule.html" title="class in com.shaft.gui.browser.internal">BrowserNetworkInterceptionRule</a>&nbsp;rule)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Registers a browser network interception rule for the active WebDriver session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#releaseBrowserNetworkObservationForHandoff(org.openqa.selenium.WebDriver)" class="member-name-link">releaseBrowserNetworkObservationForHandoff</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Hands off sole ownership of <code>driver</code>'s DevTools network filter away from any
+<a href="../../../gui/browser/internal/BrowserNetworkInterceptor.html" title="class in com.shaft.gui.browser.internal"><code>BrowserNetworkInterceptor</code></a> this helper started for trace/HAR observation, so a caller
+that is about to install its own <code>NetworkInterceptor</code> on the same driver (for example a
+dedicated API-capture recorder) does not silently race with and replace it.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setDriver(org.openqa.selenium.WebDriver)" class="member-name-link">setDriver</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
@@ -322,6 +340,55 @@ handles dockerized driver cleanup, and removes the WebDriverManager reference.</
 <dl class="notes">
 <dt>Returns:</dt>
 <dd><code>true</code> when observation started</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="releaseBrowserNetworkObservationForHandoff(org.openqa.selenium.WebDriver)">
+<h3>releaseBrowserNetworkObservationForHandoff</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">releaseBrowserNetworkObservationForHandoff</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
+<div class="block">Hands off sole ownership of <code>driver</code>'s DevTools network filter away from any
+<a href="../../../gui/browser/internal/BrowserNetworkInterceptor.html" title="class in com.shaft.gui.browser.internal"><code>BrowserNetworkInterceptor</code></a> this helper started for trace/HAR observation, so a caller
+that is about to install its own <code>NetworkInterceptor</code> on the same driver (for example a
+dedicated API-capture recorder) does not silently race with and replace it.
+
+<p>Selenium's <code>NetworkInterceptor</code> registration is a single-slot replace, not a
+compose/stack: whichever interceptor registers last on a given driver silently wins, and the
+other's filter goes dead with no warning. Callers that are about to become the sole
+DevTools-network-filter owner for <code>driver</code> should call this first.
+
+<p>Does nothing (and returns <code>false</code>) when this helper's interceptor has active
+mock/validate rules registered: replacing that filter would silently drop the caller's
+expected mocking/validation behavior, so ownership is not released in that case and the
+caller must not double-register either.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>driver</code> - the WebDriver session the caller is about to attach its own network filter to</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when passive trace/HAR observation was active and has been released so
+        the caller is safe to become the sole interceptor owner; <code>false</code> when there was
+        nothing to hand off, or when active interception rules block a safe handoff</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="hasBlockingBrowserNetworkInterceptionRules(org.openqa.selenium.WebDriver)">
+<h3>hasBlockingBrowserNetworkInterceptionRules</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">hasBlockingBrowserNetworkInterceptionRules</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
+<div class="block">Reports whether <code>driver</code> already has a <code>BrowserNetworkInterceptor</code> with active
+mock/validate rules registered, meaning a caller must not install its own competing DevTools
+network filter on this driver: doing so would silently replace Selenium's single-slot network
+filter and break those rules with no warning.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>driver</code> - the WebDriver session a caller is considering attaching its own network filter to</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when this helper's interceptor for <code>driver</code> has active rules that
+        block another owner from safely taking over the DevTools network filter</dd>
 </dl>
 </div>
 </section>

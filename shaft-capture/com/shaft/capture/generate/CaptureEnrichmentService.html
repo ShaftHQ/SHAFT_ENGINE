@@ -56,6 +56,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#preview(com.shaft.capture.model.CaptureSession,java.lang.String,java.lang.String,java.lang.String,java.util.Map,com.shaft.pilot.ai.ApprovalPolicy)" tabindex="0">preview(CaptureSession, String, String, String, Map, ApprovalPolicy)</a></li>
+<li><a href="#previewApiScenarioName(java.lang.String,java.lang.String,java.util.List,java.lang.String,java.lang.String,com.shaft.pilot.ai.ApprovalPolicy)" tabindex="0">previewApiScenarioName(String, String, List, String, String, ApprovalPolicy)</a></li>
 </ol>
 </li>
 </ol>
@@ -117,6 +118,17 @@
  com.shaft.pilot.ai.ApprovalPolicy&nbsp;approvalPolicy)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Requests a review-only enrichment proposal.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureEnrichmentPreview.html" title="class in com.shaft.capture.generate">CaptureEnrichmentPreview</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#previewApiScenarioName(java.lang.String,java.lang.String,java.util.List,java.lang.String,java.lang.String,com.shaft.pilot.ai.ApprovalPolicy)" class="member-name-link">previewApiScenarioName</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fingerprint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;transactionSummaries,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deterministicClassName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deterministicMethodName,
+ com.shaft.pilot.ai.ApprovalPolicy&nbsp;approvalPolicy)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Requests a review-only class/method naming proposal from a summary of recorded API
+transactions -- no element names or state assertions, since those apply only to UI capture.</div>
 </div>
 </div>
 </div>
@@ -183,6 +195,35 @@
 <dd><code>deterministicClassName</code> - current class name</dd>
 <dd><code>deterministicMethodName</code> - current method name</dd>
 <dd><code>deterministicElementNames</code> - current field names</dd>
+<dd><code>approvalPolicy</code> - explicit provider approval</dd>
+<dt>Returns:</dt>
+<dd>reviewable preview</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="previewApiScenarioName(java.lang.String,java.lang.String,java.util.List,java.lang.String,java.lang.String,com.shaft.pilot.ai.ApprovalPolicy)">
+<h3>previewApiScenarioName</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="CaptureEnrichmentPreview.html" title="class in com.shaft.capture.generate">CaptureEnrichmentPreview</a></span>&nbsp;<span class="element-name">previewApiScenarioName</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fingerprint,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;transactionSummaries,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deterministicClassName,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;deterministicMethodName,
+ com.shaft.pilot.ai.ApprovalPolicy&nbsp;approvalPolicy)</span></div>
+<div class="block">Requests a review-only class/method naming proposal from a summary of recorded API
+transactions -- no element names or state assertions, since those apply only to UI capture.
+Used by the hybrid UI+API renderer to optionally propose a more descriptive scenario name
+than the deterministic default; deterministic output is always valid without calling this.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>sessionId</code> - source Capture session ID</dd>
+<dd><code>fingerprint</code> - deterministic source fingerprint</dd>
+<dd><code>transactionSummaries</code> - <code>"METHOD path"</code> summaries of the transactions in the
+                             rendered scenario, in recorded order, with no bodies or headers</dd>
+<dd><code>deterministicClassName</code> - current class name</dd>
+<dd><code>deterministicMethodName</code> - current method name</dd>
 <dd><code>approvalPolicy</code> - explicit provider approval</dd>
 <dt>Returns:</dt>
 <dd>reviewable preview</dd>

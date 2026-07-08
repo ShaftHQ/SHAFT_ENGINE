@@ -59,6 +59,9 @@
 <li><a href="#handleBrowserExchange(org.openqa.selenium.remote.http.HttpRequest,org.openqa.selenium.remote.http.HttpResponse,java.lang.String)" tabindex="0">handleBrowserExchange(HttpRequest, HttpResponse, String)</a></li>
 <li><a href="#handleApiExchange(io.restassured.specification.FilterableRequestSpecification,io.restassured.response.Response)" tabindex="0">handleApiExchange(FilterableRequestSpecification, Response)</a></li>
 <li><a href="#browserReplayRules(java.lang.String)" tabindex="0">browserReplayRules(String)</a></li>
+<li><a href="#isSensitiveKey(java.lang.String)" tabindex="0">isSensitiveKey(String)</a></li>
+<li><a href="#isVolatileKey(java.lang.String)" tabindex="0">isVolatileKey(String)</a></li>
+<li><a href="#isVolatileValue(java.lang.String)" tabindex="0">isVolatileValue(String)</a></li>
 </ol>
 </li>
 </ol>
@@ -141,32 +144,50 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns whether browser interception must actively fetch responses for contract work.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startAssertMode(java.lang.String,java.lang.String...)" class="member-name-link">startAssertMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isSensitiveKey(java.lang.String)" class="member-name-link">isSensitiveKey</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reports whether a request/response/header/query/JSON-body key is configured as sensitive
+(see <code>shaft.contract.sensitiveKeys</code>).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isVolatileKey(java.lang.String)" class="member-name-link">isVolatileKey</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reports whether a request/response/header/query/JSON-body key is configured as volatile
+(see <code>shaft.contract.volatileKeys</code>).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isVolatileValue(java.lang.String)" class="member-name-link">isVolatileValue</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;rawValue)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reports whether a raw string value looks volatile (a UUID or an ISO-8601 instant),
+regardless of its key name.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startAssertMode(java.lang.String,java.lang.String...)" class="member-name-link">startAssertMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts hard-assert contract validation for current-thread browser and SHAFT API traffic.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startRecording(java.lang.String,java.lang.String...)" class="member-name-link">startRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startRecording(java.lang.String,java.lang.String...)" class="member-name-link">startRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts recording current-thread browser and SHAFT API HTTP traffic.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startVerifyMode(java.lang.String,java.lang.String...)" class="member-name-link">startVerifyMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startVerifyMode(java.lang.String,java.lang.String...)" class="member-name-link">startVerifyMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts soft-verify contract validation for current-thread browser and SHAFT API traffic.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#stopRecording()" class="member-name-link">stopRecording</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#stopRecording()" class="member-name-link">stopRecording</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Writes the current recording session and clears it.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#stopValidation()" class="member-name-link">stopValidation</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#stopValidation()" class="member-name-link">stopValidation</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Clears current-thread validation mode.</div>
 </div>
 </div>
@@ -314,6 +335,58 @@
 <dd><code>contractFilePath</code> - source JSON contract path</dd>
 <dt>Returns:</dt>
 <dd>replay rules that return recorded responses</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="isSensitiveKey(java.lang.String)">
+<h3>isSensitiveKey</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isSensitiveKey</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</span></div>
+<div class="block">Reports whether a request/response/header/query/JSON-body key is configured as sensitive
+(see <code>shaft.contract.sensitiveKeys</code>). Exposed for reuse by other contract-aware
+consumers (e.g. <code>com.shaft.capture.generate.api.ResponseNormalizer</code>) that need the
+exact same sensitive-key detection this class uses for contract redaction.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>key</code> - request/response/header/query/JSON-body key</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when the key matches a configured sensitive fragment</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="isVolatileKey(java.lang.String)">
+<h3>isVolatileKey</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isVolatileKey</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</span></div>
+<div class="block">Reports whether a request/response/header/query/JSON-body key is configured as volatile
+(see <code>shaft.contract.volatileKeys</code>). Exposed for reuse by other contract-aware
+consumers that need the exact same volatile-key detection this class uses for contract
+normalization.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>key</code> - request/response/header/query/JSON-body key</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when the key matches a configured volatile name</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="isVolatileValue(java.lang.String)">
+<h3>isVolatileValue</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isVolatileValue</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;rawValue)</span></div>
+<div class="block">Reports whether a raw string value looks volatile (a UUID or an ISO-8601 instant),
+regardless of its key name. Exposed for reuse by other contract-aware consumers.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>rawValue</code> - candidate value</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when the value matches a UUID or a parseable <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link"><code>Instant</code></a></dd>
 </dl>
 </div>
 </section>

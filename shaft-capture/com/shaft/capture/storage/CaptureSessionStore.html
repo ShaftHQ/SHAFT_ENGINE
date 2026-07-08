@@ -58,6 +58,7 @@
 <li><a href="#start(com.shaft.capture.model.CaptureSession)" tabindex="0">start(CaptureSession)</a></li>
 <li><a href="#append(com.shaft.capture.model.CaptureEvent)" tabindex="0">append(CaptureEvent)</a></li>
 <li><a href="#append(com.shaft.capture.model.CaptureEvent,java.util.List,com.shaft.capture.model.RedactionSummary)" tabindex="0">append(CaptureEvent, List, RedactionSummary)</a></li>
+<li><a href="#nextSequence()" tabindex="0">nextSequence()</a></li>
 <li><a href="#checkpoint(com.shaft.capture.model.Checkpoint)" tabindex="0">checkpoint(Checkpoint)</a></li>
 <li><a href="#checkpoint(com.shaft.capture.model.Checkpoint,com.shaft.capture.model.RedactionSummary)" tabindex="0">checkpoint(Checkpoint, RedactionSummary)</a></li>
 <li><a href="#updateEvents(java.util.function.UnaryOperator)" tabindex="0">updateEvents(UnaryOperator)</a></li>
@@ -65,6 +66,7 @@
 <li><a href="#markIncomplete(java.time.Instant)" tabindex="0">markIncomplete(Instant)</a></li>
 <li><a href="#read()" tabindex="0">read()</a></li>
 <li><a href="#steps()" tabindex="0">steps()</a></li>
+<li><a href="#networkTransactions()" tabindex="0">networkTransactions()</a></li>
 </ol>
 </li>
 </ol>
@@ -145,6 +147,17 @@
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#markIncomplete(java.time.Instant)" class="member-name-link">markIncomplete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link">Instant</a>&nbsp;interruptedAt)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Explicitly marks an interrupted session while keeping it readable.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="../runtime/NetworkTransaction.html" title="class in com.shaft.capture.runtime">NetworkTransaction</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkTransactions()" class="member-name-link">networkTransactions</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the current network transactions derived from the on-disk session.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>long</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#nextSequence()" class="member-name-link">nextSequence</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Atomically reserves and returns the next unique event sequence number for this session,
+based on the highest sequence currently persisted.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../model/CaptureSession.html" title="class in com.shaft.capture.model">CaptureSession</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#read()" class="member-name-link">read</a>()</code></div>
@@ -273,6 +286,23 @@ rehydrate its step list from the server instead of page-scoped storage across na
 </section>
 </li>
 <li>
+<section class="detail" id="nextSequence()">
+<h3>nextSequence</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">long</span>&nbsp;<span class="element-name">nextSequence</span>()</div>
+<div class="block">Atomically reserves and returns the next unique event sequence number for this session,
+based on the highest sequence currently persisted. Intended for recorders (for example
+<code>CaptureNetworkRecorder</code>, via <code>ManagedCaptureRecorder</code>) that build a
+<a href="../model/CaptureEvent.html" title="interface in com.shaft.capture.model"><code>CaptureEvent</code></a> off the main <code>CaptureEventPipeline</code> thread and must still avoid
+colliding with its independently-assigned sequence numbers.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the next sequence number, one greater than the highest currently persisted</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="checkpoint(com.shaft.capture.model.Checkpoint)">
 <h3>checkpoint</h3>
 <div class="horizontal-scroll">
@@ -372,6 +402,19 @@ rehydrate its step list from the server instead of page-scoped storage across na
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>ordered safe step summaries for every event carrying a client action ID</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="networkTransactions()">
+<h3>networkTransactions</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../runtime/NetworkTransaction.html" title="class in com.shaft.capture.runtime">NetworkTransaction</a>&gt;</span>&nbsp;<span class="element-name">networkTransactions</span>()</div>
+<div class="block">Returns the current network transactions derived from the on-disk session.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>ordered safe network transaction summaries</dd>
 </dl>
 </div>
 </section>

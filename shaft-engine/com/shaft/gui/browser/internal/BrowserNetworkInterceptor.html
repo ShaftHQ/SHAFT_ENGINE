@@ -56,6 +56,8 @@
 <ol class="toc-list">
 <li><a href="#addRule(com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule)" tabindex="0">addRule(BrowserNetworkInterceptionRule)</a></li>
 <li><a href="#startObserving()" tabindex="0">startObserving()</a></li>
+<li><a href="#hasActiveRules()" tabindex="0">hasActiveRules()</a></li>
+<li><a href="#releaseForHandoff()" tabindex="0">releaseForHandoff()</a></li>
 <li><a href="#clear()" tabindex="0">clear()</a></li>
 <li><a href="#close()" tabindex="0">close()</a></li>
 </ol>
@@ -127,6 +129,18 @@ implements <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base
 <div class="block">Clears rules and removes the Selenium network filter during driver teardown.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hasActiveRules()" class="member-name-link">hasActiveRules</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reports whether this interceptor has one or more mock/validate rules registered.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#releaseForHandoff()" class="member-name-link">releaseForHandoff</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Releases this interceptor's DevTools network filter so another owner (for example a
+dedicated API-capture recorder that composes the same trace/HAR observation inside its own
+filter) can become the sole registrant for this driver.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startObserving()" class="member-name-link">startObserving</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts passive network observation without changing existing mock/assert/verify rules.</div>
@@ -191,6 +205,43 @@ implements <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base
 <dl class="notes">
 <dt>Returns:</dt>
 <dd><code>true</code> when observation started</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="hasActiveRules()">
+<h3>hasActiveRules</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">hasActiveRules</span>()</div>
+<div class="block">Reports whether this interceptor has one or more mock/validate rules registered.
+
+<p>Callers that want to take over sole ownership of the DevTools network filter (for example
+a dedicated API-capture recorder) must not do so while rules are registered here: replacing
+this interceptor's filter would silently drop active mocking/validation behavior with no
+warning to the caller that registered those rules.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd><code>true</code> when at least one interception rule is registered</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="releaseForHandoff()">
+<h3>releaseForHandoff</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">releaseForHandoff</span>()</div>
+<div class="block">Releases this interceptor's DevTools network filter so another owner (for example a
+dedicated API-capture recorder that composes the same trace/HAR observation inside its own
+filter) can become the sole registrant for this driver.
+
+<p>Only safe to call when <a href="#hasActiveRules()"><code>hasActiveRules()</code></a> is <code>false</code>: this method does not
+clear registered rules, and calling it while rules exist would leave them registered here but
+inactive on the driver, silently breaking any mock/validate behavior callers still expect.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd><code>true</code> when passive observation was active and has been released</dd>
 </dl>
 </div>
 </section>

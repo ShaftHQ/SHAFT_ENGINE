@@ -154,12 +154,13 @@
 <h3>migrate</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">tools.jackson.databind.node.ObjectNode</span>&nbsp;<span class="element-name">migrate</span><wbr><span class="parameters">(tools.jackson.databind.JsonNode&nbsp;input)</span></div>
-<div class="block">Migrates a supported capture tree to the current schema.</div>
+<div class="block">Migrates a supported capture tree to the current schema.
+Supports 0.9 → 1.0 → 1.1 → 1.2 deterministic migration chains.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>input</code> - parsed capture tree</dd>
 <dt>Returns:</dt>
-<dd>migrated deep copy</dd>
+<dd>migrated deep copy at CURRENT_SCHEMA_VERSION</dd>
 </dl>
 </div>
 </section>

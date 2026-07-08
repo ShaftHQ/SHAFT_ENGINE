@@ -72,6 +72,7 @@
 <li><a href="#traceMode()" tabindex="0">traceMode()</a></li>
 <li><a href="#traceIncludeCodeContext()" tabindex="0">traceIncludeCodeContext()</a></li>
 <li><a href="#traceIncludeFullPageSnapshots()" tabindex="0">traceIncludeFullPageSnapshots()</a></li>
+<li><a href="#traceIncludeDomSnapshots()" tabindex="0">traceIncludeDomSnapshots()</a></li>
 <li><a href="#traceIncludeNativePageSource()" tabindex="0">traceIncludeNativePageSource()</a></li>
 <li><a href="#traceIncludeNetwork()" tabindex="0">traceIncludeNetwork()</a></li>
 <li><a href="#traceIncludeConsole()" tabindex="0">traceIncludeConsole()</a></li>
@@ -224,20 +225,23 @@ of individual configuration properties at runtime.</div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceIncludeConsole()" class="member-name-link">traceIncludeConsole</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceIncludeFullPageSnapshots()" class="member-name-link">traceIncludeFullPageSnapshots</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceIncludeDomSnapshots()" class="member-name-link">traceIncludeDomSnapshots</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceIncludeNativePageSource()" class="member-name-link">traceIncludeNativePageSource</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceIncludeFullPageSnapshots()" class="member-name-link">traceIncludeFullPageSnapshots</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceIncludeNetwork()" class="member-name-link">traceIncludeNetwork</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceIncludeNativePageSource()" class="member-name-link">traceIncludeNativePageSource</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMaxArtifactMb()" class="member-name-link">traceMaxArtifactMb</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceIncludeNetwork()" class="member-name-link">traceIncludeNetwork</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMode()" class="member-name-link">traceMode</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMaxArtifactMb()" class="member-name-link">traceMaxArtifactMb</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMode()" class="member-name-link">traceMode</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -479,6 +483,16 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("shaft.trace.includeFullPageSnapshots")
 @DefaultValue("true")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">traceIncludeFullPageSnapshots</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="traceIncludeDomSnapshots()">
+<h3>traceIncludeDomSnapshots</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("shaft.trace.includeDomSnapshots")
+@DefaultValue("true")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">traceIncludeDomSnapshots</span>()</div>
 </div>
 </section>
 </li>

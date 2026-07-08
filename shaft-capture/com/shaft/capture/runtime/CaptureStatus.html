@@ -50,6 +50,7 @@
 <li><a href="#method-summary" tabindex="0">Method Summary</a></li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
+<li><a href="#%3Cinit%3E(com.shaft.capture.runtime.CaptureStatus.State,java.lang.String,java.lang.String,java.lang.String,int,com.shaft.capture.model.CaptureReadiness.State,java.util.List,java.lang.String,boolean,long,java.time.Instant,int,java.util.List)" tabindex="0">CaptureStatus(CaptureStatus.State, String, String, String, int, CaptureReadiness.State, List, String, boolean, long, Instant, int, List)</a></li>
 <li><a href="#%3Cinit%3E(com.shaft.capture.runtime.CaptureStatus.State,java.lang.String,java.lang.String,java.lang.String,int,com.shaft.capture.model.CaptureReadiness.State,java.util.List,java.lang.String,boolean,long,java.time.Instant)" tabindex="0">CaptureStatus(CaptureStatus.State, String, String, String, int, CaptureReadiness.State, List, String, boolean, long, Instant)</a></li>
 <li><a href="#%3Cinit%3E(com.shaft.capture.runtime.CaptureStatus.State,java.lang.String,java.lang.String,java.lang.String,int,java.util.List,java.lang.String,boolean,long,java.time.Instant)" tabindex="0">CaptureStatus(CaptureStatus.State, String, String, String, int, List, String, boolean, long, Instant)</a></li>
 </ol>
@@ -71,6 +72,8 @@
 <li><a href="#aiEnabled()" tabindex="0">aiEnabled()</a></li>
 <li><a href="#processId()" tabindex="0">processId()</a></li>
 <li><a href="#startedAt()" tabindex="0">startedAt()</a></li>
+<li><a href="#networkTransactionCount()" tabindex="0">networkTransactionCount()</a></li>
+<li><a href="#lastEndpoints()" tabindex="0">lastEndpoints()</a></li>
 </ol>
 </li>
 </ol>
@@ -99,10 +102,12 @@
 <dd><code><span id="param-aiEnabled">aiEnabled</span></code> - always false for deterministic recording</dd>
 <dd><code><span id="param-processId">processId</span></code> - owning process ID</dd>
 <dd><code><span id="param-startedAt">startedAt</span></code> - session start time</dd>
+<dd><code><span id="param-networkTransactionCount">networkTransactionCount</span></code> - recorded network transaction count, <code>0</code> when API capture is disabled</dd>
+<dd><code><span id="param-lastEndpoints">lastEndpoints</span></code> - most-recent-first, bounded list of recently observed endpoints (<code>METHOD url</code>)</dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">CaptureStatus</span>(<a href="CaptureStatus.State.html" title="enum class in com.shaft.capture.runtime">CaptureStatus.State</a>&nbsp;state, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;currentUrl, int&nbsp;eventCount, <a href="../model/CaptureReadiness.State.html" title="enum class in com.shaft.capture.model">CaptureReadiness.State</a>&nbsp;readiness, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath, boolean&nbsp;aiEnabled, long&nbsp;processId, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link">Instant</a>&nbsp;startedAt)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">CaptureStatus</span>(<a href="CaptureStatus.State.html" title="enum class in com.shaft.capture.runtime">CaptureStatus.State</a>&nbsp;state, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;currentUrl, int&nbsp;eventCount, <a href="../model/CaptureReadiness.State.html" title="enum class in com.shaft.capture.model">CaptureReadiness.State</a>&nbsp;readiness, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath, boolean&nbsp;aiEnabled, long&nbsp;processId, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link">Instant</a>&nbsp;startedAt, int&nbsp;networkTransactionCount, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;lastEndpoints)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Safe recorder status returned by CLI and MCP controls.</div>
 </div>
@@ -146,9 +151,25 @@
  long&nbsp;processId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link">Instant</a>&nbsp;startedAt)</code></div>
 <div class="col-last even-row-color">
+<div class="block">Compatibility constructor for callers compiled before network capture counters were added.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(com.shaft.capture.runtime.CaptureStatus.State,java.lang.String,java.lang.String,java.lang.String,int,com.shaft.capture.model.CaptureReadiness.State,java.util.List,java.lang.String,boolean,long,java.time.Instant,int,java.util.List)" class="member-name-link">CaptureStatus</a><wbr>(<a href="CaptureStatus.State.html" title="enum class in com.shaft.capture.runtime">CaptureStatus.State</a>&nbsp;state,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;currentUrl,
+ int&nbsp;eventCount,
+ <a href="../model/CaptureReadiness.State.html" title="enum class in com.shaft.capture.model">CaptureReadiness.State</a>&nbsp;readiness,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+ boolean&nbsp;aiEnabled,
+ long&nbsp;processId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link">Instant</a>&nbsp;startedAt,
+ int&nbsp;networkTransactionCount,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;lastEndpoints)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Creates immutable safe status.</div>
 </div>
-<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(com.shaft.capture.runtime.CaptureStatus.State,java.lang.String,java.lang.String,java.lang.String,int,java.util.List,java.lang.String,boolean,long,java.time.Instant)" class="member-name-link">CaptureStatus</a><wbr>(<a href="CaptureStatus.State.html" title="enum class in com.shaft.capture.runtime">CaptureStatus.State</a>&nbsp;state,
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.capture.runtime.CaptureStatus.State,java.lang.String,java.lang.String,java.lang.String,int,java.util.List,java.lang.String,boolean,long,java.time.Instant)" class="member-name-link">CaptureStatus</a><wbr>(<a href="CaptureStatus.State.html" title="enum class in com.shaft.capture.runtime">CaptureStatus.State</a>&nbsp;state,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;currentUrl,
@@ -158,7 +179,7 @@
  boolean&nbsp;aiEnabled,
  long&nbsp;processId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link">Instant</a>&nbsp;startedAt)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Compatibility constructor for callers compiled before readiness was added.</div>
 </div>
 </div>
@@ -204,6 +225,16 @@
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hashCode()" class="member-name-link">hashCode</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a hash code value for this object.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#lastEndpoints()" class="member-name-link">lastEndpoints</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-lastEndpoints"><code>lastEndpoints</code></a> record component.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkTransactionCount()" class="member-name-link">networkTransactionCount</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-networkTransactionCount"><code>networkTransactionCount</code></a> record component.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#notRunning()" class="member-name-link">notRunning</a>()</code></div>
@@ -268,6 +299,27 @@
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
+<section class="detail" id="&lt;init&gt;(com.shaft.capture.runtime.CaptureStatus.State,java.lang.String,java.lang.String,java.lang.String,int,com.shaft.capture.model.CaptureReadiness.State,java.util.List,java.lang.String,boolean,long,java.time.Instant,int,java.util.List)">
+<h3>CaptureStatus</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CaptureStatus</span><wbr><span class="parameters">(<a href="CaptureStatus.State.html" title="enum class in com.shaft.capture.runtime">CaptureStatus.State</a>&nbsp;state,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;currentUrl,
+ int&nbsp;eventCount,
+ <a href="../model/CaptureReadiness.State.html" title="enum class in com.shaft.capture.model">CaptureReadiness.State</a>&nbsp;readiness,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;warnings,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+ boolean&nbsp;aiEnabled,
+ long&nbsp;processId,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link">Instant</a>&nbsp;startedAt,
+ int&nbsp;networkTransactionCount,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;lastEndpoints)</span></div>
+<div class="block">Creates immutable safe status.</div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="&lt;init&gt;(com.shaft.capture.runtime.CaptureStatus.State,java.lang.String,java.lang.String,java.lang.String,int,com.shaft.capture.model.CaptureReadiness.State,java.util.List,java.lang.String,boolean,long,java.time.Instant)">
 <h3>CaptureStatus</h3>
 <div class="horizontal-scroll">
@@ -282,7 +334,21 @@
  boolean&nbsp;aiEnabled,
  long&nbsp;processId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Instant.html" title="class or interface in java.time" class="external-link">Instant</a>&nbsp;startedAt)</span></div>
-<div class="block">Creates immutable safe status.</div>
+<div class="block">Compatibility constructor for callers compiled before network capture counters were added.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>state</code> - recorder lifecycle state</dd>
+<dd><code>sessionId</code> - logical capture session identifier</dd>
+<dd><code>browser</code> - browser family</dd>
+<dd><code>currentUrl</code> - sanitized current URL</dd>
+<dd><code>eventCount</code> - persisted semantic event count</dd>
+<dd><code>readiness</code> - deterministic readiness state</dd>
+<dd><code>warnings</code> - safe recorder warnings</dd>
+<dd><code>outputPath</code> - capture JSON output path</dd>
+<dd><code>aiEnabled</code> - always false for deterministic recording</dd>
+<dd><code>processId</code> - owning process ID</dd>
+<dd><code>startedAt</code> - session start time</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -524,6 +590,32 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-startedAt"><code>startedAt</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="networkTransactionCount()">
+<h3>networkTransactionCount</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">networkTransactionCount</span>()</div>
+<div class="block">Returns the value of the <a href="#param-networkTransactionCount"><code>networkTransactionCount</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-networkTransactionCount"><code>networkTransactionCount</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="lastEndpoints()">
+<h3>lastEndpoints</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">lastEndpoints</span>()</div>
+<div class="block">Returns the value of the <a href="#param-lastEndpoints"><code>lastEndpoints</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-lastEndpoints"><code>lastEndpoints</code></a> record component</dd>
 </dl>
 </div>
 </section>
