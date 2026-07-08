@@ -267,9 +267,13 @@ jobs:
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1.21.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          # A release created with the default GITHUB_TOKEN does not emit a `release`
+          # event (GitHub's anti-recursion rule), so publish-intellij-plugin.yml,
+          # publish-shaft-mcp.yml, and sync-sample-projects-version.yml — which all
+          # listen for `release: published` — would never fire. BOT_TOKEN is a PAT,
+          # so its release does trigger those workflows.
+          token: ${{ secrets.BOT_TOKEN }}
           allowUpdates: false
           generateReleaseNotes: true
           bodyFile: /tmp/release_body.md

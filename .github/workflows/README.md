@@ -44,6 +44,15 @@ of `mavenCentral_cd.yml`'s `workflow_run` conclusion: that workflow's own run no
 `check_release_needed` in `mavenCentral_cd.yml`), so only the actual GitHub Release event
 is a reliable "a new version was really delivered" signal for these two.
 
+**The release must be created with a PAT (`BOT_TOKEN`), not the default `GITHUB_TOKEN`.**
+GitHub does not fan a `release` event out to other workflows when the release was created
+using the run's own `GITHUB_TOKEN` (anti-recursion protection); only `workflow_dispatch` and
+`repository_dispatch` are exempt from that rule. `mavenCentral_cd.yml`'s `announce_release`
+job therefore passes `token: ${{ secrets.BOT_TOKEN }}` to `ncipollo/release-action`. If that
+step is ever reverted to `GITHUB_TOKEN`, `publish-intellij-plugin.yml`, `publish-shaft-mcp.yml`,
+`sync-sample-projects-version.yml`, and (transitively) `deploy-shaft-mcp.yml` will silently
+never run again — there is no failure, the event simply never fires.
+
 ## Workflow Inventory
 
 | File | Workflow name | Trigger | What it does | Relationships and delete impact |
