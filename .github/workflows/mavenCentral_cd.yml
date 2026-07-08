@@ -1,6 +1,7 @@
 name: Maven Central Continuous Delivery
 # Executed automatically when a new PR is merged to main.
-# Existing immutable Maven Central versions stop immediately after checkout.
+# Already-published immutable Maven Central versions skip delivery cleanly (see check_release_needed)
+# instead of failing, since most pushes to main land between releases with nothing new to deliver.
 
 on:
   push:
@@ -40,9 +41,28 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_release_and_deliver:
+  check_release_needed:
+    name: Check Maven Central release status
     # Maven Central + GPG/OSSRH secrets are not available on forked repos; signing would fail with empty key id.
     if: github.event.repository.fork == false
+    runs-on: ubuntu-22.04
+    outputs:
+      already_released: ${{ steps.guard.outputs.already_released }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Reject existing Maven Central release version
+        id: guard
+        run: python3 scripts/ci/check_maven_release_version.py --github-output "$GITHUB_OUTPUT"
+
+  build_release_and_deliver:
+    needs: check_release_needed
+    # Nothing to deliver when this reactor version is already published; see check_release_needed.
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
     env:
       gpg.keyname: ${{ secrets.GPG_KEYNAME }}
       gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -61,8 +81,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Reject existing Maven Central release version
-        run: python3 scripts/ci/check_maven_release_version.py
       - name: Set up JDK 17 for IntelliJ plugin
         uses: actions/setup-java@v5
         with:
@@ -116,6 +134,7 @@ jobs:
             find "${module}/allure-results" -mindepth 1 -delete
           done
       - name: Run deterministic SHAFT Pilot tests
+        id: pilot_tests
         run: >-
           mvn --batch-mode
           -pl shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-mcp
@@ -130,7 +149,9 @@ jobs:
           -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
           -Dgpg.skip
       - name: Upload coverage to Codecov
-        if: always()
+        # Skip when the Pilot test step never ran (e.g. an earlier build/verify step
+        # failed first) so a broken build doesn't also report a fabricated coverage failure.
+        if: always() && steps.pilot_tests.outcome != 'skipped'
         uses: ./.github/actions/upload-jacoco-coverage
         with:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
@@ -198,6 +219,8 @@ jobs:
   verify_public_shaft_mcp_installer:
     name: Verify public shaft-mcp installer (${{ matrix.os }})
     needs: build_release_and_deliver
+    # Skip when build_release_and_deliver was skipped (nothing new delivered), not just on failure.
+    if: needs.build_release_and_deliver.result == 'success'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -222,6 +245,8 @@ jobs:
   announce_release:
     name: Announce verified release
     needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]
+    # Skip when build_release_and_deliver was skipped (nothing new delivered), not just on failure.
+    if: needs.build_release_and_deliver.result == 'success'
     runs-on: ubuntu-22.04
     permissions:
       contents: write

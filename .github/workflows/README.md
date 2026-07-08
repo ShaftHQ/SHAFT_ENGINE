@@ -18,8 +18,8 @@ flowchart TD
   CD --> REL["GitHub Release"]
   CD --> DOCS["User Guide repository dispatch"]
   CD --> JAVADOCS["JavaDocs Publisher"]
-  CD --> MCP_PUBLISH["Publish shaft-mcp Distributions"]
-  CD --> IDEA_PUBLISH["Publish IntelliJ Plugin"]
+  REL --> MCP_PUBLISH["Publish shaft-mcp Distributions"]
+  REL --> IDEA_PUBLISH["Publish IntelliJ Plugin"]
   MCP_PUBLISH --> MCP_DEPLOY["Deploy shaft-mcp"]
   REL --> SAMPLES["Sync Sample Projects SHAFT Version"]
 
@@ -36,7 +36,12 @@ flowchart TD
 
 `workflow_run` links use the workflow `name`, not the file name. Renaming
 `Maven Central Continuous Delivery` or `Publish shaft-mcp Distributions` without
-updating downstream workflows will break the release chain.
+updating downstream workflows will break the release chain. `publish-intellij-plugin.yml`
+and `publish-shaft-mcp.yml` intentionally listen for the `release: published` event instead
+of `mavenCentral_cd.yml`'s `workflow_run` conclusion: that workflow's own run now concludes
+`success` even when it skips a no-op delivery for an already-published version (see
+`check_release_needed` in `mavenCentral_cd.yml`), so only the actual GitHub Release event
+is a reliable "a new version was really delivered" signal for these two.
 
 ## Workflow Inventory
 
@@ -45,10 +50,10 @@ updating downstream workflows will break the release chain.
 | `security.yml` | Security | Pull requests and pushes to `main` except Markdown-only changes, plus manual | Runs dependency review on PRs and CodeQL Java analysis. | Independent security gate. Removing it drops dependency-review and CodeQL coverage. |
 | `shaft-pilot-release.yml` | SHAFT Pilot Release Candidate | Pull requests touching release-relevant paths, plus manual | Validates release contracts, verifies the IntelliJ IDEA plugin candidate, runs deterministic Pilot module tests, capture browser release tests, packaging checks, clean consumer fixtures, MCP transport checks, and container smoke tests. | PR-side release gate that mirrors large parts of `mavenCentral_cd.yml` before a real release. |
 | `intellij-plugin.yml` | IntelliJ Plugin | Pull requests and pushes touching `shaft-intellij`, plus manual | Builds the IntelliJ IDEA plugin with Gradle 9, runs checks, executes Plugin Verifier, and uploads the plugin ZIP artifact. | PR-side plugin gate. Removing it drops Marketplace artifact verification before merge. |
-| `mavenCentral_cd.yml` | Maven Central Continuous Delivery | Pushes to `main` that touch release-relevant paths, plus manual | Validates release state, verifies the IntelliJ IDEA plugin candidate, runs Pilot tests, validates Maven publication outputs, deploys artifacts to Maven Central, verifies public coordinates, verifies the public MCP installer, creates the GitHub release, dispatches the user-guide repo, and optionally announces to Slack. | Root of the release chain. Feeds `publish-intellij-plugin.yml`, `publishJavaDocs.yml`, `publish-shaft-mcp.yml`, the GitHub `release` event consumed by `sync-sample-projects-version.yml`, and a `shaft-engine-release` dispatch to `ShaftHQ/shafthq.github.io`. |
-| `publish-intellij-plugin.yml` | Publish IntelliJ Plugin | Successful `Maven Central Continuous Delivery` run on `main`, plus manual | Checks out the exact Maven Central release SHA, validates plugin version/channel metadata, then builds, verifies, signs, and publishes the IntelliJ IDEA plugin to the JetBrains Marketplace Stable channel using repository secrets. | Downstream of Maven Central release. Keep it while JetBrains Marketplace remains the public IDE plugin distribution path. |
-| `publishJavaDocs.yml` | JavaDocs Publisher | Successful `Maven Central Continuous Delivery` run on `main`, plus manual | Builds aggregated JavaDocs and publishes them to the `javadoc` branch. | Downstream of Maven Central release. Keep only if the `javadoc` branch remains the public JavaDocs publishing path. |
-| `publish-shaft-mcp.yml` | Publish shaft-mcp Distributions | Successful `Maven Central Continuous Delivery` run on `main`, plus manual | Builds and pushes `shaft-mcp` OCI images to GHCR and publishes MCP registry metadata. | Downstream of Maven Central release and upstream of `deploy-shaft-mcp.yml`. Deleting it also prevents the automatic deploy workflow from running. |
+| `mavenCentral_cd.yml` | Maven Central Continuous Delivery | Pushes to `main` that touch release-relevant paths, plus manual | Checks whether this reactor version is already on Maven Central and skips delivery cleanly if so; otherwise verifies the IntelliJ IDEA plugin candidate, runs Pilot tests, validates Maven publication outputs, deploys artifacts to Maven Central, verifies public coordinates, verifies the public MCP installer, creates the GitHub release, dispatches the user-guide repo, and optionally announces to Slack. | Root of the release chain. Feeds `publishJavaDocs.yml` via `workflow_run`, the GitHub `release` event consumed by `publish-intellij-plugin.yml`, `publish-shaft-mcp.yml`, and `sync-sample-projects-version.yml`, and a `shaft-engine-release` dispatch to `ShaftHQ/shafthq.github.io`. |
+| `publish-intellij-plugin.yml` | Publish IntelliJ Plugin | Published GitHub release, plus manual | Checks out the exact release tag, validates plugin version/channel metadata, then builds, verifies, signs, and publishes the IntelliJ IDEA plugin to the JetBrains Marketplace Stable channel using repository secrets. | Downstream of the GitHub release created by `mavenCentral_cd.yml`. Keep it while JetBrains Marketplace remains the public IDE plugin distribution path. |
+| `publishJavaDocs.yml` | JavaDocs Publisher | Successful `Maven Central Continuous Delivery` run on `main`, plus manual | Builds aggregated JavaDocs and publishes them to the `javadoc` branch. | Downstream of Maven Central release. Keep only if the `javadoc` branch remains the public JavaDocs publishing path. Idempotent re-runs on a no-op delivery skip are low-risk (a no-diff push to the `javadoc` branch). |
+| `publish-shaft-mcp.yml` | Publish shaft-mcp Distributions | Published GitHub release, plus manual | Builds and pushes `shaft-mcp` OCI images to GHCR and publishes MCP registry metadata. | Downstream of the GitHub release created by `mavenCentral_cd.yml`, and upstream of `deploy-shaft-mcp.yml`. Deleting it also prevents the automatic deploy workflow from running. |
 | `deploy-shaft-mcp.yml` | Deploy shaft-mcp | Successful `Publish shaft-mcp Distributions` run on `main`, plus manual | Triggers Render deployment, deploys to Fly.io when configured, and records the Smithery handoff note. | Final MCP deployment step. It is skipped safely when deployment secrets are absent. |
 | `shaft-mcp.yml` | shaft-mcp | Nightly at 01:00 UTC, plus manual | Tests the public installer script across Ubuntu, macOS, and Windows, then validates, packages, coverage-checks, and container-smokes the `shaft-mcp` module. | Independent nightly MCP health check. It does not feed publish/deploy, but it overlaps release validation for MCP packaging and installer behavior. |
 | `e2eTests.yml` | E2E Tests | Nightly at 01:00 UTC, plus manual | Runs broad hosted E2E coverage: database/API/visual/video tests, Selenium Grid browsers, Playwright browsers/devices, BrowserStack mobile/desktop, Cucumber, and JUnit/Moon tests. | Uses shared test-report actions and produces a consolidated workflow summary. Largest end-to-end regression workflow. |

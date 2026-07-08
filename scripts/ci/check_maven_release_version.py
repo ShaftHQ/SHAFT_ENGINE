@@ -47,20 +47,38 @@ def release_exists(pom_path: Path, repository_url: str = DEFAULT_REPOSITORY,
         raise RuntimeError(f"Could not verify {coordinate} on Maven Central: {error}") from error
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pom", type=Path, default=ROOT / "pom.xml")
     parser.add_argument("--repository-url", default=DEFAULT_REPOSITORY)
     parser.add_argument("--timeout-seconds", type=int, default=30)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--github-output",
+        type=Path,
+        default=None,
+        help="Write an already_released=true/false line here instead of failing the "
+             "build when the version is already published. Genuine lookup errors "
+             "still raise and fail the step either way.",
+    )
+    args = parser.parse_args(argv)
 
     coordinate, exists = release_exists(
         args.pom, args.repository_url, args.timeout_seconds
     )
     if exists:
-        print(f"Release already exists on Maven Central: {coordinate}")
+        message = f"Release already exists on Maven Central: {coordinate}"
+        if args.github_output is not None:
+            print(f"::notice::{message}; nothing to deliver.")
+            with args.github_output.open("a", encoding="utf-8") as handle:
+                handle.write("already_released=true\n")
+            return 0
+        print(message)
         return 1
+
     print(f"Maven Central version is available: {coordinate}")
+    if args.github_output is not None:
+        with args.github_output.open("a", encoding="utf-8") as handle:
+            handle.write("already_released=false\n")
     return 0
 
 

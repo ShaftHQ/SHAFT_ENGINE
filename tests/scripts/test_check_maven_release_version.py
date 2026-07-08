@@ -4,7 +4,7 @@ import urllib.error
 from pathlib import Path
 from unittest import mock
 
-from scripts.ci.check_maven_release_version import publication_url, release_exists
+from scripts.ci.check_maven_release_version import main, publication_url, release_exists
 
 
 class CheckMavenReleaseVersionTest(unittest.TestCase):
@@ -61,6 +61,50 @@ class CheckMavenReleaseVersionTest(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
             release_exists(self.pom)
+
+    @mock.patch("scripts.ci.check_maven_release_version.urllib.request.urlopen")
+    def test_github_output_reports_already_released_without_failing(self, urlopen):
+        urlopen.return_value.__enter__.return_value = object()
+        output_path = Path(self.temp_dir.name) / "github_output.txt"
+
+        exit_code = main([
+            "--pom", str(self.pom),
+            "--github-output", str(output_path),
+        ])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(output_path.read_text(encoding="utf-8"), "already_released=true\n")
+
+    @mock.patch("scripts.ci.check_maven_release_version.urllib.request.urlopen")
+    def test_github_output_reports_available_version(self, urlopen):
+        urlopen.side_effect = urllib.error.HTTPError(
+            "https://repo.example", 404, "Not Found", {}, None
+        )
+        output_path = Path(self.temp_dir.name) / "github_output.txt"
+
+        exit_code = main([
+            "--pom", str(self.pom),
+            "--github-output", str(output_path),
+        ])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(output_path.read_text(encoding="utf-8"), "already_released=false\n")
+
+    @mock.patch("scripts.ci.check_maven_release_version.urllib.request.urlopen")
+    def test_github_output_still_raises_on_genuine_errors(self, urlopen):
+        urlopen.side_effect = urllib.error.HTTPError(
+            "https://repo.example", 503, "Unavailable", {}, None
+        )
+        output_path = Path(self.temp_dir.name) / "github_output.txt"
+
+        with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
+            main(["--pom", str(self.pom), "--github-output", str(output_path)])
+
+        self.assertFalse(output_path.exists())
+
+    def test_without_pom_falls_back_to_missing_file_error(self):
+        with self.assertRaises(FileNotFoundError):
+            main(["--pom", str(Path(self.temp_dir.name) / "missing-pom.xml")])
 
 
 if __name__ == "__main__":
