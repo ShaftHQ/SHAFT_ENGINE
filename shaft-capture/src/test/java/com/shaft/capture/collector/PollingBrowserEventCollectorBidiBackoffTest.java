@@ -105,6 +105,7 @@ class PollingBrowserEventCollectorBidiBackoffTest {
 
         @Override
         public void get(String url) {
+            // Navigation is driven by getCurrentUrl()/getWindowHandles() in this stub, not get().
         }
 
         @Override
@@ -134,10 +135,12 @@ class PollingBrowserEventCollectorBidiBackoffTest {
 
         @Override
         public void close() {
+            // The test closes the collector directly; the driver itself has no session to end.
         }
 
         @Override
         public void quit() {
+            // Same as close(): nothing for this stub to release.
         }
 
         @Override
