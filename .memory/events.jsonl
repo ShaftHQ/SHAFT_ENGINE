@@ -168,3 +168,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.shlex-split-eats-bare-backslashes-in-windows-paths","timestamp":"2026-07-08T17:00:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.running-the-live-gemini-e2e-test-for-the-intellij-plugin","timestamp":"2026-07-08T17:00:20+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge","timestamp":"2026-07-08T17:09:56+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.scheduled-e2e-ci-fixes-pr-3408","timestamp":"2026-07-09T07:09:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.triaging-multi-job-scheduled-ci-failures","timestamp":"2026-07-09T07:09:54+03:00"}
