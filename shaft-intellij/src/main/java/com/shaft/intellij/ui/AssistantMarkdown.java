@@ -1258,6 +1258,15 @@ final class AssistantMarkdown {
         return text.contains("```");
     }
 
+    /**
+     * Returns whether {@code markdown} contains a fenced code block. Exposed so callers can tell a
+     * genuine code-generation result apart from a terse, non-code fallback answer (for example a
+     * bare {@code "Done"} value with no {@code codeBlocks}).
+     */
+    static boolean hasCodeFence(String markdown) {
+        return markdown != null && containsCodeFence(markdown);
+    }
+
     private static boolean looksLikeJava(String text) {
         String lower = text.toLowerCase(Locale.ROOT);
         return lower.contains("public class ")

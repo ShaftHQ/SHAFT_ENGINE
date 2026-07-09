@@ -8,7 +8,9 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,9 +28,8 @@ final class ToolApprovalPromptPanel extends JPanel {
 
     /**
      * Declares which {@link ToolApprovalDecision} scopes the currently selected agent supports.
-     * {@link #NONE} hides every scope button (and the "Approve all SHAFT tools" checkbox) while
-     * still allowing Deny; {@link #STANDARD} is every agent SHAFT currently ships that dispatches
-     * SHAFT MCP tool calls through the Assistant panel.
+     * {@link #NONE} hides every scope button while still allowing Deny; {@link #STANDARD} is every
+     * agent SHAFT currently ships that dispatches SHAFT MCP tool calls through the Assistant panel.
      */
     enum AgentApprovalCapability {
         NONE(List.of()),
@@ -72,7 +73,7 @@ final class ToolApprovalPromptPanel extends JPanel {
 
         JLabel summary = new JLabel("<html>SHAFT wants to run <b>" + escapeHtml(toolName) + "</b></html>");
         summary.getAccessibleContext().setAccessibleName("Tool approval summary");
-        JLabel argumentsLabel = new JLabel(escapeHtml(argumentsSummary(arguments)));
+        JTextArea argumentsLabel = new WrappingArgumentsArea(argumentsSummary(arguments));
         argumentsLabel.getAccessibleContext().setAccessibleName("Tool approval arguments");
         argumentsLabel.getAccessibleContext().setAccessibleDescription(
                 "Arguments for the " + toolName + " tool call awaiting approval: " + argumentsSummary(arguments));
@@ -145,5 +146,40 @@ final class ToolApprovalPromptPanel extends JPanel {
 
     private static String escapeHtml(String value) {
         return value == null ? "" : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    /**
+     * Non-editable, word-wrapping text area that caps its own preferred width instead of growing to
+     * fit a single unbroken line, so a long raw-JSON arguments summary wraps onto multiple lines
+     * within the bubble instead of pushing the whole approval prompt past the transcript's right
+     * edge (unlike {@link JLabel}, which never wraps and always reports its full single-line width).
+     */
+    private static final class WrappingArgumentsArea extends JTextArea {
+        private static final int MAX_WIDTH = 360;
+
+        private WrappingArgumentsArea(String text) {
+            super(text);
+            setEditable(false);
+            setFocusable(false);
+            setOpaque(false);
+            setLineWrap(true);
+            setWrapStyleWord(true);
+            setBorder(null);
+            setFont(new JLabel().getFont());
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            int cappedWidth = Math.min(super.getPreferredSize().width, JBUI.scale(MAX_WIDTH));
+            setSize(new Dimension(cappedWidth, Short.MAX_VALUE));
+            Dimension preferred = super.getPreferredSize();
+            preferred.width = cappedWidth;
+            return preferred;
+        }
+
+        @Override
+        public Dimension getMaximumSize() {
+            return getPreferredSize();
+        }
     }
 }

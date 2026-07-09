@@ -48,6 +48,18 @@ class CaptureManagerLifecycleTest {
     }
 
     @Test
+    void managerStopWarnsInsteadOfSilentlySucceedingWhenNoRecorderIsActiveInThisProcess() {
+        CaptureManager neverStarted = new CaptureManager(FakeRecorder::new);
+
+        CaptureStatus status = neverStarted.stop(false);
+
+        assertEquals(CaptureStatus.State.NOT_RUNNING, status.state());
+        assertTrue(status.warnings().stream().anyMatch(warning -> warning.contains("No active recording")),
+                status.warnings().toString());
+        neverStarted.close();
+    }
+
+    @Test
     void managerRejectsInactiveCheckpointAndInterruptsActiveRecorderOnClose() {
         AtomicReference<FakeRecorder> recorderRef = new AtomicReference<>();
         CaptureManager inactive = new CaptureManager(FakeRecorder::new);

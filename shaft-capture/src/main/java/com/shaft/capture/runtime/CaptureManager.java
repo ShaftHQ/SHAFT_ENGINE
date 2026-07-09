@@ -261,12 +261,12 @@ public final class CaptureManager implements AutoCloseable {
      */
     public synchronized CaptureStatus stop(boolean discard) {
         if (recorder == null) {
-            return lastStatus;
+            return withWarning(lastStatus, NO_ACTIVE_RECORDING_WARNING);
         }
         CaptureStatus currentStatus = status();
         ManagedCaptureRecorder current = recorder;
         if (current == null || !isActive(currentStatus.state())) {
-            return currentStatus;
+            return withWarning(currentStatus, NO_ACTIVE_RECORDING_WARNING);
         }
         lastStatus = copyWithState(currentStatus, CaptureStatus.State.STOPPING);
         return invoke(() -> {
@@ -406,6 +406,34 @@ public final class CaptureManager implements AutoCloseable {
                 status.eventCount(),
                 status.readiness(),
                 status.warnings(),
+                status.outputPath(),
+                status.aiEnabled(),
+                status.processId(),
+                status.startedAt(),
+                status.networkTransactionCount(),
+                status.lastEndpoints());
+    }
+
+    // stop() can be called against a process that never owned the active recording -- for example,
+    // an agent CLI's own SHAFT MCP process started the recorder, and the panel's separate long-lived
+    // MCP process is the one asked to stop it. Returning the stale/default status unchanged in that
+    // case reads as a normal, successful stop, silently leaving that other process's browser open.
+    private static final String NO_ACTIVE_RECORDING_WARNING =
+            "No active recording in this SHAFT MCP session; nothing was stopped here. If a browser window "
+                    + "is still open, it may belong to a different process (for example, an agent CLI's own SHAFT "
+                    + "MCP session) -- close it manually or check for an orphaned browser/driver process.";
+
+    private static CaptureStatus withWarning(CaptureStatus status, String warning) {
+        java.util.List<String> warnings = new java.util.ArrayList<>(status.warnings());
+        warnings.add(warning);
+        return new CaptureStatus(
+                status.state(),
+                status.sessionId(),
+                status.browser(),
+                status.currentUrl(),
+                status.eventCount(),
+                status.readiness(),
+                warnings,
                 status.outputPath(),
                 status.aiEnabled(),
                 status.processId(),

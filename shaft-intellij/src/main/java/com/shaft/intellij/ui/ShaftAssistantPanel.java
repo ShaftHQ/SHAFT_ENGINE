@@ -16,7 +16,6 @@ import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.WrapLayout;
-import com.shaft.intellij.approval.AgentApprovalCapability;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.project.ShaftProjectDetector;
@@ -74,7 +73,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 /**
@@ -86,6 +84,12 @@ final class ShaftAssistantPanel extends JPanel {
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
+    private static final String NO_CODE_GENERATED_NOTE =
+            "_No generated code was returned for this recording. The capture session may have no "
+                    + "recorded actions (for example, if the browser was closed by a different process "
+                    + "before any actions were captured) or code generation may have failed silently. Try "
+                    + "`/record-web` again, confirm the recording actually captured actions, then re-run "
+                    + "`/codegen`._";
     private final Project project;
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
@@ -109,7 +113,6 @@ final class ShaftAssistantPanel extends JPanel {
     private final JBCheckBox allowSourceMutation;
     private final JBCheckBox verboseAgentOutput;
     private final JBCheckBox autoCompact;
-    private final JBCheckBox approveAllTools;
     private final JBTextArea prompt;
     private final AssistantTranscriptView transcript;
     private final JButton send;
@@ -358,12 +361,6 @@ final class ShaftAssistantPanel extends JPanel {
         autoCompact.setToolTipText("Send the agent CLI's compact/compress command before each new prompt, when supported");
         autoCompact.setSelected(settings.autoCompactEnabled);
         autoCompact.addActionListener(event -> settings.autoCompactEnabled = autoCompact.isSelected());
-        approveAllTools = new JBCheckBox("Approve all SHAFT tools");
-        approveAllTools.getAccessibleContext().setAccessibleName("Approve all SHAFT tools");
-        approveAllTools.setToolTipText("Skip the approval prompt for every SHAFT MCP tool call in this project");
-        approveAllTools.setSelected(approvalService().getState().approveAllTools);
-        approveAllTools.addActionListener(event ->
-                approvalService().getState().approveAllTools = approveAllTools.isSelected());
         prompt = new JBTextArea(6, 40);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
@@ -527,7 +524,6 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(localModel);
         routeRow.add(effort);
         routeRow.add(allowSourceMutation);
-        routeRow.add(approveAllTools);
         routeRow.add(verboseAgentOutput);
         routeRow.add(autoCompact);
 
@@ -887,8 +883,7 @@ final class ShaftAssistantPanel extends JPanel {
                     invocation,
                     autoCompact.isSelected(),
                     output -> ApplicationManager.getApplication().invokeLater(
-                            () -> appendLocalAgentOutput(streamToken, output)),
-                    agentApprovalHandler());
+                            () -> appendLocalAgentOutput(streamToken, output)));
             currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                     () -> showAgentResult(streamToken, result, error)));
             return;
@@ -1034,58 +1029,6 @@ final class ShaftAssistantPanel extends JPanel {
             case APPROVE_ONCE -> "Approved `" + toolName + "` once.";
             case APPROVE_TOOL_ALWAYS -> "Approved `" + toolName + "` in this project.";
             case APPROVE_ALL_TOOLS -> "Approved all SHAFT tools in this project.";
-        };
-    }
-
-    /**
-     * Resolves the approval capability of the currently selected assistant family (via
-     * {@link AgentApprovalCapability#forClient(String)}): families whose CLI supports interactive
-     * mid-run approval (Claude Code) get the standard scope set, while families that can only be
-     * pre-approved through launch-time flags (Codex, Copilot CLI) get {@code NONE}, which hides
-     * the "Approve all SHAFT tools" checkbox and the scope buttons on agent-forwarded approval
-     * prompts. Direct panel-dispatched MCP calls are gated with {@code STANDARD} instead -- see
-     * {@link #gateTool(String, JsonObject, Runnable, Runnable)}.
-     */
-    private ToolApprovalPromptPanel.AgentApprovalCapability currentApprovalCapability() {
-        AgentApprovalCapability agentCapability = AgentApprovalCapability.forClient(
-                clientFromFamily(String.valueOf(assistantFamily.getSelectedItem())));
-        return agentCapability.supportsInteractiveApproval()
-                ? ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD
-                : ToolApprovalPromptPanel.AgentApprovalCapability.NONE;
-    }
-
-    /**
-     * Bridges a local agent CLI's mid-run approval requests (see
-     * {@link AssistantLocalAgentRunner.ApprovalRequestHandler}) into the shared chat approval
-     * flow. Invoked on the runner's dedicated approval thread, never the EDT; blocks that thread
-     * until the user decides in the transcript's approval bubble. The runner interrupts this
-     * thread and proceeds as {@code DENY} once its approval timeout elapses, so a prompt the user
-     * never answers cannot hang the stream reader.
-     */
-    private AssistantLocalAgentRunner.ApprovalRequestHandler agentApprovalHandler() {
-        return (toolName, toolArguments) -> {
-            String name = toolName == null || toolName.isBlank() ? "unknown_tool" : toolName;
-            CompletableFuture<Boolean> approved = new CompletableFuture<>();
-            runOnEdt(
-                    () -> gateTool(name, toolArguments, currentApprovalCapability(),
-                            () -> {
-                                setStatus("Thinking...");
-                                approved.complete(true);
-                            },
-                            () -> {
-                                setStatus("Thinking...");
-                                approved.complete(false);
-                            }));
-            try {
-                return approved.get()
-                        ? AssistantLocalAgentRunner.ApprovalDecision.APPROVE
-                        : AssistantLocalAgentRunner.ApprovalDecision.DENY;
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                return AssistantLocalAgentRunner.ApprovalDecision.DENY;
-            } catch (ExecutionException exception) {
-                return AssistantLocalAgentRunner.ApprovalDecision.DENY;
-            }
         };
     }
 
@@ -1360,8 +1303,11 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void showFinalToolResult(String toolName, boolean success, String markdown, String output) {
+        String body = success && isRecordingCodeReviewTool(toolName) && !AssistantMarkdown.hasCodeFence(markdown)
+                ? markdown + "\n\n" + NO_CODE_GENERATED_NOTE
+                : markdown;
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
-                + markdown, output);
+                + body, output);
         addTimeline(success ? "Completed" : "Failed");
         if (success && "capture_start".equals(toolName)) {
             scheduleCaptureStartDiagnostic(output);
@@ -1572,7 +1518,6 @@ final class ShaftAssistantPanel extends JPanel {
         customCommand.setEnabled(!running);
         commandAutocomplete.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
-        approveAllTools.setEnabled(!running && currentApprovalCapability().supportsApprovals());
         verboseAgentOutput.setEnabled(!running);
         autoCompact.setEnabled(!running);
         saveCloudApiKey.setEnabled(!running);
@@ -1716,9 +1661,6 @@ final class ShaftAssistantPanel extends JPanel {
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
-        boolean approvalsSupported = currentApprovalCapability().supportsApprovals();
-        approveAllTools.setVisible(approvalsSupported);
-        approveAllTools.setEnabled(controlsEnabled && approvalsSupported);
         verboseAgentOutput.setVisible(localAgent && localCli);
         verboseAgentOutput.setEnabled(controlsEnabled && localAgent && localCli);
         localModel.setVisible(localCli);

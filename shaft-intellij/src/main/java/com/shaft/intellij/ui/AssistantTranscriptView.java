@@ -301,8 +301,39 @@ final class AssistantTranscriptView extends JPanel {
         row.setOpaque(false);
         row.setBorder(JBUI.Borders.emptyBottom(10));
         row.getAccessibleContext().setAccessibleName("Assistant interactive message row");
-        row.add(component, user ? BorderLayout.EAST : BorderLayout.WEST);
+        row.add(widthCappedWidget(component), user ? BorderLayout.EAST : BorderLayout.WEST);
         return row;
+    }
+
+    /**
+     * Wraps an arbitrary widget (for example {@link ToolApprovalPromptPanel}) so it never reports a
+     * preferred width past {@link #fallbackBubbleContentWidth()} — the same budget message bubbles
+     * use — regardless of how wide its own content wants to be. Without this, a {@code BorderLayout}
+     * row sizes itself to the widget's unconstrained preferred width, letting it extend past the
+     * transcript's right edge instead of wrapping or shrinking with the viewport.
+     */
+    private JComponent widthCappedWidget(JComponent component) {
+        JPanel wrapper = new JPanel(new BorderLayout()) {
+            @Override
+            public Dimension getPreferredSize() {
+                int cappedWidth = fallbackBubbleContentWidth();
+                Dimension preferred = super.getPreferredSize();
+                if (cappedWidth > 0 && preferred.width > cappedWidth) {
+                    setSize(new Dimension(cappedWidth, Short.MAX_VALUE));
+                    preferred = super.getPreferredSize();
+                    preferred.width = cappedWidth;
+                }
+                return preferred;
+            }
+
+            @Override
+            public Dimension getMaximumSize() {
+                return getPreferredSize();
+            }
+        };
+        wrapper.setOpaque(false);
+        wrapper.add(component, BorderLayout.CENTER);
+        return wrapper;
     }
 
     private JComponent createTruncationDivider() {
