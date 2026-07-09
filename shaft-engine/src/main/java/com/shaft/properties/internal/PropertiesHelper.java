@@ -22,7 +22,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -38,6 +40,9 @@ public class PropertiesHelper {
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
     private static final String TARGET_PROPERTIES_FOLDER_PATH = DEFAULT_PROPERTIES_FOLDER_PATH.replace("/default", "");
     private static final AtomicBoolean postProcessingDone = new AtomicBoolean(false);
+    private static final int DOWNLOAD_MAX_ATTEMPTS = 3;
+    private static final Duration DOWNLOAD_BASE_DELAY = Duration.ofMillis(500);
+    private static final Duration DOWNLOAD_MAX_DELAY = Duration.ofSeconds(2);
 
     /**
      * Initializes framework properties for standard execution.
@@ -369,8 +374,45 @@ public class PropertiesHelper {
 
     private static void downloadPropertiesFile(String targetFolderPath, String fileName) {
         var baseURI = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/refs/heads/main/shaft-engine/src/main/resources/properties/default/";
-        FileActions.getInstance(true).downloadFile(baseURI + fileName,
-                targetFolderPath + File.separator + fileName);
+        downloadWithRetry(() -> FileActions.getInstance(true).downloadFile(baseURI + fileName,
+                        targetFolderPath + File.separator + fileName),
+                DOWNLOAD_MAX_ATTEMPTS, DOWNLOAD_BASE_DELAY, DOWNLOAD_MAX_DELAY);
+    }
+
+    /**
+     * Retries a download attempt with full-jittered exponential backoff. GitHub's raw-content CDN
+     * rate-limits (HTTP 429) anonymous requests, and several downloads can land in the same
+     * throttling window (e.g. concurrent CI matrix jobs); a few short, jittered retries let the
+     * probe recover without exhausting the installer's overall startup deadline.
+     *
+     * @param attempt      the download action to retry
+     * @param maxAttempts  total attempts, including the first
+     * @param baseDelay    delay before the first retry
+     * @param maxDelay     upper bound for the backoff delay
+     */
+    static void downloadWithRetry(Runnable attempt, int maxAttempts, Duration baseDelay, Duration maxDelay) {
+        for (int attemptNumber = 1; attemptNumber <= maxAttempts; attemptNumber++) {
+            try {
+                attempt.run();
+                return;
+            } catch (RuntimeException | Error retryable) {
+                if (attemptNumber == maxAttempts) {
+                    throw retryable;
+                }
+                ReportManager.logDiscrete("Properties download failed (attempt " + attemptNumber + "/" + maxAttempts
+                        + "). Retrying...", Level.DEBUG);
+                var bound = baseDelay.multipliedBy(1L << (attemptNumber - 1));
+                if (bound.compareTo(maxDelay) > 0) {
+                    bound = maxDelay;
+                }
+                try {
+                    Thread.sleep(ThreadLocalRandom.current().nextLong(bound.toMillis() + 1));
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                    throw retryable;
+                }
+            }
+        }
     }
 
     private static void attachPropertyFiles() {
