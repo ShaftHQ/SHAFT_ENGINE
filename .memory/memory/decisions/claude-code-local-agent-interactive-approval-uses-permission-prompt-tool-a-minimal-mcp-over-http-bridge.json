@@ -1,0 +1,37 @@
+{
+  "body_path": "memory/decisions/claude-code-local-agent-interactive-approval-uses-permission-prompt-tool-a-minimal-mcp-over-http-bridge.md",
+  "content_hash": "sha256:d555b2d10de04788186e07138a7589e6fa1a40a65dedd7f4188b18a787e07900",
+  "created_at": "2026-07-09T12:58:19+03:00",
+  "evidence": [],
+  "facets": {
+    "applies_to": [
+      "shaft-intellij/src/main/java/com/shaft/intellij/approval/LocalAgentApprovalBridge.java",
+      "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantLocalAgentRunner.java",
+      "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java"
+    ],
+    "category": "decision-rationale"
+  },
+  "id": "decision.claude-code-local-agent-interactive-approval-uses-permission-prompt-tool-a-minimal-mcp-over-http-bridge",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Fix #3409: real interactive local-agent approval, richer Verbose detail, mid-run toggle fix (PR #3411)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "assistant",
+    "local-agent",
+    "approval-bridge",
+    "mcp",
+    "claude-code"
+  ],
+  "title": "Claude Code local-agent interactive approval uses --permission-prompt-tool + a minimal MCP-over-HTTP bridge",
+  "type": "decision",
+  "updated_at": "2026-07-09T12:58:19+03:00"
+}
