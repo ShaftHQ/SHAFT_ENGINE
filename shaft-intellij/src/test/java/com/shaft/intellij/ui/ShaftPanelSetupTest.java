@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.openapi.project.Project;
+import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
@@ -3458,6 +3459,149 @@ class ShaftPanelSetupTest {
                         "the already-approved tool should reach the real dispatch immediately"),
                 () -> assertNull(transcriptWidget(panel),
                         "an already-approved-this-run tool must not render a second prompt"));
+    }
+
+    @Test
+    void localAgentApprovalRequestRendersApprovalWidgetAndApproveOnceAllows() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", 7);
+        JsonObject input = new JsonObject();
+        input.addProperty("command", "echo hi");
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 7);
+        CompletableFuture<LocalAgentApprovalBridge.Decision> decision = handler.requestApproval("Bash", input);
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        JComponent widget = transcriptWidget(panel);
+        assertNotNull(widget, "an unapproved local-agent tool call must render an approval prompt");
+        JButton approveOnce = approvalDecisionButton((ToolApprovalPromptPanel) widget, "Approve once");
+        SwingUtilities.invokeAndWait(approveOnce::doClick);
+
+        assertAll(
+                () -> assertNull(transcriptWidget(panel), "the prompt should clear once approved"),
+                () -> assertTrue(decision.isDone()),
+                () -> assertTrue(decision.get().allowed()));
+    }
+
+    @Test
+    void localAgentDenyCompletesDenyAndFoldsOutcomeIntoStreamBubble() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+        appendStreamingLocalAgentBubble(panel, 8);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 8);
+        CompletableFuture<LocalAgentApprovalBridge.Decision> decision = handler.requestApproval("Write", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        JButton deny = approvalDecisionButton((ToolApprovalPromptPanel) transcriptWidget(panel), "Deny");
+        SwingUtilities.invokeAndWait(deny::doClick);
+
+        assertAll(
+                () -> assertTrue(decision.isDone()),
+                () -> assertFalse(decision.get().allowed()),
+                () -> assertTrue(transcriptMarkdown(panel).contains("Denied tool Write"),
+                        "The denial outcome should be folded into the still-open streaming bubble: "
+                                + transcriptMarkdown(panel)));
+    }
+
+    @Test
+    void localAgentApproveToolAlwaysPersistsOnlyTheNamespacedKey() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", 9);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 9);
+        handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        JButton approveAlways =
+                approvalDecisionButton((ToolApprovalPromptPanel) transcriptWidget(panel), "Approve tool always");
+        SwingUtilities.invokeAndWait(approveAlways::doClick);
+
+        ToolApprovalService service = approvalServiceOf(panel);
+        assertAll(
+                () -> assertTrue(service.isApproved("local-agent:Bash")),
+                () -> assertFalse(service.isApproved("Bash"),
+                        "A local-agent tool-name approval must never leak into the SHAFT MCP tool-name namespace"));
+    }
+
+    @Test
+    void localAgentApproveAllMapsToLocalAgentSentinelNotTheGlobalFlag() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", 10);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 10);
+        handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+        JButton approveAll =
+                approvalDecisionButton((ToolApprovalPromptPanel) transcriptWidget(panel), "Approve all tools");
+        SwingUtilities.invokeAndWait(approveAll::doClick);
+
+        // A different local-agent tool name should now be auto-allowed without a second prompt.
+        CompletableFuture<LocalAgentApprovalBridge.Decision> second = handler.requestApproval("Write", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        ToolApprovalService service = approvalServiceOf(panel);
+        assertAll(
+                () -> assertTrue(second.isDone() && second.get().allowed(),
+                        "Approve-all should cover every future local-agent tool call in this project"),
+                () -> assertNull(transcriptWidget(panel), "no second prompt should render after approve-all"),
+                () -> assertFalse(service.isApproved("capture_start"),
+                        "Local-agent approve-all must not silently grant the shared SHAFT MCP approve-all flag"));
+    }
+
+    @Test
+    void localAgentApprovalIsAutoDeniedWhenTheRunHasEnded() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", -1);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 11);
+        CompletableFuture<LocalAgentApprovalBridge.Decision> decision = handler.requestApproval("Bash", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        assertAll(
+                () -> assertTrue(decision.isDone()),
+                () -> assertFalse(decision.get().allowed()),
+                () -> assertNull(transcriptWidget(panel), "a stale/ended run must never render an approval widget"));
+    }
+
+    @Test
+    void secondQueuedLocalAgentApprovalShowsAfterTheFirstResolves() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        setField(panel, "activeLocalAgentStreamToken", 12);
+
+        LocalAgentApprovalBridge.ApprovalRequestHandler handler = localAgentApprovalHandler(panel, 12);
+        CompletableFuture<LocalAgentApprovalBridge.Decision> first = handler.requestApproval("Bash", new JsonObject());
+        CompletableFuture<LocalAgentApprovalBridge.Decision> second = handler.requestApproval("Write", new JsonObject());
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        ToolApprovalPromptPanel firstWidget = (ToolApprovalPromptPanel) transcriptWidget(panel);
+        assertNotNull(firstWidget, "the first request should render immediately");
+        assertFalse(second.isDone(), "a second concurrent request must queue behind the first, not race it");
+
+        SwingUtilities.invokeAndWait(approvalDecisionButton(firstWidget, "Approve once")::doClick);
+
+        assertTrue(first.isDone());
+        JComponent secondWidgetComponent = transcriptWidget(panel);
+        assertNotNull(secondWidgetComponent, "the queued request should show once the first resolves");
+        SwingUtilities.invokeAndWait(
+                approvalDecisionButton((ToolApprovalPromptPanel) secondWidgetComponent, "Approve once")::doClick);
+
+        assertAll(
+                () -> assertTrue(second.isDone()),
+                () -> assertTrue(second.get().allowed()));
+    }
+
+    private static LocalAgentApprovalBridge.ApprovalRequestHandler localAgentApprovalHandler(
+            ShaftAssistantPanel panel, int streamToken) throws Exception {
+        Method method = ShaftAssistantPanel.class.getDeclaredMethod("localAgentApprovalHandler", int.class);
+        method.setAccessible(true);
+        return (LocalAgentApprovalBridge.ApprovalRequestHandler) method.invoke(panel, streamToken);
     }
 
     @Test

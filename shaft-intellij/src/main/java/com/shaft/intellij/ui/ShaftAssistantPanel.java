@@ -16,6 +16,7 @@ import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.WrapLayout;
+import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
 import com.shaft.intellij.project.ShaftProjectDetector;
@@ -66,7 +67,9 @@ import java.awt.event.MouseEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -84,6 +87,18 @@ final class ShaftAssistantPanel extends JPanel {
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
+    /**
+     * Prefix applied to a local-agent CLI's own tool names (e.g. {@code "Bash"}, {@code "Write"})
+     * before recording/checking approval decisions, so they can never collide with SHAFT MCP tool
+     * names (e.g. {@code "capture_start"}) in the shared {@link ToolApprovalService} namespace.
+     */
+    private static final String LOCAL_AGENT_APPROVAL_KEY_PREFIX = "local-agent:";
+    /**
+     * Sentinel key recorded when the user clicks "Approve all tools" on a local-agent approval
+     * prompt. Deliberately NOT {@link ToolApprovalService}'s shared {@code approveAllTools} flag,
+     * which would also silently auto-approve every unrelated SHAFT MCP tool call.
+     */
+    private static final String LOCAL_AGENT_APPROVE_ALL_KEY = "local-agent:*";
     private static final String NO_CODE_GENERATED_NOTE =
             "_No generated code was returned for this recording. The capture session may have no "
                     + "recorded actions (for example, if the browser was closed by a different process "
@@ -153,6 +168,8 @@ final class ShaftAssistantPanel extends JPanel {
     private int killedLocalAgentStreamToken = -1;
     private StringBuilder localAgentOutput;
     private boolean localAgentBubbleRendersContent;
+    private final Deque<Runnable> queuedLocalAgentApprovalPrompts = new ArrayDeque<>();
+    private boolean localAgentApprovalPromptShowing;
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
     private String activeCaptureRecordingPath = AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH;
     private String activePlaywrightRecordingPath = AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH;
@@ -884,7 +901,8 @@ final class ShaftAssistantPanel extends JPanel {
                     invocation,
                     autoCompact.isSelected(),
                     output -> ApplicationManager.getApplication().invokeLater(
-                            () -> appendLocalAgentOutput(streamToken, output)));
+                            () -> appendLocalAgentOutput(streamToken, output)),
+                    localAgentApprovalHandler(streamToken));
             currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                     () -> showAgentResult(streamToken, result, error)));
             return;
@@ -1329,6 +1347,11 @@ final class ShaftAssistantPanel extends JPanel {
         localAgentOutput = null;
         if (currentStream) {
             activeLocalAgentStreamToken = -1;
+            // Defensive: under normal operation the CLI can't emit its final result while an
+            // approval_prompt call is still blocked mid-round-trip, so this is not expected to find
+            // anything showing -- but a stuck approval widget after the run has already ended would be
+            // a dead end for the user, so clear it unconditionally rather than assume the ordering.
+            clearPendingLocalAgentApprovalPrompt();
         }
         setRunning(false, success ? READY_STATUS : "Failed");
         finishCaptureIntegrationIfRunning(success);
@@ -1463,6 +1486,115 @@ final class ShaftAssistantPanel extends JPanel {
         }
         activeLocalAgentStreamToken = -1;
         localAgentOutput = null;
+        clearPendingLocalAgentApprovalPrompt();
+    }
+
+    /**
+     * Returns the callback a {@link LocalAgentApprovalBridge} invokes on one of its own HTTP-handling
+     * threads to ask SHAFT for a real, interactive per-tool decision mid-run. Never touches Swing
+     * directly (that thread is not the EDT): it marshals the request onto the EDT via {@link
+     * #runOnEdt} and returns a future that {@link #handleLocalAgentApprovalRequest} completes once
+     * the user (or a stale-run/queue check) decides.
+     */
+    private LocalAgentApprovalBridge.ApprovalRequestHandler localAgentApprovalHandler(int streamToken) {
+        return (toolName, input) -> {
+            CompletableFuture<LocalAgentApprovalBridge.Decision> future = new CompletableFuture<>();
+            runOnEdt(() -> handleLocalAgentApprovalRequest(streamToken, toolName, input, future));
+            return future;
+        };
+    }
+
+    /**
+     * Resolves a local-agent tool-approval request on the EDT: already-approved tools (this run,
+     * permanently, or via the local-agent "approve all" sentinel -- see {@link
+     * #LOCAL_AGENT_APPROVE_ALL_KEY}) allow immediately, mirroring {@link #gateTool}'s once-per-run
+     * dedupe. A genuinely new request renders a {@link ToolApprovalPromptPanel} bubble via the same
+     * ephemeral {@code transcript.showWidget} mechanism {@link #requestToolApproval} uses for SHAFT
+     * MCP tool calls, or queues behind one already showing (the transcript has a single widget slot,
+     * and a CLI can in principle request more than one approval before the first is answered).
+     */
+    private void handleLocalAgentApprovalRequest(
+            int streamToken, String toolName, JsonObject input,
+            CompletableFuture<LocalAgentApprovalBridge.Decision> future) {
+        if (streamToken != activeLocalAgentStreamToken) {
+            future.complete(LocalAgentApprovalBridge.Decision.deny("The Assistant run has ended."));
+            return;
+        }
+        String key = LOCAL_AGENT_APPROVAL_KEY_PREFIX + toolName;
+        if (approvedToolsThisRun.contains(key)
+                || approvalService().isApproved(key)
+                || approvalService().isApproved(LOCAL_AGENT_APPROVE_ALL_KEY)) {
+            approvedToolsThisRun.add(key);
+            future.complete(LocalAgentApprovalBridge.Decision.allow());
+            return;
+        }
+        Runnable showPrompt = () -> showLocalAgentApprovalPrompt(streamToken, toolName, input, future);
+        if (localAgentApprovalPromptShowing) {
+            queuedLocalAgentApprovalPrompts.add(showPrompt);
+            return;
+        }
+        showPrompt.run();
+    }
+
+    private void showLocalAgentApprovalPrompt(
+            int streamToken, String toolName, JsonObject input,
+            CompletableFuture<LocalAgentApprovalBridge.Decision> future) {
+        localAgentApprovalPromptShowing = true;
+        setStatus("Awaiting approval for " + toolName + "...");
+        CompletableFuture<ToolApprovalDecision> decisionFuture = new CompletableFuture<>();
+        ToolApprovalPromptPanel approvalPanel = new ToolApprovalPromptPanel(
+                toolName, input, ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decisionFuture::complete);
+        transcript.showWidget("assistant", approvalPanel);
+        decisionFuture.whenComplete((decision, error) -> runOnEdt(
+                () -> resolveLocalAgentApproval(streamToken, toolName, decision, future)));
+    }
+
+    /**
+     * Records the user's decision, folds a short outcome line into the streaming bubble instead of
+     * appending a standalone transcript message (a standalone append would break the invariant that
+     * the streaming bubble is always the transcript's last message -- see {@link
+     * #finishLocalAgentResponse}), completes the bridge-facing future, and shows the next queued
+     * prompt if one is waiting.
+     */
+    private void resolveLocalAgentApproval(
+            int streamToken, String toolName, ToolApprovalDecision decision,
+            CompletableFuture<LocalAgentApprovalBridge.Decision> future) {
+        transcript.clearWidget();
+        localAgentApprovalPromptShowing = false;
+        String key = LOCAL_AGENT_APPROVAL_KEY_PREFIX + toolName;
+        String outcomeLine;
+        if (decision == null || decision == ToolApprovalDecision.DENY) {
+            outcomeLine = "Denied tool " + toolName + ".";
+            future.complete(LocalAgentApprovalBridge.Decision.deny("The user denied this tool call."));
+        } else {
+            approvedToolsThisRun.add(key);
+            if (decision == ToolApprovalDecision.APPROVE_ALL_TOOLS) {
+                approvalService().record(ToolApprovalDecision.APPROVE_TOOL_ALWAYS, LOCAL_AGENT_APPROVE_ALL_KEY);
+                outcomeLine = "Approved all local-agent tool calls for this project.";
+            } else {
+                approvalService().record(decision, key);
+                outcomeLine = decision == ToolApprovalDecision.APPROVE_TOOL_ALWAYS
+                        ? "Approved tool " + toolName + " for this project."
+                        : "Approved tool " + toolName + " once.";
+            }
+            future.complete(LocalAgentApprovalBridge.Decision.allow());
+        }
+        if (streamToken == activeLocalAgentStreamToken) {
+            appendLocalAgentOutput(streamToken, outcomeLine);
+            setStatus("Thinking...");
+        }
+        Runnable next = queuedLocalAgentApprovalPrompts.poll();
+        if (next != null) {
+            next.run();
+        }
+    }
+
+    private void clearPendingLocalAgentApprovalPrompt() {
+        if (localAgentApprovalPromptShowing) {
+            transcript.clearWidget();
+            localAgentApprovalPromptShowing = false;
+        }
+        queuedLocalAgentApprovalPrompts.clear();
     }
 
     private void showLocalResponse(String response) {
