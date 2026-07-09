@@ -1,33 +1,41 @@
 package com.shaft.intellij.approval;
 
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.components.StoragePathMacros;
+import com.intellij.openapi.project.Project;
 import com.intellij.util.xmlb.XmlSerializerUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Application-level service for managing tool approval decisions.
+ * Project-level service for managing tool approval decisions.
  *
- * Persists the approve-all flag and the set of permanently approved tool names to disk.
- * In-memory single-use grants are tracked separately and cleared on reset.
+ * Persists the approve-all flag and the set of permanently approved tool names to the project's
+ * workspace file, so a grant made in one project never authorizes tools in another project opened
+ * in the same IDE session. In-memory single-use grants are tracked separately and cleared on reset.
  */
-@State(name = "ToolApprovalService", storages = @Storage("tool-approval.xml"))
+@State(name = "ToolApprovalService", storages = @Storage(StoragePathMacros.WORKSPACE_FILE))
 public final class ToolApprovalService implements PersistentStateComponent<ToolApprovalService.ApprovalState> {
     private ApprovalState state = new ApprovalState();
     private final Set<String> singleUseGrants = new HashSet<>();
 
     /**
-     * Returns the application-level tool approval service.
+     * Returns the project-level tool approval service.
      *
+     * @param project the project to scope approvals to, or {@code null} for a fresh, unpersisted instance
      * @return tool approval service
      */
-    public static ToolApprovalService getInstance() {
-        return ApplicationManager.getApplication().getService(ToolApprovalService.class);
+    public static ToolApprovalService getInstance(@Nullable Project project) {
+        if (project == null) {
+            return new ToolApprovalService();
+        }
+        ToolApprovalService service = project.getService(ToolApprovalService.class);
+        return service == null ? new ToolApprovalService() : service;
     }
 
     @Override

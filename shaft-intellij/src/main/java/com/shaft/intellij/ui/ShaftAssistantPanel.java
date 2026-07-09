@@ -19,6 +19,7 @@ import com.intellij.util.ui.WrapLayout;
 import com.shaft.intellij.approval.AgentApprovalCapability;
 import com.shaft.intellij.approval.ToolApprovalDecision;
 import com.shaft.intellij.approval.ToolApprovalService;
+import com.shaft.intellij.project.ShaftProjectDetector;
 import com.shaft.intellij.mcp.ShaftMcpConnectionState;
 import com.shaft.intellij.mcp.ShaftMcpHeartbeat;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
@@ -359,7 +360,7 @@ final class ShaftAssistantPanel extends JPanel {
         autoCompact.addActionListener(event -> settings.autoCompactEnabled = autoCompact.isSelected());
         approveAllTools = new JBCheckBox("Approve all SHAFT tools");
         approveAllTools.getAccessibleContext().setAccessibleName("Approve all SHAFT tools");
-        approveAllTools.setToolTipText("Skip the approval prompt for every SHAFT MCP tool call in this IDE session");
+        approveAllTools.setToolTipText("Skip the approval prompt for every SHAFT MCP tool call in this project");
         approveAllTools.setSelected(approvalService().getState().approveAllTools);
         approveAllTools.addActionListener(event ->
                 approvalService().getState().approveAllTools = approveAllTools.isSelected());
@@ -835,6 +836,11 @@ final class ShaftAssistantPanel extends JPanel {
                 openFileContext(project),
                 conversationContext);
         invocation = routeNaturalStopToActiveRecorder(text, invocation);
+        if (!approvingCaptureReview
+                && !ShaftProjectDetector.isShaftProject(project)
+                && AssistantCommand.requiresShaftProject(invocation)) {
+            invocation = AssistantCommand.shaftProjectRequiredNudge(invocation.toolName());
+        }
         append("user", AssistantMarkdown.normalizeMarkdown(text), "");
         if (!approvingCaptureReview && AssistantCommand.requiresAgentModeForMcp(text, selectedMode, invocation)) {
             showResponse("This request needs MCP tool access. Switch to **Agent** mode, then send it again.",
@@ -1026,8 +1032,8 @@ final class ShaftAssistantPanel extends JPanel {
         return switch (decision) {
             case DENY -> "Denied `" + toolName + "`.";
             case APPROVE_ONCE -> "Approved `" + toolName + "` once.";
-            case APPROVE_TOOL_ALWAYS -> "Approved `" + toolName + "` for the rest of this session.";
-            case APPROVE_ALL_TOOLS -> "Approved all SHAFT tools for the rest of this session.";
+            case APPROVE_TOOL_ALWAYS -> "Approved `" + toolName + "` in this project.";
+            case APPROVE_ALL_TOOLS -> "Approved all SHAFT tools in this project.";
         };
     }
 
@@ -1084,18 +1090,19 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     /**
-     * Returns the tool approval service: the real application-level singleton when running inside
-     * an IDE, or a per-panel fallback instance in headless/unit-test contexts where no
+     * Returns the tool approval service: the real project-level service when running inside an IDE,
+     * or a per-panel fallback instance in headless/unit-test contexts where no
      * {@link ApplicationManager} application is bootstrapped. Tests may also inject a stub directly
      * via the {@code approvalServiceOverride} field.
      */
     private ToolApprovalService approvalService() {
-        if (ApplicationManager.getApplication() != null) {
-            return ToolApprovalService.getInstance();
+        if (approvalServiceOverride != null) {
+            return approvalServiceOverride;
         }
-        if (approvalServiceOverride == null) {
-            approvalServiceOverride = new ToolApprovalService();
+        if (ApplicationManager.getApplication() != null && project != null) {
+            return ToolApprovalService.getInstance(project);
         }
+        approvalServiceOverride = new ToolApprovalService();
         return approvalServiceOverride;
     }
 
@@ -2691,7 +2698,8 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private synchronized void startHeartbeat() {
-        if (heartbeat == null && project != null && connectionState != null && mcpReady(settings)) {
+        if (heartbeat == null && project != null && connectionState != null && mcpReady(settings)
+                && ShaftProjectDetector.isShaftProject(project)) {
             heartbeat = new ShaftMcpHeartbeat(project, connectionState);
             heartbeat.start();
         }
