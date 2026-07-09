@@ -1,6 +1,7 @@
 package com.shaft.intellij.ui;
 
 import com.google.gson.JsonObject;
+import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import org.junit.jupiter.api.Test;
@@ -12,7 +13,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -94,6 +99,147 @@ class AssistantLocalAgentRunnerCommandTest {
                 () -> assertTrue(result.success()),
                 () -> assertTrue(process.stdinClosed(),
                         "Claude Code's default command must close stdin immediately, not hold it open"));
+    }
+
+    @Test
+    void claudeAgentCommandWiresApprovalBridgeFlagsWhenSourceEditsNotGranted() throws Exception {
+        AtomicReference<List<String>> capturedCommand = new AtomicReference<>();
+        StubProcess process = StubProcess.completing(claudeResultEvent("Done."));
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                claudeAgentInvocation(false),
+                line -> { },
+                (command, workingDirectory, environment) -> {
+                    capturedCommand.set(command);
+                    return process;
+                },
+                false,
+                allowAllHandler());
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        List<String> command = capturedCommand.get();
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertTrue(command.contains("--permission-prompt-tool"), command.toString()),
+                () -> assertTrue(command.contains("mcp__shaft-approval__approval_prompt"), command.toString()),
+                () -> assertTrue(command.contains("--mcp-config"), command.toString()),
+                () -> assertFalse(command.contains("plan"), command.toString()),
+                () -> assertFalse(command.contains("acceptEdits"), command.toString()));
+    }
+
+    @Test
+    void grantedAgentModeNeverLaunchesTheBridgeEvenWithAHandlerSupplied() throws Exception {
+        AtomicBoolean launcherInvoked = new AtomicBoolean();
+        AssistantLocalAgentRunner.ApprovalBridgeLauncher launcher = (handler, timeout) -> {
+            launcherInvoked.set(true);
+            throw new IOException("should not be called");
+        };
+        StubProcess process = StubProcess.completing(claudeResultEvent("Done."));
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                claudeAgentInvocation(true), line -> { }, (command, workingDirectory, environment) -> process, false,
+                allowAllHandler(), launcher);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertFalse(launcherInvoked.get(), "A granted (acceptEdits) run must never launch the bridge"));
+    }
+
+    @Test
+    void askModeNeverLaunchesTheBridgeEvenWithAHandlerSupplied() throws Exception {
+        AtomicBoolean launcherInvoked = new AtomicBoolean();
+        AssistantLocalAgentRunner.ApprovalBridgeLauncher launcher = (handler, timeout) -> {
+            launcherInvoked.set(true);
+            throw new IOException("should not be called");
+        };
+        StubProcess process = StubProcess.completing(claudeResultEvent("Done."));
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                claudeInvocation(), line -> { }, (command, workingDirectory, environment) -> process, false,
+                allowAllHandler(), launcher);
+        running.future().get(5, TimeUnit.SECONDS);
+
+        assertFalse(launcherInvoked.get());
+    }
+
+    @Test
+    void codexClientNeverLaunchesTheBridgeEvenInAgentModeWithAHandlerSupplied() throws Exception {
+        AtomicBoolean launcherInvoked = new AtomicBoolean();
+        AssistantLocalAgentRunner.ApprovalBridgeLauncher launcher = (handler, timeout) -> {
+            launcherInvoked.set(true);
+            throw new IOException("should not be called");
+        };
+        StubProcess process = StubProcess.completing("plain buffered output\n");
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                AssistantCommand.fromPrompt("Explain this failure", "CODEX", "AGENT", ".", "", false),
+                line -> { }, (command, workingDirectory, environment) -> process, false,
+                allowAllHandler(), launcher);
+        running.future().get(5, TimeUnit.SECONDS);
+
+        assertFalse(launcherInvoked.get());
+    }
+
+    @Test
+    void approvalBridgeIsClosedAfterTheRunCompletes() throws Exception {
+        AtomicReference<LocalAgentApprovalBridge> launched = new AtomicReference<>();
+        AssistantLocalAgentRunner.ApprovalBridgeLauncher launcher = (handler, timeout) -> {
+            LocalAgentApprovalBridge bridge = LocalAgentApprovalBridge.start(handler, timeout);
+            launched.set(bridge);
+            return bridge;
+        };
+        StubProcess process = StubProcess.completing(claudeResultEvent("Done."));
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                claudeAgentInvocation(false), line -> { }, (command, workingDirectory, environment) -> process, false,
+                allowAllHandler(), launcher);
+        running.future().get(5, TimeUnit.SECONDS);
+
+        assertTrue(launched.get().isClosed(), "The bridge must be closed once the run finishes");
+    }
+
+    @Test
+    void bridgeLaunchFailureFallsBackToPlanModeWithANotice() throws Exception {
+        AtomicReference<List<String>> capturedCommand = new AtomicReference<>();
+        List<String> consumedLines = new CopyOnWriteArrayList<>();
+        StubProcess process = StubProcess.completing(claudeResultEvent("Done."));
+        AssistantLocalAgentRunner.ApprovalBridgeLauncher failingLauncher = (handler, timeout) -> {
+            throw new IOException("port bind failed");
+        };
+
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                claudeAgentInvocation(false),
+                consumedLines::add,
+                (command, workingDirectory, environment) -> {
+                    capturedCommand.set(command);
+                    return process;
+                },
+                false,
+                allowAllHandler(),
+                failingLauncher);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+
+        List<String> command = capturedCommand.get();
+        assertAll(
+                () -> assertTrue(result.success()),
+                () -> assertTrue(command.contains("plan"), command.toString()),
+                () -> assertFalse(command.contains("--permission-prompt-tool"), command.toString()),
+                () -> assertTrue(consumedLines.stream().anyMatch(line -> line.contains("Interactive approval is unavailable")),
+                        consumedLines.toString()));
+    }
+
+    private static LocalAgentApprovalBridge.ApprovalRequestHandler allowAllHandler() {
+        return (toolName, input) -> CompletableFuture.completedFuture(LocalAgentApprovalBridge.Decision.allow());
+    }
+
+    private static AssistantCommand.Invocation claudeAgentInvocation(boolean allowSourceMutation) {
+        return AssistantCommand.fromPrompt("Explain this failure", "CLAUDE_CODE", "AGENT", ".", "", allowSourceMutation);
+    }
+
+    private static String claudeResultEvent(String result) {
+        return "{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"" + result + "\","
+                + "\"usage\":{\"input_tokens\":10,\"output_tokens\":5}}\n";
     }
 
     private static JsonObject arguments(String client, String mode, boolean allowSourceMutation) {
