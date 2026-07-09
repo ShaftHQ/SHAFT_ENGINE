@@ -170,3 +170,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge","timestamp":"2026-07-08T17:09:56+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.scheduled-e2e-ci-fixes-pr-3408","timestamp":"2026-07-09T07:09:54+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.triaging-multi-job-scheduled-ci-failures","timestamp":"2026-07-09T07:09:54+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.local-agent-cli-runner-always-closes-stdin-immediately-interactive-approval-bridge-removed","timestamp":"2026-07-09T11:18:37+03:00"}
