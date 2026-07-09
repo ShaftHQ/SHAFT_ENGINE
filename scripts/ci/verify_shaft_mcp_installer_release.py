@@ -11,10 +11,13 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 INSTALLER_CLIENTS = {"claude-desktop", "copilot", "copilot-intellij", "intellij-plugin"}
+INSTALLER_RETRY_ATTEMPTS = 3
+INSTALLER_RETRY_DELAY_SECONDS = 3.0
 
 
 def write_fake_copilot(bin_directory: Path) -> None:
@@ -62,25 +65,46 @@ def installer_command(client: str, *extra_args: str) -> list[str]:
     return ["sh", str(ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh"), f"--{client}", *extra_args]
 
 
-def run_installer(command: list[str], *, cwd: Path, environment: dict[str, str], capture: bool = False) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(  # nosec B603 - command comes from installer_command.
-            command,
-            cwd=cwd,
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            check=True,
-            capture_output=capture,
-            text=True,
-        )
-    except subprocess.CalledProcessError as error:
-        details = []
-        if error.stdout:
-            details.append(f"stdout:\n{error.stdout}")
-        if error.stderr:
-            details.append(f"stderr:\n{error.stderr}")
-        suffix = "\n" + "\n".join(details) if details else ""
-        raise RuntimeError(f"Installer command failed: {error.cmd}{suffix}") from error
+def run_installer(
+    command: list[str],
+    *,
+    cwd: Path,
+    environment: dict[str, str],
+    capture: bool = False,
+    attempts: int = INSTALLER_RETRY_ATTEMPTS,
+    retry_delay_seconds: float = INSTALLER_RETRY_DELAY_SECONDS,
+) -> subprocess.CompletedProcess[str]:
+    # The public installer resolves shaft-mcp's default properties from
+    # raw.githubusercontent.com over anonymous HTTP; GitHub's rate limiting can
+    # transiently return 429 for that request, so retry a few times before
+    # failing the whole release verification.
+    for attempt in range(1, attempts + 1):
+        try:
+            return subprocess.run(  # nosec B603 - command comes from installer_command.
+                command,
+                cwd=cwd,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                check=True,
+                capture_output=capture,
+                text=True,
+            )
+        except subprocess.CalledProcessError as error:
+            if attempt == attempts:
+                details = []
+                if error.stdout:
+                    details.append(f"stdout:\n{error.stdout}")
+                if error.stderr:
+                    details.append(f"stderr:\n{error.stderr}")
+                suffix = "\n" + "\n".join(details) if details else ""
+                raise RuntimeError(
+                    f"Installer command failed after {attempts} attempts: {error.cmd}{suffix}"
+                ) from error
+            print(
+                f"Installer command failed (attempt {attempt}/{attempts}); retrying: {error.cmd}",
+                flush=True,
+            )
+            time.sleep(retry_delay_seconds * attempt)
 
 
 def last_json_line(output: str) -> dict[str, object]:
