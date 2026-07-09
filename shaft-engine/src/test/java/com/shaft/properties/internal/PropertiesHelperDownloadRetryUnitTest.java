@@ -13,7 +13,7 @@ public class PropertiesHelperDownloadRetryUnitTest {
         AtomicInteger invocations = new AtomicInteger();
         Runnable attempt = () -> {
             if (invocations.incrementAndGet() < 3) {
-                throw new RuntimeException("HTTP 429");
+                throw new IllegalStateException("HTTP 429");
             }
         };
 
@@ -41,7 +41,7 @@ public class PropertiesHelperDownloadRetryUnitTest {
         AtomicInteger invocations = new AtomicInteger();
         Runnable attempt = () -> {
             invocations.incrementAndGet();
-            throw new RuntimeException("HTTP 429");
+            throw new IllegalStateException("HTTP 429");
         };
 
         Assert.assertThrows(RuntimeException.class,
