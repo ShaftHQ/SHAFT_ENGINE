@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.shaft.intellij.approval.AgentApprovalCapability;
+import com.shaft.intellij.approval.LocalAgentApprovalBridge;
 import com.shaft.intellij.mcp.ShaftMcpInvocation;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 
@@ -20,6 +21,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -89,16 +91,56 @@ final class AssistantLocalAgentRunner {
             Consumer<String> outputConsumer,
             ProcessLauncher processLauncher,
             boolean requireCommandAvailable) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, null,
+                LocalAgentApprovalBridge::start);
+    }
+
+    /**
+     * Package-private overload used by {@link com.shaft.intellij.ui.ShaftAssistantPanel} to supply a
+     * real interactive-approval callback. Tests that don't exercise the approval bridge should keep
+     * using the shorter overloads above rather than passing a handler.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, approvalHandler,
+                LocalAgentApprovalBridge::start);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a fake {@link ApprovalBridgeLauncher} instead
+     * of spawning a real HTTP server, so bridge-wiring tests stay fast and deterministic.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher) {
         JsonObject arguments = invocation.arguments();
         AtomicReference<Process> processReference = new AtomicReference<>();
         AtomicBoolean cancellationRequested = new AtomicBoolean();
         CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> run(
                 arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
-                requireCommandAvailable));
+                requireCommandAvailable, approvalHandler, bridgeLauncher));
         return new ShaftMcpInvocation(
                 future,
                 () -> cancel(processReference, cancellationRequested, false),
                 () -> cancel(processReference, cancellationRequested, true));
+    }
+
+    /**
+     * Launches a {@link LocalAgentApprovalBridge}. Extracted so tests can substitute a fake bridge
+     * instead of spawning a real HTTP server.
+     */
+    @FunctionalInterface
+    interface ApprovalBridgeLauncher {
+        LocalAgentApprovalBridge launch(LocalAgentApprovalBridge.ApprovalRequestHandler handler, Duration decisionTimeout)
+                throws IOException;
     }
 
     /**
@@ -119,6 +161,25 @@ final class AssistantLocalAgentRunner {
             }
         }
         return start(invocation, outputConsumer);
+    }
+
+    /**
+     * Starts a local agent invocation with a real interactive-approval callback (see {@link
+     * #startWithOptionalCompact(AssistantCommand.Invocation, boolean, Consumer)} for the compact
+     * preamble behavior, unchanged here).
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler) {
+        if (autoCompactEnabled) {
+            ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments());
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess, true, approvalHandler);
     }
 
     /**
@@ -173,6 +234,10 @@ final class AssistantLocalAgentRunner {
     }
 
     static List<String> commandFor(JsonObject arguments) {
+        return commandFor(arguments, null);
+    }
+
+    private static List<String> commandFor(JsonObject arguments, LocalAgentApprovalBridge bridge) {
         List<String> custom = customCommand(arguments);
         if (!custom.isEmpty()) {
             return custom;
@@ -182,10 +247,33 @@ final class AssistantLocalAgentRunner {
         String model = string(arguments, "model", "").trim();
         String effort = normalize(string(arguments, "effort", ""));
         return switch (normalize(string(arguments, "client", "CODEX"))) {
-            case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation, model);
+            case "CLAUDE_CODE" -> claudeCommand(mode, allowSourceMutation, model, bridge);
             case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation, model);
             default -> codexCommand(mode, allowSourceMutation, model, effort);
         };
+    }
+
+    /**
+     * Returns whether an interactive mid-run approval bridge should be launched for this invocation:
+     * only default (non-custom) Claude Code AGENT-mode runs that have NOT been granted blanket
+     * auto-approve (the "Allow source edits" checkbox) and whose caller supplied a real {@code
+     * approvalHandler}. Every other combination (a {@code null} handler, PLAN/ASK mode, a different
+     * client, a custom command, or a granted AGENT run) is byte-identical to pre-#3409 behavior:
+     * granted AGENT runs keep {@code acceptEdits}, everything else that would have used {@code plan}
+     * still does when no handler is available (headless/tests/legacy call sites).
+     */
+    private static boolean needsInteractiveApproval(
+            JsonObject arguments, LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler) {
+        if (approvalHandler == null || !defaultCommand(arguments)) {
+            return false;
+        }
+        if (!"CLAUDE_CODE".equals(normalize(string(arguments, "client", "CODEX")))) {
+            return false;
+        }
+        if (!"AGENT".equals(normalize(string(arguments, "mode", "ASK")))) {
+            return false;
+        }
+        return !AgentApprovalCapability.CLAUDE_CODE.isAutoApproveGranted(allowSourceMutation(arguments));
     }
 
     private static ShaftMcpToolResult run(
@@ -204,81 +292,117 @@ final class AssistantLocalAgentRunner {
             Consumer<String> outputConsumer,
             ProcessLauncher processLauncher,
             boolean requireCommandAvailable) {
-        List<String> command = commandFor(arguments);
-        if (command.isEmpty()) {
-            return ShaftMcpToolResult.failure("No local assistant command was configured.");
-        }
-        if (!defaultCommand(arguments)
-                && "AGENT".equals(normalize(string(arguments, "mode", "ASK")))
-                && !allowSourceMutation(arguments)) {
-            return ShaftMcpToolResult.failure(CUSTOM_AGENT_APPROVAL_WARNING);
-        }
-        if (requireCommandAvailable && defaultCommand(arguments) && !isCommandAvailable(command.get(0))) {
-            return ShaftMcpToolResult.failure(displayName(string(arguments, "client", "CODEX"))
-                    + " executable is not available on PATH.");
-        }
-        Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
-        String stdin = string(arguments, "prompt", "");
-        Path workingDirectory = workingDirectory(arguments);
-        boolean isDefaultCommand = defaultCommand(arguments);
-        StructuredStreamParser streamParser = isDefaultCommand ? structuredStreamParser(command) : null;
-        Consumer<String> effectiveConsumer =
-                effectiveConsumer(outputConsumer, streamParser, isDefaultCommand);
-        OutputStream stdinStream = null;
-        try {
-            Process process = processLauncher.launch(command, workingDirectory, environment(arguments));
-            processReference.set(process);
-            InputStream stdoutStream = process.getInputStream();
-            InputStream stderrStream = process.getErrorStream();
-            stdinStream = process.getOutputStream();
-            CompletableFuture<String> stdout = readAsync(stdoutStream, effectiveConsumer);
-            CompletableFuture<String> stderr = readAsync(stderrStream, effectiveConsumer);
-            stdinStream.write(stdin.getBytes(StandardCharsets.UTF_8));
-            // Every local CLI is launched with plain text input (no CLI here supports a stream-json
-            // *input* protocol yet), so each one reads its prompt from stdin until EOF before doing
-            // anything at all. Closing stdin immediately is therefore required for every command, not
-            // just an optimization: holding it open past this point guarantees a hang until the
-            // timeout below fires, no matter what the prompt says.
-            stdinStream.close();
+        return run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
+                requireCommandAvailable, null, LocalAgentApprovalBridge::start);
+    }
 
-            if (cancellationRequested.get()) {
-                throw new CancellationException("Operation cancelled");
+    private static ShaftMcpToolResult run(
+            JsonObject arguments,
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher) {
+        Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
+        LocalAgentApprovalBridge bridge = null;
+        if (needsInteractiveApproval(arguments, approvalHandler)) {
+            try {
+                // The bridge's own decision timeout is deliberately a little longer than the process
+                // timeout below: if the user never answers, the process timeout fires first and this
+                // run fails on its own; the bridge timeout is a defensive backstop for the case where
+                // close() somehow isn't reached promptly, not the primary mechanism.
+                bridge = bridgeLauncher.launch(approvalHandler, timeout.plusSeconds(5));
+            } catch (IOException exception) {
+                if (outputConsumer != null) {
+                    outputConsumer.accept("Interactive approval is unavailable (" + exception.getMessage()
+                            + "); running in propose-only plan mode.");
+                }
             }
-            if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-                process.destroyForcibly();
-                return ShaftMcpToolResult.failure(agentOutput(false, stdoutNow(stdout), stderrNow(stderr),
-                        "Timed out after " + timeout.toSeconds() + " seconds."));
+        }
+        try {
+            List<String> command = commandFor(arguments, bridge);
+            if (command.isEmpty()) {
+                return ShaftMcpToolResult.failure("No local assistant command was configured.");
             }
-            if (cancellationRequested.get()) {
-                closeQuietly(stdoutStream);
-                closeQuietly(stderrStream);
-                stdoutNow(stdout);
-                stderrNow(stderr);
-                throw new CancellationException("Operation cancelled");
+            if (!defaultCommand(arguments)
+                    && "AGENT".equals(normalize(string(arguments, "mode", "ASK")))
+                    && !allowSourceMutation(arguments)) {
+                return ShaftMcpToolResult.failure(CUSTOM_AGENT_APPROVAL_WARNING);
             }
-            boolean success = process.exitValue() == 0;
-            String rawStdout = stdoutNow(stdout);
-            String rawStderr = stderrNow(stderr);
-            String output = success && streamParser != null && streamParser.hasTerminalEvent()
-                    ? streamParser.finalOutput()
-                    : agentOutput(success, rawStdout, rawStderr, "");
-            return success
-                    ? ShaftMcpToolResult.success(output)
-                    : ShaftMcpToolResult.failure(output);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            if (cancellationRequested.get()) {
-                throw new CancellationException("Operation cancelled");
+            if (requireCommandAvailable && defaultCommand(arguments) && !isCommandAvailable(command.get(0))) {
+                return ShaftMcpToolResult.failure(displayName(string(arguments, "client", "CODEX"))
+                        + " executable is not available on PATH.");
             }
-            return ShaftMcpToolResult.failure("Interrupted while running local assistant.");
-        } catch (IOException | RuntimeException exception) {
-            if (cancellationRequested.get()) {
-                throw new CancellationException("Operation cancelled");
+            String stdin = string(arguments, "prompt", "");
+            Path workingDirectory = workingDirectory(arguments);
+            boolean isDefaultCommand = defaultCommand(arguments);
+            StructuredStreamParser streamParser = isDefaultCommand ? structuredStreamParser(command) : null;
+            Consumer<String> effectiveConsumer =
+                    effectiveConsumer(outputConsumer, streamParser, isDefaultCommand);
+            OutputStream stdinStream = null;
+            try {
+                Process process = processLauncher.launch(command, workingDirectory, environment(arguments));
+                processReference.set(process);
+                InputStream stdoutStream = process.getInputStream();
+                InputStream stderrStream = process.getErrorStream();
+                stdinStream = process.getOutputStream();
+                CompletableFuture<String> stdout = readAsync(stdoutStream, effectiveConsumer);
+                CompletableFuture<String> stderr = readAsync(stderrStream, effectiveConsumer);
+                stdinStream.write(stdin.getBytes(StandardCharsets.UTF_8));
+                // Every local CLI is launched with plain text input (no CLI here supports a stream-json
+                // *input* protocol yet), so each one reads its prompt from stdin until EOF before doing
+                // anything at all. Closing stdin immediately is therefore required for every command, not
+                // just an optimization: holding it open past this point guarantees a hang until the
+                // timeout below fires, no matter what the prompt says. The approval bridge above is a
+                // separate side channel (its own HTTP port) that the CLI talks to independently of this
+                // stdin/stdout pipe, so it needs none of this.
+                stdinStream.close();
+
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+                    process.destroyForcibly();
+                    return ShaftMcpToolResult.failure(agentOutput(false, stdoutNow(stdout), stderrNow(stderr),
+                            "Timed out after " + timeout.toSeconds() + " seconds."));
+                }
+                if (cancellationRequested.get()) {
+                    closeQuietly(stdoutStream);
+                    closeQuietly(stderrStream);
+                    stdoutNow(stdout);
+                    stderrNow(stderr);
+                    throw new CancellationException("Operation cancelled");
+                }
+                boolean success = process.exitValue() == 0;
+                String rawStdout = stdoutNow(stdout);
+                String rawStderr = stderrNow(stderr);
+                String output = success && streamParser != null && streamParser.hasTerminalEvent()
+                        ? streamParser.finalOutput()
+                        : agentOutput(success, rawStdout, rawStderr, "");
+                return success
+                        ? ShaftMcpToolResult.success(output)
+                        : ShaftMcpToolResult.failure(output);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                return ShaftMcpToolResult.failure("Interrupted while running local assistant.");
+            } catch (IOException | RuntimeException exception) {
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                return ShaftMcpToolResult.failure(exception.getMessage());
+            } finally {
+                closeQuietly(stdinStream);
+                processReference.set(null);
             }
-            return ShaftMcpToolResult.failure(exception.getMessage());
         } finally {
-            closeQuietly(stdinStream);
-            processReference.set(null);
+            if (bridge != null) {
+                bridge.close();
+            }
         }
     }
 
@@ -351,6 +475,7 @@ final class AssistantLocalAgentRunner {
         enum Format { CLAUDE, CODEX }
 
         private final Format format;
+        private final Map<String, String> toolNamesByUseId = new HashMap<>();
         private String answer;
         private Integer inputTokens;
         private Integer outputTokens;
@@ -418,7 +543,15 @@ final class AssistantLocalAgentRunner {
                             lines.add("Thinking: (redacted by Claude for safety)");
                         } else if ("tool_use".equals(blockType)) {
                             String toolName = stringField(block, "name");
-                            lines.add("Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...");
+                            String toolUseId = stringField(block, "id");
+                            if (toolUseId != null && toolName != null) {
+                                toolNamesByUseId.put(toolUseId, toolName);
+                            }
+                            String label = toolName == null ? "(unknown)" : toolName;
+                            String summary = toolInputSummary(objectField(block, "input"));
+                            lines.add(summary == null
+                                    ? "Calling tool " + label + "..."
+                                    : "Calling tool " + label + " (" + summary + ")...");
                         } else if ("text".equals(blockType)) {
                             String text = stringField(block, "text");
                             if (text != null && !text.isBlank()) {
@@ -430,6 +563,9 @@ final class AssistantLocalAgentRunner {
                 }
                 return null;
             }
+            if ("user".equals(type)) {
+                return describeClaudeToolResults(event);
+            }
             if ("result".equals(type)) {
                 String resultText = stringField(event, "result");
                 answer = resultText == null ? "" : resultText;
@@ -439,6 +575,38 @@ final class AssistantLocalAgentRunner {
                 return null;
             }
             return null;
+        }
+
+        /**
+         * Describes a "user" event's {@code tool_result} blocks (Claude's stream-json protocol
+         * delivers a completed tool call's outcome as a synthetic user-role message, not as part of
+         * the assistant event that requested it) as one line per result, correlated back to the
+         * requesting call's tool name via {@link #toolNamesByUseId}. Without this, Verbose mode shows
+         * "Calling tool X..." and then nothing — the exact "generic thinking, not what it's actually
+         * doing" gap the Verbose toggle exists to close.
+         */
+        private String describeClaudeToolResults(JsonObject event) {
+            JsonObject message = objectField(event, "message");
+            JsonElement content = message == null ? null : message.get("content");
+            if (content == null || !content.isJsonArray()) {
+                return null;
+            }
+            List<String> lines = new ArrayList<>();
+            for (JsonElement blockElement : content.getAsJsonArray()) {
+                if (!blockElement.isJsonObject()) {
+                    continue;
+                }
+                JsonObject block = blockElement.getAsJsonObject();
+                if (!"tool_result".equals(stringField(block, "type"))) {
+                    continue;
+                }
+                String toolName = toolNamesByUseId.get(stringField(block, "tool_use_id"));
+                String label = toolName == null ? "tool" : toolName;
+                String text = toolResultText(block.get("content"));
+                String summary = text == null || text.isBlank() ? "(no output)" : truncate(firstLine(text.strip()), 160);
+                lines.add((booleanField(block, "is_error") ? "Tool failed (" : "Tool result (") + label + "): " + summary);
+            }
+            return lines.isEmpty() ? null : String.join("\n", lines);
         }
 
         private String describeCodexEvent(JsonObject event) {
@@ -452,7 +620,24 @@ final class AssistantLocalAgentRunner {
                 }
                 if ("tool_call".equals(itemType) || "command_execution".equals(itemType) || "mcp_tool_call".equals(itemType)) {
                     String toolName = firstNonBlank(stringField(item, "name"), stringField(item, "tool"), stringField(item, "command"));
-                    return "Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...";
+                    String label = toolName == null ? "(unknown)" : toolName;
+                    String summary = toolInputSummary(item);
+                    List<String> lines = new ArrayList<>();
+                    lines.add(summary == null || summary.equals(label)
+                            ? "Calling tool " + label + "..."
+                            : "Calling tool " + label + " (" + summary + ")...");
+                    if ("item.completed".equals(type)) {
+                        String output = firstNonBlank(
+                                stringField(item, "aggregated_output"), stringField(item, "output"), stringField(item, "result"));
+                        if (output != null && !output.isBlank()) {
+                            Integer exitCode = intField(item, "exit_code");
+                            String outputSummary = truncate(firstLine(output.strip()), 160);
+                            lines.add(exitCode != null && exitCode != 0
+                                    ? "Tool failed (" + label + ", exit " + exitCode + "): " + outputSummary
+                                    : "Tool result (" + label + "): " + outputSummary);
+                        }
+                    }
+                    return String.join("\n", lines);
                 }
                 if ("agent_message".equals(itemType)) {
                     String text = stringField(item, "text");
@@ -510,6 +695,70 @@ final class AssistantLocalAgentRunner {
         private static JsonObject objectField(JsonObject object, String key) {
             JsonElement value = object == null ? null : object.get(key);
             return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
+        }
+
+        private static boolean booleanField(JsonObject object, String key) {
+            JsonElement value = object == null ? null : object.get(key);
+            return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean()
+                    && value.getAsBoolean();
+        }
+
+        /**
+         * Picks the first present, non-blank value among the input keys most likely to tell the user
+         * what a tool call is actually doing (the command run, the file touched, the pattern searched
+         * for, ...), collapsed to a single line and truncated so a large payload never floods the
+         * transcript. Returns {@code null} when none of the known keys are present rather than
+         * guessing at unfamiliar tool schemas.
+         */
+        private static String toolInputSummary(JsonObject input) {
+            if (input == null) {
+                return null;
+            }
+            for (String key : List.of(
+                    "command", "file_path", "path", "pattern", "url", "query", "description", "prompt")) {
+                String value = stringField(input, key);
+                if (value != null && !value.isBlank()) {
+                    return truncate(value.strip().replaceAll("\\s+", " "), 80);
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Extracts the human-readable text of a {@code tool_result} block's {@code content}, which per
+         * Claude's stream-json protocol is either a plain string or an array of content blocks (text
+         * blocks are joined; non-text blocks such as images are skipped since they have nothing to
+         * show in a text transcript).
+         */
+        private static String toolResultText(JsonElement content) {
+            if (content == null || content.isJsonNull()) {
+                return null;
+            }
+            if (content.isJsonPrimitive() && content.getAsJsonPrimitive().isString()) {
+                return content.getAsString();
+            }
+            if (content.isJsonArray()) {
+                List<String> parts = new ArrayList<>();
+                for (JsonElement element : content.getAsJsonArray()) {
+                    if (element.isJsonObject()) {
+                        String text = stringField(element.getAsJsonObject(), "text");
+                        if (text != null && !text.isBlank()) {
+                            parts.add(text);
+                        }
+                    }
+                }
+                return parts.isEmpty() ? null : String.join("\n", parts);
+            }
+            return null;
+        }
+
+        private static String firstLine(String text) {
+            int newlineIndex = text.indexOf('\n');
+            return newlineIndex < 0 ? text : text.substring(0, newlineIndex);
+        }
+
+        private static String truncate(String value, int maxLength) {
+            return value.length() > maxLength ? value.substring(0, maxLength) + "..." : value;
         }
     }
 
@@ -574,19 +823,40 @@ final class AssistantLocalAgentRunner {
      * flags together to receive incremental NDJSON events instead of a single buffered blob. The
      * AGENT-mode permission mode is the Claude equivalent of an auto-approve flag: {@code
      * acceptEdits} is only selected when {@link AgentApprovalCapability#isAutoApproveGranted(boolean)}
-     * grants it, otherwise AGENT mode falls back to {@code plan} exactly as before.
+     * grants it. When it does not, an ungranted AGENT run wires up {@code bridge} (when the caller
+     * supplied one -- see {@link #needsInteractiveApproval}) so the CLI can ask SHAFT for a real,
+     * interactive per-tool decision via {@code --permission-prompt-tool} instead of falling all the
+     * way back to {@code plan} (propose-only, no real actions), which remains the fallback when no
+     * bridge is available. Validated empirically against the real {@code claude} CLI: no {@code
+     * --input-format stream-json} or held-open stdin is needed for this -- the bridge is a separate
+     * HTTP side channel the CLI talks to independently of the stdout stream already being read for
+     * display, and the CLI's own built-in safety classifier still auto-allows obviously-safe tool
+     * calls without ever reaching the bridge, matching what an interactive user would see.
      */
-    private static List<String> claudeCommand(String mode, boolean allowSourceMutation, String model) {
+    private static List<String> claudeCommand(
+            String mode, boolean allowSourceMutation, String model, LocalAgentApprovalBridge bridge) {
         List<String> command = new ArrayList<>(List.of("claude", "--print"));
         if (!model.isBlank()) {
             command.add("--model");
             command.add(model);
         }
         if ("PLAN".equals(mode) || "AGENT".equals(mode)) {
-            command.add("--permission-mode");
-            command.add("AGENT".equals(mode)
-                    && AgentApprovalCapability.CLAUDE_CODE.isAutoApproveGranted(allowSourceMutation)
-                    ? "acceptEdits" : "plan");
+            boolean granted = "AGENT".equals(mode)
+                    && AgentApprovalCapability.CLAUDE_CODE.isAutoApproveGranted(allowSourceMutation);
+            if (granted) {
+                command.add("--permission-mode");
+                command.add("acceptEdits");
+            } else if ("AGENT".equals(mode) && bridge != null) {
+                command.add("--permission-mode");
+                command.add("default");
+                command.add("--mcp-config");
+                command.add(bridge.mcpConfigArgument());
+                command.add("--permission-prompt-tool");
+                command.add(bridge.permissionPromptToolName());
+            } else {
+                command.add("--permission-mode");
+                command.add("plan");
+            }
         }
         command.add("--output-format");
         command.add("stream-json");

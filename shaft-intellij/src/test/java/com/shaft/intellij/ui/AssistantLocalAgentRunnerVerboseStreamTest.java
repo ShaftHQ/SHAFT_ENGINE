@@ -81,6 +81,116 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
         assertTrue(lines.stream().anyMatch(line -> line.contains("Calling tool shell")), lines.toString());
     }
 
+    @Test
+    void claudeToolUseLinesIncludeASalientInputSummary() throws Exception {
+        String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"Bash\",\"input\":{\"command\":\"echo hi\"}}]}}";
+
+        List<String> lines = run(claudeInvocation(), toolUseEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Calling tool Bash (echo hi)..."), lines.toString());
+    }
+
+    @Test
+    void claudeToolUseWithNoKnownInputFieldFallsBackToTheBareCallLine() throws Exception {
+        String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"CustomTool\",\"input\":{\"count\":3}}]}}";
+
+        List<String> lines = run(claudeInvocation(), toolUseEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Calling tool CustomTool..."), lines.toString());
+    }
+
+    @Test
+    void claudeToolResultsSurfaceACorrelatedShortResultLine() throws Exception {
+        String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"Bash\",\"input\":{\"command\":\"echo hi\"}}]}}";
+        String toolResultEvent = "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\","
+                + "\"tool_use_id\":\"tool-1\",\"content\":\"hi\",\"is_error\":false}]}}";
+
+        List<String> lines = run(claudeInvocation(),
+                toolUseEvent + "\n" + toolResultEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Tool result (Bash): hi"),
+                "Expected a correlated tool-result line, not silence after the call: " + lines);
+    }
+
+    @Test
+    void claudeFailedToolResultsAreLabelledToolFailed() throws Exception {
+        String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"Bash\",\"input\":{\"command\":\"exit 1\"}}]}}";
+        String toolResultEvent = "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\","
+                + "\"tool_use_id\":\"tool-1\",\"content\":\"command failed\",\"is_error\":true}]}}";
+
+        List<String> lines = run(claudeInvocation(),
+                toolUseEvent + "\n" + toolResultEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Tool failed (Bash): command failed"), lines.toString());
+    }
+
+    @Test
+    void claudeToolResultsTruncateToTheFirstLine() throws Exception {
+        String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}";
+        String toolResultEvent = "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\","
+                + "\"tool_use_id\":\"tool-1\",\"content\":\"first line\\nsecond line\",\"is_error\":false}]}}";
+
+        List<String> lines = run(claudeInvocation(),
+                toolUseEvent + "\n" + toolResultEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Tool result (Bash): first line"), lines.toString());
+        assertTrue(lines.stream().noneMatch(line -> line.contains("second line")), lines.toString());
+    }
+
+    @Test
+    void claudeToolResultArrayContentIsFlattenedToText() throws Exception {
+        String toolUseEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"Read\",\"input\":{\"file_path\":\"a.txt\"}}]}}";
+        String toolResultEvent = "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\","
+                + "\"tool_use_id\":\"tool-1\",\"content\":[{\"type\":\"text\",\"text\":\"file contents\"}],"
+                + "\"is_error\":false}]}}";
+
+        List<String> lines = run(claudeInvocation(),
+                toolUseEvent + "\n" + toolResultEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Tool result (Read): file contents"), lines.toString());
+    }
+
+    @Test
+    void claudeToolResultWithUnknownIdUsesUncorrelatedLabel() throws Exception {
+        String toolResultEvent = "{\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\","
+                + "\"tool_use_id\":\"unseen-id\",\"content\":\"ok\",\"is_error\":false}]}}";
+
+        List<String> lines = run(claudeInvocation(), toolResultEvent + "\n" + claudeResultEvent("done") + "\n");
+
+        assertTrue(lines.contains("Tool result (tool): ok"), lines.toString());
+    }
+
+    @Test
+    void codexCompletedCommandExecutionShowsCommandAndOutputSummary() throws Exception {
+        String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\","
+                + "\"name\":\"shell\",\"command\":\"echo hi\",\"aggregated_output\":\"hi\",\"exit_code\":0}}";
+
+        List<String> lines = run(codexInvocation(), toolEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains("Calling tool shell (echo hi)...\nTool result (shell): hi"), lines.toString());
+    }
+
+    @Test
+    void codexCompletedCommandExecutionWithNonZeroExitIsLabelledToolFailed() throws Exception {
+        String toolEvent = "{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\","
+                + "\"name\":\"shell\",\"command\":\"exit 1\",\"aggregated_output\":\"boom\",\"exit_code\":1}}";
+
+        List<String> lines = run(codexInvocation(), toolEvent + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains("Calling tool shell (exit 1)...\nTool failed (shell, exit 1): boom"), lines.toString());
+    }
+
+    private static String codexTurnCompletedEvent() {
+        return "{\"type\":\"turn.completed\",\"last_agent_message\":\"ok\","
+                + "\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}";
+    }
+
     private static String claudeAssistantTextEvent(String text) {
         return "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"" + text + "\"}]}}";
     }
