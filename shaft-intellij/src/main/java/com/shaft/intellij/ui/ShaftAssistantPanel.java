@@ -152,6 +152,7 @@ final class ShaftAssistantPanel extends JPanel {
     private int activeLocalAgentStreamToken = -1;
     private int killedLocalAgentStreamToken = -1;
     private StringBuilder localAgentOutput;
+    private boolean localAgentBubbleRendersContent;
     private final List<ToolEvidence> toolEvidence = new ArrayList<>();
     private String activeCaptureRecordingPath = AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH;
     private String activePlaywrightRecordingPath = AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH;
@@ -1396,12 +1397,19 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
+    /**
+     * Always appends the streaming placeholder bubble, regardless of the Verbose toggle's state at
+     * this moment: a placeholder must exist so {@link #appendLocalAgentOutput} and {@link
+     * #finishLocalAgentResponse} always have exactly one bubble to update/replace, no matter how the
+     * user flips Verbose mid-run. Non-verbose runs show this bare header as a brief "running"
+     * placeholder instead of the prior total silence until completion -- a deliberate, minor UX
+     * change that is what makes the toggle safe in both directions (see finishLocalAgentResponse).
+     */
     private void appendStreamingLocalAgentBubble(int streamToken) {
         activeLocalAgentStreamToken = streamToken;
         localAgentOutput = new StringBuilder();
-        if (verboseLocalAgentOutput()) {
-            append("assistant", LOCAL_AGENT_STREAMING_HEADER, "");
-        }
+        localAgentBubbleRendersContent = false;
+        append("assistant", LOCAL_AGENT_STREAMING_HEADER, "");
     }
 
     private void appendLocalAgentOutput(int streamToken, String line) {
@@ -1413,20 +1421,24 @@ final class ShaftAssistantPanel extends JPanel {
         }
         localAgentOutput.append(line == null ? "" : line);
         if (verboseLocalAgentOutput()) {
+            localAgentBubbleRendersContent = true;
             replaceLastTranscriptAndChatState("assistant", formatLocalAgentStreamingResponse(localAgentOutput.toString()));
         }
     }
 
+    /**
+     * Replaces the streaming placeholder bubble appended by {@link #appendStreamingLocalAgentBubble}
+     * with the final answer. Always a replace, never a fresh {@link #append}: the placeholder is now
+     * unconditionally present (see that method), so an unconditional replace here is what keeps a
+     * mid-run Verbose toggle from leaving a stale placeholder behind or clobbering the wrong message --
+     * both real bugs when this branched on the live checkbox instead.
+     */
     private void finishLocalAgentResponse(int streamToken, String response, String rawResponse) {
         if (streamToken != activeLocalAgentStreamToken && activeLocalAgentStreamToken != -1) {
             return;
         }
         String displayResponse = withTokenUsage(response, rawResponse);
-        if (verboseLocalAgentOutput()) {
-            replaceLastTranscriptAndChatState("assistant", displayResponse);
-        } else {
-            append("assistant", displayResponse, rawResponse);
-        }
+        replaceLastTranscriptAndChatState("assistant", displayResponse);
         lastResponse = displayResponse;
         lastRawResponse = rawResponse == null ? "" : rawResponse;
         copyLastResponse.setEnabled(true);
@@ -1441,6 +1453,13 @@ final class ShaftAssistantPanel extends JPanel {
     private void stopLocalAgentStreaming() {
         if (activeLocalAgentStreamToken > 0) {
             killedLocalAgentStreamToken = activeLocalAgentStreamToken;
+            // A killed run never reaches finishLocalAgentResponse, so if the bubble never rendered any
+            // live content (Verbose was off, or no output arrived before the kill), it would otherwise
+            // be left showing the bare "Running local assistant..." header forever. Content that WAS
+            // rendered is left frozen as-is -- it's real output the user already saw.
+            if (!localAgentBubbleRendersContent) {
+                replaceLastTranscriptAndChatState("assistant", "_Cancelled._");
+            }
         }
         activeLocalAgentStreamToken = -1;
         localAgentOutput = null;

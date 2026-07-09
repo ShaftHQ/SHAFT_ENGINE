@@ -1680,6 +1680,82 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void assistantVerboseToggleOnMidStreamDoesNotClobberTheUserPromptBubble() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        panel.simulateAppendForTest("user", "the user's own prompt", "");
+
+        appendStreamingLocalAgentBubble(panel, 201);
+        appendLocalAgentOutput(panel, 201, "output while verbose was still off");
+        verbose.setSelected(true);
+        appendLocalAgentOutput(panel, 201, "output after verbose flipped on");
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("the user's own prompt"),
+                        "Flipping Verbose on mid-run must not clobber the user's prompt bubble: " + markdown),
+                () -> assertTrue(markdown.contains("output after verbose flipped on"), markdown));
+    }
+
+    @Test
+    void assistantVerboseToggleOffMidStreamLeavesNoStaleStreamingBubble() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
+        verbose.setSelected(true);
+
+        appendStreamingLocalAgentBubble(panel, 202);
+        appendLocalAgentOutput(panel, 202, "streamed while verbose was on");
+        verbose.setSelected(false);
+        showAgentResult(panel, 202, ShaftMcpToolResult.success("final answer"));
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("final answer"), markdown),
+                () -> assertFalse(markdown.contains("streamed while verbose was on"),
+                        "No stale mid-stream content should survive the final replace: " + markdown),
+                () -> assertFalse(markdown.contains("Running local assistant"), markdown));
+    }
+
+    @Test
+    void assistantNonVerboseRunShowsPlaceholderWhileRunningThenReplacesIt() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        appendStreamingLocalAgentBubble(panel, 203);
+        assertTrue(transcriptMarkdown(panel).contains("Running local assistant"),
+                "A running placeholder should appear even with Verbose off: " + transcriptMarkdown(panel));
+
+        showAgentResult(panel, 203, ShaftMcpToolResult.success("done"));
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(markdown.contains("done"), markdown),
+                () -> assertFalse(markdown.contains("Running local assistant"), markdown));
+    }
+
+    @Test
+    void assistantKilledNonVerboseRunReplacesBarePlaceholderWithCancelled() throws Exception {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        AtomicBoolean killed = new AtomicBoolean();
+        ShaftMcpInvocation invocation = new ShaftMcpInvocation(
+                new CompletableFuture<>(),
+                () -> {
+                },
+                () -> killed.set(true));
+        setField(panel, "currentInvocation", invocation);
+        panel.setRunning(true, "Thinking...");
+        appendStreamingLocalAgentBubble(panel, 204);
+
+        cancelOrKillCurrent(panel);
+        cancelOrKillCurrent(panel);
+
+        String markdown = transcriptMarkdown(panel);
+        assertAll(
+                () -> assertTrue(killed.get()),
+                () -> assertTrue(markdown.contains("Cancelled"),
+                        "A killed non-verbose run must not leave the bare placeholder stuck forever: " + markdown),
+                () -> assertFalse(markdown.contains("Running local assistant"), markdown));
+    }
+
+    @Test
     void assistantDoesNotPersistRawResponsePayloads() throws Exception {
         ShaftAssistantChatState chatState = new ShaftAssistantChatState();
 

@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -351,6 +352,7 @@ final class AssistantLocalAgentRunner {
         enum Format { CLAUDE, CODEX }
 
         private final Format format;
+        private final Map<String, String> toolNamesByUseId = new HashMap<>();
         private String answer;
         private Integer inputTokens;
         private Integer outputTokens;
@@ -418,7 +420,15 @@ final class AssistantLocalAgentRunner {
                             lines.add("Thinking: (redacted by Claude for safety)");
                         } else if ("tool_use".equals(blockType)) {
                             String toolName = stringField(block, "name");
-                            lines.add("Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...");
+                            String toolUseId = stringField(block, "id");
+                            if (toolUseId != null && toolName != null) {
+                                toolNamesByUseId.put(toolUseId, toolName);
+                            }
+                            String label = toolName == null ? "(unknown)" : toolName;
+                            String summary = toolInputSummary(objectField(block, "input"));
+                            lines.add(summary == null
+                                    ? "Calling tool " + label + "..."
+                                    : "Calling tool " + label + " (" + summary + ")...");
                         } else if ("text".equals(blockType)) {
                             String text = stringField(block, "text");
                             if (text != null && !text.isBlank()) {
@@ -430,6 +440,9 @@ final class AssistantLocalAgentRunner {
                 }
                 return null;
             }
+            if ("user".equals(type)) {
+                return describeClaudeToolResults(event);
+            }
             if ("result".equals(type)) {
                 String resultText = stringField(event, "result");
                 answer = resultText == null ? "" : resultText;
@@ -439,6 +452,38 @@ final class AssistantLocalAgentRunner {
                 return null;
             }
             return null;
+        }
+
+        /**
+         * Describes a "user" event's {@code tool_result} blocks (Claude's stream-json protocol
+         * delivers a completed tool call's outcome as a synthetic user-role message, not as part of
+         * the assistant event that requested it) as one line per result, correlated back to the
+         * requesting call's tool name via {@link #toolNamesByUseId}. Without this, Verbose mode shows
+         * "Calling tool X..." and then nothing — the exact "generic thinking, not what it's actually
+         * doing" gap the Verbose toggle exists to close.
+         */
+        private String describeClaudeToolResults(JsonObject event) {
+            JsonObject message = objectField(event, "message");
+            JsonElement content = message == null ? null : message.get("content");
+            if (content == null || !content.isJsonArray()) {
+                return null;
+            }
+            List<String> lines = new ArrayList<>();
+            for (JsonElement blockElement : content.getAsJsonArray()) {
+                if (!blockElement.isJsonObject()) {
+                    continue;
+                }
+                JsonObject block = blockElement.getAsJsonObject();
+                if (!"tool_result".equals(stringField(block, "type"))) {
+                    continue;
+                }
+                String toolName = toolNamesByUseId.get(stringField(block, "tool_use_id"));
+                String label = toolName == null ? "tool" : toolName;
+                String text = toolResultText(block.get("content"));
+                String summary = text == null || text.isBlank() ? "(no output)" : truncate(firstLine(text.strip()), 160);
+                lines.add((booleanField(block, "is_error") ? "Tool failed (" : "Tool result (") + label + "): " + summary);
+            }
+            return lines.isEmpty() ? null : String.join("\n", lines);
         }
 
         private String describeCodexEvent(JsonObject event) {
@@ -452,7 +497,24 @@ final class AssistantLocalAgentRunner {
                 }
                 if ("tool_call".equals(itemType) || "command_execution".equals(itemType) || "mcp_tool_call".equals(itemType)) {
                     String toolName = firstNonBlank(stringField(item, "name"), stringField(item, "tool"), stringField(item, "command"));
-                    return "Calling tool " + (toolName == null ? "(unknown)" : toolName) + "...";
+                    String label = toolName == null ? "(unknown)" : toolName;
+                    String summary = toolInputSummary(item);
+                    List<String> lines = new ArrayList<>();
+                    lines.add(summary == null || summary.equals(label)
+                            ? "Calling tool " + label + "..."
+                            : "Calling tool " + label + " (" + summary + ")...");
+                    if ("item.completed".equals(type)) {
+                        String output = firstNonBlank(
+                                stringField(item, "aggregated_output"), stringField(item, "output"), stringField(item, "result"));
+                        if (output != null && !output.isBlank()) {
+                            Integer exitCode = intField(item, "exit_code");
+                            String outputSummary = truncate(firstLine(output.strip()), 160);
+                            lines.add(exitCode != null && exitCode != 0
+                                    ? "Tool failed (" + label + ", exit " + exitCode + "): " + outputSummary
+                                    : "Tool result (" + label + "): " + outputSummary);
+                        }
+                    }
+                    return String.join("\n", lines);
                 }
                 if ("agent_message".equals(itemType)) {
                     String text = stringField(item, "text");
@@ -510,6 +572,70 @@ final class AssistantLocalAgentRunner {
         private static JsonObject objectField(JsonObject object, String key) {
             JsonElement value = object == null ? null : object.get(key);
             return value != null && value.isJsonObject() ? value.getAsJsonObject() : null;
+        }
+
+        private static boolean booleanField(JsonObject object, String key) {
+            JsonElement value = object == null ? null : object.get(key);
+            return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean()
+                    && value.getAsBoolean();
+        }
+
+        /**
+         * Picks the first present, non-blank value among the input keys most likely to tell the user
+         * what a tool call is actually doing (the command run, the file touched, the pattern searched
+         * for, ...), collapsed to a single line and truncated so a large payload never floods the
+         * transcript. Returns {@code null} when none of the known keys are present rather than
+         * guessing at unfamiliar tool schemas.
+         */
+        private static String toolInputSummary(JsonObject input) {
+            if (input == null) {
+                return null;
+            }
+            for (String key : List.of(
+                    "command", "file_path", "path", "pattern", "url", "query", "description", "prompt")) {
+                String value = stringField(input, key);
+                if (value != null && !value.isBlank()) {
+                    return truncate(value.strip().replaceAll("\\s+", " "), 80);
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Extracts the human-readable text of a {@code tool_result} block's {@code content}, which per
+         * Claude's stream-json protocol is either a plain string or an array of content blocks (text
+         * blocks are joined; non-text blocks such as images are skipped since they have nothing to
+         * show in a text transcript).
+         */
+        private static String toolResultText(JsonElement content) {
+            if (content == null || content.isJsonNull()) {
+                return null;
+            }
+            if (content.isJsonPrimitive() && content.getAsJsonPrimitive().isString()) {
+                return content.getAsString();
+            }
+            if (content.isJsonArray()) {
+                List<String> parts = new ArrayList<>();
+                for (JsonElement element : content.getAsJsonArray()) {
+                    if (element.isJsonObject()) {
+                        String text = stringField(element.getAsJsonObject(), "text");
+                        if (text != null && !text.isBlank()) {
+                            parts.add(text);
+                        }
+                    }
+                }
+                return parts.isEmpty() ? null : String.join("\n", parts);
+            }
+            return null;
+        }
+
+        private static String firstLine(String text) {
+            int newlineIndex = text.indexOf('\n');
+            return newlineIndex < 0 ? text : text.substring(0, newlineIndex);
+        }
+
+        private static String truncate(String value, int maxLength) {
+            return value.length() > maxLength ? value.substring(0, maxLength) + "..." : value;
         }
     }
 
