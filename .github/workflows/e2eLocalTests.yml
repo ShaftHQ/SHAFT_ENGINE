@@ -183,6 +183,23 @@ jobs:
           npm install -g appium@3.5.2
           appium driver install windows
           appium driver run windows install-wad
+      - name: Verify WinAppDriver installation
+        shell: powershell
+        run: |
+          # install-wad launches the WinAppDriver MSI via an unawaited elevated
+          # Start-Process and returns immediately, so the binary may not exist yet.
+          $winAppDriverPath = Join-Path ${env:ProgramFiles(x86)} 'Windows Application Driver\WinAppDriver.exe'
+          $installed = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            if (Test-Path $winAppDriverPath) {
+              $installed = $true
+              break
+            }
+            Start-Sleep -Seconds 1
+          }
+          if (-not $installed) {
+            throw "WinAppDriver did not finish installing at $winAppDriverPath after 60s."
+          }
       - name: Start Appium server
         shell: powershell
         run: |
@@ -209,7 +226,9 @@ jobs:
       - name: Stop Appium server
         if: always()
         shell: powershell
-        run: Get-Job -Name shaft-appium -ErrorAction SilentlyContinue | Stop-Job
+        run: |
+          Receive-Job -Name shaft-appium -ErrorAction SilentlyContinue
+          Get-Job -Name shaft-appium -ErrorAction SilentlyContinue | Stop-Job
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
