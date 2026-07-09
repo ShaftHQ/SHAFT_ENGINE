@@ -74,6 +74,8 @@ def run_installer(
     attempts: int = INSTALLER_RETRY_ATTEMPTS,
     retry_delay_seconds: float = INSTALLER_RETRY_DELAY_SECONDS,
 ) -> subprocess.CompletedProcess[str]:
+    if attempts < 1:
+        raise ValueError(f"attempts must be at least 1, got {attempts}")
     # The public installer resolves shaft-mcp's default properties from
     # raw.githubusercontent.com over anonymous HTTP; GitHub's rate limiting can
     # transiently return 429 for that request, so retry a few times before
