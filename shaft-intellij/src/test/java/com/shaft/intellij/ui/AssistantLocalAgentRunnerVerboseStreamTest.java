@@ -231,6 +231,53 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
                 "Buffered CLIs must share their output as-is instead of swallowing it: " + lines);
     }
 
+    /**
+     * Regression tests for the "useless Done bubble" report: the final answer must always carry a
+     * factual activity footer when the run wrote files or lost tool calls to permission denials,
+     * even with Verbose off (the footer lives in the final output, not the live stream).
+     */
+    @Test
+    void finalOutputListsFilesWrittenByTheCliEvenWhenTheAnswerIsTerse() throws Exception {
+        String writeEvent = "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\","
+                + "\"id\":\"tool-1\",\"name\":\"Write\",\"input\":{\"file_path\":\"src/test/java/pages/LoginPage.java\"}}]}}";
+
+        String output = finalOutput(claudeInvocation(), writeEvent + "\n" + claudeResultEvent("Done") + "\n");
+
+        assertTrue(output.contains("Files created or edited: `src/test/java/pages/LoginPage.java`"), output);
+    }
+
+    @Test
+    void finalOutputSurfacesPermissionDenialsWithPerToolCounts() throws Exception {
+        String resultWithDenials = "{\"type\":\"result\",\"result\":\"Done\","
+                + "\"usage\":{\"input_tokens\":1,\"output_tokens\":1},"
+                + "\"permission_denials\":["
+                + "{\"tool_name\":\"Bash\"},{\"tool_name\":\"Bash\"},"
+                + "{\"tool_name\":\"mcp__shaft-mcp__shaft_coding_partner_plan\"}]}";
+
+        String output = finalOutput(claudeInvocation(), resultWithDenials + "\n");
+
+        assertTrue(output.contains("No files were created or edited by this run."), output);
+        assertTrue(output.contains("Denied tool calls: Bash ×2, mcp__shaft-mcp__shaft_coding_partner_plan"), output);
+    }
+
+    @Test
+    void finalOutputStaysCleanWhenNothingWasWrittenAndNothingWasDenied() throws Exception {
+        String output = finalOutput(claudeInvocation(),
+                claudeAssistantTextEvent("plain answer") + "\n" + claudeResultEvent("plain answer") + "\n");
+
+        assertTrue(!output.contains("Local agent activity"),
+                "A plain Q&A run must not grow an activity footer: " + output);
+    }
+
+    private static String finalOutput(AssistantCommand.Invocation invocation, String stdout) throws Exception {
+        StubProcess process = new StubProcess(stdout);
+        ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
+                invocation, line -> { }, (command, workingDirectory, environment) -> process, false);
+        ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
+        assertTrue(result.success(), "Expected the stub run to succeed: " + result.output());
+        return result.output();
+    }
+
     private static AssistantCommand.Invocation copilotInvocation() {
         return AssistantCommand.fromPrompt("Explain this failure", "COPILOT_CLI", "ASK", ".", "", false);
     }

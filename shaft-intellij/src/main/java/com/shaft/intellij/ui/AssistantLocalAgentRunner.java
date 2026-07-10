@@ -22,11 +22,13 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -367,12 +369,14 @@ final class AssistantLocalAgentRunner {
 
     /**
      * Returns whether an interactive mid-run approval bridge should be launched for this invocation:
-     * only default (non-custom) Claude Code AGENT-mode runs that have NOT been granted blanket
-     * auto-approve (the "Allow source edits" checkbox) and whose caller supplied a real {@code
-     * approvalHandler}. Every other combination (a {@code null} handler, PLAN/ASK mode, a different
-     * client, a custom command, or a granted AGENT run) is byte-identical to pre-#3409 behavior:
-     * granted AGENT runs keep {@code acceptEdits}, everything else that would have used {@code plan}
-     * still does when no handler is available (headless/tests/legacy call sites).
+     * every default (non-custom) Claude Code AGENT-mode run whose caller supplied a real {@code
+     * approvalHandler}. Granted runs ("Allow source edits" checked) need the bridge too: {@code
+     * --permission-mode acceptEdits} only auto-approves file edits, so without a bridge every Bash
+     * and MCP tool call is auto-DENIED in {@code --print} mode — reproduced live as 16 denials in a
+     * single capture-integration run that burned ~28 turns retrying declined tools before answering
+     * with a terse no-op. Other combinations (a {@code null} handler, PLAN/ASK mode, a different
+     * client, a custom command) are unchanged: {@code plan} remains the fallback when no bridge is
+     * available (headless/tests/legacy call sites).
      */
     private static boolean needsInteractiveApproval(
             JsonObject arguments, LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler) {
@@ -382,10 +386,7 @@ final class AssistantLocalAgentRunner {
         if (!"CLAUDE_CODE".equals(normalize(string(arguments, "client", "CODEX")))) {
             return false;
         }
-        if (!"AGENT".equals(normalize(string(arguments, "mode", "ASK")))) {
-            return false;
-        }
-        return !AgentApprovalCapability.CLAUDE_CODE.isAutoApproveGranted(allowSourceMutation(arguments));
+        return "AGENT".equals(normalize(string(arguments, "mode", "ASK")));
     }
 
     private static ShaftMcpToolResult run(
@@ -429,7 +430,11 @@ final class AssistantLocalAgentRunner {
             } catch (IOException exception) {
                 if (outputConsumer != null) {
                     outputConsumer.accept("Interactive approval is unavailable (" + exception.getMessage()
-                            + "); running in propose-only plan mode.");
+                            + "); "
+                            + (AgentApprovalCapability.forClient(string(arguments, "client", "CODEX"))
+                            .isAutoApproveGranted(allowSourceMutation(arguments))
+                            ? "file edits stay auto-approved, but other tool calls will be denied."
+                            : "running in propose-only plan mode."));
                 }
             }
         }
@@ -598,6 +603,8 @@ final class AssistantLocalAgentRunner {
 
         private final Format format;
         private final Map<String, String> toolNamesByUseId = new HashMap<>();
+        private final LinkedHashSet<String> filesTouched = new LinkedHashSet<>();
+        private final Map<String, Integer> permissionDenialsByTool = new LinkedHashMap<>();
         private String answer;
         private Integer inputTokens;
         private Integer outputTokens;
@@ -639,7 +646,46 @@ final class AssistantLocalAgentRunner {
             usage.addProperty("output_tokens", orZero(outputTokens));
             JsonObject usageHolder = new JsonObject();
             usageHolder.add("usage", usage);
-            return answer.strip() + "\n\n" + usageHolder;
+            StringBuilder output = new StringBuilder(answer.strip());
+            String activity = activitySummary();
+            if (!activity.isBlank()) {
+                output.append("\n\n").append(activity);
+            }
+            return output + "\n\n" + usageHolder;
+        }
+
+        /**
+         * Compact factual footer for the final transcript bubble: which files the CLI actually
+         * created or edited, and which tool calls were denied. This renders even with Verbose off,
+         * so a run that silently lost most of its tool calls to permission denials can never end as
+         * an unexplained bare confirmation with no visible trace of what happened.
+         */
+        private String activitySummary() {
+            if (filesTouched.isEmpty() && permissionDenialsByTool.isEmpty()) {
+                return "";
+            }
+            List<String> lines = new ArrayList<>();
+            lines.add("---");
+            lines.add("**Local agent activity**");
+            if (filesTouched.isEmpty()) {
+                lines.add("- No files were created or edited by this run.");
+            } else {
+                lines.add("- Files created or edited: "
+                        + filesTouched.stream().map(path -> "`" + path + "`")
+                        .collect(Collectors.joining(", ")));
+            }
+            if (!permissionDenialsByTool.isEmpty()) {
+                lines.add("- Denied tool calls: "
+                        + permissionDenialsByTool.entrySet().stream()
+                        .map(entry -> entry.getKey() + (entry.getValue() > 1 ? " ×" + entry.getValue() : ""))
+                        .collect(Collectors.joining(", "))
+                        + " — approve them when prompted, or re-run after adjusting permissions.");
+            }
+            return String.join("\n", lines);
+        }
+
+        synchronized boolean touchedFiles() {
+            return !filesTouched.isEmpty();
         }
 
         /**
@@ -674,6 +720,7 @@ final class AssistantLocalAgentRunner {
                             if (toolUseId != null && toolName != null) {
                                 toolNamesByUseId.put(toolUseId, toolName);
                             }
+                            recordFileMutation(toolName, objectField(block, "input"));
                             String label = toolName == null ? "(unknown)" : toolName;
                             String summary = toolInputSummary(objectField(block, "input"));
                             lines.add(summary == null
@@ -699,10 +746,48 @@ final class AssistantLocalAgentRunner {
                 JsonObject usage = objectField(event, "usage");
                 inputTokens = intField(usage, "input_tokens");
                 outputTokens = intField(usage, "output_tokens");
+                recordPermissionDenials(event.get("permission_denials"));
                 // Fully consumed: this event becomes the final answer, so it is mapped, not hidden.
                 return CONSUMED;
             }
             return null;
+        }
+
+        /**
+         * Remembers the target path of a file-mutating built-in tool call (Claude's Write/Edit
+         * family) so the final bubble can list what was actually created or edited.
+         */
+        private void recordFileMutation(String toolName, JsonObject input) {
+            if (toolName == null || input == null) {
+                return;
+            }
+            if (!"Write".equals(toolName) && !"Edit".equals(toolName)
+                    && !"MultiEdit".equals(toolName) && !"NotebookEdit".equals(toolName)) {
+                return;
+            }
+            String path = firstNonBlank(stringField(input, "file_path"), stringField(input, "path"));
+            if (path != null) {
+                filesTouched.add(path);
+            }
+        }
+
+        /**
+         * Aggregates the terminal event's {@code permission_denials} array (Claude stream-json)
+         * into per-tool counts for the activity footer.
+         */
+        private void recordPermissionDenials(JsonElement denials) {
+            if (denials == null || !denials.isJsonArray()) {
+                return;
+            }
+            for (JsonElement element : denials.getAsJsonArray()) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                String toolName = stringField(element.getAsJsonObject(), "tool_name");
+                if (toolName != null && !toolName.isBlank()) {
+                    permissionDenialsByTool.merge(toolName, 1, Integer::sum);
+                }
+            }
         }
 
         /**
@@ -973,8 +1058,17 @@ final class AssistantLocalAgentRunner {
             boolean granted = "AGENT".equals(mode)
                     && AgentApprovalCapability.CLAUDE_CODE.isAutoApproveGranted(allowSourceMutation);
             if (granted) {
+                // acceptEdits only auto-approves file edits; Bash and MCP tool calls are still
+                // permission-gated and would be auto-denied in --print mode, so granted runs keep
+                // the interactive bridge for everything beyond edits whenever one is available.
                 command.add("--permission-mode");
                 command.add("acceptEdits");
+                if (bridge != null) {
+                    command.add("--mcp-config");
+                    command.add(bridge.mcpConfigArgument());
+                    command.add("--permission-prompt-tool");
+                    command.add(bridge.permissionPromptToolName());
+                }
             } else if ("AGENT".equals(mode) && bridge != null) {
                 command.add("--permission-mode");
                 command.add("default");

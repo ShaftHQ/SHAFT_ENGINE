@@ -421,6 +421,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(recheckPrerequisites, ShaftIcons.CHECK);
         recheckPrerequisites.addActionListener(event -> refreshPrerequisites());
         JButton copyEngineWarmup = new JButton("Copy SHAFT Engine warm-up command");
+        // Resolve the latest engine release off-EDT now so the click below can pin a real version.
+        SetupPrerequisites.prefetchLatestEngineVersion();
         copyEngineWarmup.getAccessibleContext().setAccessibleName("Copy SHAFT Engine warm-up command");
         copyEngineWarmup.setToolTipText("Copy a Maven command that downloads SHAFT Engine and its dependencies "
                 + "into the local Maven repository so future projects reuse them without re-downloading");

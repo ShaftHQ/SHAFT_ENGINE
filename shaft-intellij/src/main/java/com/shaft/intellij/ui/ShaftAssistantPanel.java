@@ -111,7 +111,6 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton newChat;
     private final JComboBox<String> commandAutocomplete;
     private final JButton commandInfo;
-    private final JButton contextInfo;
     private final JComboBox<String> mode;
     private final JComboBox<String> providerType;
     private final JComboBox<String> assistantFamily;
@@ -184,6 +183,8 @@ final class ShaftAssistantPanel extends JPanel {
     private final Set<String> approvedToolsThisRun = new HashSet<>();
     private ToolApprovalService approvalServiceOverride;
     private JPopupMenu contextPopup;
+    private char contextPopupTrigger;
+    private int contextTriggerOffset = -1;
     private final ShaftMcpConnectionState connectionState;
     private ShaftMcpHeartbeat heartbeat;
     private JButton reconnect;
@@ -300,12 +301,6 @@ final class ShaftAssistantPanel extends JPanel {
                 "Shows the supported SHAFT Assistant command families in the command menu.");
         ShaftIconButtons.apply(commandInfo, ShaftIcons.HELP);
         commandInfo.setToolTipText(AssistantCommand.commandTooltip(expertEnabled()));
-        contextInfo = button("Context", "Assistant context suggestions",
-                event -> showContextSuggestions('@'));
-        contextInfo.getAccessibleContext().setAccessibleDescription(
-                "Shows workflow and project context insertions for the Assistant prompt.");
-        ShaftIconButtons.apply(contextInfo, ShaftIcons.ADD);
-        contextInfo.setToolTipText("Insert @workflow and #project context");
         mode = combo("Assistant mode", "ASK", "PLAN", "AGENT");
         mode.setSelectedItem(normalize(settings.defaultAutobotMode, "ASK"));
         mode.setToolTipText("Ask answers, Plan outlines steps, Agent can run local CLI tasks");
@@ -383,7 +378,7 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
                 "Ask for help, choose a tested command, or request guarded local Agent work.");
-        prompt.getEmptyText().setText("Ask SHAFT, or type / for commands");
+        prompt.getEmptyText().setText("Ask SHAFT — / commands, @ workflows, # project context");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView(project);
@@ -548,7 +543,6 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel commandActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         commandActions.add(commandAutocomplete);
         commandActions.add(commandInfo);
-        commandActions.add(contextInfo);
         JPanel sendActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         sendActions.add(send);
         JPanel promptActions = new JPanel(new BorderLayout(6, 0));
@@ -692,9 +686,18 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private List<ContextSuggestion> commandContextSuggestions() {
+        // Insert the bare command plus a trailing space (never the documentation example: pasting
+        // a placeholder path like recordings/intellij-capture.json invites running it verbatim).
+        // The summary and example render as secondary text in the dropdown instead.
         return AssistantCommand.commandHints(expertEnabled()).stream()
-                .map(hint -> new ContextSuggestion(hint.canonical(), hint.example()))
+                .map(hint -> new ContextSuggestion(
+                        commandMenuLabel(hint), hint.canonical() + " ", hint.canonical()))
                 .toList();
+    }
+
+    private static String commandMenuLabel(AssistantCommand.CommandHint hint) {
+        return "<html><b>" + hint.canonical() + "</b>&nbsp;&nbsp;<span style='color:gray;'>"
+                + hint.summary() + "</span></html>";
     }
 
     private boolean expertEnabled() {
@@ -741,6 +744,24 @@ final class ShaftAssistantPanel extends JPanel {
                 }
             }
         });
+        // Live filtering: while the dropdown is open, every keystroke after the trigger narrows
+        // the suggestion list in place (Backspace past the trigger, a space, or a send closes it).
+        prompt.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent event) {
+                SwingUtilities.invokeLater(ShaftAssistantPanel.this::refreshContextPopupFilter);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent event) {
+                SwingUtilities.invokeLater(ShaftAssistantPanel.this::refreshContextPopupFilter);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent event) {
+                // Plain-text documents never fire attribute-only changes for typed text.
+            }
+        });
     }
 
     private void showContextSuggestions(char trigger) {
@@ -755,22 +776,77 @@ final class ShaftAssistantPanel extends JPanel {
         if (!prompt.isShowing()) {
             return;
         }
+        contextPopupTrigger = trigger;
+        contextTriggerOffset = Math.max(0, prompt.getCaretPosition() - 1);
         contextPopup = new JPopupMenu("Assistant context suggestions");
         contextPopup.getAccessibleContext().setAccessibleName("Assistant context suggestions");
+        contextPopup.setFocusable(false);
+        populateContextPopup(suggestions);
+        contextPopup.show(prompt, JBUI.scale(8), Math.max(JBUI.scale(18), prompt.getHeight() - JBUI.scale(4)));
+    }
+
+    private void populateContextPopup(List<ContextSuggestion> suggestions) {
+        char trigger = contextPopupTrigger;
+        contextPopup.removeAll();
+        if (suggestions.isEmpty()) {
+            JMenuItem none = new JMenuItem("No matching entry — keep typing or press Esc");
+            none.setEnabled(false);
+            contextPopup.add(none);
+        }
         for (ContextSuggestion suggestion : suggestions) {
             JMenuItem item = new JMenuItem(suggestion.label());
-            item.getAccessibleContext().setAccessibleName("Insert " + suggestion.label());
+            item.getAccessibleContext().setAccessibleName("Insert " + suggestion.matchText());
             item.addActionListener(event -> insertContextSuggestion(trigger, suggestion));
             contextPopup.add(item);
         }
-        contextPopup.show(prompt, JBUI.scale(8), Math.max(JBUI.scale(18), prompt.getHeight() - JBUI.scale(4)));
+        contextPopup.pack();
+        contextPopup.revalidate();
+        contextPopup.repaint();
+    }
+
+    /**
+     * Narrows the open trigger dropdown to entries matching what the user typed after the trigger
+     * character, so `/co` immediately shows `/codegen` instead of the full list. Deleting the
+     * trigger or typing whitespace dismisses the dropdown.
+     */
+    private void refreshContextPopupFilter() {
+        if (contextPopup == null || !contextPopup.isVisible()) {
+            return;
+        }
+        String text = prompt.getText();
+        int caret = prompt.getCaretPosition();
+        if (contextTriggerOffset >= text.length()
+                || text.charAt(contextTriggerOffset) != contextPopupTrigger
+                || caret <= contextTriggerOffset) {
+            hideContextPopup();
+            return;
+        }
+        String filter = text.substring(contextTriggerOffset + 1, Math.min(caret, text.length()));
+        if (filter.chars().anyMatch(Character::isWhitespace)) {
+            hideContextPopup();
+            return;
+        }
+        populateContextPopup(filteredContextSuggestions(contextPopupTrigger, filter));
+    }
+
+    List<ContextSuggestion> filteredContextSuggestions(char trigger, String filter) {
+        String needle = (trigger + filter).toLowerCase(Locale.ROOT);
+        return contextSuggestionsForTest(trigger).stream()
+                .filter(suggestion -> suggestion.matchText().toLowerCase(Locale.ROOT).contains(needle)
+                        || suggestion.matchText().toLowerCase(Locale.ROOT).contains(filter.toLowerCase(Locale.ROOT)))
+                .toList();
     }
 
     private void insertContextSuggestion(char trigger, ContextSuggestion suggestion) {
         hideContextPopup();
         int caret = prompt.getCaretPosition();
         String text = prompt.getText();
-        int start = caret > 0 && caret <= text.length() && text.charAt(caret - 1) == trigger ? caret - 1 : caret;
+        // Replace the trigger character plus any filter text typed after it, so picking /codegen
+        // after typing "/co" leaves exactly one clean command in the prompt.
+        int start = contextTriggerOffset < text.length() && contextTriggerOffset < caret
+                && text.charAt(contextTriggerOffset) == trigger
+                ? contextTriggerOffset
+                : (caret > 0 && caret <= text.length() && text.charAt(caret - 1) == trigger ? caret - 1 : caret);
         if (start < caret) {
             prompt.replaceRange(suggestion.insertion(), start, caret);
         } else {
@@ -778,7 +854,7 @@ final class ShaftAssistantPanel extends JPanel {
         }
         prompt.setCaretPosition(start + suggestion.insertion().length());
         prompt.requestFocusInWindow();
-        setStatus("Inserted " + suggestion.label());
+        setStatus("Inserted " + suggestion.matchText());
     }
 
     private void hideContextPopup() {
@@ -786,6 +862,7 @@ final class ShaftAssistantPanel extends JPanel {
             contextPopup.setVisible(false);
             contextPopup = null;
         }
+        contextTriggerOffset = -1;
     }
 
     private static void addProjectArtifact(
@@ -1344,6 +1421,7 @@ final class ShaftAssistantPanel extends JPanel {
         boolean cancelled = error instanceof CancellationException;
         boolean success = error == null && result != null && result.success();
         boolean currentStream = streamToken == activeLocalAgentStreamToken;
+        boolean captureIntegrationRun = captureIntegrationRunning;
         localAgentOutput = null;
         if (currentStream) {
             activeLocalAgentStreamToken = -1;
@@ -1354,14 +1432,14 @@ final class ShaftAssistantPanel extends JPanel {
             clearPendingLocalAgentApprovalPrompt();
         }
         setRunning(false, success ? READY_STATUS : "Failed");
-        finishCaptureIntegrationIfRunning(success);
+        finishCaptureIntegrationIfRunning(success, result);
         if (cancelled) {
             addTimeline("Cancelled");
             showAgentCancelled(streamToken, currentStream);
             setStatus("Cancelled");
             return;
         }
-        showAgentToolResult(streamToken, currentStream, success, result, error);
+        showAgentToolResult(streamToken, currentStream, success, result, error, captureIntegrationRun);
     }
 
     private boolean handleKilledOrStaleAgentStream(int streamToken) {
@@ -1373,18 +1451,37 @@ final class ShaftAssistantPanel extends JPanel {
         return streamToken > 0 && streamToken != activeLocalAgentStreamToken && activeLocalAgentStreamToken != -1;
     }
 
-    private void finishCaptureIntegrationIfRunning(boolean success) {
+    private void finishCaptureIntegrationIfRunning(boolean success, ShaftMcpToolResult result) {
         if (!captureIntegrationRunning) {
             return;
         }
-        if (success) {
+        // Keep the reviewed code blocks available for another approval attempt unless the agent
+        // demonstrably wrote something: a "successful" CLI exit whose run lost its tool calls to
+        // permission denials would otherwise silently discard the only copy of the generated code.
+        if (success && captureIntegrationProducedFiles(result)) {
             clearPendingCaptureReview();
         }
         captureIntegrationRunning = false;
     }
 
+    /**
+     * Whether a finished capture-integration agent run shows evidence of real output: the activity
+     * footer's file list (emitted by {@link AssistantLocalAgentRunner} from the CLI's own Write/Edit
+     * calls) or at least one fenced code block in the final answer.
+     */
+    private static boolean captureIntegrationProducedFiles(ShaftMcpToolResult result) {
+        String output = result == null ? "" : result.output();
+        return output.contains("Files created or edited:") || AssistantMarkdown.hasCodeFence(output);
+    }
+
     private void showAgentToolResult(
             int streamToken, boolean currentStream, boolean success, ShaftMcpToolResult result, Throwable error) {
+        showAgentToolResult(streamToken, currentStream, success, result, error, false);
+    }
+
+    private void showAgentToolResult(
+            int streamToken, boolean currentStream, boolean success, ShaftMcpToolResult result, Throwable error,
+            boolean captureIntegrationRun) {
         String output = resolveOutput(result, error, "No response returned.");
         boolean rejectedGeneratedJava = AssistantMarkdown.containsRejectedGeneratedJava(output);
         if (!output.isBlank() && !rejectedGeneratedJava) {
@@ -1397,6 +1494,12 @@ final class ShaftAssistantPanel extends JPanel {
         String response = rejectedGeneratedJava
                 ? AssistantMarkdown.nativeSeleniumRejectionMarkdown()
                 : AssistantMarkdown.normalizeMarkdown(AssistantLocalAgentRunner.stripTrailingUsageMetadata(output));
+        if (!rejectedGeneratedJava && captureIntegrationRun && success && !captureIntegrationProducedFiles(result)) {
+            response = response + "\n\n" + ShaftStatusPresentation.WARNING_ICON
+                    + " **The approved Capture code was not written to your project.** The reviewed code"
+                    + " blocks are still available — send `approve` to try again (approving any tool"
+                    + " prompts that appear), or copy the generated class from the review above.";
+        }
         if (rejectedGeneratedJava) {
             setStatus("Rejected generated code");
             addTimeline("Failed");
@@ -2854,7 +2957,17 @@ final class ShaftAssistantPanel extends JPanel {
     private record ToolEvidence(String toolName, String payload, String createdAt) {
     }
 
-    record ContextSuggestion(String label, String insertion) {
+    /**
+     * One entry of the prompt's trigger-character dropdown.
+     *
+     * @param label display label; may carry HTML markup for two-part command rows
+     * @param insertion text inserted into the prompt when picked
+     * @param matchText plain text used for filter matching and accessibility (never HTML)
+     */
+    record ContextSuggestion(String label, String insertion, String matchText) {
+        ContextSuggestion(String label, String insertion) {
+            this(label, insertion, label);
+        }
     }
 
     private record CaptureReview(String markdown, String rawResult) {
