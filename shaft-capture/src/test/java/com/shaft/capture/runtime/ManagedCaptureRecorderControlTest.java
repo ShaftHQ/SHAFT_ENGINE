@@ -66,11 +66,60 @@ class ManagedCaptureRecorderControlTest {
                 Map.of("action", "OPEN")));
         recorder.acceptSignal(BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "STOP")));
 
-        CaptureStatus status = recorder.status();
+        // The UI STOP control now completes on its own dedicated thread (never on the delivering
+        // collector thread, whose own shutdown would interrupt the teardown mid-way), so the
+        // final state is awaited rather than asserted synchronously.
+        CaptureStatus status = awaitState(recorder, CaptureStatus.State.COMPLETED);
         assertEquals(CaptureStatus.State.COMPLETED, status.state());
         assertEquals(1, status.eventCount());
         assertEquals(CaptureSession.SessionStatus.COMPLETED, store.read().status());
         assertTrue(store.read().events().getFirst() instanceof CaptureEvent.NavigationEvent);
+    }
+
+    @Test
+    void stopCompletesOnAnAlreadyInterruptedThreadAndRestoresTheInterruptFlag() throws Exception {
+        // Regression for issue #3409: the overlay Stop button delivered its STOP control on a
+        // collector-owned thread that stop() itself interrupts while closing that collector.
+        // NIO session-store writes then failed with ClosedByInterruptException and
+        // WebDriver.quit() aborted, leaving the session INCOMPLETE and the browser orphaned.
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, CaptureStartOptions.defaults());
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
+        store.start(CaptureSession.start(
+                "interrupted-stop-session",
+                Instant.parse("2026-01-02T03:04:05Z"),
+                new BrowserMetadata("chrome", "149", "test", "browser", Map.of())));
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store,
+                request.outputPath(),
+                CapturePrivacyPolicy.defaults(),
+                ignored -> { },
+                ignored -> { });
+        recorder.activeSessionForTesting(store, pipeline);
+
+        Thread.currentThread().interrupt();
+        CaptureStatus status;
+        try {
+            status = recorder.stop(false);
+        } finally {
+            // The flag must have been restored for the caller; consume it so JUnit's own
+            // machinery is not affected by a lingering interrupt.
+            assertTrue(Thread.interrupted(), "stop() must restore the caller's interrupt flag");
+        }
+
+        assertEquals(CaptureStatus.State.COMPLETED, status.state());
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, store.read().status());
+    }
+
+    private static CaptureStatus awaitState(ManagedCaptureRecorder recorder, CaptureStatus.State expected)
+            throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 5_000;
+        CaptureStatus status = recorder.status();
+        while (status.state() != expected && System.currentTimeMillis() < deadline) {
+            Thread.sleep(25);
+            status = recorder.status();
+        }
+        return status;
     }
 
     @Test

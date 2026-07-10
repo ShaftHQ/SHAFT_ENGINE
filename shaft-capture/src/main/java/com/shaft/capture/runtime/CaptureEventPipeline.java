@@ -53,6 +53,14 @@ final class CaptureEventPipeline implements AutoCloseable {
     private final Map<String, String> logicalWindows = new LinkedHashMap<>();
     private final Map<String, LocatorPreference> locatorPreferences = new LinkedHashMap<>();
     private final Map<String, Instant> recentSignals = new LinkedHashMap<>();
+    // Every recorder payload is delivered through up to three racing channels (in-page queue
+    // drain, loopback sink POST, BiDi script channel). The fingerprint dedup below catches
+    // byte-identical duplicates, but clientActionId is the authoritative one-user-action identity:
+    // it survives timestamp drift and parse-representation differences between channels.
+    private final Set<String> emittedClientActionIds = new LinkedHashSet<>();
+    // A step the user revoked (dblclick coalescing, the overlay delete button) must stay deleted
+    // even when the revocation overtakes the original event across channels.
+    private final Set<String> deletedClientActionIds = new LinkedHashSet<>();
     private final ScheduledExecutorService debounceExecutor;
     private long sequence;
     private String lastNavigationUrl = "";
@@ -202,6 +210,9 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void emit(BrowserSignal signal) {
+        if (suppressDuplicateOrDeletedStep(signal)) {
+            return;
+        }
         switch (signal.kind()) {
             case "navigation" -> emitNavigation(signal);
             case "click" -> append(new CaptureEvent.ClickEvent(
@@ -255,7 +266,36 @@ final class CaptureEventPipeline implements AutoCloseable {
                 page.summary(), List.of());
     }
 
+    /**
+     * Suppresses a one-shot interaction step whose {@code clientActionId} was already emitted (a
+     * duplicate delivery from another channel) or already deleted (a revocation that overtook the
+     * event). Input signals are excluded: keystroke merging deliberately reuses one
+     * clientActionId across many signals, and only the last flushed value becomes an event —
+     * deletion tombstones for inputs are enforced in {@link #emitInput} instead.
+     */
+    private boolean suppressDuplicateOrDeletedStep(BrowserSignal signal) {
+        boolean oneShotStep = switch (signal.kind()) {
+            case "click", "select", "toggle", "upload", "keyboard", "verification" -> true;
+            default -> false;
+        };
+        if (!oneShotStep) {
+            return false;
+        }
+        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        if (clientActionId.isBlank()) {
+            return false;
+        }
+        if (deletedClientActionIds.contains(clientActionId)) {
+            return true;
+        }
+        return !emittedClientActionIds.add(clientActionId);
+    }
+
     private void emitInput(BrowserSignal signal) {
+        String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
+        if (!clientActionId.isBlank() && deletedClientActionIds.contains(clientActionId)) {
+            return;
+        }
         SafeTarget target = target(signal);
         String value = signal.dataString("value");
         if (value.isEmpty()) {
@@ -552,6 +592,7 @@ final class CaptureEventPipeline implements AutoCloseable {
             warningConsumer.accept("A browser step deletion was ignored because it was incomplete.");
             return;
         }
+        deletedClientActionIds.add(clientActionId);
         Set<String> removedReferenceIds = new LinkedHashSet<>();
         store.updateEvents(events -> events.stream()
                 .filter(event -> {
