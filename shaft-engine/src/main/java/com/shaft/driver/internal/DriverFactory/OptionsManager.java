@@ -468,8 +468,12 @@ public class OptionsManager {
         if (SHAFT.Properties.web.isMobileEmulation() && DriverFactoryHelper.isNotMobileExecution()) {
             Map<String, Object> mobileEmulation = new HashMap<>();
             if (!SHAFT.Properties.web.mobileEmulationIsCustomDevice() && (!SHAFT.Properties.web.mobileEmulationDeviceName().isBlank())) {
-                if (options.getBrowserName().equals(DriverFactory.DriverType.EDGE.getValue())
-                        && SHAFT.Properties.web.mobileEmulationDeviceName().equalsIgnoreCase("Pixel 5")) {
+                if (SHAFT.Properties.web.mobileEmulationDeviceName().equalsIgnoreCase("Pixel 5")) {
+                    // "Pixel 5" was SHAFT's long-standing default device but is no longer in the
+                    // Chromium DevTools emulated-device list (Edge never had it; Chrome 143+
+                    // dropped it), and an unknown deviceName fails session creation with
+                    // "entry 0 of 'firstMatch' is invalid". Emulate it via explicit metrics so
+                    // existing configurations keep working on both browsers.
                     Map<String, Object> deviceMetrics = new HashMap<>();
                     deviceMetrics.put("width", 393);
                     deviceMetrics.put("height", 851);
