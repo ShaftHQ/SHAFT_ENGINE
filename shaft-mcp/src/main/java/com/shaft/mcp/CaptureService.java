@@ -900,7 +900,7 @@ public class CaptureService {
             String driverVariableName,
             Path targetSource,
             String insertAfter) {
-        var blocks = result.successful() && result.sourcePath() != null
+        var blocks = generatedCodeUsable(result)
                 ? codeBlocks.fromGeneratedSource(
                         result.sourcePath(), driverVariableName, result.report(), targetSource, insertAfter)
                 : java.util.List.<McpCodeBlock>of();
@@ -915,11 +915,27 @@ public class CaptureService {
                 result.report() == null ? java.util.List.of() : result.report().warnings());
     }
 
+    /**
+     * Whether the generated code itself is worth returning to the caller: generation produced a
+     * source file and it compiled. A replay failure marks the overall result unsuccessful but
+     * must not swallow the generated, compiling code blocks — the failure report tells the user
+     * what to fix, and returning nothing turned every replay hiccup into a silent "no code"
+     * dead end (issue #3409). Generation-level failures (for example the privacy gate) keep
+     * suppressing code blocks because compilation never passed for them.
+     */
+    private static boolean generatedCodeUsable(CaptureGenerationResult result) {
+        return result.sourcePath() != null
+                && (result.successful()
+                || (result.report() != null
+                && result.report().compilation().status()
+                == CaptureGenerationReport.Validation.ValidationStatus.PASSED));
+    }
+
     private CaptureBackendBlocks backendBlocks(
             String backend,
             CaptureGenerationResult result,
             String driverVariableName) {
-        List<McpCodeBlock> blocks = result.successful() && result.sourcePath() != null
+        List<McpCodeBlock> blocks = generatedCodeUsable(result)
                 ? codeBlocks.fromGeneratedSource(result.sourcePath(), driverVariableName, result.report())
                 : List.of();
         return new CaptureBackendBlocks(
