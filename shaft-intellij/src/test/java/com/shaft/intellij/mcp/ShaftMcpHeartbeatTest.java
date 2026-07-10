@@ -2,13 +2,102 @@ package com.shaft.intellij.mcp;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftMcpHeartbeatTest {
+
+    /**
+     * Regression for issue #3399: while the shared long-lived MCP client exists, the heartbeat
+     * must only peek at its liveness — never spawn a fresh probe process every 30 seconds.
+     */
+    @Test
+    void heartbeatPeeksSharedClientInsteadOfSpawningAProbeProcess() {
+        ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
+        AtomicInteger probeSpawns = new AtomicInteger();
+        ShaftMcpHeartbeat heartbeat = new ShaftMcpHeartbeat(connectionState,
+                () -> Optional.of(true),
+                () -> {
+                    probeSpawns.incrementAndGet();
+                    return CompletableFuture.completedFuture(ShaftMcpToolResult.success("pong"));
+                });
+
+        int nextDelay = heartbeat.performPing();
+
+        assertEquals(0, probeSpawns.get(), "a live shared client must be peeked, not probed");
+        assertTrue(connectionState.isConnected());
+        assertEquals(30_000, nextDelay);
+
+        connectionState.setConnected(true);
+        ShaftMcpHeartbeat deadSharedClient = new ShaftMcpHeartbeat(connectionState,
+                () -> Optional.of(false),
+                () -> {
+                    probeSpawns.incrementAndGet();
+                    return CompletableFuture.completedFuture(ShaftMcpToolResult.success("pong"));
+                });
+        deadSharedClient.performPing();
+        assertEquals(0, probeSpawns.get());
+        assertFalse(connectionState.isConnected(),
+                "a dead shared client must surface as disconnected without spawning anything");
+    }
+
+    /**
+     * Regression for issue #3399: consecutive spawn-probe failures (no shared client exists) back
+     * off exponentially up to five minutes instead of burning a fresh OS process every 30 seconds.
+     */
+    @Test
+    void heartbeatSpawnProbeFailuresBackOffExponentiallyAndRecoverOnSuccess() {
+        ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
+        List<Boolean> outcomes = new CopyOnWriteArrayList<>(
+                List.of(false, false, false, false, false, false, true));
+        AtomicInteger calls = new AtomicInteger();
+        ShaftMcpHeartbeat heartbeat = new ShaftMcpHeartbeat(connectionState,
+                Optional::empty,
+                () -> {
+                    boolean success = outcomes.get(Math.min(calls.getAndIncrement(), outcomes.size() - 1));
+                    return CompletableFuture.completedFuture(success
+                            ? ShaftMcpToolResult.success("pong")
+                            : ShaftMcpToolResult.failure("boom"));
+                });
+
+        assertEquals(60_000, heartbeat.performPing());
+        assertEquals(120_000, heartbeat.performPing());
+        assertEquals(240_000, heartbeat.performPing());
+        assertEquals(300_000, heartbeat.performPing(), "backoff caps at five minutes");
+        assertEquals(300_000, heartbeat.performPing());
+        assertFalse(connectionState.isConnected());
+
+        assertEquals(300_000, heartbeat.performPing());
+        assertEquals(30_000, heartbeat.performPing(), "a success resets the cadence");
+        assertTrue(connectionState.isConnected());
+    }
+
+    @Test
+    void heartbeatFallsBackToSpawnProbeWhenPeekingFails() {
+        ShaftMcpConnectionState connectionState = new ShaftMcpConnectionState();
+        AtomicInteger probeSpawns = new AtomicInteger();
+        ShaftMcpHeartbeat heartbeat = new ShaftMcpHeartbeat(connectionState,
+                () -> {
+                    throw new IllegalStateException("service container unavailable");
+                },
+                () -> {
+                    probeSpawns.incrementAndGet();
+                    return CompletableFuture.completedFuture(ShaftMcpToolResult.success("pong"));
+                });
+
+        assertEquals(30_000, heartbeat.performPing());
+        assertEquals(1, probeSpawns.get());
+        assertTrue(connectionState.isConnected());
+    }
 
     @Test
     void connectionStateTracksConnectedStatus() {

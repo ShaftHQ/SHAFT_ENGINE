@@ -261,6 +261,22 @@ public final class ShaftMcpInvocationService implements Disposable {
     }
 
     /**
+     * Reports the shared long-lived MCP client's liveness without any side effects: the client is
+     * never created, replaced, or closed here (respawn churn kills in-progress capture/driver
+     * sessions). Returns empty when no shared client exists yet — callers such as
+     * {@link ShaftMcpHeartbeat} then decide whether a fresh spawn-probe is worth its cost.
+     *
+     * @return the shared client's liveness, or empty when no shared client exists
+     */
+    public java.util.Optional<Boolean> peekSharedClientAlive() {
+        synchronized (clientLock) {
+            return sharedClient == null
+                    ? java.util.Optional.empty()
+                    : java.util.Optional.of(sharedClient.isAlive());
+        }
+    }
+
+    /**
      * Returns the shared MCP server client, spawning a fresh process when none is alive or the
      * effective command, environment, or working directory changed since the last call.
      */
