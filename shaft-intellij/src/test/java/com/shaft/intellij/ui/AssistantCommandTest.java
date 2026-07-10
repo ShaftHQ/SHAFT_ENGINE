@@ -650,9 +650,14 @@ class AssistantCommandTest {
         assertEquals("autobot_local_agent_clients", command("/plan").toolName());
         assertEquals("autobot_local_agent_clients", command("/clients").toolName());
         assertEquals("test_automation_scenarios", command("/generatetest login").toolName());
-        assertEquals("capture_code_blocks", command("/generatetest recordings/capture-session.json").toolName());
+        // Explicit codegen against a Capture recording re-executes it (generate + compile +
+        // headless replay), per issue #3409; Playwright/mobile recordings keep generate-only
+        // tools because their recording schemas have no Capture-session replay path.
+        assertEquals("capture_generate_replay", command("/generatetest recordings/capture-session.json").toolName());
+        assertTrue(command("/generatetest recordings/capture-session.json").arguments().get("replay").getAsBoolean());
+        assertFalse(command("/generatetest recordings/capture-session.json").arguments().get("useAi").getAsBoolean());
         assertEquals("playwright_recording_code_blocks", command("/generatetest recordings/playwright-session.json").toolName());
-        assertEquals("capture_code_blocks", command("/codegen recordings/capture-session.json").toolName());
+        assertEquals("capture_generate_replay", command("/codegen recordings/capture-session.json").toolName());
         assertEquals("mobile_recording_code_blocks", command("/codegen mobile recordings/mobile-session.json").toolName());
         assertEquals("mobile_inspector_record_prepare",
                 command("/record-mobile inspector Android recordings/inspector.json").toolName());

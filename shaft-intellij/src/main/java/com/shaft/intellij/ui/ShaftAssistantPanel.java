@@ -2219,7 +2219,10 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private static boolean isRecordingCodeReviewTool(String toolName) {
-        return "capture_code_blocks".equals(toolName) || "playwright_recording_code_blocks".equals(toolName);
+        return "capture_code_blocks".equals(toolName)
+                || "playwright_recording_code_blocks".equals(toolName)
+                || "capture_generate_replay".equals(toolName)
+                || "playwright_capture_generate_replay".equals(toolName);
     }
 
     private void showPendingCaptureReview() {
