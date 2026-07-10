@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.shaft.intellij.mcp.LiveMcpTestHarness;
 import com.shaft.intellij.mcp.ShaftCommandLine;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Assumptions;
@@ -18,9 +19,6 @@ import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Container;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -352,8 +350,8 @@ class GuidedWorkflowLiveE2ETest {
             Files.createDirectories(workspace);
             ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
             settings.passProviderApiKeysToMcp = false;
-            Map<String, String> environment = scopedEnvironment(settings, workspace);
-            List<String> command = scopedCommand(ShaftCommandLine.parse(commandLine), workspace);
+            Map<String, String> environment = LiveMcpTestHarness.scopedEnvironment(settings, workspace);
+            List<String> command = LiveMcpTestHarness.scopedCommand(ShaftCommandLine.parse(commandLine), workspace);
             return new LiveContext(command, workspace, environment);
         }
 
@@ -391,26 +389,6 @@ class GuidedWorkflowLiveE2ETest {
             return workspace.resolve(relativePath);
         }
 
-        @SuppressWarnings("unchecked")
-        private static Map<String, String> scopedEnvironment(
-                ShaftSettingsState.Settings settings, Path workspace) throws Exception {
-            Class<?> environmentClass = Class.forName("com.shaft.intellij.mcp.ShaftMcpEnvironment");
-            Method forSettings = environmentClass.getDeclaredMethod("forSettings", ShaftSettingsState.Settings.class);
-            forSettings.setAccessible(true);
-            Map<String, String> environment = (Map<String, String>) forSettings.invoke(null, settings);
-            Class<?> scopeClass = Class.forName("com.shaft.intellij.mcp.ShaftMcpProjectScope");
-            Method scoped = scopeClass.getDeclaredMethod("environmentForProject", Map.class, Path.class);
-            scoped.setAccessible(true);
-            return (Map<String, String>) scoped.invoke(null, environment, workspace);
-        }
-
-        @SuppressWarnings("unchecked")
-        private static List<String> scopedCommand(List<String> command, Path workspace) throws Exception {
-            Class<?> scopeClass = Class.forName("com.shaft.intellij.mcp.ShaftMcpProjectScope");
-            Method scoped = scopeClass.getDeclaredMethod("commandForProject", List.class, Path.class);
-            scoped.setAccessible(true);
-            return (List<String>) scoped.invoke(null, command, workspace);
-        }
     }
 
     /**
@@ -419,14 +397,10 @@ class GuidedWorkflowLiveE2ETest {
      * does inside the IDE.
      */
     private static final class LiveMcp implements AutoCloseable {
-        private final Class<?> clientClass;
-        private final Object client;
+        private final LiveMcpTestHarness harness;
 
         LiveMcp(List<String> command, Path workspace, Map<String, String> environment) throws Exception {
-            clientClass = Class.forName("com.shaft.intellij.mcp.ShaftMcpStdioClient");
-            Constructor<?> constructor = clientClass.getDeclaredConstructor(List.class, Path.class, Map.class);
-            constructor.setAccessible(true);
-            client = constructor.newInstance(command, workspace, environment);
+            harness = new LiveMcpTestHarness(command, workspace, environment);
         }
 
         /**
@@ -434,23 +408,7 @@ class GuidedWorkflowLiveE2ETest {
          * the test when the server reports {@code isError}.
          */
         JsonObject invoke(Invocation invocation, Duration timeout) throws Exception {
-            Method callTool = clientClass.getDeclaredMethod(
-                    "callTool", String.class, JsonObject.class, Duration.class);
-            callTool.setAccessible(true);
-            JsonElement result;
-            try {
-                result = (JsonElement) callTool.invoke(
-                        client, invocation.toolName(), invocation.arguments(), timeout);
-            } catch (InvocationTargetException exception) {
-                Throwable cause = exception.getCause();
-                if (cause instanceof IOException ioException) {
-                    throw ioException;
-                }
-                if (cause instanceof RuntimeException runtimeException) {
-                    throw runtimeException;
-                }
-                throw exception;
-            }
+            JsonElement result = harness.callTool(invocation.toolName(), invocation.arguments(), timeout);
             if (result != null && result.isJsonObject()) {
                 JsonObject object = result.getAsJsonObject();
                 if (object.has("isError") && object.get("isError").getAsBoolean()) {
@@ -487,10 +445,8 @@ class GuidedWorkflowLiveE2ETest {
         }
 
         @Override
-        public void close() throws Exception {
-            Method close = clientClass.getDeclaredMethod("close");
-            close.setAccessible(true);
-            close.invoke(client);
+        public void close() {
+            harness.close();
         }
     }
 }
