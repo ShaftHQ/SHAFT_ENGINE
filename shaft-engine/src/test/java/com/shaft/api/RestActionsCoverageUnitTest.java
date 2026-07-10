@@ -1,7 +1,10 @@
 package com.shaft.api;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import com.shaft.driver.SHAFT;
@@ -43,6 +46,39 @@ public class RestActionsCoverageUnitTest {
     private static final String COVERAGE_TEST_DATA = "src/test/resources/testDataFiles/restActionsCoverage/";
 
     private record ApiUser(int id, String name) {
+    }
+
+    // tools.jackson (Jackson 3) annotations: SHAFT serializes with a tools.jackson mapper, which ignores legacy com.fasterxml.jackson databind annotations.
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    private static class CustomerPayload {
+        private String name;
+        private Integer dialCode;
+        private String phone;
+        private String optionalField;
+
+        CustomerPayload(String name, Integer dialCode, String phone, String optionalField) {
+            this.name = name;
+            this.dialCode = dialCode;
+            this.phone = phone;
+            this.optionalField = optionalField;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Integer getDialCode() {
+            return dialCode;
+        }
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public String getOptionalField() {
+            return optionalField;
+        }
     }
 
     @AfterMethod(alwaysRun = true)
@@ -119,6 +155,21 @@ public class RestActionsCoverageUnitTest {
                 () -> actions.buildNewRequest("users", RestActions.RequestType.GET).setPathParameters("10"));
         Assert.assertThrows(IllegalArgumentException.class,
                 () -> actions.buildNewRequest("users/{id}", RestActions.RequestType.GET).setPathParameters(Map.of("missing", 10)));
+    }
+
+    @Test
+    public void prepareRequestSpecsShouldHonorJacksonNamingOnJsonRequestBodies() {
+        RestActions actions = new RestActions("http://localhost/");
+        Map<String, String> headers = Map.of("Content-Type", "application/json");
+        CustomerPayload payload = new CustomerPayload("Test", 966, "512345678", null);
+
+        RequestSpecification spec = actions.prepareRequestSpecs(
+                null, null, payload, ContentType.JSON, Map.of(), headers, RestAssuredConfig.config(), true, true);
+
+        String wireBody = ((FilterableRequestSpecification) spec).getBody();
+        Validations.assertThat().object(wireBody).contains("\"dial_code\":966").perform();
+        Validations.assertThat().object(wireBody).doesNotContain("dialCode").perform();
+        Validations.assertThat().object(wireBody).doesNotContain("optional_field").perform();
     }
 
     @Test
