@@ -323,15 +323,49 @@ class InstallShaftMcpTest(unittest.TestCase):
                     "   org.example:runtime:jar:1.0.0:runtime\n",
                 )
 
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            maven_repository = root / "m2-repository"
+            with temporary_environment(SHAFT_MCP_MAVEN_LOCAL_REPOSITORY=str(maven_repository)), \
+                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 installed = MODULE.install_runtime_dependencies(jar, repository.as_uri())
+                # A second run must skip the download: the artifact already sits in the local
+                # Maven repository with a matching checksum.
+                reinstalled = MODULE.install_runtime_dependencies(jar, repository.as_uri())
 
             self.assertEqual(1, len(installed))
             self.assertEqual(b"dependency", installed[0].read_bytes())
-            self.assertTrue(
-                installed[0].as_posix().endswith(
-                    "/lib/org/example/runtime/1.0.0/runtime-1.0.0.jar"
-                )
+            # Dependencies land in the standard local Maven repository layout so future SHAFT
+            # Maven builds reuse them and reinstalls skip them.
+            self.assertEqual(
+                (maven_repository / "org" / "example" / "runtime" / "1.0.0"
+                 / "runtime-1.0.0.jar").resolve(),
+                installed[0],
+            )
+            self.assertEqual(installed, reinstalled)
+
+    def test_configured_local_repository_reads_settings_xml(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings = Path(temp_dir) / "settings.xml"
+            settings.write_text(
+                '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">'
+                "<localRepository>${user.home}/custom-repo</localRepository></settings>",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                (Path.home() / "custom-repo").resolve(),
+                MODULE.configured_local_repository(settings),
+            )
+
+            settings.write_text(
+                "<settings><localRepository>${env.OTHER}/x</localRepository></settings>",
+                encoding="utf-8",
+            )
+            self.assertIsNone(MODULE.configured_local_repository(settings))
+
+            settings.write_text("<settings><mirrors/></settings>", encoding="utf-8")
+            self.assertIsNone(MODULE.configured_local_repository(settings))
+
+            self.assertIsNone(
+                MODULE.configured_local_repository(Path(temp_dir) / "missing-settings.xml")
             )
 
     def test_parse_version_normalizes_empty_string_to_latest(self):

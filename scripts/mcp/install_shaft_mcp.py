@@ -289,7 +289,8 @@ def application_data_root() -> Path:
 
 
 def maven_local_repository() -> Path:
-    """The local Maven repository runtime dependencies are installed into.
+    """
+    The local Maven repository runtime dependencies are installed into.
 
     Sharing the standard Maven layout means future SHAFT projects built with
     Maven reuse the exact same artifacts instead of re-downloading them, and a
@@ -308,20 +309,23 @@ def maven_local_repository() -> Path:
 
 
 def configured_local_repository(settings_xml: Path) -> Path | None:
-    if not settings_xml.is_file():
-        return None
+    # The single localRepository text element is extracted with a regex rather than an XML
+    # parser: xml.etree is flagged as unsafe for this and settings.xml needs no structure
+    # beyond this one flat tag.
     try:
-        root = ET.fromstring(settings_xml.read_text(encoding="utf-8"))
-    except (ET.ParseError, OSError):
+        if not settings_xml.is_file():
+            return None
+        text = settings_xml.read_text(encoding="utf-8")
+    except OSError:
         return None
-    for element in root.iter():
-        if element.tag.endswith("localRepository") and element.text and element.text.strip():
-            value = element.text.strip().replace("${user.home}", str(home()))
-            if "${" in value:
-                # Unresolvable Maven property interpolation; fall back to the default.
-                return None
-            return Path(value).expanduser().resolve()
-    return None
+    match = re.search(r"<localRepository>([^<]+)</localRepository>", text)
+    if not match or not match.group(1).strip():
+        return None
+    value = match.group(1).strip().replace("${user.home}", str(home()))
+    if "${" in value:
+        # Unresolvable Maven property interpolation; fall back to the default.
+        return None
+    return Path(value).expanduser().resolve()
 
 
 def download_bytes(url: str, attempts: int = 5) -> bytes:
@@ -653,7 +657,8 @@ def dependency_url(repository: str, dependency: tuple[str, str, str, str | None]
 
 
 def install_repository_file(url: str, target: Path, label: str, announce: bool = True) -> tuple[Path, bool]:
-    """Ensures the repository file exists at target with a verified checksum.
+    """
+    Ensures the repository file exists at target with a verified checksum.
 
     Returns the resolved path and whether a download actually happened, so
     callers can report how much work an already-provisioned machine skipped.

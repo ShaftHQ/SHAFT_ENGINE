@@ -44,6 +44,7 @@ final class AssistantLocalAgentRunner {
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
     private static final int MODEL_LIST_TIMEOUT_SECONDS = 20;
     private static final int COMPACT_TIMEOUT_SECONDS = 30;
+    private static final int MCP_ACCESS_TIMEOUT_SECONDS = 45;
     private static final String CUSTOM_AGENT_APPROVAL_WARNING =
             "Custom Agent commands require Allow source edits because SHAFT cannot enforce read-only execution.";
     private static final String BUFFERED_MODE_NOTICE =
@@ -250,8 +251,6 @@ final class AssistantLocalAgentRunner {
         return mcpAccessReadiness(client, AssistantLocalAgentRunner::launchProcess);
     }
 
-    private static final int MCP_ACCESS_TIMEOUT_SECONDS = 45;
-
     /**
      * Returns the CLI command that reports shaft-mcp access for the client, or an empty list when
      * the client has no known MCP inspection command (Copilot CLI today).
@@ -298,28 +297,38 @@ final class AssistantLocalAgentRunner {
     }
 
     private static ShaftMcpToolResult interpretMcpAccessOutput(String client, int exitValue, String output) {
-        String displayName = displayName(client);
+        return "CLAUDE_CODE".equals(normalize(client))
+                ? interpretClaudeMcpAccessOutput(displayName(client), exitValue, output)
+                : interpretCodexMcpAccessOutput(displayName(client), exitValue, output);
+    }
+
+    private static ShaftMcpToolResult interpretClaudeMcpAccessOutput(
+            String displayName, int exitValue, String output) {
         String lower = output.toLowerCase(Locale.ROOT);
-        if ("CLAUDE_CODE".equals(normalize(client))) {
-            if (lower.contains("no mcp server named")) {
-                return ShaftMcpToolResult.failure("shaft-mcp is not registered with " + displayName
-                        + ". Run the SHAFT MCP installer command, then check again.");
-            }
-            if (lower.contains("failed to connect") || output.contains("✘")) {
-                return ShaftMcpToolResult.failure(displayName + " sees shaft-mcp but could not connect to it."
-                        + " If you just installed or updated shaft-mcp, restart " + displayName
-                        + " with the restart command below, then check again.\n\n" + output);
-            }
-            if (lower.contains("connected")) {
-                return ShaftMcpToolResult.success(displayName + " can access shaft-mcp (status: connected).");
-            }
-            if (exitValue != 0) {
-                return ShaftMcpToolResult.failure(displayName + " could not verify shaft-mcp access:\n" + output);
-            }
-            return ShaftMcpToolResult.success(displayName
-                    + " is on PATH; the shaft-mcp access status could not be determined from its output.");
+        if (lower.contains("no mcp server named")) {
+            return ShaftMcpToolResult.failure("shaft-mcp is not registered with " + displayName
+                    + ". Run the SHAFT MCP installer command, then check again.");
         }
-        // Codex: `codex mcp get` is a config read; enabled registration is the positive marker.
+        if (lower.contains("failed to connect") || output.contains("✘")) {
+            return ShaftMcpToolResult.failure(displayName + " sees shaft-mcp but could not connect to it."
+                    + " If you just installed or updated shaft-mcp, restart " + displayName
+                    + " with the restart command below, then check again.\n\n" + output);
+        }
+        if (lower.contains("connected")) {
+            return ShaftMcpToolResult.success(displayName + " can access shaft-mcp (status: connected).");
+        }
+        if (exitValue != 0) {
+            return ShaftMcpToolResult.failure(displayName + " could not verify shaft-mcp access:\n" + output);
+        }
+        return undeterminedMcpAccess(displayName);
+    }
+
+    /**
+     * Codex: {@code codex mcp get} is a config read; enabled registration is the positive marker.
+     */
+    private static ShaftMcpToolResult interpretCodexMcpAccessOutput(
+            String displayName, int exitValue, String output) {
+        String lower = output.toLowerCase(Locale.ROOT);
         if (lower.contains("shaft-mcp") && lower.contains("enabled: true")) {
             return ShaftMcpToolResult.success(displayName + " has shaft-mcp registered and enabled.");
         }
@@ -328,6 +337,10 @@ final class AssistantLocalAgentRunner {
             return ShaftMcpToolResult.failure("shaft-mcp is not registered with " + displayName
                     + ". Run the SHAFT MCP installer command, then check again.");
         }
+        return undeterminedMcpAccess(displayName);
+    }
+
+    private static ShaftMcpToolResult undeterminedMcpAccess(String displayName) {
         return ShaftMcpToolResult.success(displayName
                 + " is on PATH; the shaft-mcp access status could not be determined from its output.");
     }
@@ -574,6 +587,15 @@ final class AssistantLocalAgentRunner {
     private static final class StructuredStreamParser {
         enum Format { CLAUDE, CODEX }
 
+        /**
+         * Sentinel returned by the describe methods for events that ARE fully consumed elsewhere
+         * (terminal result/usage events that become the final answer) and therefore must be neither
+         * described nor passed through raw. Distinct from {@code null}, which means "no
+         * human-readable mapping exists" and triggers the raw as-is passthrough in
+         * {@link #accept}.
+         */
+        private static final String CONSUMED = "";
+
         private final Format format;
         private final Map<String, String> toolNamesByUseId = new HashMap<>();
         private String answer;
@@ -583,14 +605,6 @@ final class AssistantLocalAgentRunner {
         StructuredStreamParser(Format format) {
             this.format = format;
         }
-
-        /**
-         * Sentinel returned by the describe methods for events that ARE fully consumed elsewhere
-         * (terminal result/usage events that become the final answer) and therefore must be neither
-         * described nor passed through raw. Distinct from {@code null}, which means "no
-         * human-readable mapping exists" and triggers the raw as-is passthrough below.
-         */
-        private static final String CONSUMED = "";
 
         synchronized void accept(String line, Consumer<String> outputConsumer) {
             String trimmed = line == null ? "" : line.strip();
