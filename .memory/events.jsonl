@@ -174,3 +174,6 @@
 {"actor":"agent","event":"memory.created","id":"decision.claude-code-local-agent-interactive-approval-uses-permission-prompt-tool-a-minimal-mcp-over-http-bridge","timestamp":"2026-07-09T12:58:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaft-intellij-gradle-test-needs-offline-when-network-egress-to-jetbrains-cache-redirector-is-blocked","timestamp":"2026-07-09T12:58:19+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.commit-and-push-incrementally-within-a-sessions-single-branch-pr-not-just-once-at-the-end","timestamp":"2026-07-09T12:59:30+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes","timestamp":"2026-07-10T15:08:06+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile","timestamp":"2026-07-10T15:08:06+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.clientactionid-is-the-authoritative-dedup-identity-for-recorder-steps","timestamp":"2026-07-10T15:08:06+03:00"}

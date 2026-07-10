@@ -186,6 +186,55 @@ class AssistantLocalAgentRunnerVerboseStreamTest {
         assertTrue(lines.contains("Calling tool shell (exit 1)...\nTool failed (shell, exit 1): boom"), lines.toString());
     }
 
+    @Test
+    void unmappedJsonEventsPassThroughRawSoVerboseModeNeverHidesInformation() throws Exception {
+        String systemInitEvent = "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"abc\"}";
+
+        List<String> lines = run(claudeInvocation(),
+                systemInitEvent + "\n" + claudeAssistantTextEvent("hi") + "\n" + claudeResultEvent("hi") + "\n");
+
+        assertTrue(lines.contains(systemInitEvent),
+                "Events with no human-readable mapping must be shared as-is (raw JSON): " + lines);
+    }
+
+    @Test
+    void terminalResultEventsAreConsumedIntoTheFinalAnswerNotEchoedRaw() throws Exception {
+        String resultEvent = claudeResultEvent("final answer");
+
+        List<String> lines = run(claudeInvocation(),
+                claudeAssistantTextEvent("final answer") + "\n" + resultEvent + "\n");
+
+        assertTrue(lines.stream().noneMatch(line -> line.contains("\"type\":\"result\"")),
+                "The terminal result event is mapped (it becomes the final answer), not raw noise: " + lines);
+    }
+
+    @Test
+    void unmappedCodexEventsPassThroughRaw() throws Exception {
+        String threadStarted = "{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}";
+
+        List<String> lines = run(codexInvocation(), threadStarted + "\n" + codexTurnCompletedEvent() + "\n");
+
+        assertTrue(lines.contains(threadStarted), lines.toString());
+        assertTrue(lines.stream().noneMatch(line -> line.contains("turn.completed")),
+                "The terminal usage event is consumed, not echoed: " + lines);
+    }
+
+    @Test
+    void bufferedDefaultClisForwardTheirRawOutputAfterTheOneTimeNotice() throws Exception {
+        List<String> lines = run(copilotInvocation(), "copilot line one\ncopilot line two\n");
+
+        assertTrue(lines.size() >= 3, lines.toString());
+        assertTrue(lines.get(0).contains("raw output is shown as-is"),
+                "The one-time notice explains the raw stream: " + lines);
+        assertTrue(lines.contains("copilot line one"), lines.toString());
+        assertTrue(lines.contains("copilot line two"),
+                "Buffered CLIs must share their output as-is instead of swallowing it: " + lines);
+    }
+
+    private static AssistantCommand.Invocation copilotInvocation() {
+        return AssistantCommand.fromPrompt("Explain this failure", "COPILOT_CLI", "ASK", ".", "", false);
+    }
+
     private static String codexTurnCompletedEvent() {
         return "{\"type\":\"turn.completed\",\"last_agent_message\":\"ok\","
                 + "\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}";

@@ -47,7 +47,7 @@ final class AssistantLocalAgentRunner {
     private static final String CUSTOM_AGENT_APPROVAL_WARNING =
             "Custom Agent commands require Allow source edits because SHAFT cannot enforce read-only execution.";
     private static final String BUFFERED_MODE_NOTICE =
-            "Live output is unavailable for this CLI; the full response will appear once it completes.";
+            "This CLI has no structured live stream; its raw output is shown as-is below until it completes.";
     private static final Pattern MODEL_LINE_PATTERN = Pattern.compile("(claude-[a-z0-9.-]+|gpt-[a-z0-9.-]+|o[0-9][a-z0-9.-]*)",
             Pattern.CASE_INSENSITIVE);
 
@@ -231,6 +231,105 @@ final class AssistantLocalAgentRunner {
         return isCommandAvailable(executable)
                 ? ShaftMcpToolResult.success(displayName + " executable is available on PATH.")
                 : ShaftMcpToolResult.failure(displayName + " executable is not available on PATH.");
+    }
+
+    /**
+     * Deep readiness for the setup screen's "Check now" button: beyond {@link #readiness}'s PATH
+     * check, asks the selected CLI itself whether it can access shaft-mcp, so a user who just
+     * reinstalled shaft-mcp gets a real "your agent CLI can now use it" verdict instead of a bare
+     * executable check. Claude's {@code claude mcp get shaft-mcp} actually spawns and connects to
+     * the server (empirically ~11s, exit code 0 even for an unknown server, so the OUTPUT is the
+     * contract); Codex's {@code codex mcp get shaft-mcp} is a fast config read. Never called at
+     * panel-construction time — only from an explicit user-triggered check on a background thread.
+     */
+    static ShaftMcpToolResult connectionReadiness(String client, String runtime) {
+        ShaftMcpToolResult basic = readiness(client, runtime);
+        if (!basic.success() || !"CLI".equals(normalize(runtime))) {
+            return basic;
+        }
+        return mcpAccessReadiness(client, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    private static final int MCP_ACCESS_TIMEOUT_SECONDS = 45;
+
+    /**
+     * Returns the CLI command that reports shaft-mcp access for the client, or an empty list when
+     * the client has no known MCP inspection command (Copilot CLI today).
+     */
+    static List<String> mcpAccessCommandFor(String client) {
+        return switch (normalize(client)) {
+            case "CLAUDE_CODE" -> List.of("claude", "mcp", "get", "shaft-mcp");
+            case "COPILOT_CLI" -> List.of();
+            default -> List.of("codex", "mcp", "get", "shaft-mcp");
+        };
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process. Unknown output shapes and
+     * probe launch failures fail OPEN (PATH-level success) so an older CLI without an {@code mcp
+     * get} subcommand never blocks setup; only explicit negative markers fail the check.
+     */
+    static ShaftMcpToolResult mcpAccessReadiness(String client, ProcessLauncher processLauncher) {
+        List<String> command = mcpAccessCommandFor(client);
+        String displayName = displayName(client);
+        if (command.isEmpty()) {
+            return ShaftMcpToolResult.success(displayName + " executable is available on PATH.");
+        }
+        try {
+            Process process = processLauncher.launch(command, Path.of("."), Map.of());
+            process.getOutputStream().close();
+            CompletableFuture<String> stdout = readAsync(process.getInputStream(), null);
+            CompletableFuture<String> stderr = readAsync(process.getErrorStream(), null);
+            if (!process.waitFor(MCP_ACCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return ShaftMcpToolResult.success(displayName
+                        + " is on PATH; the shaft-mcp access check timed out and was skipped.");
+            }
+            String output = (stdoutNow(stdout) + "\n" + stderrNow(stderr)).strip();
+            return interpretMcpAccessOutput(client, process.exitValue(), output);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return ShaftMcpToolResult.success(displayName
+                    + " is on PATH; the shaft-mcp access check was interrupted and skipped.");
+        } catch (IOException | RuntimeException exception) {
+            return ShaftMcpToolResult.success(displayName
+                    + " is on PATH; the shaft-mcp access check could not run (" + exception.getMessage() + ").");
+        }
+    }
+
+    private static ShaftMcpToolResult interpretMcpAccessOutput(String client, int exitValue, String output) {
+        String displayName = displayName(client);
+        String lower = output.toLowerCase(Locale.ROOT);
+        if ("CLAUDE_CODE".equals(normalize(client))) {
+            if (lower.contains("no mcp server named")) {
+                return ShaftMcpToolResult.failure("shaft-mcp is not registered with " + displayName
+                        + ". Run the SHAFT MCP installer command, then check again.");
+            }
+            if (lower.contains("failed to connect") || output.contains("✘")) {
+                return ShaftMcpToolResult.failure(displayName + " sees shaft-mcp but could not connect to it."
+                        + " If you just installed or updated shaft-mcp, restart " + displayName
+                        + " with the restart command below, then check again.\n\n" + output);
+            }
+            if (lower.contains("connected")) {
+                return ShaftMcpToolResult.success(displayName + " can access shaft-mcp (status: connected).");
+            }
+            if (exitValue != 0) {
+                return ShaftMcpToolResult.failure(displayName + " could not verify shaft-mcp access:\n" + output);
+            }
+            return ShaftMcpToolResult.success(displayName
+                    + " is on PATH; the shaft-mcp access status could not be determined from its output.");
+        }
+        // Codex: `codex mcp get` is a config read; enabled registration is the positive marker.
+        if (lower.contains("shaft-mcp") && lower.contains("enabled: true")) {
+            return ShaftMcpToolResult.success(displayName + " has shaft-mcp registered and enabled.");
+        }
+        if (exitValue != 0 || lower.contains("not found") || lower.contains("no mcp server")
+                || lower.contains("unknown server")) {
+            return ShaftMcpToolResult.failure("shaft-mcp is not registered with " + displayName
+                    + ". Run the SHAFT MCP installer command, then check again.");
+        }
+        return ShaftMcpToolResult.success(displayName
+                + " is on PATH; the shaft-mcp access status could not be determined from its output.");
     }
 
     static List<String> commandFor(JsonObject arguments) {
@@ -428,13 +527,13 @@ final class AssistantLocalAgentRunner {
 
     /**
      * Wraps the caller's {@code outputConsumer} so that structured-stream default commands receive
-     * human-readable progress lines translated from NDJSON, while buffered-output <em>default</em>
-     * commands (Copilot, whose CLI has no known streaming flag) receive a single honest notice that
-     * live output is unavailable, followed by silence until the buffered response returns. Custom
-     * commands are never wrapped — SHAFT cannot know a hand-typed command's output shape, so its raw
-     * lines are forwarded unchanged exactly as before, the same pass-through behavior a slow custom
-     * CLI already relied on. A {@code null} caller consumer is left as {@code null} in every case
-     * since there is nothing to forward lines to.
+     * human-readable progress lines translated from NDJSON (with unmapped events passed through raw
+     * — Verbose mode must never hide information), while buffered-output <em>default</em> commands
+     * (Copilot, whose CLI has no known streaming flag) receive a one-time notice followed by their
+     * raw lines as-is. Custom commands are never wrapped — SHAFT cannot know a hand-typed command's
+     * output shape, so its raw lines are forwarded unchanged exactly as before. A {@code null}
+     * caller consumer is left as {@code null} in every case since there is nothing to forward lines
+     * to.
      */
     private static Consumer<String> effectiveConsumer(
             Consumer<String> outputConsumer, StructuredStreamParser streamParser, boolean isDefaultCommand) {
@@ -452,6 +551,7 @@ final class AssistantLocalAgentRunner {
             if (notified.compareAndSet(false, true)) {
                 outputConsumer.accept(BUFFERED_MODE_NOTICE);
             }
+            outputConsumer.accept(line);
         };
     }
 
@@ -484,6 +584,14 @@ final class AssistantLocalAgentRunner {
             this.format = format;
         }
 
+        /**
+         * Sentinel returned by the describe methods for events that ARE fully consumed elsewhere
+         * (terminal result/usage events that become the final answer) and therefore must be neither
+         * described nor passed through raw. Distinct from {@code null}, which means "no
+         * human-readable mapping exists" and triggers the raw as-is passthrough below.
+         */
+        private static final String CONSUMED = "";
+
         synchronized void accept(String line, Consumer<String> outputConsumer) {
             String trimmed = line == null ? "" : line.strip();
             if (trimmed.isEmpty()) {
@@ -497,7 +605,12 @@ final class AssistantLocalAgentRunner {
                 return;
             }
             String humanReadableLine = format == Format.CLAUDE ? describeClaudeEvent(event) : describeCodexEvent(event);
-            if (humanReadableLine != null) {
+            if (humanReadableLine == null) {
+                // No human-readable mapping for this event: share it as-is (raw JSON) so Verbose
+                // mode never hides information the CLI sent. Non-verbose runs only ever show the
+                // parsed final answer, so this raw line is invisible unless the user opted in.
+                outputConsumer.accept(line);
+            } else if (!CONSUMED.equals(humanReadableLine)) {
                 outputConsumer.accept(humanReadableLine);
             }
         }
@@ -572,7 +685,8 @@ final class AssistantLocalAgentRunner {
                 JsonObject usage = objectField(event, "usage");
                 inputTokens = intField(usage, "input_tokens");
                 outputTokens = intField(usage, "output_tokens");
-                return null;
+                // Fully consumed: this event becomes the final answer, so it is mapped, not hidden.
+                return CONSUMED;
             }
             return null;
         }
@@ -655,7 +769,8 @@ final class AssistantLocalAgentRunner {
                     String lastAgentMessage = stringField(event, "last_agent_message");
                     answer = lastAgentMessage != null ? lastAgentMessage : (answer == null ? "" : answer);
                 }
-                return null;
+                // Fully consumed: this event becomes the final answer/usage, so it is mapped, not hidden.
+                return CONSUMED;
             }
             return null;
         }
@@ -1348,7 +1463,7 @@ final class AssistantLocalAgentRunner {
         }
     }
 
-    private static boolean isCommandAvailable(String command) {
+    static boolean isCommandAvailable(String command) {
         String path = System.getenv("PATH");
         if (path == null || path.isBlank()) {
             return false;

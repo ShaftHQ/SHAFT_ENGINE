@@ -1247,7 +1247,7 @@ class AssistantCommandTest {
     }
 
     @Test
-    void bufferedCopilotInvocationSendsExactlyOneHonestLiveOutputNotice() throws Exception {
+    void bufferedCopilotInvocationSendsOneNoticeThenForwardsRawOutputAsIs() throws Exception {
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 "Explain this failure", "COPILOT_CLI", "ASK", ".", "", false);
         String bufferedResponse = "The full Copilot answer, delivered only once the process exits.";
@@ -1262,9 +1262,12 @@ class AssistantCommandTest {
 
         assertAll(
                 () -> assertTrue(result.success()),
-                () -> assertEquals(1, delivered.size(), "Expected exactly one notice line: " + delivered),
-                () -> assertTrue(delivered.get(0).toLowerCase(Locale.ROOT).contains("live output"),
-                        "Notice should explain live output is unavailable: " + delivered.get(0)),
+                () -> assertEquals(2, delivered.size(),
+                        "Expected the one-time notice followed by the raw line: " + delivered),
+                () -> assertTrue(delivered.get(0).toLowerCase(Locale.ROOT).contains("raw output"),
+                        "Notice should explain the raw as-is stream: " + delivered.get(0)),
+                () -> assertEquals(bufferedResponse, delivered.get(1),
+                        "Verbose mode must share the CLI's output as-is instead of swallowing it"),
                 () -> assertTrue(result.output().contains(bufferedResponse)));
     }
 
