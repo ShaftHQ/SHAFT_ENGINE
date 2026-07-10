@@ -29,7 +29,7 @@ class GuidedWorkflowPanelTest {
 
         assertNotNull(templates);
         assertNotNull(useTemplate);
-        assertEquals(5, templates.getItemCount());
+        assertEquals(6, templates.getItemCount());
 
         select(templates, "Record browser flow and generate Page Object code");
         useTemplate.doClick();
@@ -39,6 +39,15 @@ class GuidedWorkflowPanelTest {
                 () -> assertEquals("capture", capture.arguments().get("area").getAsString()),
                 () -> assertTrue(capture.arguments().get("intent").getAsString().contains("Page Object")),
                 () -> assertTrue(capture.arguments().get("intent").getAsString().contains("Do not write")));
+
+        select(templates, "Start mobile emulation session for recording");
+        useTemplate.doClick();
+        CapturedInvocation mobileEmulation = last(invocations);
+        assertAll(
+                () -> assertEquals("mobile_initialize_web_emulation", mobileEmulation.toolName()),
+                () -> assertEquals("CHROME", mobileEmulation.arguments().get("browser").getAsString()),
+                () -> assertEquals("Pixel 5", mobileEmulation.arguments().get("deviceName").getAsString()),
+                () -> assertFalse(mobileEmulation.arguments().get("headless").getAsBoolean()));
 
         select(templates, "Analyze failed Allure results");
         useTemplate.doClick();
@@ -73,6 +82,60 @@ class GuidedWorkflowPanelTest {
                 () -> assertEquals("browser_get_page_dom", dom.toolName()),
                 () -> assertEquals(12_000, dom.arguments().get("maxCharacters").getAsInt()),
                 () -> assertFalse(dom.arguments().has("targetUrl")));
+    }
+
+    @Test
+    void recorderButtonsRouteByBackendAndRespectHeadlessToggle() {
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        javax.swing.JCheckBox headless = findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class);
+        JButton start = findButton(panel, "Start recording");
+        JButton stop = findButton(panel, "Stop recording");
+        JButton review = findButton(panel, "Review code");
+        assertNotNull(backend);
+        assertNotNull(headless);
+        assertNotNull(start);
+        assertNotNull(stop);
+        assertNotNull(review);
+
+        assertFalse(headless.isSelected(), "Recording should default to a visible browser window");
+        select(backend, "WebDriver");
+        start.doClick();
+        CapturedInvocation webStart = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_start", webStart.toolName()),
+                () -> assertFalse(webStart.arguments().get("headless").getAsBoolean()));
+
+        headless.setSelected(true);
+        start.doClick();
+        assertTrue(last(invocations).arguments().get("headless").getAsBoolean());
+
+        select(backend, "Mobile (web emulation)");
+        start.doClick();
+        CapturedInvocation mobileStart = last(invocations);
+        assertAll(
+                () -> assertEquals("mobile_record_start", mobileStart.toolName()),
+                () -> assertFalse(mobileStart.arguments().get("includeSensitiveValues").getAsBoolean()));
+
+        stop.doClick();
+        CapturedInvocation mobileStop = last(invocations);
+        assertAll(
+                () -> assertEquals("mobile_record_stop", mobileStop.toolName()),
+                () -> assertFalse(mobileStop.arguments().get("discard").getAsBoolean()));
+
+        review.doClick();
+        CapturedInvocation mobileReview = last(invocations);
+        assertAll(
+                () -> assertEquals("mobile_recording_code_blocks", mobileReview.toolName()),
+                () -> assertEquals("driver", mobileReview.arguments().get("driverVariableName").getAsString()));
+
+        select(backend, "Playwright");
+        stop.doClick();
+        assertEquals("playwright_record_stop", last(invocations).toolName());
+        review.doClick();
+        assertEquals("playwright_recording_code_blocks", last(invocations).toolName());
     }
 
     @Test

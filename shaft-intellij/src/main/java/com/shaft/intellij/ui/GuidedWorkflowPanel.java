@@ -11,6 +11,7 @@ import com.intellij.ui.components.JBTextField;
 import com.intellij.util.ui.JBUI;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -25,6 +26,10 @@ import java.awt.GridLayout;
  * Guided recorder, locator, and code-generation entry points backed by existing MCP tools.
  */
 final class GuidedWorkflowPanel extends JPanel {
+    static final String BACKEND_WEBDRIVER = "WebDriver";
+    static final String BACKEND_PLAYWRIGHT = "Playwright";
+    static final String BACKEND_MOBILE = "Mobile (web emulation)";
+
     private final Project project;
     private final JComboBox<String> backend;
     private final JComboBox<WorkflowTemplate> templateSelector;
@@ -33,6 +38,7 @@ final class GuidedWorkflowPanel extends JPanel {
     private final JBTextField currentSourcePath;
     private final JBTextField artifactPaths;
     private final JBTextField sessionPath;
+    private final JCheckBox headlessBrowser;
     private final JBTextArea codeSnippet;
     private final ToolPrefill prefill;
 
@@ -42,7 +48,7 @@ final class GuidedWorkflowPanel extends JPanel {
         this.prefill = prefill;
         setBorder(JBUI.Borders.empty(8));
 
-        backend = new JComboBox<>(new String[]{"WebDriver", "Playwright"});
+        backend = new JComboBox<>(new String[]{BACKEND_WEBDRIVER, BACKEND_PLAYWRIGHT, BACKEND_MOBILE});
         backend.getAccessibleContext().setAccessibleName("Guided workflow backend");
         templateSelector = new JComboBox<>(WorkflowTemplate.values());
         templateSelector.setPrototypeDisplayValue(WorkflowTemplate.CREATE_NEW_SHAFT_PROJECT);
@@ -53,6 +59,12 @@ final class GuidedWorkflowPanel extends JPanel {
         currentSourcePath = field("Current source path", "");
         artifactPaths = field("Evidence paths", "");
         sessionPath = field("Session path", "recordings/intellij-capture.json");
+        headlessBrowser = new JCheckBox("Headless browser", false);
+        headlessBrowser.getAccessibleContext().setAccessibleName("Headless browser");
+        headlessBrowser.getAccessibleContext().setAccessibleDescription(
+                "Record without a visible browser window. Keep unchecked to interact with the recorded browser.");
+        headlessBrowser.setToolTipText(
+                "Record without a visible browser window; useful for agent-driven or CI recordings.");
         codeSnippet = new JBTextArea(6, 32);
         codeSnippet.getAccessibleContext().setAccessibleName("Generated code or guardrail input");
         codeSnippet.getAccessibleContext().setAccessibleDescription(
@@ -69,6 +81,7 @@ final class GuidedWorkflowPanel extends JPanel {
         fields.add(row("Current source", 'R', currentSourcePath));
         fields.add(row("Evidence paths", 'E', artifactPaths));
         fields.add(row("Session path", 'S', sessionPath));
+        fields.add(row("Browser", 'H', headlessBrowser));
 
         JPanel partner = section("Coding Partner",
                 button("Plan coding partner", "Plan repository-aware SHAFT reuse, missing code, proof, and validation", ShaftIcons.CODE,
@@ -164,6 +177,7 @@ final class GuidedWorkflowPanel extends JPanel {
         }
         switch (template) {
             case RECORD_BROWSER_FLOW -> prefill.prefill("test_automation_scenarios", capturePageObjectWorkflow());
+            case START_MOBILE_EMULATION -> prefill.prefill("mobile_initialize_web_emulation", mobileWebEmulation());
             case ANALYZE_FAILED_ALLURE -> prefill.prefill("doctor_analyze_failed_allure", failedAllureAnalysis());
             case CONVERT_SELENIUM_SNIPPET -> prefill.prefill("test_automation_scenarios", seleniumConversionWorkflow());
             case CREATE_NEW_SHAFT_PROJECT -> prefill.prefill("shaft_project_create", newShaftProject());
@@ -231,6 +245,19 @@ final class GuidedWorkflowPanel extends JPanel {
         return arguments;
     }
 
+    private JsonObject mobileWebEmulation() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("targetUrl", targetUrl.getText().trim());
+        arguments.addProperty("browser", "CHROME");
+        arguments.addProperty("deviceName", "Pixel 5");
+        arguments.addProperty("width", 0);
+        arguments.addProperty("height", 0);
+        arguments.addProperty("pixelRatio", 0);
+        arguments.addProperty("userAgent", "");
+        arguments.addProperty("headless", headlessBrowser.isSelected());
+        return arguments;
+    }
+
     private static JsonObject currentPageDomInspection() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("maxCharacters", 12_000);
@@ -248,14 +275,18 @@ final class GuidedWorkflowPanel extends JPanel {
     private void startRecording() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("outputPath", sessionPath.getText().trim());
-        if (playwright()) {
+        if (mobile()) {
+            arguments.addProperty("mode", "default");
+            arguments.addProperty("includeSensitiveValues", false);
+            prefill.prefill("mobile_record_start", arguments);
+        } else if (playwright()) {
             arguments.addProperty("mode", "default");
             arguments.addProperty("includeSensitiveValues", false);
             prefill.prefill("playwright_record_start", arguments);
         } else {
             arguments.addProperty("targetUrl", targetUrl.getText().trim());
             arguments.addProperty("browser", "Chrome");
-            arguments.addProperty("headless", false);
+            arguments.addProperty("headless", headlessBrowser.isSelected());
             prefill.prefill("capture_start", arguments);
         }
     }
@@ -282,12 +313,20 @@ final class GuidedWorkflowPanel extends JPanel {
     private void stopRecording() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("discard", false);
-        prefill.prefill(playwright() ? "playwright_record_stop" : "capture_stop", arguments);
+        if (mobile()) {
+            prefill.prefill("mobile_record_stop", arguments);
+        } else {
+            prefill.prefill(playwright() ? "playwright_record_stop" : "capture_stop", arguments);
+        }
     }
 
     private void generateCode() {
         JsonObject arguments = new JsonObject();
-        if (playwright()) {
+        if (mobile()) {
+            arguments.addProperty("recordingPath", sessionPath.getText().trim());
+            arguments.addProperty("driverVariableName", "driver");
+            prefill.prefill("mobile_recording_code_blocks", arguments);
+        } else if (playwright()) {
             arguments.addProperty("recordingPath", sessionPath.getText().trim());
             arguments.addProperty("driverVariableName", "driver");
             prefill.prefill("playwright_recording_code_blocks", arguments);
@@ -319,7 +358,11 @@ final class GuidedWorkflowPanel extends JPanel {
     }
 
     private boolean playwright() {
-        return "Playwright".equals(backend.getSelectedItem());
+        return BACKEND_PLAYWRIGHT.equals(backend.getSelectedItem());
+    }
+
+    private boolean mobile() {
+        return BACKEND_MOBILE.equals(backend.getSelectedItem());
     }
 
     private String currentSourcePath() {
@@ -365,6 +408,9 @@ final class GuidedWorkflowPanel extends JPanel {
         RECORD_BROWSER_FLOW(
                 "Record browser flow and generate Page Object code",
                 "Prefills a review-only capture workflow plan for Page Object code generation."),
+        START_MOBILE_EMULATION(
+                "Start mobile emulation session for recording",
+                "Prefills a Chrome mobile web-emulation session; then record with the Mobile backend."),
         ANALYZE_FAILED_ALLURE(
                 "Analyze failed Allure results",
                 "Prefills deterministic Doctor analysis with AI and source edits disabled."),

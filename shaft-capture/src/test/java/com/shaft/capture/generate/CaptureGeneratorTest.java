@@ -709,6 +709,124 @@ class CaptureGeneratorTest {
     }
 
     @Test
+    void workspaceContainedFileUrlRecordingIsNotAPrivacyBlocker() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        Path output = temp.resolve("workspace-file-url");
+        String fixtureUrl = output.resolve("fixtures/login.html").toUri().toString();
+        CaptureSession recorded = new CaptureSession(
+                base.schemaVersion(),
+                "workspace-file-url-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(new CaptureEvent.NavigationEvent(
+                        CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN,
+                        fixtureUrl)),
+                List.of(),
+                List.of(),
+                base.redactionSummary(),
+                base.extensions());
+        Path session = session(recorded);
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(request(session, output));
+
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .noneMatch(message -> message.startsWith("privacy:")),
+                result.report().unsupportedEvents().toString());
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+    }
+
+    @Test
+    void personalPathsOutsideTheWorkspaceStillBlockGeneration() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        CaptureSession recorded = new CaptureSession(
+                base.schemaVersion(),
+                "external-personal-path-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(3),
+                base.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(
+                                CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN,
+                                "file:///C:/Users/stranger/private/page.html"),
+                        new CaptureEvent.NavigationEvent(
+                                CaptureFixtures.context(2),
+                                CaptureEvent.NavigationAction.OPEN,
+                                "file:///home/stranger/private/page.html")),
+                List.of(),
+                List.of(),
+                base.redactionSummary(),
+                base.extensions());
+        Path session = session(recorded);
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("external-personal-path")));
+
+        assertFalse(result.successful());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .anyMatch(message -> message.contains("personal Windows path")),
+                result.report().unsupportedEvents().toString());
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .anyMatch(message -> message.contains("personal POSIX path")),
+                result.report().unsupportedEvents().toString());
+    }
+
+    @Test
+    void failedAttemptLeftoversDoNotBlockRetryWithoutOverwrite() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        Path output = temp.resolve("retry");
+        CaptureSession failing = new CaptureSession(
+                base.schemaVersion(),
+                "retry-failing-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(new CaptureEvent.NavigationEvent(
+                        CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN,
+                        "file:///C:/Users/stranger/private/page.html")),
+                List.of(),
+                List.of(),
+                base.redactionSummary(),
+                base.extensions());
+        Path failingSession = temp.resolve("retry-failing.json");
+        new CaptureJsonCodec().write(failingSession, failing);
+        CaptureGenerationResult failed =
+                new CaptureGenerator().generate(request(failingSession, output));
+        assertFalse(failed.successful());
+        assertTrue(Files.isRegularFile(failed.reportPath()), "Failed attempt should write its report");
+
+        CaptureSession healthy = new CaptureSession(
+                base.schemaVersion(),
+                "retry-healthy-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(new CaptureEvent.NavigationEvent(
+                        CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN,
+                        "https://example.test/form")),
+                List.of(),
+                List.of(),
+                base.redactionSummary(),
+                base.extensions());
+        Path healthySession = temp.resolve("retry-healthy.json");
+        new CaptureJsonCodec().write(healthySession, healthy);
+        CaptureGenerationResult retried =
+                new CaptureGenerator().generate(request(healthySession, output));
+
+        assertTrue(retried.successful(), retried.report().unsupportedEvents().toString());
+        assertEquals("SUCCESS", JSON.readTree(retried.reportPath().toFile()).path("status").asText(),
+                "Retry must refresh the status report");
+    }
+
+    @Test
     void secretCanaryInExternalDataIsRejectedWithoutLeakingIntoReport() throws Exception {
         Path session = session(CaptureFixtures.representativeSession());
         String canary = "sk-secret-canary-123456789";
