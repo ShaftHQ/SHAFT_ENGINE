@@ -111,7 +111,7 @@
         <javassist.version>3.32.0-GA</javassist.version>
         <google.api.client.version>2.9.0</google.api.client.version>
         <google.http.client.version>2.1.1</google.http.client.version>
-        <proto.google.common.protos.version>2.72.0</proto.google.common.protos.version>
+        <proto.google.common.protos.version>2.73.0</proto.google.common.protos.version>
         <proto.google.cloud.kms.v1.version>2.97.0</proto.google.cloud.kms.v1.version>
         <error.prone.annotations.version>2.50.0</error.prone.annotations.version>
         <checker.qual.version>4.2.1</checker.qual.version>
