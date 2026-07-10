@@ -288,6 +288,42 @@ def application_data_root() -> Path:
     return base / "shafthq" / "shaft-mcp"
 
 
+def maven_local_repository() -> Path:
+    """The local Maven repository runtime dependencies are installed into.
+
+    Sharing the standard Maven layout means future SHAFT projects built with
+    Maven reuse the exact same artifacts instead of re-downloading them, and a
+    shaft-mcp reinstall skips every dependency a Maven build already fetched.
+    Resolution order matches Maven's own: explicit override, then the
+    <localRepository> configured in ~/.m2/settings.xml, then ~/.m2/repository.
+    """
+    override = os.environ.get("SHAFT_MCP_MAVEN_LOCAL_REPOSITORY")
+    if override:
+        return Path(override).expanduser().resolve()
+    m2 = home() / ".m2"
+    configured = configured_local_repository(m2 / "settings.xml")
+    if configured is not None:
+        return configured
+    return m2 / "repository"
+
+
+def configured_local_repository(settings_xml: Path) -> Path | None:
+    if not settings_xml.is_file():
+        return None
+    try:
+        root = ET.fromstring(settings_xml.read_text(encoding="utf-8"))
+    except (ET.ParseError, OSError):
+        return None
+    for element in root.iter():
+        if element.tag.endswith("localRepository") and element.text and element.text.strip():
+            value = element.text.strip().replace("${user.home}", str(home()))
+            if "${" in value:
+                # Unresolvable Maven property interpolation; fall back to the default.
+                return None
+            return Path(value).expanduser().resolve()
+    return None
+
+
 def download_bytes(url: str, attempts: int = 5) -> bytes:
     headers = {"User-Agent": "shaft-mcp-installer"}
     last_error: BaseException | None = None
@@ -460,13 +496,16 @@ def get_java25(root: Path) -> Path:
             candidate = Path(java_home) / "bin" / executable
             debug(f"Checking JAVA_HOME Java candidate {candidate}.")
             if candidate.is_file() and is_java25(candidate):
+                log(f"Java 25 found via JAVA_HOME at {candidate} (download skipped).")
                 return candidate.resolve()
         path_java = shutil.which(executable) or shutil.which("java")
         debug(f"Checking PATH Java candidate {path_java}.")
         if path_java and is_java25(Path(path_java)):
+            log(f"Java 25 found on PATH at {path_java} (download skipped).")
             return Path(path_java).resolve()
         cached = find_cached_java(root / "tools" / "jdk")
         if cached:
+            log(f"Java 25 found in the SHAFT bootstrap cache at {cached} (download skipped).")
             return cached
     return download_java25(root)
 
@@ -532,24 +571,40 @@ def install_shaft_mcp_jar(version: str, repository: str, root: Path) -> Path:
     expected = expected_sha256(url)
     target_dir = application_data_root() / "versions" / version
     target = target_dir / "shaft-mcp.jar"
-    if target.is_file() and file_sha256(target) == expected:
+    maven_target = maven_local_repository() / version_path / filename
+    target_current = target.is_file() and file_sha256(target) == expected
+    maven_current = maven_target.is_file() and file_sha256(maven_target) == expected
+    if target_current and maven_current:
+        log(f"shaft-mcp {version} is already installed and up to date (download skipped).")
         return target.resolve()
 
-    downloaded = root / "downloads" / filename
-    download_file(url, downloaded, f"io.github.shafthq:shaft-mcp:{version}")
-    if file_sha256(downloaded) != expected:
-        fail(f"Checksum verification failed for {downloaded}.", 4)
+    if target_current or maven_current:
+        # One verified copy already exists locally; mirror it instead of re-downloading.
+        source = target if target_current else maven_target
+        log(f"shaft-mcp {version} found locally at {source} (download skipped).")
+    else:
+        source = root / "downloads" / filename
+        download_file(url, source, f"io.github.shafthq:shaft-mcp:{version}")
+        if file_sha256(source) != expected:
+            fail(f"Checksum verification failed for {source}.", 4)
 
-    target_dir.mkdir(parents=True, exist_ok=True)
-    temporary = target_dir / f".shaft-mcp.jar.{os.getpid()}.tmp"
-    shutil.copyfile(downloaded, temporary)
-    if file_sha256(temporary) != expected:
-        temporary.unlink(missing_ok=True)
-        fail("Copied shaft-mcp JAR failed SHA-256 verification.", 4)
-    os.replace(temporary, target)
-    if file_sha256(target) != expected:
-        fail("Installed shaft-mcp JAR failed SHA-256 verification.", 4)
+    if not target_current:
+        copy_verified(source, target, expected, "Installed shaft-mcp JAR")
+    if not maven_current:
+        copy_verified(source, maven_target, expected, "Local Maven repository shaft-mcp JAR")
     return target.resolve()
+
+
+def copy_verified(source: Path, target: Path, expected_sha256_digest: str, label: str) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    shutil.copyfile(source, temporary)
+    if file_sha256(temporary) != expected_sha256_digest:
+        temporary.unlink(missing_ok=True)
+        fail(f"{label} failed SHA-256 verification.", 4)
+    os.replace(temporary, target)
+    if file_sha256(target) != expected_sha256_digest:
+        fail(f"{label} failed SHA-256 verification.", 4)
 
 
 def parse_runtime_dependency_manifest(text: str) -> list[tuple[str, str, str, str | None]]:
@@ -597,10 +652,15 @@ def dependency_url(repository: str, dependency: tuple[str, str, str, str | None]
     return f"{repository}/{group_path}/{artifact_id}/{version}/{filename}", filename
 
 
-def install_repository_file(url: str, target: Path, label: str, announce: bool = True) -> Path:
+def install_repository_file(url: str, target: Path, label: str, announce: bool = True) -> tuple[Path, bool]:
+    """Ensures the repository file exists at target with a verified checksum.
+
+    Returns the resolved path and whether a download actually happened, so
+    callers can report how much work an already-provisioned machine skipped.
+    """
     algorithm, expected = expected_checksum(url)
     if target.is_file() and file_digest(target, algorithm) == expected:
-        return target.resolve()
+        return target.resolve(), False
 
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
@@ -609,19 +669,19 @@ def install_repository_file(url: str, target: Path, label: str, announce: bool =
         temporary.unlink(missing_ok=True)
         fail(f"Checksum verification failed for {label}.", 4)
     os.replace(temporary, target)
-    return target.resolve()
+    return target.resolve(), True
 
 
 def install_runtime_dependencies(jar: Path, repository: str) -> list[Path]:
-    lib_dir = jar.parent / "lib"
+    maven_repository = maven_local_repository()
     dependencies = read_runtime_dependencies(jar)
-    installed: list[Path | None] = [None] * len(dependencies)
-    log(f"Resolving {len(dependencies)} shaft-mcp runtime dependencies...")
+    installed: list[tuple[Path, bool] | None] = [None] * len(dependencies)
+    log(f"Resolving {len(dependencies)} shaft-mcp runtime dependencies into {maven_repository}...")
 
-    def install_dependency(dependency: tuple[str, str, str, str | None]) -> Path:
+    def install_dependency(dependency: tuple[str, str, str, str | None]) -> tuple[Path, bool]:
         url, filename = dependency_url(repository, dependency)
         group_id, artifact_id, version, _ = dependency
-        target = lib_dir / group_id.replace(".", "/") / artifact_id / version / filename
+        target = maven_repository / group_id.replace(".", "/") / artifact_id / version / filename
         return install_repository_file(url, target, f"{group_id}:{artifact_id}:{version}", announce=False)
 
     workers = min(8, max(1, len(dependencies)))
@@ -636,8 +696,11 @@ def install_runtime_dependencies(jar: Path, repository: str) -> list[Path]:
             completed_count += 1
             progress_count("Runtime dependencies", completed_count, len(dependencies),
                     completed_count == len(dependencies))
-    resolved = [path for path in installed if path is not None]
-    log(f"Installed {len(resolved)} shaft-mcp runtime dependencies.")
+    resolved = [entry[0] for entry in installed if entry is not None]
+    downloaded_count = sum(1 for entry in installed if entry is not None and entry[1])
+    skipped_count = len(resolved) - downloaded_count
+    log(f"Runtime dependencies ready in the local Maven repository: {downloaded_count} downloaded, "
+        f"{skipped_count} already up to date (skipped).")
     return resolved
 
 
@@ -1224,6 +1287,7 @@ def install(args: argparse.Namespace) -> None:
         "version": version,
         "command": str(java),
         "args": [f"@{args_file}"],
+        "mavenLocalRepository": str(maven_local_repository()),
         "userGuide": USER_GUIDE_URL,
         "shaftSkills": {
             "installed": skills_installed,
