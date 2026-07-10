@@ -177,3 +177,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes","timestamp":"2026-07-10T15:08:06+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile","timestamp":"2026-07-10T15:08:06+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.clientactionid-is-the-authoritative-dedup-identity-for-recorder-steps","timestamp":"2026-07-10T15:08:06+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.claude-print-with-acceptedits-silently-denies-every-bash-mcp-tool-call-unless-a-permission-prompt-tool-bridge-is-wired","timestamp":"2026-07-10T19:27:31+03:00"}
