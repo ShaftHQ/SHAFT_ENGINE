@@ -497,7 +497,7 @@ public class CaptureService {
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
      * @param className optional generated class name
-     * @param overwrite whether existing artifacts may be replaced
+     * @param overwrite whether existing generated source and test-data files may be replaced; status reports are always refreshed
      * @param replay whether to execute the generated test
      * @param useAi whether to request optional AI enrichment preview
      * @param allowLocalAi explicit approval for local inference
@@ -541,7 +541,7 @@ public class CaptureService {
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
      * @param className optional generated class name
-     * @param overwrite whether existing artifacts may be replaced
+     * @param overwrite whether existing generated source and test-data files may be replaced; status reports are always refreshed
      * @param replay whether to execute the generated test
      * @param useAi whether to request optional AI enrichment preview
      * @param allowLocalAi explicit approval for local inference
@@ -586,7 +586,7 @@ public class CaptureService {
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
      * @param className optional generated class name
-     * @param overwrite whether existing artifacts may be replaced
+     * @param overwrite whether existing generated source and test-data files may be replaced; status reports are always refreshed
      * @param driverVariableName Java driver variable name used in extracted snippets
      * @return generated snippets and report
      */
@@ -622,7 +622,7 @@ public class CaptureService {
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
      * @param className optional generated class name
-     * @param overwrite whether existing artifacts may be replaced
+     * @param overwrite whether existing generated source and test-data files may be replaced; status reports are always refreshed
      * @param targetSourcePath existing Java source path inside the MCP workspace
      * @param insertAfter method name or textual anchor to insert after
      * @param driverVariableName Java driver variable name used in extracted snippets
@@ -666,7 +666,7 @@ public class CaptureService {
      * @param outputDirectory generated project root inside the MCP workspace
      * @param packageName generated Java package
      * @param className optional generated class name
-     * @param overwrite whether existing artifacts may be replaced
+     * @param overwrite whether existing generated source and test-data files may be replaced; status reports are always refreshed
      * @param driverVariableName Java driver variable name used in extracted snippets
      * @return generated snippets and report
      */

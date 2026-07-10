@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
@@ -178,7 +179,7 @@ public final class CaptureGenerator {
                         deterministicMethodName,
                         elementNames,
                         request.aiApprovalPolicy());
-                List<String> previewPrivacy = privacyFindings(writeJson(preview));
+                List<String> previewPrivacy = privacyFindings(writeJson(preview), outputRoot);
                 if (!previewPrivacy.isEmpty()) {
                     state.unsupported().addAll(previewPrivacy);
                     enrichment = new CaptureGenerationReport.Enrichment(
@@ -231,11 +232,11 @@ public final class CaptureGenerator {
             String dataJson = writeJson(state.data().root());
 
             List<String> privacy = new ArrayList<>();
-            privacy.addAll(privacyFindings(codec.write(session)));
-            privacy.addAll(privacyFindings(source));
-            privacy.addAll(privacyFindings(dataJson));
+            privacy.addAll(privacyFindings(codec.write(session), outputRoot));
+            privacy.addAll(privacyFindings(source, outputRoot));
+            privacy.addAll(privacyFindings(dataJson, outputRoot));
             privacy.stream().distinct().forEach(state.unsupported()::add);
-            validateOutputs(paths, reportPath, request.overwrite(), state.unsupported());
+            validateOutputs(paths, request.overwrite(), state.unsupported());
 
             if (!state.unsupported().isEmpty()) {
                 CaptureGenerationReport report = report(
@@ -246,9 +247,9 @@ public final class CaptureGenerator {
                         CaptureGenerationReport.Validation.skipped("Generation failed before compilation."),
                         CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
                         enrichment);
-                writeReportIfPossible(reportPath, report, request.overwrite());
+                writeReportIfPossible(reportPath, report);
                 return result(paths.source(), paths.data(), reportPath,
-                        request.enrichmentPreviewPath(), report, request.overwrite());
+                        request.enrichmentPreviewPath(), report);
             }
 
             atomicWrite(paths.source(), source);
@@ -282,7 +283,7 @@ public final class CaptureGenerator {
                     replay,
                     enrichment);
             String reportJson = writeJson(report);
-            List<String> reportPrivacy = privacyFindings(reportJson);
+            List<String> reportPrivacy = privacyFindings(reportJson, outputRoot);
             if (!reportPrivacy.isEmpty()) {
                 CaptureGenerationReport privacyFailure = report(
                         session,
@@ -294,11 +295,11 @@ public final class CaptureGenerator {
                         enrichment);
                 atomicWrite(reportPath, writeJson(privacyFailure));
                 return result(paths.source(), paths.data(), reportPath,
-                        request.enrichmentPreviewPath(), privacyFailure, request.overwrite());
+                        request.enrichmentPreviewPath(), privacyFailure);
             }
             atomicWrite(reportPath, reportJson);
             return result(paths.source(), paths.data(), reportPath,
-                    request.enrichmentPreviewPath(), report, request.overwrite());
+                    request.enrichmentPreviewPath(), report);
         } catch (RuntimeException exception) {
             String sessionId = session == null ? "" : session.sessionId();
             ArtifactPaths safePaths = paths == null
@@ -313,9 +314,9 @@ public final class CaptureGenerator {
                     CaptureGenerationReport.Validation.skipped("Generation failed before compilation."),
                     CaptureGenerationReport.Validation.skipped("Generation failed before replay."),
                     CaptureGenerationReport.Enrichment.notRequested());
-            writeReportIfPossible(reportPath, report, request.overwrite());
+            writeReportIfPossible(reportPath, report);
             return result(safePaths.source(), safePaths.data(), reportPath,
-                    request.enrichmentPreviewPath(), report, request.overwrite());
+                    request.enrichmentPreviewPath(), report);
         }
     }
 
@@ -1689,12 +1690,17 @@ public final class CaptureGenerator {
         return new CaptureReadiness(stateValue, warnings.stream().distinct().sorted().toList());
     }
 
+    /**
+     * Overwrite protection applies to user-owned generated code artifacts only. Status artifacts
+     * (generation report, review, workbench) describe the current attempt and are always
+     * refreshed; protecting them made every retry after a failed attempt fail on the failed
+     * attempt's own leftover report.
+     */
     private static void validateOutputs(
             ArtifactPaths paths,
-            Path reportPath,
             boolean overwrite,
             List<String> unsupported) {
-        for (Path path : List.of(paths.source(), paths.data(), reportPath)) {
+        for (Path path : List.of(paths.source(), paths.data())) {
             if (Files.exists(path) && !overwrite) {
                 unsupported.add("output: " + relative(paths.root(), path)
                         + " already exists. Supply an explicit output directory and overwrite approval.");
@@ -1708,14 +1714,9 @@ public final class CaptureGenerator {
         }
     }
 
-    private static void writeReportIfPossible(
-            Path reportPath,
-            CaptureGenerationReport report,
-            boolean overwrite) {
+    private static void writeReportIfPossible(Path reportPath, CaptureGenerationReport report) {
         try {
-            if (!Files.exists(reportPath) || overwrite) {
-                atomicWrite(reportPath, writeJson(report));
-            }
+            atomicWrite(reportPath, writeJson(report));
         } catch (RuntimeException ignored) {
             // The returned in-memory report remains available when the filesystem is not writable.
         }
@@ -1726,21 +1727,18 @@ public final class CaptureGenerator {
             Path testDataPath,
             Path reportPath,
             Path enrichmentPreviewPath,
-            CaptureGenerationReport report,
-            boolean overwrite) {
+            CaptureGenerationReport report) {
         CaptureGenerationResult result = new CaptureGenerationResult(
                 sourcePath, testDataPath, reportPath, enrichmentPreviewPath, report);
         CaptureReview review = review(report);
-        writeReviewIfPossible(result.reviewPath(), review, overwrite);
-        writeWorkbenchIfPossible(result.reviewUiPath(), sourcePath, report, review, overwrite);
+        writeReviewIfPossible(result.reviewPath(), review);
+        writeWorkbenchIfPossible(result.reviewUiPath(), sourcePath, report, review);
         return result;
     }
 
-    private static void writeReviewIfPossible(Path reviewPath, CaptureReview review, boolean overwrite) {
+    private static void writeReviewIfPossible(Path reviewPath, CaptureReview review) {
         try {
-            if (!Files.exists(reviewPath) || overwrite) {
-                atomicWrite(reviewPath, writeJson(review));
-            }
+            atomicWrite(reviewPath, writeJson(review));
         } catch (RuntimeException ignored) {
             // Review output is additive; generation result remains authoritative.
         }
@@ -1750,10 +1748,9 @@ public final class CaptureGenerator {
             Path workbenchPath,
             Path sourcePath,
             CaptureGenerationReport report,
-            CaptureReview review,
-            boolean overwrite) {
+            CaptureReview review) {
         try {
-            CaptureWorkbenchHtml.write(workbenchPath, sourcePath, report, review, overwrite);
+            CaptureWorkbenchHtml.write(workbenchPath, sourcePath, report, review, true);
         } catch (RuntimeException ignored) {
             // Workbench output is additive; generation result remains authoritative.
         }
@@ -1997,14 +1994,14 @@ public final class CaptureGenerator {
         return normalized.length() <= 240 ? normalized : normalized.substring(0, 237) + "...";
     }
 
-    private static List<String> privacyFindings(String content) {
+    private static List<String> privacyFindings(String content, Path allowedRoot) {
         List<String> findings = new ArrayList<>();
         if (content == null || content.isBlank()) {
             return findings;
         }
-        addFinding(findings, WINDOWS_PERSONAL_PATH, content,
+        addPersonalPathFinding(findings, WINDOWS_PERSONAL_PATH, content, allowedRoot,
                 "privacy: generated artifacts contain an absolute personal Windows path.");
-        addFinding(findings, UNIX_PERSONAL_PATH, content,
+        addPersonalPathFinding(findings, UNIX_PERSONAL_PATH, content, allowedRoot,
                 "privacy: generated artifacts contain an absolute personal POSIX path.");
         addFinding(findings, BEARER_SECRET, content,
                 "privacy: generated artifacts contain a bearer credential.");
@@ -2024,6 +2021,51 @@ public final class CaptureGenerator {
     private static void addFinding(List<String> findings, Pattern pattern, String content, String message) {
         if (pattern.matcher(content).find()) {
             findings.add(message);
+        }
+    }
+
+    /**
+     * Flags personal home-directory paths only when they escape the generation root. The recording
+     * and its generated artifacts already live inside that root, so a root-contained absolute path
+     * (for example a recorded {@code file://} fixture URL inside the user's own workspace) is not a
+     * privacy leak, while any personal path outside the root still blocks generation.
+     */
+    private static void addPersonalPathFinding(
+            List<String> findings,
+            Pattern pattern,
+            String content,
+            Path allowedRoot,
+            String message) {
+        Matcher matcher = pattern.matcher(content);
+        while (matcher.find()) {
+            if (!withinAllowedRoot(pathToken(content, matcher.start()), allowedRoot)) {
+                findings.add(message);
+                return;
+            }
+        }
+    }
+
+    private static String pathToken(String content, int start) {
+        int end = start;
+        while (end < content.length() && "\"' \t\r\n".indexOf(content.charAt(end)) < 0) {
+            end++;
+        }
+        return content.substring(start, end);
+    }
+
+    private static boolean withinAllowedRoot(String token, Path allowedRoot) {
+        if (allowedRoot == null) {
+            return false;
+        }
+        String candidate = token.replaceFirst("(?i)^file:/*", "");
+        if (!candidate.matches("(?i)^[A-Z]:.*")) {
+            candidate = "/" + candidate.replaceFirst("^/+", "");
+        }
+        try {
+            return Path.of(candidate).toAbsolutePath().normalize()
+                    .startsWith(allowedRoot.toAbsolutePath().normalize());
+        } catch (InvalidPathException exception) {
+            return false;
         }
     }
 
