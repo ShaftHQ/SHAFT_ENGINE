@@ -1474,8 +1474,8 @@ public class RestActions {
             try {
                 switch (contentType) {
                     case JSON ->
-                        // "application/json", "application/javascript", "text/javascript", "text/json" ->
-                            builder.setBody(body, ObjectMapperType.GSON);
+                        // Serialize POJOs with SHAFT's Jackson mapper (as on the response side) so Jackson annotations are honored.
+                            builder.setBody(serializeJsonRequestBody(body));
                     case XML ->
                         //   "application/xml", "text/xml", "application/xhtml+xml" ->
                             builder.setBody(body, ObjectMapperType.JAXB);
@@ -1485,6 +1485,13 @@ public class RestActions {
                 failAction("Issue with parsing body content", rootCauseException);
             }
         }
+    }
+
+    private static String serializeJsonRequestBody(Object body) throws JacksonException {
+        if (body instanceof String stringBody) {
+            return stringBody;
+        }
+        return JACKSON_MAPPER.writeValueAsString(body);
     }
 
     private void prepareRequestBody(RequestSpecBuilder builder, List<List<Object>> parameters,
