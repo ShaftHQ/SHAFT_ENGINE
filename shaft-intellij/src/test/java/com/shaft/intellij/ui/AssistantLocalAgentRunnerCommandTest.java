@@ -58,7 +58,14 @@ class AssistantLocalAgentRunnerCommandTest {
                 () -> assertFalse(granted.contains("plan"), "Granted AGENT mode should not fall back to plan: " + granted),
                 () -> assertTrue(ungranted.contains("plan"), "Ungranted AGENT mode must fall back to plan: " + ungranted),
                 () -> assertFalse(ungranted.contains("acceptEdits"),
-                        "Ungranted AGENT mode must not accept edits: " + ungranted));
+                        "Ungranted AGENT mode must not accept edits: " + ungranted),
+                // SHAFT's own MCP tools are first-party capabilities: granted AGENT runs pre-approve
+                // the whole shaft-mcp server so no per-call prompt ever fires for them. The plan
+                // fallback proposes only, so it carries no allow rule.
+                () -> assertTrue(granted.containsAll(List.of("--allowedTools", "mcp__shaft-mcp")),
+                        "Granted AGENT mode should pre-approve shaft-mcp tools: " + granted),
+                () -> assertFalse(ungranted.contains("--allowedTools"),
+                        "The propose-only plan fallback needs no allow rule: " + ungranted));
     }
 
     @Test
@@ -123,6 +130,8 @@ class AssistantLocalAgentRunnerCommandTest {
                 () -> assertTrue(command.contains("--permission-prompt-tool"), command.toString()),
                 () -> assertTrue(command.contains("mcp__shaft-approval__approval_prompt"), command.toString()),
                 () -> assertTrue(command.contains("--mcp-config"), command.toString()),
+                () -> assertTrue(command.containsAll(List.of("--allowedTools", "mcp__shaft-mcp")),
+                        "Bridged AGENT runs pre-approve shaft-mcp tools so only non-SHAFT calls prompt: " + command),
                 () -> assertFalse(command.contains("plan"), command.toString()),
                 () -> assertFalse(command.contains("acceptEdits"), command.toString()));
     }
@@ -163,6 +172,8 @@ class AssistantLocalAgentRunnerCommandTest {
                 () -> assertTrue(command.contains("acceptEdits"), command.toString()),
                 () -> assertTrue(command.contains("--permission-prompt-tool"), command.toString()),
                 () -> assertTrue(command.contains("--mcp-config"), command.toString()),
+                () -> assertTrue(command.containsAll(List.of("--allowedTools", "mcp__shaft-mcp")),
+                        "Granted AGENT runs pre-approve shaft-mcp tools so only non-SHAFT calls prompt: " + command),
                 () -> assertTrue(launched.get().isClosed(), "The bridge must be closed once the run finishes"));
     }
 

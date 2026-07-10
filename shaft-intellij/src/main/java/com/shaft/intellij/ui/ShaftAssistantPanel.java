@@ -1599,6 +1599,14 @@ final class ShaftAssistantPanel extends JPanel {
      * #runOnEdt} and returns a future that {@link #handleLocalAgentApprovalRequest} completes once
      * the user (or a stale-run/queue check) decides.
      */
+    /**
+     * Whether a local-agent tool-approval request targets a SHAFT MCP tool
+     * ({@code mcp__shaft-mcp__*}). Package-private for tests.
+     */
+    static boolean isShaftMcpTool(String toolName) {
+        return toolName != null && toolName.startsWith("mcp__shaft-mcp__");
+    }
+
     private LocalAgentApprovalBridge.ApprovalRequestHandler localAgentApprovalHandler(int streamToken) {
         return (toolName, input) -> {
             CompletableFuture<LocalAgentApprovalBridge.Decision> future = new CompletableFuture<>();
@@ -1621,6 +1629,14 @@ final class ShaftAssistantPanel extends JPanel {
             CompletableFuture<LocalAgentApprovalBridge.Decision> future) {
         if (streamToken != activeLocalAgentStreamToken) {
             future.complete(LocalAgentApprovalBridge.Decision.deny("The Assistant run has ended."));
+            return;
+        }
+        // SHAFT's own MCP tools are first-party Assistant capabilities and are always allowed.
+        // The command line already pre-approves them via --allowedTools, so this is defense in
+        // depth for CLI versions or configurations where that flag does not take effect.
+        if (isShaftMcpTool(toolName)) {
+            addTimeline("Auto-approved SHAFT tool: " + toolName);
+            future.complete(LocalAgentApprovalBridge.Decision.allow());
             return;
         }
         String key = LOCAL_AGENT_APPROVAL_KEY_PREFIX + toolName;

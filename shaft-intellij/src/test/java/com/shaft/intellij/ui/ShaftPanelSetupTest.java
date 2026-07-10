@@ -2130,6 +2130,20 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void shaftMcpToolsAreFirstPartyAndBypassLocalAgentApprovalPrompts() {
+        assertAll(
+                () -> assertTrue(ShaftAssistantPanel.isShaftMcpTool("mcp__shaft-mcp__shaft_coding_partner_plan")),
+                () -> assertTrue(ShaftAssistantPanel.isShaftMcpTool("mcp__shaft-mcp__capture_generate_replay")),
+                () -> assertFalse(ShaftAssistantPanel.isShaftMcpTool("Bash"),
+                        "shell commands still require approval"),
+                () -> assertFalse(ShaftAssistantPanel.isShaftMcpTool("mcp__other-server__tool"),
+                        "third-party MCP servers still require approval"),
+                () -> assertFalse(ShaftAssistantPanel.isShaftMcpTool("mcp__shaft-mcp"),
+                        "only fully-qualified tool names arrive from the bridge"),
+                () -> assertFalse(ShaftAssistantPanel.isShaftMcpTool(null)));
+    }
+
+    @Test
     void assistantSlashSuggestionsFilterByTypedPrefix() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 

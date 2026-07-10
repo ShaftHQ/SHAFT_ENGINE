@@ -1069,6 +1069,7 @@ final class AssistantLocalAgentRunner {
                     command.add("--permission-prompt-tool");
                     command.add(bridge.permissionPromptToolName());
                 }
+                addShaftMcpAllowedTools(command);
             } else if ("AGENT".equals(mode) && bridge != null) {
                 command.add("--permission-mode");
                 command.add("default");
@@ -1076,6 +1077,7 @@ final class AssistantLocalAgentRunner {
                 command.add(bridge.mcpConfigArgument());
                 command.add("--permission-prompt-tool");
                 command.add(bridge.permissionPromptToolName());
+                addShaftMcpAllowedTools(command);
             } else {
                 command.add("--permission-mode");
                 command.add("plan");
@@ -1085,6 +1087,20 @@ final class AssistantLocalAgentRunner {
         command.add("stream-json");
         command.add("--verbose");
         return List.copyOf(command);
+    }
+
+    /**
+     * Pre-approves every SHAFT MCP tool for Claude Code AGENT runs. SHAFT's own tools are
+     * first-party capabilities of the Assistant (Codex runs already pre-approve them via
+     * {@code mcp_servers.shaft-mcp.default_tools_approval_mode="approve"}), so they never need a
+     * per-call approval prompt; the bridge remains for shell commands and third-party MCP tools.
+     * The server-level rule {@code mcp__shaft-mcp} allows every tool on that server — validated
+     * empirically against claude v2.1.203: a tools/call on an {@code mcp__shaft-mcp__*} tool
+     * executes with zero permission denials and no permission-prompt round trip.
+     */
+    private static void addShaftMcpAllowedTools(List<String> command) {
+        command.add("--allowedTools");
+        command.add("mcp__shaft-mcp");
     }
 
     private static List<String> copilotCommand(String mode, boolean allowSourceMutation, String model) {
