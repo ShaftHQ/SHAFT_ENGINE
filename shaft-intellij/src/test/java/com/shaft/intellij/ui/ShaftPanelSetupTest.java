@@ -1945,7 +1945,6 @@ class ShaftPanelSetupTest {
 
         JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
         JButton commandInfo = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
-        JButton contextInfo = findByAccessibleName(panel, "Assistant context suggestions", JButton.class);
         JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
         JProgressBar spinner = findByAccessibleName(panel, "Assistant thinking spinner", JProgressBar.class);
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
@@ -1982,11 +1981,14 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)"),
                         "old starter strip copy should stay removed"),
                 () -> assertNotNull(commandInfo, "command help button should exist"),
-                () -> assertNotNull(contextInfo, "context suggestions button should exist"),
+                () -> assertNull(findByAccessibleName(panel, "Assistant context suggestions", JButton.class),
+                        "the '+' context button is retired; typed / @ # triggers own that role"),
+                () -> assertTrue(prompt instanceof JBTextArea
+                                && ((JBTextArea) prompt).getEmptyText().getText().contains("@ workflows"),
+                        "the prompt placeholder should advertise the typed triggers instead"),
                 () -> assertNotNull(verbose),
                 () -> assertFalse(verbose.isSelected()),
                 () -> assertTrue(verbose.getToolTipText().contains("live local agent output")),
-                () -> assertTrue(contextInfo.getToolTipText().contains("@workflow"), "context tooltip should mention @workflow"),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/codegen"), "command tooltip should list /codegen"),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/record-web"), "command tooltip should list /record-web"),
                 () -> assertTrue(commandInfo.getToolTipText().contains("/record-mobile"), "command tooltip should list /record-mobile"),
@@ -1999,9 +2001,6 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(componentIndex(commandAutocomplete.getParent(), commandInfo)
                         > componentIndex(commandAutocomplete.getParent(), commandAutocomplete),
                         "command help should follow autocomplete"),
-                () -> assertTrue(componentIndex(commandAutocomplete.getParent(), contextInfo)
-                        > componentIndex(commandAutocomplete.getParent(), commandInfo),
-                        "context help should follow command help"),
                 () -> assertNotNull(spinner, "spinner should exist"),
                 () -> assertTrue(spinner.isIndeterminate(), "spinner should be indeterminate"),
                 () -> assertFalse(spinner.isVisible(), "spinner should be hidden while idle"),
@@ -2115,14 +2114,49 @@ class ShaftPanelSetupTest {
                 () -> assertTrue(workflowSuggestions.stream().anyMatch(
                         suggestion -> "@tool:guardrails".equals(suggestion.label())
                                 && "/guardrails ".equals(suggestion.insertion()))),
+                // Slash entries insert the clean command plus a trailing space (never the doc
+                // example: a pasted placeholder path invites running it verbatim) and render the
+                // summary as secondary label text.
                 () -> assertTrue(slashSuggestions.stream().anyMatch(
-                        suggestion -> "/upgrade".equals(suggestion.label())
-                                && "/upgrade .".equals(suggestion.insertion()))),
+                        suggestion -> "/upgrade".equals(suggestion.matchText())
+                                && "/upgrade ".equals(suggestion.insertion())
+                                && suggestion.label().contains("/upgrade"))),
                 () -> assertTrue(slashSuggestions.stream().anyMatch(
-                        suggestion -> "/record-web".equals(suggestion.label())
-                                && "/record-web https://example.com".equals(suggestion.insertion()))),
+                        suggestion -> "/record-web".equals(suggestion.matchText())
+                                && "/record-web ".equals(suggestion.insertion())
+                                && suggestion.label().contains("Record web actions"))),
                 () -> assertTrue(fileSuggestions.isEmpty()),
                 () -> assertTrue(unsupportedSuggestions.isEmpty()));
+    }
+
+    @Test
+    void shaftMcpToolsAreFirstPartyAndBypassLocalAgentApprovalPrompts() {
+        assertAll(
+                () -> assertTrue(ShaftAssistantPanel.isShaftMcpTool("mcp__shaft-mcp__shaft_coding_partner_plan")),
+                () -> assertTrue(ShaftAssistantPanel.isShaftMcpTool("mcp__shaft-mcp__capture_generate_replay")),
+                () -> assertFalse(ShaftAssistantPanel.isShaftMcpTool("Bash"),
+                        "shell commands still require approval"),
+                () -> assertFalse(ShaftAssistantPanel.isShaftMcpTool("mcp__other-server__tool"),
+                        "third-party MCP servers still require approval"),
+                () -> assertFalse(ShaftAssistantPanel.isShaftMcpTool("mcp__shaft-mcp"),
+                        "only fully-qualified tool names arrive from the bridge"),
+                () -> assertFalse(ShaftAssistantPanel.isShaftMcpTool(null)));
+    }
+
+    @Test
+    void assistantSlashSuggestionsFilterByTypedPrefix() {
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+
+        List<ShaftAssistantPanel.ContextSuggestion> codegenOnly = panel.filteredContextSuggestions('/', "co");
+        List<ShaftAssistantPanel.ContextSuggestion> record = panel.filteredContextSuggestions('/', "record");
+        List<ShaftAssistantPanel.ContextSuggestion> none = panel.filteredContextSuggestions('/', "zzz");
+
+        assertAll(
+                () -> assertTrue(codegenOnly.stream().anyMatch(s -> "/codegen".equals(s.matchText())), codegenOnly.toString()),
+                () -> assertTrue(codegenOnly.stream().noneMatch(s -> "/upgrade".equals(s.matchText())), codegenOnly.toString()),
+                () -> assertTrue(record.stream().anyMatch(s -> "/record-web".equals(s.matchText())), record.toString()),
+                () -> assertTrue(record.stream().anyMatch(s -> "/record-mobile".equals(s.matchText())), record.toString()),
+                () -> assertTrue(none.isEmpty(), none.toString()));
     }
 
     @Test

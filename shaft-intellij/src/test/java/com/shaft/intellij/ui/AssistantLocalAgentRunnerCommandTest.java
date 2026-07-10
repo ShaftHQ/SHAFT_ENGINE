@@ -58,7 +58,14 @@ class AssistantLocalAgentRunnerCommandTest {
                 () -> assertFalse(granted.contains("plan"), "Granted AGENT mode should not fall back to plan: " + granted),
                 () -> assertTrue(ungranted.contains("plan"), "Ungranted AGENT mode must fall back to plan: " + ungranted),
                 () -> assertFalse(ungranted.contains("acceptEdits"),
-                        "Ungranted AGENT mode must not accept edits: " + ungranted));
+                        "Ungranted AGENT mode must not accept edits: " + ungranted),
+                // SHAFT's own MCP tools are first-party capabilities: granted AGENT runs pre-approve
+                // the whole shaft-mcp server so no per-call prompt ever fires for them. The plan
+                // fallback proposes only, so it carries no allow rule.
+                () -> assertTrue(granted.containsAll(List.of("--allowedTools", "mcp__shaft-mcp")),
+                        "Granted AGENT mode should pre-approve shaft-mcp tools: " + granted),
+                () -> assertFalse(ungranted.contains("--allowedTools"),
+                        "The propose-only plan fallback needs no allow rule: " + ungranted));
     }
 
     @Test
@@ -123,27 +130,51 @@ class AssistantLocalAgentRunnerCommandTest {
                 () -> assertTrue(command.contains("--permission-prompt-tool"), command.toString()),
                 () -> assertTrue(command.contains("mcp__shaft-approval__approval_prompt"), command.toString()),
                 () -> assertTrue(command.contains("--mcp-config"), command.toString()),
+                () -> assertTrue(command.containsAll(List.of("--allowedTools", "mcp__shaft-mcp")),
+                        "Bridged AGENT runs pre-approve shaft-mcp tools so only non-SHAFT calls prompt: " + command),
                 () -> assertFalse(command.contains("plan"), command.toString()),
                 () -> assertFalse(command.contains("acceptEdits"), command.toString()));
     }
 
+    /**
+     * Regression test for the "codegen does nothing" report: {@code acceptEdits} only
+     * auto-approves file edits, so a granted run without the bridge has every Bash and MCP tool
+     * call auto-denied in {@code --print} mode (reproduced live as 16 denials in one
+     * capture-integration run). Granted AGENT runs therefore keep {@code acceptEdits} for edits
+     * AND wire the interactive bridge for everything else.
+     */
     @Test
-    void grantedAgentModeNeverLaunchesTheBridgeEvenWithAHandlerSupplied() throws Exception {
-        AtomicBoolean launcherInvoked = new AtomicBoolean();
+    void grantedAgentModeAlsoLaunchesTheBridgeForNonEditToolCalls() throws Exception {
+        AtomicReference<List<String>> capturedCommand = new AtomicReference<>();
+        AtomicReference<LocalAgentApprovalBridge> launched = new AtomicReference<>();
         AssistantLocalAgentRunner.ApprovalBridgeLauncher launcher = (handler, timeout) -> {
-            launcherInvoked.set(true);
-            throw new IOException("should not be called");
+            LocalAgentApprovalBridge bridge = LocalAgentApprovalBridge.start(handler, timeout);
+            launched.set(bridge);
+            return bridge;
         };
         StubProcess process = StubProcess.completing(claudeResultEvent("Done."));
 
         ShaftMcpInvocation running = AssistantLocalAgentRunner.start(
-                claudeAgentInvocation(true), line -> { }, (command, workingDirectory, environment) -> process, false,
+                claudeAgentInvocation(true),
+                line -> { },
+                (command, workingDirectory, environment) -> {
+                    capturedCommand.set(command);
+                    return process;
+                },
+                false,
                 allowAllHandler(), launcher);
         ShaftMcpToolResult result = running.future().get(5, TimeUnit.SECONDS);
 
+        List<String> command = capturedCommand.get();
         assertAll(
                 () -> assertTrue(result.success()),
-                () -> assertFalse(launcherInvoked.get(), "A granted (acceptEdits) run must never launch the bridge"));
+                () -> assertTrue(launched.get() != null, "A granted run should launch the bridge for non-edit tools"),
+                () -> assertTrue(command.contains("acceptEdits"), command.toString()),
+                () -> assertTrue(command.contains("--permission-prompt-tool"), command.toString()),
+                () -> assertTrue(command.contains("--mcp-config"), command.toString()),
+                () -> assertTrue(command.containsAll(List.of("--allowedTools", "mcp__shaft-mcp")),
+                        "Granted AGENT runs pre-approve shaft-mcp tools so only non-SHAFT calls prompt: " + command),
+                () -> assertTrue(launched.get().isClosed(), "The bridge must be closed once the run finishes"));
     }
 
     @Test

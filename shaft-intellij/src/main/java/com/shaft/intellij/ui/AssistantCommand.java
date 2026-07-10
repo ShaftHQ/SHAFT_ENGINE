@@ -1529,7 +1529,9 @@ final class AssistantCommand {
         arguments.addProperty("outputDirectory", ".");
         arguments.addProperty("packageName", "tests.generated");
         arguments.addProperty("className", "RecordedFlowTest");
-        arguments.addProperty("overwrite", false);
+        // The generated class name and path are deterministic, so re-running /codegen on the same
+        // (or another) recording must regenerate rather than fail with "already exists".
+        arguments.addProperty("overwrite", true);
         arguments.addProperty("driverVariableName", "driver");
         return arguments;
     }
@@ -1552,10 +1554,14 @@ final class AssistantCommand {
         return """
                 The user approved the reviewed SHAFT Capture code. Create the actual Java test files now.
 
+                Tool availability (important):
+                - Create and edit files with your file-editing tools only; do not write files through shell commands.
+                - Optional helpers (shaft_coding_partner_plan, shaft_guide_search, test_code_guardrails_check, shell/Maven commands) may be unavailable or denied in this session. Try each at most once; if it is denied or missing, continue WITHOUT it immediately instead of retrying or asking again.
+                - The raw codegen result below already contains everything needed to create the files, so a denied helper is never a blocker.
+
                 Requirements:
                 - Use the Page Object Model where practical.
                 - Inspect the current project structure before editing.
-                - Call shaft_coding_partner_plan when available and reuse its recommended target source and anchor before creating new files.
                 - Move stable locators into page object classes.
                 - Move replay actions into intent-named page methods.
                 - Do not use SHAFT.GUI.Locator.xpath; use smart locators, the locator builder, or By.xpath only as a last fallback.
@@ -1566,7 +1572,12 @@ final class AssistantCommand {
                 - assert the final page title or final page-specific text from the recorded destination.
                 - Preserve existing repository style and the smallest compiling source edit.
                 - Do not start a new recording or drive the browser again.
-                - Run the smallest relevant compile or test check if the project can do so locally.
+                - Run the smallest relevant compile or test check only if a shell tool is available and approved; skip it otherwise.
+
+                Final answer format (mandatory):
+                - List every file you created or modified with its repository-relative path.
+                - Include the full content of each created test and page object class in fenced ```java blocks.
+                - If you could not create any file, say exactly which tool failed or was denied and why; never answer with a bare confirmation like "Done".
 
                 Reviewed Capture output:
                 %s

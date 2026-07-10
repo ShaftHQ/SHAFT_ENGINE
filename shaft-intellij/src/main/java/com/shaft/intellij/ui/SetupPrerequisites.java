@@ -1,9 +1,21 @@
 package com.shaft.intellij.ui;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Detects the tools the SHAFT MCP setup flow depends on and produces the per-OS terminal commands
@@ -77,12 +89,114 @@ final class SetupPrerequisites {
         };
     }
 
+    private static final String ENGINE_METADATA_URL =
+            "https://repo1.maven.org/maven2/io/github/shafthq/SHAFT_ENGINE/maven-metadata.xml";
+    private static final Pattern METADATA_RELEASE = Pattern.compile("<release>\\s*([^<\\s]+)\\s*</release>");
+    private static final Pattern VERSION_LIKE = Pattern.compile("\\d+(\\.\\d+)+");
+    private static final AtomicReference<String> RESOLVED_ENGINE_VERSION = new AtomicReference<>();
+    private static final AtomicReference<CompletableFuture<Void>> ENGINE_VERSION_PREFETCH = new AtomicReference<>();
+
     /**
      * Pre-downloads SHAFT Engine and its transitive dependencies into the local Maven repository so
-     * every future SHAFT project on this machine builds without re-downloading them.
+     * every future SHAFT project on this machine builds without re-downloading them. The command
+     * pins the real latest release resolved from Maven Central ({@code LATEST} is a Maven 3
+     * meta-version that also matches snapshots, is unsupported by {@code dependency:get} on Maven 4,
+     * and hides which version the user actually warmed up); when Central has not answered (yet),
+     * the plugin's own release version — which tracks the engine release train — is used instead.
      */
     static String shaftEngineWarmupCommand() {
-        return "mvn -B dependency:get -Dartifact=io.github.shafthq:SHAFT_ENGINE:LATEST";
+        prefetchLatestEngineVersion();
+        return "mvn -B dependency:get -Dartifact=io.github.shafthq:SHAFT_ENGINE:" + latestEngineVersion();
+    }
+
+    /**
+     * Starts (at most once) a background resolution of the latest released engine version from
+     * Maven Central, so a later EDT call to {@link #shaftEngineWarmupCommand()} can embed it without
+     * ever blocking on the network. Callers that build setup UI should invoke this early.
+     */
+    static void prefetchLatestEngineVersion() {
+        if (ENGINE_VERSION_PREFETCH.compareAndSet(null, new CompletableFuture<>())) {
+            CompletableFuture
+                    .runAsync(() -> {
+                        String release = releaseVersionFromMavenCentral();
+                        if (!release.isBlank()) {
+                            RESOLVED_ENGINE_VERSION.set(release);
+                        }
+                    })
+                    .whenComplete((ignored, error) -> ENGINE_VERSION_PREFETCH.get().complete(null));
+        }
+    }
+
+    private static String latestEngineVersion() {
+        return latestEngineVersion(RESOLVED_ENGINE_VERSION::get, SetupPrerequisites::bundledPluginVersion);
+    }
+
+    /**
+     * Package-private for tests: picks the resolved Maven Central release when available, then the
+     * bundled plugin release version, and only when neither looks like a real version number falls
+     * back to Maven's {@code RELEASE} meta-version (latest non-snapshot) so the command still works
+     * on dev builds without network access.
+     */
+    static String latestEngineVersion(Supplier<String> resolvedVersion, Supplier<String> bundledVersion) {
+        String resolved = resolvedVersion.get();
+        if (isVersionLike(resolved)) {
+            return resolved;
+        }
+        String bundled = bundledVersion.get();
+        if (isVersionLike(bundled)) {
+            return bundled;
+        }
+        return "RELEASE";
+    }
+
+    private static boolean isVersionLike(String candidate) {
+        return candidate != null && VERSION_LIKE.matcher(candidate.trim()).matches();
+    }
+
+    private static String bundledPluginVersion() {
+        try {
+            return ResourceBundle.getBundle("messages.ShaftBundle").getString("shaft.plugin.version");
+        } catch (MissingResourceException exception) {
+            return "";
+        }
+    }
+
+    private static String releaseVersionFromMavenCentral() {
+        // No try-with-resources: HttpClient is only AutoCloseable on JDK 21+, and this module
+        // still compiles with --release 17.
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .followRedirects(HttpClient.Redirect.NORMAL)
+                    .build();
+            HttpResponse<String> response = client.send(
+                    HttpRequest.newBuilder(URI.create(ENGINE_METADATA_URL))
+                            .timeout(Duration.ofSeconds(10))
+                            .GET()
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                return "";
+            }
+            return releaseVersionFromMetadata(response.body());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return "";
+        } catch (Exception exception) {
+            return "";
+        }
+    }
+
+    /**
+     * Package-private for tests: extracts the {@code <release>} version from Maven repository
+     * metadata XML, or blank when the document has none.
+     */
+    static String releaseVersionFromMetadata(String metadataXml) {
+        if (metadataXml == null || metadataXml.isBlank()) {
+            return "";
+        }
+        Matcher matcher = METADATA_RELEASE.matcher(metadataXml);
+        return matcher.find() ? matcher.group(1) : "";
     }
 
     private static String pythonInstallCommand(boolean windows, boolean mac) {
