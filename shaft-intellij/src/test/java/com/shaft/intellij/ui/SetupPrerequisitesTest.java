@@ -94,9 +94,47 @@ class SetupPrerequisitesTest {
     }
 
     @Test
-    void shaftEngineWarmupCommandDownloadsIntoTheLocalMavenRepository() {
-        assertEquals("mvn -B dependency:get -Dartifact=io.github.shafthq:SHAFT_ENGINE:LATEST",
-                SetupPrerequisites.shaftEngineWarmupCommand());
+    void shaftEngineWarmupCommandPinsARealVersionInsteadOfTheLatestMetaVersion() {
+        String command = SetupPrerequisites.shaftEngineWarmupCommand();
+
+        assertAll(
+                () -> assertTrue(command.startsWith("mvn -B dependency:get -Dartifact=io.github.shafthq:SHAFT_ENGINE:"),
+                        command),
+                () -> assertFalse(command.endsWith(":LATEST"), command));
+    }
+
+    @Test
+    void latestEngineVersionPrefersMavenCentralThenBundledPluginVersionThenReleaseMetaVersion() {
+        assertAll(
+                () -> assertEquals("10.3.20260710",
+                        SetupPrerequisites.latestEngineVersion(() -> "10.3.20260710", () -> "10.3.20260101")),
+                () -> assertEquals("10.3.20260101",
+                        SetupPrerequisites.latestEngineVersion(() -> null, () -> "10.3.20260101")),
+                () -> assertEquals("10.3.20260101",
+                        SetupPrerequisites.latestEngineVersion(() -> "", () -> "10.3.20260101")),
+                () -> assertEquals("RELEASE",
+                        SetupPrerequisites.latestEngineVersion(() -> null, () -> "${pluginVersion}")),
+                () -> assertEquals("RELEASE",
+                        SetupPrerequisites.latestEngineVersion(() -> "not-a-version", () -> "dev")));
+    }
+
+    @Test
+    void releaseVersionIsExtractedFromMavenRepositoryMetadata() {
+        String metadata = """
+                <metadata>
+                  <groupId>io.github.shafthq</groupId>
+                  <artifactId>SHAFT_ENGINE</artifactId>
+                  <versioning>
+                    <latest>10.3.20260710</latest>
+                    <release>10.3.20260710</release>
+                  </versioning>
+                </metadata>
+                """;
+
+        assertAll(
+                () -> assertEquals("10.3.20260710", SetupPrerequisites.releaseVersionFromMetadata(metadata)),
+                () -> assertEquals("", SetupPrerequisites.releaseVersionFromMetadata("<metadata/>")),
+                () -> assertEquals("", SetupPrerequisites.releaseVersionFromMetadata("")));
     }
 
     private static SetupPrerequisites.Prerequisite python(List<SetupPrerequisites.Prerequisite> detected) {
