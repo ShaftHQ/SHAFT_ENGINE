@@ -96,22 +96,32 @@ public class GeneratedTestValidator {
             Files.createDirectories(allureResults);
             Files.createDirectories(testngOutput);
             seedHeadlessCustomProperties(workDirectory);
-            List<String> command = new ArrayList<>();
-            command.add(javaCommand());
-            command.add("-Dallure.results.directory=" + allureResults.toAbsolutePath().normalize());
-            // Always headless regardless of the outer process's own headlessExecution setting
-            // (e.g. shaft-capture's custom.properties defaults to false for local interactive
-            // development) -- this replay is a non-interactive validation run.
-            command.add("-DheadlessExecution=true");
-            command.add("-Dwebdriver.chrome.verboseLogging=true");
-            command.add("-Dwebdriver.chrome.logfile=" + chromeDriverLog.toAbsolutePath().normalize());
-            command.add("-cp");
-            command.add(classesDirectory.toAbsolutePath().normalize()
+            String classpath = classesDirectory.toAbsolutePath().normalize()
                     + File.pathSeparator
                     + resourcesDirectory.toAbsolutePath().normalize()
                     + File.pathSeparator
-                    + resolvedClasspath(classesDirectory));
-            command.add("org.testng.TestNG");
+                    + resolvedClasspath(classesDirectory);
+            // The JVM options and the full runtime classpath (hundreds of jar paths) go into a
+            // Java @argfile: passed inline they exceed Windows' ~32K CreateProcess command-line
+            // limit, which made every replay die at launch with a bare IOException.
+            Path argsFile = replayDirectory.resolve("replay.args");
+            StringBuilder argsContent = new StringBuilder();
+            argsContent.append(argFileQuote(
+                    "-Dallure.results.directory=" + allureResults.toAbsolutePath().normalize())).append('\n');
+            // Always headless regardless of the outer process's own headlessExecution setting
+            // (e.g. shaft-capture's custom.properties defaults to false for local interactive
+            // development) -- this replay is a non-interactive validation run.
+            argsContent.append("-DheadlessExecution=true").append('\n');
+            argsContent.append("-Dwebdriver.chrome.verboseLogging=true").append('\n');
+            argsContent.append(argFileQuote(
+                    "-Dwebdriver.chrome.logfile=" + chromeDriverLog.toAbsolutePath().normalize())).append('\n');
+            argsContent.append("-cp").append('\n');
+            argsContent.append(argFileQuote(classpath)).append('\n');
+            argsContent.append("org.testng.TestNG").append('\n');
+            Files.writeString(argsFile, argsContent.toString());
+            List<String> command = new ArrayList<>();
+            command.add(javaCommand());
+            command.add("@" + argsFile.toAbsolutePath().normalize());
             command.add("-usedefaultlisteners");
             command.add("false");
             command.add("-d");
@@ -148,11 +158,19 @@ public class GeneratedTestValidator {
                     List.copyOf(diagnostics),
                     allure.count());
         } catch (IOException exception) {
-            return failed("Generated test replay could not be launched.");
+            return failed("Generated test replay could not be launched: " + exception.getMessage());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return failed("Generated test replay was interrupted.");
         }
+    }
+
+    /**
+     * Quotes one Java @argfile line: backslashes become forward slashes (the argfile parser
+     * treats backslashes as escapes) and embedded quotes are escaped.
+     */
+    private static String argFileQuote(String value) {
+        return '"' + value.replace("\\", "/").replace("\"", "\\\"") + '"';
     }
 
     /**

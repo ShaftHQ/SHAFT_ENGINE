@@ -148,10 +148,13 @@ def installed_args(jar: Path) -> Path:
     return args.resolve()
 
 
-def installed_dependencies(jar: Path) -> list[Path]:
-    dependencies = sorted((jar.parent / "lib").rglob("*.jar"))
+def installed_dependencies(home: Path) -> list[Path]:
+    # Runtime dependencies install into the local Maven repository (the isolated HOME's
+    # ~/.m2/repository) so Maven builds reuse them and reinstalls skip them.
+    repository = home / ".m2" / "repository"
+    dependencies = sorted(repository.rglob("*.jar"))
     if not dependencies:
-        raise RuntimeError(f"Expected installed shaft-mcp runtime dependencies under: {jar.parent / 'lib'}")
+        raise RuntimeError(f"Expected installed shaft-mcp runtime dependencies under: {repository}")
     return dependencies
 
 
@@ -269,7 +272,7 @@ def main() -> int:
         jar = installed_jar(root, home, environment)
         args = installed_args(jar)
         verify_argfile(args, jar)
-        installed_dependencies(jar)
+        installed_dependencies(home)
         first_hash = sha256(jar)
         first_timestamp = jar.stat().st_mtime_ns
 

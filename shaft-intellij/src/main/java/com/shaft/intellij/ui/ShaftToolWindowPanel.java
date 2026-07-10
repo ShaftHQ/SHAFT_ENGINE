@@ -38,6 +38,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private JPanel workflowCards;
     private CardLayout workflowLayout;
     private final ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe;
+    private final ShaftMcpSetupPanel.AgentReadinessProbe deepReadinessProbe;
     private ShaftFeaturePanel advancedTools;
     private List<ShaftFeaturePanel> featurePanels = List.of();
     private List<WorkflowView> workflowViews = List.of();
@@ -48,22 +49,32 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     ShaftToolWindowPanel(Project project, @NotNull ShaftSettingsState.Settings settings) {
-        this(project, settings, AssistantLocalAgentRunner::readiness);
+        this(project, settings, AssistantLocalAgentRunner::readiness,
+                AssistantLocalAgentRunner::connectionReadiness, ShaftAssistantChatState.getInstance(project));
     }
 
     ShaftToolWindowPanel(Project project, @NotNull ShaftSettingsState.Settings settings,
                          @NotNull ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe) {
-        this(project, settings, readinessProbe, ShaftAssistantChatState.getInstance(project));
+        this(project, settings, readinessProbe, readinessProbe, ShaftAssistantChatState.getInstance(project));
     }
 
     ShaftToolWindowPanel(Project project,
                          @NotNull ShaftSettingsState.Settings settings,
                          @NotNull ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe,
                          @NotNull ShaftAssistantChatState assistantChatState) {
+        this(project, settings, readinessProbe, readinessProbe, assistantChatState);
+    }
+
+    ShaftToolWindowPanel(Project project,
+                         @NotNull ShaftSettingsState.Settings settings,
+                         @NotNull ShaftMcpSetupPanel.AgentReadinessProbe readinessProbe,
+                         @NotNull ShaftMcpSetupPanel.AgentReadinessProbe deepReadinessProbe,
+                         @NotNull ShaftAssistantChatState assistantChatState) {
         super(new BorderLayout());
         this.project = project;
         this.settings = settings;
         this.readinessProbe = readinessProbe;
+        this.deepReadinessProbe = deepReadinessProbe;
         this.assistantChatState = assistantChatState;
         if (mcpReady(settings)) {
             showMainView();
@@ -75,7 +86,8 @@ public final class ShaftToolWindowPanel extends JPanel {
     private void showSetupView() {
         disposeApiRecordingPanel();
         removeAll();
-        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::onSetupComplete, readinessProbe);
+        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::onSetupComplete,
+                readinessProbe, deepReadinessProbe);
         preferredFocusComponent = setup.preferredFocusComponent();
         workflowSelector = null;
         workflowCards = null;

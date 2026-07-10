@@ -90,6 +90,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final ShaftSettingsState.Settings settings;
     private final Runnable connected;
     private final AgentReadinessProbe readinessProbe;
+    private final AgentReadinessProbe deepReadinessProbe;
     private final CloudKeyStore cloudKeyStore;
     private final String recommendedFamily;
     private final JBTextArea installerCommand;
@@ -131,14 +132,21 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton copyCommand;
     private final JButton copyOutput;
     private final JButton copyDocs;
+    private final JButton copyRestartCommand;
     private final JTextPane details;
     private final JPanel installerDetailsPanel;
     private final JPanel detailsPanel;
+    private final JPanel prerequisitesRow;
+    private final JPanel prerequisitesList;
+    private final JLabel prerequisitesStep;
+    private final JLabel prerequisitesState;
     private final JPanel upgradeRow;
     private final JPanel chooseRow;
     private final JPanel installRow;
     private final JPanel checkRow;
     private final JPanel chatRow;
+    private java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>> prerequisitesDetector =
+            SetupPrerequisites::detect;
     private String diagnosticCommand = "";
     private String diagnosticOutput = "";
     private boolean installerCommandCopied;
@@ -152,22 +160,40 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected) {
-        this(project, settings, connected, AssistantLocalAgentRunner::readiness);
+        // Production: PATH-level probe for the fast recommended-agent scan at construction time,
+        // and the deep client-can-access-shaft-mcp probe (which spawns the client CLI) reserved
+        // for the explicit user-triggered "Check now" on a background thread.
+        this(project, settings, connected, AssistantLocalAgentRunner::readiness,
+                AssistantLocalAgentRunner::connectionReadiness, passwordSafeKeyStore());
     }
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe) {
-        this(project, settings, connected, readinessProbe, passwordSafeKeyStore());
+        this(project, settings, connected, readinessProbe, readinessProbe, passwordSafeKeyStore());
     }
 
     ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
                        @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe,
+                       @NotNull AgentReadinessProbe deepReadinessProbe) {
+        this(project, settings, connected, readinessProbe, deepReadinessProbe, passwordSafeKeyStore());
+    }
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe,
+                       @NotNull CloudKeyStore cloudKeyStore) {
+        this(project, settings, connected, readinessProbe, readinessProbe, cloudKeyStore);
+    }
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe,
+                       @NotNull AgentReadinessProbe deepReadinessProbe,
                        @NotNull CloudKeyStore cloudKeyStore) {
         super(new BorderLayout(8, 8));
         this.project = project;
         this.settings = settings;
         this.connected = connected;
         this.readinessProbe = readinessProbe;
+        this.deepReadinessProbe = deepReadinessProbe;
         this.cloudKeyStore = cloudKeyStore;
         recommendedFamily = recommendedFamily(settings);
         setBorder(JBUI.Borders.empty(12));
@@ -336,6 +362,15 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyDocs.setEnabled(false);
         copyDocs.setVisible(false);
         copyDocs.addActionListener(event -> copyDocsLink());
+        copyRestartCommand = new JButton("Copy restart command");
+        copyRestartCommand.getAccessibleContext().setAccessibleName("Copy assistant CLI restart command");
+        copyRestartCommand.setToolTipText(
+                "Copy a command that stops any running sessions of the selected assistant CLI and "
+                        + "re-checks its shaft-mcp access, so it picks up a fresh shaft-mcp install");
+        ShaftIconButtons.apply(copyRestartCommand, ShaftIcons.RESET);
+        copyRestartCommand.setEnabled(false);
+        copyRestartCommand.setVisible(false);
+        copyRestartCommand.addActionListener(event -> copy(restartCommand(), "Copied assistant CLI restart command"));
         details = new JTextPane();
         details.setPreferredSize(JBUI.size(560, 180));
         details.getAccessibleContext().setAccessibleName("SHAFT MCP setup output");
@@ -376,12 +411,42 @@ final class ShaftMcpSetupPanel extends JPanel {
         chooseRow = stepRow(chooseStep, chooseState, agentControls);
         installRow = stepRow(installStep, installState, installActions);
         checkRow = stepRow(testStep, testState, checkActions);
+        prerequisitesList = new JPanel();
+        prerequisitesList.setLayout(new javax.swing.BoxLayout(prerequisitesList, javax.swing.BoxLayout.Y_AXIS));
+        prerequisitesList.setOpaque(false);
+        prerequisitesList.getAccessibleContext().setAccessibleName("SHAFT setup prerequisites");
+        JButton recheckPrerequisites = new JButton("Recheck");
+        recheckPrerequisites.getAccessibleContext().setAccessibleName("Recheck prerequisites");
+        recheckPrerequisites.setToolTipText("Detect the required tools again after installing one");
+        applyLabeledAction(recheckPrerequisites, ShaftIcons.CHECK);
+        recheckPrerequisites.addActionListener(event -> refreshPrerequisites());
+        JButton copyEngineWarmup = new JButton("Copy SHAFT Engine warm-up command");
+        copyEngineWarmup.getAccessibleContext().setAccessibleName("Copy SHAFT Engine warm-up command");
+        copyEngineWarmup.setToolTipText("Copy a Maven command that downloads SHAFT Engine and its dependencies "
+                + "into the local Maven repository so future projects reuse them without re-downloading");
+        applyLabeledAction(copyEngineWarmup, ShaftIcons.COPY);
+        copyEngineWarmup.addActionListener(event ->
+                copy(SetupPrerequisites.shaftEngineWarmupCommand(), "Copied SHAFT Engine warm-up command"));
+        JPanel prerequisitesActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        prerequisitesActions.setOpaque(false);
+        prerequisitesActions.add(recheckPrerequisites);
+        prerequisitesActions.add(copyEngineWarmup);
+        JPanel prerequisitesControls = new JPanel();
+        prerequisitesControls.setLayout(new javax.swing.BoxLayout(prerequisitesControls, javax.swing.BoxLayout.Y_AXIS));
+        prerequisitesControls.setOpaque(false);
+        prerequisitesControls.add(prerequisitesList);
+        prerequisitesControls.add(prerequisitesActions);
+        prerequisitesStep = setupStepLabel("Prerequisites setup step");
+        prerequisitesState = setupStateLabel("Prerequisites setup state");
+        prerequisitesRow = stepRow(prerequisitesStep, prerequisitesState, prerequisitesControls);
         JLabel readyStep = setupStepLabel("Start chatting setup step");
         readyStep.setText("Ready");
         chatRow = stepRow(readyStep, readyState, startChatting);
         chatRow.setVisible(false);
         JPanel workflow = new JPanel();
         workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
+        workflow.add(prerequisitesRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(6));
         workflow.add(upgradeRow);
         workflow.add(javax.swing.Box.createVerticalStrut(6));
         workflow.add(chooseRow);
@@ -398,6 +463,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         diagnosticRow.add(copyCommand);
         diagnosticRow.add(copyOutput);
         diagnosticRow.add(copyDocs);
+        diagnosticRow.add(copyRestartCommand);
         JPanel secondaryActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         secondaryActions.add(resetAndReinstall);
         JPanel postSetupControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
@@ -439,12 +505,103 @@ final class ShaftMcpSetupPanel extends JPanel {
         detailsPanel.add(diagnosticRow, BorderLayout.NORTH);
         detailsPanel.add(new JBScrollPane(details), BorderLayout.CENTER);
         detailsPanel.setVisible(false);
-        add(form, BorderLayout.NORTH);
-        add(detailsPanel, BorderLayout.CENTER);
+        // The setup flow has grown taller than many tool-window sizes, so the whole page lives in
+        // a vertical scroll pane: the scrollbar appears only when needed and the user can always
+        // reach the bottom. Width tracks the viewport so rows re-wrap instead of scrolling sideways.
+        JPanel content = new ScrollableContentPanel(new BorderLayout(8, 8));
+        content.add(form, BorderLayout.NORTH);
+        content.add(detailsPanel, BorderLayout.CENTER);
+        JBScrollPane setupScroll = new JBScrollPane(content,
+                javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        setupScroll.setBorder(JBUI.Borders.empty());
+        setupScroll.getVerticalScrollBar().setUnitIncrement(16);
+        setupScroll.getAccessibleContext().setAccessibleName("SHAFT MCP setup scroll pane");
+        add(setupScroll, BorderLayout.CENTER);
+        refreshPrerequisites();
         if (!currentCommand().isBlank()) {
             setStatusText(CHECK_NEXT_STEP);
         }
         updateActionState(false);
+    }
+
+    /**
+     * Scroll-pane view that always matches the viewport's width (content re-wraps vertically
+     * instead of ever scrolling horizontally) while keeping its own preferred height so the
+     * vertical scrollbar appears exactly when the setup flow outgrows the tool window.
+     */
+    private static final class ScrollableContentPanel extends JPanel implements javax.swing.Scrollable {
+        ScrollableContentPanel(java.awt.LayoutManager layout) {
+            super(layout);
+        }
+
+        @Override
+        public java.awt.Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+            return orientation == javax.swing.SwingConstants.VERTICAL ? visibleRect.height : visibleRect.width;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
+    }
+
+    /**
+     * Re-detects the setup prerequisites for the selected assistant family and rebuilds the
+     * prerequisites step: each tool is either shown as detected or paired with a copyable per-OS
+     * install command, so a fresh machine can be provisioned entirely from this screen.
+     */
+    private void refreshPrerequisites() {
+        prerequisitesList.removeAll();
+        List<SetupPrerequisites.Prerequisite> detected =
+                prerequisitesDetector.apply(String.valueOf(family.getSelectedItem()));
+        boolean allRequiredPresent = true;
+        for (SetupPrerequisites.Prerequisite prerequisite : detected) {
+            boolean blocking = !prerequisite.present() && prerequisite.required();
+            allRequiredPresent &= !blocking;
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+            row.setOpaque(false);
+            String stateText = prerequisite.present() ? " detected"
+                    : prerequisite.required() ? " missing" : " missing (optional; auto-installed when needed)";
+            JLabel label = new JLabel((prerequisite.present()
+                    ? ShaftStatusPresentation.SUCCESS_ICON
+                    : ShaftStatusPresentation.WARNING_ICON) + " " + prerequisite.name() + stateText);
+            label.setForeground(prerequisite.present() ? ShaftStatusPresentation.success()
+                    : blocking ? ShaftStatusPresentation.error() : ShaftStatusPresentation.pending());
+            label.getAccessibleContext().setAccessibleName(prerequisite.name() + stateText.trim());
+            row.add(label);
+            if (!prerequisite.present()) {
+                JButton copyInstall = new JButton("Copy install command");
+                copyInstall.getAccessibleContext().setAccessibleName(
+                        "Copy " + prerequisite.name() + " install command");
+                copyInstall.setToolTipText("Copy the terminal command that installs " + prerequisite.name());
+                applyLabeledAction(copyInstall, ShaftIcons.COPY);
+                String installCommand = prerequisite.installCommand();
+                String copiedMessage = "Copied " + prerequisite.name() + " install command";
+                copyInstall.addActionListener(event -> copy(installCommand, copiedMessage));
+                row.add(copyInstall);
+            }
+            prerequisitesList.add(row);
+        }
+        setStep(prerequisitesStep, prerequisitesState, "0 Prerequisites", allRequiredPresent ? "done" : "next");
+        styleStepRow(prerequisitesRow, allRequiredPresent ? "done" : "next");
+        prerequisitesList.revalidate();
+        prerequisitesList.repaint();
     }
 
     JComponent preferredFocusComponent() {
@@ -474,8 +631,20 @@ final class ShaftMcpSetupPanel extends JPanel {
         }
         showAssistConnecting();
         setRunning(true, "Testing...");
-        ShaftMcpConnectionProbe.test(command, settings, projectRoot()).whenComplete((result, error) ->
-                ApplicationManager.getApplication().invokeLater(() -> showTestResult(result, error)));
+        // The deep readiness probe spawns the selected client CLI (Claude's `mcp get` health check
+        // takes ~10s), so it runs here on the probe's background completion thread — never on the
+        // EDT. Selection-derived inputs are captured before leaving the EDT.
+        boolean cloudSelected = cloudFamilySelected();
+        String selectedClient = settings.defaultAutobotClient;
+        String selectedRuntime = settings.assistantRuntime;
+        ShaftMcpConnectionProbe.test(command, settings, projectRoot()).whenComplete((result, error) -> {
+            ShaftMcpToolResult precomputedReadiness =
+                    error == null && result != null && result.success() && !cloudSelected
+                            ? deepReadinessProbe.test(selectedClient, selectedRuntime)
+                            : null;
+            ApplicationManager.getApplication().invokeLater(
+                    () -> showTestResult(result, error, precomputedReadiness));
+        });
     }
 
     private static JBTextArea commandArea(int rows, String accessibleName) {
@@ -505,6 +674,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void showTestResult(ShaftMcpToolResult result, Throwable error) {
+        showTestResult(result, error, null);
+    }
+
+    private void showTestResult(ShaftMcpToolResult result, Throwable error, ShaftMcpToolResult precomputedReadiness) {
         boolean success = error == null && result != null && result.success();
         setRunning(false, success ? "Connected" : "Test failed. Retry test.");
         if (error != null) {
@@ -517,7 +690,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         } else {
             if (result.success()) {
                 clearDiagnostics();
-                ShaftMcpToolResult readiness = verifySelectedAgentReadiness();
+                ShaftMcpToolResult readiness = verifySelectedAgentReadiness(precomputedReadiness);
                 if (readiness.success()) {
                     showAssistConfigured();
                     showRuntimeVerified();
@@ -529,6 +702,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                     setDiagnosticText(troubleshootingDetails("Client readiness failed",
                             "MCP probe output:\n" + result.output() + "\n\nAgent readiness failed: " + readiness.output(),
                             readinessDiagnosticCommand(), true), readinessDiagnosticCommand());
+                    showRestartCommandRecovery();
                 }
             } else {
                 showAssistError();
@@ -612,6 +786,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void assistantSelectionChanged() {
         updateCloudControls();
         showRuntimeSelected();
+        refreshPrerequisites();
         if (!manualInstallerTarget.isSelected()) {
             String suggestedTarget = suggestedInstallerTarget();
             if (!suggestedTarget.equals(String.valueOf(installerTarget.getSelectedItem()))) {
@@ -682,12 +857,15 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     /**
      * Verifies the selected agent after a successful MCP probe: local families check their CLI
-     * runtime, while the Gemini cloud route stores the entered API key and checks that one is
-     * present in Password Safe.
+     * runtime and its actual access to shaft-mcp (using the readiness precomputed on the background
+     * probe thread when available, since the deep check spawns the client CLI), while the Gemini
+     * cloud route stores the entered API key and checks that one is present in Password Safe.
      */
-    private ShaftMcpToolResult verifySelectedAgentReadiness() {
+    private ShaftMcpToolResult verifySelectedAgentReadiness(ShaftMcpToolResult precomputedReadiness) {
         if (!cloudFamilySelected()) {
-            return readinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
+            return precomputedReadiness != null
+                    ? precomputedReadiness
+                    : deepReadinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
         }
         applySelectionToSettings();
         storeEnteredGeminiKey();
@@ -1057,6 +1235,45 @@ final class ShaftMcpSetupPanel extends JPanel {
         return mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
     }
 
+    /**
+     * A command the user can paste into a terminal to properly restart the selected assistant CLI:
+     * running sessions started before a shaft-mcp (re)install keep the old MCP registration, so
+     * stale processes are stopped and a fresh invocation re-checks shaft-mcp access.
+     */
+    String restartCommand() {
+        String executable = switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
+            case "CLAUDE" -> "claude";
+            case "COPILOT" -> "copilot";
+            case GEMINI_FAMILY -> "";
+            default -> "codex";
+        };
+        if (executable.isBlank()) {
+            return "";
+        }
+        String verification = "copilot".equals(executable) ? executable + " --version" : executable + " mcp list";
+        if (isWindows()) {
+            return "powershell -NoProfile -Command \"Get-Process " + executable
+                    + " -ErrorAction SilentlyContinue | Stop-Process -Force; " + verification + "\"";
+        }
+        return "pkill -x " + executable + " 2>/dev/null; " + verification;
+    }
+
+    /**
+     * Surfaces the restart-command recovery action after a failed client readiness check for a
+     * local CLI family. The restart path is what fixes the common "just reinstalled shaft-mcp but
+     * my CLI still cannot see it" case, so the copy button is offered for every readiness failure,
+     * not only ones whose message mentions restarting.
+     */
+    private void showRestartCommandRecovery() {
+        if (restartCommand().isBlank()) {
+            return;
+        }
+        copyRestartCommand.setVisible(true);
+        copyRestartCommand.setEnabled(true);
+        recoveryStatus.setText("Recovery: run the installer or copy the restart command, then check again.");
+        recoveryStatus.setVisible(true);
+    }
+
     private String readinessDiagnosticCommand() {
         return switch (normalize(String.valueOf(family.getSelectedItem()), "CODEX")) {
             case "CLAUDE" -> "claude --version";
@@ -1091,6 +1308,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         if (text.contains("no shaft mcp command configured")
                 || text.contains("enter a shaft mcp stdio command")) {
             return "MCP command";
+        }
+        if (text.contains("not registered with")) {
+            return "Client MCP registration";
+        }
+        if (text.contains("could not connect to it")) {
+            return "Client MCP connection";
         }
         if (text.contains("unsupportedclassversionerror")
                 || text.contains("java_home")
@@ -1130,6 +1353,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         List<String> steps = new ArrayList<>();
         switch (category) {
             case "MCP command" -> steps.add("Run the installer command, then check again. SHAFT will find the local command automatically.");
+            case "Client MCP registration" -> steps.add(
+                    "Run the installer command for the selected client, then check again.");
+            case "Client MCP connection" -> steps.add(
+                    "Restart the selected client CLI (copy the restart command below), then check again.");
             case "Java/runtime" -> steps.add("Install or select a Java runtime that can run shaft-mcp, then retry.");
             case "Maven artifact resolution" -> steps.add(
                     "Check Maven Central/network access and retry once artifact resolution is available.");
@@ -1405,6 +1632,8 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void setDiagnosticText(String text, String command) {
         diagnosticOutput = text == null ? "" : text;
         diagnosticCommand = isUserRunnableDiagnosticCommand(command) ? command : "";
+        copyRestartCommand.setVisible(false);
+        copyRestartCommand.setEnabled(false);
         copyCommand.setVisible(!diagnosticCommand.isBlank());
         copyCommand.setEnabled(!diagnosticCommand.isBlank());
         copyOutput.setEnabled(!diagnosticOutput.isBlank());
@@ -1431,6 +1660,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyOutput.setEnabled(false);
         copyDocs.setEnabled(false);
         copyDocs.setVisible(false);
+        copyRestartCommand.setEnabled(false);
+        copyRestartCommand.setVisible(false);
         recoveryStatus.setVisible(false);
         details.setText("");
         detailsPanel.setVisible(false);

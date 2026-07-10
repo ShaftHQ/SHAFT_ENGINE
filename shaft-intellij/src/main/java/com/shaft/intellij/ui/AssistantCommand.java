@@ -1360,9 +1360,15 @@ final class AssistantCommand {
             return mobileCodegen(recordingPath);
         }
         if (lower.contains("playwright") || recordingPath.toLowerCase(Locale.ROOT).contains("playwright")) {
+            // Playwright recorder sessions use their own recording schema (recordingPath), which
+            // the Capture-session replay tools cannot consume; they keep the generate-only tool.
             return Invocation.tool("playwright_recording_code_blocks", generatePlaywrightCodeFromRecording(recordingPath));
         }
-        return Invocation.tool("capture_code_blocks", generateCaptureCodeFromRecording(recordingPath));
+        // Explicit /codegen re-executes the recording (issue #3409): the generated test is
+        // compiled and replayed headless so the returned code blocks are verified against the
+        // live flow, not just statically generated. The automatic post-stop review keeps the
+        // faster generate-only tool.
+        return Invocation.tool("capture_generate_replay", generateReplayFromRecording(recordingPath));
     }
 
     private static JsonObject captureStart(String rest) {
@@ -1525,6 +1531,20 @@ final class AssistantCommand {
         arguments.addProperty("className", "RecordedFlowTest");
         arguments.addProperty("overwrite", false);
         arguments.addProperty("driverVariableName", "driver");
+        return arguments;
+    }
+
+    /**
+     * Arguments for the generate-compile-replay codegen tools. Replay re-executes the generated
+     * test headless (enforced server-side) against the recorded flow; AI enrichment stays off
+     * unless the user explicitly opts in elsewhere.
+     */
+    private static JsonObject generateReplayFromRecording(String recordingPath) {
+        JsonObject arguments = generateCaptureCodeFromRecording(recordingPath);
+        arguments.addProperty("replay", true);
+        arguments.addProperty("useAi", false);
+        arguments.addProperty("allowLocalAi", false);
+        arguments.addProperty("allowRemoteAi", false);
         return arguments;
     }
 

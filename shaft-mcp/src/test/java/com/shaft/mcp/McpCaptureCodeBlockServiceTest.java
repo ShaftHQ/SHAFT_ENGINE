@@ -226,6 +226,68 @@ class McpCaptureCodeBlockServiceTest {
     }
 
     @Test
+    void roleDecisionsMatchingInlineAccessibleNamesDoNotDuplicateLocatorFields() throws Exception {
+        // Regression for issue #3409's duplicated codegen output: a ROLE decision recorded as
+        // "role:accessible name" (for example "button:Greet") never string-matched the generated
+        // method's clickableField("Greet") expression, so the same element surfaced twice — once
+        // from the method line and once from the unmatched report decision — producing two
+        // "private final By greetLocator" declarations (uncompilable) in the Page Object draft.
+        Path source = writeSource("""
+                package generated.capture;
+
+                import com.shaft.driver.SHAFT;
+                import org.testng.annotations.Test;
+
+                public class GreetReplayTest {
+                    private SHAFT.GUI.WebDriver driver;
+
+                    @Test
+                    public void replayGreet() {
+                        driver.browser().openNewTab("about:blank");
+                        windows.put("window-1", driver.browser().getWindowHandle());
+                        driver.element().click(SHAFT.GUI.Locator.clickableField("Greet"));
+                    }
+                }
+                """);
+        CaptureGenerationReport report = new CaptureGenerationReport(
+                CaptureGenerationReport.CURRENT_SCHEMA_VERSION,
+                "session-1",
+                CaptureGenerationReport.Status.SUCCESS,
+                "src/test/java/generated/capture/GreetReplayTest.java",
+                "",
+                List.of(new CaptureGenerationReport.LocatorDecision(
+                        List.of("event-4"),
+                        "greet",
+                        "ROLE",
+                        "button:Greet",
+                        1520,
+                        List.of("strategy=+800"),
+                        List.of("ID greet (score 1270)"))),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                CaptureGenerationReport.Validation.skipped("Compilation was not requested."),
+                CaptureGenerationReport.Validation.skipped("Replay was not requested."),
+                CaptureGenerationReport.Enrichment.notRequested());
+
+        List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
+                .fromGeneratedSource(source, "driver", report);
+
+        McpCodeBlock pageObject = block(blocks, "capture-page-object-draft");
+        long greetFieldDeclarations = pageObject.code().lines()
+                .filter(line -> line.contains("private final By greetLocator"))
+                .count();
+        assertEquals(1, greetFieldDeclarations,
+                "one element must own exactly one locator field:\n" + pageObject.code());
+        assertTrue(block(blocks, "capture-pom-locator-inventory").evidenceIds().contains("event-4"),
+                "the merged candidate must carry the decision's evidence");
+        assertFalse(pageObject.code().contains("windows.put("),
+                "window bookkeeping references a map the page class does not declare:\n" + pageObject.code());
+    }
+
+    @Test
     void fromGeneratedSourceAddsSetupAssertionAndControlFlowReviewBlocksFromReport() throws Exception {
         Path source = writeSource("""
                 package generated.capture;

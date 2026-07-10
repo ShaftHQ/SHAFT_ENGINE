@@ -650,9 +650,14 @@ class AssistantCommandTest {
         assertEquals("autobot_local_agent_clients", command("/plan").toolName());
         assertEquals("autobot_local_agent_clients", command("/clients").toolName());
         assertEquals("test_automation_scenarios", command("/generatetest login").toolName());
-        assertEquals("capture_code_blocks", command("/generatetest recordings/capture-session.json").toolName());
+        // Explicit codegen against a Capture recording re-executes it (generate + compile +
+        // headless replay), per issue #3409; Playwright/mobile recordings keep generate-only
+        // tools because their recording schemas have no Capture-session replay path.
+        assertEquals("capture_generate_replay", command("/generatetest recordings/capture-session.json").toolName());
+        assertTrue(command("/generatetest recordings/capture-session.json").arguments().get("replay").getAsBoolean());
+        assertFalse(command("/generatetest recordings/capture-session.json").arguments().get("useAi").getAsBoolean());
         assertEquals("playwright_recording_code_blocks", command("/generatetest recordings/playwright-session.json").toolName());
-        assertEquals("capture_code_blocks", command("/codegen recordings/capture-session.json").toolName());
+        assertEquals("capture_generate_replay", command("/codegen recordings/capture-session.json").toolName());
         assertEquals("mobile_recording_code_blocks", command("/codegen mobile recordings/mobile-session.json").toolName());
         assertEquals("mobile_inspector_record_prepare",
                 command("/record-mobile inspector Android recordings/inspector.json").toolName());
@@ -1242,7 +1247,7 @@ class AssistantCommandTest {
     }
 
     @Test
-    void bufferedCopilotInvocationSendsExactlyOneHonestLiveOutputNotice() throws Exception {
+    void bufferedCopilotInvocationSendsOneNoticeThenForwardsRawOutputAsIs() throws Exception {
         AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
                 "Explain this failure", "COPILOT_CLI", "ASK", ".", "", false);
         String bufferedResponse = "The full Copilot answer, delivered only once the process exits.";
@@ -1257,9 +1262,12 @@ class AssistantCommandTest {
 
         assertAll(
                 () -> assertTrue(result.success()),
-                () -> assertEquals(1, delivered.size(), "Expected exactly one notice line: " + delivered),
-                () -> assertTrue(delivered.get(0).toLowerCase(Locale.ROOT).contains("live output"),
-                        "Notice should explain live output is unavailable: " + delivered.get(0)),
+                () -> assertEquals(2, delivered.size(),
+                        "Expected the one-time notice followed by the raw line: " + delivered),
+                () -> assertTrue(delivered.get(0).toLowerCase(Locale.ROOT).contains("raw output"),
+                        "Notice should explain the raw as-is stream: " + delivered.get(0)),
+                () -> assertEquals(bufferedResponse, delivered.get(1),
+                        "Verbose mode must share the CLI's output as-is instead of swallowing it"),
                 () -> assertTrue(result.output().contains(bufferedResponse)));
     }
 

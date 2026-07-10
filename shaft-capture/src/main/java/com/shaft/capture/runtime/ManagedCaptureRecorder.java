@@ -255,43 +255,66 @@ class ManagedCaptureRecorder {
         if (state != CaptureStatus.State.ACTIVE && state != CaptureStatus.State.STOPPING) {
             return status();
         }
-        state = CaptureStatus.State.STOPPING;
-        saveRuntimeArtifacts();
-        closeCollectorAndPipeline();
-        closeBrowser();
-        if (store != null) {
-            store.stop(Instant.now());
+        // Teardown must run with a clear interrupt flag: an interrupted thread makes NIO
+        // session-store writes throw ClosedByInterruptException and WebDriver.quit() abort,
+        // orphaning the browser. The flag is restored afterwards for the caller.
+        boolean wasInterrupted = Thread.interrupted();
+        try {
+            state = CaptureStatus.State.STOPPING;
+            saveRuntimeArtifacts();
+            closeCollectorAndPipeline();
+            // closeCollectorAndPipeline() may have interrupted this thread if a collector's own
+            // executor thread is (indirectly) the caller; clear again before quitting the browser.
+            wasInterrupted |= Thread.interrupted();
+            closeBrowser();
+            if (store != null) {
+                store.stop(Instant.now());
+            }
+            cleanupProfile();
+            SHAFT.Properties.clearForCurrentThread();
+            if (discard) {
+                deleteCaptureFiles();
+                state = CaptureStatus.State.DISCARDED;
+            } else {
+                state = CaptureStatus.State.COMPLETED;
+            }
+            return status();
+        } finally {
+            if (wasInterrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
-        cleanupProfile();
-        SHAFT.Properties.clearForCurrentThread();
-        if (discard) {
-            deleteCaptureFiles();
-            state = CaptureStatus.State.DISCARDED;
-        } else {
-            state = CaptureStatus.State.COMPLETED;
-        }
-        return status();
     }
 
     synchronized CaptureStatus interrupt() {
-        closeCollectorAndPipeline();
-        closeBrowser();
-        if (store != null) {
-            try {
-                CaptureSession current = store.read();
-                if (current.status() == CaptureSession.SessionStatus.INCOMPLETE) {
-                    store.markIncomplete(Instant.now());
+        // Same interrupt hygiene as stop(): shutdown paths (JVM exit, manager close) can reach
+        // this on an already-interrupted thread, where NIO writes and WebDriver.quit() would fail.
+        boolean wasInterrupted = Thread.interrupted();
+        try {
+            closeCollectorAndPipeline();
+            wasInterrupted |= Thread.interrupted();
+            closeBrowser();
+            if (store != null) {
+                try {
+                    CaptureSession current = store.read();
+                    if (current.status() == CaptureSession.SessionStatus.INCOMPLETE) {
+                        store.markIncomplete(Instant.now());
+                    }
+                } catch (RuntimeException ignored) {
+                    warn("The incomplete capture snapshot could not be updated after recorder failure.");
                 }
-            } catch (RuntimeException ignored) {
-                warn("The incomplete capture snapshot could not be updated after recorder failure.");
+            }
+            cleanupProfile();
+            SHAFT.Properties.clearForCurrentThread();
+            if (state != CaptureStatus.State.FAILED) {
+                state = CaptureStatus.State.INCOMPLETE;
+            }
+            return status();
+        } finally {
+            if (wasInterrupted) {
+                Thread.currentThread().interrupt();
             }
         }
-        cleanupProfile();
-        SHAFT.Properties.clearForCurrentThread();
-        if (state != CaptureStatus.State.FAILED) {
-            state = CaptureStatus.State.INCOMPLETE;
-        }
-        return status();
     }
 
     synchronized boolean isBrowserAlive() {
@@ -827,7 +850,23 @@ class ManagedCaptureRecorder {
             case "STOP" -> {
                 if (!uiStopRequested) {
                     uiStopRequested = true;
-                    stop(false);
+                    // The overlay STOP arrives on a collector-owned thread (the polling executor or
+                    // the sink's HTTP handler). Running stop() inline there is self-destructive:
+                    // stop() closes that very collector, whose shutdownNow() interrupts the current
+                    // thread, and every later NIO session-store write and the WebDriver quit() then
+                    // abort with ClosedByInterruptException/InterruptedException — the session
+                    // sticks in STOPPING (later marked INCOMPLETE) and the browser plus its driver
+                    // process are orphaned. A dedicated thread owns the teardown instead.
+                    Thread stopThread = new Thread(() -> {
+                        try {
+                            stop(false);
+                        } catch (RuntimeException exception) {
+                            warn("The browser Stop control could not stop the recording cleanly: "
+                                    + exception.getMessage());
+                        }
+                    }, "shaft-capture-ui-stop");
+                    stopThread.setDaemon(false);
+                    stopThread.start();
                 }
             }
             default -> warn("An unknown browser recording control was ignored.");

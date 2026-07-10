@@ -459,7 +459,13 @@ final class McpCaptureCodeBlockService {
                 code.append("    public ").append(pageClassName).append(' ')
                         .append(currentMethod).append("() {\n");
             }
-            code.append("        ").append(replaceLocatorExpressions(action.line(), pom.locators())).append('\n');
+            String rendered = replaceLocatorExpressions(action.line(), pom.locators());
+            // Window-handle bookkeeping belongs to the generated test class (which declares the
+            // windows map); inside a Page Object draft it references a field that does not exist.
+            if (rendered.startsWith("windows.put(")) {
+                continue;
+            }
+            code.append("        ").append(rendered).append('\n');
         }
         if (!currentFlow.isBlank()) {
             code.append("        return this;\n");
@@ -562,15 +568,32 @@ final class McpCaptureCodeBlockService {
         for (CaptureGenerationReport.LocatorDecision decision : decisions) {
             boolean alreadyRepresented = locators.values().stream()
                     .anyMatch(locator -> locator.evidenceIds().containsAll(decision.eventIds()));
-            if (!alreadyRepresented) {
-                String expression = reportLocatorExpression(decision);
-                locators.putIfAbsent("report:" + decision.logicalElementId(), new LocatorCandidate(
-                        suggestedFieldName(decision.logicalElementId()),
-                        expression,
-                        decision.eventIds(),
-                        description("", decision),
-                        decision.alternatives()));
+            if (alreadyRepresented) {
+                continue;
             }
+            String fieldName = suggestedFieldName(decision.logicalElementId());
+            Optional<Map.Entry<String, LocatorCandidate>> nameCollision = locators.entrySet().stream()
+                    .filter(entry -> entry.getValue().suggestedFieldName().equals(fieldName))
+                    .findFirst();
+            if (nameCollision.isPresent()) {
+                // The element already owns a field derived from the generated method. Emitting a
+                // second declaration with the same field name produces uncompilable Java, so the
+                // existing candidate is enriched with the decision's evidence instead.
+                LocatorCandidate existing = nameCollision.get().getValue();
+                locators.put(nameCollision.get().getKey(), new LocatorCandidate(
+                        existing.suggestedFieldName(),
+                        existing.expression(),
+                        existing.evidenceIds().isEmpty() ? decision.eventIds() : existing.evidenceIds(),
+                        existing.description().isBlank() ? description("", decision) : existing.description(),
+                        existing.alternatives().isEmpty() ? decision.alternatives() : existing.alternatives()));
+                continue;
+            }
+            locators.putIfAbsent("report:" + decision.logicalElementId(), new LocatorCandidate(
+                    fieldName,
+                    reportLocatorExpression(decision),
+                    decision.eventIds(),
+                    description("", decision),
+                    decision.alternatives()));
         }
         return List.copyOf(locators.values());
     }
@@ -741,9 +764,26 @@ final class McpCaptureCodeBlockService {
     private static Optional<CaptureGenerationReport.LocatorDecision> matchingDecision(
             String expression,
             List<CaptureGenerationReport.LocatorDecision> decisions) {
-        return decisions.stream()
+        Optional<CaptureGenerationReport.LocatorDecision> direct = decisions.stream()
                 .filter(decision -> !decision.expression().isBlank()
                         && expression.contains(decision.expression()))
+                .findFirst();
+        if (direct.isPresent()) {
+            return direct;
+        }
+        // ROLE/accessible-name decisions are recorded as "role:accessible name" while the
+        // generated method references only the quoted accessible name (for example
+        // clickableField("Greet")). Without this match the same element surfaced twice: once
+        // from the method expression and once from the unmatched decision — a duplicate (and
+        // name-colliding) locator field in the Page Object draft.
+        return decisions.stream()
+                .filter(decision -> {
+                    String decisionExpression = decision.expression() == null ? "" : decision.expression();
+                    int separator = decisionExpression.indexOf(':');
+                    String accessibleName = separator < 0 ? "" : decisionExpression.substring(separator + 1);
+                    return !accessibleName.isBlank()
+                            && expression.contains("\"" + javaString(accessibleName) + "\"");
+                })
                 .findFirst();
     }
 

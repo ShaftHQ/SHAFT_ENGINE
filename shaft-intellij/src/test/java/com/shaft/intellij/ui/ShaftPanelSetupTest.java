@@ -598,6 +598,106 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelScrollsVerticallyAndNeverHorizontally() {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+
+        JScrollPane scroll = findByAccessibleName(panel, "SHAFT MCP setup scroll pane", JScrollPane.class);
+        assertNotNull(scroll, "the grown setup flow must live in a scroll pane so the bottom stays reachable");
+        assertAll(
+                () -> assertEquals(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, scroll.getVerticalScrollBarPolicy()),
+                () -> assertEquals(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER, scroll.getHorizontalScrollBarPolicy()),
+                () -> assertTrue(scroll.getViewport().getView() instanceof javax.swing.Scrollable scrollable
+                                && scrollable.getScrollableTracksViewportWidth(),
+                        "content must re-wrap to the viewport width instead of scrolling sideways"));
+    }
+
+    @Test
+    void setupPanelListsPrerequisitesWithCopyableInstallCommands() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        AtomicReference<String> copied = new AtomicReference<>();
+        setField(panel, "copySink", (Consumer<String>) copied::set);
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "0 Prerequisites")),
+                () -> assertNotNull(findByAccessibleName(panel, "SHAFT setup prerequisites", JComponent.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Recheck prerequisites", JButton.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Copy SHAFT Engine warm-up command", JButton.class)));
+
+        clickAccessible(panel, "Copy SHAFT Engine warm-up command");
+        assertTrue(copied.get().contains("dependency:get"), copied.get());
+        assertTrue(copied.get().contains("io.github.shafthq:SHAFT_ENGINE"), copied.get());
+    }
+
+    @Test
+    void setupPanelPrerequisitesOfferInstallCommandsForMissingTools() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        AtomicReference<String> copied = new AtomicReference<>();
+        setField(panel, "copySink", (Consumer<String>) copied::set);
+        setField(panel, "prerequisitesDetector",
+                (java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>>) family ->
+                        List.of(new SetupPrerequisites.Prerequisite(
+                                "Python 3", false, true, "winget install -e --id Python.Python.3.12")));
+        Method refresh = ShaftMcpSetupPanel.class.getDeclaredMethod("refreshPrerequisites");
+        refresh.setAccessible(true);
+        refresh.invoke(panel);
+
+        JButton copyInstall = findByAccessibleName(panel, "Copy Python 3 install command", JButton.class);
+        assertNotNull(copyInstall, "a missing prerequisite must offer its install command");
+        copyInstall.doClick();
+        assertEquals("winget install -e --id Python.Python.3.12", copied.get());
+        assertTrue(containsText(panel, "Python 3 missing"));
+    }
+
+    @Test
+    void setupPanelOffersRestartCommandWhenClientCannotAccessShaftMcp() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, (client, runtime) -> ShaftMcpToolResult.failure(
+                "Codex CLI sees shaft-mcp but could not connect to it. If you just installed or "
+                        + "updated shaft-mcp, restart Codex CLI with the restart command below, then check again."));
+        AtomicReference<String> copied = new AtomicReference<>();
+        setField(panel, "copySink", (Consumer<String>) copied::set);
+
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+
+        JButton restart = findByAccessibleName(panel, "Copy assistant CLI restart command", JButton.class);
+        assertAll(
+                () -> assertTrue(containsText(panel, "Category: Client MCP connection")),
+                () -> assertTrue(containsText(panel, "Restart the selected client CLI")),
+                () -> assertNotNull(restart),
+                () -> assertTrue(restart.isVisible()),
+                () -> assertTrue(restart.isEnabled()),
+                () -> assertFalse(settings.mcpSetupComplete));
+
+        restart.doClick();
+        assertTrue(copied.get().contains("codex"), copied.get());
+        assertTrue(copied.get().contains("codex mcp list"), copied.get());
+        if (isWindowsOs()) {
+            assertTrue(copied.get().contains("Get-Process codex"), copied.get());
+            assertTrue(copied.get().contains("Stop-Process"), copied.get());
+        } else {
+            assertTrue(copied.get().contains("pkill -x codex"), copied.get());
+        }
+    }
+
+    @Test
+    void setupPanelRegistrationFailureGuidesToInstallerWithoutRestartNoise() throws Exception {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> {
+        }, (client, runtime) -> ShaftMcpToolResult.failure(
+                "shaft-mcp is not registered with Codex CLI. Run the SHAFT MCP installer command, then check again."));
+
+        showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
+
+        assertAll(
+                () -> assertTrue(containsText(panel, "Category: Client MCP registration")),
+                () -> assertTrue(containsText(panel, "Run the installer command for the selected client")));
+    }
+
+    @Test
     void setupPanelShowsDetectedRecommendedCliAgentWithoutChangingDefaultSelection() {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         }, (client, runtime) -> "CLAUDE_CODE".equals(client)
@@ -2167,6 +2267,13 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Reset everything".equals(accessibleName(button)))
                 .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
                 .filter(button -> !"Open terminal for SHAFT upgrade".equals(accessibleName(button)))
+                // Setup-screen prerequisite/recovery command buttons keep visible labels like the
+                // upgrade step's copy/terminal pair: they name the exact terminal command being
+                // copied, which an icon alone cannot convey on a first-run provisioning screen.
+                .filter(button -> !"Recheck prerequisites".equals(accessibleName(button)))
+                .filter(button -> !"Copy SHAFT Engine warm-up command".equals(accessibleName(button)))
+                .filter(button -> !"Copy assistant CLI restart command".equals(accessibleName(button)))
+                .filter(button -> !String.valueOf(accessibleName(button)).matches("Copy .+ install command"))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 
