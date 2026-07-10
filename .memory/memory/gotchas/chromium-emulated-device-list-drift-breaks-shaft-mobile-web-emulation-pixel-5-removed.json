@@ -1,0 +1,38 @@
+{
+  "body_path": "memory/gotchas/chromium-emulated-device-list-drift-breaks-shaft-mobile-web-emulation-pixel-5-removed.md",
+  "content_hash": "sha256:f6c589ecef4bd23e08900e2e10dec6f7a0c1b8c8dc7ec9cad559a03059b3ed7b",
+  "created_at": "2026-07-10T20:52:30+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/OptionsManager.java",
+      "kind": "file"
+    },
+    {
+      "id": "PR #3421",
+      "kind": "task"
+    }
+  ],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.chromium-emulated-device-list-drift-breaks-shaft-mobile-web-emulation-pixel-5-removed",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "2026-07-10 guided-workflow solidifying run (PR #3421, issue #3422)"
+  },
+  "status": "active",
+  "tags": [
+    "mobile-emulation",
+    "chrome",
+    "options-manager"
+  ],
+  "title": "Chromium emulated-device list drift breaks SHAFT mobile web emulation (Pixel 5 removed)",
+  "type": "gotcha",
+  "updated_at": "2026-07-10T20:52:30+03:00"
+}

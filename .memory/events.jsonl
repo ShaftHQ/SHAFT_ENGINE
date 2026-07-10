@@ -177,3 +177,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes","timestamp":"2026-07-10T15:08:06+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile","timestamp":"2026-07-10T15:08:06+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.clientactionid-is-the-authoritative-dedup-identity-for-recorder-steps","timestamp":"2026-07-10T15:08:06+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.chromium-emulated-device-list-drift-breaks-shaft-mobile-web-emulation-pixel-5-removed","timestamp":"2026-07-10T20:52:30+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.running-the-live-guided-workflow-plugin-e2e-harness-guidedworkflowlivee2etest","timestamp":"2026-07-10T20:52:30+03:00"}
