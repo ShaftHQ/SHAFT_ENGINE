@@ -855,6 +855,54 @@ class CaptureGeneratorTest {
     }
 
     @Test
+    void projectContainedFileUrlOutsideTheOutputDirectoryIsNotAPrivacyBlocker() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        Path project = temp.resolve("consumer-project");
+        Path recordings = Files.createDirectories(project.resolve("recordings"));
+        Path output = project.resolve("generated-tests");
+        // The recorded page lives in the project but NOT under the generation output directory —
+        // the standard layout when a first-time user records a local fixture page.
+        String fixtureUrl = project.resolve("src/test/resources/pages/login.html").toUri().toString();
+        CaptureSession recorded = new CaptureSession(
+                base.schemaVersion(),
+                "project-file-url-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(new CaptureEvent.NavigationEvent(
+                        CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN,
+                        fixtureUrl)),
+                List.of(),
+                List.of(),
+                base.redactionSummary(),
+                base.extensions());
+        Path session = recordings.resolve("project-file-url.json");
+        new CaptureJsonCodec().write(session, recorded);
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(request(session, output));
+
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .noneMatch(message -> message.startsWith("privacy:")),
+                result.report().unsupportedEvents().toString());
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+    }
+
+    @Test
+    void privacyAllowedRootNeverWidensToTheUserHomeOrAbove() {
+        Path home = Path.of(System.getProperty("user.home")).toAbsolutePath().normalize();
+        Path session = home.resolve("project-a/recordings/session.json");
+        Path output = home.resolve("project-b/generated-tests").toAbsolutePath().normalize();
+
+        assertEquals(output, CaptureGenerator.privacyAllowedRoot(session, output));
+        assertEquals(home.resolve("project-a"),
+                CaptureGenerator.privacyAllowedRoot(
+                        home.resolve("project-a/recordings/session.json"),
+                        home.resolve("project-a/generated-tests")));
+    }
+
+    @Test
     void personalPathsOutsideTheWorkspaceStillBlockGeneration() throws Exception {
         CaptureSession base = CaptureFixtures.representativeSession();
         CaptureSession recorded = new CaptureSession(
