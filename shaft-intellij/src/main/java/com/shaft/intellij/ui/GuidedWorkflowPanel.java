@@ -55,6 +55,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     // Created lazily on the first poll so headless panel tests never touch platform executors.
     private Alarm statusPollAlarm;
     private volatile boolean pollingActive;
+    private boolean headlessLockedByPolicy;
     private boolean recorderSeenActive;
     private int pollsWithoutActivity;
     private String statusToolName = "";
@@ -102,6 +103,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         recorderStatus.getAccessibleContext().setAccessibleName("Recorder status");
         recorderStatus.setBorder(JBUI.Borders.empty(2, 0));
         updateTemplateDescription();
+        applyTeamRecorderPolicy();
         backend.addActionListener(event -> updateFieldRelevance());
         updateFieldRelevance();
 
@@ -219,6 +221,44 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     /**
+     * Mirrors the checked-in team recorder policy ({@code .shaft/recorder-policy.json}, issue
+     * #3425 C4) in the panel: the headless default is applied and locked, and the default session
+     * path moves into the team output directory. Enforcement happens server-side in SHAFT MCP's
+     * {@code capture_start}; this keeps the UI honest about what will actually happen.
+     */
+    private void applyTeamRecorderPolicy() {
+        if (project == null || project.getBasePath() == null) {
+            return;
+        }
+        java.nio.file.Path policyFile = java.nio.file.Path.of(
+                project.getBasePath(), ".shaft", "recorder-policy.json");
+        if (!java.nio.file.Files.isRegularFile(policyFile)) {
+            return;
+        }
+        try {
+            JsonObject policy = com.google.gson.JsonParser
+                    .parseString(java.nio.file.Files.readString(policyFile)).getAsJsonObject();
+            if (policy.has("headless") && policy.get("headless").isJsonPrimitive()
+                    && policy.get("headless").getAsJsonPrimitive().isBoolean()) {
+                headlessBrowser.setSelected(policy.get("headless").getAsBoolean());
+                headlessLockedByPolicy = true;
+                headlessBrowser.setToolTipText(
+                        "Locked by this repository's team policy (.shaft/recorder-policy.json)");
+            }
+            String outputDirectory = policy.has("outputDirectory")
+                    && policy.get("outputDirectory").isJsonPrimitive()
+                    ? policy.get("outputDirectory").getAsString().trim()
+                    : "";
+            if (!outputDirectory.isBlank()) {
+                sessionPath.setText(outputDirectory + "/intellij-capture.json");
+            }
+            setRecorderStatus("Team recorder policy applied from .shaft/recorder-policy.json.");
+        } catch (Exception malformedPolicy) {
+            setRecorderStatus("Could not read .shaft/recorder-policy.json: " + malformedPolicy.getMessage());
+        }
+    }
+
+    /**
      * Grays out fields that the selected backend's start request does not read, so a misfilled
      * field can never silently change what gets prefilled.
      */
@@ -228,7 +268,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         targetUrl.setToolTipText(playwrightBackend
                 ? "The Playwright recorder start request does not take a target URL; navigate after starting."
                 : "Initial http, https, or file URL the recording opens.");
-        headlessBrowser.setEnabled(!playwrightBackend);
+        headlessBrowser.setEnabled(!playwrightBackend && !headlessLockedByPolicy);
         headlessBrowser.setToolTipText(playwrightBackend
                 ? "The Playwright recorder start request does not take a headless option."
                 : "Record without a visible browser window; useful for agent-driven or CI recordings. "
@@ -379,7 +419,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         targetUrl.setText(samplePage.toUri().toString());
         intent.setText("Search the sample bookstore and add the first result to the cart");
         sessionPath.setText("recordings/sample-tour.json");
-        headlessBrowser.setSelected(false);
+        if (!headlessLockedByPolicy) {
+            headlessBrowser.setSelected(false);
+        }
         String tourGuidance = "Sample tour: a browser is opening on the bundled bookstore page. Search for a "
                 + "book, add it to the cart, add an assertion on the cart status, then press Stop in the SHAFT "
                 + "overlay and click Review code here.";
