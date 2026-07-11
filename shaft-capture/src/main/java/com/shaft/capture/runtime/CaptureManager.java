@@ -411,7 +411,8 @@ public final class CaptureManager implements AutoCloseable {
                 status.processId(),
                 status.startedAt(),
                 status.networkTransactionCount(),
-                status.lastEndpoints());
+                status.lastEndpoints(),
+                status.pendingSignalCount());
     }
 
     // stop() can be called against a process that never owned the active recording -- for example,
@@ -439,6 +440,7 @@ public final class CaptureManager implements AutoCloseable {
                 status.processId(),
                 status.startedAt(),
                 status.networkTransactionCount(),
-                status.lastEndpoints());
+                status.lastEndpoints(),
+                status.pendingSignalCount());
     }
 }

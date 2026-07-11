@@ -468,20 +468,19 @@ public class OptionsManager {
         if (SHAFT.Properties.web.isMobileEmulation() && DriverFactoryHelper.isNotMobileExecution()) {
             Map<String, Object> mobileEmulation = new HashMap<>();
             if (!SHAFT.Properties.web.mobileEmulationIsCustomDevice() && (!SHAFT.Properties.web.mobileEmulationDeviceName().isBlank())) {
-                if (SHAFT.Properties.web.mobileEmulationDeviceName().equalsIgnoreCase("Pixel 5")) {
-                    // "Pixel 5" was SHAFT's long-standing default device but is no longer in the
-                    // Chromium DevTools emulated-device list (Edge never had it; Chrome 143+
-                    // dropped it), and an unknown deviceName fails session creation with
-                    // "entry 0 of 'firstMatch' is invalid". Emulate it via explicit metrics so
-                    // existing configurations keep working on both browsers.
+                String configuredDeviceName = SHAFT.Properties.web.mobileEmulationDeviceName();
+                var pinnedProfile = EmulatedDeviceProfiles.of(configuredDeviceName);
+                if (pinnedProfile.isPresent()) {
+                    EmulatedDeviceProfiles.Profile profile = pinnedProfile.get();
                     Map<String, Object> deviceMetrics = new HashMap<>();
-                    deviceMetrics.put("width", 393);
-                    deviceMetrics.put("height", 851);
-                    deviceMetrics.put("pixelRatio", 2.75);
+                    deviceMetrics.put("width", profile.width());
+                    deviceMetrics.put("height", profile.height());
+                    deviceMetrics.put("pixelRatio", profile.pixelRatio());
                     mobileEmulation.put("deviceMetrics", deviceMetrics);
-                    mobileEmulation.put("userAgent", "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Mobile Safari/537.36");
+                    mobileEmulation.put("userAgent", profile.userAgent());
                 } else {
-                    mobileEmulation.put("deviceName", SHAFT.Properties.web.mobileEmulationDeviceName());
+                    ReportManager.logDiscrete(EmulatedDeviceProfiles.driftWarning(configuredDeviceName));
+                    mobileEmulation.put("deviceName", configuredDeviceName);
                 }
             } else if (SHAFT.Properties.web.mobileEmulationIsCustomDevice()) {
                 if ((SHAFT.Properties.web.mobileEmulationWidth() != 0) && (SHAFT.Properties.web.mobileEmulationHeight() != 0)) {

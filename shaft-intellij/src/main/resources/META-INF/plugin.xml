@@ -27,6 +27,11 @@
         <notificationGroup id="SHAFT Notifications" displayType="BALLOON"/>
     </extensions>
 
+    <projectListeners>
+        <listener class="com.shaft.intellij.notifications.FailedRunDoctorNotifier"
+                  topic="com.intellij.execution.ExecutionListener"/>
+    </projectListeners>
+
     <actions>
         <group id="Shaft.ToolsMenu" text="SHAFT" popup="true">
             <add-to-group group-id="ToolsMenu" anchor="last"/>

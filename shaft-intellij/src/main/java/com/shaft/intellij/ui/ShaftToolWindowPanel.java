@@ -43,6 +43,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private List<ShaftFeaturePanel> featurePanels = List.of();
     private List<WorkflowView> workflowViews = List.of();
     private ApiRecordingSessionPanel apiRecordingPanel;
+    private GuidedWorkflowPanel guidedWorkflowPanel;
 
     public ShaftToolWindowPanel(@NotNull Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -85,6 +86,7 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private void showSetupView() {
         disposeApiRecordingPanel();
+        disposeGuidedWorkflowPanel();
         removeAll();
         ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::onSetupComplete,
                 readinessProbe, deepReadinessProbe);
@@ -107,6 +109,7 @@ public final class ShaftToolWindowPanel extends JPanel {
 
     private void showMainView() {
         disposeApiRecordingPanel();
+        disposeGuidedWorkflowPanel();
         removeAll();
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
                 assistantChatState, this::showSetupView);
@@ -127,7 +130,8 @@ public final class ShaftToolWindowPanel extends JPanel {
         workflowLayout = new CardLayout();
         workflowCards = new JPanel(workflowLayout);
         workflowCards.getAccessibleContext().setAccessibleName("SHAFT workflow content");
-        GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool);
+        GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);
+        guidedWorkflowPanel = guided;
         EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
         ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
                 List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
@@ -282,6 +286,16 @@ public final class ShaftToolWindowPanel extends JPanel {
         if (apiRecordingPanel != null) {
             Disposer.dispose(apiRecordingPanel);
             apiRecordingPanel = null;
+        }
+    }
+
+    /**
+     * Disposes the current Guided workflow panel, if any, cancelling its recorder status poller.
+     */
+    private void disposeGuidedWorkflowPanel() {
+        if (guidedWorkflowPanel != null) {
+            Disposer.dispose(guidedWorkflowPanel);
+            guidedWorkflowPanel = null;
         }
     }
 

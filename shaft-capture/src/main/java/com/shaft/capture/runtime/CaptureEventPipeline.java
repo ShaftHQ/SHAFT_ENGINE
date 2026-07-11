@@ -144,6 +144,15 @@ final class CaptureEventPipeline implements AutoCloseable {
         return store.read().events().size();
     }
 
+    /**
+     * Returns the number of debounced signals (uncommitted typed input, pending clicks) that have
+     * not yet been persisted as semantic events. During that window {@link #eventCount()}
+     * under-reports; status consumers surface this so live monitors do not misread a quiet count.
+     */
+    synchronized int pendingSignalCount() {
+        return pendingInputs.size() + pendingClicks.size();
+    }
+
     @Override
     public synchronized void close() {
         if (closed) {

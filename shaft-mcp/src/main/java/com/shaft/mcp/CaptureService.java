@@ -72,20 +72,24 @@ public class CaptureService {
      * @param browser Chrome or Edge; blank selects Chrome
      * @param outputPath capture JSON path; blank selects a timestamped recording
      * @param headless whether to launch without a visible window
+     * @param sessionGoal optional user intent for the journey; drives generated test class and method names
      * @return safe recorder status
      */
     @Tool(name = "capture_start",
-            description = "starts a privacy-safe SHAFT managed-browser recording with live browser controls")
+            description = "starts a privacy-safe SHAFT managed-browser recording with live browser controls; "
+                    + "sessionGoal names the generated test")
     public CaptureStatus start(
             String targetUrl,
             String browser,
             String outputPath,
-            boolean headless) {
+            boolean headless,
+            String sessionGoal) {
         CaptureCodegenStartRequest request = new CaptureCodegenStartRequest();
         request.targetUrl = targetUrl;
         request.browser = browser;
         request.outputPath = outputPath;
         request.headless = headless;
+        request.sessionGoal = sessionGoal;
         return startWithOptions(request);
     }
 
@@ -189,7 +193,7 @@ public class CaptureService {
      * @return current or final recorder status
      */
     @Tool(name = "capture_status",
-            description = "returns SHAFT Capture session, browser, URL, event count, warnings, and output status")
+            description = "returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status")
     public CaptureStatus status() {
         return manager.status();
     }

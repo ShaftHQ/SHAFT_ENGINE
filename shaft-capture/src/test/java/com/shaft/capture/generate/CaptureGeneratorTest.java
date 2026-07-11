@@ -219,6 +219,122 @@ class CaptureGeneratorTest {
     }
 
     @Test
+    void sessionGoalDrivesGeneratedClassAndMethodNames() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        CaptureSession goalSession = new CaptureSession(
+                base.schemaVersion(),
+                "goal-naming-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(new CaptureEvent.NavigationEvent(
+                        CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN,
+                        "https://example.test/login")),
+                List.of(),
+                List.of(),
+                base.redactionSummary(),
+                Map.of("sessionGoal", JSON.getNodeFactory().textNode("Log in as a valid user")));
+        Path session = session(goalSession);
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("goal-naming")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("public class LogInAsAValidUserTest"), source);
+        assertTrue(source.contains("public void logInAsAValidUser()"), source);
+        assertFalse(source.contains("replayHttps"), source);
+    }
+
+    @Test
+    void percentEncodedWorkspaceFileUrlIsNotAPrivacyBlocker() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        Path output = temp.resolve("My Files");
+        String fixtureUrl = output.resolve("fixtures/login page.html").toUri().toString();
+        assertTrue(fixtureUrl.contains("%20"), "Fixture URL should percent-encode spaces: " + fixtureUrl);
+        CaptureSession recorded = new CaptureSession(
+                base.schemaVersion(),
+                "percent-encoded-workspace-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(new CaptureEvent.NavigationEvent(
+                        CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN,
+                        fixtureUrl)),
+                List.of(),
+                List.of(),
+                base.redactionSummary(),
+                base.extensions());
+        Path session = session(recorded);
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(request(session, output));
+
+        assertTrue(result.report().unsupportedEvents().stream()
+                        .noneMatch(message -> message.startsWith("privacy:")),
+                result.report().unsupportedEvents().toString());
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+    }
+
+    @Test
+    void externalizedSecretEnvironmentNamesStayStableAcrossReRecordings() throws Exception {
+        CaptureSession base = CaptureFixtures.representativeSession();
+        String firstRun = generateWithSecretReference(base, "data.password-4", "first-secret-run");
+        String secondRun = generateWithSecretReference(base, "data.password-7", "second-secret-run");
+
+        assertTrue(firstRun.contains("requiredEnvironment(\"SHAFT_CAPTURE_DATA_PASSWORD\")"), firstRun);
+        assertFalse(firstRun.contains("SHAFT_CAPTURE_DATA_PASSWORD_4"), firstRun);
+        assertEquals(
+                extractRequiredEnvironmentNames(firstRun),
+                extractRequiredEnvironmentNames(secondRun),
+                "Re-recording the same journey must not shift externalized-secret environment names");
+    }
+
+    private String generateWithSecretReference(CaptureSession base, String referenceId, String outputName)
+            throws Exception {
+        ExternalTestDataReference secret = new ExternalTestDataReference(
+                referenceId,
+                referenceId.substring("data.".length()),
+                ExternalTestDataReference.DataSource.ENVIRONMENT,
+                "",
+                "",
+                ExternalTestDataReference.DataClassification.SECRET);
+        CaptureSession recorded = new CaptureSession(
+                base.schemaVersion(),
+                outputName,
+                CaptureSession.SessionStatus.COMPLETED,
+                base.startedAt(),
+                CaptureFixtures.STARTED.plusSeconds(2),
+                base.browser(),
+                List.of(new CaptureEvent.TypeEvent(
+                        CaptureFixtures.context(1), CaptureFixtures.target(), secret)),
+                List.of(),
+                List.of(secret),
+                base.redactionSummary(),
+                base.extensions());
+        Path path = temp.resolve(outputName + ".json");
+        new CaptureJsonCodec().write(path, recorded);
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(path, temp.resolve(outputName)));
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        return Files.readString(result.sourcePath());
+    }
+
+    private static List<String> extractRequiredEnvironmentNames(String source) {
+        List<String> names = new java.util.ArrayList<>();
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("requiredEnvironment\\(\"([^\"]+)\"\\)")
+                .matcher(source);
+        while (matcher.find()) {
+            names.add(matcher.group(1));
+        }
+        return names;
+    }
+
+    @Test
     void unsupportedStepFailsWithEventIdAndRemediation() throws Exception {
         CaptureSession base = CaptureFixtures.representativeSession();
         CaptureEvent.ClickEvent click = (CaptureEvent.ClickEvent) base.events().get(1);

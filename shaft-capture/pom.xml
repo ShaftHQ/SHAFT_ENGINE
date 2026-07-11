@@ -86,6 +86,11 @@
                     <excludedGroups>external-e2e</excludedGroups>
                     <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                     <argLine>@{argLine} ${surefireArgLine} ${mockitoAgentArgLine}</argLine>
+                    <systemPropertyVariables>
+                        <!-- Engine property bootstrap must not rewrite this module's tracked
+                             src/main/resources/properties files during tests. -->
+                        <shaft.properties.bootstrapDirectory>target/shaft-properties</shaft.properties.bootstrapDirectory>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>

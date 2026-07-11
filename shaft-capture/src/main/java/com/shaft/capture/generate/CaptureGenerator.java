@@ -779,6 +779,7 @@ public final class CaptureGenerator {
         Map<String, String> keys = new LinkedHashMap<>();
         Map<String, String> environment = new LinkedHashMap<>();
         Set<String> usedKeys = new HashSet<>();
+        Set<String> usedEnvironmentNames = new HashSet<>();
         ObjectNode root = JSON.createObjectNode();
         root.put("schemaVersion", "1.0");
         ObjectNode values = root.putObject("values");
@@ -803,7 +804,7 @@ public final class CaptureGenerator {
                 }
             } else if (reference.source() == ExternalTestDataReference.DataSource.ENVIRONMENT
                     || reference.source() == ExternalTestDataReference.DataSource.SECRET_PROVIDER) {
-                String name = environmentName(reference.id());
+                String name = uniqueEnvironmentName(reference.id(), usedEnvironmentNames);
                 environment.put(reference.id(), name);
                 required.add(reference.id() + ": set environment variable " + name + " before replay.");
             } else if (reference.source() == ExternalTestDataReference.DataSource.FILE_FIXTURE) {
@@ -1405,15 +1406,29 @@ public final class CaptureGenerator {
         return Map.copyOf(names);
     }
 
+    private static final Set<String> RESERVED_TEST_METHOD_NAMES = Set.of(
+            "setUp", "tearDown", "requiredData", "requiredEnvironment", "captureReplayLocator");
+
     private static String defaultClassName(CaptureSession session) {
         return javaClassName(defaultNameSeed(session)) + "Test";
     }
 
     private static String defaultMethodName(CaptureSession session) {
+        String goal = sessionGoal(session);
+        if (!goal.isBlank()) {
+            String intentName = javaMethodName(goal);
+            if (!RESERVED_TEST_METHOD_NAMES.contains(intentName)) {
+                return intentName;
+            }
+        }
         return "replay" + javaClassName(defaultNameSeed(session));
     }
 
     private static String defaultNameSeed(CaptureSession session) {
+        String goal = sessionGoal(session);
+        if (!goal.isBlank()) {
+            return goal;
+        }
         for (Checkpoint checkpoint : session.checkpoints()) {
             if (!checkpoint.description().isBlank()) {
                 return checkpoint.description();
@@ -2057,7 +2072,9 @@ public final class CaptureGenerator {
         if (allowedRoot == null) {
             return false;
         }
-        String candidate = token.replaceFirst("(?i)^file:/*", "");
+        // Recorded file:// URLs percent-encode spaces and other characters; decode before the
+        // containment comparison so a workspace path like "My%20Files" matches its real directory.
+        String candidate = percentDecode(token.replaceFirst("(?i)^file:/*", ""));
         if (!candidate.matches("(?i)^[A-Z]:.*")) {
             candidate = "/" + candidate.replaceFirst("^/+", "");
         }
@@ -2066,6 +2083,18 @@ public final class CaptureGenerator {
                     .startsWith(allowedRoot.toAbsolutePath().normalize());
         } catch (InvalidPathException exception) {
             return false;
+        }
+    }
+
+    private static String percentDecode(String value) {
+        if (value.indexOf('%') < 0) {
+            return value;
+        }
+        try {
+            // '+' is a literal in file URLs, not an encoded space; protect it from URLDecoder.
+            return java.net.URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException malformedEscape) {
+            return value;
         }
     }
 
@@ -2414,8 +2443,21 @@ public final class CaptureGenerator {
         return candidate;
     }
 
-    private static String environmentName(String id) {
-        return "SHAFT_CAPTURE_" + constantName(id);
+    /**
+     * Environment-variable names must stay stable across re-recordings of the same journey, so the
+     * recorder's per-event sequence suffix ("data.password-4" -> "data.password") is stripped
+     * before deriving the name; duplicates within one generation are de-duplicated with a numeric
+     * suffix instead.
+     */
+    private static String uniqueEnvironmentName(String id, Set<String> used) {
+        String stableId = id == null ? "" : id.replaceFirst("-\\d+$", "");
+        String base = "SHAFT_CAPTURE_" + constantName(stableId);
+        String candidate = base;
+        int suffix = 2;
+        while (!used.add(candidate)) {
+            candidate = base + "_" + suffix++;
+        }
+        return candidate;
     }
 
     private static String dataFileName(String className) {
