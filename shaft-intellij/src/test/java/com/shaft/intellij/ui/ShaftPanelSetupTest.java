@@ -2078,10 +2078,13 @@ class ShaftPanelSetupTest {
                         "old starter strip copy should stay removed"),
                 () -> assertNull(findByAccessibleName(panel, "Assistant context suggestions", JButton.class),
                         "the '+' context button is retired; typed @ # triggers own that role"),
-                () -> assertTrue(prompt instanceof JBTextArea
-                                && ((JBTextArea) prompt).getEmptyText().getText().contains("Tell SHAFT what you need"),
+                () -> assertTrue(String.valueOf(((JBTextArea) prompt)
+                                .getClientProperty("shaft.prompt.placeholder"))
+                                .contains("Tell SHAFT what you need"),
                         "the prompt placeholder should invite plain language"),
-                () -> assertFalse(((JBTextArea) prompt).getEmptyText().getText().contains("/"),
+                () -> assertFalse(String.valueOf(((JBTextArea) prompt)
+                                .getClientProperty("shaft.prompt.placeholder"))
+                                .contains("/"),
                         "the prompt placeholder must not advertise slash commands"),
                 () -> assertNotNull(verbose),
                 () -> assertFalse(verbose.isSelected()),

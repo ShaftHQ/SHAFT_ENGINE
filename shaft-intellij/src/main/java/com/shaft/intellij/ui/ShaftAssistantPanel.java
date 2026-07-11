@@ -85,6 +85,9 @@ import java.util.function.Consumer;
 final class ShaftAssistantPanel extends JPanel {
     private static final int TRANSIENT_STATUS_MILLIS = 2300;
     private static final int MAX_AGENT_CONTEXT_CHARACTERS = 16_000;
+    static final String PROMPT_PLACEHOLDER =
+            "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade "
+                    + "(# adds project context)";
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
@@ -331,15 +334,13 @@ final class ShaftAssistantPanel extends JPanel {
         autoCompact.setToolTipText("Send the agent CLI's compact/compress command before each new prompt, when supported");
         autoCompact.setSelected(settings.autoCompactEnabled);
         autoCompact.addActionListener(event -> settings.autoCompactEnabled = autoCompact.isSelected());
-        prompt = new JBTextArea(6, 40);
+        // Custom-painted placeholder: IntelliJ's StatusText never wraps and clips long lines even
+        // in wide tool windows, so the hint is measured against the real component width and
+        // continues onto the next line instead of being cut off.
+        prompt = new PlaceholderTextArea(PROMPT_PLACEHOLDER);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
                 "Describe what you need in plain language or request guarded local Agent work.");
-        // Two StatusText lines: a single line is clipped in narrow tool windows, and StatusText
-        // never wraps on its own, so the placeholder continues on the next line instead.
-        prompt.getEmptyText()
-                .setText("Tell SHAFT what you need — record, generate a test,")
-                .appendLine("diagnose failures, upgrade (# adds project context)");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView(project);
@@ -567,6 +568,66 @@ final class ShaftAssistantPanel extends JPanel {
 
     JComponent preferredFocusComponent() {
         return prompt;
+    }
+
+    /**
+     * Text area with a placeholder that wraps to the component's real width. IntelliJ's
+     * {@code StatusText} empty text never wraps and clips long lines even when the tool window is
+     * wide, cutting off the invite mid-sentence.
+     */
+    static final class PlaceholderTextArea extends JBTextArea {
+        private final String placeholder;
+
+        PlaceholderTextArea(String placeholder) {
+            super(6, 40);
+            this.placeholder = placeholder;
+            putClientProperty("shaft.prompt.placeholder", placeholder);
+        }
+
+        @Override
+        protected void paintComponent(java.awt.Graphics graphics) {
+            super.paintComponent(graphics);
+            if (!getText().isEmpty() || placeholder == null || placeholder.isBlank()) {
+                return;
+            }
+            java.awt.Graphics2D paint = (java.awt.Graphics2D) graphics.create();
+            try {
+                paint.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
+                        java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                java.awt.Color hint = javax.swing.UIManager.getColor("Component.infoForeground");
+                paint.setColor(hint == null ? java.awt.Color.GRAY : hint);
+                paint.setFont(getFont());
+                java.awt.FontMetrics metrics = paint.getFontMetrics();
+                java.awt.Insets insets = getInsets();
+                int available = Math.max(60, getWidth() - insets.left - insets.right - 4);
+                int y = insets.top + metrics.getAscent();
+                for (String line : wrapToWidth(placeholder, metrics, available)) {
+                    paint.drawString(line, insets.left + 2, y);
+                    y += metrics.getHeight();
+                }
+            } finally {
+                paint.dispose();
+            }
+        }
+
+        private static java.util.List<String> wrapToWidth(
+                String text, java.awt.FontMetrics metrics, int available) {
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            StringBuilder line = new StringBuilder();
+            for (String word : text.split(" ")) {
+                String candidate = line.isEmpty() ? word : line + " " + word;
+                if (metrics.stringWidth(candidate) > available && !line.isEmpty()) {
+                    lines.add(line.toString());
+                    line = new StringBuilder(word);
+                } else {
+                    line = new StringBuilder(candidate);
+                }
+            }
+            if (!line.isEmpty()) {
+                lines.add(line.toString());
+            }
+            return lines;
+        }
     }
 
     @Override
