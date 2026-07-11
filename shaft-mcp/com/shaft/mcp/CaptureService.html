@@ -55,7 +55,7 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
-<li><a href="#start(java.lang.String,java.lang.String,java.lang.String,boolean)" tabindex="0">start(String, String, String, boolean)</a></li>
+<li><a href="#start(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" tabindex="0">start(String, String, String, boolean, String)</a></li>
 <li><a href="#startWithOptions(com.shaft.mcp.CaptureService.CaptureCodegenStartRequest)" tabindex="0">startWithOptions(CaptureService.CaptureCodegenStartRequest)</a></li>
 <li><a href="#codegenFeatures()" tabindex="0">codegenFeatures()</a></li>
 <li><a href="#status()" tabindex="0">status()</a></li>
@@ -323,10 +323,11 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 <div class="block">Reads or toggles the active recorder's live authoring mode.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.shaft.capture.runtime.CaptureStatus</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,java.lang.String,boolean)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
- boolean&nbsp;headless)</code></div>
+ boolean&nbsp;headless,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionGoal)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Launches a fresh SHAFT-managed browser and starts deterministic capture.</div>
 </div>
@@ -386,15 +387,16 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="start(java.lang.String,java.lang.String,java.lang.String,boolean)">
+<section class="detail" id="start(java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String)">
 <h3>start</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_start",
-      description="starts a privacy-safe SHAFT managed-browser recording with live browser controls")
+      description="starts a privacy-safe SHAFT managed-browser recording with live browser controls; sessionGoal names the generated test")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.runtime.CaptureStatus</span>&nbsp;<span class="element-name">start</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
- boolean&nbsp;headless)</span></div>
+ boolean&nbsp;headless,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionGoal)</span></div>
 <div class="block">Launches a fresh SHAFT-managed browser and starts deterministic capture.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -402,6 +404,7 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 <dd><code>browser</code> - Chrome or Edge; blank selects Chrome</dd>
 <dd><code>outputPath</code> - capture JSON path; blank selects a timestamped recording</dd>
 <dd><code>headless</code> - whether to launch without a visible window</dd>
+<dd><code>sessionGoal</code> - optional user intent for the journey; drives generated test class and method names</dd>
 <dt>Returns:</dt>
 <dd>safe recorder status</dd>
 </dl>
@@ -445,7 +448,7 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 <h3>status</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_status",
-      description="returns SHAFT Capture session, browser, URL, event count, warnings, and output status")
+      description="returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.runtime.CaptureStatus</span>&nbsp;<span class="element-name">status</span>()</div>
 <div class="block">Returns safe recorder status without captured values.</div>
 <dl class="notes">

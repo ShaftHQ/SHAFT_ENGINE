@@ -935,11 +935,14 @@ steps and known limitations (Android 7+ CA trust restrictions, certificate pinni
 <h3>type</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="mobile_type",
-      description="types a value into a mobile element")
+      description="types a value into a mobile element; sensitive fields are redacted per field")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">type</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;textValue)</span></div>
-<div class="block">Types text into a mobile element.</div>
+<div class="block">Types text into a mobile element. The typed value is classified per field with the same
+deterministic privacy policy web capture uses: only values typed into sensitive-looking
+fields (password, token, and similar locators) or matching secret-value patterns are
+redacted from the recording, so ordinary inputs such as search boxes stay replayable.</div>
 </div>
 </section>
 </li>
