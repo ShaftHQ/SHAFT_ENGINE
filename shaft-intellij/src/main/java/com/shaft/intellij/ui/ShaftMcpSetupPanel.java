@@ -561,6 +561,10 @@ final class ShaftMcpSetupPanel extends JPanel {
                 (java.awt.event.ActionListener) event -> BrowserUtil.browse(USER_GUIDE_URL));
         userGuideLink.getAccessibleContext().setAccessibleName("Open SHAFT user guide in browser");
         userGuideLink.setToolTipText(USER_GUIDE_URL);
+        // ActionLink under-reports its preferred width for the trailing arrow glyph, which
+        // ellipsizes the label ("User Guid..."); pad the computed width so the text renders whole.
+        java.awt.Dimension linkSize = userGuideLink.getPreferredSize();
+        userGuideLink.setPreferredSize(new java.awt.Dimension(linkSize.width + JBUI.scale(20), linkSize.height));
         footer.add(userGuideLink);
         add(footer, BorderLayout.SOUTH);
         refreshPrerequisites();

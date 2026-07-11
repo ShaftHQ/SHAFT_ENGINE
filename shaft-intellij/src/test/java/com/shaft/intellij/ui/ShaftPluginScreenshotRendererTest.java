@@ -279,8 +279,9 @@ class ShaftPluginScreenshotRendererTest {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
+            // Default (non-expert) settings on purpose: this shot documents the real first
+            // contact — Assistant only, no workflow selector, starter cards visible.
             ShaftSettingsState.Settings settings = defaultSettings();
-            settings.advancedUiEnabled = true;
             JComponent component = new ShaftToolWindowPanel(
                     screenshotProject(), settings, AssistantLocalAgentRunner::readiness, new ShaftAssistantChatState());
             component.setSize(new Dimension(WIDTH, HEIGHT));
