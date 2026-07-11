@@ -12,6 +12,8 @@ import java.util.Map;
 final class McpRuntimePaths {
     static final String WORKSPACE_ENVIRONMENT_VARIABLE = "SHAFT_MCP_WORKSPACE_ROOT";
     static final String WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.workspaceRoot";
+    static final String FALLBACK_WORKSPACE_ENVIRONMENT_VARIABLE = "SHAFT_MCP_FALLBACK_WORKSPACE_ROOT";
+    static final String FALLBACK_WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.fallbackWorkspaceRoot";
 
     private McpRuntimePaths() {
         throw new IllegalStateException("Utility class");
@@ -25,6 +27,7 @@ final class McpRuntimePaths {
     static Path currentRoot() {
         return resolveRoot(
                 System.getProperty(WORKSPACE_SYSTEM_PROPERTY),
+                System.getProperty(FALLBACK_WORKSPACE_SYSTEM_PROPERTY),
                 System.getenv(),
                 Path.of("").toAbsolutePath().normalize(),
                 System.getProperty("os.name", ""),
@@ -43,11 +46,12 @@ final class McpRuntimePaths {
             Path currentDirectory,
             String operatingSystemName,
             Path userHome) {
-        return resolveRoot(null, environment, currentDirectory, operatingSystemName, userHome);
+        return resolveRoot(null, null, environment, currentDirectory, operatingSystemName, userHome);
     }
 
     static Path resolveRoot(
             String configuredWorkspace,
+            String configuredFallbackWorkspace,
             Map<String, String> environment,
             Path currentDirectory,
             String operatingSystemName,
@@ -57,10 +61,21 @@ final class McpRuntimePaths {
             return ensureWritableDirectory(Path.of(configuredWorkspace));
         }
 
+        // The launch directory is the best available signal for "the project the user is working
+        // in": agent clients such as Claude Code and Codex start stdio MCP servers from the open
+        // project. It is skipped when it cannot be a real project: protected system locations,
+        // unwritable directories, and the bare user home (clients with no project launch there).
         Path normalizedCurrentDirectory = currentDirectory.toAbsolutePath().normalize();
         if (!isProtectedWindowsDirectory(normalizedCurrentDirectory, environment, operatingSystemName)
+                && !normalizedCurrentDirectory.equals(userHome.toAbsolutePath().normalize())
                 && isWritableDirectory(normalizedCurrentDirectory)) {
             return normalizedCurrentDirectory;
+        }
+
+        String fallbackWorkspace = firstNonBlank(
+                configuredFallbackWorkspace, environment.get(FALLBACK_WORKSPACE_ENVIRONMENT_VARIABLE));
+        if (fallbackWorkspace != null && !fallbackWorkspace.isBlank()) {
+            return ensureWritableDirectory(Path.of(fallbackWorkspace));
         }
 
         return ensureWritableDirectory(applicationDataRoot(environment, operatingSystemName, userHome)

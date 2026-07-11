@@ -162,14 +162,19 @@ def verify_argfile(args: Path, jar: Path) -> None:
     text = args.read_text(encoding="utf-8")
     runtime_root = jar.parent.parent.parent / "work"
     required = {
-        f'"-Duser.dir={runtime_root.as_posix()}"',
-        f'"-Dshaft.mcp.workspaceRoot={runtime_root.as_posix()}"',
+        f'"-Dshaft.mcp.fallbackWorkspaceRoot={runtime_root.as_posix()}"',
         "-cp",
         "com.shaft.mcp.ShaftMcpApplication",
     }
     missing = [token for token in sorted(required) if token not in text]
     if missing:
         raise RuntimeError(f"Installed shaft-mcp argfile is missing required entries: {missing}")
+    # Pinning either token would lock every client into the shared appdata work directory,
+    # so tool calls from a real user project would be rejected as outside the MCP workspace.
+    forbidden = ["-Duser.dir=", "-Dshaft.mcp.workspaceRoot="]
+    pinned = [token for token in forbidden if token in text]
+    if pinned:
+        raise RuntimeError(f"Installed shaft-mcp argfile must not pin per-project entries: {pinned}")
 
 
 def expected_java(environment: dict[str, str]) -> Path:

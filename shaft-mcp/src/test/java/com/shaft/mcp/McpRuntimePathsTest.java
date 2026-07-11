@@ -39,6 +39,7 @@ class McpRuntimePathsTest {
 
         Path resolvedRoot = McpRuntimePaths.resolveRoot(
                 configuredWorkspace.toString(),
+                null,
                 environment,
                 temp.resolve("current-directory"),
                 "Windows 11",
@@ -59,6 +60,56 @@ class McpRuntimePathsTest {
                 temp.resolve("home"));
 
         assertEquals(currentDirectory.toAbsolutePath().normalize(), resolvedRoot);
+    }
+
+    @Test
+    void fallbackWorkspaceShouldOnlyApplyWhenCurrentDirectoryIsUnusable() throws Exception {
+        Path windowsRoot = Files.createDirectories(temp.resolve("Windows"));
+        Path protectedDirectory = Files.createDirectories(windowsRoot.resolve("System32"));
+        Path fallbackWorkspace = temp.resolve("installer-work");
+        Map<String, String> environment = Map.of("SystemRoot", windowsRoot.toString());
+
+        Path resolvedRoot = McpRuntimePaths.resolveRoot(
+                null,
+                fallbackWorkspace.toString(),
+                environment,
+                protectedDirectory,
+                "Windows 11",
+                temp.resolve("home"));
+
+        assertEquals(fallbackWorkspace.toAbsolutePath().normalize(), resolvedRoot);
+        assertTrue(Files.isDirectory(resolvedRoot));
+    }
+
+    @Test
+    void projectCurrentDirectoryShouldBeatTheInstallerFallback() throws Exception {
+        Path projectDirectory = Files.createDirectories(temp.resolve("user-project"));
+
+        Path resolvedRoot = McpRuntimePaths.resolveRoot(
+                null,
+                temp.resolve("installer-work").toString(),
+                Map.of(),
+                projectDirectory,
+                "Linux",
+                temp.resolve("home"));
+
+        assertEquals(projectDirectory.toAbsolutePath().normalize(), resolvedRoot);
+    }
+
+    @Test
+    void bareUserHomeCurrentDirectoryShouldNotBecomeTheWorkspace() throws Exception {
+        Path home = Files.createDirectories(temp.resolve("home"));
+        Path fallbackWorkspace = temp.resolve("installer-work");
+
+        Path resolvedRoot = McpRuntimePaths.resolveRoot(
+                null,
+                fallbackWorkspace.toString(),
+                Map.of(),
+                home,
+                "Mac OS X",
+                home);
+
+        assertEquals(fallbackWorkspace.toAbsolutePath().normalize(), resolvedRoot);
     }
 
     @Test
