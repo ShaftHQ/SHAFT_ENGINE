@@ -59,6 +59,9 @@ public class CaptureService {
      */
     public CaptureService() {
         this(new CaptureManager(), McpWorkspacePolicy.current(), new McpCaptureCodeBlockService());
+        // Only the Spring-managed instance registers: element_*/natural_act tools fall back to
+        // driving the active capture session's browser when no driver_initialize session exists.
+        EngineService.registerCaptureDriverBridge(() -> manager.activeShaftDriver().orElse(null));
     }
 
     CaptureService(
@@ -81,8 +84,9 @@ public class CaptureService {
      * @return safe recorder status
      */
     @Tool(name = "capture_start",
-            description = "starts a privacy-safe SHAFT managed-browser recording with live browser controls; "
-                    + "sessionGoal names the generated test")
+            description = "starts a privacy-safe SHAFT managed-browser recording; while it is active, "
+                    + "element_* and natural_act tools drive the recorded browser directly (no "
+                    + "driver_initialize needed); sessionGoal names the generated test")
     public CaptureStatus start(
             String targetUrl,
             String browser,
@@ -105,7 +109,9 @@ public class CaptureService {
      * @return safe recorder status
      */
     @Tool(name = "capture_start_codegen",
-            description = "starts SHAFT Capture with Playwright-codegen-compatible options and live browser controls")
+            description = "starts SHAFT Capture with Playwright-codegen-compatible options; while it is "
+                    + "active, element_* and natural_act tools drive the recorded browser directly, so an "
+                    + "agent can perform the described actions, capture_stop, then generate code")
     public CaptureStatus startWithOptions(CaptureCodegenStartRequest request) {
         CaptureCodegenStartRequest options = request == null ? new CaptureCodegenStartRequest() : request;
         // Team recorder policy (issue #3425 C4): a checked-in .shaft/recorder-policy.json wins

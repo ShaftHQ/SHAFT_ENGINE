@@ -20,6 +20,15 @@ public final class CaptureSessionStore {
     private final Path path;
     private final CaptureJsonCodec codec;
     private final ReentrantLock lock = new ReentrantLock();
+    /**
+     * Last session snapshot successfully persisted to or read from {@link #path}. External
+     * interference (an antivirus scan or IDE file watcher racing the non-atomic Windows
+     * replace-move fallback) can make the session file vanish mid-recording; without this
+     * snapshot every later read/update threw "Capture session has not been started." from inside
+     * status calls and permanently wedged the whole capture lifecycle (issue #3429). When the
+     * file is missing but a snapshot exists, the store rewrites the snapshot and continues.
+     */
+    private CaptureSession lastPersisted;
 
     /**
      * Creates a store for one capture path.
@@ -59,6 +68,7 @@ public final class CaptureSessionStore {
                 throw new IllegalArgumentException("New capture sessions must be incomplete.");
             }
             codec.write(path, session);
+            lastPersisted = session;
         } finally {
             lock.unlock();
         }
@@ -101,10 +111,7 @@ public final class CaptureSessionStore {
     public long nextSequence() {
         lock.lock();
         try {
-            if (!Files.isRegularFile(path)) {
-                throw new IllegalStateException("Capture session has not been started.");
-            }
-            return codec.read(path).events().stream()
+            return currentSession().events().stream()
                     .mapToLong(event -> event.context().sequence())
                     .max()
                     .orElse(0L) + 1;
@@ -168,6 +175,24 @@ public final class CaptureSessionStore {
     }
 
     /**
+     * Deletes the session file and forgets the in-memory snapshot, so an intentional discard can
+     * never be undone by the vanished-file self-heal.
+     *
+     * @throws java.io.UncheckedIOException when the file exists but could not be deleted
+     */
+    public void discard() {
+        lock.lock();
+        try {
+            lastPersisted = null;
+            Files.deleteIfExists(path);
+        } catch (java.io.IOException exception) {
+            throw new java.io.UncheckedIOException(exception);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
      * Reads the latest complete file snapshot.
      *
      * @return current session
@@ -175,13 +200,27 @@ public final class CaptureSessionStore {
     public CaptureSession read() {
         lock.lock();
         try {
-            if (!Files.isRegularFile(path)) {
-                throw new IllegalStateException("Capture session has not been started.");
-            }
-            return codec.read(path);
+            return currentSession();
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * Returns the on-disk session, self-healing a vanished file from the last persisted snapshot.
+     * Must be called under {@link #lock}.
+     */
+    private CaptureSession currentSession() {
+        if (Files.isRegularFile(path)) {
+            CaptureSession session = codec.read(path);
+            lastPersisted = session;
+            return session;
+        }
+        if (lastPersisted == null) {
+            throw new IllegalStateException("Capture session has not been started.");
+        }
+        codec.write(path, lastPersisted);
+        return lastPersisted;
     }
 
     /**
@@ -287,11 +326,9 @@ public final class CaptureSessionStore {
     private CaptureSession update(java.util.function.UnaryOperator<CaptureSession> operation) {
         lock.lock();
         try {
-            if (!Files.isRegularFile(path)) {
-                throw new IllegalStateException("Capture session has not been started.");
-            }
-            CaptureSession updated = operation.apply(codec.read(path));
+            CaptureSession updated = operation.apply(currentSession());
             codec.write(path, updated);
+            lastPersisted = updated;
             return updated;
         } finally {
             lock.unlock();
