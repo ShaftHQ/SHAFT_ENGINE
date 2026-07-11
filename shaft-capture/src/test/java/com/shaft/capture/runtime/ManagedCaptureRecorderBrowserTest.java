@@ -465,10 +465,20 @@ class ManagedCaptureRecorderBrowserTest {
     }
 
     /**
-     * Regression for issue #3393: the recorder overlay used to run two independent, redundant
-     * navigation-polling {@code setInterval} loops in the top-level frame, both announcing the
-     * same navigation with no de-duplication, so one navigation appended two "Navigate to" rows.
-     * Drives a real navigation and asserts exactly one such row lands in the overlay action list.
+     * Regression for issue #3393 and PR #3432: one navigation must append exactly one
+     * "Navigate to" row. Two historical duplicate sources are covered:
+     * <ul>
+     *   <li>#3393 — two redundant navigation-polling {@code setInterval} loops in the top-level
+     *       frame, both announcing the same navigation with no de-duplication.</li>
+     *   <li>#3432 — the recorder script also runs inside the same-origin {@code /frame} iframe,
+     *       which shared the top page's sessionStorage key: the iframe seeded {@code lastUrl}
+     *       from the top page's persisted state, announced a phantom
+     *       "Navigate to .../frame" row on its first 500ms poll tick, and its pagehide persist
+     *       raced the top frame's, so the next page could restore the phantom row alongside the
+     *       real navigation row.</li>
+     * </ul>
+     * The dwell before navigating guarantees the iframe's poller has ticked, making the
+     * pre-fix #3432 pollution deterministic instead of a CI-timing flake.
      */
     @ParameterizedTest
     @ValueSource(strings = {"chrome", "edge"})
@@ -478,8 +488,12 @@ class ManagedCaptureRecorderBrowserTest {
         HttpServer server = localFixture();
         String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
         Path output = temp.resolve(browserName + "-nav-dedup.json");
+        // The 900ms-delayed iframe reproduces the slow-CI ordering deterministically: the
+        // subframe recorder instance initializes only after the top page has persisted its
+        // "Open ..." breadcrumb, which pre-fix made the subframe adopt the top page's lastUrl
+        // and announce a phantom "Navigate to .../frame" row into shared storage (#3432).
         ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
-                baseUrl,
+                baseUrl + "?frameDelay=900",
                 CaptureBrowser.parse(browserName),
                 output,
                 temp.resolve(browserName + "-nav-dedup-runtime"),
@@ -490,6 +504,11 @@ class ManagedCaptureRecorderBrowserTest {
             JavascriptExecutor js = (JavascriptExecutor) driver;
             waitFor(() -> elementPresent(driver, By.id("shaft-capture-action-list")));
 
+            // Dwell past the delayed iframe's first 500ms poll tick (~1.4s after the top page
+            // commits) so a reintroduced shared-storage bug (#3432) reliably plants its phantom
+            // row before the navigation under test.
+            Thread.sleep(2000);
+
             driver.navigate().to(baseUrl + "popup");
             waitFor(() -> navigateRowCount(js) >= 1);
             // The (pre-fix, duplicate) navigation pollers both ran on a 500ms interval; sleeping
@@ -498,8 +517,9 @@ class ManagedCaptureRecorderBrowserTest {
             Thread.sleep(1500);
 
             assertEquals(1, navigateRowCount(js),
-                    "One navigation must append exactly one \"Navigate to\" row, not one per "
-                            + "redundant polling loop.");
+                    "One navigation must append exactly one \"Navigate to\" row - not one per "
+                            + "redundant polling loop (#3393), and no phantom subframe row leaked "
+                            + "through shared page storage (#3432). Rows: " + actionRowTexts(js));
 
             recorder.stop(false);
         } finally {
@@ -530,6 +550,15 @@ class ManagedCaptureRecorderBrowserTest {
                         + "return Array.from(l.querySelectorAll('li')).filter(li => "
                         + "(li.textContent || '').includes('Navigate to')).length;");
         return ((Number) value).longValue();
+    }
+
+    private static String actionRowTexts(JavascriptExecutor js) {
+        Object value = js.executeScript(
+                "const l = document.getElementById('shaft-capture-action-list');"
+                        + "if (!l) return '';"
+                        + "return Array.from(l.querySelectorAll('li'))"
+                        + ".map(li => (li.textContent || '').trim()).join(' | ');");
+        return String.valueOf(value);
     }
 
     private static By assertionChoice(String label) {
@@ -618,7 +647,7 @@ class ManagedCaptureRecorderBrowserTest {
                     Replace dynamically
                   </button>
                   <div id="shadow-host"></div>
-                  <iframe id="child" src="/frame"></iframe>
+                  <iframe id="child" src="/frame%s"></iframe>
                   <button id="popup" onclick="window.open('/popup', '_blank')">Popup</button>
                   <button id="prompt" onclick="prompt('Prompt value')">Prompt</button>
                   <script>
@@ -627,13 +656,37 @@ class ManagedCaptureRecorderBrowserTest {
                   </script>
                 </body>
                 </html>
-                """));
-        server.createContext("/frame", exchange -> respond(exchange,
-                "<!doctype html><button id=\"frame-button\">Frame</button>"));
+                """.formatted(queryParameter(exchange, "frameDelay")
+                .map(delay -> "?delay=" + delay).orElse(""))));
+        server.createContext("/frame", exchange -> {
+            // An optional ?delay=<millis> stalls the iframe document, reproducing the slow-CI
+            // condition where the subframe recorder instance initializes only after the top page
+            // has already persisted its UI state (#3432).
+            queryParameter(exchange, "delay").ifPresent(delay -> {
+                try {
+                    Thread.sleep(Long.parseLong(delay));
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            respond(exchange, "<!doctype html><button id=\"frame-button\">Frame</button>");
+        });
         server.createContext("/popup", exchange -> respond(exchange,
                 "<!doctype html><title>Popup</title><p>Popup</p>"));
         server.start();
         return server;
+    }
+
+    private static java.util.Optional<String> queryParameter(HttpExchange exchange, String name) {
+        String query = exchange.getRequestURI().getQuery();
+        if (query == null || query.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Arrays.stream(query.split("&"))
+                .map(pair -> pair.split("=", 2))
+                .filter(pair -> pair.length == 2 && pair[0].equals(name) && pair[1].matches("\\d{1,5}"))
+                .map(pair -> pair[1])
+                .findFirst();
     }
 
     private static void respond(HttpExchange exchange, String body) throws IOException {
