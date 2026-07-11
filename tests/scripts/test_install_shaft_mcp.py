@@ -342,6 +342,74 @@ class InstallShaftMcpTest(unittest.TestCase):
             )
             self.assertEqual(installed, reinstalled)
 
+    def test_install_repository_file_keeps_existing_target_when_replace_is_denied(self):
+        # Issue #3426 A6: on Windows, a locked local jar (running JVM, antivirus) made the whole
+        # install abort with WinError 5 mid-resolution. A locked-but-present target must be kept
+        # with a warning instead of failing the installer.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            repository = root / "repo"
+            artifact = repository / "org" / "example" / "runtime" / "1.0.0" / "runtime-1.0.0.jar"
+            artifact.parent.mkdir(parents=True)
+            artifact.write_bytes(b"fresh-bytes")
+            artifact.with_name(artifact.name + ".sha256").write_text(
+                hashlib.sha256(b"fresh-bytes").hexdigest() + "\n", encoding="utf-8")
+            target = root / "m2" / "runtime-1.0.0.jar"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"locally-built-different-bytes")
+
+            original_replace = os.replace
+
+            def denied_replace(source, destination):
+                if Path(destination) == target:
+                    raise PermissionError(5, "Access is denied", str(destination))
+                return original_replace(source, destination)
+
+            original_sleep = MODULE.time.sleep
+            os.replace = denied_replace
+            MODULE.time.sleep = lambda seconds: None
+            try:
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    resolved, downloaded = MODULE.install_repository_file(
+                        artifact.as_uri(), target, "org.example:runtime:1.0.0", announce=False)
+            finally:
+                os.replace = original_replace
+                MODULE.time.sleep = original_sleep
+
+            self.assertEqual(target.resolve(), resolved)
+            self.assertTrue(downloaded)
+            # The pre-existing local file survives untouched and the tmp file is cleaned up.
+            self.assertEqual(b"locally-built-different-bytes", target.read_bytes())
+            self.assertEqual([target.name], [path.name for path in target.parent.iterdir()])
+            self.assertIn("kept the existing local", stderr.getvalue())
+
+    def test_replace_with_retry_recovers_after_transient_denial(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "source.tmp"
+            source.write_bytes(b"new")
+            target = root / "target.jar"
+            target.write_bytes(b"old")
+            original_replace = os.replace
+            failures = {"remaining": 2}
+
+            def flaky_replace(src, dst):
+                if failures["remaining"] > 0:
+                    failures["remaining"] -= 1
+                    raise PermissionError(5, "Access is denied", str(dst))
+                return original_replace(src, dst)
+
+            original_sleep = MODULE.time.sleep
+            os.replace = flaky_replace
+            MODULE.time.sleep = lambda seconds: None
+            try:
+                self.assertTrue(MODULE.replace_with_retry(source, target))
+            finally:
+                os.replace = original_replace
+                MODULE.time.sleep = original_sleep
+            self.assertEqual(b"new", target.read_bytes())
+
     def test_configured_local_repository_reads_settings_xml(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             settings = Path(temp_dir) / "settings.xml"

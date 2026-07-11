@@ -106,7 +106,11 @@ final class SetupPrerequisites {
      */
     static String shaftEngineWarmupCommand() {
         prefetchLatestEngineVersion();
-        return "mvn -B dependency:get -Dartifact=io.github.shafthq:SHAFT_ENGINE:" + latestEngineVersion();
+        // The -D argument is double-quoted so the command survives every shell it can be pasted
+        // into: PowerShell tokenizes an unquoted -Dartifact=io.github... at the first dot, which
+        // made Maven see a bogus ".github.shafthq:SHAFT_ENGINE" plugin goal (issue #3426 A1).
+        // Double quotes are portable across PowerShell, cmd, bash, and zsh.
+        return "mvn -B dependency:get \"-Dartifact=io.github.shafthq:SHAFT_ENGINE:" + latestEngineVersion() + "\"";
     }
 
     /**

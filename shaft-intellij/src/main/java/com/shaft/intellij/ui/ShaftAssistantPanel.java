@@ -838,14 +838,17 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void insertContextSuggestion(char trigger, ContextSuggestion suggestion) {
+        // Capture the trigger offset before hiding the popup: hideContextPopup() resets it to -1,
+        // and reading it afterwards made this method call text.charAt(-1) (issue #3426 B1).
+        int triggerOffset = contextTriggerOffset;
         hideContextPopup();
         int caret = prompt.getCaretPosition();
         String text = prompt.getText();
         // Replace the trigger character plus any filter text typed after it, so picking /codegen
         // after typing "/co" leaves exactly one clean command in the prompt.
-        int start = contextTriggerOffset < text.length() && contextTriggerOffset < caret
-                && text.charAt(contextTriggerOffset) == trigger
-                ? contextTriggerOffset
+        int start = triggerOffset >= 0 && triggerOffset < text.length() && triggerOffset < caret
+                && text.charAt(triggerOffset) == trigger
+                ? triggerOffset
                 : (caret > 0 && caret <= text.length() && text.charAt(caret - 1) == trigger ? caret - 1 : caret);
         if (start < caret) {
             prompt.replaceRange(suggestion.insertion(), start, caret);
