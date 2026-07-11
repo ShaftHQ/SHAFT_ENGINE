@@ -25,15 +25,20 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Stream;
 
 /**
  * MCP adapter for deterministic managed-browser SHAFT Capture recording.
@@ -206,9 +211,76 @@ public class CaptureService {
      * @return current or final recorder status
      */
     @Tool(name = "capture_status",
-            description = "returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status")
+            description = "returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, "
+                    + "warnings, and output status; when no session is active the warnings list persisted recordings "
+                    + "that can be turned into code without a live session")
     public CaptureStatus status() {
-        return manager.status();
+        CaptureStatus status = manager.status();
+        if (status.state() != CaptureStatus.State.NOT_RUNNING) {
+            return status;
+        }
+        List<String> warnings = new ArrayList<>(status.warnings());
+        warnings.add(noSessionGuidance());
+        return new CaptureStatus(
+                status.state(),
+                status.sessionId(),
+                status.browser(),
+                status.currentUrl(),
+                status.eventCount(),
+                status.readiness(),
+                warnings,
+                status.outputPath(),
+                status.aiEnabled(),
+                status.processId(),
+                status.startedAt(),
+                status.networkTransactionCount(),
+                status.lastEndpoints(),
+                status.pendingSignalCount());
+    }
+
+    /**
+     * A missing live session must never dead-end code generation: point agents at persisted
+     * recordings (which the generate tools accept directly) or at starting a fresh session for a
+     * scenario the user described in plain language.
+     */
+    private String noSessionGuidance() {
+        List<String> recent = recentRecordings();
+        StringBuilder guidance = new StringBuilder("No active capture session, and none is needed to generate code: "
+                + "pass a persisted recording JSON path to capture_code_blocks or capture_generate_replay.");
+        if (recent.isEmpty()) {
+            guidance.append(" No recordings were found under ").append(workspacePolicy.root().resolve("recordings"))
+                    .append(". If the user described a scenario instead of providing a recording, start a fresh "
+                            + "session with capture_start_codegen, perform the described actions, call capture_stop, "
+                            + "then generate code from the persisted outputPath.");
+        } else {
+            guidance.append(" Recent recordings in this workspace: ").append(String.join(", ", recent));
+        }
+        return guidance.toString();
+    }
+
+    private List<String> recentRecordings() {
+        Path recordings = workspacePolicy.root().resolve("recordings");
+        if (!Files.isDirectory(recordings)) {
+            return List.of();
+        }
+        try (Stream<Path> files = Files.list(recordings)) {
+            return files.filter(file -> file.getFileName().toString().endsWith(".json"))
+                    .filter(Files::isRegularFile)
+                    .sorted(Comparator.comparing(CaptureService::lastModified).reversed())
+                    .limit(5)
+                    .map(Path::toString)
+                    .toList();
+        } catch (IOException exception) {
+            return List.of();
+        }
+    }
+
+    private static FileTime lastModified(Path file) {
+        try {
+            return Files.getLastModifiedTime(file);
+        } catch (IOException exception) {
+            return FileTime.fromMillis(0);
+        }
     }
 
     /**
@@ -218,7 +290,8 @@ public class CaptureService {
      * @return final recorder status
      */
     @Tool(name = "capture_stop",
-            description = "stops SHAFT Capture; after COMPLETED, show outputPath and tell IntelliJ users to run /codegen <outputPath>")
+            description = "stops SHAFT Capture; after COMPLETED, show outputPath and generate code by passing it as "
+                    + "sessionPath to capture_code_blocks or capture_generate_replay")
     public CaptureStatus stop(boolean discard) {
         return manager.stop(discard);
     }
@@ -523,7 +596,8 @@ public class CaptureService {
      * @return generation report plus copy-paste code blocks
      */
     @Tool(name = "capture_generate_replay",
-            description = "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks")
+            description = "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a "
+                    + "persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
     public McpCaptureReplayResult generateReplay(
             String sessionPath,
             String outputDirectory,
@@ -567,7 +641,8 @@ public class CaptureService {
      * @return generation report plus copy-paste code blocks
      */
     @Tool(name = "playwright_capture_generate_replay",
-            description = "generates, compiles, optionally replays, and returns copy-paste SHAFT Playwright code blocks")
+            description = "generates, compiles, optionally replays, and returns copy-paste SHAFT Playwright code blocks "
+                    + "from a persisted recording JSON (sessionPath); no active capture session required")
     @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpCaptureReplayResult generatePlaywrightReplay(
             String sessionPath,
@@ -608,7 +683,8 @@ public class CaptureService {
      * @return generated snippets and report
      */
     @Tool(name = "capture_code_blocks",
-            description = "generates a Java full-class snippet plus agent guidance for repo-aware insertion")
+            description = "generates a Java full-class snippet plus agent guidance for repo-aware insertion from a "
+                    + "persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
     public McpCaptureReplayResult codeBlocks(
             String sessionPath,
             String outputDirectory,
@@ -688,7 +764,8 @@ public class CaptureService {
      * @return generated snippets and report
      */
     @Tool(name = "playwright_capture_code_blocks",
-            description = "generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion")
+            description = "generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion from "
+                    + "a persisted recording JSON (sessionPath); no active capture session required")
     public McpCaptureReplayResult playwrightCodeBlocks(
             String sessionPath,
             String outputDirectory,

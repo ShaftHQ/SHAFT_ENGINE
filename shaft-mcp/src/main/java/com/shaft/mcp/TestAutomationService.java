@@ -68,9 +68,14 @@ public class TestAutomationService {
                     + " use returned capture-ranked locator candidates before element_* or natural_act.",
             "Before returning web login, form, or navigation code, perform the actual action with element_type,"
                     + " element_click, or natural_act and only publish locators that worked.",
-            "For code generation from automated or user-performed actions, start capture/recording first and generate"
-                    + " code blocks only after stopping the session.",
-            "For Allure, trace, or locator-flakiness failures, prefer Doctor/Trace/Heal evidence before source edits.",
+            "When the user provides a recording JSON path, generate code directly from it with capture_code_blocks or"
+                    + " capture_generate_replay; no active capture session is required and none should be demanded.",
+            "When the user describes a scenario in plain language with no recording, do not stall: start a fresh"
+                    + " session with capture_start_codegen, perform the described actions against it, call"
+                    + " capture_stop, then generate code from the persisted recording.",
+            "For Allure, trace, or locator-flakiness failures, prefer Doctor/Trace/Heal evidence before source edits."
+                    + " When the user names no report path, call doctor_analyze_failed_allure with empty"
+                    + " allureResultPaths to analyze the most recent results automatically.",
             "Prefer SHAFT smart/semantic locators, ARIA locators, and SHAFT.GUI.Locator builders before raw By objects.",
             NO_SHAFT_LOCATOR_XPATH,
             NO_SLEEP,

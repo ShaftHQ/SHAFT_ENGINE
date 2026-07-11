@@ -433,6 +433,42 @@ class CaptureServiceTest {
         assertTrue(generateFailure.getMessage().contains("workspace"));
     }
 
+    @Test
+    void statusWithoutASessionPointsAtRecentRecordingsInsteadOfDeadEnding() throws Exception {
+        Path recordings = Files.createDirectories(temp.resolve("recordings"));
+        Path recording = recordings.resolve("intellij-capture-123.json");
+        Files.writeString(recording, "{}");
+
+        CaptureService service = service();
+        CaptureStatus status;
+        try {
+            status = service.status();
+        } finally {
+            service.close();
+        }
+
+        assertEquals(CaptureStatus.State.NOT_RUNNING, status.state());
+        assertTrue(status.warnings().stream().anyMatch(warning ->
+                warning.contains("none is needed to generate code")
+                        && warning.contains(recording.toString())));
+    }
+
+    @Test
+    void statusWithoutASessionOrRecordingsExplainsTheScenarioDrivenPath() {
+        CaptureService service = service();
+        CaptureStatus status;
+        try {
+            status = service.status();
+        } finally {
+            service.close();
+        }
+
+        assertEquals(CaptureStatus.State.NOT_RUNNING, status.state());
+        assertTrue(status.warnings().stream().anyMatch(warning ->
+                warning.contains("capture_start_codegen")
+                        && warning.contains("perform the described actions")));
+    }
+
     private CaptureService service() {
         return new CaptureService(
                 new CaptureManager(),
