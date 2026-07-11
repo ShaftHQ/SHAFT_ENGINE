@@ -1,4 +1,10 @@
 <idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Capture generation-report readiness findings as file-level annotations on the
+             generated test class (issue #3425 B3). -->
+        <annotator language="JAVA"
+                   implementationClass="com.shaft.intellij.java.CaptureReportAnnotator"/>
+    </extensions>
     <actions>
         <action id="Shaft.RecordJavaTarget"
                 class="com.shaft.intellij.actions.RecordShaftFlowHereAction"

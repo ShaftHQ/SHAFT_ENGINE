@@ -103,10 +103,23 @@ public class CaptureService {
             description = "starts SHAFT Capture with Playwright-codegen-compatible options and live browser controls")
     public CaptureStatus startWithOptions(CaptureCodegenStartRequest request) {
         CaptureCodegenStartRequest options = request == null ? new CaptureCodegenStartRequest() : request;
-        Path output = options.outputPath == null || options.outputPath.isBlank()
+        // Team recorder policy (issue #3425 C4): a checked-in .shaft/recorder-policy.json wins
+        // over per-request settings so every recording in this workspace behaves consistently,
+        // whichever client started it.
+        com.shaft.capture.runtime.CaptureTeamPolicy teamPolicy =
+                com.shaft.capture.runtime.CaptureTeamPolicy.load(workspacePolicy.root());
+        if (teamPolicy.headless().isPresent()) {
+            options.headless = teamPolicy.headless().get();
+        }
+        if (!teamPolicy.browser().isBlank() && (options.browser == null || options.browser.isBlank())) {
+            options.browser = teamPolicy.browser();
+        }
+        String requestedOutput = teamPolicy.applyOutputDirectory(
+                options.outputPath, "capture-" + FILE_TIME.format(Instant.now()) + ".json");
+        Path output = requestedOutput.isBlank()
                 ? workspacePolicy.output("recordings/capture-" + FILE_TIME.format(Instant.now()) + ".json",
                 "Capture output path")
-                : workspacePolicy.output(options.outputPath, "Capture output path");
+                : workspacePolicy.output(requestedOutput, "Capture output path");
         return manager.start(new CaptureStartRequest(
                 options.targetUrl,
                 options.browser == null || options.browser.isBlank()

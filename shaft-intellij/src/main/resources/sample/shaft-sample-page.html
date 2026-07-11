@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SHAFT Sample Bookstore</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #f7f9fb; color: #17202a; }
+  header { background: #102a31; color: #fff; padding: 16px 24px; }
+  header small { color: #c8d6e7; }
+  main { max-width: 720px; margin: 24px auto; padding: 0 16px; }
+  .search { display: flex; gap: 8px; margin-bottom: 16px; }
+  input[type=text] { flex: 1; padding: 10px 12px; border: 1px solid #d9e2ec; border-radius: 6px; font: inherit; }
+  button { padding: 10px 16px; border: 0; border-radius: 6px; background: #006ec0; color: #fff; font: inherit; cursor: pointer; }
+  ul { list-style: none; padding: 0; }
+  li { background: #fff; border: 1px solid #d9e2ec; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .added { background: #14804a; }
+  #cart-status { margin-top: 16px; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SHAFT Sample Bookstore</h1>
+  <small>A tiny local page for your first SHAFT recording — nothing leaves your machine.</small>
+</header>
+<main>
+  <div class="search">
+    <input id="search" name="q" type="text" placeholder="Search books" aria-label="Search books">
+    <button id="go" type="button">Search</button>
+  </div>
+  <ul id="results" hidden>
+    <li><span id="first-title">Clean Test Automation</span><button class="add" data-book="Clean Test Automation" type="button">Add to cart</button></li>
+    <li><span>The Flaky Test Handbook</span><button class="add" data-book="The Flaky Test Handbook" type="button">Add to cart</button></li>
+  </ul>
+  <div id="cart-status" role="status">Cart is empty</div>
+</main>
+<script>
+  document.getElementById("go").addEventListener("click", function () {
+    document.getElementById("results").hidden = false;
+  });
+  document.getElementById("search").addEventListener("keydown", function (event) {
+    if (event.key === "Enter") { document.getElementById("go").click(); }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".add"), function (button) {
+    button.addEventListener("click", function () {
+      document.getElementById("cart-status").textContent = button.dataset.book + " added to cart";
+      button.classList.add("added");
+      button.textContent = "Added";
+    });
+  });
+</script>
+</body>
+</html>

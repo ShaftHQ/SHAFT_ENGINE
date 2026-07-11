@@ -119,7 +119,7 @@ final class AssistantCommand {
             "/guardrails driver.element().click(locator);",
             (command, rest, workingDirectory) -> Invocation.tool("test_code_guardrails_check", guardrails(rest)));
     private static final CommandDefinition UPGRADE_COMMAND = new CommandDefinition("/upgrade",
-            "Download and run the automated upgrade script",
+            "Have the agent upgrade this project to the latest SHAFT",
             List.of(),
             "/upgrade .", (command, rest, workingDirectory) -> upgradeScript(rest));
     private static final CommandDefinition PROJECT_COMMAND = new CommandDefinition("/project",
@@ -416,13 +416,24 @@ final class AssistantCommand {
         }
         String liveCodegen = liveCodegenSlashPrompt(text);
         boolean liveCodegenRequest = !liveCodegen.isBlank();
+        boolean upgradeAgentRequest = false;
         if (!liveCodegen.isBlank()) {
             text = liveCodegen;
+        } else if (isUpgradeSlashCommand(text)) {
+            // /upgrade is an action, not a recipe: the local agent performs the upgrade itself
+            // (with source-edit approval), repairs what breaks, and reports what it changed —
+            // instead of pasting a command back for the user to run manually (issue #3426 B6).
+            Invocation blocked = upgradeAgentGate(selection, mode, allowSourceMutation, afterFirstWord(text.trim()));
+            if (blocked != null) {
+                return blocked;
+            }
+            text = upgradeAgentPrompt(afterFirstWord(text.trim()));
+            upgradeAgentRequest = true;
         } else if (text.startsWith("/")) {
             return slash(text, workingDirectory, openFileContext);
         }
-        boolean codeGenerationRequest = isCodeGenerationRequest(text);
-        if (!liveCodegenRequest) {
+        boolean codeGenerationRequest = !upgradeAgentRequest && isCodeGenerationRequest(text);
+        if (!liveCodegenRequest && !upgradeAgentRequest) {
             if (isCodingPartnerIntent(text)) {
                 return Invocation.tool(
                         "shaft_coding_partner_plan",
@@ -432,7 +443,7 @@ final class AssistantCommand {
                 return Invocation.tool("test_code_guardrails_check", guardrails(naturalCode(text)));
             }
         }
-        if (!liveCodegenRequest && !codeGenerationRequest) {
+        if (!liveCodegenRequest && !upgradeAgentRequest && !codeGenerationRequest) {
             Invocation recording = recording(text);
             if (recording != null) {
                 return recording;
@@ -1011,6 +1022,70 @@ final class AssistantCommand {
 
     private static String pythonSingleQuoted(String value) {
         return value.replace("\\", "\\\\").replace("'", "\\'");
+    }
+
+    private static boolean isUpgradeSlashCommand(String text) {
+        return UPGRADE_COMMAND.matches(firstWord(text(text)).toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Pre-flight for the agent-performed {@code /upgrade}: cloud and non-CLI routes cannot edit
+     * local files, so they keep the copyable manual command, and a local CLI route must have Agent
+     * mode plus explicit source-edit approval before SHAFT lets an agent rewrite the project's
+     * build. Returns {@code null} when the agent run may proceed.
+     */
+    private static Invocation upgradeAgentGate(
+            Selection selection, String mode, boolean allowSourceMutation, String projectRoot) {
+        if (selection.cloud() || !"CLI".equals(selection.runtime())) {
+            return upgradeScript(projectRoot);
+        }
+        if (!"AGENT".equals(mode) || !allowSourceMutation) {
+            return Invocation.local("""
+                    **`/upgrade` changes your `pom.xml` (and possibly imports), so it needs your explicit permission first.**
+
+                    1. Switch the mode selector to **Agent**.
+                    2. Tick **Allow source edits**.
+                    3. Send `/upgrade` again. The agent will then preview the upgrade, apply it, verify the project still compiles, and report every change it made and why.
+
+                    Prefer to run the upgrade yourself instead? Use this from the project root:
+
+                    ```shell
+                    %s
+                    ```
+                    """.formatted(upgradeScriptCommand(firstTokenOrDefault(projectRoot, "."))).strip());
+        }
+        return null;
+    }
+
+    /**
+     * The agent prompt behind {@code /upgrade}: the agent executes the official upgrader itself,
+     * repairs or works around anything that breaks, verifies the build, and reports the full story.
+     */
+    private static String upgradeAgentPrompt(String projectRoot) {
+        String root = firstTokenOrDefault(projectRoot, ".");
+        return """
+                Upgrade the project at `%s` to the latest modular SHAFT Engine now. Perform the upgrade yourself; do not hand me commands to run.
+
+                Follow these steps in order and narrate each one:
+                1. Read the project's pom.xml and state the current SHAFT setup (artifact and version), or state clearly that the project does not use SHAFT yet.
+                2. Preview safely first: call the shaft-mcp tool `shaft_project_upgrade` with projectRoot "%s", upgradeType "basic", and dryRun true, then summarize the proposed changes in plain language.
+                3. Apply the upgrade by running the official upgrader non-interactively from the project root:
+                   %s
+                   If the script fails, quote its exact error, explain the cause, and either fix the cause and retry or apply the equivalent pom.xml edits yourself.
+                4. Verify by running `mvn -B -q test-compile` in the project root. If compilation fails because of the upgrade, repair the affected files using SHAFT syntax and re-verify.
+                5. Report: previous version -> new version, every file you touched and why, the verification outcome, and anything you could not complete. Never reply with a bare confirmation like "Done".
+                """.formatted(root, root, upgradeApplyCommand(root)).strip();
+    }
+
+    /**
+     * Non-interactive upgrader command for agent execution: local agent CLIs close stdin
+     * immediately, so the script must never wait for an interactive confirmation.
+     */
+    private static String upgradeApplyCommand(String projectRoot) {
+        String target = pythonSingleQuoted(projectRoot == null || projectRoot.isBlank() ? "." : projectRoot.trim());
+        return "python -c \"import runpy,sys,urllib.request as u;p='upgrade_to_modular_shaft.py';"
+                + "u.urlretrieve('https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-upgrader/upgrade_to_modular_shaft.py',p);"
+                + "sys.argv=[p,'--project','" + target + "','--yes'];runpy.run_path(p,run_name='__main__')\"";
     }
 
     private static JsonObject projectUpgrade(String projectRoot) {

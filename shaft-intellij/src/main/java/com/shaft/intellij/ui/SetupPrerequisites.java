@@ -106,7 +106,11 @@ final class SetupPrerequisites {
      */
     static String shaftEngineWarmupCommand() {
         prefetchLatestEngineVersion();
-        return "mvn -B dependency:get -Dartifact=io.github.shafthq:SHAFT_ENGINE:" + latestEngineVersion();
+        // The -D argument is double-quoted so the command survives every shell it can be pasted
+        // into: PowerShell tokenizes an unquoted -Dartifact=io.github... at the first dot, which
+        // made Maven see a bogus ".github.shafthq:SHAFT_ENGINE" plugin goal (issue #3426 A1).
+        // Double quotes are portable across PowerShell, cmd, bash, and zsh.
+        return "mvn -B dependency:get \"-Dartifact=io.github.shafthq:SHAFT_ENGINE:" + latestEngineVersion() + "\"";
     }
 
     /**
@@ -129,6 +133,16 @@ final class SetupPrerequisites {
 
     private static String latestEngineVersion() {
         return latestEngineVersion(RESOLVED_ENGINE_VERSION::get, SetupPrerequisites::bundledPluginVersion);
+    }
+
+    /**
+     * Best-known latest engine release as a concrete version number, or blank when neither Maven
+     * Central nor the bundled plugin version produced one (dev builds without network). Used by the
+     * setup flow's real "is this project up to date" check (issue #3426 A4).
+     */
+    static String knownLatestEngineVersion() {
+        String version = latestEngineVersion();
+        return isVersionLike(version) ? version : "";
     }
 
     /**

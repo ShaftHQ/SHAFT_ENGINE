@@ -608,11 +608,31 @@
     };
   };
   let lastClickEmission = null;
+  // Last recorded input per element: form submission re-fires "change" with a value that was
+  // already recorded, which used to append a duplicate type step (issue #3426 B2).
+  const lastInputEmissions = new Map();
   const emit = (kind, event, data) => {
     if (uiState.paused || uiState.stopped || uiState.locatorMode) return;
+    // While the assertion wizard is open the user is configuring an assertion, not driving the
+    // page: stray page clicks/keys in that window are never intended test steps (issue #3426 B3).
+    if (document.getElementById("shaft-capture-assertion-panel")) return;
     const target = snapshot(event);
     if (target) {
       const action = data || {};
+      if (kind === "input") {
+        const currentValue = String(action.value || "");
+        const previous = lastInputEmissions.get(target.logicalElementId);
+        if (Boolean(action.committed) && previous && previous.value === currentValue) {
+          // Same value, already recorded: forward the commit so the server flushes any pending
+          // input merge, but never as a new visible step (issue #3426 B2).
+          send({kind, page: page(), target, data: {
+            ...action,
+            clientActionId: previous.clientActionId,
+            stepDescription: previous.stepDescription
+          }});
+          return;
+        }
+      }
       // Root cause: one native double-click fires click(detail 1), click(detail 2), then
       // dblclick. event.detail>=2 authoritatively marks the second click as a continuation of
       // the first, so revoke the single-click row + its server step and replace it with one
@@ -649,6 +669,13 @@
       }
       if (kind === "click" && item) {
         lastClickEmission = {item, logicalElementId: target.logicalElementId};
+      }
+      if (kind === "input" && item) {
+        lastInputEmissions.set(target.logicalElementId, {
+          value: String(action.value || ""),
+          clientActionId: action.clientActionId,
+          stepDescription: description
+        });
       }
       send({kind, page: page(), target, data: action});
     }
@@ -989,15 +1016,35 @@
     const actions = cancelAssertionRow(closeAssertionPanel);
     renderAssertionPanel(targetName(target), [list, manualRow, actions]);
   };
+  // Unmissable "now click the element" affordance for assertion mode (issue #3426 B3): a
+  // top-center banner plus a crosshair cursor. The tiny status chip alone was routinely missed,
+  // leaving users unaware the recorder was waiting for a target click.
+  const assertionBannerId = "shaft-capture-assertion-banner";
+  const beginAssertionTargetHints = () => {
+    document.documentElement.setAttribute("data-shaft-assertion-mode", "true");
+    if (document.getElementById(assertionBannerId) || !document.body) return;
+    const banner = document.createElement("div");
+    banner.id = assertionBannerId;
+    banner.setAttribute("data-shaft-capture-control", "true");
+    banner.setAttribute("role", "status");
+    banner.textContent = "Assertion: click the element you want to verify. This click is not recorded as a step. Press Esc to cancel.";
+    document.body.appendChild(banner);
+  };
+  const endAssertionTargetHints = () => {
+    document.documentElement.removeAttribute("data-shaft-assertion-mode");
+    const banner = document.getElementById(assertionBannerId);
+    if (banner) banner.remove();
+  };
   const beginElementAssertion = () => {
     uiState.assertionMode = true;
     uiState.locatorMode = false;
     clearLocatorHighlight();
     renderLocatorPanel(null);
+    beginAssertionTargetHints();
     persist();
     // The "click the target element" guidance is mode UI, not a recorded action, so it is
-    // surfaced through the status chip (see setStatus) rather than the action list. Announcing
-    // it as an action left a permanent placeholder row that nothing ever removed.
+    // surfaced through the banner and status chip (see setStatus) rather than the action list.
+    // Announcing it as an action left a permanent placeholder row that nothing ever removed.
     setStatus();
   };
   const beginBrowserAssertion = () => {
@@ -1025,6 +1072,8 @@
     const target = snapshot(event);
     if (!target) return true;
     uiState.assertionMode = false;
+    endAssertionTargetHints();
+    clearLocatorHighlight();
     persist();
     showLocatorPickStep(target, element);
     setStatus();
@@ -1072,6 +1121,25 @@
         font: 13px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
       #shaft-capture-ui * { box-sizing: border-box; font: inherit; letter-spacing: 0; }
+      #shaft-capture-assertion-banner {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2147483647;
+        max-width: calc(100vw - 32px);
+        padding: 10px 18px;
+        border-radius: 8px;
+        border: 2px solid #b7791f;
+        background: #fff8e6;
+        color: #17202a;
+        font: 600 14px/1.4 system-ui, sans-serif;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, .25);
+      }
+      html[data-shaft-assertion-mode] body,
+      html[data-shaft-assertion-mode] body *:not(#shaft-capture-ui):not(#shaft-capture-ui *) {
+        cursor: crosshair !important;
+      }
       #shaft-capture-ui header {
         display: flex;
         align-items: center;
@@ -1380,8 +1448,12 @@
     }
     if ((uiState.stopped || uiState.paused) && uiState.assertionMode) {
       uiState.assertionMode = false;
+      endAssertionTargetHints();
       closeAssertionPanel();
       persist();
+    }
+    if (!uiState.assertionMode) {
+      endAssertionTargetHints();
     }
     const assertionPanelOpen = Boolean(document.getElementById("shaft-capture-assertion-panel"));
     const latestWarning = uiState.readinessWarnings[uiState.readinessWarnings.length - 1] || "";
@@ -1733,7 +1805,9 @@
   }, 500);
 
   addEventListener("mousemove", event => {
-    if (!uiState.locatorMode || uiState.stopped || uiState.paused) return;
+    // Assertion mode shares the locator hover highlight so the element about to be picked is
+    // visibly outlined before the click (issue #3426 B3).
+    if ((!uiState.locatorMode && !uiState.assertionMode) || uiState.stopped || uiState.paused) return;
     updateLocatorHighlight(eventElement(event));
   }, true);
   addEventListener("click", event => {
@@ -1743,6 +1817,13 @@
     const type = String(element && element.type || "").toLowerCase();
     const tag = String(element && element.localName || "").toLowerCase();
     if (["checkbox", "radio", "file"].includes(type) || tag === "select" || tag === "option") return;
+    // A user cannot click an element that has no rendered box: such clicks are browser-synthesized
+    // (pressing Enter in a form "clicks" its hidden default submit button) and recording them adds
+    // phantom steps the user never performed (issue #3426 B2).
+    if (element && element.getClientRects && element.getClientRects().length === 0) return;
+    // Bare-root clicks (body/html) are focus/dismiss noise, never a meaningful test step, and
+    // their accessible name would swallow the entire page text (issue #3426 B3).
+    if (tag === "body" || tag === "html") return;
     emit("click", event, {
       button: Number(event.button || 0),
       clickCount: Number(event.detail || 1)
@@ -1799,6 +1880,16 @@
     }
   }, true);
   addEventListener("keydown", event => {
+    if (uiState.assertionMode && String(event.key || "") === "Escape") {
+      uiState.assertionMode = false;
+      endAssertionTargetHints();
+      clearLocatorHighlight();
+      persist();
+      setStatus();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     const modifiers = [];
     if (event.ctrlKey) modifiers.push("CONTROL");
     if (event.altKey) modifiers.push("ALT");

@@ -5,6 +5,7 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends optional="true" config-file="io.github.shafthq.shaft-withJava.xml">com.intellij.java</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withTerminal.xml">org.jetbrains.plugins.terminal</depends>
 
     <resource-bundle>messages.ShaftBundle</resource-bundle>
 

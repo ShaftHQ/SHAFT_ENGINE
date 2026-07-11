@@ -66,7 +66,7 @@ final class ShaftMcpSetupPanel extends JPanel {
             "INTELLIJ_PLUGIN"
     };
     private static final String GUIDE_SETUP_STEP =
-            "Next: choose agent, copy command, open terminal, then check.";
+            "Next: pick your agent, click the install command (a terminal opens with it pre-typed), run it, then check.";
     private static final String CHECK_NEXT_STEP = "Press Check now.";
     private static final String GEMINI_FAMILY = "GEMINI";
     private static final String GEMINI_KEY_NAME = "GEMINI_API_KEY";
@@ -104,11 +104,12 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JComboBox<String> installerTarget;
     private final JCheckBox manualInstallerTarget;
     private final JButton copyUpgradeCommand;
-    private final JButton openUpgradeTerminal;
+    private final JButton checkUpgrade;
+    private final JLabel upgradeDetail;
     private final JButton copyInstallerCommand;
-    private final JButton openTerminal;
     private final JButton test;
     private final JButton startChatting;
+    private final JButton startWithoutAgent;
     private final JButton resetAndReinstall;
     private final JCheckBox expertMode;
     private final JButton resetEverything;
@@ -149,9 +150,21 @@ final class ShaftMcpSetupPanel extends JPanel {
             SetupPrerequisites::detect;
     private String diagnosticCommand = "";
     private String diagnosticOutput = "";
-    private boolean installerCommandCopied;
-    private boolean terminalOpened;
-    private boolean upgradeCommandCopied;
+    /** Real on-disk state (issue #3426 A5): whether an installed shaft-mcp was found locally. */
+    private boolean installedCommandDetected;
+    /** Whether the selected agent's runtime was actually detected on this machine. */
+    private boolean selectedAgentDetected;
+    /** Whether the last explicit "Check now" run failed, for the failed step badge. */
+    private boolean lastCheckFailed;
+    private ShaftProjectVersionCheck.Result upgradeCheckResult;
+    /** Runs the real project-vs-latest SHAFT version comparison; injectable for tests. */
+    private java.util.function.Supplier<ShaftProjectVersionCheck.Result> upgradeChecker = () ->
+            ShaftProjectVersionCheck.check(projectRoot(), SetupPrerequisites.knownLatestEngineVersion());
+    /**
+     * Opens a terminal tab (name, command) with the command pre-typed; injectable for tests.
+     * Returns whether the terminal actually opened so status text can say what really happened.
+     */
+    private java.util.function.BiPredicate<String, String> terminalOpener = this::openTerminalWithPreparedCommand;
     private Consumer<String> copySink = ShaftMcpSetupPanel::copyToClipboard;
     private Consumer<String> toastSink = this::showToast;
     private Timer toastTimer;
@@ -257,28 +270,25 @@ final class ShaftMcpSetupPanel extends JPanel {
         installerCommand.setText(installerCommand());
         copyUpgradeCommand = new JButton("Copy command");
         copyUpgradeCommand.getAccessibleContext().setAccessibleName("Copy SHAFT upgrade command");
-        copyUpgradeCommand.setToolTipText("Copy the command that upgrades this project to the latest SHAFT");
+        copyUpgradeCommand.setToolTipText("Copy the SHAFT upgrade command and open a terminal with it pre-typed "
+                + "— just press Enter there to run it");
         copyUpgradeCommand.setMnemonic(KeyEvent.VK_U);
         applyLabeledAction(copyUpgradeCommand, ShaftIcons.COPY);
         copyUpgradeCommand.addActionListener(event -> copyUpgradeCommand());
-        openUpgradeTerminal = new JButton("Open terminal");
-        openUpgradeTerminal.getAccessibleContext().setAccessibleName("Open terminal for SHAFT upgrade");
-        openUpgradeTerminal.setToolTipText("Open the IntelliJ terminal to run the SHAFT upgrade command");
-        openUpgradeTerminal.setMnemonic(KeyEvent.VK_G);
-        applyLabeledAction(openUpgradeTerminal, ShaftIcons.CODE);
-        openUpgradeTerminal.addActionListener(event -> openUpgradeTerminalForUpgrade());
+        checkUpgrade = new JButton("Check");
+        checkUpgrade.getAccessibleContext().setAccessibleName("Check SHAFT project version");
+        checkUpgrade.setToolTipText("Read this project's pom.xml and compare its SHAFT version "
+                + "against the latest release");
+        applyLabeledAction(checkUpgrade, ShaftIcons.CHECK);
+        checkUpgrade.addActionListener(event -> runUpgradeCheck(true));
+        upgradeDetail = setupStatusLabel("SHAFT project version status");
         copyInstallerCommand = new JButton("Copy command");
         copyInstallerCommand.getAccessibleContext().setAccessibleName("Copy MCP installer command");
-        copyInstallerCommand.setToolTipText("Copy the terminal installer command");
+        copyInstallerCommand.setToolTipText("Copy the installer command and open a terminal with it pre-typed "
+                + "— just press Enter there to run it");
         copyInstallerCommand.setMnemonic(KeyEvent.VK_C);
         applyLabeledAction(copyInstallerCommand, ShaftIcons.COPY);
         copyInstallerCommand.addActionListener(event -> copyInstallerCommand());
-        openTerminal = new JButton("Open terminal");
-        openTerminal.getAccessibleContext().setAccessibleName("Open terminal for MCP installer");
-        openTerminal.setToolTipText("Open the IntelliJ terminal after copying the installer command");
-        openTerminal.setMnemonic(KeyEvent.VK_T);
-        applyLabeledAction(openTerminal, ShaftIcons.CODE);
-        openTerminal.addActionListener(event -> openTerminalForInstaller());
         test = new JButton("Check now");
         test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
         test.setToolTipText("Infer the stdio command and verify SHAFT MCP");
@@ -292,6 +302,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(startChatting, ShaftIcons.SEND);
         startChatting.setVisible(false);
         startChatting.addActionListener(event -> connected.run());
+        startWithoutAgent = new JButton("Start without an agent");
+        startWithoutAgent.getAccessibleContext().setAccessibleName("Start SHAFT without an agent");
+        startWithoutAgent.setToolTipText("Recorder, codegen, doctor, and healer only need the verified SHAFT MCP. "
+                + "Connect an agent later for chat.");
+        applyLabeledAction(startWithoutAgent, ShaftIcons.SEND);
+        startWithoutAgent.setVisible(false);
+        startWithoutAgent.addActionListener(event -> connected.run());
         resetAndReinstall = new JButton("Reset / reinstall");
         resetAndReinstall.getAccessibleContext().setAccessibleName("Reset and reinstall SHAFT MCP");
         resetAndReinstall.setToolTipText("Clear the saved MCP command and copy a fresh installer command");
@@ -405,8 +422,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         checkActions.add(test);
         checkActions.add(progress);
         checkActions.add(assistStatus);
-        JPanel upgradeActions = copyThenTerminalRow(copyUpgradeCommand, openUpgradeTerminal);
-        JPanel installActions = copyThenTerminalRow(copyInstallerCommand, openTerminal);
+        JPanel upgradeActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        upgradeActions.setOpaque(false);
+        upgradeActions.add(checkUpgrade);
+        upgradeActions.add(copyUpgradeCommand);
+        upgradeActions.add(upgradeDetail);
+        JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        installActions.setOpaque(false);
+        installActions.add(copyInstallerCommand);
         upgradeRow = stepRow(upgradeStep, upgradeState, upgradeActions);
         chooseRow = stepRow(chooseStep, chooseState, agentControls);
         installRow = stepRow(installStep, installState, installActions);
@@ -443,7 +466,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         prerequisitesRow = stepRow(prerequisitesStep, prerequisitesState, prerequisitesControls);
         JLabel readyStep = setupStepLabel("Start chatting setup step");
         readyStep.setText("Ready");
-        chatRow = stepRow(readyStep, readyState, startChatting);
+        JPanel readyActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        readyActions.setOpaque(false);
+        readyActions.add(startChatting);
+        readyActions.add(startWithoutAgent);
+        chatRow = stepRow(readyStep, readyState, readyActions);
         chatRow.setVisible(false);
         JPanel workflow = new JPanel();
         workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
@@ -481,10 +508,21 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel intro = new JPanel(new BorderLayout(4, 2));
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
-        JLabel summary = new JLabel("Pick an agent. SHAFT handles the wiring.");
+        // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
+        JLabel summary = new JLabel("<html><body style='width: 240px'>Pick an agent — the same /record-web, "
+                + "/codegen, and /doctor flows work on Codex, Claude Code, Copilot, and Gemini. SHAFT handles the "
+                + "wiring.</body></html>");
         summary.setForeground(ShaftStatusPresentation.pending());
+        JLabel whyShaft = new JLabel();
+        whyShaft.getAccessibleContext().setAccessibleName("Why SHAFT summary");
+        whyShaft.setText("<html><body style='width: 240px'><b>Why SHAFT?</b> Privacy-safe recording (typed values "
+                + "externalized, secrets redacted) · compile-validated codegen (generated tests compile and replay "
+                + "before you see them) · repo-aware generation (reuses your page objects and locators) · a "
+                + "maintenance loop (Doctor triage + Healer locator repair when tests break).</body></html>");
+        whyShaft.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
         intro.add(title, BorderLayout.NORTH);
         intro.add(summary, BorderLayout.CENTER);
+        intro.add(whyShaft, BorderLayout.SOUTH);
         installerDetailsPanel = FormBuilder.createFormBuilder()
                 .addComponent(targetRow)
                 .addLabeledComponent("Installer command", new JBScrollPane(installerCommand))
@@ -521,10 +559,72 @@ final class ShaftMcpSetupPanel extends JPanel {
         setupScroll.getAccessibleContext().setAccessibleName("SHAFT MCP setup scroll pane");
         add(setupScroll, BorderLayout.CENTER);
         refreshPrerequisites();
+        refreshRealChecks();
+        runUpgradeCheck(false);
         if (!currentCommand().isBlank()) {
             setStatusText(CHECK_NEXT_STEP);
         }
         updateActionState(false);
+    }
+
+    /**
+     * Re-runs the cheap on-disk/PATH detections every step badge is derived from, so no step is
+     * ever marked done just because a button was clicked (issue #3426 A5): the install step is
+     * done only when an installed shaft-mcp is actually found, and the agent step only when the
+     * selected agent runtime is really detected.
+     */
+    private void refreshRealChecks() {
+        installedCommandDetected = !inferInstalledStdioCommand().isBlank();
+        selectedAgentDetected = detectSelectedAgent();
+    }
+
+    private boolean detectSelectedAgent() {
+        if (cloudFamilySelected()) {
+            return cloudKeyStore.hasKey(GEMINI_KEY_NAME);
+        }
+        ShaftMcpToolResult result = readinessProbe.test(
+                clientFromFamily(normalize(String.valueOf(family.getSelectedItem()), "CODEX")),
+                normalize(String.valueOf(runtime.getSelectedItem()), "CLI"));
+        return result != null && result.success();
+    }
+
+    /**
+     * Runs the real "Upgrade project" check: parse the project pom, compare its SHAFT version to
+     * the latest release, and reflect the truth in the step badge and detail label.
+     */
+    private void runUpgradeCheck(boolean announce) {
+        upgradeCheckResult = upgradeChecker.get();
+        upgradeDetail.setText(upgradeDetailText());
+        upgradeDetail.setForeground(switch (upgradeCheckResult.state()) {
+            case UP_TO_DATE -> ShaftStatusPresentation.success();
+            case UPGRADE_AVAILABLE -> ShaftStatusPresentation.progress();
+            default -> ShaftStatusPresentation.pending();
+        });
+        if (announce) {
+            setStatusText(upgradeDetailText());
+        }
+        updateActionState(false);
+    }
+
+    private String upgradeDetailText() {
+        if (upgradeCheckResult == null) {
+            return "";
+        }
+        return switch (upgradeCheckResult.state()) {
+            case UP_TO_DATE -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected — already the latest ("
+                    + upgradeCheckResult.latestVersion() + ") or newer. Nothing to do.";
+            case UPGRADE_AVAILABLE -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected — "
+                    + upgradeCheckResult.latestVersion() + " is available. Run the upgrade command, then press Check.";
+            // Project-shape-aware guidance (issue #3425 A5): an empty folder needs a project
+            // scaffold, while a plain Maven project needs the SHAFT upgrade/adoption command.
+            case NOT_A_SHAFT_PROJECT -> upgradeCheckResult.pomPresent()
+                    ? "Maven project detected without a SHAFT dependency. Run the upgrade command to adopt SHAFT, "
+                    + "then press Check."
+                    : "No pom.xml found here. Ask the Assistant to \"create a SHAFT project\" (or use the Projects "
+                    + "workflow) to scaffold one, then press Check.";
+            case LATEST_UNKNOWN -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected, but the latest "
+                    + "release could not be determined (offline?). Press Check to retry.";
+        };
     }
 
     /**
@@ -681,6 +781,7 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void showTestResult(ShaftMcpToolResult result, Throwable error, ShaftMcpToolResult precomputedReadiness) {
         boolean success = error == null && result != null && result.success();
+        boolean agentReady = false;
         setRunning(false, success ? "Connected" : "Test failed. Retry test.");
         if (error != null) {
             showAssistError();
@@ -693,15 +794,21 @@ final class ShaftMcpSetupPanel extends JPanel {
             if (result.success()) {
                 clearDiagnostics();
                 ShaftMcpToolResult readiness = verifySelectedAgentReadiness(precomputedReadiness);
-                if (readiness.success()) {
+                agentReady = readiness.success();
+                if (agentReady) {
                     showAssistConfigured();
                     showRuntimeVerified();
                     setStatusText(successSummary(result.output()));
                 } else {
-                    success = false;
-                    showAssistError();
-                    setStatusText("Agent not ready. Retry test.");
-                    setDiagnosticText(troubleshootingDetails("Client readiness failed",
+                    // Two-lane readiness (issue #3425 A2): the recorder, codegen, doctor, and
+                    // healer only need a verified SHAFT MCP — a working agent adds chat and is
+                    // the optional second lane. A missing agent therefore no longer fails setup.
+                    showAssistStatus("MCP verified — agent optional", ShaftStatusPresentation.progress());
+                    assistStatus.setVisible(true);
+                    showRuntimeVerified();
+                    setStatusText("SHAFT MCP verified. Recorder, codegen, and doctor are ready now — "
+                            + "connecting an agent adds chat and is optional.");
+                    setDiagnosticText(troubleshootingDetails("Agent lane not ready (optional)",
                             "MCP probe output:\n" + result.output() + "\n\nAgent readiness failed: " + readiness.output(),
                             readinessDiagnosticCommand(), true), readinessDiagnosticCommand());
                     showRestartCommandRecovery();
@@ -712,15 +819,19 @@ final class ShaftMcpSetupPanel extends JPanel {
                         mcpCommand());
             }
         }
+        lastCheckFailed = !success;
+        refreshRealChecks();
         if (success) {
             settings.mcpSetupComplete = true;
             settings.agentGuidanceOptimizationPromptPending = hasAgentGuidanceScaffold();
-            startChatting.setVisible(true);
-            startChatting.requestFocusInWindow();
+            startChatting.setVisible(agentReady);
+            startWithoutAgent.setVisible(!agentReady);
+            (agentReady ? startChatting : startWithoutAgent).requestFocusInWindow();
         } else {
             settings.mcpSetupComplete = false;
             settings.agentGuidanceOptimizationPromptPending = false;
             startChatting.setVisible(false);
+            startWithoutAgent.setVisible(false);
             showRuntimeSelected();
         }
         updateActionState(false);
@@ -742,23 +853,23 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void updateActionState(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
-        boolean installActive = !complete && !hasCommand;
-        boolean showCopy = installActive;
-        boolean showTerminal = installActive && installerCommandCopied;
-        boolean showTest = !complete && (hasCommand || terminalOpened);
+        boolean showCopy = !complete && !(installedCommandDetected || hasCommand);
+        // The real check is always available while setup is incomplete: verification is how a
+        // step earns its Done badge, never a button click (issue #3426 A5).
+        boolean showTest = !complete;
         copyInstallerCommand.setVisible(showCopy);
         copyInstallerCommand.setEnabled(!running && showCopy);
-        openTerminal.setVisible(showTerminal);
-        openTerminal.setEnabled(!running && showTerminal);
         test.setVisible(showTest);
         test.setEnabled(!running && showTest);
-        copyUpgradeCommand.setVisible(true);
-        copyUpgradeCommand.setEnabled(!running);
-        openUpgradeTerminal.setVisible(upgradeCommandCopied);
-        openUpgradeTerminal.setEnabled(!running && upgradeCommandCopied);
-        startChatting.setVisible(complete || startChatting.isVisible());
+        boolean upgradeDone = upgradeCheckResult != null
+                && upgradeCheckResult.state() == ShaftProjectVersionCheck.State.UP_TO_DATE;
+        copyUpgradeCommand.setVisible(!upgradeDone);
+        copyUpgradeCommand.setEnabled(!running && !upgradeDone);
+        checkUpgrade.setEnabled(!running);
+        startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
         startChatting.setEnabled(!running && startChatting.isVisible());
-        chatRow.setVisible(startChatting.isVisible());
+        startWithoutAgent.setEnabled(!running && startWithoutAgent.isVisible());
+        chatRow.setVisible(startChatting.isVisible() || startWithoutAgent.isVisible());
         copyCommand.setEnabled(!running && !diagnosticCommand.isBlank());
         boolean canReset = complete || detailsPanel.isVisible();
         resetAndReinstall.setVisible(canReset);
@@ -773,12 +884,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         clearDiagnostics();
         showAssistNotConfigured();
         startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
-        if (!currentCommand().isBlank()) {
-            installerCommandCopied = true;
-            terminalOpened = true;
-        }
+        lastCheckFailed = false;
         setStatusText(currentCommand().isBlank()
                 ? GUIDE_SETUP_STEP
                 : CHECK_NEXT_STEP);
@@ -789,6 +898,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         updateCloudControls();
         showRuntimeSelected();
         refreshPrerequisites();
+        refreshRealChecks();
         if (!manualInstallerTarget.isSelected()) {
             String suggestedTarget = suggestedInstallerTarget();
             if (!suggestedTarget.equals(String.valueOf(installerTarget.getSelectedItem()))) {
@@ -802,10 +912,10 @@ final class ShaftMcpSetupPanel extends JPanel {
     private void installerTargetChanged() {
         clearDiagnostics();
         installerCommand.setText(installerCommand());
-        installerCommandCopied = false;
-        terminalOpened = false;
+        lastCheckFailed = false;
         showAssistNotConfigured();
         startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
         setStatusText(currentCommand().isBlank()
@@ -1024,33 +1134,28 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void copyUpgradeCommand() {
-        copy(upgradeCommand(), "Copied SHAFT upgrade command");
-        upgradeCommandCopied = true;
-        updateActionState(false);
-        openUpgradeTerminal.requestFocusInWindow();
-    }
-
-    private void openUpgradeTerminalForUpgrade() {
-        copy(upgradeCommand(), "Copied SHAFT upgrade command");
-        upgradeCommandCopied = true;
-        openIntellijTerminal();
-        setStatusText("Optional: run the upgrade command in terminal.");
+        String command = upgradeCommand();
+        copy(command, "Copied SHAFT upgrade command");
+        boolean opened = terminalOpener.test("SHAFT upgrade", command);
+        if (opened) {
+            openIntellijTerminal();
+        }
+        setStatusText(opened
+                ? "Terminal opened with the upgrade command pre-typed. Press Enter there to run it, then press Check."
+                : "Upgrade command copied. Paste it into a terminal, run it, then press Check.");
         updateActionState(false);
     }
 
     private void copyInstallerCommand() {
-        copy(installerCommand(), "Copied MCP installer command");
-        installerCommandCopied = true;
-        updateActionState(false);
-        openTerminal.requestFocusInWindow();
-    }
-
-    private void openTerminalForInstaller() {
-        copy(installerCommand(), "Copied installer command");
-        installerCommandCopied = true;
-        terminalOpened = true;
-        openIntellijTerminal();
-        setStatusText("Run command in terminal, then check.");
+        String command = installerCommand();
+        copy(command, "Copied MCP installer command");
+        boolean opened = terminalOpener.test("SHAFT MCP install", command);
+        if (opened) {
+            openIntellijTerminal();
+        }
+        setStatusText(opened
+                ? "Terminal opened with the installer pre-typed. Press Enter there to run it; when it finishes, press Check now."
+                : "Installer command copied. Paste it into a terminal, run it; when it finishes, press Check now.");
         updateActionState(false);
         test.requestFocusInWindow();
     }
@@ -1062,14 +1167,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
         installerCommand.setText(installerCommand());
-        installerCommandCopied = true;
-        terminalOpened = false;
         startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
         showRuntimeSelected();
         showAssistNotConfigured();
+        refreshRealChecks();
         copy(installerCommand(), "Installer command copied. Run it in terminal, then check.");
         updateActionState(false);
-        openTerminal.requestFocusInWindow();
+        copyInstallerCommand.requestFocusInWindow();
     }
 
     /**
@@ -1088,12 +1193,24 @@ final class ShaftMcpSetupPanel extends JPanel {
     private boolean confirmResetDialog() {
         return Messages.showYesNoDialog(
                 project,
-                "This clears SHAFT settings, saved provider API keys, tool approvals, and Assistant chat "
-                        + "history.\n\nYour project source code is never touched.",
+                """
+                        This resets the SHAFT plugin to its factory state:
+                        • All SHAFT plugin settings (agent selection, MCP command, toggles)
+                        • Saved provider API keys in IntelliJ Password Safe
+                        • Tool approvals for every open project
+                        • Assistant chat history for every open project
+
+                        After the reset, every setup step is re-checked against what is really on this machine — nothing stays green because of earlier clicks.
+
+                        Not removed (they belong to your machine, not this plugin): your project source code, the shaft-mcp files under your local application data, Maven artifacts in ~/.m2, and SHAFT MCP registrations inside agent CLI configs (re-run the installer to update those).""",
                 "Reset SHAFT Plugin",
                 "Reset everything",
                 "Cancel",
                 Messages.getWarningIcon()) == Messages.YES;
+    }
+
+    private boolean openTerminalWithPreparedCommand(String tabName, String command) {
+        return ShaftTerminalCommands.openWithPreparedCommand(project, projectRoot().toString(), tabName, command);
     }
 
     private void openIntellijTerminal() {
@@ -1456,25 +1573,62 @@ final class ShaftMcpSetupPanel extends JPanel {
         status.setVisible(true);
     }
 
+    /**
+     * Every step badge below reflects a real check, never a click (issue #3426 A4/A5): the
+     * upgrade step compares the project pom against the latest release, the agent step requires
+     * the selected runtime to actually be detected, the install step requires an installed
+     * shaft-mcp (or an explicit command) to exist on disk, and the check step requires the probe
+     * to have actually passed — with an explicit Failed badge when it did not.
+     */
+    private String upgradeStepState() {
+        if (upgradeCheckResult == null) {
+            return "optional";
+        }
+        return switch (upgradeCheckResult.state()) {
+            case UP_TO_DATE -> "done";
+            case UPGRADE_AVAILABLE, NOT_A_SHAFT_PROJECT -> "next";
+            case LATEST_UNKNOWN -> "optional";
+        };
+    }
+
+    private String chooseStepState() {
+        return selectedAgentDetected ? "done" : "next";
+    }
+
+    private String installStepState(boolean hasCommand) {
+        return installedCommandDetected || hasCommand ? "done" : "next";
+    }
+
+    private String checkStepState(boolean running, boolean complete, boolean hasCommand) {
+        if (running) {
+            return "checking";
+        }
+        if (complete) {
+            return "done";
+        }
+        if (lastCheckFailed) {
+            return "failed";
+        }
+        return installedCommandDetected || hasCommand ? "next" : "wait";
+    }
+
     private void updateSetupSteps(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
-        setStep(upgradeStep, upgradeState, "1 Upgrade project", "optional");
-        setStep(chooseStep, chooseState, "2 Pick agent", "done");
-        setStep(installStep, installState, "3 Install SHAFT MCP",
-                complete || hasCommand || terminalOpened ? "done" : "next");
-        setStep(testStep, testState, "4 Check setup",
-                running ? "checking" : complete ? "done" : hasCommand || terminalOpened ? "next" : "wait");
+        setStep(upgradeStep, upgradeState, "1 Upgrade project", upgradeStepState());
+        setStep(chooseStep, chooseState, "2 Pick agent", chooseStepState());
+        setStep(installStep, installState, "3 Install SHAFT MCP", installStepState(hasCommand));
+        setStep(testStep, testState, "4 Check setup", checkStepState(running, complete, hasCommand));
         setStep(null, readyState, "Ready", complete ? "next" : "wait");
     }
 
     private void updateWorkflowRows(boolean running) {
         boolean hasCommand = !currentCommand().isBlank();
         boolean complete = settings.mcpSetupComplete && hasCommand;
-        styleStepRow(upgradeRow, "optional");
-        styleStepRow(chooseRow, "done");
-        styleStepRow(installRow, complete || hasCommand || terminalOpened ? "done" : "next");
-        styleStepRow(checkRow, running ? "checking" : complete ? "done" : hasCommand || terminalOpened ? "next" : "wait");
+        styleStepRow(upgradeRow, upgradeStepState());
+        styleStepRow(chooseRow, chooseStepState());
+        styleStepRow(installRow, installStepState(hasCommand));
+        styleStepRow(checkRow, checkStepState(running, complete, hasCommand));
         styleStepRow(chatRow, complete ? "next" : "wait");
     }
 
@@ -1489,12 +1643,14 @@ final class ShaftMcpSetupPanel extends JPanel {
                     : Font.PLAIN));
             label.setForeground(switch (state) {
                 case "done" -> ShaftStatusPresentation.success();
+                case "failed" -> ShaftStatusPresentation.error();
                 case "next", "checking", "optional" -> ShaftStatusPresentation.progress();
                 default -> UIManagerColors.foreground();
             });
         }
         stateLabel.setText(switch (state) {
             case "done" -> "Done";
+            case "failed" -> "Failed";
             case "next" -> "Next";
             case "checking" -> "Checking";
             case "optional" -> "Optional";
@@ -1509,6 +1665,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         });
         stateLabel.setForeground(switch (state) {
             case "done" -> ShaftStatusPresentation.success();
+            case "failed" -> ShaftStatusPresentation.error();
             case "next", "checking", "optional" -> ShaftStatusPresentation.progress();
             default -> UIManagerColors.foreground();
         });
@@ -1524,19 +1681,6 @@ final class ShaftMcpSetupPanel extends JPanel {
                 JBUI.Borders.customLine(UIManagerColors.border(), 1),
                 JBUI.Borders.empty(8, 10)));
         return row;
-    }
-
-    /**
-     * Lays out a "copy command" button alongside an "open terminal" button that only becomes
-     * relevant once the command has been copied. Shared by the upgrade step and the SHAFT MCP
-     * install step so both read as one consistent action, not two separate steps.
-     */
-    private static JPanel copyThenTerminalRow(JButton copyButton, JButton terminalButton) {
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        actions.setOpaque(false);
-        actions.add(copyButton);
-        actions.add(terminalButton);
-        return actions;
     }
 
     private void updateLiveSummary() {
@@ -1567,6 +1711,7 @@ final class ShaftMcpSetupPanel extends JPanel {
                 JBUI.Borders.customLine(switch (state) {
                     case "next", "checking", "optional" -> ShaftStatusPresentation.progress();
                     case "done" -> ShaftStatusPresentation.success();
+                    case "failed" -> ShaftStatusPresentation.error();
                     default -> UIManagerColors.border();
                 }, 1),
                 JBUI.Borders.empty(8, 10)));

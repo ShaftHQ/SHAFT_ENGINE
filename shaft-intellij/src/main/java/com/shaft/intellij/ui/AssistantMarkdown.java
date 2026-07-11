@@ -414,6 +414,18 @@ final class AssistantMarkdown {
             if (object.has("tools") && object.get("tools").isJsonArray()) {
                 return toolsMarkdown(object.getAsJsonArray("tools"));
             }
+            String captureReplay = captureReplayMarkdown(object);
+            if (!captureReplay.isBlank()) {
+                return captureReplay;
+            }
+            String backendComparison = backendComparisonMarkdown(object);
+            if (!backendComparison.isBlank()) {
+                return backendComparison;
+            }
+            String evidencePack = evidencePackMarkdown(object);
+            if (!evidencePack.isBlank()) {
+                return evidencePack;
+            }
             if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()) {
                 return codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
             }
@@ -425,6 +437,191 @@ final class AssistantMarkdown {
             }
         }
         return "";
+    }
+
+    /**
+     * Renders a Capture generation/replay result ({@code capture_generate_replay},
+     * {@code capture_code_blocks}, and their Playwright/mobile siblings) as a full plain-language
+     * story: what was generated where, whether it compiled, whether the replay actually passed (and
+     * why a browser window opened at all), what went wrong, and what to do next. Before this, a
+     * replay result rendered as its bare code blocks — or, with no blocks, as an unexplained
+     * near-empty answer — which read as a silent "Done" (issue #3426 B4).
+     */
+    private static String captureReplayMarkdown(JsonObject object) {
+        if (!object.has("successful") || !object.has("report") || !object.has("codeBlocks")) {
+            return "";
+        }
+        JsonObject report = object.get("report") != null && object.get("report").isJsonObject()
+                ? object.getAsJsonObject("report")
+                : new JsonObject();
+        boolean successful = booleanValue(object, "successful");
+        JsonObject compilation = validationObject(report, "compilation");
+        JsonObject replay = validationObject(report, "replay");
+        String replayStatus = string(replay, "status", "SKIPPED");
+        List<String> sections = new ArrayList<>();
+        sections.add(successful
+                ? "**" + ShaftStatusPresentation.SUCCESS_ICON + " Test generated, compiled, and verified**"
+                : "**" + ShaftStatusPresentation.WARNING_ICON + " Test generation finished with problems — details below**");
+        sections.add(captureReplayStory(object, report, compilation, replay));
+        appendNonBlank(sections, validationDetails("Compilation", compilation));
+        appendNonBlank(sections, validationDetails("Replay", replay));
+        appendNonBlank(sections, bulletList("Inputs you must provide before running this test", report, "requiredUserInputs"));
+        appendNonBlank(sections, bulletList("Potentially flaky steps", report, "flakySteps"));
+        appendNonBlank(sections, bulletList("Events that could not be converted to code", report, "unsupportedEvents"));
+        appendNonBlank(sections, warnings(object));
+        appendNonBlank(sections, warnings(report));
+        if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()
+                && !object.getAsJsonArray("codeBlocks").isEmpty()) {
+            sections.add("**Generated code** (copy it into `src/test/java` in your project):");
+            appendNonBlank(sections, codeBlocksMarkdown(object.getAsJsonArray("codeBlocks")));
+        } else {
+            sections.add(ShaftStatusPresentation.ERROR_ICON
+                    + " **No usable code was produced.** The compilation/replay details above explain why; "
+                    + "fix the reported problem (or re-record the flow) and run `/codegen` again.");
+        }
+        appendNonBlank(sections, captureReplayArtifacts(object));
+        if ("PASSED".equals(replayStatus)) {
+            sections.add("_Next: paste the class into your project and run it with `/verify mvn -q test-compile` "
+                    + "or your normal test run._");
+        }
+        return joinSections(sections);
+    }
+
+    /**
+     * The plain-language "what actually happened, in order" narrative for a Capture codegen run.
+     */
+    private static String captureReplayStory(
+            JsonObject object, JsonObject report, JsonObject compilation, JsonObject replay) {
+        List<String> steps = new ArrayList<>();
+        String sourcePath = firstTextProperty(object, "sourcePath").isBlank()
+                ? string(report, "sourcePath", "")
+                : firstTextProperty(object, "sourcePath");
+        steps.add(sourcePath.isBlank()
+                ? "1. SHAFT read your recording and tried to generate a Java TestNG class, but no source file was produced."
+                : "1. SHAFT read your recording and generated the Java TestNG class `" + sourcePath + "`.");
+        String testDataPath = firstTextProperty(object, "testDataPath");
+        if (!testDataPath.isBlank()) {
+            steps.add("2. Typed values and expected texts were externalized to `" + testDataPath
+                    + "` so the test never hard-codes data.");
+        }
+        steps.add((testDataPath.isBlank() ? "2. " : "3. ") + validationStorySentence("compile", compilation));
+        String replayStatus = string(replay, "status", "SKIPPED");
+        String replaySentence = switch (replayStatus) {
+            case "PASSED" -> "The generated test was then replayed end-to-end in a real browser — that is the "
+                    + "browser window you may have seen open — and every step passed against the live site.";
+            case "FAILED" -> "The generated test was then replayed in a real browser — that is the browser window "
+                    + "you may have seen open (it starts on `about:blank` before the test navigates). The replay "
+                    + "FAILED, so the code below is generated-but-unverified; the replay details explain the failing step.";
+            default -> "Replay was skipped" + firstDiagnosticSuffix(replay) + ", so the code below compiled but was "
+                    + "not re-executed against the live site.";
+        };
+        steps.add((testDataPath.isBlank() ? "3. " : "4. ") + replaySentence);
+        return "**What happened**\n" + String.join("\n", steps);
+    }
+
+    private static String validationStorySentence(String verb, JsonObject validation) {
+        return switch (string(validation, "status", "SKIPPED")) {
+            case "PASSED" -> "The generated class was compiled against SHAFT to prove it is valid Java — it compiled cleanly.";
+            case "FAILED" -> "The generated class FAILED to " + verb + "; the compilation details below list the errors.";
+            default -> "Compilation was skipped" + firstDiagnosticSuffix(validation) + ".";
+        };
+    }
+
+    private static String firstDiagnosticSuffix(JsonObject validation) {
+        JsonElement diagnostics = validation.get("diagnostics");
+        if (diagnostics == null || !diagnostics.isJsonArray() || diagnostics.getAsJsonArray().isEmpty()) {
+            return "";
+        }
+        JsonElement first = diagnostics.getAsJsonArray().get(0);
+        return first.isJsonPrimitive() ? " (" + first.getAsString() + ")" : "";
+    }
+
+    private static JsonObject validationObject(JsonObject report, String key) {
+        JsonElement value = report.get(key);
+        return value != null && value.isJsonObject() ? value.getAsJsonObject() : new JsonObject();
+    }
+
+    private static String validationDetails(String label, JsonObject validation) {
+        if (!"FAILED".equals(string(validation, "status", ""))) {
+            return "";
+        }
+        StringBuilder markdown = new StringBuilder("**").append(ShaftStatusPresentation.ERROR_ICON)
+                .append(' ').append(label).append(" failed**");
+        JsonElement diagnostics = validation.get("diagnostics");
+        if (diagnostics != null && diagnostics.isJsonArray()) {
+            for (JsonElement diagnostic : diagnostics.getAsJsonArray()) {
+                if (diagnostic.isJsonPrimitive()) {
+                    markdown.append("\n- ").append(diagnostic.getAsString());
+                }
+            }
+        }
+        return markdown.toString();
+    }
+
+    private static String captureReplayArtifacts(JsonObject object) {
+        return metadataLine(
+                "Full report", codePath(firstTextProperty(object, "reportPath")),
+                "Review", codePath(firstTextProperty(object, "reviewPath")));
+    }
+
+    private static String codePath(String path) {
+        return path == null || path.isBlank() ? "" : "`" + path + "`";
+    }
+
+    /**
+     * Renders a {@code capture_backend_comparison} result (issue #3425 C2): one card per backend
+     * with its generation outcome and source path, so a user can judge WebDriver vs Playwright
+     * differentiation on their own recorded flow.
+     */
+    private static String backendComparisonMarkdown(JsonObject object) {
+        if (!object.has("backends") || !object.get("backends").isJsonArray()) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add("**Backend comparison** — the same recording generated for each SHAFT backend:");
+        StringBuilder table = new StringBuilder("""
+                | Backend | Generation | Generated source | Code blocks |
+                | --- | --- | --- | --- |
+                """);
+        for (JsonElement item : object.getAsJsonArray("backends")) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject backend = item.getAsJsonObject();
+            int blockCount = backend.has("blockIds") && backend.get("blockIds").isJsonArray()
+                    ? backend.getAsJsonArray("blockIds").size()
+                    : 0;
+            table.append("| ").append(table(string(backend, "backend", "?")))
+                    .append(" | ").append(booleanValue(backend, "successful")
+                            ? ShaftStatusPresentation.SUCCESS_ICON + " succeeded"
+                            : ShaftStatusPresentation.ERROR_ICON + " failed")
+                    .append(" | ").append(table(codePath(string(backend, "sourcePath", ""))))
+                    .append(" | ").append(blockCount)
+                    .append(" |\n");
+        }
+        sections.add(table.toString().trim());
+        appendNonBlank(sections, warnings(object));
+        sections.add("_Both classes compile against SHAFT; open the generated sources side by side to compare "
+                + "the WebDriver and Playwright styles for your flow._");
+        return joinSections(sections);
+    }
+
+    /**
+     * Renders a {@code capture_evidence_pack} manifest (issue #3425 B6) as a shareable checklist.
+     */
+    private static String evidencePackMarkdown(JsonObject object) {
+        if (!object.has("artifactPaths") || !object.get("artifactPaths").isJsonArray()
+                || !object.has("validationCommands")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add("**Evidence pack** — everything a reviewer needs, in one list:");
+        appendNonBlank(sections, bulletList("Artifacts", object, "artifactPaths"));
+        appendNonBlank(sections, bulletList("Validation commands", object, "validationCommands"));
+        appendNonBlank(sections, warnings(object));
+        sections.add("_Zip the artifact paths above (or attach them to your PR) to share the full recording "
+                + "evidence with your team._");
+        return joinSections(sections);
     }
 
     private static String codingPartnerMarkdown(JsonObject object) {
@@ -1316,7 +1513,11 @@ final class AssistantMarkdown {
         return false;
     }
 
-    private static boolean looksLikeNativeSelenium(String code) {
+    /**
+     * Whether pasted/typed code reads as native Selenium (package-private so the composer can
+     * proactively offer "convert to SHAFT + guardrails" on paste — issue #3425 B7).
+     */
+    static boolean looksLikeNativeSelenium(String code) {
         return code.contains("org.openqa.selenium.WebDriver")
                 || code.contains("SHAFT.GUI.Locator.xpath(")
                 || code.contains("new ChromeDriver(")

@@ -670,10 +670,52 @@ class AssistantCommandTest {
 
         assertAll(
                 () -> assertTrue(upgrade.isLocal()),
+                // Outside Agent mode the command explains exactly how to authorize the agent-run
+                // upgrade instead of silently pasting a recipe (issue #3426 B6)...
+                () -> assertTrue(response.contains("Allow source edits"), response),
+                () -> assertTrue(response.contains("**Agent**"), response),
+                // ...while still offering the manual command for users who prefer to run it.
                 () -> assertTrue(response.contains("```shell\npython -c \"import runpy,sys,urllib.request as u;")),
                 () -> assertTrue(response.contains("u.urlretrieve('https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-upgrader/upgrade_to_modular_shaft.py',p)")),
                 () -> assertTrue(response.contains("sys.argv=[p,'--project','.'];runpy.run_path(p,run_name='__main__')")),
                 () -> assertTrue(response.contains("\n```")));
+    }
+
+    @Test
+    void slashUpgradeInAgentModeWithSourceEditsRunsTheUpgradeThroughTheLocalAgent() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/upgrade .",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                "C:/work/project",
+                "",
+                true);
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertTrue(invocation.arguments().get("allowSourceMutation").getAsBoolean()),
+                // The agent performs the upgrade itself, non-interactively, and must narrate.
+                () -> assertTrue(prompt.contains("Perform the upgrade yourself"), prompt),
+                () -> assertTrue(prompt.contains("shaft_project_upgrade"), prompt),
+                () -> assertTrue(prompt.contains("'--yes'"), prompt),
+                () -> assertTrue(prompt.contains("mvn -B -q test-compile"), prompt),
+                () -> assertTrue(prompt.contains("Never reply with a bare confirmation like \"Done\""), prompt));
+    }
+
+    @Test
+    void slashUpgradeOnCloudRouteKeepsTheManualCommand() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/upgrade .",
+                AssistantCommand.Selection.cloud("gemini", "gemini-2.5-flash"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertTrue(invocation.isLocal()),
+                () -> assertTrue(invocation.localResponse().contains("upgrade_to_modular_shaft.py")));
     }
 
     @Test

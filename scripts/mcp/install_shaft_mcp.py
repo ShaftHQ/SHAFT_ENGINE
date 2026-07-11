@@ -606,7 +606,10 @@ def copy_verified(source: Path, target: Path, expected_sha256_digest: str, label
     if file_sha256(temporary) != expected_sha256_digest:
         temporary.unlink(missing_ok=True)
         fail(f"{label} failed SHA-256 verification.", 4)
-    os.replace(temporary, target)
+    if not replace_with_retry(temporary, target):
+        temporary.unlink(missing_ok=True)
+        fail(f"{label} could not be written: {target} is locked by another process (for example a "
+             "running shaft-mcp or IDE JVM). Close it and re-run this installer.", 4)
     if file_sha256(target) != expected_sha256_digest:
         fail(f"{label} failed SHA-256 verification.", 4)
 
@@ -673,8 +676,34 @@ def install_repository_file(url: str, target: Path, label: str, announce: bool =
     if file_digest(temporary, algorithm) != expected:
         temporary.unlink(missing_ok=True)
         fail(f"Checksum verification failed for {label}.", 4)
-    os.replace(temporary, target)
+    if not replace_with_retry(temporary, target):
+        # The target is locked by another process (a running shaft-mcp/IDE JVM, or antivirus) or
+        # is a deliberately locally-built artifact with the same version. A usable jar is already
+        # in place, so keep it and continue instead of aborting the whole install (issue #3426 A6).
+        temporary.unlink(missing_ok=True)
+        log(f"WARNING: kept the existing local {label} at {target} because the file is in use "
+            "and could not be replaced. If shaft-mcp later fails to start, close running Java/IDE "
+            "processes and re-run this installer.")
     return target.resolve(), True
+
+
+def replace_with_retry(temporary: Path, target: Path, attempts: int = 4) -> bool:
+    """
+    Atomically replaces target with temporary, retrying transient Windows sharing violations
+    (antivirus scans, indexers). Returns False only when target exists and stays locked, so the
+    caller can decide to keep the existing file; a missing/unreadable target still raises.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            os.replace(temporary, target)
+            return True
+        except PermissionError:
+            if attempt == attempts:
+                if target.is_file():
+                    return False
+                raise
+            time.sleep(attempt * 0.5)
+    return False
 
 
 def install_runtime_dependencies(jar: Path, repository: str) -> list[Path]:

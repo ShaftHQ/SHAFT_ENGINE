@@ -98,9 +98,13 @@ class SetupPrerequisitesTest {
         String command = SetupPrerequisites.shaftEngineWarmupCommand();
 
         assertAll(
-                () -> assertTrue(command.startsWith("mvn -B dependency:get -Dartifact=io.github.shafthq:SHAFT_ENGINE:"),
+                () -> assertTrue(
+                        command.startsWith("mvn -B dependency:get \"-Dartifact=io.github.shafthq:SHAFT_ENGINE:"),
                         command),
-                () -> assertFalse(command.endsWith(":LATEST"), command));
+                () -> assertFalse(command.contains(":LATEST"), command),
+                // PowerShell splits an unquoted -Dartifact=io.github... token at the first dot, so
+                // the -D argument must stay double-quoted end to end (issue #3426 A1).
+                () -> assertTrue(command.endsWith("\""), command));
     }
 
     @Test
