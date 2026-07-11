@@ -335,7 +335,7 @@ final class ShaftAssistantPanel extends JPanel {
         prompt = new JBTextArea(6, 40);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
-                "Ask for help, choose a tested command, or request guarded local Agent work.");
+                "Describe what you need in plain language or request guarded local Agent work.");
         prompt.getEmptyText().setText(
                 "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade (# adds project context)");
         prompt.setLineWrap(true);
