@@ -509,15 +509,16 @@ final class ShaftMcpSetupPanel extends JPanel {
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
         // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
-        JLabel summary = new JLabel("Pick an agent — the same /record-web, /codegen, and /doctor flows work on "
-                + "Codex, Claude Code, Copilot, and Gemini. SHAFT handles the wiring.");
+        JLabel summary = new JLabel("<html><body style='width: 240px'>Pick an agent — the same /record-web, "
+                + "/codegen, and /doctor flows work on Codex, Claude Code, Copilot, and Gemini. SHAFT handles the "
+                + "wiring.</body></html>");
         summary.setForeground(ShaftStatusPresentation.pending());
         JLabel whyShaft = new JLabel();
         whyShaft.getAccessibleContext().setAccessibleName("Why SHAFT summary");
-        whyShaft.setText("<html><b>Why SHAFT?</b> Privacy-safe recording (typed values externalized, secrets "
-                + "redacted) · compile-validated codegen (generated tests compile and replay before you see them) · "
-                + "repo-aware generation (reuses your page objects and locators) · a maintenance loop "
-                + "(Doctor triage + Healer locator repair when tests break).</html>");
+        whyShaft.setText("<html><body style='width: 240px'><b>Why SHAFT?</b> Privacy-safe recording (typed values "
+                + "externalized, secrets redacted) · compile-validated codegen (generated tests compile and replay "
+                + "before you see them) · repo-aware generation (reuses your page objects and locators) · a "
+                + "maintenance loop (Doctor triage + Healer locator repair when tests break).</body></html>");
         whyShaft.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
         intro.add(title, BorderLayout.NORTH);
         intro.add(summary, BorderLayout.CENTER);
