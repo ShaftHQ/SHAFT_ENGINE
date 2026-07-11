@@ -1,0 +1,42 @@
+{
+  "body_path": "memory/decisions/recorder-truth-rules-suppress-browser-synthesized-phantom-steps-upgrade-is-agent-performed-verbose-forwards-as-is-on-every-route.md",
+  "content_hash": "sha256:cabfb2d0df0c74dec8b1d588774a0fc9f92739765d80992eb8d3300dec66f11a",
+  "created_at": "2026-07-11T09:49:12+03:00",
+  "evidence": [
+    {
+      "id": "shaft-capture/src/main/resources/browser/shaft-capture-recorder.js",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-capture/src/main/java/com/shaft/capture/runtime/CaptureEventPipeline.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantCommand.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/AssistantMarkdown.java",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "category": "decision-rationale"
+  },
+  "id": "decision.recorder-truth-rules-suppress-browser-synthesized-phantom-steps-upgrade-is-agent-performed-verbose-forwards-as-is-on-every-route",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "issue #3426 IntelliJ plugin trustworthy first contact (PR #3427, docs #733)"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Recorder truth rules: suppress browser-synthesized phantom steps; /upgrade is agent-performed; Verbose forwards as-is on every route",
+  "type": "decision",
+  "updated_at": "2026-07-11T09:49:12+03:00"
+}

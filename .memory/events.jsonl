@@ -184,3 +184,5 @@
 {"actor":"agent","event":"memory.created","id":"fact.guard-py-r1-r2-match-command-heads-quoted-prose-about-maven-no-longer-blocks","timestamp":"2026-07-11T07:55:36+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.shaft-properties-bootstrapdirectory-redirects-engine-property-bootstrap-writes","timestamp":"2026-07-11T07:55:36+03:00"}
 {"actor":"agent","event":"memory.created","id":"fact.guidedworkflowpanel-executes-chained-mobile-start-and-polls-recorder-status","timestamp":"2026-07-11T07:55:36+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.intellij-setup-steps-earn-badges-only-from-real-checks-copy-buttons-pre-type-commands-into-a-terminal","timestamp":"2026-07-11T09:49:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.recorder-truth-rules-suppress-browser-synthesized-phantom-steps-upgrade-is-agent-performed-verbose-forwards-as-is-on-every-route","timestamp":"2026-07-11T09:49:12+03:00"}
