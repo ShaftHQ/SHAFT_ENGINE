@@ -190,3 +190,6 @@
 {"actor":"agent","event":"memory.created","id":"decision.first-time-user-trust-pass-shipped-in-pr-3428-workspace-dead-ends-intent-first-plugin","timestamp":"2026-07-11T14:22:14+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.bare-consumer-pom-shaft-engine-makes-surefire-run-zero-testng-tests-silently","timestamp":"2026-07-11T14:22:14+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.local-m2-and-installed-shaft-mcp-are-shadowed-by-2026-07-11-local-builds","timestamp":"2026-07-11T14:22:14+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.plugin-expert-quality-pass-3429-recorder-lifetime-capture-anti-wedge-element-bridge","timestamp":"2026-07-11T19:41:58+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.intellij-statustext-empty-text-never-wraps-and-clips-even-in-wide-tool-windows","timestamp":"2026-07-11T19:41:58+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.live-validating-shaft-mcp-fixes-end-to-end-via-a-scripted-stdio-driver","timestamp":"2026-07-11T19:41:58+03:00"}
