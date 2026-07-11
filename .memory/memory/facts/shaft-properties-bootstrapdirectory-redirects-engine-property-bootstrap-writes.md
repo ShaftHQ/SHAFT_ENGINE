@@ -1,0 +1,1 @@
+PropertiesHelper honors the shaft.properties.bootstrapDirectory system property for both the default-properties copy and the custom.properties target. shaft-capture surefire sets it to target/shaft-properties so module test runs no longer rewrite tracked src/main/resources/properties files with EOL churn. Set the same property in any other module whose tests bootstrap the engine.
