@@ -665,6 +665,8 @@ class ManagedCaptureRecorderBrowserTest {
             queryParameter(exchange, "delay").ifPresent(delay -> {
                 try {
                     Thread.sleep(Long.parseLong(delay));
+                } catch (NumberFormatException ignored) {
+                    // queryParameter pre-filters to short digit runs; serve undelayed regardless.
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
                 }
