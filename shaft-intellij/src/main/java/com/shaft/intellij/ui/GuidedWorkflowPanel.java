@@ -2,13 +2,19 @@ package com.shaft.intellij.ui;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.intellij.openapi.Disposable;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.components.JBTextField;
+import com.intellij.util.Alarm;
 import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.mcp.ShaftMcpInvocationService;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.settings.ShaftSettingsState;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -25,10 +31,13 @@ import java.awt.GridLayout;
 /**
  * Guided recorder, locator, and code-generation entry points backed by existing MCP tools.
  */
-final class GuidedWorkflowPanel extends JPanel {
+final class GuidedWorkflowPanel extends JPanel implements Disposable {
     static final String BACKEND_WEBDRIVER = "WebDriver";
     static final String BACKEND_PLAYWRIGHT = "Playwright";
     static final String BACKEND_MOBILE = "Mobile (web emulation)";
+    private static final int STATUS_POLL_INTERVAL_MILLIS = 2_000;
+    /** Stop idle polling after ~5 minutes if the prepared recording request is never run. */
+    private static final int MAX_POLLS_BEFORE_ACTIVE = 150;
 
     private final Project project;
     private final JComboBox<String> backend;
@@ -40,12 +49,25 @@ final class GuidedWorkflowPanel extends JPanel {
     private final JBTextField sessionPath;
     private final JCheckBox headlessBrowser;
     private final JBTextArea codeSnippet;
+    private final JLabel recorderStatus;
     private final ToolPrefill prefill;
+    private final ShaftSettingsState.Settings settings;
+    // Created lazily on the first poll so headless panel tests never touch platform executors.
+    private Alarm statusPollAlarm;
+    private volatile boolean pollingActive;
+    private boolean recorderSeenActive;
+    private int pollsWithoutActivity;
+    private String statusToolName = "";
 
     GuidedWorkflowPanel(Project project, ToolPrefill prefill) {
+        this(project, prefill, resolveSettings());
+    }
+
+    GuidedWorkflowPanel(Project project, ToolPrefill prefill, ShaftSettingsState.Settings settings) {
         super(new BorderLayout(8, 8));
         this.project = project;
         this.prefill = prefill;
+        this.settings = settings == null ? new ShaftSettingsState.Settings() : settings;
         setBorder(JBUI.Borders.empty(8));
 
         backend = new JComboBox<>(new String[]{BACKEND_WEBDRIVER, BACKEND_PLAYWRIGHT, BACKEND_MOBILE});
@@ -56,22 +78,32 @@ final class GuidedWorkflowPanel extends JPanel {
         templateSelector.addActionListener(event -> updateTemplateDescription());
         targetUrl = field("Target URL", "");
         intent = field("Intent", "Log in as a valid user");
+        intent.setToolTipText(
+                "Describes the recorded journey; also names the generated test class and method.");
         currentSourcePath = field("Current source path", "");
         artifactPaths = field("Evidence paths", "");
         sessionPath = field("Session path", "recordings/intellij-capture.json");
-        headlessBrowser = new JCheckBox("Headless browser", false);
+        headlessBrowser = new JCheckBox("Headless browser", this.settings.recorderHeadless);
         headlessBrowser.getAccessibleContext().setAccessibleName("Headless browser");
         headlessBrowser.getAccessibleContext().setAccessibleDescription(
                 "Record without a visible browser window. Keep unchecked to interact with the recorded browser.");
         headlessBrowser.setToolTipText(
-                "Record without a visible browser window; useful for agent-driven or CI recordings.");
+                "Record without a visible browser window; useful for agent-driven or CI recordings. "
+                        + "Remembered across sessions and honored by /record-web and /mobile web.");
+        headlessBrowser.addItemListener(event ->
+                this.settings.recorderHeadless = headlessBrowser.isSelected());
         codeSnippet = new JBTextArea(6, 32);
         codeSnippet.getAccessibleContext().setAccessibleName("Generated code or guardrail input");
         codeSnippet.getAccessibleContext().setAccessibleDescription(
                 "Paste Java code for review-only guardrail checks.");
         codeSnippet.setLineWrap(true);
         codeSnippet.setWrapStyleWord(true);
+        recorderStatus = new JLabel("Recorder idle.");
+        recorderStatus.getAccessibleContext().setAccessibleName("Recorder status");
+        recorderStatus.setBorder(JBUI.Borders.empty(2, 0));
         updateTemplateDescription();
+        backend.addActionListener(event -> updateFieldRelevance());
+        updateFieldRelevance();
 
         JPanel fields = new JPanel(new GridLayout(0, 1, 4, 4));
         fields.add(row("Backend", 'B', backend));
@@ -82,6 +114,7 @@ final class GuidedWorkflowPanel extends JPanel {
         fields.add(row("Evidence paths", 'E', artifactPaths));
         fields.add(row("Session path", 'S', sessionPath));
         fields.add(row("Browser", 'H', headlessBrowser));
+        fields.add(row("Status", 'A', recorderStatus));
 
         JPanel partner = section("Coding Partner",
                 button("Plan coding partner", "Plan repository-aware SHAFT reuse, missing code, proof, and validation", ShaftIcons.CODE,
@@ -108,6 +141,18 @@ final class GuidedWorkflowPanel extends JPanel {
         add(introLabel("Guided workflows prepare reviewed SHAFT MCP requests."), BorderLayout.NORTH);
         add(center, BorderLayout.CENTER);
         add(actions, BorderLayout.SOUTH);
+    }
+
+    private static ShaftSettingsState.Settings resolveSettings() {
+        try {
+            if (ApplicationManager.getApplication() == null) {
+                return new ShaftSettingsState.Settings();
+            }
+            ShaftSettingsState.Settings settings = ShaftSettingsState.getInstance().getState();
+            return settings == null ? new ShaftSettingsState.Settings() : settings;
+        } catch (RuntimeException | Error headlessTestEnvironment) {
+            return new ShaftSettingsState.Settings();
+        }
     }
 
     private static JLabel introLabel(String text) {
@@ -170,6 +215,28 @@ final class GuidedWorkflowPanel extends JPanel {
         }
     }
 
+    /**
+     * Grays out fields that the selected backend's start request does not read, so a misfilled
+     * field can never silently change what gets prefilled.
+     */
+    private void updateFieldRelevance() {
+        boolean playwrightBackend = playwright();
+        targetUrl.setEnabled(!playwrightBackend);
+        targetUrl.setToolTipText(playwrightBackend
+                ? "The Playwright recorder start request does not take a target URL; navigate after starting."
+                : "Initial http, https, or file URL the recording opens.");
+        headlessBrowser.setEnabled(!playwrightBackend);
+        headlessBrowser.setToolTipText(playwrightBackend
+                ? "The Playwright recorder start request does not take a headless option."
+                : "Record without a visible browser window; useful for agent-driven or CI recordings. "
+                + "Remembered across sessions and honored by /record-web and /mobile web.");
+        sessionPath.setToolTipText(mobile()
+                ? "Mobile recording JSON output path (mobile_record_start outputPath)."
+                : playwrightBackend
+                ? "Playwright recording JSON output path (playwright_record_start outputPath)."
+                : "Capture session JSON output path (capture_start outputPath).");
+    }
+
     private void applyTemplate() {
         WorkflowTemplate template = selectedTemplate();
         if (template == null) {
@@ -177,7 +244,11 @@ final class GuidedWorkflowPanel extends JPanel {
         }
         switch (template) {
             case RECORD_BROWSER_FLOW -> prefill.prefill("test_automation_scenarios", capturePageObjectWorkflow());
-            case START_MOBILE_EMULATION -> prefill.prefill("mobile_initialize_web_emulation", mobileWebEmulation());
+            case START_MOBILE_EMULATION -> {
+                // The mobile flow records against the emulated session, so keep the backend in sync.
+                backend.setSelectedItem(BACKEND_MOBILE);
+                prefill.prefill("mobile_initialize_web_emulation", mobileWebEmulation());
+            }
             case ANALYZE_FAILED_ALLURE -> prefill.prefill("doctor_analyze_failed_allure", failedAllureAnalysis());
             case CONVERT_SELENIUM_SNIPPET -> prefill.prefill("test_automation_scenarios", seleniumConversionWorkflow());
             case CREATE_NEW_SHAFT_PROJECT -> prefill.prefill("shaft_project_create", newShaftProject());
@@ -273,22 +344,71 @@ final class GuidedWorkflowPanel extends JPanel {
     }
 
     private void startRecording() {
+        if (mobile()) {
+            startMobileRecording();
+            return;
+        }
         JsonObject arguments = new JsonObject();
         arguments.addProperty("outputPath", sessionPath.getText().trim());
-        if (mobile()) {
-            arguments.addProperty("mode", "default");
-            arguments.addProperty("includeSensitiveValues", false);
-            prefill.prefill("mobile_record_start", arguments);
-        } else if (playwright()) {
+        if (playwright()) {
             arguments.addProperty("mode", "default");
             arguments.addProperty("includeSensitiveValues", false);
             prefill.prefill("playwright_record_start", arguments);
+            startStatusPolling("playwright_record_status");
         } else {
             arguments.addProperty("targetUrl", targetUrl.getText().trim());
             arguments.addProperty("browser", "Chrome");
             arguments.addProperty("headless", headlessBrowser.isSelected());
+            arguments.addProperty("sessionGoal", intent.getText().trim());
             prefill.prefill("capture_start", arguments);
+            startStatusPolling("capture_status");
         }
+    }
+
+    private JsonObject mobileRecordStartArguments() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("outputPath", sessionPath.getText().trim());
+        arguments.addProperty("mode", "default");
+        arguments.addProperty("includeSensitiveValues", false);
+        return arguments;
+    }
+
+    /**
+     * One-click mobile recording: the emulated Chrome session and the recorder are started as one
+     * chained action, with the second call gated on the first succeeding. Without an MCP-connected
+     * project (headless tests, the live E2E panel driver) the panel falls back to preparing the
+     * recorder-start request for review, matching the other backends.
+     */
+    private void startMobileRecording() {
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill("mobile_record_start", mobileRecordStartArguments());
+            startStatusPolling("mobile_record_status");
+            return;
+        }
+        setRecorderStatus("Starting emulated mobile session at "
+                + displayUrl(targetUrl.getText().trim()) + "...");
+        invocationService.startTool("mobile_initialize_web_emulation", mobileWebEmulation())
+                .future()
+                .whenComplete((sessionResult, sessionError) -> onEdt(() -> {
+                    if (failed(sessionResult, sessionError)) {
+                        setRecorderStatus("Mobile emulation session failed: "
+                                + failureText(sessionResult, sessionError));
+                        return;
+                    }
+                    setRecorderStatus("Emulated session ready. Starting mobile recorder...");
+                    invocationService.startTool("mobile_record_start", mobileRecordStartArguments())
+                            .future()
+                            .whenComplete((recordResult, recordError) -> onEdt(() -> {
+                                if (failed(recordResult, recordError)) {
+                                    setRecorderStatus("Mobile recorder failed to start: "
+                                            + failureText(recordResult, recordError));
+                                    return;
+                                }
+                                setRecorderStatus("Mobile recording started.");
+                                startStatusPolling("mobile_record_status");
+                            }));
+                }));
     }
 
     private void planPartnerWork() {
@@ -357,6 +477,174 @@ final class GuidedWorkflowPanel extends JPanel {
         prefill.prefill("test_code_guardrails_check", arguments);
     }
 
+    // ------------------------------------------------------------------
+    // Live recorder status strip
+    // ------------------------------------------------------------------
+
+    private ShaftMcpInvocationService invocationService() {
+        if (project == null) {
+            return null;
+        }
+        try {
+            return ShaftMcpInvocationService.getInstance(project);
+        } catch (RuntimeException | Error unavailable) {
+            return null;
+        }
+    }
+
+    /**
+     * Polls the backend's status tool every couple of seconds and mirrors the live recorder state
+     * (event/action counts, pending debounced signals, current URL) in the status row, so headless
+     * recordings are observable without a browser window. Polling stops once a previously active
+     * recording ends, after an idle timeout, or on panel disposal.
+     */
+    private void startStatusPolling(String toolName) {
+        if (invocationService() == null) {
+            return;
+        }
+        statusToolName = toolName;
+        recorderSeenActive = false;
+        pollsWithoutActivity = 0;
+        if (!pollingActive) {
+            pollingActive = true;
+            setRecorderStatus("Waiting for the recording to start (run the prepared request)...");
+            scheduleNextStatusPoll();
+        }
+    }
+
+    private void scheduleNextStatusPoll() {
+        if (statusPollAlarm == null) {
+            statusPollAlarm = new Alarm(Alarm.ThreadToUse.POOLED_THREAD, this);
+        }
+        if (!pollingActive || statusPollAlarm.isDisposed()) {
+            pollingActive = false;
+            return;
+        }
+        statusPollAlarm.addRequest(this::pollStatusOnce, STATUS_POLL_INTERVAL_MILLIS);
+    }
+
+    private void pollStatusOnce() {
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (!pollingActive || invocationService == null) {
+            pollingActive = false;
+            return;
+        }
+        invocationService.startTool(statusToolName, new JsonObject())
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> applyStatusPoll(result, error)));
+    }
+
+    private void applyStatusPoll(ShaftMcpToolResult result, Throwable error) {
+        if (!pollingActive) {
+            return;
+        }
+        if (failed(result, error)) {
+            setRecorderStatus("Recorder status unavailable: " + failureText(result, error));
+            scheduleNextStatusPoll();
+            return;
+        }
+        JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
+        boolean active = isRecorderActive(status);
+        if (active) {
+            recorderSeenActive = true;
+            pollsWithoutActivity = 0;
+            setRecorderStatus(activeStatusText(status));
+            scheduleNextStatusPoll();
+            return;
+        }
+        if (recorderSeenActive) {
+            pollingActive = false;
+            setRecorderStatus("Recording finished - " + countText(status)
+                    + ". Use Review code to generate the reviewed test.");
+            return;
+        }
+        pollsWithoutActivity++;
+        if (pollsWithoutActivity >= MAX_POLLS_BEFORE_ACTIVE) {
+            pollingActive = false;
+            setRecorderStatus("No active recording detected. Recorder idle.");
+            return;
+        }
+        scheduleNextStatusPoll();
+    }
+
+    private static boolean isRecorderActive(JsonObject status) {
+        if (status == null) {
+            return false;
+        }
+        if (status.has("active")) {
+            return status.get("active").getAsBoolean();
+        }
+        String state = status.has("state") ? status.get("state").getAsString() : "";
+        return "ACTIVE".equalsIgnoreCase(state) || "STARTING".equalsIgnoreCase(state)
+                || "STOPPING".equalsIgnoreCase(state);
+    }
+
+    private static String activeStatusText(JsonObject status) {
+        StringBuilder text = new StringBuilder("Recording ACTIVE - ").append(countText(status));
+        if (status != null && status.has("currentUrl")
+                && !status.get("currentUrl").getAsString().isBlank()) {
+            text.append(" - ").append(displayUrl(status.get("currentUrl").getAsString()));
+        }
+        return text.append(". Stop recording ends the session.").toString();
+    }
+
+    private static String countText(JsonObject status) {
+        if (status == null) {
+            return "0 events";
+        }
+        if (status.has("actionCount")) {
+            return status.get("actionCount").getAsInt() + " action(s)";
+        }
+        int events = status.has("eventCount") ? status.get("eventCount").getAsInt() : 0;
+        int pending = status.has("pendingSignalCount") ? status.get("pendingSignalCount").getAsInt() : 0;
+        return pending > 0 ? events + " event(s) (+" + pending + " pending)" : events + " event(s)";
+    }
+
+    private static String displayUrl(String url) {
+        String value = url == null ? "" : url.trim();
+        if (value.isBlank()) {
+            return "(no URL)";
+        }
+        return value.length() <= 60 ? value : value.substring(0, 57) + "...";
+    }
+
+    private static boolean failed(ShaftMcpToolResult result, Throwable error) {
+        return error != null || result == null || !result.success();
+    }
+
+    private static String failureText(ShaftMcpToolResult result, Throwable error) {
+        if (error != null) {
+            return String.valueOf(error.getMessage());
+        }
+        return result == null ? "no result" : displayUrl(result.output());
+    }
+
+    private void setRecorderStatus(String text) {
+        recorderStatus.setText(text);
+        recorderStatus.setToolTipText(text);
+    }
+
+    private static void onEdt(Runnable action) {
+        var application = ApplicationManager.getApplication();
+        if (application == null) {
+            action.run();
+        } else {
+            application.invokeLater(action);
+        }
+    }
+
+    JLabel recorderStatusLabel() {
+        return recorderStatus;
+    }
+
+    @Override
+    public void dispose() {
+        pollingActive = false;
+        if (statusPollAlarm != null && !statusPollAlarm.isDisposed()) {
+            statusPollAlarm.cancelAllRequests();
+        }
+    }
+
     private boolean playwright() {
         return BACKEND_PLAYWRIGHT.equals(backend.getSelectedItem());
     }
@@ -410,7 +698,7 @@ final class GuidedWorkflowPanel extends JPanel {
                 "Prefills a review-only capture workflow plan for Page Object code generation."),
         START_MOBILE_EMULATION(
                 "Start mobile emulation session for recording",
-                "Prefills a Chrome mobile web-emulation session; then record with the Mobile backend."),
+                "Prefills a Chrome mobile web-emulation session and switches the backend to Mobile."),
         ANALYZE_FAILED_ALLURE(
                 "Analyze failed Allure results",
                 "Prefills deterministic Doctor analysis with AI and source edits disabled."),

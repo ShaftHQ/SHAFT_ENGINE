@@ -1,0 +1,78 @@
+name: Guided Workflows Live E2E
+
+# Scheduled lane for the IntelliJ plugin's live guided-workflow harness
+# (GuidedWorkflowLiveE2ETest): web recorder -> codegen, mobile emulation
+# recorder -> codegen, and doctor triage, all driven through real
+# GuidedWorkflowPanel clicks and the plugin's own stdio MCP client against
+# the freshly built shaft-mcp jar. Catches environment drift (e.g. Chromium
+# emulated-device list changes) and codegen regressions automatically.
+
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guided-workflows-live-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-guided-workflows:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+      - name: Set up JDK 25 (shaft-mcp runtime)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Build shaft-mcp with dependencies
+        run: |
+          mvn --batch-mode -pl shaft-mcp -am install -DskipTests -Dgpg.skip
+          mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
+      - name: Write shaft-mcp launcher argfile
+        run: |
+          JAR=$(ls shaft-mcp/target/shaft-mcp-*.jar | grep -v -e sources -e javadoc -e original | head -1)
+          CLASSPATH="$(realpath "$JAR"):$(realpath shaft-mcp/target/dependency)/*"
+          {
+            printf '"-cp"\n'
+            printf '"%s"\n' "$CLASSPATH"
+            printf 'com.shaft.mcp.ShaftMcpApplication\n'
+          } > shaft-mcp/target/shaft-mcp-live.args
+          echo "MCP_JAVA=$JAVA_HOME/bin/java" >> "$GITHUB_ENV"
+          echo "MCP_ARGS=$PWD/shaft-mcp/target/shaft-mcp-live.args" >> "$GITHUB_ENV"
+      - name: Set up JDK 17 (Gradle)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Gradle 9
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.0.0'
+      - name: Run live guided workflows through the plugin panel
+        run: >-
+          gradle -p shaft-intellij test
+          --tests com.shaft.intellij.ui.GuidedWorkflowLiveE2ETest
+          -Dshaft.intellij.liveWorkflows=true
+          "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
+          "-Dshaft.intellij.workspaceRoot=${GITHUB_WORKSPACE}/build/live-workflows"
+      - name: Upload live workflow evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: guided-workflows-live-evidence
+          path: |
+            shaft-intellij/build/reports/tests/test
+            build/live-workflows/recordings
+            build/live-workflows/target/shaft-capture
+            build/live-workflows/target/shaft-doctor
+          if-no-files-found: ignore
+          retention-days: 14

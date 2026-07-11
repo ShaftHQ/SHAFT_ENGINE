@@ -69,6 +69,11 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public boolean passProviderApiKeysToMcp = false;
         public boolean advancedUiEnabled = false;
         public boolean autoCompactEnabled = false;
+        /**
+         * Recorder browser visibility preference shared by the Guided workflow panel and the
+         * assistant recording commands ({@code /record-web}, {@code /mobile web}).
+         */
+        public boolean recorderHeadless = false;
 
         /**
          * Returns whether the configured MCP command has passed setup verification.

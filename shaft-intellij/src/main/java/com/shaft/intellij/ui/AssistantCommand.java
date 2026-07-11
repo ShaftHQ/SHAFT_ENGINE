@@ -792,8 +792,25 @@ final class AssistantCommand {
         arguments.addProperty("height", 0);
         arguments.addProperty("pixelRatio", 1.0);
         arguments.addProperty("userAgent", "");
-        arguments.addProperty("headless", false);
+        arguments.addProperty("headless", recorderHeadlessPreference());
         return arguments;
+    }
+
+    /**
+     * Recorder browser visibility shared with the Guided workflow panel's Headless toggle
+     * ({@code ShaftSettingsState.Settings#recorderHeadless}). Defaults to a visible browser when
+     * the IntelliJ application is unavailable (plain unit tests).
+     */
+    private static boolean recorderHeadlessPreference() {
+        try {
+            if (com.intellij.openapi.application.ApplicationManager.getApplication() == null) {
+                return false;
+            }
+            var settings = com.shaft.intellij.settings.ShaftSettingsState.getInstance().getState();
+            return settings != null && settings.recorderHeadless;
+        } catch (RuntimeException | Error headlessTestEnvironment) {
+            return false;
+        }
     }
 
     private static Invocation mobileRecord(String rest) {
@@ -1377,7 +1394,7 @@ final class AssistantCommand {
         arguments.addProperty("targetUrl", targetUrl.isBlank() ? DEFAULT_CAPTURE_TARGET_URL : targetUrl);
         arguments.addProperty("browser", "Chrome");
         arguments.addProperty("outputPath", defaultCaptureRecordingPath());
-        arguments.addProperty("headless", false);
+        arguments.addProperty("headless", recorderHeadlessPreference());
         return arguments;
     }
 

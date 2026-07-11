@@ -139,6 +139,86 @@ class GuidedWorkflowPanelTest {
     }
 
     @Test
+    void webRecordingStartCarriesIntentAsSessionGoal() {
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        setText(panel, "Intent", "Log in as a valid user");
+        findButton(panel, "Start recording").doClick();
+
+        CapturedInvocation start = last(invocations);
+        assertAll(
+                () -> assertEquals("capture_start", start.toolName()),
+                () -> assertEquals("Log in as a valid user", start.arguments().get("sessionGoal").getAsString()));
+    }
+
+    @Test
+    void headlessToggleIsPersistedInSettingsAndInitializedFromThem() {
+        com.shaft.intellij.settings.ShaftSettingsState.Settings settings =
+                new com.shaft.intellij.settings.ShaftSettingsState.Settings();
+        settings.recorderHeadless = true;
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        }, settings);
+        javax.swing.JCheckBox headless = findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class);
+
+        assertNotNull(headless);
+        assertTrue(headless.isSelected(), "Headless toggle must initialize from the persisted preference");
+        headless.setSelected(false);
+        assertFalse(settings.recorderHeadless, "Toggling headless must persist to settings");
+    }
+
+    @Test
+    void irrelevantFieldsAreDisabledPerBackend() {
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        javax.swing.JCheckBox headless = findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class);
+        javax.swing.text.JTextComponent targetUrl =
+                findByAccessibleName(panel, "Target URL", javax.swing.text.JTextComponent.class);
+        assertNotNull(backend);
+        assertNotNull(headless);
+        assertNotNull(targetUrl);
+
+        select(backend, "WebDriver");
+        assertTrue(targetUrl.isEnabled());
+        assertTrue(headless.isEnabled());
+
+        select(backend, "Playwright");
+        assertFalse(targetUrl.isEnabled(), "Playwright recorder start does not take a target URL");
+        assertFalse(headless.isEnabled(), "Playwright recorder start does not take a headless option");
+
+        select(backend, "Mobile (web emulation)");
+        assertTrue(targetUrl.isEnabled());
+        assertTrue(headless.isEnabled());
+    }
+
+    @Test
+    void mobileEmulationTemplateSwitchesBackendToMobile() {
+        List<CapturedInvocation> invocations = new ArrayList<>();
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
+                (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        JComboBox<?> templates = findByAccessibleName(panel, "Workflow template", JComboBox.class);
+        assertNotNull(backend);
+        assertNotNull(templates);
+
+        select(templates, "Start mobile emulation session for recording");
+        findButton(panel, "Use template").doClick();
+
+        assertEquals("mobile_initialize_web_emulation", last(invocations).toolName());
+        assertEquals("Mobile (web emulation)", String.valueOf(backend.getSelectedItem()));
+    }
+
+    @Test
+    void recorderStatusStripIsPresentAndIdleByDefault() {
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+        assertNotNull(status);
+        assertTrue(status.getText().contains("idle"), status.getText());
+    }
+
+    @Test
     void starterTemplateControlsExposeAccessibleMetadata() {
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
         });
@@ -174,6 +254,13 @@ class GuidedWorkflowPanelTest {
                 () -> assertEquals("WebDriver", invocation.arguments().get("backend").getAsString()),
                 () -> assertEquals(10, invocation.arguments().get("maxResults").getAsInt()),
                 () -> assertEquals(0, invocation.arguments().getAsJsonArray("artifactPaths").size()));
+    }
+
+    private static void setText(GuidedWorkflowPanel panel, String accessibleName, String value) {
+        javax.swing.text.JTextComponent field =
+                findByAccessibleName(panel, accessibleName, javax.swing.text.JTextComponent.class);
+        assertNotNull(field, "Missing field: " + accessibleName);
+        field.setText(value);
     }
 
     private static void select(JComboBox<?> comboBox, String label) {

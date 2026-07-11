@@ -341,7 +341,7 @@ class CaptureServiceTest {
         IllegalArgumentException failure;
         try {
             failure = assertThrows(IllegalArgumentException.class,
-                    () -> service.start("https://example.test", "chrome", outside.toString(), true));
+                    () -> service.start("https://example.test", "chrome", outside.toString(), true, ""));
         } finally {
             service.close();
         }
