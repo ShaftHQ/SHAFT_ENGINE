@@ -366,9 +366,11 @@ final class ShaftAssistantPanel extends JPanel {
         allowSourceMutation.setToolTipText("Enable only when Agent mode should edit local source files");
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
-        verboseAgentOutput.setToolTipText("Show live local agent output instead of only the final result. "
-                + "GitHub Copilot CLI and custom agent commands cannot stream live output; "
-                + "their response is buffered until the command completes.");
+        verboseAgentOutput.setToolTipText("Forward everything as-is: live local agent output "
+                + "(including its thinking and every tool call) plus the exact request and raw "
+                + "response of each SHAFT MCP tool run. GitHub Copilot CLI and custom agent "
+                + "commands cannot stream live output; their response is buffered until the "
+                + "command completes.");
         autoCompact = new JBCheckBox("Auto-compact");
         autoCompact.getAccessibleContext().setAccessibleName("Compact agent context before each request");
         autoCompact.setToolTipText("Send the agent CLI's compact/compress command before each new prompt, when supported");
@@ -1005,10 +1007,42 @@ final class ShaftAssistantPanel extends JPanel {
     private void dispatchApprovedTool(AssistantCommand.Invocation invocation) {
         addTimeline("Tool selected: " + invocation.toolName());
         addTimeline("Running");
+        String narration = toolRunNarration(invocation.toolName());
+        if (!narration.isBlank()) {
+            append("assistant", narration, "");
+        }
+        if (verboseLocalAgentOutput()) {
+            // Verbose promises the user the unfiltered picture, so MCP tool runs echo the exact
+            // request being sent — not only local agent CLI streams (issue #3426 B5).
+            append("assistant", "**Verbose — exact tool request**\n\n```json\n"
+                    + "{\"tool\": \"" + invocation.toolName() + "\", \"arguments\": "
+                    + invocation.arguments() + "}\n```", "");
+        }
         setRunning(true, "Running " + invocation.toolName() + "...");
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
         currentInvocation.future().whenComplete((result, error) -> ApplicationManager.getApplication().invokeLater(
                 () -> showResult(invocation.toolName(), result, error)));
+    }
+
+    /**
+     * Up-front plain-language explanation for long-running tools with visible side effects, so the
+     * user is never left watching an unexplained browser window and a spinner (issue #3426 B4).
+     */
+    static String toolRunNarration(String toolName) {
+        return switch (toolName == null ? "" : toolName) {
+            case "capture_generate_replay", "playwright_capture_generate_replay" -> """
+                    **Generating your test now.** SHAFT is doing three things, in order:
+                    1. Reading the recording and generating a Java TestNG class from it,
+                    2. Compiling that class against SHAFT to prove it is valid Java,
+                    3. Replaying the compiled test in a real browser to prove it works — so a browser window may open (it starts on `about:blank` before the test navigates).
+
+                    _This usually takes a minute or two. A step-by-step report and the generated code will appear here when it finishes._""";
+            case "capture_code_blocks", "playwright_recording_code_blocks" -> """
+                    **Generating review code from your recording.** SHAFT converts the recorded steps into a Java TestNG class without executing it — no browser will open for this step.
+
+                    _The generated code will appear here for your review in a few seconds._""";
+            default -> "";
+        };
     }
 
     private void showDeniedToolResult(String toolName) {
@@ -1405,6 +1439,10 @@ final class ShaftAssistantPanel extends JPanel {
         String body = success && isRecordingCodeReviewTool(toolName) && !AssistantMarkdown.hasCodeFence(markdown)
                 ? markdown + "\n\n" + NO_CODE_GENERATED_NOTE
                 : markdown;
+        if (verboseLocalAgentOutput() && output != null && !output.isBlank() && !output.equals(body)) {
+            body = body + "\n\n**Verbose — raw tool response**\n\n"
+                    + AssistantMarkdown.normalizeMarkdown(output);
+        }
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
                 + body, output);
         addTimeline(success ? "Completed" : "Failed");
@@ -1934,8 +1972,10 @@ final class ShaftAssistantPanel extends JPanel {
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
-        verboseAgentOutput.setVisible(localAgent && localCli);
-        verboseAgentOutput.setEnabled(controlsEnabled && localAgent && localCli);
+        // Verbose applies to every run shape: local agent CLI streams AND direct MCP tool runs
+        // (slash commands like /codegen), so it stays available on every route (issue #3426 B5).
+        verboseAgentOutput.setVisible(true);
+        verboseAgentOutput.setEnabled(controlsEnabled);
         localModel.setVisible(localCli);
         localModel.setEnabled(controlsEnabled && localCli);
         effort.setVisible(cloud || localCli);
@@ -1944,9 +1984,6 @@ final class ShaftAssistantPanel extends JPanel {
         autoCompact.setEnabled(controlsEnabled && localAgent && localCli);
         configure.setVisible(lockedRoute);
         configure.setEnabled(controlsEnabled && lockedRoute);
-        if (!localAgent || !localCli) {
-            verboseAgentOutput.setSelected(false);
-        }
         if (localCli) {
             refreshLocalModelsIfNeeded();
         }
