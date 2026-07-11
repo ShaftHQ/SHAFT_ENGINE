@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.application.ApplicationManager;
@@ -139,6 +140,13 @@ final class ShaftAssistantPanel extends JPanel {
     private final JButton approveCaptureReview;
     private final JButton copyCaptureReview;
     private final JButton dismissCaptureReview;
+    private final JButton createTestClassFromReview;
+    private final JButton insertReviewAtOpenFile;
+    private final JButton openCaptureReview;
+    private final JButton captureEvidencePack;
+    private final JButton compareCaptureBackends;
+    /** Session path behind the pending Capture review, for insert/compare/evidence actions. */
+    private String lastReviewSessionPath = "";
     private final DefaultListModel<String> timelineModel;
     private final JList<String> timeline;
     private final JPanel timelinePanel;
@@ -183,6 +191,8 @@ final class ShaftAssistantPanel extends JPanel {
     private final Set<String> approvedToolsThisRun = new HashSet<>();
     private ToolApprovalService approvalServiceOverride;
     private JPopupMenu contextPopup;
+    private JPanel starterCards;
+    private JButton convertSeleniumHint;
     private char contextPopupTrigger;
     private int contextTriggerOffset = -1;
     private final ShaftMcpConnectionState connectionState;
@@ -447,8 +457,30 @@ final class ShaftAssistantPanel extends JPanel {
         ShaftIconButtons.apply(copyCaptureReview, ShaftIcons.COPY);
         dismissCaptureReview = button("Dismiss", "Dismiss Capture review", event -> dismissPendingCaptureReview());
         ShaftIconButtons.apply(dismissCaptureReview, ShaftIcons.CANCEL);
-        JPanel captureReviewActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        // Record -> Review -> Insert headline loop plus evidence/differentiation actions
+        // (issue #3425 B1/B6/C2): everything a reviewed recording can become is one click away.
+        createTestClassFromReview = button("Create test class",
+                "Create test class from Capture review", event -> createTestClassFromReview());
+        ShaftIconButtons.apply(createTestClassFromReview, ShaftIcons.CODE);
+        insertReviewAtOpenFile = button("Insert into open class",
+                "Insert reviewed Capture steps into the open class", event -> insertReviewIntoOpenFile());
+        ShaftIconButtons.apply(insertReviewAtOpenFile, ShaftIcons.EDIT);
+        openCaptureReview = button("Open review file",
+                "Open generated Capture review file", event -> openCaptureReviewFile());
+        ShaftIconButtons.apply(openCaptureReview, ShaftIcons.VIEW);
+        captureEvidencePack = button("Evidence pack",
+                "Collect Capture evidence pack", event -> collectCaptureEvidencePack());
+        ShaftIconButtons.apply(captureEvidencePack, ShaftIcons.COPY);
+        compareCaptureBackends = button("Compare backends",
+                "Compare WebDriver and Playwright generation", event -> compareCaptureBackends());
+        ShaftIconButtons.apply(compareCaptureBackends, ShaftIcons.SEARCH);
+        JPanel captureReviewActions = new JPanel(new WrapLayout(FlowLayout.RIGHT, 6, 2));
         captureReviewActions.add(approveCaptureReview);
+        captureReviewActions.add(createTestClassFromReview);
+        captureReviewActions.add(insertReviewAtOpenFile);
+        captureReviewActions.add(openCaptureReview);
+        captureReviewActions.add(captureEvidencePack);
+        captureReviewActions.add(compareCaptureBackends);
         captureReviewActions.add(copyCaptureReview);
         captureReviewActions.add(dismissCaptureReview);
         captureReviewPanel = new JPanel(new BorderLayout(8, 0));
@@ -552,6 +584,13 @@ final class ShaftAssistantPanel extends JPanel {
         promptActions.add(sendActions, BorderLayout.EAST);
 
         JPanel composerFooter = new JPanel(new BorderLayout(4, 4));
+        convertSeleniumHint = new JButton("Selenium detected — convert to SHAFT + guardrails");
+        convertSeleniumHint.getAccessibleContext().setAccessibleName("Convert pasted Selenium to SHAFT");
+        convertSeleniumHint.setToolTipText("Wrap the pasted code in a convert-to-SHAFT request that also runs "
+                + "the SHAFT guardrail check on the result");
+        convertSeleniumHint.setVisible(false);
+        convertSeleniumHint.addActionListener(event -> wrapPromptAsSeleniumConversion());
+        composerFooter.add(convertSeleniumHint, BorderLayout.NORTH);
         composerFooter.add(routeRow, BorderLayout.CENTER);
         composerFooter.add(promptActions, BorderLayout.SOUTH);
 
@@ -573,6 +612,8 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel north = new JPanel(new BorderLayout(4, 4));
         north.add(setupNotice(project, settings), BorderLayout.NORTH);
         north.add(header, BorderLayout.CENTER);
+        starterCards = buildStarterCards();
+        north.add(starterCards, BorderLayout.SOUTH);
         add(north, BorderLayout.NORTH);
         add(transcriptPanel, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
@@ -698,8 +739,14 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private static String commandMenuLabel(AssistantCommand.CommandHint hint) {
+        // Argument hint (issue #3425 B4): the documentation example renders as secondary text so
+        // the palette teaches each command's argument shape without ever inserting the placeholder.
+        String example = hint.example() == null ? "" : hint.example().trim();
+        String argumentHint = example.length() > hint.canonical().length()
+                ? " &nbsp;·&nbsp; e.g. <i>" + escapeHtml(example) + "</i>"
+                : "";
         return "<html><b>" + hint.canonical() + "</b>&nbsp;&nbsp;<span style='color:gray;'>"
-                + hint.summary() + "</span></html>";
+                + hint.summary() + argumentHint + "</span></html>";
     }
 
     private boolean expertEnabled() {
@@ -752,11 +799,13 @@ final class ShaftAssistantPanel extends JPanel {
             @Override
             public void insertUpdate(DocumentEvent event) {
                 SwingUtilities.invokeLater(ShaftAssistantPanel.this::refreshContextPopupFilter);
+                SwingUtilities.invokeLater(ShaftAssistantPanel.this::refreshSeleniumPasteHint);
             }
 
             @Override
             public void removeUpdate(DocumentEvent event) {
                 SwingUtilities.invokeLater(ShaftAssistantPanel.this::refreshContextPopupFilter);
+                SwingUtilities.invokeLater(ShaftAssistantPanel.this::refreshSeleniumPasteHint);
             }
 
             @Override
@@ -860,6 +909,80 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.setCaretPosition(start + suggestion.insertion().length());
         prompt.requestFocusInWindow();
         setStatus("Inserted " + suggestion.matchText());
+    }
+
+    /**
+     * Starter cards for the empty chat (issue #3425 A3): instead of a blank transcript, four
+     * clickable cards prefill the matching command so the very first contact is a guided click,
+     * not a blank prompt. They disappear as soon as the chat has any content.
+     */
+    private JPanel buildStarterCards() {
+        JPanel cards = new JPanel(new java.awt.GridLayout(0, 2, 6, 6));
+        cards.getAccessibleContext().setAccessibleName("Assistant starter cards");
+        cards.setBorder(JBUI.Borders.empty(6, 8));
+        cards.add(starterCard("Record a web flow",
+                "Click through your site while SHAFT captures privacy-safe steps",
+                "/record-web https://"));
+        cards.add(starterCard("Generate a test from a recording",
+                "Compile-validated SHAFT code generated from a saved capture",
+                "/codegen recordings/"));
+        cards.add(starterCard("Diagnose failed tests",
+                "Doctor triages Allure evidence and recommends fixes",
+                "/doctor target/allure-results"));
+        cards.add(starterCard("Upgrade this project to the latest SHAFT",
+                "The agent previews, applies, and verifies the upgrade",
+                "/upgrade ."));
+        return cards;
+    }
+
+    private JButton starterCard(String title, String subtitle, String prefill) {
+        JButton card = new JButton("<html><b>" + title + "</b><br><span style='color:gray;'>"
+                + subtitle + "</span></html>");
+        card.getAccessibleContext().setAccessibleName("Starter: " + title);
+        card.setToolTipText("Prefills \"" + prefill + "\" — adjust the argument, then send");
+        card.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        card.addActionListener(event -> {
+            prompt.setText(prefill);
+            prompt.setCaretPosition(prefill.length());
+            prompt.requestFocusInWindow();
+            setStatus("Starter inserted — finish the argument, then send");
+        });
+        return card;
+    }
+
+    /**
+     * Guardrails-on-paste (issue #3425 B7): when the composer content reads as native
+     * Selenium/Appium Java, proactively offer one-click conversion instead of waiting for the
+     * user to discover /guardrails.
+     */
+    private void refreshSeleniumPasteHint() {
+        if (convertSeleniumHint == null) {
+            return;
+        }
+        String text = prompt.getText();
+        boolean seleniumDetected = text != null && text.length() > 40
+                && !text.startsWith("Convert this Selenium")
+                && AssistantMarkdown.looksLikeNativeSelenium(text);
+        if (seleniumDetected != convertSeleniumHint.isVisible()) {
+            convertSeleniumHint.setVisible(seleniumDetected);
+            revalidate();
+            repaint();
+        }
+    }
+
+    private void wrapPromptAsSeleniumConversion() {
+        String code = prompt.getText().trim();
+        prompt.setText("""
+                Convert this Selenium code to SHAFT syntax (SHAFT.GUI.WebDriver, driver.browser(), \
+                driver.element(), SHAFT locator builder; no raw Selenium), then run \
+                test_code_guardrails_check on the converted result and include its verdict:
+
+                ```java
+                %s
+                ```""".formatted(code));
+        prompt.setCaretPosition(0);
+        convertSeleniumHint.setVisible(false);
+        setStatus("Conversion request ready — press send");
     }
 
     private void hideContextPopup() {
@@ -1835,6 +1958,11 @@ final class ShaftAssistantPanel extends JPanel {
         approveCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         copyCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         dismissCaptureReview.setEnabled(!running && pendingCaptureReview != null);
+        createTestClassFromReview.setEnabled(!running && pendingCaptureReview != null);
+        insertReviewAtOpenFile.setEnabled(!running && pendingCaptureReview != null);
+        openCaptureReview.setEnabled(!running && pendingCaptureReview != null);
+        captureEvidencePack.setEnabled(!running && pendingCaptureReview != null);
+        compareCaptureBackends.setEnabled(!running && pendingCaptureReview != null);
         commandInfo.setEnabled(!running);
         cancel.setEnabled(running);
         progress.setVisible(running);
@@ -2060,6 +2188,9 @@ final class ShaftAssistantPanel extends JPanel {
         boolean hasResponse = !lastResponse.isBlank();
         boolean hasRawResponse = !lastRawResponse.isBlank();
         boolean hasTranscript = !transcript.markdown().isBlank() || !toolEvidence.isEmpty();
+        if (starterCards != null) {
+            starterCards.setVisible(!hasTranscript && !running);
+        }
         boolean canRerun = !lastPrompt.isBlank();
         copyLastResponse.setVisible(hasResponse);
         copyLastResponse.setEnabled(hasResponse);
@@ -2361,6 +2492,9 @@ final class ShaftAssistantPanel extends JPanel {
         captureReviewGenerationRunning = true;
         setRunning(true, "Generating review code...");
         RecordingBackend reviewBackend = activeRecordingBackend;
+        lastReviewSessionPath = reviewBackend == RecordingBackend.PLAYWRIGHT
+                ? activePlaywrightRecordingPath
+                : activeCaptureRecordingPath;
         AssistantCommand.Invocation invocation = recordingCodeReviewInvocation(reviewBackend);
         activeRecordingBackend = RecordingBackend.WEBDRIVER;
         currentInvocation = ShaftMcpInvocationService.getInstance(project).startTool(invocation.toolName(), invocation.arguments());
@@ -2393,6 +2527,11 @@ final class ShaftAssistantPanel extends JPanel {
         approveCaptureReview.setEnabled(!running);
         copyCaptureReview.setEnabled(!running);
         dismissCaptureReview.setEnabled(!running);
+        createTestClassFromReview.setEnabled(!running);
+        insertReviewAtOpenFile.setEnabled(!running);
+        openCaptureReview.setEnabled(!running);
+        captureEvidencePack.setEnabled(!running);
+        compareCaptureBackends.setEnabled(!running);
         captureReviewPanel.setVisible(true);
         revalidate();
         repaint();
@@ -2423,9 +2562,191 @@ final class ShaftAssistantPanel extends JPanel {
             approveCaptureReview.setEnabled(false);
             copyCaptureReview.setEnabled(false);
             dismissCaptureReview.setEnabled(false);
+            createTestClassFromReview.setEnabled(false);
+            insertReviewAtOpenFile.setEnabled(false);
+            openCaptureReview.setEnabled(false);
+            captureEvidencePack.setEnabled(false);
+            compareCaptureBackends.setEnabled(false);
             captureReviewPanel.setVisible(false);
             revalidate();
             repaint();
+        }
+    }
+
+    private JsonObject pendingReviewJson() {
+        return pendingCaptureReview == null
+                ? null
+                : AssistantMarkdown.jsonObjectFromMcpOutput(pendingCaptureReview.rawResult());
+    }
+
+    private static String reviewString(JsonObject raw, String key) {
+        return raw != null && raw.has(key) && raw.get(key).isJsonPrimitive()
+                ? raw.get(key).getAsString()
+                : "";
+    }
+
+    private static String firstJavaClassBlock(JsonObject raw) {
+        if (raw == null || !raw.has("codeBlocks") || !raw.get("codeBlocks").isJsonArray()) {
+            return "";
+        }
+        String fallback = "";
+        for (var element : raw.getAsJsonArray("codeBlocks")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject block = element.getAsJsonObject();
+            String code = string(block, "code", string(block, "content", ""));
+            if (code.isBlank() || !code.contains("class ")) {
+                continue;
+            }
+            if ("full-class".equals(string(block, "id", ""))) {
+                return code;
+            }
+            if (fallback.isBlank()) {
+                fallback = code;
+            }
+        }
+        return fallback;
+    }
+
+    /**
+     * "Create test class" (issue #3425 B1): writes the reviewed full-class block into the
+     * project's {@code src/test/java} tree (never overwriting an existing file) and opens it in
+     * the editor, so the Record -> Review -> Insert loop ends inside the IDE, not on the clipboard.
+     */
+    private void createTestClassFromReview() {
+        if (running || pendingCaptureReview == null || project == null || project.getBasePath() == null) {
+            setStatus("No reviewed code available");
+            return;
+        }
+        String code = firstJavaClassBlock(pendingReviewJson());
+        if (code.isBlank()) {
+            setStatus("The review has no full-class code block");
+            return;
+        }
+        java.util.regex.Matcher className = java.util.regex.Pattern
+                .compile("class\\s+(\\w+)").matcher(code);
+        java.util.regex.Matcher packageName = java.util.regex.Pattern
+                .compile("package\\s+([\\w.]+)\\s*;").matcher(code);
+        if (!className.find()) {
+            setStatus("Could not determine the generated class name");
+            return;
+        }
+        String body = packageName.find() ? code : "package tests.generated;\n\n" + code;
+        String packagePath = (packageName.reset().find() ? packageName.group(1) : "tests.generated")
+                .replace('.', '/');
+        Path target = Path.of(project.getBasePath(), "src", "test", "java")
+                .resolve(packagePath).resolve(className.group(1) + ".java");
+        try {
+            if (Files.exists(target)) {
+                setStatus("Already exists — opened " + target.getFileName() + " (not overwritten)");
+            } else {
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, body);
+                setStatus("Created " + target.getFileName() + " in src/test/java");
+                showResponse("**Test class created.** Wrote the reviewed recording to `"
+                        + Path.of(project.getBasePath()).relativize(target) + "` and opened it in the editor. "
+                        + "Run it with `/verify mvn -q test-compile` or your normal test run.", "");
+            }
+            openFileInEditor(target);
+        } catch (Exception writeFailure) {
+            setStatus("Could not write test class: " + writeFailure.getMessage());
+        }
+    }
+
+    /**
+     * "Insert into open class" (issue #3425 B1): asks SHAFT MCP to regenerate the reviewed steps
+     * as insertion-ready blocks anchored to the file currently open in the editor
+     * ({@code capture_record_at_target_code_blocks}).
+     */
+    private void insertReviewIntoOpenFile() {
+        if (running || pendingCaptureReview == null) {
+            return;
+        }
+        String targetSourcePath = openEditorFilePath();
+        if (targetSourcePath.isBlank()) {
+            setStatus("Open the target Java class in the editor first");
+            return;
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath", lastReviewSessionPath);
+        arguments.addProperty("outputDirectory", AssistantCommand.DEFAULT_CAPTURE_REVIEW_DIRECTORY);
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "");
+        arguments.addProperty("overwrite", true);
+        arguments.addProperty("targetSourcePath", targetSourcePath);
+        arguments.addProperty("insertAfter", "");
+        arguments.addProperty("driverVariableName", "driver");
+        startMcpInvocation(AssistantCommand.Invocation.tool("capture_record_at_target_code_blocks", arguments));
+    }
+
+    /** "Open review file" (issue #3425 B1): jumps to the generated review artifact in the editor. */
+    private void openCaptureReviewFile() {
+        JsonObject raw = pendingReviewJson();
+        String reviewPath = reviewString(raw, "reviewPath");
+        if (reviewPath.isBlank()) {
+            reviewPath = reviewString(raw, "reportPath");
+        }
+        if (reviewPath.isBlank()) {
+            setStatus("The review result did not include a review file path");
+            return;
+        }
+        openFileInEditor(Path.of(reviewPath));
+    }
+
+    /** "Evidence pack" (issue #3425 B6): one click bundles source/report/review into a manifest. */
+    private void collectCaptureEvidencePack() {
+        if (running || pendingCaptureReview == null) {
+            return;
+        }
+        JsonObject raw = pendingReviewJson();
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sourcePath", reviewString(raw, "sourcePath"));
+        arguments.addProperty("reportPath", reviewString(raw, "reportPath"));
+        arguments.addProperty("reviewPath", reviewString(raw, "reviewPath"));
+        arguments.add("screenshotPaths", new JsonArray());
+        startMcpInvocation(AssistantCommand.Invocation.tool("capture_evidence_pack", arguments));
+    }
+
+    /**
+     * "Compare backends" (issue #3425 C2): generates the same recording as both WebDriver and
+     * Playwright SHAFT code so the user can judge the differentiation with their own flow.
+     */
+    private void compareCaptureBackends() {
+        if (running || pendingCaptureReview == null) {
+            return;
+        }
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("sessionPath", lastReviewSessionPath);
+        arguments.addProperty("outputDirectory", "target/shaft-capture-comparison");
+        arguments.addProperty("packageName", "tests.generated");
+        arguments.addProperty("className", "ComparedCaptureTest");
+        arguments.addProperty("overwrite", true);
+        arguments.addProperty("driverVariableName", "driver");
+        startMcpInvocation(AssistantCommand.Invocation.tool("capture_backend_comparison", arguments));
+    }
+
+    private String openEditorFilePath() {
+        try {
+            if (project == null) {
+                return "";
+            }
+            var selectedFiles = FileEditorManager.getInstance(project).getSelectedFiles();
+            return selectedFiles.length == 0 ? "" : selectedFiles[0].getPath();
+        } catch (RuntimeException | Error headlessTestEnvironment) {
+            return "";
+        }
+    }
+
+    private void openFileInEditor(Path path) {
+        try {
+            var virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                    .refreshAndFindFileByNioFile(path);
+            if (virtualFile != null && project != null) {
+                FileEditorManager.getInstance(project).openFile(virtualFile, true);
+            }
+        } catch (RuntimeException | Error headlessTestEnvironment) {
+            // Best effort: the path was already reported in the status/transcript.
         }
     }
 

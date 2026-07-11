@@ -122,6 +122,9 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 button("Find reuse", "Find existing Java test and page-object anchors before generating code", ShaftIcons.SEARCH,
                         this::findReuse));
         JPanel recorder = section("Recorder",
+                button("Try SHAFT on a sample page",
+                        "Record a bundled local sample page - the 90-second first-recording tour", ShaftIcons.SEND,
+                        this::trySampleRecording),
                 button("Start recording", "Start a SHAFT recording", ShaftIcons.SEND, this::startRecording),
                 button("Stop recording", "Stop the active SHAFT recording", ShaftIcons.CANCEL, this::stopRecording),
                 button("Review code", "Generate reviewed SHAFT code blocks from a recording", ShaftIcons.CODE, this::generateCode));
@@ -250,6 +253,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 prefill.prefill("mobile_initialize_web_emulation", mobileWebEmulation());
             }
             case ANALYZE_FAILED_ALLURE -> prefill.prefill("doctor_analyze_failed_allure", failedAllureAnalysis());
+            case WEEKLY_FLAKY_TRIAGE -> prefill.prefill("doctor_analyze_failed_allure", weeklyFlakyTriage());
             case CONVERT_SELENIUM_SNIPPET -> prefill.prefill("test_automation_scenarios", seleniumConversionWorkflow());
             case CREATE_NEW_SHAFT_PROJECT -> prefill.prefill("shaft_project_create", newShaftProject());
             case INSPECT_CURRENT_PAGE_LOCATORS -> prefill.prefill("browser_get_page_dom", currentPageDomInspection());
@@ -301,6 +305,20 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         return arguments;
     }
 
+    /**
+     * Weekly maintenance-loop triage (issue #3425 C5): the same deterministic Doctor batch as
+     * {@link #failedAllureAnalysis()} plus historical bundles so repeat offenders surface as
+     * trends. The template description points at healer_run_failed_test as the follow-up per
+     * flaky test and at scheduling the loop through a weekly agent.
+     */
+    private static JsonObject weeklyFlakyTriage() {
+        JsonObject arguments = failedAllureAnalysis();
+        arguments.remove("historicalBundlePaths");
+        arguments.add("historicalBundlePaths", array("target/shaft-doctor/history"));
+        arguments.addProperty("outputDirectory", "target/shaft-doctor/weekly");
+        return arguments;
+    }
+
     private static JsonObject newShaftProject() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("outputDirectory", "shaft-web-testng");
@@ -343,6 +361,59 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         return array;
     }
 
+    /**
+     * The 90-second golden path (issue #3425 A1): one click extracts the bundled sample page,
+     * points a visible WebDriver recording at it, and tells the user exactly what to do next.
+     * The sample is a local file, so the first contact needs no site, no credentials, and leaks
+     * nothing off the machine.
+     */
+    private void trySampleRecording() {
+        java.nio.file.Path samplePage;
+        try {
+            samplePage = extractSamplePage();
+        } catch (Exception extractionFailure) {
+            setRecorderStatus("Could not prepare the sample page: " + extractionFailure.getMessage());
+            return;
+        }
+        backend.setSelectedItem(BACKEND_WEBDRIVER);
+        targetUrl.setText(samplePage.toUri().toString());
+        intent.setText("Search the sample bookstore and add the first result to the cart");
+        sessionPath.setText("recordings/sample-tour.json");
+        headlessBrowser.setSelected(false);
+        String tourGuidance = "Sample tour: a browser is opening on the bundled bookstore page. Search for a "
+                + "book, add it to the cart, add an assertion on the cart status, then press Stop in the SHAFT "
+                + "overlay and click Review code here.";
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            startRecording();
+            setRecorderStatus(tourGuidance + " (Run the prepared capture_start request to begin.)");
+            return;
+        }
+        invocationService.startTool("capture_start", webdriverCaptureStartArguments())
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> {
+                    if (failed(result, error)) {
+                        setRecorderStatus("Sample recording failed to start: " + failureText(result, error));
+                        return;
+                    }
+                    setRecorderStatus(tourGuidance);
+                    startStatusPolling("capture_status");
+                }));
+    }
+
+    private java.nio.file.Path extractSamplePage() throws java.io.IOException {
+        java.nio.file.Path directory = java.nio.file.Files.createTempDirectory("shaft-sample");
+        java.nio.file.Path page = directory.resolve("shaft-sample-page.html");
+        try (java.io.InputStream sample = GuidedWorkflowPanel.class
+                .getResourceAsStream("/sample/shaft-sample-page.html")) {
+            if (sample == null) {
+                throw new java.io.IOException("bundled sample page resource is missing");
+            }
+            java.nio.file.Files.copy(sample, page, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+        return page;
+    }
+
     private void startRecording() {
         if (mobile()) {
             startMobileRecording();
@@ -356,13 +427,19 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             prefill.prefill("playwright_record_start", arguments);
             startStatusPolling("playwright_record_status");
         } else {
-            arguments.addProperty("targetUrl", targetUrl.getText().trim());
-            arguments.addProperty("browser", "Chrome");
-            arguments.addProperty("headless", headlessBrowser.isSelected());
-            arguments.addProperty("sessionGoal", intent.getText().trim());
-            prefill.prefill("capture_start", arguments);
+            prefill.prefill("capture_start", webdriverCaptureStartArguments());
             startStatusPolling("capture_status");
         }
+    }
+
+    private JsonObject webdriverCaptureStartArguments() {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("outputPath", sessionPath.getText().trim());
+        arguments.addProperty("targetUrl", targetUrl.getText().trim());
+        arguments.addProperty("browser", "Chrome");
+        arguments.addProperty("headless", headlessBrowser.isSelected());
+        arguments.addProperty("sessionGoal", intent.getText().trim());
+        return arguments;
     }
 
     private JsonObject mobileRecordStartArguments() {
@@ -702,6 +779,11 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         ANALYZE_FAILED_ALLURE(
                 "Analyze failed Allure results",
                 "Prefills deterministic Doctor analysis with AI and source edits disabled."),
+        WEEKLY_FLAKY_TRIAGE(
+                "Weekly flaky triage (maintenance loop)",
+                "Prefills a batch Doctor analysis with historical bundles for trend detection; follow up with "
+                        + "healer_run_failed_test per flaky test. Pair it with a weekly scheduled agent that sends "
+                        + "/doctor and consolidates the report."),
         CONVERT_SELENIUM_SNIPPET(
                 "Convert Selenium snippet to SHAFT syntax",
                 "Prefills a review-only SHAFT syntax conversion workflow."),

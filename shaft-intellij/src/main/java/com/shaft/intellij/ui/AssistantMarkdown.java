@@ -418,6 +418,14 @@ final class AssistantMarkdown {
             if (!captureReplay.isBlank()) {
                 return captureReplay;
             }
+            String backendComparison = backendComparisonMarkdown(object);
+            if (!backendComparison.isBlank()) {
+                return backendComparison;
+            }
+            String evidencePack = evidencePackMarkdown(object);
+            if (!evidencePack.isBlank()) {
+                return evidencePack;
+            }
             if (object.has("codeBlocks") && object.get("codeBlocks").isJsonArray()) {
                 return codeBlocksMarkdown(object.getAsJsonArray("codeBlocks"));
             }
@@ -558,6 +566,62 @@ final class AssistantMarkdown {
 
     private static String codePath(String path) {
         return path == null || path.isBlank() ? "" : "`" + path + "`";
+    }
+
+    /**
+     * Renders a {@code capture_backend_comparison} result (issue #3425 C2): one card per backend
+     * with its generation outcome and source path, so a user can judge WebDriver vs Playwright
+     * differentiation on their own recorded flow.
+     */
+    private static String backendComparisonMarkdown(JsonObject object) {
+        if (!object.has("backends") || !object.get("backends").isJsonArray()) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add("**Backend comparison** — the same recording generated for each SHAFT backend:");
+        StringBuilder table = new StringBuilder("""
+                | Backend | Generation | Generated source | Code blocks |
+                | --- | --- | --- | --- |
+                """);
+        for (JsonElement item : object.getAsJsonArray("backends")) {
+            if (!item.isJsonObject()) {
+                continue;
+            }
+            JsonObject backend = item.getAsJsonObject();
+            int blockCount = backend.has("blockIds") && backend.get("blockIds").isJsonArray()
+                    ? backend.getAsJsonArray("blockIds").size()
+                    : 0;
+            table.append("| ").append(table(string(backend, "backend", "?")))
+                    .append(" | ").append(booleanValue(backend, "successful")
+                            ? ShaftStatusPresentation.SUCCESS_ICON + " succeeded"
+                            : ShaftStatusPresentation.ERROR_ICON + " failed")
+                    .append(" | ").append(table(codePath(string(backend, "sourcePath", ""))))
+                    .append(" | ").append(blockCount)
+                    .append(" |\n");
+        }
+        sections.add(table.toString().trim());
+        appendNonBlank(sections, warnings(object));
+        sections.add("_Both classes compile against SHAFT; open the generated sources side by side to compare "
+                + "the WebDriver and Playwright styles for your flow._");
+        return joinSections(sections);
+    }
+
+    /**
+     * Renders a {@code capture_evidence_pack} manifest (issue #3425 B6) as a shareable checklist.
+     */
+    private static String evidencePackMarkdown(JsonObject object) {
+        if (!object.has("artifactPaths") || !object.get("artifactPaths").isJsonArray()
+                || !object.has("validationCommands")) {
+            return "";
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add("**Evidence pack** — everything a reviewer needs, in one list:");
+        appendNonBlank(sections, bulletList("Artifacts", object, "artifactPaths"));
+        appendNonBlank(sections, bulletList("Validation commands", object, "validationCommands"));
+        appendNonBlank(sections, warnings(object));
+        sections.add("_Zip the artifact paths above (or attach them to your PR) to share the full recording "
+                + "evidence with your team._");
+        return joinSections(sections);
     }
 
     private static String codingPartnerMarkdown(JsonObject object) {
@@ -1449,7 +1513,11 @@ final class AssistantMarkdown {
         return false;
     }
 
-    private static boolean looksLikeNativeSelenium(String code) {
+    /**
+     * Whether pasted/typed code reads as native Selenium (package-private so the composer can
+     * proactively offer "convert to SHAFT + guardrails" on paste — issue #3425 B7).
+     */
+    static boolean looksLikeNativeSelenium(String code) {
         return code.contains("org.openqa.selenium.WebDriver")
                 || code.contains("SHAFT.GUI.Locator.xpath(")
                 || code.contains("new ChromeDriver(")

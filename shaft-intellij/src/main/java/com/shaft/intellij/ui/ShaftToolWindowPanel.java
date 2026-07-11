@@ -44,6 +44,8 @@ public final class ShaftToolWindowPanel extends JPanel {
     private List<WorkflowView> workflowViews = List.of();
     private ApiRecordingSessionPanel apiRecordingPanel;
     private GuidedWorkflowPanel guidedWorkflowPanel;
+    private JLabel healthChip;
+    private javax.swing.JButton recheckHealth;
 
     public ShaftToolWindowPanel(@NotNull Project project) {
         this(project, ShaftSettingsState.getInstance().getState());
@@ -114,50 +116,60 @@ public final class ShaftToolWindowPanel extends JPanel {
         ShaftAssistantPanel assistant = new ShaftAssistantPanel(project, settings,
                 assistantChatState, this::showSetupView);
         preferredFocusComponent = assistant.preferredFocusComponent();
-        if (!settings.advancedUiEnabled) {
-            workflowSelector = null;
-            workflowCards = null;
-            workflowLayout = null;
-            advancedTools = null;
-            featurePanels = List.of();
-            workflowViews = List.of(new WorkflowView("Assistant", assistant, ShaftIcons.SEND));
-            add(assistant, BorderLayout.CENTER);
-            revalidate();
-            repaint();
-            return;
-        }
-
         workflowLayout = new CardLayout();
         workflowCards = new JPanel(workflowLayout);
         workflowCards.getAccessibleContext().setAccessibleName("SHAFT workflow content");
         GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);
         guidedWorkflowPanel = guided;
-        EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
-        ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
-                List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
-        ShaftFeaturePanel inspectorTools = new ShaftFeaturePanel(project, settings,
-                List.of(new ToolCategory("Inspector", ToolTemplates.inspector())));
-        ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
-                List.of(new ToolCategory("Evidence", Stream.concat(
-                        ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
-        ShaftFeaturePanel projectsTools = new ShaftFeaturePanel(project, settings,
-                List.of(new ToolCategory("Projects", ToolTemplates.projects())));
-        advancedTools = new ShaftFeaturePanel(project, settings);
         featurePanels = new ArrayList<>();
-        featurePanels.add(recorderTools);
-        featurePanels.add(inspectorTools);
-        featurePanels.add(evidenceTools);
-        featurePanels.add(projectsTools);
-        featurePanels.add(advancedTools);
-        workflowViews = List.of(
-                new WorkflowView("Assistant", assistant, ShaftIcons.SEND),
-                new WorkflowView("Guided", guided, ShaftIcons.CODE),
-                new WorkflowView("Recorder", recorderTools, ShaftIcons.VIEW),
-                new WorkflowView("Inspector", inspectorTools, ShaftIcons.SEARCH),
-                new WorkflowView("Triage", triage, ShaftIcons.CHECK),
-                new WorkflowView("Evidence", evidenceTools, ShaftIcons.EDIT),
-                new WorkflowView("Projects", projectsTools, ShaftIcons.SETTINGS),
-                new WorkflowView("Advanced", advancedTools, ShaftIcons.HELP));
+        List<WorkflowView> views = new ArrayList<>();
+        views.add(new WorkflowView("Assistant", assistant, ShaftIcons.SEND));
+        views.add(new WorkflowView("Guided", guided, ShaftIcons.CODE));
+        if (settings.advancedUiEnabled) {
+            EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
+            ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
+                    List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
+            ShaftFeaturePanel inspectorTools = new ShaftFeaturePanel(project, settings,
+                    List.of(new ToolCategory("Inspector", ToolTemplates.inspector())));
+            ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
+                    List.of(new ToolCategory("Evidence", Stream.concat(
+                            ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
+            ShaftFeaturePanel projectsTools = new ShaftFeaturePanel(project, settings,
+                    List.of(new ToolCategory("Projects", ToolTemplates.projects())));
+            advancedTools = new ShaftFeaturePanel(project, settings);
+            featurePanels.add(recorderTools);
+            featurePanels.add(inspectorTools);
+            featurePanels.add(evidenceTools);
+            featurePanels.add(projectsTools);
+            featurePanels.add(advancedTools);
+            views.add(new WorkflowView("Recorder", recorderTools, ShaftIcons.VIEW));
+            views.add(new WorkflowView("Inspector", inspectorTools, ShaftIcons.SEARCH));
+            views.add(new WorkflowView("Triage", triage, ShaftIcons.CHECK));
+            views.add(new WorkflowView("Evidence", evidenceTools, ShaftIcons.EDIT));
+            views.add(new WorkflowView("Projects", projectsTools, ShaftIcons.SETTINGS));
+            views.add(new WorkflowView("Advanced", advancedTools, ShaftIcons.HELP));
+        } else {
+            // Progressive disclosure (issue #3425 A4): the default UI shows Assistant + Guided,
+            // and only surfaces the specialist tabs once the artifacts that make them relevant
+            // actually exist in this project. Expert mode still shows everything.
+            advancedTools = null;
+            if (projectArtifactExists("recordings")) {
+                ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
+                        List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
+                featurePanels.add(recorderTools);
+                views.add(new WorkflowView("Recorder", recorderTools, ShaftIcons.VIEW));
+            }
+            if (projectArtifactExists("target/allure-results") || projectArtifactExists("target/shaft-traces")) {
+                EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
+                ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
+                        List.of(new ToolCategory("Evidence", Stream.concat(
+                                ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
+                featurePanels.add(evidenceTools);
+                views.add(new WorkflowView("Triage", triage, ShaftIcons.CHECK));
+                views.add(new WorkflowView("Evidence", evidenceTools, ShaftIcons.EDIT));
+            }
+        }
+        workflowViews = List.copyOf(views);
         for (WorkflowView view : workflowViews) {
             workflowCards.add(view.component(), view.label());
         }
@@ -194,10 +206,88 @@ public final class ShaftToolWindowPanel extends JPanel {
         label.setLabelFor(workflowSelector);
         header.add(label);
         header.add(workflowSelector);
+        header.add(buildHealthChip());
         add(header, BorderLayout.NORTH);
         add(workflowCards, BorderLayout.CENTER);
         revalidate();
         repaint();
+    }
+
+    /**
+     * Persistent setup-health chip (issue #3425 A6): always visible in the main-view header, it
+     * reflects the last verified MCP state and offers a one-click live re-check. A failed re-check
+     * offers reconnecting through the setup view instead of leaving a dead tool window.
+     */
+    private JComponent buildHealthChip() {
+        healthChip = new JLabel();
+        healthChip.getAccessibleContext().setAccessibleName("SHAFT MCP health");
+        recheckHealth = new javax.swing.JButton("Recheck");
+        recheckHealth.getAccessibleContext().setAccessibleName("Recheck SHAFT MCP health");
+        recheckHealth.setToolTipText("Run a live SHAFT MCP connection check now");
+        recheckHealth.setMargin(JBUI.insets(1, 6));
+        recheckHealth.addActionListener(event -> recheckMcpHealth());
+        applyHealthState(settings.mcpReady() ? HealthState.VERIFIED : HealthState.UNKNOWN, "");
+        JPanel chip = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        chip.setOpaque(false);
+        chip.add(healthChip);
+        chip.add(recheckHealth);
+        return chip;
+    }
+
+    private void recheckMcpHealth() {
+        String command = settings.mcpCommand == null ? "" : settings.mcpCommand.trim();
+        if (command.isBlank()) {
+            applyHealthState(HealthState.FAILED, "No MCP command configured");
+            showSetupView();
+            return;
+        }
+        recheckHealth.setEnabled(false);
+        healthChip.setText("MCP: checking...");
+        java.nio.file.Path root = project == null || project.getBasePath() == null
+                ? java.nio.file.Path.of(".")
+                : java.nio.file.Path.of(project.getBasePath());
+        com.shaft.intellij.mcp.ShaftMcpConnectionProbe.test(command, settings, root)
+                .whenComplete((result, error) -> com.intellij.openapi.application.ApplicationManager
+                        .getApplication().invokeLater(() -> {
+                            recheckHealth.setEnabled(true);
+                            boolean healthy = error == null && result != null && result.success();
+                            applyHealthState(healthy ? HealthState.VERIFIED : HealthState.FAILED,
+                                    healthy ? "" : error != null
+                                            ? String.valueOf(error.getMessage())
+                                            : result == null ? "no result" : result.output());
+                        }));
+    }
+
+    private void applyHealthState(HealthState state, String detail) {
+        healthChip.setText(switch (state) {
+            case VERIFIED -> "MCP: verified";
+            case FAILED -> "MCP: failed";
+            default -> "MCP: not checked";
+        });
+        healthChip.setForeground(switch (state) {
+            case VERIFIED -> ShaftStatusPresentation.success();
+            case FAILED -> ShaftStatusPresentation.error();
+            default -> ShaftStatusPresentation.pending();
+        });
+        healthChip.setToolTipText(switch (state) {
+            case VERIFIED -> "SHAFT MCP passed its last connection check. Click Recheck to verify again.";
+            case FAILED -> "SHAFT MCP check failed" + (detail == null || detail.isBlank() ? "" : ": " + detail)
+                    + ". Recheck, or reopen setup from the Assistant's Configure action.";
+            default -> "SHAFT MCP has not been live-checked in this window yet. Click Recheck to verify.";
+        });
+    }
+
+    private enum HealthState { UNKNOWN, VERIFIED, FAILED }
+
+    private boolean projectArtifactExists(String relativePath) {
+        if (project == null || project.getBasePath() == null || project.getBasePath().isBlank()) {
+            return false;
+        }
+        try {
+            return java.nio.file.Files.exists(java.nio.file.Path.of(project.getBasePath(), relativePath));
+        } catch (RuntimeException invalidPath) {
+            return false;
+        }
     }
 
     /**
@@ -229,7 +319,7 @@ public final class ShaftToolWindowPanel extends JPanel {
      * @param arguments JSON arguments
      */
     public void prefillTool(@NotNull String toolName, @NotNull JsonObject arguments) {
-        if (workflowSelector == null || !settings.advancedUiEnabled) {
+        if (workflowSelector == null) {
             return;
         }
         for (ShaftFeaturePanel panel : featurePanels) {
@@ -238,6 +328,20 @@ public final class ShaftToolWindowPanel extends JPanel {
                 return;
             }
         }
+        // No existing tab owns this tool: surface the Advanced tools tab on demand — the
+        // progressive-disclosure default hides it until a workflow actually needs it (#3425 A4).
+        if (advancedTools == null) {
+            advancedTools = new ShaftFeaturePanel(project, settings);
+            featurePanels = new ArrayList<>(featurePanels);
+            featurePanels.add(advancedTools);
+            WorkflowView advancedView = new WorkflowView("Advanced", advancedTools, ShaftIcons.HELP);
+            List<WorkflowView> updated = new ArrayList<>(workflowViews);
+            updated.add(advancedView);
+            workflowViews = updated;
+            workflowCards.add(advancedTools, advancedView.label());
+            workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
+        }
+        advancedTools.prefillTool(toolName, arguments);
         selectWorkflow(advancedTools);
     }
 
@@ -249,7 +353,7 @@ public final class ShaftToolWindowPanel extends JPanel {
      * @param startArguments arguments for the {@code capture_api_start} MCP call
      */
     public void showApiRecordingTab(@NotNull String targetUrl, @NotNull JsonObject startArguments) {
-        if (workflowCards == null || workflowLayout == null || !settings.advancedUiEnabled) {
+        if (workflowCards == null || workflowLayout == null) {
             return;
         }
         disposeApiRecordingPanel();

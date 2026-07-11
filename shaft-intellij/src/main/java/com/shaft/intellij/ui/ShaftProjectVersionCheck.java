@@ -40,8 +40,14 @@ final class ShaftProjectVersionCheck {
      * @param state comparison outcome
      * @param projectVersion SHAFT version found in the project pom, or blank
      * @param latestVersion latest released version used for comparison, or blank when unknown
+     * @param pomPresent whether the project root has a readable {@code pom.xml} at all — separates
+     *                   "plain Maven project without SHAFT" from "empty folder" so the setup wizard
+     *                   can point at the right next action (issue #3425 A5)
      */
-    record Result(State state, String projectVersion, String latestVersion) {
+    record Result(State state, String projectVersion, String latestVersion, boolean pomPresent) {
+        Result(State state, String projectVersion, String latestVersion) {
+            this(state, projectVersion, latestVersion, true);
+        }
     }
 
     private ShaftProjectVersionCheck() {
@@ -49,17 +55,20 @@ final class ShaftProjectVersionCheck {
     }
 
     static Result check(Path projectRoot, String latestVersion) {
-        String projectVersion = shaftVersionFromPom(projectRoot == null ? null : projectRoot.resolve("pom.xml"));
+        Path pomFile = projectRoot == null ? null : projectRoot.resolve("pom.xml");
+        boolean pomPresent = pomFile != null && Files.isRegularFile(pomFile);
+        String projectVersion = shaftVersionFromPom(pomFile);
         if (projectVersion.isBlank()) {
-            return new Result(State.NOT_A_SHAFT_PROJECT, "", latestVersion == null ? "" : latestVersion);
+            return new Result(State.NOT_A_SHAFT_PROJECT, "", latestVersion == null ? "" : latestVersion, pomPresent);
         }
         if (latestVersion == null || latestVersion.isBlank() || !isVersionLike(latestVersion)) {
-            return new Result(State.LATEST_UNKNOWN, projectVersion, "");
+            return new Result(State.LATEST_UNKNOWN, projectVersion, "", true);
         }
         return new Result(
                 compareVersions(projectVersion, latestVersion) >= 0 ? State.UP_TO_DATE : State.UPGRADE_AVAILABLE,
                 projectVersion,
-                latestVersion);
+                latestVersion,
+                true);
     }
 
     /**

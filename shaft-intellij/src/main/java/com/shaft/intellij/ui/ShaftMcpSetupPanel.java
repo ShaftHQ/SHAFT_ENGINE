@@ -109,6 +109,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JButton copyInstallerCommand;
     private final JButton test;
     private final JButton startChatting;
+    private final JButton startWithoutAgent;
     private final JButton resetAndReinstall;
     private final JCheckBox expertMode;
     private final JButton resetEverything;
@@ -301,6 +302,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         applyLabeledAction(startChatting, ShaftIcons.SEND);
         startChatting.setVisible(false);
         startChatting.addActionListener(event -> connected.run());
+        startWithoutAgent = new JButton("Start without an agent");
+        startWithoutAgent.getAccessibleContext().setAccessibleName("Start SHAFT without an agent");
+        startWithoutAgent.setToolTipText("Recorder, codegen, doctor, and healer only need the verified SHAFT MCP. "
+                + "Connect an agent later for chat.");
+        applyLabeledAction(startWithoutAgent, ShaftIcons.SEND);
+        startWithoutAgent.setVisible(false);
+        startWithoutAgent.addActionListener(event -> connected.run());
         resetAndReinstall = new JButton("Reset / reinstall");
         resetAndReinstall.getAccessibleContext().setAccessibleName("Reset and reinstall SHAFT MCP");
         resetAndReinstall.setToolTipText("Clear the saved MCP command and copy a fresh installer command");
@@ -458,7 +466,11 @@ final class ShaftMcpSetupPanel extends JPanel {
         prerequisitesRow = stepRow(prerequisitesStep, prerequisitesState, prerequisitesControls);
         JLabel readyStep = setupStepLabel("Start chatting setup step");
         readyStep.setText("Ready");
-        chatRow = stepRow(readyStep, readyState, startChatting);
+        JPanel readyActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        readyActions.setOpaque(false);
+        readyActions.add(startChatting);
+        readyActions.add(startWithoutAgent);
+        chatRow = stepRow(readyStep, readyState, readyActions);
         chatRow.setVisible(false);
         JPanel workflow = new JPanel();
         workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
@@ -496,10 +508,20 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel intro = new JPanel(new BorderLayout(4, 2));
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
-        JLabel summary = new JLabel("Pick an agent. SHAFT handles the wiring.");
+        // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
+        JLabel summary = new JLabel("Pick an agent — the same /record-web, /codegen, and /doctor flows work on "
+                + "Codex, Claude Code, Copilot, and Gemini. SHAFT handles the wiring.");
         summary.setForeground(ShaftStatusPresentation.pending());
+        JLabel whyShaft = new JLabel();
+        whyShaft.getAccessibleContext().setAccessibleName("Why SHAFT summary");
+        whyShaft.setText("<html><b>Why SHAFT?</b> Privacy-safe recording (typed values externalized, secrets "
+                + "redacted) · compile-validated codegen (generated tests compile and replay before you see them) · "
+                + "repo-aware generation (reuses your page objects and locators) · a maintenance loop "
+                + "(Doctor triage + Healer locator repair when tests break).</html>");
+        whyShaft.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
         intro.add(title, BorderLayout.NORTH);
         intro.add(summary, BorderLayout.CENTER);
+        intro.add(whyShaft, BorderLayout.SOUTH);
         installerDetailsPanel = FormBuilder.createFormBuilder()
                 .addComponent(targetRow)
                 .addLabeledComponent("Installer command", new JBScrollPane(installerCommand))
@@ -592,8 +614,13 @@ final class ShaftMcpSetupPanel extends JPanel {
                     + upgradeCheckResult.latestVersion() + ") or newer. Nothing to do.";
             case UPGRADE_AVAILABLE -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected — "
                     + upgradeCheckResult.latestVersion() + " is available. Run the upgrade command, then press Check.";
-            case NOT_A_SHAFT_PROJECT -> "No SHAFT dependency found in this project's pom.xml. "
-                    + "Run the upgrade command to add SHAFT, then press Check.";
+            // Project-shape-aware guidance (issue #3425 A5): an empty folder needs a project
+            // scaffold, while a plain Maven project needs the SHAFT upgrade/adoption command.
+            case NOT_A_SHAFT_PROJECT -> upgradeCheckResult.pomPresent()
+                    ? "Maven project detected without a SHAFT dependency. Run the upgrade command to adopt SHAFT, "
+                    + "then press Check."
+                    : "No pom.xml found here. Ask the Assistant to \"create a SHAFT project\" (or use the Projects "
+                    + "workflow) to scaffold one, then press Check.";
             case LATEST_UNKNOWN -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected, but the latest "
                     + "release could not be determined (offline?). Press Check to retry.";
         };
@@ -753,6 +780,7 @@ final class ShaftMcpSetupPanel extends JPanel {
 
     private void showTestResult(ShaftMcpToolResult result, Throwable error, ShaftMcpToolResult precomputedReadiness) {
         boolean success = error == null && result != null && result.success();
+        boolean agentReady = false;
         setRunning(false, success ? "Connected" : "Test failed. Retry test.");
         if (error != null) {
             showAssistError();
@@ -765,15 +793,21 @@ final class ShaftMcpSetupPanel extends JPanel {
             if (result.success()) {
                 clearDiagnostics();
                 ShaftMcpToolResult readiness = verifySelectedAgentReadiness(precomputedReadiness);
-                if (readiness.success()) {
+                agentReady = readiness.success();
+                if (agentReady) {
                     showAssistConfigured();
                     showRuntimeVerified();
                     setStatusText(successSummary(result.output()));
                 } else {
-                    success = false;
-                    showAssistError();
-                    setStatusText("Agent not ready. Retry test.");
-                    setDiagnosticText(troubleshootingDetails("Client readiness failed",
+                    // Two-lane readiness (issue #3425 A2): the recorder, codegen, doctor, and
+                    // healer only need a verified SHAFT MCP — a working agent adds chat and is
+                    // the optional second lane. A missing agent therefore no longer fails setup.
+                    showAssistStatus("MCP verified — agent optional", ShaftStatusPresentation.progress());
+                    assistStatus.setVisible(true);
+                    showRuntimeVerified();
+                    setStatusText("SHAFT MCP verified. Recorder, codegen, and doctor are ready now — "
+                            + "connecting an agent adds chat and is optional.");
+                    setDiagnosticText(troubleshootingDetails("Agent lane not ready (optional)",
                             "MCP probe output:\n" + result.output() + "\n\nAgent readiness failed: " + readiness.output(),
                             readinessDiagnosticCommand(), true), readinessDiagnosticCommand());
                     showRestartCommandRecovery();
@@ -789,12 +823,14 @@ final class ShaftMcpSetupPanel extends JPanel {
         if (success) {
             settings.mcpSetupComplete = true;
             settings.agentGuidanceOptimizationPromptPending = hasAgentGuidanceScaffold();
-            startChatting.setVisible(true);
-            startChatting.requestFocusInWindow();
+            startChatting.setVisible(agentReady);
+            startWithoutAgent.setVisible(!agentReady);
+            (agentReady ? startChatting : startWithoutAgent).requestFocusInWindow();
         } else {
             settings.mcpSetupComplete = false;
             settings.agentGuidanceOptimizationPromptPending = false;
             startChatting.setVisible(false);
+            startWithoutAgent.setVisible(false);
             showRuntimeSelected();
         }
         updateActionState(false);
@@ -829,9 +865,10 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyUpgradeCommand.setVisible(!upgradeDone);
         copyUpgradeCommand.setEnabled(!running && !upgradeDone);
         checkUpgrade.setEnabled(!running);
-        startChatting.setVisible(complete || startChatting.isVisible());
+        startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
         startChatting.setEnabled(!running && startChatting.isVisible());
-        chatRow.setVisible(startChatting.isVisible());
+        startWithoutAgent.setEnabled(!running && startWithoutAgent.isVisible());
+        chatRow.setVisible(startChatting.isVisible() || startWithoutAgent.isVisible());
         copyCommand.setEnabled(!running && !diagnosticCommand.isBlank());
         boolean canReset = complete || detailsPanel.isVisible();
         resetAndReinstall.setVisible(canReset);
@@ -846,6 +883,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         clearDiagnostics();
         showAssistNotConfigured();
         startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
         lastCheckFailed = false;
@@ -876,6 +914,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         lastCheckFailed = false;
         showAssistNotConfigured();
         startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
         settings.mcpSetupComplete = false;
         settings.agentGuidanceOptimizationPromptPending = false;
         setStatusText(currentCommand().isBlank()
@@ -1128,6 +1167,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         settings.agentGuidanceOptimizationPromptPending = false;
         installerCommand.setText(installerCommand());
         startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
         showRuntimeSelected();
         showAssistNotConfigured();
         refreshRealChecks();

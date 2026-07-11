@@ -29,7 +29,18 @@ class GuidedWorkflowPanelTest {
 
         assertNotNull(templates);
         assertNotNull(useTemplate);
-        assertEquals(6, templates.getItemCount());
+        assertEquals(7, templates.getItemCount());
+
+        select(templates, "Weekly flaky triage (maintenance loop)");
+        useTemplate.doClick();
+        CapturedInvocation weeklyTriage = last(invocations);
+        assertAll(
+                () -> assertEquals("doctor_analyze_failed_allure", weeklyTriage.toolName()),
+                () -> assertEquals("target/shaft-doctor/weekly",
+                        weeklyTriage.arguments().get("outputDirectory").getAsString()),
+                () -> assertEquals("target/shaft-doctor/history",
+                        weeklyTriage.arguments().get("historicalBundlePaths").getAsJsonArray().get(0).getAsString()),
+                () -> assertFalse(weeklyTriage.arguments().get("useAi").getAsBoolean()));
 
         select(templates, "Record browser flow and generate Page Object code");
         useTemplate.doClick();

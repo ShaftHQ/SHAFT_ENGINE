@@ -283,7 +283,9 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNull(setupPanel(toolWindow)),
-                () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
+                // Progressive disclosure (issue #3425 A4): the default main view now pairs the
+                // Assistant with the Guided workflow behind a two-entry selector.
+                () -> assertNotNull(toolWindowWorkflowSelector(toolWindow)),
                 () -> assertNotNull(findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class)),
                 () -> assertTrue(containsText(toolWindow, "Codex CLI")));
     }
@@ -694,7 +696,9 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(restart),
                 () -> assertTrue(restart.isVisible()),
                 () -> assertTrue(restart.isEnabled()),
-                () -> assertFalse(settings.mcpSetupComplete));
+                // Two-lane readiness (issue #3425 A2): the MCP lane is verified, so setup is
+                // complete; the restart command remains the recovery for the optional agent lane.
+                () -> assertTrue(settings.mcpSetupComplete));
 
         restart.doClick();
         assertTrue(copied.get().contains("codex"), copied.get());
@@ -847,7 +851,10 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void setupPanelBlocksConnectionWhenSelectedAgentIsNotReady() throws Exception {
+    void setupPanelOffersNoAgentLaneWhenSelectedAgentIsNotReady() throws Exception {
+        // Two-lane readiness (issue #3425 A2): recorder/codegen/doctor only need a verified
+        // SHAFT MCP, so a missing agent CLI completes setup on the No-AI lane instead of failing
+        // the whole wizard — while the agent diagnostics stay visible for the optional lane.
         AtomicBoolean connected = new AtomicBoolean();
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> connected.set(true),
@@ -856,15 +863,20 @@ class ShaftPanelSetupTest {
         showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
 
         assertAll(
-                () -> assertTrue(containsText(panel, "Assist: Error")),
-                () -> assertTrue(containsText(panel, "Client readiness failed")),
+                () -> assertTrue(containsText(panel, "MCP verified — agent optional")),
+                () -> assertTrue(containsText(panel, "Recorder, codegen, and doctor are ready now")),
+                () -> assertTrue(containsText(panel, "Agent lane not ready (optional)")),
                 () -> assertTrue(containsText(panel, "Category: Client runtime")),
                 () -> assertTrue(containsText(panel, "Install the selected client CLI or add it to PATH")),
                 () -> assertTrue(containsText(panel, "codex --version")),
                 () -> assertTrue(containsText(panel, "Agent readiness failed: Codex CLI executable is not available on PATH.")),
                 () -> assertFalse(connected.get()),
-                () -> assertFalse(settings.mcpSetupComplete),
-                () -> assertFalse(settings.agentGuidanceOptimizationPromptPending));
+                () -> assertTrue(settings.mcpSetupComplete),
+                () -> assertTrue(findByAccessibleName(panel, "Start SHAFT without an agent", JButton.class).isVisible()),
+                () -> assertFalse(findByAccessibleName(panel, "Start chatting with SHAFT Assistant", JButton.class).isVisible()));
+
+        clickAccessible(panel, "Start SHAFT without an agent");
+        assertTrue(connected.get());
     }
 
     @Test
@@ -918,10 +930,13 @@ class ShaftPanelSetupTest {
         showTestResult(panel, ShaftMcpToolResult.success("Probe OK"));
 
         assertAll(
-                () -> assertTrue(containsText(panel, "Assist: Error")),
+                // Two-lane readiness (issue #3425 A2): a missing Gemini key only blocks the chat
+                // lane; the verified MCP lane still completes with the no-agent start offered.
+                () -> assertTrue(containsText(panel, "MCP verified — agent optional")),
                 () -> assertTrue(containsText(panel, "No Gemini API key stored")),
-                () -> assertFalse(settings.mcpSetupComplete),
-                () -> assertFalse(settings.agentGuidanceOptimizationPromptPending));
+                () -> assertTrue(settings.mcpSetupComplete),
+                () -> assertTrue(findByAccessibleName(panel, "Start SHAFT without an agent", JButton.class)
+                        .isVisible()));
     }
 
     @Test
@@ -1116,11 +1131,22 @@ class ShaftPanelSetupTest {
     void toolWindowHidesAdvancedWorkflowsByDefault() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 
+        // Progressive disclosure (issue #3425 A4): the default view is Assistant + Guided; the
+        // specialist tabs only appear once their artifacts exist or Expert mode is enabled. The
+        // fake test project has no recordings/allure artifacts, so exactly two views show.
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
+        assertNotNull(selector);
+        List<String> labels = new ArrayList<>();
+        for (int index = 0; index < selector.getItemCount(); index++) {
+            labels.add(selector.getItemAt(index).label());
+        }
         assertAll(
-                () -> assertNull(selector),
-                () -> assertFalse(containsText(toolWindow, "Workflow")),
-                () -> assertTrue(containsText(toolWindow, "Configure")));
+                () -> assertEquals(List.of("Assistant", "Guided"), labels),
+                () -> assertTrue(containsText(toolWindow, "Workflow")),
+                // The persistent setup-health chip (issue #3425 A6) rides in the same header.
+                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP health", JLabel.class)),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)),
+                () -> assertTrue(containsText(toolWindow, "MCP: verified")));
     }
 
     @Test
@@ -1672,7 +1698,7 @@ class ShaftPanelSetupTest {
 
         assertAll(
                 () -> assertNull(setupPanel(toolWindow)),
-                () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
+                () -> assertNotNull(toolWindowWorkflowSelector(toolWindow)),
                 () -> assertFalse(transcriptMarkdown(toolWindow).contains("start recording")),
                 () -> assertTrue(transcriptMarkdown(toolWindow).contains("generate reviewed code")),
                 () -> assertNotNull(chats),
@@ -2324,6 +2350,13 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Reset everything".equals(accessibleName(button)))
                 .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
                 .filter(button -> !"Check SHAFT project version".equals(accessibleName(button)))
+                // Lane/teaching controls keep visible labels by design: the no-agent start names
+                // its lane, starter cards are teaching content (issue #3425 A2/A3/B7/A6), and the
+                // health-chip recheck is a compact header action.
+                .filter(button -> !"Start SHAFT without an agent".equals(accessibleName(button)))
+                .filter(button -> !"Convert pasted Selenium to SHAFT".equals(accessibleName(button)))
+                .filter(button -> !"Recheck SHAFT MCP health".equals(accessibleName(button)))
+                .filter(button -> !String.valueOf(accessibleName(button)).startsWith("Starter: "))
                 // Setup-screen prerequisite/recovery command buttons keep visible labels like the
                 // upgrade step's copy/terminal pair: they name the exact terminal command being
                 // copied, which an icon alone cannot convey on a first-run provisioning screen.
@@ -3414,7 +3447,9 @@ class ShaftPanelSetupTest {
                         "Previous session with conversation should still be selectable"),
                 () -> assertFalse(transcriptMarkdown(toolWindow).contains("Previous assistant conversation"),
                         "Current transcript should show the new empty session, not previous conversation"),
-                () -> assertNull(toolWindowWorkflowSelector(toolWindow)));
+                // Progressive disclosure (issue #3425 A4): the default main view carries the
+                // Assistant + Guided selector.
+                () -> assertNotNull(toolWindowWorkflowSelector(toolWindow)));
     }
 
     @Test
@@ -4918,10 +4953,16 @@ class ShaftPanelSetupTest {
                         "New chat must not lose any prior session across the whole journey"));
     }
 
-    private static ShaftAssistantPanel findAssistantPanel(ShaftToolWindowPanel toolWindow) {
-        for (Component component : toolWindow.getComponents()) {
+    private static ShaftAssistantPanel findAssistantPanel(Container container) {
+        for (Component component : container.getComponents()) {
             if (component instanceof ShaftAssistantPanel assistant) {
                 return assistant;
+            }
+            if (component instanceof Container child) {
+                ShaftAssistantPanel nested = findAssistantPanel(child);
+                if (nested != null) {
+                    return nested;
+                }
             }
         }
         return null;
