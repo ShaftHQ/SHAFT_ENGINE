@@ -136,6 +136,16 @@ final class SetupPrerequisites {
     }
 
     /**
+     * Best-known latest engine release as a concrete version number, or blank when neither Maven
+     * Central nor the bundled plugin version produced one (dev builds without network). Used by the
+     * setup flow's real "is this project up to date" check (issue #3426 A4).
+     */
+    static String knownLatestEngineVersion() {
+        String version = latestEngineVersion();
+        return isVersionLike(version) ? version : "";
+    }
+
+    /**
      * Package-private for tests: picks the resolved Maven Central release when available, then the
      * bundled plugin release version, and only when neither looks like a real version number falls
      * back to Maven's {@code RELEASE} meta-version (latest non-snapshot) so the command still works
