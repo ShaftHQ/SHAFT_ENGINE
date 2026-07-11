@@ -20,7 +20,19 @@
     }
     return String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
   };
+  const topLevel = (() => {
+    try {
+      return globalThis.top === globalThis;
+    } catch (ignored) {
+      return false;
+    }
+  })();
+  // The UI-state storage key is page-scoped but shared by every same-origin frame. Only the
+  // top-level frame (the only one that owns the overlay) may read or write it: a subframe
+  // restoring the top page's lastUrl announced phantom "Navigate to" rows for its own URL, and
+  // its pagehide persist raced the top frame's, leaking those rows into the next page (#3432).
   const persisted = () => {
+    if (!topLevel) return {};
     try {
       return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "{}");
     } catch (ignored) {
@@ -60,14 +72,8 @@
     ? uiState.readinessWarnings.slice(-20)
     : [];
   globalThis.__shaftCaptureUiState = uiState;
-  const topLevel = (() => {
-    try {
-      return globalThis.top === globalThis;
-    } catch (ignored) {
-      return false;
-    }
-  })();
   const persist = () => {
+    if (!topLevel) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
         paused: uiState.paused,
@@ -1789,20 +1795,22 @@
       setTimeout(schedulePanel, 50);
     }
   };
-  setInterval(() => {
-    const current = String(location.href || "");
-    if (current === uiState.lastUrl) return;
-    uiState.lastUrl = current;
-    if (!uiState.stopped && !uiState.paused) {
-      setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
-      announce("Navigate to " + visibleLocation());
-      lastClickEmission = null;
-    }
-    if (topLevel) {
+  // Only the top-level frame polls for navigations: a subframe URL change is never a user
+  // navigation step, and announcing it produced phantom "Navigate to" rows (#3432).
+  if (topLevel) {
+    setInterval(() => {
+      const current = String(location.href || "");
+      if (current === uiState.lastUrl) return;
+      uiState.lastUrl = current;
+      if (!uiState.stopped && !uiState.paused) {
+        setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
+        announce("Navigate to " + visibleLocation());
+        lastClickEmission = null;
+      }
       syncStepsFromServer();
-    }
-    persist();
-  }, 500);
+      persist();
+    }, 500);
+  }
 
   addEventListener("mousemove", event => {
     // Assertion mode shares the locator hover highlight so the element about to be picked is
