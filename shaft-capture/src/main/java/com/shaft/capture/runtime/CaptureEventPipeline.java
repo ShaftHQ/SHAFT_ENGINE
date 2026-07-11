@@ -49,6 +49,8 @@ final class CaptureEventPipeline implements AutoCloseable {
     private final Consumer<String> warningConsumer;
     private final List<ClassifiedValue> classifiedValues = new ArrayList<>();
     private final Map<String, BrowserSignal> pendingInputs = new LinkedHashMap<>();
+    /** Last flushed input value per target, to drop the duplicate change-on-submit re-emission. */
+    private final Map<String, String> lastEmittedInputValues = new LinkedHashMap<>();
     private final Map<String, BrowserSignal> pendingClicks = new LinkedHashMap<>();
     private final Map<String, String> logicalWindows = new LinkedHashMap<>();
     private final Map<String, LocatorPreference> locatorPreferences = new LinkedHashMap<>();
@@ -224,12 +226,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         }
         switch (signal.kind()) {
             case "navigation" -> emitNavigation(signal);
-            case "click" -> append(new CaptureEvent.ClickEvent(
-                    context(signal),
-                    target(signal).snapshot(),
-                    mouseButton(signal.dataInt("button", 0)),
-                    Math.max(1, signal.dataInt("clickCount", 1))),
-                    target(signal).summary(), List.of());
+            case "click" -> emitClick(signal);
             case "input" -> emitInput(signal);
             case "select" -> emitSelect(signal);
             case "toggle" -> append(new CaptureEvent.ToggleEvent(
@@ -300,6 +297,26 @@ final class CaptureEventPipeline implements AutoCloseable {
         return !emittedClientActionIds.add(clientActionId);
     }
 
+    /**
+     * Emits a user click. Clicks whose target has no rendered box are browser-synthesized
+     * (pressing Enter in a form "clicks" its invisible default submit button) — a real user can
+     * never click an invisible element, so recording one adds a phantom step (issue #3426 B2).
+     * This mirrors the in-page recorder's own suppression and also covers every other delivery
+     * channel that feeds this pipeline.
+     */
+    private void emitClick(BrowserSignal signal) {
+        SafeTarget target = target(signal);
+        if (!target.snapshot().visible()) {
+            return;
+        }
+        append(new CaptureEvent.ClickEvent(
+                        context(signal),
+                        target.snapshot(),
+                        mouseButton(signal.dataInt("button", 0)),
+                        Math.max(1, signal.dataInt("clickCount", 1))),
+                target.summary(), List.of());
+    }
+
     private void emitInput(BrowserSignal signal) {
         String clientActionId = privacy.sanitizeText(signal.dataString("clientActionId")).value();
         if (!clientActionId.isBlank() && deletedClientActionIds.contains(clientActionId)) {
@@ -307,6 +324,13 @@ final class CaptureEventPipeline implements AutoCloseable {
         }
         SafeTarget target = target(signal);
         String value = signal.dataString("value");
+        // Form submission re-fires "change" with the value that was already flushed for this
+        // element: appending it again duplicated the type step (issue #3426 B2).
+        String lastEmitted = lastEmittedInputValues.get(targetKey(signal));
+        if (!value.isEmpty() && value.equals(lastEmitted)) {
+            return;
+        }
+        lastEmittedInputValues.put(targetKey(signal), value);
         if (value.isEmpty()) {
             append(new CaptureEvent.ClearEvent(context(signal), target.snapshot()),
                     target.summary(), List.of());

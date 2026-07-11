@@ -99,6 +99,56 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void suppressesBrowserSynthesizedClickOnInvisibleTarget(@TempDir Path temp) {
+        // Issue #3426 B2: pressing Enter in a form makes the browser "click" the form's default
+        // submit button even when it is invisible. A real user can never click an element with no
+        // rendered box, so such clicks are phantom steps and must not be recorded.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("click", START, invisibleSubmitTarget(),
+                Map.of("button", 0, "clickCount", 1), Map.of()));
+        pipeline.accept(signal("click", START.plusMillis(500), buttonTarget(),
+                Map.of("button", 0, "clickCount", 1), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(1, events.size());
+        assertEquals("submit",
+                assertInstanceOf(CaptureEvent.ClickEvent.class, events.get(0)).target().logicalElementId());
+    }
+
+    @Test
+    void suppressesDuplicateCommittedInputReEmittedByFormSubmission(@TempDir Path temp) {
+        // Issue #3426 B2: Enter flushes the pending typed value (keyboard event), then the form
+        // submission fires "change" re-announcing the exact same value. Only one type event may
+        // survive.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("input", START, usernameTarget(),
+                Map.of("value", "shaft_engine"), Map.of()));
+        pipeline.accept(signal("keyboard", START.plusMillis(800), usernameTarget(),
+                Map.of("keys", List.of("ENTER")), Map.of()));
+        pipeline.accept(signal("input", START.plusMillis(1000), usernameTarget(),
+                Map.of("value", "shaft_engine", "committed", true), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(2, events.size());
+        assertInstanceOf(CaptureEvent.TypeEvent.class, events.get(0));
+        assertInstanceOf(CaptureEvent.KeyboardEvent.class, events.get(1));
+    }
+
+    @Test
     void normalizesSelectToggleUploadKeyboardAndAlertActions(@TempDir Path temp) {
         Path output = temp.resolve("session.json");
         CaptureSessionStore store = startedStore(output);
@@ -521,5 +571,12 @@ class CaptureEventPipelineTest {
                 "visible", true,
                 "enabled", true,
                 "selected", false);
+    }
+
+    private static Map<String, Object> invisibleSubmitTarget() {
+        Map<String, Object> visibleShape = target("hidden-submit", "button", "button", Map.of("type", "submit"));
+        Map<String, Object> shape = new java.util.LinkedHashMap<>(visibleShape);
+        shape.put("visible", false);
+        return Map.copyOf(shape);
     }
 }
