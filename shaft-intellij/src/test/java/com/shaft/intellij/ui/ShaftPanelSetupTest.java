@@ -2884,6 +2884,34 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void insertContextSuggestionSurvivesResetTriggerOffsetWithoutCrashing() throws Exception {
+        // Issue #3426 B1: picking the first slash-menu entry crashed with
+        // StringIndexOutOfBoundsException because hideContextPopup() reset contextTriggerOffset
+        // to -1 before insertContextSuggestion read it.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, connectedMcpSettings());
+        JTextComponent prompt = findByAccessibleName(panel, "Assistant prompt", JTextComponent.class);
+        prompt.setText("/");
+        prompt.setCaretPosition(1);
+        setField(panel, "contextTriggerOffset", -1);
+
+        Method insert = ShaftAssistantPanel.class.getDeclaredMethod(
+                "insertContextSuggestion", char.class, ShaftAssistantPanel.ContextSuggestion.class);
+        insert.setAccessible(true);
+        insert.invoke(panel, '/', new ShaftAssistantPanel.ContextSuggestion(
+                "/record-web — Record web actions", "/record-web https://example.com"));
+
+        assertEquals("/record-web https://example.com", prompt.getText());
+
+        // And the normal path (offset still valid) replaces the trigger plus typed filter.
+        prompt.setText("/co");
+        prompt.setCaretPosition(3);
+        setField(panel, "contextTriggerOffset", 0);
+        insert.invoke(panel, '/', new ShaftAssistantPanel.ContextSuggestion(
+                "/codegen — Generate code from recordings", "/codegen "));
+        assertEquals("/codegen ", prompt.getText());
+    }
+
+    @Test
     void completedSetupShowsResetAndReinstallWhenReopened() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 

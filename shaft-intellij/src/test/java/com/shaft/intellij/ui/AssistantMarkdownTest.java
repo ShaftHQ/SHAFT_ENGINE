@@ -15,6 +15,68 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssistantMarkdownTest {
     @Test
+    void captureReplayResultTellsTheFullStoryInsteadOfBareCodeBlocks() {
+        // Issue #3426 B4: /codegen results must explain what was generated where, whether it
+        // compiled, why a browser window opened, and what to do next — never a bare "Done".
+        String markdown = AssistantMarkdown.fromMcpOutput("capture_generate_replay", """
+                {
+                  "sourcePath": "target/shaft-capture-generated/src/test/java/RecordedFlowTest.java",
+                  "testDataPath": "target/shaft-capture-generated/capture-data.json",
+                  "reportPath": "target/shaft-capture-generated/report.json",
+                  "reviewPath": "target/shaft-capture-generated/review.md",
+                  "successful": true,
+                  "codeBlocks": [{"id": "full-class", "language": "java",
+                    "code": "public class RecordedFlowTest { SHAFT.GUI.WebDriver driver; }"}],
+                  "report": {
+                    "status": "SUCCESS",
+                    "compilation": {"status": "PASSED", "diagnostics": [], "allureResultCount": 0},
+                    "replay": {"status": "PASSED", "diagnostics": [], "allureResultCount": 2},
+                    "warnings": []
+                  },
+                  "warnings": []
+                }
+                """);
+
+        assertAll(
+                () -> assertTrue(markdown.contains("Test generated, compiled, and verified"), markdown),
+                () -> assertTrue(markdown.contains("What happened"), markdown),
+                () -> assertTrue(markdown.contains("RecordedFlowTest.java"), markdown),
+                () -> assertTrue(markdown.contains("browser window you may have seen open"), markdown),
+                () -> assertTrue(markdown.contains("Generated code"), markdown),
+                () -> assertTrue(markdown.contains("```java"), markdown),
+                () -> assertTrue(markdown.contains("report.json"), markdown));
+    }
+
+    @Test
+    void captureReplayFailureExplainsTheFailingPhaseAndKeepsNothingHidden() {
+        String markdown = AssistantMarkdown.fromMcpOutput("capture_generate_replay", """
+                {
+                  "sourcePath": "target/generated/RecordedFlowTest.java",
+                  "successful": false,
+                  "codeBlocks": [],
+                  "report": {
+                    "status": "FAILED",
+                    "compilation": {"status": "PASSED", "diagnostics": [], "allureResultCount": 0},
+                    "replay": {"status": "FAILED",
+                      "diagnostics": ["Replay step 3 failed: element not found: searchbox_input"],
+                      "allureResultCount": 1},
+                    "warnings": []
+                  },
+                  "warnings": ["Replay ran against a changed page"]
+                }
+                """);
+
+        assertAll(
+                () -> assertTrue(markdown.contains("finished with problems"), markdown),
+                () -> assertTrue(markdown.contains("The replay FAILED"), markdown),
+                () -> assertTrue(markdown.contains("Replay step 3 failed: element not found: searchbox_input"),
+                        markdown),
+                () -> assertTrue(markdown.contains("about:blank"), markdown),
+                () -> assertTrue(markdown.contains("No usable code was produced"), markdown),
+                () -> assertTrue(markdown.contains("Replay ran against a changed page"), markdown));
+    }
+
+    @Test
     void unwrapsNestedMcpTextAndFencesJavaCode() {
         String code = """
                 public class LoginTest {
