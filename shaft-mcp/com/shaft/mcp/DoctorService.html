@@ -249,7 +249,7 @@
 <h3>analyzeFailedAllure</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="doctor_analyze_failed_allure",
-      description="analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks")
+      description="analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; when allureResultPaths is empty, automatically analyzes the most recent allure-results found in the workspace")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></span>&nbsp;<span class="element-name">analyzeFailedAllure</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allureResultPaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;historicalBundlePaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
@@ -288,7 +288,7 @@
 <h3>analyzeFailedPlaywrightAllure</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="playwright_doctor_analyze_failed_allure",
-      description="analyzes failed Allure results and returns SHAFT Playwright remediation code blocks")
+      description="analyzes failed Allure results and returns SHAFT Playwright remediation code blocks; when allureResultPaths is empty, automatically analyzes the most recent allure-results found in the workspace")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></span>&nbsp;<span class="element-name">analyzeFailedPlaywrightAllure</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allureResultPaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;historicalBundlePaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,

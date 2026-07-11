@@ -448,7 +448,7 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 <h3>status</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_status",
-      description="returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status")
+      description="returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status; when no session is active the warnings list persisted recordings that can be turned into code without a live session")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.runtime.CaptureStatus</span>&nbsp;<span class="element-name">status</span>()</div>
 <div class="block">Returns safe recorder status without captured values.</div>
 <dl class="notes">
@@ -463,7 +463,7 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 <h3>stop</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_stop",
-      description="stops SHAFT Capture; after COMPLETED, show outputPath and tell IntelliJ users to run /codegen &lt;outputPath&gt;")
+      description="stops SHAFT Capture; after COMPLETED, show outputPath and generate code by passing it as sessionPath to capture_code_blocks or capture_generate_replay")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.runtime.CaptureStatus</span>&nbsp;<span class="element-name">stop</span><wbr><span class="parameters">(boolean&nbsp;discard)</span></div>
 <div class="block">Stops the active recording.</div>
 <dl class="notes">
@@ -654,7 +654,7 @@ UI); this MCP tool serves the same in-process, without a loopback HTTP round tri
 <h3>generateReplay</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_generate_replay",
-      description="generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks")
+      description="generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">generateReplay</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
@@ -689,7 +689,7 @@ UI); this MCP tool serves the same in-process, without a loopback HTTP round tri
 <h3>generatePlaywrightReplay</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="playwright_capture_generate_replay",
-      description="generates, compiles, optionally replays, and returns copy-paste SHAFT Playwright code blocks")
+      description="generates, compiles, optionally replays, and returns copy-paste SHAFT Playwright code blocks from a persisted recording JSON (sessionPath); no active capture session required")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">generatePlaywrightReplay</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
@@ -724,7 +724,7 @@ UI); this MCP tool serves the same in-process, without a loopback HTTP round tri
 <h3>codeBlocks</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_code_blocks",
-      description="generates a Java full-class snippet plus agent guidance for repo-aware insertion")
+      description="generates a Java full-class snippet plus agent guidance for repo-aware insertion from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">codeBlocks</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
@@ -782,7 +782,7 @@ UI); this MCP tool serves the same in-process, without a loopback HTTP round tri
 <h3>playwrightCodeBlocks</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="playwright_capture_code_blocks",
-      description="generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion")
+      description="generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion from a persisted recording JSON (sessionPath); no active capture session required")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">playwrightCodeBlocks</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;packageName,
