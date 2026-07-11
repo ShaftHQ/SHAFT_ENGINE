@@ -44,11 +44,18 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     private static final String PROTOCOL_VERSION = "2024-11-05";
     private static final Duration GRACEFUL_EXIT_WAIT = Duration.ofSeconds(5);
 
+    private static final int STDERR_BUFFER_LIMIT = 16_000;
+
     private final Process process;
     private final BufferedReader input;
     private final OutputStream output;
     private final AtomicInteger id = new AtomicInteger(1);
-    private final CompletableFuture<String> stderr;
+    /**
+     * Rolling tail of the server's stderr, appended live. Diagnostics for a HUNG (still alive)
+     * server — request timeouts especially — need whatever the server wrote so far; waiting for
+     * process exit to read stderr yielded nothing exactly when it mattered most.
+     */
+    private final StringBuilder stderrBuffer = new StringBuilder();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final ExecutorService ioExecutor;
     private final Map<Integer, CompletableFuture<JsonObject>> pendingRequests = new ConcurrentHashMap<>();
@@ -65,7 +72,7 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         input = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
         output = process.getOutputStream();
         ioExecutor = Executors.newFixedThreadPool(2, daemonThreadFactory());
-        stderr = CompletableFuture.supplyAsync(() -> readAll(process.getErrorStream()), ioExecutor);
+        ioExecutor.execute(this::bufferStandardError);
         ioExecutor.execute(this::readResponses);
     }
 
@@ -269,11 +276,24 @@ final class ShaftMcpStdioClient implements AutoCloseable {
         return cause == null ? new IOException(composed) : new IOException(composed, cause);
     }
 
-    private static String readAll(InputStream stream) {
-        try {
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            return "";
+    private void bufferStandardError() {
+        try (InputStream stream = process.getErrorStream()) {
+            byte[] chunk = new byte[4096];
+            int read;
+            while ((read = stream.read(chunk)) != -1) {
+                appendStandardError(new String(chunk, 0, read, StandardCharsets.UTF_8));
+            }
+        } catch (IOException ignored) {
+            // Stream closed with the process; whatever was buffered stays available.
+        }
+    }
+
+    private void appendStandardError(String text) {
+        synchronized (stderrBuffer) {
+            stderrBuffer.append(text);
+            if (stderrBuffer.length() > STDERR_BUFFER_LIMIT) {
+                stderrBuffer.delete(0, stderrBuffer.length() - STDERR_BUFFER_LIMIT);
+            }
         }
     }
 
@@ -294,10 +314,8 @@ final class ShaftMcpStdioClient implements AutoCloseable {
     }
 
     private String readStandardError() {
-        try {
-            return stderr.get(250, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            return "";
+        synchronized (stderrBuffer) {
+            return stderrBuffer.toString();
         }
     }
 

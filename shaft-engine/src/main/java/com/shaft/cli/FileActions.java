@@ -349,7 +349,7 @@ public class FileActions {
     }
 
     public void writeToFile(String fileFolderName, String fileName, byte[] content) {
-        writeToFile(fileFolderName + fileName, content);
+        writeToFile(joinFolderAndFile(fileFolderName, fileName), content);
     }
 
     public void writeToFile(String fileFolderName, String fileName, String text) {
@@ -359,7 +359,7 @@ public class FileActions {
 
     @SuppressWarnings("unused")
     public String readPDF(String fileFolderName, String fileName) {
-        return new PdfFileManager(fileFolderName + fileName).readFileContent();
+        return new PdfFileManager(joinFolderAndFile(fileFolderName, fileName)).readFileContent();
     }
 
     public String readPDF(String relativeFilePath) {
@@ -367,7 +367,23 @@ public class FileActions {
     }
 
     public String readFile(String fileFolderName, String fileName) {
-        return readFile(fileFolderName + fileName);
+        return readFile(joinFolderAndFile(fileFolderName, fileName));
+    }
+
+    /**
+     * Joins a folder and file name with exactly one separator. Folder-path properties are
+     * commonly overridden without a trailing slash (for example {@code allureResultsFolderPath=
+     * allure-results}), and raw concatenation then writes files like
+     * {@code allure-resultsenvironment.xml} into the project root.
+     */
+    private static String joinFolderAndFile(String fileFolderName, String fileName) {
+        if (fileFolderName == null || fileFolderName.isEmpty()) {
+            return fileName;
+        }
+        if (fileFolderName.endsWith("/") || fileFolderName.endsWith("\\")) {
+            return fileFolderName + fileName;
+        }
+        return fileFolderName + "/" + fileName;
     }
 
     public byte[] readFileAsByteArray(String pathToTargetImage) {

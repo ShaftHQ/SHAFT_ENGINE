@@ -405,7 +405,10 @@ public final class CaptureGenerator {
         List<CaptureGenerationReport.ControlFlowSuggestion> controlFlow =
                 controlFlowSuggestions(session.events(), session.checkpoints());
         if (session.status() != CaptureSession.SessionStatus.COMPLETED) {
-            warnings.add("The source Capture session is incomplete.");
+            warnings.add("The source Capture session is INCOMPLETE: the recording ended unexpectedly "
+                    + "(it was never stopped cleanly), so the generated test may be missing the end of "
+                    + "the journey. Re-record the flow and confirm the recording reports COMPLETED "
+                    + "before generating code from it.");
         }
         if (session.events().isEmpty()) {
             warnings.add("The source Capture session contains no events.");

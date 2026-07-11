@@ -21,17 +21,20 @@ public class EngineService {
     private static final Logger logger = LoggerFactory.getLogger(EngineService.class);
     private static SHAFT.GUI.WebDriver driver;
     private static boolean engineInitialized = false;
+    // Folder values keep the engine defaults' trailing slash: several engine call sites join
+    // folder + file by concatenation, and a missing slash wrote files like
+    // "allure-resultsenvironment.xml" into every consumer project root.
     private static final String[][] MCP_PATH_PROPERTIES = {
-            {"allureResultsFolderPath", "allure-results"},
-            {"propertiesFolderPath", "src/main/resources/properties"},
+            {"allureResultsFolderPath", "allure-results/"},
+            {"propertiesFolderPath", "src/main/resources/properties/"},
             {"downloadsFolderPath", "target/downloadedFiles"},
             {"video.folder", "allure-results/videos"},
-            {"servicesFolderPath", "src/test/resources/META-INF/services"},
-            {"dynamicObjectRepositoryPath", "src/main/resources/dynamicObjectRepository"},
-            {"testDataFolderPath", "src/test/resources/testDataFiles"},
-            {"extentReportsFolderPath", "extent-reports"},
-            {"executionSummaryReportFolderPath", "execution-summary"},
-            {"PerformanceReportFolderPath", "performanceReport"}
+            {"servicesFolderPath", "src/test/resources/META-INF/services/"},
+            {"dynamicObjectRepositoryPath", "src/main/resources/dynamicObjectRepository/"},
+            {"testDataFolderPath", "src/test/resources/testDataFiles/"},
+            {"extentReportsFolderPath", "extent-reports/"},
+            {"executionSummaryReportFolderPath", "execution-summary/"},
+            {"PerformanceReportFolderPath", "performanceReport/"}
     };
 
     /**

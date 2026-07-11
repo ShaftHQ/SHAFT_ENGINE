@@ -461,17 +461,38 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             startMobileRecording();
             return;
         }
-        JsonObject arguments = new JsonObject();
-        arguments.addProperty("outputPath", sessionPath.getText().trim());
-        if (playwright()) {
+        boolean playwrightBackend = playwright();
+        String startTool = playwrightBackend ? "playwright_record_start" : "capture_start";
+        String statusTool = playwrightBackend ? "playwright_record_status" : "capture_status";
+        JsonObject arguments;
+        if (playwrightBackend) {
+            arguments = new JsonObject();
+            arguments.addProperty("outputPath", sessionPath.getText().trim());
             arguments.addProperty("mode", "default");
             arguments.addProperty("includeSensitiveValues", false);
-            prefill.prefill("playwright_record_start", arguments);
-            startStatusPolling("playwright_record_status");
         } else {
-            prefill.prefill("capture_start", webdriverCaptureStartArguments());
-            startStatusPolling("capture_status");
+            arguments = webdriverCaptureStartArguments();
         }
+        // With an MCP-connected project, Start recording runs the request directly (matching the
+        // sample tour and the mobile chain) instead of parking a prepared request the user still
+        // has to run; headless panel tests and disconnected projects keep the prefill fallback.
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill(startTool, arguments);
+            startStatusPolling(statusTool);
+            return;
+        }
+        setRecorderStatus("Starting the recording...");
+        invocationService.startTool(startTool, arguments)
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> {
+                    if (failed(result, error)) {
+                        setRecorderStatus("Recording failed to start: " + failureText(result, error));
+                        return;
+                    }
+                    setRecorderStatus("Recording started. Interact with the browser, then press Stop recording.");
+                    startStatusPolling(statusTool);
+                }));
     }
 
     private JsonObject webdriverCaptureStartArguments() {
@@ -552,11 +573,24 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     private void stopRecording() {
         JsonObject arguments = new JsonObject();
         arguments.addProperty("discard", false);
-        if (mobile()) {
-            prefill.prefill("mobile_record_stop", arguments);
-        } else {
-            prefill.prefill(playwright() ? "playwright_record_stop" : "capture_stop", arguments);
+        String stopTool = mobile()
+                ? "mobile_record_stop"
+                : playwright() ? "playwright_record_stop" : "capture_stop";
+        ShaftMcpInvocationService invocationService = invocationService();
+        if (invocationService == null) {
+            prefill.prefill(stopTool, arguments);
+            return;
         }
+        setRecorderStatus("Stopping the recording...");
+        invocationService.startTool(stopTool, arguments)
+                .future()
+                .whenComplete((result, error) -> onEdt(() -> {
+                    if (failed(result, error)) {
+                        setRecorderStatus("Recording failed to stop: " + failureText(result, error));
+                        return;
+                    }
+                    setRecorderStatus("Recording stopped. Use Review code to generate the reviewed test.");
+                }));
     }
 
     private void generateCode() {
@@ -673,6 +707,13 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         }
         if (recorderSeenActive) {
             pollingActive = false;
+            String state = status != null && status.has("state") ? status.get("state").getAsString() : "";
+            if ("INCOMPLETE".equalsIgnoreCase(state) || "FAILED".equalsIgnoreCase(state)) {
+                setRecorderStatus("Recording ended unexpectedly (" + state.toUpperCase(java.util.Locale.ROOT)
+                        + ") - " + countText(status)
+                        + ". The browser or recorder died before Stop; re-record the flow before generating code.");
+                return;
+            }
             setRecorderStatus("Recording finished - " + countText(status)
                     + ". Use Review code to generate the reviewed test.");
             return;

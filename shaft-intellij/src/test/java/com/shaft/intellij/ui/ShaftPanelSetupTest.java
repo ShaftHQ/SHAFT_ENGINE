@@ -54,6 +54,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -80,6 +81,40 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
+    private static final List<Path> TEMP_DIRECTORIES = new ArrayList<>();
+
+    /**
+     * Temp-dir factory with suite-level cleanup: raw Files.createTempDirectory calls leaked one
+     * directory per test run into the OS temp folder (dozens on a developer machine).
+     */
+    private static Path tempDirectory(String prefix) throws IOException {
+        Path directory = Files.createTempDirectory(prefix);
+        synchronized (TEMP_DIRECTORIES) {
+            TEMP_DIRECTORIES.add(directory);
+        }
+        return directory;
+    }
+
+    @org.junit.jupiter.api.AfterAll
+    static void deleteTemporaryDirectories() {
+        synchronized (TEMP_DIRECTORIES) {
+            for (Path directory : TEMP_DIRECTORIES) {
+                try (var paths = Files.walk(directory)) {
+                    paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException ignored) {
+                            // Best-effort cleanup; the OS temp folder is the backstop.
+                        }
+                    });
+                } catch (IOException ignored) {
+                    // Directory already gone or unreadable; nothing to clean.
+                }
+            }
+            TEMP_DIRECTORIES.clear();
+        }
+    }
+
     @Test
     void assistantExplainsMissingMcpConfiguration() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
@@ -221,8 +256,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void toolWindowShowsFirstRunSetupUntilMcpConnectionIsComplete() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-empty-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
         String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
         System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
@@ -417,8 +452,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupPanelShowsInstallerCommandAndInfersInstalledStdioCommand() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-bootstrap");
         Path argsFile = appData.resolve("versions").resolve("10.3.20260703").resolve("shaft-mcp.args");
         Path java = bootstrap.resolve("tools").resolve("jdk").resolve("temurin-25-test").resolve("bin")
                 .resolve(javaExecutableName());
@@ -773,8 +808,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupPanelShowsBlankManualCommandDiagnostic() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-empty-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
         String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
         System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
@@ -848,8 +883,8 @@ class ShaftPanelSetupTest {
         // configured project -- regardless of whether it has that scaffold --
         // made the agent report back that required config/scaffold files were
         // missing, because they never existed in the target project at all.
-        Path projectWithoutScaffold = Files.createTempDirectory("shaft-no-scaffold");
-        Path projectWithScaffold = Files.createTempDirectory("shaft-with-scaffold");
+        Path projectWithoutScaffold = tempDirectory("shaft-no-scaffold");
+        Path projectWithScaffold = tempDirectory("shaft-with-scaffold");
         try {
             Files.writeString(projectWithScaffold.resolve("AGENTS.md"), "# Guidance\n");
 
@@ -2787,8 +2822,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupPanelShowsExpectedWorkflowActionsAtEachStep() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-empty-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
         String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
         System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
@@ -2836,8 +2871,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupResetAndReinstallClearsStateAndCopiesInstallerCommand() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-empty-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
         String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
         System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());

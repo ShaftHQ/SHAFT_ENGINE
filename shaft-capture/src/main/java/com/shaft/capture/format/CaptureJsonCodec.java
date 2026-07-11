@@ -155,7 +155,14 @@ public final class CaptureJsonCodec {
             Files.createDirectories(parent);
             temporary = Files.createTempFile(parent, "." + absolute.getFileName(), ".tmp");
             Files.writeString(temporary, content, StandardCharsets.UTF_8);
-            moveReplacing(temporary, absolute);
+            try {
+                moveReplacing(temporary, absolute);
+            } catch (IOException moveFailure) {
+                // A failed replace-move (antivirus or file-watcher contention on Windows) can
+                // leave the destination deleted. Publishing the content directly is not atomic,
+                // but a complete non-atomic file beats a vanished session (issue #3429).
+                Files.writeString(absolute, content, StandardCharsets.UTF_8);
+            }
         } catch (IOException exception) {
             throw new CaptureFormatException("Capture file could not be written atomically.", exception);
         } finally {
