@@ -56,7 +56,8 @@ final class AssistantCommand {
                     - Call test_automation_scenarios for broad test/page-object design to learn the matching SHAFT coding pattern.
                     - Inspect existing project code and call shaft_coding_partner_plan before creating tests, page objects, locators, or actions.
                     - Reuse existing tests, page objects, locator fields, and action methods first.
-                    - If required actions or locators are missing, ask before starting live browser work; otherwise return review-only Java and mark locator assumptions as unverified.
+                    - If the user provided a recording JSON path, generate directly from it with capture_code_blocks; no active capture session is required and none should be demanded.
+                    - If the user described the scenario without a recording, do not stall and do not return unverified locator guesses: start a fresh session with capture_start_codegen, perform the described actions live (element_type, element_click, natural_act), call capture_stop, then generate code from the persisted recording with capture_code_blocks.
                     - If the user names a site, product, or environment without an explicit URL, ask the user to confirm the exact target URL before navigating or writing code. Do not infer canonical URLs.
                     - For any requested site/action, preserve the user's requested target. Never substitute a different URL, domain, or example page in code or screenshot evidence.
                     - If the user asks for code only, a draft, or says not to run/open a browser, do not call live browser tools.
@@ -412,27 +413,34 @@ final class AssistantCommand {
             String conversationContext) {
         String text = prompt == null ? "" : prompt.trim();
         if (text.isEmpty()) {
-            return Invocation.local("Enter a prompt or slash command.");
+            return Invocation.local("Describe what you need in plain language — record a journey, "
+                    + "generate a test, diagnose a failed run, or upgrade this project to SHAFT.");
         }
         String liveCodegen = liveCodegenSlashPrompt(text);
         boolean liveCodegenRequest = !liveCodegen.isBlank();
         boolean upgradeAgentRequest = false;
         if (!liveCodegen.isBlank()) {
             text = liveCodegen;
-        } else if (isUpgradeSlashCommand(text)) {
-            // /upgrade is an action, not a recipe: the local agent performs the upgrade itself
+        } else if (isUpgradeSlashCommand(text) || isNaturalUpgradeIntent(text)) {
+            // Upgrading is an action, not a recipe: the local agent performs the upgrade itself
             // (with source-edit approval), repairs what breaks, and reports what it changed —
             // instead of pasting a command back for the user to run manually (issue #3426 B6).
-            Invocation blocked = upgradeAgentGate(selection, mode, allowSourceMutation, afterFirstWord(text.trim()));
+            String projectRoot = isUpgradeSlashCommand(text) ? afterFirstWord(text.trim()) : "";
+            Invocation blocked = upgradeAgentGate(selection, mode, allowSourceMutation, projectRoot);
             if (blocked != null) {
                 return blocked;
             }
-            text = upgradeAgentPrompt(afterFirstWord(text.trim()));
+            text = upgradeAgentPrompt(projectRoot);
             upgradeAgentRequest = true;
         } else if (text.startsWith("/")) {
             return slash(text, workingDirectory, openFileContext);
         }
         boolean codeGenerationRequest = !upgradeAgentRequest && isCodeGenerationRequest(text);
+        // A code-generation request that already names a recording JSON converts deterministically:
+        // the recording file is the source of truth and needs no live session and no agent CLI.
+        if (codeGenerationRequest && !liveCodegenRequest && !firstJsonLikePath(text).isBlank()) {
+            return generateTest(text);
+        }
         if (!liveCodegenRequest && !upgradeAgentRequest) {
             if (isCodingPartnerIntent(text)) {
                 return Invocation.tool(
@@ -526,7 +534,8 @@ final class AssistantCommand {
                 return definition.invoke(command, rest, workingDirectory);
             }
         }
-        return Invocation.local("Unknown command. Use /commands for available SHAFT Assistant commands.");
+        return Invocation.local("Unknown command. Just describe what you need in plain language — "
+                + "record a journey, generate a test, diagnose a failed run, or upgrade this project.");
     }
 
     private static String liveCodegenSlashPrompt(String text) {
@@ -846,7 +855,9 @@ final class AssistantCommand {
         if (commandIs(action, "inspector-status")) {
             return Invocation.tool("mobile_inspector_record_status", new JsonObject());
         }
-        return Invocation.local("Use `/record-mobile start <path>`, `/record-mobile stop`, or `/record-mobile inspector Android <path>`.");
+        return Invocation.local("Tell me to start or stop a mobile recording, or to open the mobile "
+                + "inspector on the Android emulator — for example: \"Record my mobile actions on the "
+                + "Android emulator\".");
     }
 
     private static JsonObject mobileRecordingStart(String outputPath) {
@@ -914,7 +925,7 @@ final class AssistantCommand {
             return Invocation.tool("doctor_analyze_trace",
                     doctorTrace(firstTokenOrDefault(remainder, "target/shaft-traces"), playwright ? "playwright" : "webdriver"));
         }
-        String allurePath = trimmed.isBlank() ? "allure-results" : firstTokenOrDefault(trimmed, "allure-results");
+        String allurePath = trimmed.isBlank() ? "" : firstTokenOrDefault(trimmed, "");
         return Invocation.tool(playwright ? "playwright_doctor_analyze_failed_allure" : "doctor_analyze_failed_allure",
                 triage(workingDirectory, allurePath));
     }
@@ -1029,6 +1040,19 @@ final class AssistantCommand {
     }
 
     /**
+     * Plain-language upgrade requests ("upgrade this project to the latest SHAFT") get the same
+     * agent-performed upgrade as the legacy slash form: the user asks, the agent does it.
+     */
+    private static boolean isNaturalUpgradeIntent(String text) {
+        String normalized = normalizeNaturalCommand(text);
+        return (normalized.startsWith("upgrade ")
+                && containsAny(normalized, "shaft", "this project", "my project", "the project"))
+                || containsAny(normalized,
+                        "upgrade this project", "upgrade my project", "upgrade the project",
+                        "upgrade to shaft", "upgrade shaft", "migrate to shaft");
+    }
+
+    /**
      * Pre-flight for the agent-performed {@code /upgrade}: cloud and non-CLI routes cannot edit
      * local files, so they keep the copyable manual command, and a local CLI route must have Agent
      * mode plus explicit source-edit approval before SHAFT lets an agent rewrite the project's
@@ -1041,11 +1065,11 @@ final class AssistantCommand {
         }
         if (!"AGENT".equals(mode) || !allowSourceMutation) {
             return Invocation.local("""
-                    **`/upgrade` changes your `pom.xml` (and possibly imports), so it needs your explicit permission first.**
+                    **Upgrading changes your `pom.xml` (and possibly imports), so it needs your explicit permission first.**
 
                     1. Switch the mode selector to **Agent**.
                     2. Tick **Allow source edits**.
-                    3. Send `/upgrade` again. The agent will then preview the upgrade, apply it, verify the project still compiles, and report every change it made and why.
+                    3. Send the upgrade request again. The agent will then preview the upgrade, apply it, verify the project still compiles, and report every change it made and why.
 
                     Prefer to run the upgrade yourself instead? Use this from the project root:
 
@@ -1420,13 +1444,17 @@ final class AssistantCommand {
     }
 
     private static JsonObject triage(String workingDirectory) {
-        return triage(workingDirectory, "allure-results");
+        return triage(workingDirectory, "");
     }
 
     private static JsonObject triage(String workingDirectory, String allurePath) {
         JsonObject arguments = new JsonObject();
+        // An empty path list makes the MCP server analyze the most recent populated
+        // allure-results directory in the workspace, so "diagnose my last run" needs no path.
         JsonArray allureResultPaths = new JsonArray();
-        allureResultPaths.add(allurePath == null || allurePath.isBlank() ? "allure-results" : allurePath);
+        if (allurePath != null && !allurePath.isBlank()) {
+            allureResultPaths.add(allurePath);
+        }
         arguments.add("allureResultPaths", allureResultPaths);
         arguments.add("historicalBundlePaths", new JsonArray());
         arguments.addProperty("outputDirectory", "target/shaft-doctor");

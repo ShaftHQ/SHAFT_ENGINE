@@ -187,3 +187,6 @@
 {"actor":"agent","event":"memory.created","id":"decision.intellij-setup-steps-earn-badges-only-from-real-checks-copy-buttons-pre-type-commands-into-a-terminal","timestamp":"2026-07-11T09:49:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.recorder-truth-rules-suppress-browser-synthesized-phantom-steps-upgrade-is-agent-performed-verbose-forwards-as-is-on-every-route","timestamp":"2026-07-11T09:49:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.issue-3425-all-16-onboarding-review-loop-differentiation-items-shipped-in-pr-3427","timestamp":"2026-07-11T12:39:31+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.first-time-user-trust-pass-shipped-in-pr-3428-workspace-dead-ends-intent-first-plugin","timestamp":"2026-07-11T14:22:14+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.bare-consumer-pom-shaft-engine-makes-surefire-run-zero-testng-tests-silently","timestamp":"2026-07-11T14:22:14+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.local-m2-and-installed-shaft-mcp-are-shadowed-by-2026-07-11-local-builds","timestamp":"2026-07-11T14:22:14+03:00"}

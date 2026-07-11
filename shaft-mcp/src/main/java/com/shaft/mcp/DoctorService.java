@@ -73,7 +73,8 @@ public class DoctorService {
      * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
      */
     @Tool(name = "doctor_analyze_failed_allure",
-            description = "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks")
+            description = "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; "
+                    + "when allureResultPaths is empty, automatically analyzes the most recent allure-results found in the workspace")
     public McpAnalysisReport analyzeFailedAllure(
             List<String> allureResultPaths,
             List<String> historicalBundlePaths,
@@ -94,7 +95,7 @@ public class DoctorService {
                 ? List.of()
                 : workspacePolicy.sourceAllowlist(repository, allowedSourcePaths);
         DoctorAnalysisRequest request = new DoctorAnalysisRequest(
-                workspacePolicy.existingList(allureResultPaths, "Allure result path"),
+                effectiveAllureResultPaths(allureResultPaths),
                 workspacePolicy.existingList(historicalBundlePaths, "Historical Doctor bundle path"),
                 List.of(workspacePolicy.root()),
                 outputDirectory == null || outputDirectory.isBlank()
@@ -117,6 +118,24 @@ public class DoctorService {
     }
 
     /**
+     * Users rarely know where Allure wrote its results; an empty request must analyze the most
+     * recent results in the workspace instead of failing. Discovery is bounded (depth and heavy
+     * directories) so it stays cheap even in large projects.
+     */
+    private List<Path> effectiveAllureResultPaths(List<String> allureResultPaths) {
+        if (allureResultPaths != null && !allureResultPaths.isEmpty()) {
+            return workspacePolicy.existingList(allureResultPaths, "Allure result path");
+        }
+        Path latest = McpAllureResultsLocator.latest(workspacePolicy.root());
+        if (latest == null) {
+            throw new IllegalArgumentException("No Allure results were found in this workspace ("
+                    + workspacePolicy.root() + "). Run the failing test with SHAFT reporting enabled first, "
+                    + "or pass allureResultPaths explicitly.");
+        }
+        return List.of(latest);
+    }
+
+    /**
      * Analyzes failed Allure evidence and returns Playwright remediation snippets.
      *
      * @param allureResultPaths Allure result directories or files inside the MCP workspace
@@ -134,7 +153,8 @@ public class DoctorService {
      * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
      */
     @Tool(name = "playwright_doctor_analyze_failed_allure",
-            description = "analyzes failed Allure results and returns SHAFT Playwright remediation code blocks")
+            description = "analyzes failed Allure results and returns SHAFT Playwright remediation code blocks; "
+                    + "when allureResultPaths is empty, automatically analyzes the most recent allure-results found in the workspace")
     @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpAnalysisReport analyzeFailedPlaywrightAllure(
             List<String> allureResultPaths,
@@ -156,7 +176,7 @@ public class DoctorService {
                 ? List.of()
                 : workspacePolicy.sourceAllowlist(repository, allowedSourcePaths);
         DoctorAnalysisRequest request = new DoctorAnalysisRequest(
-                workspacePolicy.existingList(allureResultPaths, "Allure result path"),
+                effectiveAllureResultPaths(allureResultPaths),
                 workspacePolicy.existingList(historicalBundlePaths, "Historical Doctor bundle path"),
                 List.of(workspacePolicy.root()),
                 outputDirectory == null || outputDirectory.isBlank()

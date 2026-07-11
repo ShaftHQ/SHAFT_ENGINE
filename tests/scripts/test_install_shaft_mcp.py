@@ -291,11 +291,15 @@ class InstallShaftMcpTest(unittest.TestCase):
                 runtime_root = MODULE.application_data_root() / "work"
 
             content = args.read_text(encoding="utf-8")
-            self.assertIn(MODULE.java_argfile_quote(f"-Duser.dir={runtime_root}"), content)
             self.assertIn(
-                MODULE.java_argfile_quote(f"-D{MODULE.WORKSPACE_SYSTEM_PROPERTY}={runtime_root}"),
+                MODULE.java_argfile_quote(
+                    f"-D{MODULE.FALLBACK_WORKSPACE_SYSTEM_PROPERTY}={runtime_root}"),
                 content,
             )
+            # Pinning either entry would lock every client into the shared work directory and
+            # reject tool calls from the user's real project as outside the MCP workspace.
+            self.assertNotIn("-Duser.dir=", content)
+            self.assertNotIn("-Dshaft.mcp.workspaceRoot=", content)
             self.assertTrue(runtime_root.is_dir())
             self.assertIn("-cp\n", content)
             self.assertIn("shaft-mcp.jar" + os.pathsep, content)

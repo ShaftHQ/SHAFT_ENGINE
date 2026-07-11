@@ -37,6 +37,21 @@ class McpWorkspacePolicyTest {
     }
 
     @Test
+    void workspaceEscapeMessageExplainsTheBoundaryAndTheFix(@TempDir Path workspace) throws Exception {
+        Path outside = Files.createTempDirectory("mcp-workspace-policy-remediation");
+        McpWorkspacePolicy policy = McpWorkspacePolicy.of(workspace);
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> policy.output(outside.resolve("generated-tests").toString(),
+                        "Capture generation output directory"));
+
+        assertTrue(failure.getMessage().contains("Requested path: "));
+        assertTrue(failure.getMessage().contains("Current workspace root: " + policy.root()));
+        assertTrue(failure.getMessage().contains("SHAFT_MCP_WORKSPACE_ROOT"));
+        assertTrue(failure.getMessage().contains("-Dshaft.mcp.workspaceRoot"));
+    }
+
+    @Test
     void existingResolvesAPathThatActuallyExists(@TempDir Path workspace) throws Exception {
         Path allureResults = Files.createDirectories(workspace.resolve("allure-results"));
         McpWorkspacePolicy policy = McpWorkspacePolicy.of(workspace);

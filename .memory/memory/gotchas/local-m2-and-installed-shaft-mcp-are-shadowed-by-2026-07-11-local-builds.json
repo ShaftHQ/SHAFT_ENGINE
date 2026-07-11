@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/gotchas/local-m2-and-installed-shaft-mcp-are-shadowed-by-2026-07-11-local-builds.md",
+  "content_hash": "sha256:cedaeeb4a57a5b7d976527818bc43c3567d70fbfd22b532d51c0540010e4f085",
+  "created_at": "2026-07-11T14:22:14+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.local-m2-and-installed-shaft-mcp-are-shadowed-by-2026-07-11-local-builds",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "First-time-user trust pass: fix MCP workspace for external projects, remove codegen/doctor dead ends, intent-first IntelliJ plugin, consumer-project E2E"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Local .m2 and installed shaft-mcp are shadowed by 2026-07-11 local builds",
+  "type": "gotcha",
+  "updated_at": "2026-07-11T14:22:14+03:00"
+}

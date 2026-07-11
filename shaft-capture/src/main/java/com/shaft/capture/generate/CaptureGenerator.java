@@ -128,6 +128,7 @@ public final class CaptureGenerator {
         CodegenBackend targetBackend = backend == null ? CodegenBackend.WEBDRIVER : backend;
         Path sessionPath = request.sessionPath().toAbsolutePath().normalize();
         Path outputRoot = request.outputDirectory().toAbsolutePath().normalize();
+        Path privacyRoot = privacyAllowedRoot(sessionPath, outputRoot);
         Path reportPath = outputRoot.resolve("target/shaft-capture/generation-report.json");
         CaptureSession session = null;
         ArtifactPaths paths = null;
@@ -179,7 +180,7 @@ public final class CaptureGenerator {
                         deterministicMethodName,
                         elementNames,
                         request.aiApprovalPolicy());
-                List<String> previewPrivacy = privacyFindings(writeJson(preview), outputRoot);
+                List<String> previewPrivacy = privacyFindings(writeJson(preview), privacyRoot);
                 if (!previewPrivacy.isEmpty()) {
                     state.unsupported().addAll(previewPrivacy);
                     enrichment = new CaptureGenerationReport.Enrichment(
@@ -232,9 +233,9 @@ public final class CaptureGenerator {
             String dataJson = writeJson(state.data().root());
 
             List<String> privacy = new ArrayList<>();
-            privacy.addAll(privacyFindings(codec.write(session), outputRoot));
-            privacy.addAll(privacyFindings(source, outputRoot));
-            privacy.addAll(privacyFindings(dataJson, outputRoot));
+            privacy.addAll(privacyFindings(codec.write(session), privacyRoot));
+            privacy.addAll(privacyFindings(source, privacyRoot));
+            privacy.addAll(privacyFindings(dataJson, privacyRoot));
             privacy.stream().distinct().forEach(state.unsupported()::add);
             validateOutputs(paths, request.overwrite(), state.unsupported());
 
@@ -283,7 +284,7 @@ public final class CaptureGenerator {
                     replay,
                     enrichment);
             String reportJson = writeJson(report);
-            List<String> reportPrivacy = privacyFindings(reportJson, outputRoot);
+            List<String> reportPrivacy = privacyFindings(reportJson, privacyRoot);
             if (!reportPrivacy.isEmpty()) {
                 CaptureGenerationReport privacyFailure = report(
                         session,
@@ -2007,6 +2008,42 @@ public final class CaptureGenerator {
     private static String safeReviewText(String value) {
         String normalized = value == null ? "" : value.replaceAll("\\s+", " ").trim();
         return normalized.length() <= 240 ? normalized : normalized.substring(0, 237) + "...";
+    }
+
+    /**
+     * The user's working area for one generation spans the recording and the output directory:
+     * output directories are normally subfolders like {@code generated-tests}, so recorded
+     * {@code file://} fixture URLs elsewhere in the same project must not read as privacy leaks.
+     * The root never widens to the user home (or above): there the strict output-root behavior
+     * remains so genuinely personal paths keep blocking generation.
+     *
+     * @param sessionPath normalized recording path
+     * @param outputRoot normalized generation output root
+     * @return allowed root for personal-path privacy findings
+     */
+    static Path privacyAllowedRoot(Path sessionPath, Path outputRoot) {
+        Path sessionDirectory = sessionPath.getParent();
+        if (sessionDirectory == null) {
+            return outputRoot;
+        }
+        Path common = commonAncestor(sessionDirectory, outputRoot);
+        if (common == null || common.getNameCount() == 0) {
+            return outputRoot;
+        }
+        Path home = Path.of(System.getProperty("user.home", "")).toAbsolutePath().normalize();
+        if (home.startsWith(common)) {
+            return outputRoot;
+        }
+        return common;
+    }
+
+    private static Path commonAncestor(Path first, Path second) {
+        Path candidate = first.toAbsolutePath().normalize();
+        Path target = second.toAbsolutePath().normalize();
+        while (candidate != null && !target.startsWith(candidate)) {
+            candidate = candidate.getParent();
+        }
+        return candidate;
     }
 
     private static List<String> privacyFindings(String content, Path allowedRoot) {

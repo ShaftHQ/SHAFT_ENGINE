@@ -221,7 +221,7 @@ class AssistantCommandTest {
                 () -> assertTrue(generatedPrompt.contains("Call test_automation_scenarios"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("call shaft_coding_partner_plan"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Reuse existing tests, page objects"), generatedPrompt),
-                () -> assertTrue(generatedPrompt.contains("ask before starting live browser work"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("start a fresh session with capture_start_codegen"), generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
                         generatedPrompt),
                 () -> assertTrue(generatedPrompt.contains("Do not infer canonical URLs"), generatedPrompt),
@@ -265,7 +265,7 @@ class AssistantCommandTest {
         assertAll(
                 () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
                 () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
-                () -> assertTrue(prompt.contains("ask before starting live browser work"), prompt),
+                () -> assertTrue(prompt.contains("start a fresh session with capture_start_codegen"), prompt),
                 () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("navigate to https://duckduckgo.com"), prompt),
                 () -> assertFalse(prompt.contains("test_automation_scenarios OK")));
@@ -338,7 +338,7 @@ class AssistantCommandTest {
                 () -> assertTrue(agentPrompt.contains("current open class only"), agentPrompt),
                 () -> assertEquals("autobot_provider_chat", cloud.toolName()),
                 () -> assertTrue(cloudPrompt.contains("Use only the currently open file"), cloudPrompt),
-                () -> assertTrue(cloudPrompt.contains("ask before starting live browser work"), cloudPrompt),
+                () -> assertTrue(cloudPrompt.contains("start a fresh session with capture_start_codegen"), cloudPrompt),
                 () -> assertTrue(cloudPrompt.contains("Do not publish locators as verified"), cloudPrompt));
     }
 
@@ -359,7 +359,7 @@ class AssistantCommandTest {
                 () -> assertTrue(prompt.contains("ask the user to confirm the exact target URL"), prompt),
                 () -> assertTrue(prompt.contains("Do not infer canonical URLs"), prompt),
                 () -> assertTrue(prompt.contains("Never substitute a different URL, domain, or example page"), prompt),
-                () -> assertTrue(prompt.contains("ask before starting live browser work"), prompt),
+                () -> assertTrue(prompt.contains("start a fresh session with capture_start_codegen"), prompt),
                 () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
                 () -> assertTrue(prompt.contains("Do not publish locators as verified"), prompt),
                 () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
@@ -1201,7 +1201,8 @@ class AssistantCommandTest {
 
         assertEquals("doctor_analyze_failed_allure", triage.toolName());
         assertEquals("doctor_analyze_failed_allure", fix.toolName());
-        assertEquals("allure-results", triage.arguments().get("allureResultPaths").getAsJsonArray().get(0).getAsString());
+        // Empty allureResultPaths tells the MCP server to auto-discover the most recent results.
+        assertTrue(triage.arguments().get("allureResultPaths").getAsJsonArray().isEmpty());
         assertEquals(workingDirectory, triage.arguments().get("repositoryRoot").getAsString());
         assertEquals(workingDirectory, fix.arguments().get("repositoryRoot").getAsString());
     }

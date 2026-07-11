@@ -477,11 +477,12 @@ final class AssistantMarkdown {
         } else {
             sections.add(ShaftStatusPresentation.ERROR_ICON
                     + " **No usable code was produced.** The compilation/replay details above explain why; "
-                    + "fix the reported problem (or re-record the flow) and run `/codegen` again.");
+                    + "fix the reported problem (or re-record the flow) and ask again for a test generated "
+                    + "from the recording.");
         }
         appendNonBlank(sections, captureReplayArtifacts(object));
         if ("PASSED".equals(replayStatus)) {
-            sections.add("_Next: paste the class into your project and run it with `/verify mvn -q test-compile` "
+            sections.add("_Next: paste the class into your project and run `mvn -q test-compile` "
                     + "or your normal test run._");
         }
         return joinSections(sections);
@@ -917,7 +918,8 @@ final class AssistantMarkdown {
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
             if ("COMPLETED".equalsIgnoreCase(string(object, "state", ""))) {
-                sections.add("Run codegen next:\n\n" + fence("text", "/codegen " + outputPath));
+                sections.add("Generate code next — send:\n\n"
+                        + fence("text", "Generate a SHAFT test from " + outputPath));
             }
         }
         String warnings = warnings(object);
@@ -1137,7 +1139,8 @@ final class AssistantMarkdown {
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
             if ("COMPLETED".equalsIgnoreCase(state)) {
-                sections.add("Run codegen next:\n\n" + fence("text", "/codegen " + outputPath));
+                sections.add("Generate code next — send:\n\n"
+                        + fence("text", "Generate a SHAFT test from " + outputPath));
             }
         }
         String currentUrl = string(object, "currentUrl", "");

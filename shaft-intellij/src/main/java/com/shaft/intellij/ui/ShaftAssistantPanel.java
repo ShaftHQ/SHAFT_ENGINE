@@ -103,15 +103,13 @@ final class ShaftAssistantPanel extends JPanel {
     private static final String NO_CODE_GENERATED_NOTE =
             "_No generated code was returned for this recording. The capture session may have no "
                     + "recorded actions (for example, if the browser was closed by a different process "
-                    + "before any actions were captured) or code generation may have failed silently. Try "
-                    + "`/record-web` again, confirm the recording actually captured actions, then re-run "
-                    + "`/codegen`._";
+                    + "before any actions were captured) or code generation may have failed silently. "
+                    + "Record the journey again, confirm the recording actually captured actions, then "
+                    + "ask for a test generated from that recording._";
     private final Project project;
     private final ShaftAssistantChatState chatState;
     private final JComboBox<ShaftAssistantChatState.Session> chatSelector;
     private final JButton newChat;
-    private final JComboBox<String> commandAutocomplete;
-    private final JButton commandInfo;
     private final JComboBox<String> mode;
     private final JComboBox<String> providerType;
     private final JComboBox<String> assistantFamily;
@@ -169,7 +167,6 @@ final class ShaftAssistantPanel extends JPanel {
     private boolean sendCancelHover;
     private boolean cancelRequested;
     private boolean refreshingChats;
-    private boolean updatingCommandAutocomplete;
     private int localAgentStreamToken;
     private int activeLocalAgentStreamToken = -1;
     private int killedLocalAgentStreamToken = -1;
@@ -256,63 +253,8 @@ final class ShaftAssistantPanel extends JPanel {
         chatSelector.addActionListener(event -> switchChat());
         newChat = button("New chat", "Start a new Assistant chat", event -> newChat());
         ShaftIconButtons.apply(newChat, ShaftIcons.ADD);
-        commandAutocomplete = new JComboBox<>(new DefaultComboBoxModel<>(commandItems()));
-        commandAutocomplete.setEditable(true);
-        commandAutocomplete.setSelectedItem("");
-        commandAutocomplete.setPrototypeDisplayValue("/record-mobile inspector Android recordings/inspector.json");
-        commandAutocomplete.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list,
-                                                          Object value,
-                                                          int index,
-                                                          boolean isSelected,
-                                                          boolean cellHasFocus) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(
-                        list, value, index, isSelected, cellHasFocus);
-                label.setText(commandPickerText(String.valueOf(value == null ? "" : value)));
-                label.setBorder(JBUI.Borders.empty(3, 6));
-                return label;
-            }
-        });
-        commandAutocomplete.setPreferredSize(JBUI.size(220, ShaftIconButtons.SIZE));
-        commandAutocomplete.setMinimumSize(JBUI.size(150, ShaftIconButtons.SIZE));
-        commandAutocomplete.getAccessibleContext().setAccessibleName("Assistant command autocomplete");
-        commandAutocomplete.setToolTipText("Insert /guide, /browser, /record, /doctor, and other tested commands");
-        if (commandAutocomplete.getEditor().getEditorComponent() instanceof JTextComponent editor) {
-            editor.getAccessibleContext().setAccessibleName("Assistant command autocomplete text");
-            editor.setToolTipText("Insert a tested SHAFT command");
-            editor.getDocument().addDocumentListener(new DocumentListener() {
-                @Override
-                public void insertUpdate(DocumentEvent event) {
-                    scheduleCommandFilter(editor);
-                }
-
-                @Override
-                public void removeUpdate(DocumentEvent event) {
-                    scheduleCommandFilter(editor);
-                }
-
-                @Override
-                public void changedUpdate(DocumentEvent event) {
-                    scheduleCommandFilter(editor);
-                }
-            });
-        }
-        commandAutocomplete.addActionListener(event -> insertSelectedCommand());
-        updatingCommandAutocomplete = true;
-        try {
-            commandAutocomplete.setSelectedItem("/");
-        } finally {
-            updatingCommandAutocomplete = false;
-        }
-        commandInfo = button("Commands", "SHAFT command hints",
-                event -> showLocalResponse(AssistantCommand.commandHelp(expertEnabled())));
-        commandInfo.getAccessibleContext().setAccessibleDescription(
-                "Shows the supported SHAFT Assistant command families in the command menu.");
-        ShaftIconButtons.apply(commandInfo, ShaftIcons.HELP);
-        commandInfo.setToolTipText(AssistantCommand.commandTooltip(expertEnabled()));
         mode = combo("Assistant mode", "ASK", "PLAN", "AGENT");
-        mode.setSelectedItem(normalize(settings.defaultAutobotMode, "ASK"));
+        mode.setSelectedItem(normalize(settings.defaultAutobotMode, "AGENT"));
         mode.setToolTipText("Ask answers, Plan outlines steps, Agent can run local CLI tasks");
         providerType = combo("Assistant provider type", "LOCAL", "CLOUD");
         providerType.setSelectedItem(normalize(settings.assistantProviderType, "LOCAL"));
@@ -373,7 +315,11 @@ final class ShaftAssistantPanel extends JPanel {
 
         allowSourceMutation = new JBCheckBox("Allow source edits");
         allowSourceMutation.getAccessibleContext().setAccessibleName("Approve source mutation for Agent mode");
-        allowSourceMutation.setToolTipText("Enable only when Agent mode should edit local source files");
+        allowSourceMutation.setToolTipText("Let Agent mode write generated tests and fixes into this project; "
+                + "uncheck for suggestion-only runs");
+        // Checked by default: a first-time user asking for a generated test expects it to land in
+        // the project, and the per-send approval gate still confirms before the first mutation.
+        allowSourceMutation.setSelected(true);
         verboseAgentOutput = new JBCheckBox("Verbose");
         verboseAgentOutput.getAccessibleContext().setAccessibleName("Show verbose agent output");
         verboseAgentOutput.setToolTipText("Forward everything as-is: live local agent output "
@@ -389,8 +335,9 @@ final class ShaftAssistantPanel extends JPanel {
         prompt = new JBTextArea(6, 40);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
-                "Ask for help, choose a tested command, or request guarded local Agent work.");
-        prompt.getEmptyText().setText("Ask SHAFT — / commands, @ workflows, # project context");
+                "Describe what you need in plain language or request guarded local Agent work.");
+        prompt.getEmptyText().setText(
+                "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade (# adds project context)");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView(project);
@@ -574,13 +521,9 @@ final class ShaftAssistantPanel extends JPanel {
         routeRow.add(verboseAgentOutput);
         routeRow.add(autoCompact);
 
-        JPanel commandActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        commandActions.add(commandAutocomplete);
-        commandActions.add(commandInfo);
         JPanel sendActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         sendActions.add(send);
         JPanel promptActions = new JPanel(new BorderLayout(6, 0));
-        promptActions.add(commandActions, BorderLayout.CENTER);
         promptActions.add(sendActions, BorderLayout.EAST);
 
         JPanel composerFooter = new JPanel(new BorderLayout(4, 4));
@@ -719,34 +662,10 @@ final class ShaftAssistantPanel extends JPanel {
         if (trigger == '@') {
             return workflowContextSuggestions();
         }
-        if (trigger == '/') {
-            return commandContextSuggestions();
-        }
         if (trigger == '#') {
             return projectContextSuggestions(project, openFileContext);
         }
         return List.of();
-    }
-
-    private List<ContextSuggestion> commandContextSuggestions() {
-        // Insert the bare command plus a trailing space (never the documentation example: pasting
-        // a placeholder path like recordings/intellij-capture.json invites running it verbatim).
-        // The summary and example render as secondary text in the dropdown instead.
-        return AssistantCommand.commandHints(expertEnabled()).stream()
-                .map(hint -> new ContextSuggestion(
-                        commandMenuLabel(hint), hint.canonical() + " ", hint.canonical()))
-                .toList();
-    }
-
-    private static String commandMenuLabel(AssistantCommand.CommandHint hint) {
-        // Argument hint (issue #3425 B4): the documentation example renders as secondary text so
-        // the palette teaches each command's argument shape without ever inserting the placeholder.
-        String example = hint.example() == null ? "" : hint.example().trim();
-        String argumentHint = example.length() > hint.canonical().length()
-                ? " &nbsp;·&nbsp; e.g. <i>" + escapeHtml(example) + "</i>"
-                : "";
-        return "<html><b>" + hint.canonical() + "</b>&nbsp;&nbsp;<span style='color:gray;'>"
-                + hint.summary() + argumentHint + "</span></html>";
     }
 
     private boolean expertEnabled() {
@@ -754,16 +673,16 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private static List<ContextSuggestion> workflowContextSuggestions() {
+        // Plain-language prefills only: the assistant routes these by intent, so the palette never
+        // teaches command syntax the user would have to remember.
         return List.of(
-                new ContextSuggestion("@workflow:record-web", "/record-web https://example.com"),
+                new ContextSuggestion("@workflow:record-web", "Record my browser actions on https://"),
                 new ContextSuggestion("@workflow:record-mobile",
-                        "/record-mobile inspector Android recordings/inspector.json"),
-                new ContextSuggestion("@workflow:partner", "/partner "),
-                new ContextSuggestion("@workflow:codegen", "/codegen "),
-                new ContextSuggestion("@workflow:doctor", "/doctor "),
-                new ContextSuggestion("@tool:guide-search", "/guide "),
-                new ContextSuggestion("@tool:guardrails", "/guardrails "),
-                new ContextSuggestion("@project:create-or-upgrade", "/project "));
+                        "Record my mobile actions on the Android emulator"),
+                new ContextSuggestion("@workflow:codegen",
+                        "Generate a SHAFT test from "),
+                new ContextSuggestion("@workflow:doctor", "Diagnose my last failed test run"),
+                new ContextSuggestion("@workflow:upgrade", "Upgrade this project to the latest SHAFT"));
     }
 
     private static List<ContextSuggestion> projectContextSuggestions(
@@ -788,7 +707,7 @@ final class ShaftAssistantPanel extends JPanel {
             @Override
             public void keyTyped(KeyEvent event) {
                 char trigger = event.getKeyChar();
-                if (trigger == '@' || trigger == '#' || trigger == '/') {
+                if (trigger == '@' || trigger == '#') {
                     SwingUtilities.invokeLater(() -> showContextSuggestions(trigger));
                 }
             }
@@ -819,9 +738,7 @@ final class ShaftAssistantPanel extends JPanel {
         hideContextPopup();
         List<ContextSuggestion> suggestions = contextSuggestionsForTest(trigger);
         if (suggestions.isEmpty()) {
-            setStatus(trigger == '#' ? "No project context available"
-                    : trigger == '/' ? "No SHAFT commands available"
-                    : "No Assistant context available");
+            setStatus(trigger == '#' ? "No project context available" : "No Assistant context available");
             return;
         }
         if (!prompt.isShowing()) {
@@ -857,8 +774,8 @@ final class ShaftAssistantPanel extends JPanel {
 
     /**
      * Narrows the open trigger dropdown to entries matching what the user typed after the trigger
-     * character, so `/co` immediately shows `/codegen` instead of the full list. Deleting the
-     * trigger or typing whitespace dismisses the dropdown.
+     * character, so `@rec` immediately shows the recording workflows instead of the full list.
+     * Deleting the trigger or typing whitespace dismisses the dropdown.
      */
     private void refreshContextPopupFilter() {
         if (contextPopup == null || !contextPopup.isVisible()) {
@@ -895,8 +812,8 @@ final class ShaftAssistantPanel extends JPanel {
         hideContextPopup();
         int caret = prompt.getCaretPosition();
         String text = prompt.getText();
-        // Replace the trigger character plus any filter text typed after it, so picking /codegen
-        // after typing "/co" leaves exactly one clean command in the prompt.
+        // Replace the trigger character plus any filter text typed after it, so picking a
+        // suggestion after typing "@rec" leaves exactly one clean insertion in the prompt.
         int start = triggerOffset >= 0 && triggerOffset < text.length() && triggerOffset < caret
                 && text.charAt(triggerOffset) == trigger
                 ? triggerOffset
@@ -912,9 +829,9 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     /**
-     * Starter cards for the empty chat (issue #3425 A3): instead of a blank transcript, four
-     * clickable cards prefill the matching command so the very first contact is a guided click,
-     * not a blank prompt. They disappear as soon as the chat has any content.
+     * Starter cards for the empty chat (issue #3425 A3): instead of a blank transcript, clickable
+     * cards prefill a plain-language request so the very first contact is a guided click, not a
+     * blank prompt. They disappear as soon as the chat has any content.
      */
     private JPanel buildStarterCards() {
         JPanel cards = new JPanel(new java.awt.GridLayout(0, 2, 6, 6));
@@ -922,16 +839,19 @@ final class ShaftAssistantPanel extends JPanel {
         cards.setBorder(JBUI.Borders.empty(6, 8));
         cards.add(starterCard("Record a web flow",
                 "Click through your site while SHAFT captures privacy-safe steps",
-                "/record-web https://"));
-        cards.add(starterCard("Generate a test from a recording",
-                "Compile-validated SHAFT code generated from a saved capture",
-                "/codegen recordings/"));
+                "Record my browser actions on https://"));
+        cards.add(starterCard("Record on Android",
+                "Drive an Android emulator while SHAFT records every step",
+                "Record my mobile actions on the Android emulator"));
+        cards.add(starterCard("Generate a test",
+                "From a saved recording file, or just describe the journey in plain words",
+                "Generate a SHAFT test that "));
         cards.add(starterCard("Diagnose failed tests",
-                "Doctor triages Allure evidence and recommends fixes",
-                "/doctor target/allure-results"));
+                "Doctor triages your most recent Allure evidence and recommends fixes",
+                "Diagnose my last failed test run"));
         cards.add(starterCard("Upgrade this project to the latest SHAFT",
                 "The agent previews, applies, and verifies the upgrade",
-                "/upgrade ."));
+                "Upgrade this project to the latest SHAFT"));
         return cards;
     }
 
@@ -953,7 +873,7 @@ final class ShaftAssistantPanel extends JPanel {
     /**
      * Guardrails-on-paste (issue #3425 B7): when the composer content reads as native
      * Selenium/Appium Java, proactively offer one-click conversion instead of waiting for the
-     * user to discover /guardrails.
+     * user to discover the guardrail check.
      */
     private void refreshSeleniumPasteHint() {
         if (convertSeleniumHint == null) {
@@ -1950,7 +1870,6 @@ final class ShaftAssistantPanel extends JPanel {
         localModel.setEnabled(!running);
         effort.setEnabled(!running);
         customCommand.setEnabled(!running);
-        commandAutocomplete.setEnabled(!running);
         allowSourceMutation.setEnabled(!running);
         verboseAgentOutput.setEnabled(!running);
         autoCompact.setEnabled(!running);
@@ -1963,7 +1882,6 @@ final class ShaftAssistantPanel extends JPanel {
         openCaptureReview.setEnabled(!running && pendingCaptureReview != null);
         captureEvidencePack.setEnabled(!running && pendingCaptureReview != null);
         compareCaptureBackends.setEnabled(!running && pendingCaptureReview != null);
-        commandInfo.setEnabled(!running);
         cancel.setEnabled(running);
         progress.setVisible(running);
         setStatus(message);
@@ -2051,11 +1969,9 @@ final class ShaftAssistantPanel extends JPanel {
     }
 
     private void onModeOrRouteSelectionChanged() {
-        boolean agentMode = "AGENT".equals(mode.getSelectedItem());
-        boolean cloud = usesCloud();
-        if (!agentMode || cloud) {
-            allowSourceMutation.setSelected(false);
-        }
+        // The checkbox state is only honored in local Agent mode (AssistantCommand forces
+        // allowSourceMutation=false everywhere else), so switching modes does not silently clear
+        // the checked-by-default source-edit approval.
         updateControlVisibility();
     }
 
@@ -2100,8 +2016,8 @@ final class ShaftAssistantPanel extends JPanel {
         boolean agentMode = "AGENT".equals(mode.getSelectedItem());
         allowSourceMutation.setVisible(agentMode && localAgent);
         allowSourceMutation.setEnabled(controlsEnabled && agentMode && localAgent);
-        // Verbose applies to every run shape: local agent CLI streams AND direct MCP tool runs
-        // (slash commands like /codegen), so it stays available on every route (issue #3426 B5).
+        // Verbose applies to every run shape: local agent CLI streams AND direct MCP tool runs,
+        // so it stays available on every route (issue #3426 B5).
         verboseAgentOutput.setVisible(true);
         verboseAgentOutput.setEnabled(controlsEnabled);
         localModel.setVisible(localCli);
@@ -2221,56 +2137,6 @@ final class ShaftAssistantPanel extends JPanel {
         }
         container.revalidate();
         container.repaint();
-    }
-
-    private void insertSelectedCommand() {
-        if (updatingCommandAutocomplete) {
-            return;
-        }
-        String selected = String.valueOf(commandAutocomplete.getSelectedItem());
-        String command = commandInsertion(selected);
-        if (command.isBlank()) {
-            filterCommandItems(selected);
-            return;
-        }
-        prompt.replaceSelection(command + " ");
-        prompt.requestFocusInWindow();
-        updatingCommandAutocomplete = true;
-        try {
-            commandAutocomplete.setModel(new DefaultComboBoxModel<>(commandItems()));
-            commandAutocomplete.setSelectedItem("/");
-        } finally {
-            updatingCommandAutocomplete = false;
-        }
-    }
-
-    private void filterCommandItems(String prefix) {
-        String typed = prefix == null ? "" : prefix.trim();
-        String lower = typed.toLowerCase(Locale.ROOT);
-        String[] items = AssistantCommand.commandHints(expertEnabled()).stream()
-                .map(AssistantCommand.CommandHint::canonical)
-                .filter(command -> lower.isBlank()
-                        || "/".equals(lower)
-                        || command.toLowerCase(Locale.ROOT).startsWith(lower))
-                .toArray(String[]::new);
-        updatingCommandAutocomplete = true;
-        try {
-            commandAutocomplete.setModel(new DefaultComboBoxModel<>(items.length == 0 ? commandItems() : items));
-            commandAutocomplete.getEditor().setItem(typed.isBlank() ? "/" : typed);
-        } finally {
-            updatingCommandAutocomplete = false;
-        }
-    }
-
-    private void scheduleCommandFilter(JTextComponent editor) {
-        if (updatingCommandAutocomplete) {
-            return;
-        }
-        SwingUtilities.invokeLater(() -> {
-            if (!updatingCommandAutocomplete) {
-                filterCommandItems(editor.getText());
-            }
-        });
     }
 
     private void updateCloudKeyStatus() {
@@ -3112,56 +2978,11 @@ final class ShaftAssistantPanel extends JPanel {
         return combo;
     }
 
-    private String[] commandItems() {
-        return AssistantCommand.commandHints(expertEnabled()).stream()
-                .map(AssistantCommand.CommandHint::canonical)
-                .toArray(String[]::new);
-    }
-
-    private static String commandPickerText(String command) {
-        if (command == null || command.isBlank()) {
-            return "";
-        }
-        for (AssistantCommand.CommandHint hint : AssistantCommand.commandHints()) {
-            if (hint.canonical().equals(command)) {
-                String aliases = hint.synonyms().isEmpty()
-                        ? ""
-                        : "<br><span style='color:#6A737D'>Aliases: "
-                        + escapeHtml(String.join(", ", hint.synonyms()))
-                        + "</span>";
-                return "<html><b>" + escapeHtml(command) + "</b> - "
-                        + escapeHtml(hint.summary())
-                        + aliases
-                        + "<br><span style='color:#6A737D'>"
-                        + escapeHtml(hint.example())
-                        + "</span></html>";
-            }
-        }
-        return escapeHtml(command);
-    }
-
     private static String escapeHtml(String value) {
         if (value == null || value.isBlank()) {
             return "";
         }
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-    }
-
-    private static String commandInsertion(String value) {
-        String normalized = value == null ? "" : value.trim();
-        if (normalized.isBlank()) {
-            return "";
-        }
-        String firstToken = normalized.split("\\s+", 2)[0];
-        for (AssistantCommand.CommandHint hint : AssistantCommand.commandHints()) {
-            if (hint.canonical().equalsIgnoreCase(firstToken)) {
-                return hint.example();
-            }
-            if (hint.synonyms().stream().anyMatch(alias -> alias.equalsIgnoreCase(firstToken))) {
-                return hint.example();
-            }
-        }
-        return "";
     }
 
     private static JPanel wrapRow() {

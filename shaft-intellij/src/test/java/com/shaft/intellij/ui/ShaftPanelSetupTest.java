@@ -1131,9 +1131,9 @@ class ShaftPanelSetupTest {
     void toolWindowHidesAdvancedWorkflowsByDefault() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
 
-        // Progressive disclosure (issue #3425 A4): the default view is Assistant + Guided; the
-        // specialist tabs only appear once their artifacts exist or Expert mode is enabled. The
-        // fake test project has no recordings/allure artifacts, so exactly two views show.
+        // Regular users see only the Assistant: it understands recording, codegen, diagnosis, and
+        // upgrade intents in plain language. Every specialist view stays behind the explicit
+        // expert-mode opt-in, and a one-entry workflow selector stays hidden as noise.
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindowWorkflowSelector(toolWindow);
         assertNotNull(selector);
         List<String> labels = new ArrayList<>();
@@ -1141,8 +1141,8 @@ class ShaftPanelSetupTest {
             labels.add(selector.getItemAt(index).label());
         }
         assertAll(
-                () -> assertEquals(List.of("Assistant", "Guided"), labels),
-                () -> assertTrue(containsText(toolWindow, "Workflow")),
+                () -> assertEquals(List.of("Assistant"), labels),
+                () -> assertFalse(selector.isVisible()),
                 // The persistent setup-health chip (issue #3425 A6) rides in the same header.
                 () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP health", JLabel.class)),
                 () -> assertNotNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)),
@@ -1989,67 +1989,38 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantComposerUsesCommandAutocompleteAndModernThinkingIndicator() {
+    void assistantComposerUsesPlainLanguageInputAndModernThinkingIndicator() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
-        JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
-        JButton commandInfo = findByAccessibleName(panel, "SHAFT command hints", JButton.class);
         JCheckBox verbose = findByAccessibleName(panel, "Show verbose agent output", JCheckBox.class);
         JProgressBar spinner = findByAccessibleName(panel, "Assistant thinking spinner", JProgressBar.class);
         JButton sendButton = findByAccessibleName(panel, "Send assistant prompt", JButton.class);
         JLabel status = findByAccessibleName(panel, "Assistant status", JLabel.class);
         JTextComponent prompt = assistantPrompt(panel);
-        ListCellRenderer renderer = commandAutocomplete.getRenderer();
-        Component renderedGuide = renderer.getListCellRendererComponent(new JList<>(), "/guide", 0, false, false);
-        String renderedText = renderedGuide instanceof JLabel label ? label.getText() : "";
 
         assertAll(
-                () -> assertNotNull(commandAutocomplete, "command autocomplete should exist"),
-                () -> assertTrue(commandAutocomplete.isEditable(), "command autocomplete should be editable"),
-                () -> assertTrue(commandAutocomplete.getToolTipText().contains("tested commands"),
-                        "command autocomplete tooltip should mention tested commands"),
-                () -> assertFalse(comboContains(commandAutocomplete, "/commands"), "command picker should hide /commands"),
-                () -> assertTrue(comboContains(commandAutocomplete, "/codegen"), "command picker should list /codegen"),
-                () -> assertTrue(comboContains(commandAutocomplete, "/record-web"), "command picker should list /record-web"),
-                () -> assertTrue(comboContains(commandAutocomplete, "/record-mobile"),
-                        "command picker should list /record-mobile"),
-                () -> assertTrue(comboContains(commandAutocomplete, "/doctor"), "command picker should list /doctor"),
-                () -> assertTrue(comboContains(commandAutocomplete, "/upgrade"), "command picker should list /upgrade"),
-                // expert commands are hidden from the default composer until Expert mode is enabled
-                () -> assertFalse(comboContains(commandAutocomplete, "/guide"), "expert commands hidden by default"),
-                () -> assertFalse(comboContains(commandAutocomplete, "/guardrails"), "expert commands hidden by default"),
-                () -> assertFalse(comboContains(commandAutocomplete, "/browser"), "expert commands hidden by default"),
-                () -> assertFalse(comboContains(commandAutocomplete, "/mobile"), "expert commands hidden by default"),
-                () -> assertFalse(comboContains(commandAutocomplete, "/project"), "expert commands hidden by default"),
-                () -> assertFalse(comboContains(commandAutocomplete, "/partner"), "expert commands hidden by default"),
-                () -> assertTrue(renderedText.contains("Search the SHAFT guide"), renderedText),
+                // The composer understands plain language: no command picker, no command-help
+                // button, and no slash-command coaching anywhere in the surface.
+                () -> assertNull(findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class),
+                        "the slash-command picker is retired"),
+                () -> assertNull(findByAccessibleName(panel, "SHAFT command hints", JButton.class),
+                        "the command help button is retired"),
                 () -> assertTrue(prompt.getAccessibleContext().getAccessibleDescription().contains("guarded local Agent"),
                         "prompt description should mention guarded local Agent"),
                 () -> assertTrue(prompt instanceof JBTextArea, "prompt should be a JBTextArea"),
                 () -> assertTrue(((JBTextArea) prompt).getRows() >= 6, "prompt should have at least six rows"),
                 () -> assertFalse(containsText(panel, "Add context (#), extensions (@), commands (/commands)"),
                         "old starter strip copy should stay removed"),
-                () -> assertNotNull(commandInfo, "command help button should exist"),
                 () -> assertNull(findByAccessibleName(panel, "Assistant context suggestions", JButton.class),
-                        "the '+' context button is retired; typed / @ # triggers own that role"),
+                        "the '+' context button is retired; typed @ # triggers own that role"),
                 () -> assertTrue(prompt instanceof JBTextArea
-                                && ((JBTextArea) prompt).getEmptyText().getText().contains("@ workflows"),
-                        "the prompt placeholder should advertise the typed triggers instead"),
+                                && ((JBTextArea) prompt).getEmptyText().getText().contains("Tell SHAFT what you need"),
+                        "the prompt placeholder should invite plain language"),
+                () -> assertFalse(((JBTextArea) prompt).getEmptyText().getText().contains("/"),
+                        "the prompt placeholder must not advertise slash commands"),
                 () -> assertNotNull(verbose),
                 () -> assertFalse(verbose.isSelected()),
                 () -> assertTrue(verbose.getToolTipText().contains("live local agent output")),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/codegen"), "command tooltip should list /codegen"),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/record-web"), "command tooltip should list /record-web"),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/record-mobile"), "command tooltip should list /record-mobile"),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/doctor"), "command tooltip should list /doctor"),
-                () -> assertTrue(commandInfo.getToolTipText().contains("/upgrade"), "command tooltip should list /upgrade"),
-                () -> assertFalse(commandInfo.getToolTipText().contains("/guide"), "expert commands hidden by default"),
-                () -> assertFalse(commandInfo.getToolTipText().contains("/project"), "expert commands hidden by default"),
-                () -> assertEquals(commandAutocomplete.getParent(), commandInfo.getParent(),
-                        "command autocomplete and help should share a row"),
-                () -> assertTrue(componentIndex(commandAutocomplete.getParent(), commandInfo)
-                        > componentIndex(commandAutocomplete.getParent(), commandAutocomplete),
-                        "command help should follow autocomplete"),
                 () -> assertNotNull(spinner, "spinner should exist"),
                 () -> assertTrue(spinner.isIndeterminate(), "spinner should be indeterminate"),
                 () -> assertFalse(spinner.isVisible(), "spinner should be hidden while idle"),
@@ -2067,32 +2038,6 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(sendButton.getIcon(), "send button should have an icon"),
                 () -> assertTrue(sendButton.getIcon().getIconWidth() > 0, "send icon should have width"),
                 () -> assertTrue(sendButton.getIcon().getIconHeight() > 0, "send icon should have height"));
-    }
-
-    @Test
-    void assistantCommandAutocompleteStartsWithSlashAndFiltersByTypedPrefix() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
-
-        assertEquals("/", String.valueOf(commandAutocomplete.getEditor().getItem()));
-
-        SwingUtilities.invokeAndWait(() -> commandAutocomplete.getEditor().setItem("/rec"));
-        SwingUtilities.invokeAndWait(() -> {
-        });
-
-        assertAll(
-                () -> assertTrue(comboContains(commandAutocomplete, "/record-web")),
-                () -> assertTrue(comboContains(commandAutocomplete, "/record-mobile")),
-                () -> assertFalse(comboContains(commandAutocomplete, "/doctor")),
-                () -> assertFalse(comboContains(commandAutocomplete, "/project")));
-
-        SwingUtilities.invokeAndWait(() -> commandAutocomplete.getEditor().setItem("/up"));
-        SwingUtilities.invokeAndWait(() -> {
-        });
-
-        assertAll(
-                () -> assertTrue(comboContains(commandAutocomplete, "/upgrade")),
-                () -> assertFalse(comboContains(commandAutocomplete, "/record-web")));
     }
 
     @Test
@@ -2150,30 +2095,26 @@ class ShaftPanelSetupTest {
         List<ShaftAssistantPanel.ContextSuggestion> unsupportedSuggestions = panel.contextSuggestionsForTest('$');
 
         assertAll(
+                // Workflow suggestions insert plain-language requests routed by intent — never
+                // slash-command syntax the user would have to learn.
                 () -> assertTrue(workflowSuggestions.stream().anyMatch(
                         suggestion -> "@workflow:record-web".equals(suggestion.label())
-                                && "/record-web https://example.com".equals(suggestion.insertion()))),
+                                && "Record my browser actions on https://".equals(suggestion.insertion()))),
                 () -> assertTrue(workflowSuggestions.stream().anyMatch(
                         suggestion -> "@workflow:record-mobile".equals(suggestion.label())
-                                && "/record-mobile inspector Android recordings/inspector.json"
+                                && "Record my mobile actions on the Android emulator"
                                 .equals(suggestion.insertion()))),
                 () -> assertTrue(workflowSuggestions.stream().anyMatch(
-                        suggestion -> "@workflow:partner".equals(suggestion.label())
-                                && "/partner ".equals(suggestion.insertion()))),
+                        suggestion -> "@workflow:doctor".equals(suggestion.label())
+                                && "Diagnose my last failed test run".equals(suggestion.insertion()))),
                 () -> assertTrue(workflowSuggestions.stream().anyMatch(
-                        suggestion -> "@tool:guardrails".equals(suggestion.label())
-                                && "/guardrails ".equals(suggestion.insertion()))),
-                // Slash entries insert the clean command plus a trailing space (never the doc
-                // example: a pasted placeholder path invites running it verbatim) and render the
-                // summary as secondary label text.
-                () -> assertTrue(slashSuggestions.stream().anyMatch(
-                        suggestion -> "/upgrade".equals(suggestion.matchText())
-                                && "/upgrade ".equals(suggestion.insertion())
-                                && suggestion.label().contains("/upgrade"))),
-                () -> assertTrue(slashSuggestions.stream().anyMatch(
-                        suggestion -> "/record-web".equals(suggestion.matchText())
-                                && "/record-web ".equals(suggestion.insertion())
-                                && suggestion.label().contains("Record web actions"))),
+                        suggestion -> "@workflow:upgrade".equals(suggestion.label())
+                                && "Upgrade this project to the latest SHAFT".equals(suggestion.insertion()))),
+                () -> assertTrue(workflowSuggestions.stream()
+                        .noneMatch(suggestion -> suggestion.insertion().startsWith("/")),
+                        "workflow insertions must be plain language"),
+                // The '/' trigger is retired along with the slash-command UX.
+                () -> assertTrue(slashSuggestions.isEmpty()),
                 () -> assertTrue(fileSuggestions.isEmpty()),
                 () -> assertTrue(unsupportedSuggestions.isEmpty()));
     }
@@ -2193,37 +2134,20 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void assistantSlashSuggestionsFilterByTypedPrefix() {
+    void assistantWorkflowSuggestionsFilterByTypedPrefix() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
 
-        List<ShaftAssistantPanel.ContextSuggestion> codegenOnly = panel.filteredContextSuggestions('/', "co");
-        List<ShaftAssistantPanel.ContextSuggestion> record = panel.filteredContextSuggestions('/', "record");
-        List<ShaftAssistantPanel.ContextSuggestion> none = panel.filteredContextSuggestions('/', "zzz");
+        List<ShaftAssistantPanel.ContextSuggestion> record = panel.filteredContextSuggestions('@', "workflow:record");
+        List<ShaftAssistantPanel.ContextSuggestion> none = panel.filteredContextSuggestions('@', "zzz");
 
         assertAll(
-                () -> assertTrue(codegenOnly.stream().anyMatch(s -> "/codegen".equals(s.matchText())), codegenOnly.toString()),
-                () -> assertTrue(codegenOnly.stream().noneMatch(s -> "/upgrade".equals(s.matchText())), codegenOnly.toString()),
-                () -> assertTrue(record.stream().anyMatch(s -> "/record-web".equals(s.matchText())), record.toString()),
-                () -> assertTrue(record.stream().anyMatch(s -> "/record-mobile".equals(s.matchText())), record.toString()),
+                () -> assertTrue(record.stream().anyMatch(s -> "@workflow:record-web".equals(s.matchText())),
+                        record.toString()),
+                () -> assertTrue(record.stream().anyMatch(s -> "@workflow:record-mobile".equals(s.matchText())),
+                        record.toString()),
+                () -> assertTrue(record.stream().noneMatch(s -> "@workflow:doctor".equals(s.matchText())),
+                        record.toString()),
                 () -> assertTrue(none.isEmpty(), none.toString()));
-    }
-
-    @Test
-    void assistantCommandAutocompleteInsertsCommandExampleIntoPrompt() throws Exception {
-        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
-        JComboBox<?> commandAutocomplete = findByAccessibleName(panel, "Assistant command autocomplete", JComboBox.class);
-        JTextComponent prompt = assistantPrompt(panel);
-
-        prompt.setText("please ");
-        prompt.setCaretPosition(prompt.getDocument().getLength());
-        SwingUtilities.invokeAndWait(() -> commandAutocomplete.setSelectedItem("/upgrade"));
-        SwingUtilities.invokeAndWait(() -> {
-        });
-
-        assertAll(
-                () -> assertEquals("please /upgrade . ", prompt.getText()),
-                () -> assertEquals("/", String.valueOf(commandAutocomplete.getEditor().getItem())),
-                () -> assertTrue(comboContains(commandAutocomplete, "/doctor")));
     }
 
     @Test
@@ -2284,7 +2208,6 @@ class ShaftPanelSetupTest {
                 "Copy assistant transcript",
                 "Clear assistant transcript",
                 "Rerun last assistant prompt",
-                "SHAFT command hints",
                 "Cancel assistant request");
 
         assertAll(controls.stream()
@@ -2356,6 +2279,8 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Start SHAFT without an agent".equals(accessibleName(button)))
                 .filter(button -> !"Convert pasted Selenium to SHAFT".equals(accessibleName(button)))
                 .filter(button -> !"Recheck SHAFT MCP health".equals(accessibleName(button)))
+                // The user-guide footer link is a text hyperlink by design, not an icon button.
+                .filter(button -> !"Open SHAFT user guide in browser".equals(accessibleName(button)))
                 .filter(button -> !String.valueOf(accessibleName(button)).startsWith("Starter: "))
                 // Setup-screen prerequisite/recovery command buttons keep visible labels like the
                 // upgrade step's copy/terminal pair: they name the exact terminal command being
@@ -3123,7 +3048,7 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void allowSourceMutationUnchecksExactlyOnceWhenModeLeavesAgent() {
+    void allowSourceMutationDefaultsOnAndKeepsUserChoiceAcrossModeSwitches() {
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.advancedUiEnabled = true;
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
@@ -3133,7 +3058,7 @@ class ShaftPanelSetupTest {
 
         assistantProviderType.setSelectedItem("LOCAL");
         assistantMode.setSelectedItem("AGENT");
-        allowEdits.setSelected(true);
+        // Checked by default: a first-time user expects generated tests to land in the project.
         assertTrue(allowEdits.isSelected());
 
         AtomicInteger uncheckCount = new AtomicInteger();
@@ -3143,31 +3068,28 @@ class ShaftPanelSetupTest {
             }
         });
 
+        // Mode switches no longer silently clear the approval: the checkbox value is only honored
+        // in local Agent mode anyway (AssistantCommand forces allowSourceMutation=false elsewhere),
+        // so the user's choice survives ASK/PLAN round-trips.
         assistantMode.setSelectedItem("ASK");
-        assertAll(
-                () -> assertFalse(allowEdits.isSelected(), "Switching away from Agent mode should uncheck source edits"),
-                () -> assertEquals(1, uncheckCount.get(), "Uncheck should fire exactly once, no listener re-entrancy loop"));
-
         assistantMode.setSelectedItem("AGENT");
-        allowEdits.setSelected(true);
-        uncheckCount.set(0);
         assistantMode.setSelectedItem("PLAN");
+        assistantMode.setSelectedItem("AGENT");
         assertAll(
-                () -> assertFalse(allowEdits.isSelected(), "Switching to Plan mode should uncheck source edits"),
-                () -> assertEquals(1, uncheckCount.get(), "Uncheck should fire exactly once, no listener re-entrancy loop"));
+                () -> assertTrue(allowEdits.isSelected(), "Mode switches must not clear the source-edit approval"),
+                () -> assertEquals(0, uncheckCount.get(), "No silent unchecks on mode switches"));
     }
 
     @Test
-    void allowSourceMutationUnchecksExactlyOnceWhenCloudForcesModeSwitch() {
+    void allowSourceMutationSurvivesCloudForcedModeSwitch() {
         // The live cloud route is not reachable in this headless test harness: usesCloud()==true
         // makes updateControlVisibility() call updateCloudKeyStatus(), which needs
         // ApplicationManager.getApplication() (unavailable without IntelliJ Platform Test Framework
         // fixtures, which this task's tests must not require/pull in). updateControlVisibility()
         // forces mode back to PLAN (the behavior this test proves) *before* it reaches
         // updateCloudKeyStatus(), so the NPE from the missing ApplicationManager happens strictly
-        // after both effects under test (uncheck + forced PLAN switch) have already taken place.
-        // The try/catch below only swallows that trailing, unrelated environment limitation; every
-        // assertion about the behavior under test runs after the mutation that can throw.
+        // after the effect under test has already taken place. The try/catch below only swallows
+        // that trailing, unrelated environment limitation.
         ShaftSettingsState.Settings settings = connectedMcpSettings();
         settings.advancedUiEnabled = true;
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, settings);
@@ -3177,23 +3099,12 @@ class ShaftPanelSetupTest {
 
         assistantProviderType.setSelectedItem("LOCAL");
         assistantMode.setSelectedItem("AGENT");
-        allowEdits.setSelected(true);
-        assertTrue(allowEdits.isSelected());
+        assertTrue(allowEdits.isSelected(), "Source edits are approved by default");
         assertEquals("AGENT", assistantMode.getSelectedItem());
 
-        AtomicInteger uncheckCount = new AtomicInteger();
-        allowEdits.addItemListener(event -> {
-            if (!allowEdits.isSelected()) {
-                uncheckCount.incrementAndGet();
-            }
-        });
-
-        // Selecting CLOUD while in Agent mode makes onModeOrRouteSelectionChanged() uncheck the
-        // checkbox immediately, then delegates to updateControlVisibility(), which forces mode back
-        // to PLAN before it reaches the cloud-key-status lookup that NPEs in this bare harness
-        // (missing ApplicationManager). That NPE is an unrelated, pre-existing environment
-        // limitation, not a re-entrancy bug, so it is tolerated here -- but only after the mode
-        // switch to PLAN has already happened, which the assertions below verify end-to-end.
+        // Selecting CLOUD forces mode back to PLAN (cloud cannot run Agent). The checkbox keeps
+        // its value — AssistantCommand already forces allowSourceMutation=false on every cloud
+        // request — so returning to the local route does not lose the user's approval.
         try {
             assistantProviderType.setSelectedItem("CLOUD");
         } catch (NullPointerException ignoredMissingApplicationManager) {
@@ -3201,9 +3112,8 @@ class ShaftPanelSetupTest {
         }
 
         assertAll(
-                () -> assertFalse(allowEdits.isSelected(), "Cloud route should uncheck source edits exactly once"),
-                () -> assertEquals(1, uncheckCount.get(),
-                        "Source edits checkbox should uncheck exactly once with no listener re-entrancy loop"),
+                () -> assertTrue(allowEdits.isSelected(),
+                        "Cloud route must not silently clear the source-edit approval"),
                 () -> assertEquals("PLAN", assistantMode.getSelectedItem(),
                         "Forcing cloud route while in Agent mode should switch mode to PLAN end-to-end"));
     }

@@ -238,10 +238,14 @@ def validate(root: Path = ROOT) -> list[str]:
     else:
         installer_implementation_text = installer_implementation.read_text(encoding="utf-8")
         for required in ("maven-metadata.xml", ".sha256", "runtime-dependencies.txt", "shaft-mcp.args",
-                         "shaft.mcp.workspaceRoot", "ThreadPoolExecutor", "USER_GUIDE_URL",
+                         "shaft.mcp.fallbackWorkspaceRoot", "ThreadPoolExecutor", "USER_GUIDE_URL",
                          "copilot-intellij", "claude-desktop", "intellij-plugin", "--json", "probe_stdio"):
             if required not in installer_implementation_text:
                 errors.append(f"shared Python MCP installer must contain standalone support for {required}")
+        for forbidden_argfile_pin in ('f"-Duser.dir=', 'f"-D{WORKSPACE_SYSTEM_PROPERTY}='):
+            if forbidden_argfile_pin in installer_implementation_text:
+                errors.append("shared Python MCP installer must not pin per-project argfile entries "
+                              f"(found {forbidden_argfile_pin}); the launch directory must stay the workspace")
         if '"-jar", str(jar)' in installer_implementation_text or '"-jar", str(args_file)' in installer_implementation_text:
             errors.append("shared Python MCP installer must configure the thin classpath argfile, not java -jar")
         for legacy_client in ("codex-app",):
@@ -281,7 +285,7 @@ def validate(root: Path = ROOT) -> list[str]:
     for required_client in ("claude-desktop", "copilot-intellij", "intellij-plugin"):
         if required_client not in public_installer:
             errors.append(f"public shaft-mcp installer verification must cover {required_client}")
-    for required_token in ("-Duser.dir", "shaft.mcp.workspaceRoot"):
+    for required_token in ("shaft.mcp.fallbackWorkspaceRoot", "must not pin per-project entries"):
         if required_token not in public_installer:
             errors.append(f"public shaft-mcp installer verification must assert argfile entry: {required_token}")
 

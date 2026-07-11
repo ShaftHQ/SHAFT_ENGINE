@@ -44,6 +44,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private List<WorkflowView> workflowViews = List.of();
     private ApiRecordingSessionPanel apiRecordingPanel;
     private GuidedWorkflowPanel guidedWorkflowPanel;
+    private JLabel workflowSelectorLabel;
     private JLabel healthChip;
     private javax.swing.JButton recheckHealth;
 
@@ -94,6 +95,7 @@ public final class ShaftToolWindowPanel extends JPanel {
                 readinessProbe, deepReadinessProbe);
         preferredFocusComponent = setup.preferredFocusComponent();
         workflowSelector = null;
+        workflowSelectorLabel = null;
         workflowCards = null;
         workflowLayout = null;
         advancedTools = null;
@@ -119,13 +121,13 @@ public final class ShaftToolWindowPanel extends JPanel {
         workflowLayout = new CardLayout();
         workflowCards = new JPanel(workflowLayout);
         workflowCards.getAccessibleContext().setAccessibleName("SHAFT workflow content");
-        GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);
-        guidedWorkflowPanel = guided;
         featurePanels = new ArrayList<>();
         List<WorkflowView> views = new ArrayList<>();
         views.add(new WorkflowView("Assistant", assistant, ShaftIcons.SEND));
-        views.add(new WorkflowView("Guided", guided, ShaftIcons.CODE));
         if (settings.advancedUiEnabled) {
+            GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);
+            guidedWorkflowPanel = guided;
+            views.add(new WorkflowView("Guided", guided, ShaftIcons.CODE));
             EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
             ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
                     List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
@@ -149,25 +151,11 @@ public final class ShaftToolWindowPanel extends JPanel {
             views.add(new WorkflowView("Projects", projectsTools, ShaftIcons.SETTINGS));
             views.add(new WorkflowView("Advanced", advancedTools, ShaftIcons.HELP));
         } else {
-            // Progressive disclosure (issue #3425 A4): the default UI shows Assistant + Guided,
-            // and only surfaces the specialist tabs once the artifacts that make them relevant
-            // actually exist in this project. Expert mode still shows everything.
+            // The Assistant is the product for regular users: it understands recording, code
+            // generation, diagnosis, and upgrade intents in plain language. Every specialist
+            // view stays behind the explicit expert-mode opt-in because those raw-tool surfaces
+            // are unusable without MCP tool knowledge and only dilute first contact.
             advancedTools = null;
-            if (projectArtifactExists("recordings")) {
-                ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
-                        List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
-                featurePanels.add(recorderTools);
-                views.add(new WorkflowView("Recorder", recorderTools, ShaftIcons.VIEW));
-            }
-            if (projectArtifactExists("target/allure-results") || projectArtifactExists("target/shaft-traces")) {
-                EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
-                ShaftFeaturePanel evidenceTools = new ShaftFeaturePanel(project, settings,
-                        List.of(new ToolCategory("Evidence", Stream.concat(
-                                ToolTemplates.doctor().stream(), ToolTemplates.healer().stream()).toList())));
-                featurePanels.add(evidenceTools);
-                views.add(new WorkflowView("Triage", triage, ShaftIcons.CHECK));
-                views.add(new WorkflowView("Evidence", evidenceTools, ShaftIcons.EDIT));
-            }
         }
         workflowViews = List.copyOf(views);
         for (WorkflowView view : workflowViews) {
@@ -204,9 +192,11 @@ public final class ShaftToolWindowPanel extends JPanel {
         JLabel label = new JLabel("Workflow");
         label.setFont(label.getFont().deriveFont(Font.BOLD));
         label.setLabelFor(workflowSelector);
+        workflowSelectorLabel = label;
         header.add(label);
         header.add(workflowSelector);
         header.add(buildHealthChip());
+        refreshWorkflowSelectorVisibility();
         add(header, BorderLayout.NORTH);
         add(workflowCards, BorderLayout.CENTER);
         revalidate();
@@ -340,6 +330,7 @@ public final class ShaftToolWindowPanel extends JPanel {
             workflowViews = updated;
             workflowCards.add(advancedTools, advancedView.label());
             workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
+            refreshWorkflowSelectorVisibility();
         }
         advancedTools.prefillTool(toolName, arguments);
         selectWorkflow(advancedTools);
@@ -365,6 +356,7 @@ public final class ShaftToolWindowPanel extends JPanel {
         workflowViews = updated;
         workflowCards.add(apiRecordingPanel, apiRecordingView.label());
         workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
+        refreshWorkflowSelectorVisibility();
         selectWorkflow(apiRecordingPanel);
 
         ShaftMcpInvocationService.getInstance(project)
@@ -400,6 +392,21 @@ public final class ShaftToolWindowPanel extends JPanel {
         if (guidedWorkflowPanel != null) {
             Disposer.dispose(guidedWorkflowPanel);
             guidedWorkflowPanel = null;
+        }
+    }
+
+    /**
+     * A selector with one entry is noise: regular users see just the Assistant plus the health
+     * chip, and the workflow picker appears only when expert mode or a runtime flow adds real
+     * choices.
+     */
+    private void refreshWorkflowSelectorVisibility() {
+        boolean multipleViews = workflowViews.size() > 1;
+        if (workflowSelector != null) {
+            workflowSelector.setVisible(multipleViews);
+        }
+        if (workflowSelectorLabel != null) {
+            workflowSelectorLabel.setVisible(multipleViews);
         }
     }
 

@@ -56,7 +56,7 @@ final class McpWorkspacePolicy {
         try {
             Path real = candidate.toRealPath();
             if (!real.startsWith(root)) {
-                throw outside(label);
+                throw outside(label, real);
             }
             return real;
         } catch (IOException exception) {
@@ -83,11 +83,11 @@ final class McpWorkspacePolicy {
         try {
             Path realAncestor = ancestor.toRealPath();
             if (!realAncestor.startsWith(root)) {
-                throw outside(label);
+                throw outside(label, candidate);
             }
             Path resolved = realAncestor.resolve(ancestor.relativize(candidate)).normalize();
             if (!resolved.startsWith(root)) {
-                throw outside(label);
+                throw outside(label, resolved);
             }
             return resolved;
         } catch (IOException exception) {
@@ -124,7 +124,7 @@ final class McpWorkspacePolicy {
         }
         Path realRepository = realDirectory(repository);
         if (!realRepository.startsWith(root)) {
-            throw outside("Repository root");
+            throw outside("Repository root", realRepository);
         }
         return values.stream()
                 .map(value -> sourcePath(realRepository, value))
@@ -138,11 +138,11 @@ final class McpWorkspacePolicy {
         }
         Path relative = Path.of(normalized).normalize();
         if (relative.isAbsolute() || relative.startsWith("..")) {
-            throw outside("Approved source path");
+            throw outside("Approved source path", relative);
         }
         Path resolved = repository.resolve(relative).normalize();
         if (!resolved.startsWith(repository) || !resolved.startsWith(root)) {
-            throw outside("Approved source path");
+            throw outside("Approved source path", resolved);
         }
         return relative.toString().replace('\\', '/');
     }
@@ -156,7 +156,7 @@ final class McpWorkspacePolicy {
         Path resolved = path.isAbsolute() ? path : root.resolve(path);
         resolved = resolved.toAbsolutePath().normalize();
         if (!resolved.startsWith(root)) {
-            throw outside(label);
+            throw outside(label, resolved);
         }
         return resolved;
     }
@@ -173,8 +173,12 @@ final class McpWorkspacePolicy {
         }
     }
 
-    private static IllegalArgumentException outside(String label) {
-        return new IllegalArgumentException(label + " is outside the MCP workspace.");
+    private IllegalArgumentException outside(String label, Path candidate) {
+        return new IllegalArgumentException(label + " is outside the MCP workspace. Requested path: "
+                + candidate + ". Current workspace root: " + root + ". Start your agent from the project "
+                + "directory you want SHAFT to work in, or set the " + McpRuntimePaths.WORKSPACE_ENVIRONMENT_VARIABLE
+                + " environment variable (or -D" + McpRuntimePaths.WORKSPACE_SYSTEM_PROPERTY
+                + ") to that project's root and restart the MCP server.");
     }
 
     private String notFoundMessage(String label) {

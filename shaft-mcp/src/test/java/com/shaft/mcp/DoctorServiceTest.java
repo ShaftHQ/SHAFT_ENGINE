@@ -74,6 +74,75 @@ class DoctorServiceTest {
     }
 
     @Test
+    void emptyAllurePathsAutomaticallyAnalyzeTheMostRecentResultsInTheWorkspace(@TempDir Path temp) throws Exception {
+        Path stale = Files.createDirectories(temp.resolve("old-module/allure-results"));
+        Path staleResult = stale.resolve("stale-result.json");
+        Files.writeString(staleResult, new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "stale",
+                "historyId", "stale",
+                "name", "stale",
+                "fullName", "example.Stale.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "NoSuchElementException: unable to locate element",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+        Files.setLastModifiedTime(staleResult, java.nio.file.attribute.FileTime.fromMillis(1_000_000L));
+        Path fresh = Files.createDirectories(temp.resolve("target/allure-results"));
+        Files.writeString(fresh.resolve("fresh-result.json"), new ObjectMapper().writeValueAsString(Map.of(
+                "uuid", "fresh",
+                "historyId", "fresh",
+                "name", "fresh",
+                "fullName", "example.Fresh.test",
+                "status", "failed",
+                "start", 1,
+                "stop", 2,
+                "statusDetails", Map.of(
+                        "message", "TimeoutException: condition failed to be met",
+                        "trace", "trace"))), StandardCharsets.UTF_8);
+
+        var analysis = service(temp).analyzeFailedAllure(
+                List.of(),
+                List.of(),
+                temp.resolve("doctor-output").toString(),
+                false,
+                false,
+                1,
+                "",
+                List.of(),
+                false,
+                false,
+                false,
+                "driver");
+
+        assertEquals(CauseCategory.TIMING_SYNCHRONIZATION, analysis.diagnosis().primaryCause());
+        assertEquals(McpAnalysisReport.Status.DETERMINISTIC, analysis.status());
+    }
+
+    @Test
+    void emptyAllurePathsWithNoResultsAnywhereExplainHowToProduceThem(@TempDir Path temp) {
+        IllegalArgumentException failure = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> service(temp).analyzeFailedAllure(
+                        List.of(),
+                        List.of(),
+                        temp.resolve("doctor-output").toString(),
+                        false,
+                        false,
+                        1,
+                        "",
+                        List.of(),
+                        false,
+                        false,
+                        false,
+                        "driver"));
+
+        assertTrue(failure.getMessage().contains("No Allure results were found in this workspace"));
+        assertTrue(failure.getMessage().contains("SHAFT reporting enabled"));
+    }
+
+    @Test
     void configuredProviderAddsAdvisoryThroughDoctorAnalyze(@TempDir Path temp) throws Exception {
         Path input = Files.createDirectories(temp.resolve("provider-allure-results"));
         Files.writeString(input.resolve("provider-result.json"), new ObjectMapper().writeValueAsString(Map.of(

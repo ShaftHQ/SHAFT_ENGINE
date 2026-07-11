@@ -31,7 +31,10 @@ ARTIFACT_PATH = "io/github/shafthq/shaft-mcp"
 DEFAULT_REPOSITORY = "https://repo.maven.apache.org/maven2"
 MAIN_CLASS = "com.shaft.mcp.ShaftMcpApplication"
 RUNTIME_DEPENDENCIES_ENTRY = "META-INF/shaft-mcp/runtime-dependencies.txt"
-WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.workspaceRoot"
+# Explicit per-project override honored by shaft-mcp; the installer must never pin it
+# globally ("shaft.mcp.workspaceRoot") or every non-IntelliJ client would be locked out
+# of its own project. Only the fallback below is written to the launcher argfile.
+FALLBACK_WORKSPACE_SYSTEM_PROPERTY = "shaft.mcp.fallbackWorkspaceRoot"
 USER_GUIDE_URL = "https://shafthq.github.io/docs/agentic/mcp"
 BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
 SHAFT_SKILLS_DIRECTORY = "shaft-skills"
@@ -867,9 +870,13 @@ def write_launcher_args(jar: Path, dependencies: list[Path]) -> Path:
     runtime_root = application_data_root() / "work"
     runtime_root.mkdir(parents=True, exist_ok=True)
     classpath = os.pathsep.join(str(path.resolve()) for path in [jar, *dependencies])
+    # Never pin -Duser.dir or the workspace root here: agent clients (Claude Code, Codex,
+    # Copilot CLI) launch stdio MCP servers from the user's open project, and that launch
+    # directory must become the MCP workspace so generated tests land in the real project.
+    # The fallback property only kicks in when the launch directory is unusable (protected
+    # system paths, the bare user home) - e.g. Claude Desktop.
     content = "\n".join((
-        java_argfile_quote(f"-Duser.dir={runtime_root}"),
-        java_argfile_quote(f"-D{WORKSPACE_SYSTEM_PROPERTY}={runtime_root}"),
+        java_argfile_quote(f"-D{FALLBACK_WORKSPACE_SYSTEM_PROPERTY}={runtime_root}"),
         "-cp",
         java_argfile_quote(classpath),
         MAIN_CLASS,
