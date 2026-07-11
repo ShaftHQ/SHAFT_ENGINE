@@ -442,6 +442,21 @@ public class ReportManagerHelper {
                 + "  ·  " + ANSI_RED + "✗ Failed: " + failed + ANSI_FG_DEFAULT
                 + "  ·  " + ANSI_YELLOW + "⊘ Skipped: " + skipped + ANSI_FG_DEFAULT;
         createImportantReportEntry(summary);
+        if ("0".equals(total == null ? "" : total.trim())) {
+            // A zero-test run is almost always a silent Surefire provider mismatch, not a real
+            // empty suite: SHAFT ships the JUnit Platform, so a bare consumer pom auto-detects
+            // the JUnit provider and never discovers TestNG classes. Say so loudly instead of
+            // letting the build "pass" with nothing executed.
+            createImportantReportEntry(ANSI_YELLOW
+                    + "⚠ No tests were executed. If you expected TestNG tests to run, your build "
+                    + "tool most likely picked the JUnit Platform test provider (SHAFT ships it), "
+                    + "which does not discover TestNG classes.\n"
+                    + "Fix for Maven: configure maven-surefire-plugin (3.5+) with an explicit "
+                    + "org.apache.maven.surefire:surefire-testng plugin dependency, or generate a "
+                    + "ready-made project with SHAFT's project creator.\n"
+                    + "See https://shafthq.github.io/docs/start/installation for a working pom.xml."
+                    + ANSI_FG_DEFAULT);
+        }
     }
 
     public static void logFinishedTestInformation(String className, String testMethodName, String testDescription, String testStatus) {
