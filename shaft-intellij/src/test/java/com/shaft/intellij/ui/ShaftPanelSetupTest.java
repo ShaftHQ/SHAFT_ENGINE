@@ -596,6 +596,36 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void everySetupCommandCopyOpensTerminalWithPreparedCommand() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        List<String> copied = new ArrayList<>();
+        List<String> terminalCommands = new ArrayList<>();
+        setField(panel, "copySink", (Consumer<String>) copied::add);
+        setField(panel, "terminalOpener", (java.util.function.BiPredicate<String, String>) (tab, command) -> {
+            terminalCommands.add(command);
+            return true;
+        });
+
+        JButton warmup = findByAccessibleName(panel, "Copy SHAFT Engine warm-up command", JButton.class);
+        warmup.doClick();
+
+        setField(panel, "diagnosticCommand", "java -version");
+        JButton diagnostic = findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class);
+        diagnostic.setEnabled(true);
+        diagnostic.doClick();
+
+        assertAll(
+                // Every runnable command copied from the setup screen also lands pre-typed in a
+                // terminal tab; warm-up and diagnostics gain the same one-click behavior the
+                // installer and upgrade buttons already have.
+                () -> assertEquals(copied, terminalCommands),
+                () -> assertEquals(2, terminalCommands.size()),
+                () -> assertTrue(terminalCommands.get(0).contains("mvn"), terminalCommands.get(0)),
+                () -> assertEquals("java -version", terminalCommands.get(1)));
+    }
+
+    @Test
     void setupPanelUpgradeStepReflectsRealProjectVersionCheck() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
@@ -2274,14 +2304,13 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
                 .filter(button -> !"Check SHAFT project version".equals(accessibleName(button)))
                 // Lane/teaching controls keep visible labels by design: the no-agent start names
-                // its lane, starter cards are teaching content (issue #3425 A2/A3/B7/A6), and the
-                // health-chip recheck is a compact header action.
+                // its lane (issue #3425 A2/B7/A6), and the health-chip recheck is a compact
+                // header action.
                 .filter(button -> !"Start SHAFT without an agent".equals(accessibleName(button)))
                 .filter(button -> !"Convert pasted Selenium to SHAFT".equals(accessibleName(button)))
                 .filter(button -> !"Recheck SHAFT MCP health".equals(accessibleName(button)))
                 // The user-guide footer link is a text hyperlink by design, not an icon button.
                 .filter(button -> !"Open SHAFT user guide in browser".equals(accessibleName(button)))
-                .filter(button -> !String.valueOf(accessibleName(button)).startsWith("Starter: "))
                 // Setup-screen prerequisite/recovery command buttons keep visible labels like the
                 // upgrade step's copy/terminal pair: they name the exact terminal command being
                 // copied, which an icon alone cannot convey on a first-run provisioning screen.

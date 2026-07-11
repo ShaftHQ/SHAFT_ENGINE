@@ -280,7 +280,7 @@ class ShaftPluginScreenshotRendererTest {
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
             // Default (non-expert) settings on purpose: this shot documents the real first
-            // contact — Assistant only, no workflow selector, starter cards visible.
+            // contact — Assistant only, no workflow selector, an uncluttered empty chat.
             ShaftSettingsState.Settings settings = defaultSettings();
             JComponent component = new ShaftToolWindowPanel(
                     screenshotProject(), settings, AssistantLocalAgentRunner::readiness, new ShaftAssistantChatState());

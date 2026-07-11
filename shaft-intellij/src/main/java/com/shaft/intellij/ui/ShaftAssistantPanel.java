@@ -188,7 +188,6 @@ final class ShaftAssistantPanel extends JPanel {
     private final Set<String> approvedToolsThisRun = new HashSet<>();
     private ToolApprovalService approvalServiceOverride;
     private JPopupMenu contextPopup;
-    private JPanel starterCards;
     private JButton convertSeleniumHint;
     private char contextPopupTrigger;
     private int contextTriggerOffset = -1;
@@ -336,8 +335,11 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
                 "Describe what you need in plain language or request guarded local Agent work.");
-        prompt.getEmptyText().setText(
-                "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade (# adds project context)");
+        // Two StatusText lines: a single line is clipped in narrow tool windows, and StatusText
+        // never wraps on its own, so the placeholder continues on the next line instead.
+        prompt.getEmptyText()
+                .setText("Tell SHAFT what you need — record, generate a test,")
+                .appendLine("diagnose failures, upgrade (# adds project context)");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView(project);
@@ -555,8 +557,6 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel north = new JPanel(new BorderLayout(4, 4));
         north.add(setupNotice(project, settings), BorderLayout.NORTH);
         north.add(header, BorderLayout.CENTER);
-        starterCards = buildStarterCards();
-        north.add(starterCards, BorderLayout.SOUTH);
         add(north, BorderLayout.NORTH);
         add(transcriptPanel, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
@@ -826,48 +826,6 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.setCaretPosition(start + suggestion.insertion().length());
         prompt.requestFocusInWindow();
         setStatus("Inserted " + suggestion.matchText());
-    }
-
-    /**
-     * Starter cards for the empty chat (issue #3425 A3): instead of a blank transcript, clickable
-     * cards prefill a plain-language request so the very first contact is a guided click, not a
-     * blank prompt. They disappear as soon as the chat has any content.
-     */
-    private JPanel buildStarterCards() {
-        JPanel cards = new JPanel(new java.awt.GridLayout(0, 2, 6, 6));
-        cards.getAccessibleContext().setAccessibleName("Assistant starter cards");
-        cards.setBorder(JBUI.Borders.empty(6, 8));
-        cards.add(starterCard("Record a web flow",
-                "Click through your site while SHAFT captures privacy-safe steps",
-                "Record my browser actions on https://"));
-        cards.add(starterCard("Record on Android",
-                "Drive an Android emulator while SHAFT records every step",
-                "Record my mobile actions on the Android emulator"));
-        cards.add(starterCard("Generate a test",
-                "From a saved recording file, or just describe the journey in plain words",
-                "Generate a SHAFT test that "));
-        cards.add(starterCard("Diagnose failed tests",
-                "Doctor triages your most recent Allure evidence and recommends fixes",
-                "Diagnose my last failed test run"));
-        cards.add(starterCard("Upgrade this project to the latest SHAFT",
-                "The agent previews, applies, and verifies the upgrade",
-                "Upgrade this project to the latest SHAFT"));
-        return cards;
-    }
-
-    private JButton starterCard(String title, String subtitle, String prefill) {
-        JButton card = new JButton("<html><b>" + title + "</b><br><span style='color:gray;'>"
-                + subtitle + "</span></html>");
-        card.getAccessibleContext().setAccessibleName("Starter: " + title);
-        card.setToolTipText("Prefills \"" + prefill + "\" — adjust the argument, then send");
-        card.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
-        card.addActionListener(event -> {
-            prompt.setText(prefill);
-            prompt.setCaretPosition(prefill.length());
-            prompt.requestFocusInWindow();
-            setStatus("Starter inserted — finish the argument, then send");
-        });
-        return card;
     }
 
     /**
@@ -2104,9 +2062,6 @@ final class ShaftAssistantPanel extends JPanel {
         boolean hasResponse = !lastResponse.isBlank();
         boolean hasRawResponse = !lastRawResponse.isBlank();
         boolean hasTranscript = !transcript.markdown().isBlank() || !toolEvidence.isEmpty();
-        if (starterCards != null) {
-            starterCards.setVisible(!hasTranscript && !running);
-        }
         boolean canRerun = !lastPrompt.isBlank();
         copyLastResponse.setVisible(hasResponse);
         copyLastResponse.setEnabled(hasResponse);
