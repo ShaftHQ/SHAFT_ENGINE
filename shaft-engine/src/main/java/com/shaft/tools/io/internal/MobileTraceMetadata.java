@@ -21,10 +21,6 @@ import java.util.Map;
  */
 public final class MobileTraceMetadata {
     private static final int SOURCE_EXCERPT_LIMIT = 1200;
-    private static final String PIXEL_5_VIEWPORT = "393x851";
-    private static final String PIXEL_5_SCALE = "2.75";
-    private static final String PIXEL_5_USER_AGENT = "Mozilla/5.0 (Linux; Android 11; Pixel 5) "
-            + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Mobile Safari/537.36";
 
     private MobileTraceMetadata() {
         throw new IllegalStateException("Utility class");
@@ -94,10 +90,11 @@ public final class MobileTraceMetadata {
         String deviceName = firstNonBlank(SHAFT.Properties.web.mobileEmulationDeviceName(), "Pixel 5");
         put(metadata, "deviceProfile.mode", "devtools-device");
         put(metadata, "deviceProfile.deviceName", deviceName);
-        if ("Pixel 5".equalsIgnoreCase(deviceName)) {
-            put(metadata, "deviceProfile.viewport", PIXEL_5_VIEWPORT);
-            put(metadata, "deviceProfile.deviceScaleFactor", PIXEL_5_SCALE);
-            put(metadata, "deviceProfile.userAgent", PIXEL_5_USER_AGENT);
+        var pinnedProfile = com.shaft.driver.internal.DriverFactory.EmulatedDeviceProfiles.of(deviceName);
+        if (pinnedProfile.isPresent()) {
+            put(metadata, "deviceProfile.viewport", pinnedProfile.get().viewport());
+            put(metadata, "deviceProfile.deviceScaleFactor", String.valueOf(pinnedProfile.get().pixelRatio()));
+            put(metadata, "deviceProfile.userAgent", pinnedProfile.get().userAgent());
         } else {
             put(metadata, "deviceProfile.viewport", "resolved-by-devtools");
             put(metadata, "deviceProfile.deviceScaleFactor", "resolved-by-devtools");

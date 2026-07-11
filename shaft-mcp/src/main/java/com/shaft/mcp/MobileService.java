@@ -746,22 +746,33 @@ public class MobileService {
     }
 
     /**
-     * Types text into a mobile element.
+     * Types text into a mobile element. The typed value is classified per field with the same
+     * deterministic privacy policy web capture uses: only values typed into sensitive-looking
+     * fields (password, token, and similar locators) or matching secret-value patterns are
+     * redacted from the recording, so ordinary inputs such as search boxes stay replayable.
      */
-    @Tool(name = "mobile_type", description = "types a value into a mobile element")
+    @Tool(name = "mobile_type", description = "types a value into a mobile element; sensitive fields are redacted per field")
     public McpMobileActionResult type(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
         String code = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
                 + ", " + java(textValue) + ");";
         String redactedCode = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
                 + ", \"<redacted>\");";
+        boolean sensitive = isSensitiveTypedValue(locatorValue, textValue);
         try {
             getDriver().element().type(getLocator(locatorStrategy, locatorValue), textValue);
             return actionResult("type", locatorStrategy, locatorValue, Map.of("value", text(textValue)), code,
-                    redactedCode, true);
+                    redactedCode, sensitive);
         } catch (Exception exception) {
             logger.error("Mobile type failed (values redacted)", exception);
             throw exception;
         }
+    }
+
+    static boolean isSensitiveTypedValue(String locatorValue, String textValue) {
+        var classified = new com.shaft.capture.privacy.CapturePrivacyClassifier().classifyValue(
+                text(locatorValue), textValue, text(locatorValue), Map.of());
+        return classified.reference().classification()
+                != com.shaft.capture.model.ExternalTestDataReference.DataClassification.ORDINARY;
     }
 
     /**

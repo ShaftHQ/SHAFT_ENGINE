@@ -196,7 +196,8 @@ class ManagedCaptureRecorder {
                 ProcessHandle.current().pid(),
                 startedAt,
                 transactions.size(),
-                lastEndpoints);
+                lastEndpoints,
+                pipeline == null ? 0 : pipeline.pendingSignalCount());
     }
 
     /**

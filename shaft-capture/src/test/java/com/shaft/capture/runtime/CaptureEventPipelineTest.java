@@ -74,6 +74,31 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void pendingSignalCountReportsUncommittedInputAndDebouncedClicks(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        assertEquals(0, pipeline.pendingSignalCount());
+        // Fresh timestamps keep the click inside its debounce window and the uncommitted input
+        // parked, so both stay pending until close() flushes them.
+        Instant now = Instant.now();
+        pipeline.accept(signal("input", now, usernameTarget(),
+                Map.of("value", "ali"), Map.of()));
+        pipeline.accept(signal("click", now.plusMillis(1), buttonTarget(),
+                Map.of("button", 0, "clickCount", 1), Map.of()));
+        assertEquals(2, pipeline.pendingSignalCount());
+        assertEquals(0, pipeline.eventCount());
+
+        pipeline.close();
+        assertEquals(0, pipeline.pendingSignalCount());
+        assertEquals(2, store.read().events().size());
+    }
+
+    @Test
     void normalizesSelectToggleUploadKeyboardAndAlertActions(@TempDir Path temp) {
         Path output = temp.resolve("session.json");
         CaptureSessionStore store = startedStore(output);

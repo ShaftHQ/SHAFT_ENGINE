@@ -54,6 +54,18 @@ class MobileRecordingServiceTest {
     }
 
     @Test
+    void typedValueSensitivityIsClassifiedPerFieldLikeWebCapture() {
+        assertTrue(MobileService.isSensitiveTypedValue("password_input", "hunter2"),
+                "Password-looking fields must stay redacted");
+        assertTrue(MobileService.isSensitiveTypedValue("com.example:id/api_token", "value"),
+                "Token-looking fields must stay redacted");
+        assertFalse(MobileService.isSensitiveTypedValue("search", "SHAFT Engine"),
+                "Ordinary search fields must not be redacted");
+        assertFalse(MobileService.isSensitiveTypedValue("username", "shaft.user"),
+                "Username fields externalize as ordinary test data, matching web capture");
+    }
+
+    @Test
     void recordingCodeBlocksAddMobilePomHandoffBlocks() {
         McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
         Path recording = temp.resolve("pom-handoff.json");

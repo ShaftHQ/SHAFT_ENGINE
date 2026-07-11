@@ -21,6 +21,7 @@ import java.util.List;
  * @param startedAt session start time
  * @param networkTransactionCount recorded network transaction count, {@code 0} when API capture is disabled
  * @param lastEndpoints most-recent-first, bounded list of recently observed endpoints ({@code METHOD url})
+ * @param pendingSignalCount debounced browser signals (uncommitted typed input, pending clicks) not yet persisted as events
  */
 public record CaptureStatus(
         State state,
@@ -35,7 +36,8 @@ public record CaptureStatus(
         long processId,
         Instant startedAt,
         int networkTransactionCount,
-        List<String> lastEndpoints) {
+        List<String> lastEndpoints,
+        int pendingSignalCount) {
     /**
      * Recorder lifecycle states.
      */
@@ -68,6 +70,44 @@ public record CaptureStatus(
             throw new IllegalArgumentException("Capture network transaction count cannot be negative.");
         }
         lastEndpoints = lastEndpoints == null ? List.of() : List.copyOf(lastEndpoints);
+        if (pendingSignalCount < 0) {
+            throw new IllegalArgumentException("Capture pending signal count cannot be negative.");
+        }
+    }
+
+    /**
+     * Compatibility constructor for callers compiled before the pending-signal counter was added.
+     *
+     * @param state recorder lifecycle state
+     * @param sessionId logical capture session identifier
+     * @param browser browser family
+     * @param currentUrl sanitized current URL
+     * @param eventCount persisted semantic event count
+     * @param readiness deterministic readiness state
+     * @param warnings safe recorder warnings
+     * @param outputPath capture JSON output path
+     * @param aiEnabled always false for deterministic recording
+     * @param processId owning process ID
+     * @param startedAt session start time
+     * @param networkTransactionCount recorded network transaction count
+     * @param lastEndpoints most-recent-first, bounded list of recently observed endpoints
+     */
+    public CaptureStatus(
+            State state,
+            String sessionId,
+            String browser,
+            String currentUrl,
+            int eventCount,
+            CaptureReadiness.State readiness,
+            List<String> warnings,
+            String outputPath,
+            boolean aiEnabled,
+            long processId,
+            Instant startedAt,
+            int networkTransactionCount,
+            List<String> lastEndpoints) {
+        this(state, sessionId, browser, currentUrl, eventCount, readiness, warnings, outputPath, aiEnabled,
+                processId, startedAt, networkTransactionCount, lastEndpoints, 0);
     }
 
     /**

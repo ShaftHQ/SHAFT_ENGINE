@@ -189,7 +189,7 @@ public class CaptureService {
      * @return current or final recorder status
      */
     @Tool(name = "capture_status",
-            description = "returns SHAFT Capture session, browser, URL, event count, warnings, and output status")
+            description = "returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status")
     public CaptureStatus status() {
         return manager.status();
     }
