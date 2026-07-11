@@ -594,8 +594,8 @@ final class ShaftAssistantPanel extends JPanel {
             try {
                 paint.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
                         java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                java.awt.Color hint = javax.swing.UIManager.getColor("Component.infoForeground");
-                paint.setColor(hint == null ? java.awt.Color.GRAY : hint);
+                paint.setColor(java.util.Objects.requireNonNullElse(
+                        javax.swing.UIManager.getColor("Component.infoForeground"), java.awt.Color.GRAY));
                 paint.setFont(getFont());
                 java.awt.FontMetrics metrics = paint.getFontMetrics();
                 java.awt.Insets insets = getInsets();
