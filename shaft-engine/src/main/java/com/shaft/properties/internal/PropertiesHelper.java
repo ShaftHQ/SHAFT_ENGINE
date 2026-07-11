@@ -37,8 +37,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * startup before parallel execution begins.</p>
  */
 public class PropertiesHelper {
-    private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
-    private static final String TARGET_PROPERTIES_FOLDER_PATH = DEFAULT_PROPERTIES_FOLDER_PATH.replace("/default", "");
+    /**
+     * Where the bundled default property files get materialized for the user's project. The
+     * conventional location is inside the project sources ({@code src/main/resources/properties}),
+     * but that is wrong for SHAFT's own module test suites: bootstrap copies would rewrite
+     * repo-tracked property files with EOL-only churn on every run. Setting the
+     * {@code shaft.properties.bootstrapDirectory} system property (e.g. to a {@code target/}
+     * folder in surefire) redirects every bootstrap write without changing user-facing behavior.
+     */
+    static final String BOOTSTRAP_DIRECTORY_PROPERTY = "shaft.properties.bootstrapDirectory";
+    private static final String CONVENTIONAL_TARGET_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
     private static final AtomicBoolean postProcessingDone = new AtomicBoolean(false);
     private static final int DOWNLOAD_MAX_ATTEMPTS = 3;
     private static final Duration DOWNLOAD_BASE_DELAY = Duration.ofMillis(500);
@@ -302,14 +310,26 @@ public class PropertiesHelper {
                 "reportportal.properties").forEach(PropertiesHelper::downloadPropertiesFile);
     }
 
+    private static String targetPropertiesFolderPath() {
+        String override = System.getProperty(BOOTSTRAP_DIRECTORY_PROPERTY, "").trim();
+        return override.isBlank() ? CONVENTIONAL_TARGET_PROPERTIES_FOLDER_PATH : override.replace('\\', '/');
+    }
+
+    private static String defaultPropertiesFolderPath() {
+        return targetPropertiesFolderPath() + "/default";
+    }
+
     private static void initializeDefaultProperties(boolean forceDownload) {
         if (forceDownload){
             downloadDefaultProperties();
         } else {
-            URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
+            // The classpath entry name is fixed by the bundled jar layout and is deliberately not
+            // affected by the bootstrap-directory override, which only redirects local writes.
+            URL propertiesFolder = PropertyFileManager.class.getResource(
+                    CONVENTIONAL_TARGET_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/default/");
             var propertiesFolderPath = propertiesFolder != null
                     ? PropertyFileManager.resolveClasspathResourceLocation(propertiesFolder)
-                    : DEFAULT_PROPERTIES_FOLDER_PATH;
+                    : defaultPropertiesFolderPath();
 
             boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
 
@@ -319,7 +339,7 @@ public class PropertiesHelper {
             if (isExternalRun) {
                 try {
                     if (propertiesFolderPath.contains("file:")) {
-                        fileActions.copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+                        fileActions.copyFolderFromJar(propertiesFolderPath, defaultPropertiesFolderPath());
                     } else {
                         throw new IOException("Properties folder path does not contain 'file:' protocol, indicating it is not running from a jar file.");
                     }
@@ -338,8 +358,8 @@ public class PropertiesHelper {
         var propertiesFolderPath = PropertyFileManager.resolveBundledDefaultPropertiesFolderPath();
         boolean isExternalRun = propertiesFolderPath.contains("file:") && propertiesFolderPath.contains(".jar!");
         var targetPropertiesFolderPath = aiAgentMode
-                ? resolveAiAgentPath(TARGET_PROPERTIES_FOLDER_PATH)
-                : TARGET_PROPERTIES_FOLDER_PATH;
+                ? resolveAiAgentPath(targetPropertiesFolderPath())
+                : targetPropertiesFolderPath();
 
         Arrays.asList("/custom.properties")
                 .forEach(file -> {

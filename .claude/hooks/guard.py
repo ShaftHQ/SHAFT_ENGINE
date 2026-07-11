@@ -101,58 +101,141 @@ _MVN_TEST_GOALS = (
 )
 
 _SKIP_TESTS_RE = re.compile(r"-DskipTests\b|-Dmaven\.test\.skip=true\b", re.IGNORECASE)
-_MVN_INVOCATION_RE = re.compile(r"(?<![\w.\-])mvn(?:\.(?:cmd|bat))?(?![\w.\-])", re.IGNORECASE)
 _DTEST_RE = re.compile(r"-Dtest=", re.IGNORECASE)
 _AM_RE = re.compile(r"(?<![\w-])(?:-am|--also-make)(?![\w-])", re.IGNORECASE)
 _PL_RE = re.compile(r"(?<![\w-])(?:-pl|--projects)(?![\w-])", re.IGNORECASE)
 _HEADLESS_TRUE_RE = re.compile(r"-DheadlessExecution=true\b", re.IGNORECASE)
 
+# R1/R2 must match the actual command head, not command-looking text quoted as
+# DATA (a `gh pr create --body` describing a Maven run, a commit message, a
+# heredoc). Multi-line string bodies are stripped before segmentation, and the
+# mvn/allure token must then be the executable at the start of its command
+# segment (allowing env-var assignments and common runner/wrapper prefixes).
 
-def _mvn_goal_present(command: str) -> bool:
-    """True if the command contains a mvn invocation with a test-executing goal/phase."""
-    if not _MVN_INVOCATION_RE.search(command):
+# Bash/POSIX heredoc bodies: <<EOF ... EOF (optionally quoted/indented tag).
+_BASH_HEREDOC_RE = re.compile(
+    r"<<-?\s*([\"']?)(\w+)\1.*?(?:\r?\n)\s*\2(?=\s|$)", re.DOTALL
+)
+# PowerShell here-strings: @' ... '@ and @" ... "@ (bodies are data).
+_PS_HERE_STRING_RE = re.compile(r"@(['\"])\r?\n.*?\r?\n\1@", re.DOTALL)
+# Quoted strings that span multiple lines are data (PR/commit bodies); quoted
+# single-line tokens like '-Dtest=Foo' are real arguments and must survive.
+_MULTILINE_DQUOTE_RE = re.compile(r'"(?:[^"\\]|\\.)*?\n(?:[^"\\]|\\.)*?"', re.DOTALL)
+_MULTILINE_SQUOTE_RE = re.compile(r"'[^']*?\n[^']*?'", re.DOTALL)
+# Line continuations keep one logical command in one segment.
+_LINE_CONTINUATION_RE = re.compile(r"(?:\\|`)\r?\n")
+
+# Tokens that may legitimately precede the real executable in a segment.
+_RUNNER_PREFIX_TOKENS = frozenset(
+    {"time", "nohup", "nice", "xvfb-run", "npx", "pnpm", "yarn", "dlx", "exec"}
+)
+_ENV_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_]\w*=\S*$")
+
+
+def _sanitize_for_command_head(command: str) -> str:
+    """Strip data-only string bodies and join continuation lines."""
+    sanitized = _LINE_CONTINUATION_RE.sub(" ", command)
+    sanitized = _BASH_HEREDOC_RE.sub(" ", sanitized)
+    sanitized = _PS_HERE_STRING_RE.sub(" ", sanitized)
+    sanitized = _MULTILINE_DQUOTE_RE.sub(" ", sanitized)
+    sanitized = _MULTILINE_SQUOTE_RE.sub(" ", sanitized)
+    return sanitized
+
+
+def _command_segments(command: str) -> list[str]:
+    """Split into command segments (separators plus real newlines)."""
+    return re.split(r"(?:;|&&|\|\||\||&|\r?\n)", command)
+
+
+def _segment_tokens(segment: str) -> list[str]:
+    stripped = segment.strip()
+    stripped = re.sub(r"^&\s*", "", stripped)  # PowerShell call operator
+    return stripped.split()
+
+
+def _head_executable_matches(segment: str, names: frozenset[str]) -> bool:
+    """True when the segment's executable token (basename) is one of `names`."""
+    tokens = _segment_tokens(segment)
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if _ENV_ASSIGNMENT_RE.match(token):
+            index += 1
+            continue
+        basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename in names:
+            return True
+        if basename in _RUNNER_PREFIX_TOKENS:
+            index += 1
+            # `timeout 60 mvn ...`-style: skip a numeric argument after a runner
+            if index < len(tokens) and re.match(r"^\d+[smhd]?$", tokens[index]):
+                index += 1
+            continue
+        if basename == "timeout":
+            index += 1
+            if index < len(tokens) and re.match(r"^\d+[smhd]?$", tokens[index]):
+                index += 1
+            continue
         return False
+    return False
+
+
+_MVN_NAMES = frozenset({"mvn", "mvn.cmd", "mvn.bat"})
+_ALLURE_NAMES = frozenset({"allure", "allure.cmd", "allure.bat"})
+
+
+def _mvn_segments(command: str) -> list[str]:
+    """Segments whose executable is mvn (command position, not quoted prose)."""
+    return [
+        segment
+        for segment in _command_segments(_sanitize_for_command_head(command))
+        if _head_executable_matches(segment, _MVN_NAMES)
+    ]
+
+
+def _segment_has_test_goal(segment: str) -> bool:
     for goal in _MVN_TEST_GOALS:
         # word-boundary aware match for the goal token (handles "surefire:test" too)
         pattern = re.compile(r"(?<![\w:.\-])" + re.escape(goal) + r"(?![\w:.\-])", re.IGNORECASE)
-        if pattern.search(command):
+        if pattern.search(segment):
             return True
     return False
 
 
 def check_r1_maven(command: str) -> str | None:
     """Return a block reason string, or None if R1 does not apply / is satisfied."""
-    if not _mvn_goal_present(command):
-        return None
-    if _SKIP_TESTS_RE.search(command):
-        return None  # tests are skipped entirely -- rule does not apply
+    for segment in _mvn_segments(command):
+        if not _segment_has_test_goal(segment):
+            continue
+        if _SKIP_TESTS_RE.search(segment):
+            continue  # tests are skipped entirely -- rule does not apply
 
-    has_dtest = bool(_DTEST_RE.search(command))
-    has_am = bool(_AM_RE.search(command))
-    has_pl = bool(_PL_RE.search(command))
+        has_dtest = bool(_DTEST_RE.search(segment))
+        has_am = bool(_AM_RE.search(segment))
+        has_pl = bool(_PL_RE.search(segment))
 
-    if not has_dtest and (has_am or not has_pl):
-        return (
-            "R1 (Maven test scoping): this command runs a Maven test-executing "
-            "goal/phase without -Dtest= scoping, and either uses -am/--also-make "
-            "or has no -pl/--projects scoping at all. Running an unscoped/-am "
-            "test phase across the whole reactor has previously crashed the JVM "
-            "(EXCEPTION_ACCESS_VIOLATION) by pulling in every upstream module's "
-            "test suite (see .memory scoped-test-execution-policy). Scope the "
-            "run with -Dtest=<SpecificClass>, or use -pl <module> WITHOUT -am "
-            "(compile/install the dependency once separately if needed)."
-        )
+        if not has_dtest and (has_am or not has_pl):
+            return (
+                "R1 (Maven test scoping): this command runs a Maven test-executing "
+                "goal/phase without -Dtest= scoping, and either uses -am/--also-make "
+                "or has no -pl/--projects scoping at all. Running an unscoped/-am "
+                "test phase across the whole reactor has previously crashed the JVM "
+                "(EXCEPTION_ACCESS_VIOLATION) by pulling in every upstream module's "
+                "test suite (see .memory scoped-test-execution-policy). Scope the "
+                "run with -Dtest=<SpecificClass>, or use -pl <module> WITHOUT -am "
+                "(compile/install the dependency once separately if needed)."
+            )
 
-    if not _HEADLESS_TRUE_RE.search(command):
-        return (
-            "R1 (headless execution): this command runs Maven tests that can "
-            "reach SHAFT-driver-based browser tests but does not pass "
-            "-DheadlessExecution=true. Browser-capable test runs must force "
-            "headless execution to avoid launching a real, unprompted browser "
-            "window on the user's own machine (see .memory gotcha "
-            "mvn-test-must-force-headlessexecution-true...). Add "
-            "-DheadlessExecution=true."
-        )
+        if not _HEADLESS_TRUE_RE.search(segment):
+            return (
+                "R1 (headless execution): this command runs Maven tests that can "
+                "reach SHAFT-driver-based browser tests but does not pass "
+                "-DheadlessExecution=true. Browser-capable test runs must force "
+                "headless execution to avoid launching a real, unprompted browser "
+                "window on the user's own machine (see .memory gotcha "
+                "mvn-test-must-force-headlessexecution-true...). Add "
+                "-DheadlessExecution=true."
+            )
 
     return None
 
@@ -161,12 +244,35 @@ def check_r1_maven(command: str) -> str | None:
 # R2: Allure must never be auto-served/opened
 # ---------------------------------------------------------------------------
 
-_ALLURE_SERVE_RE = re.compile(r"(?<![\w-])allure(?:\.(?:cmd|bat))?\s+(serve|open)(?![\w-])", re.IGNORECASE)
+_ALLURE_SERVE_RE = re.compile(r"^\s*(serve|open)(?![\w-])", re.IGNORECASE)
 _ALLURE_MVN_SERVE_RE = re.compile(r"(?<![\w:.\-])allure:serve(?![\w:.\-])", re.IGNORECASE)
 
 
+def _segment_runs_allure_serve(segment: str) -> bool:
+    tokens = _segment_tokens(segment)
+    for index, token in enumerate(tokens):
+        basename = re.split(r"[/\\]", token.strip("\"'"))[-1].lower()
+        if basename in _ALLURE_NAMES:
+            prefixes = tokens[:index]
+            prefix_ok = all(
+                _ENV_ASSIGNMENT_RE.match(prefix)
+                or re.split(r"[/\\]", prefix.strip("\"'"))[-1].lower() in _RUNNER_PREFIX_TOKENS
+                for prefix in prefixes
+            )
+            rest = " ".join(tokens[index + 1:])
+            return prefix_ok and bool(_ALLURE_SERVE_RE.match(rest))
+    return False
+
+
 def check_r2_allure(command: str) -> str | None:
-    if _ALLURE_SERVE_RE.search(command) or _ALLURE_MVN_SERVE_RE.search(command):
+    sanitized = _sanitize_for_command_head(command)
+    serve_in_command_position = any(
+        _segment_runs_allure_serve(segment) for segment in _command_segments(sanitized)
+    )
+    mvn_allure_serve = any(
+        _ALLURE_MVN_SERVE_RE.search(segment) for segment in _mvn_segments(command)
+    )
+    if serve_in_command_position or mvn_allure_serve:
         return (
             "R2 (Allure auto-open): this command runs 'allure serve', "
             "'allure open', or the Maven 'allure:serve' goal. Never auto-open "
@@ -393,6 +499,24 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     ("start after & blocked", "git status & start chrome", True),
     ("start mid-word in later segment not blocked", "git status && echo restart-service", False),
     ("empty command allowed", "", False),
+
+    # --- Command-head matching: quoted/heredoc PROSE about Maven must not block (issue #3422 item 14) ---
+    ("gh pr create body mentioning mvn test is prose, not a command",
+     'gh pr create --title "Fix" --body "Verified with:\nmvn -pl shaft-mcp test\nAll green."', False),
+    ("git commit -m quoting mvn test is prose",
+     'git commit -m "mvn test now passes"', False),
+    ("bash heredoc PR body mentioning mvn test is prose",
+     "gh pr create --body-file - <<'EOF'\nRan mvn test without flags.\nEOF", False),
+    ("powershell here-string body mentioning mvn test is prose",
+     "gh pr create --body @'\nmvn test\n'@", False),
+    ("echo quoting allure serve is prose", 'echo "allure serve target"', False),
+    ("mvn test after && is still a real command", "git status && mvn test", True),
+    ("mvn test on its own line is still a real command", "git status\nmvn test", True),
+    ("env-var prefixed mvn test is still a real command", "FOO=1 mvn test", True),
+    ("timeout-wrapped mvn test is still a real command", "timeout 60 mvn test", True),
+    ("npx allure serve is still a real command", "npx allure serve target/allure-results", True),
+    ("multi-line mvn continuation keeps its scoping flags",
+     "mvn -pl shaft-mcp test \\\n  -Dtest=Foo \\\n  -DheadlessExecution=true", False),
 ]
 
 
