@@ -54,6 +54,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -80,6 +81,40 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
+    private static final List<Path> TEMP_DIRECTORIES = new ArrayList<>();
+
+    /**
+     * Temp-dir factory with suite-level cleanup: raw Files.createTempDirectory calls leaked one
+     * directory per test run into the OS temp folder (dozens on a developer machine).
+     */
+    private static Path tempDirectory(String prefix) throws IOException {
+        Path directory = Files.createTempDirectory(prefix);
+        synchronized (TEMP_DIRECTORIES) {
+            TEMP_DIRECTORIES.add(directory);
+        }
+        return directory;
+    }
+
+    @org.junit.jupiter.api.AfterAll
+    static void deleteTemporaryDirectories() {
+        synchronized (TEMP_DIRECTORIES) {
+            for (Path directory : TEMP_DIRECTORIES) {
+                try (var paths = Files.walk(directory)) {
+                    paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException ignored) {
+                            // Best-effort cleanup; the OS temp folder is the backstop.
+                        }
+                    });
+                } catch (IOException ignored) {
+                    // Directory already gone or unreadable; nothing to clean.
+                }
+            }
+            TEMP_DIRECTORIES.clear();
+        }
+    }
+
     @Test
     void assistantExplainsMissingMcpConfiguration() {
         ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
@@ -221,8 +256,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void toolWindowShowsFirstRunSetupUntilMcpConnectionIsComplete() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-empty-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
         String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
         System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
@@ -417,8 +452,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupPanelShowsInstallerCommandAndInfersInstalledStdioCommand() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-bootstrap");
         Path argsFile = appData.resolve("versions").resolve("10.3.20260703").resolve("shaft-mcp.args");
         Path java = bootstrap.resolve("tools").resolve("jdk").resolve("temurin-25-test").resolve("bin")
                 .resolve(javaExecutableName());
@@ -596,6 +631,36 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void everySetupCommandCopyOpensTerminalWithPreparedCommand() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        List<String> copied = new ArrayList<>();
+        List<String> terminalCommands = new ArrayList<>();
+        setField(panel, "copySink", (Consumer<String>) copied::add);
+        setField(panel, "terminalOpener", (java.util.function.BiPredicate<String, String>) (tab, command) -> {
+            terminalCommands.add(command);
+            return true;
+        });
+
+        JButton warmup = findByAccessibleName(panel, "Copy SHAFT Engine warm-up command", JButton.class);
+        warmup.doClick();
+
+        setField(panel, "diagnosticCommand", "java -version");
+        JButton diagnostic = findByAccessibleName(panel, "Copy setup diagnostic command", JButton.class);
+        diagnostic.setEnabled(true);
+        diagnostic.doClick();
+
+        assertAll(
+                // Every runnable command copied from the setup screen also lands pre-typed in a
+                // terminal tab; warm-up and diagnostics gain the same one-click behavior the
+                // installer and upgrade buttons already have.
+                () -> assertEquals(copied, terminalCommands),
+                () -> assertEquals(2, terminalCommands.size()),
+                () -> assertTrue(terminalCommands.get(0).contains("mvn"), terminalCommands.get(0)),
+                () -> assertEquals("java -version", terminalCommands.get(1)));
+    }
+
+    @Test
     void setupPanelUpgradeStepReflectsRealProjectVersionCheck() throws Exception {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
@@ -743,8 +808,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupPanelShowsBlankManualCommandDiagnostic() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-empty-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
         String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
         System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
@@ -818,8 +883,8 @@ class ShaftPanelSetupTest {
         // configured project -- regardless of whether it has that scaffold --
         // made the agent report back that required config/scaffold files were
         // missing, because they never existed in the target project at all.
-        Path projectWithoutScaffold = Files.createTempDirectory("shaft-no-scaffold");
-        Path projectWithScaffold = Files.createTempDirectory("shaft-with-scaffold");
+        Path projectWithoutScaffold = tempDirectory("shaft-no-scaffold");
+        Path projectWithScaffold = tempDirectory("shaft-with-scaffold");
         try {
             Files.writeString(projectWithScaffold.resolve("AGENTS.md"), "# Guidance\n");
 
@@ -2013,10 +2078,13 @@ class ShaftPanelSetupTest {
                         "old starter strip copy should stay removed"),
                 () -> assertNull(findByAccessibleName(panel, "Assistant context suggestions", JButton.class),
                         "the '+' context button is retired; typed @ # triggers own that role"),
-                () -> assertTrue(prompt instanceof JBTextArea
-                                && ((JBTextArea) prompt).getEmptyText().getText().contains("Tell SHAFT what you need"),
+                () -> assertTrue(String.valueOf(((JBTextArea) prompt)
+                                .getClientProperty("shaft.prompt.placeholder"))
+                                .contains("Tell SHAFT what you need"),
                         "the prompt placeholder should invite plain language"),
-                () -> assertFalse(((JBTextArea) prompt).getEmptyText().getText().contains("/"),
+                () -> assertFalse(String.valueOf(((JBTextArea) prompt)
+                                .getClientProperty("shaft.prompt.placeholder"))
+                                .contains("/"),
                         "the prompt placeholder must not advertise slash commands"),
                 () -> assertNotNull(verbose),
                 () -> assertFalse(verbose.isSelected()),
@@ -2274,14 +2342,13 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
                 .filter(button -> !"Check SHAFT project version".equals(accessibleName(button)))
                 // Lane/teaching controls keep visible labels by design: the no-agent start names
-                // its lane, starter cards are teaching content (issue #3425 A2/A3/B7/A6), and the
-                // health-chip recheck is a compact header action.
+                // its lane (issue #3425 A2/B7/A6), and the health-chip recheck is a compact
+                // header action.
                 .filter(button -> !"Start SHAFT without an agent".equals(accessibleName(button)))
                 .filter(button -> !"Convert pasted Selenium to SHAFT".equals(accessibleName(button)))
                 .filter(button -> !"Recheck SHAFT MCP health".equals(accessibleName(button)))
                 // The user-guide footer link is a text hyperlink by design, not an icon button.
                 .filter(button -> !"Open SHAFT user guide in browser".equals(accessibleName(button)))
-                .filter(button -> !String.valueOf(accessibleName(button)).startsWith("Starter: "))
                 // Setup-screen prerequisite/recovery command buttons keep visible labels like the
                 // upgrade step's copy/terminal pair: they name the exact terminal command being
                 // copied, which an icon alone cannot convey on a first-run provisioning screen.
@@ -2758,8 +2825,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupPanelShowsExpectedWorkflowActionsAtEachStep() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-empty-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
         String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
         System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
@@ -2807,8 +2874,8 @@ class ShaftPanelSetupTest {
 
     @Test
     void setupResetAndReinstallClearsStateAndCopiesInstallerCommand() throws Exception {
-        Path appData = Files.createTempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = Files.createTempDirectory("shaft-mcp-empty-bootstrap");
+        Path appData = tempDirectory("shaft-mcp-empty-app-data");
+        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
         String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
         String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
         System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());

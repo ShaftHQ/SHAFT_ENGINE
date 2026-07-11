@@ -21,17 +21,20 @@ public class EngineService {
     private static final Logger logger = LoggerFactory.getLogger(EngineService.class);
     private static SHAFT.GUI.WebDriver driver;
     private static boolean engineInitialized = false;
+    // Folder values keep the engine defaults' trailing slash: several engine call sites join
+    // folder + file by concatenation, and a missing slash wrote files like
+    // "allure-resultsenvironment.xml" into every consumer project root.
     private static final String[][] MCP_PATH_PROPERTIES = {
-            {"allureResultsFolderPath", "allure-results"},
-            {"propertiesFolderPath", "src/main/resources/properties"},
+            {"allureResultsFolderPath", "allure-results/"},
+            {"propertiesFolderPath", "src/main/resources/properties/"},
             {"downloadsFolderPath", "target/downloadedFiles"},
             {"video.folder", "allure-results/videos"},
-            {"servicesFolderPath", "src/test/resources/META-INF/services"},
-            {"dynamicObjectRepositoryPath", "src/main/resources/dynamicObjectRepository"},
-            {"testDataFolderPath", "src/test/resources/testDataFiles"},
-            {"extentReportsFolderPath", "extent-reports"},
-            {"executionSummaryReportFolderPath", "execution-summary"},
-            {"PerformanceReportFolderPath", "performanceReport"}
+            {"servicesFolderPath", "src/test/resources/META-INF/services/"},
+            {"dynamicObjectRepositoryPath", "src/main/resources/dynamicObjectRepository/"},
+            {"testDataFolderPath", "src/test/resources/testDataFiles/"},
+            {"extentReportsFolderPath", "extent-reports/"},
+            {"executionSummaryReportFolderPath", "execution-summary/"},
+            {"PerformanceReportFolderPath", "performanceReport/"}
     };
 
     /**
@@ -73,10 +76,40 @@ public class EngineService {
      */
     static SHAFT.GUI.WebDriver getDriver() {
         if (driver == null) {
+            SHAFT.GUI.WebDriver captureDriver = activeCaptureDriver();
+            if (captureDriver != null) {
+                return captureDriver;
+            }
             logger.error("No active browser session found. Please initialize a browser session first.");
-            throw new IllegalStateException("No active browser session");
+            throw new IllegalStateException("No active browser session. Start one with driver_initialize, "
+                    + "or start a capture session (capture_start_codegen) whose recorded browser these "
+                    + "element tools can drive directly.");
         }
         return driver;
+    }
+
+    /**
+     * Bridge to the active SHAFT Capture session's browser, registered by {@link CaptureService}.
+     * With it, element and natural_act tools drive the recorded browser when no driver_initialize
+     * session exists — the agent-performed codegen flow (capture_start_codegen, perform actions,
+     * capture_stop, generate) documented in the tool guidance (issue #3429).
+     */
+    private static volatile java.util.function.Supplier<SHAFT.GUI.WebDriver> captureDriverBridge;
+
+    static void registerCaptureDriverBridge(java.util.function.Supplier<SHAFT.GUI.WebDriver> bridge) {
+        captureDriverBridge = bridge;
+    }
+
+    private static SHAFT.GUI.WebDriver activeCaptureDriver() {
+        java.util.function.Supplier<SHAFT.GUI.WebDriver> bridge = captureDriverBridge;
+        if (bridge == null) {
+            return null;
+        }
+        try {
+            return bridge.get();
+        } catch (RuntimeException unavailable) {
+            return null;
+        }
     }
 
     /**

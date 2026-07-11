@@ -363,7 +363,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         status.getAccessibleContext().setAccessibleName("SHAFT MCP setup next step");
         copyCommand = new JButton("Copy command");
         copyCommand.getAccessibleContext().setAccessibleName("Copy setup diagnostic command");
-        copyCommand.setToolTipText("Copy the diagnostic command");
+        copyCommand.setToolTipText("Copy the diagnostic command and open a terminal with it pre-typed");
         ShaftIconButtons.apply(copyCommand, ShaftIcons.CODE);
         copyCommand.setEnabled(false);
         copyCommand.setVisible(false);
@@ -386,11 +386,13 @@ final class ShaftMcpSetupPanel extends JPanel {
         copyRestartCommand.getAccessibleContext().setAccessibleName("Copy assistant CLI restart command");
         copyRestartCommand.setToolTipText(
                 "Copy a command that stops any running sessions of the selected assistant CLI and "
-                        + "re-checks its shaft-mcp access, so it picks up a fresh shaft-mcp install");
+                        + "re-checks its shaft-mcp access, so it picks up a fresh shaft-mcp install; "
+                        + "also opens a terminal with it pre-typed");
         ShaftIconButtons.apply(copyRestartCommand, ShaftIcons.RESET);
         copyRestartCommand.setEnabled(false);
         copyRestartCommand.setVisible(false);
-        copyRestartCommand.addActionListener(event -> copy(restartCommand(), "Copied assistant CLI restart command"));
+        copyRestartCommand.addActionListener(event -> copyCommandIntoTerminal(
+                restartCommand(), "SHAFT assistant restart", "Copied assistant CLI restart command"));
         details = new JTextPane();
         details.setPreferredSize(JBUI.size(560, 180));
         details.getAccessibleContext().setAccessibleName("SHAFT MCP setup output");
@@ -451,10 +453,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         SetupPrerequisites.prefetchLatestEngineVersion();
         copyEngineWarmup.getAccessibleContext().setAccessibleName("Copy SHAFT Engine warm-up command");
         copyEngineWarmup.setToolTipText("Copy a Maven command that downloads SHAFT Engine and its dependencies "
-                + "into the local Maven repository so future projects reuse them without re-downloading");
+                + "into the local Maven repository so future projects reuse them without re-downloading; "
+                + "also opens a terminal with it pre-typed");
         applyLabeledAction(copyEngineWarmup, ShaftIcons.COPY);
-        copyEngineWarmup.addActionListener(event ->
-                copy(SetupPrerequisites.shaftEngineWarmupCommand(), "Copied SHAFT Engine warm-up command"));
+        copyEngineWarmup.addActionListener(event -> copyCommandIntoTerminal(
+                SetupPrerequisites.shaftEngineWarmupCommand(), "SHAFT Engine warm-up",
+                "Copied SHAFT Engine warm-up command"));
         JPanel prerequisitesActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         prerequisitesActions.setOpaque(false);
         prerequisitesActions.add(recheckPrerequisites);
@@ -1181,7 +1185,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         showRuntimeSelected();
         showAssistNotConfigured();
         refreshRealChecks();
-        copy(installerCommand(), "Installer command copied. Run it in terminal, then check.");
+        copyCommandIntoTerminal(installerCommand(), "SHAFT MCP install",
+                "Installer command copied. Run it in terminal, then check.");
         updateActionState(false);
         copyInstallerCommand.requestFocusInWindow();
     }
@@ -1825,7 +1830,26 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private void copyDiagnosticCommand() {
-        copy(diagnosticCommand, "Copied diagnostic command");
+        copyCommandIntoTerminal(diagnosticCommand, "SHAFT diagnostics", "Copied diagnostic command");
+    }
+
+    /**
+     * Every runnable command copied from this setup screen behaves the same way: it lands on the
+     * clipboard AND a terminal tab opens with the command pre-typed, so the user only presses
+     * Enter. Falls back to clipboard-only messaging when the Terminal plugin is unavailable.
+     */
+    private void copyCommandIntoTerminal(String command, String tabName, String copiedMessage) {
+        if (command == null || command.isBlank()) {
+            return;
+        }
+        copy(command, copiedMessage);
+        boolean opened = terminalOpener.test(tabName, command);
+        if (opened) {
+            openIntellijTerminal();
+            setStatusText(copiedMessage + ". Terminal opened with it pre-typed — press Enter there to run it.");
+        } else {
+            setStatusText(copiedMessage + ". Paste it into a terminal to run it.");
+        }
     }
 
     private void copyDiagnosticOutput() {

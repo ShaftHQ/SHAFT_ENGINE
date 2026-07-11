@@ -69,6 +69,21 @@ public class FileActionsCoverageUnitTest {
     }
 
     @Test
+    public void writeToFolderWithoutTrailingSeparatorShouldStillWriteInsideTheFolder() {
+        FileActions actions = FileActions.getInstance();
+        Path folder = tempDirectory.resolve("no-trailing-separator");
+        actions.createFolder(folder.toString());
+
+        // Folder-path properties are commonly overridden without a trailing slash; raw
+        // concatenation then wrote files like "allure-resultsenvironment.xml" beside the folder.
+        actions.writeToFile(folder.toString(), "environment.xml", "<environment/>");
+
+        Assert.assertTrue(Files.exists(folder.resolve("environment.xml")),
+                "folder + file must be joined with a separator, not concatenated");
+        Assert.assertEquals(actions.readFile(folder.toString(), "environment.xml"), "<environment/>");
+    }
+
+    @Test
     public void createWriteAppendReadListCopyRenameAndDeleteShouldOperateInsideTempDirectory() throws IOException {
         FileActions actions = FileActions.getInstance();
         Path sourceFolder = tempDirectory.resolve("source");

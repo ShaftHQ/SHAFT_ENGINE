@@ -62,7 +62,31 @@ public final class CaptureManager implements AutoCloseable {
      */
     public synchronized CaptureStatus start(CaptureStartRequest request) {
         if (isActive(lastStatus.state())) {
-            throw new IllegalStateException("A SHAFT Capture session is already active.");
+            // Trust but verify: an active-looking status with no live recorder behind it (a
+            // failed stop, a vanished session file) must self-heal instead of blocking every
+            // future capture_start until process death (issue #3429).
+            ManagedCaptureRecorder current = recorder;
+            boolean provablyActive = false;
+            if (current != null) {
+                try {
+                    provablyActive = isActive(current.status().state());
+                } catch (RuntimeException unreadableRecorder) {
+                    provablyActive = false;
+                }
+            }
+            if (provablyActive) {
+                throw new IllegalStateException("A SHAFT Capture session is already active.");
+            }
+            if (current != null) {
+                try {
+                    current.interrupt();
+                } catch (RuntimeException ignored) {
+                    // Best-effort teardown of the dead recorder before replacing it.
+                }
+            }
+            cancelHealthCheck();
+            recorder = null;
+            releaseLock();
         }
         lastStatus = new CaptureStatus(
                 CaptureStatus.State.STARTING,
@@ -104,6 +128,21 @@ public final class CaptureManager implements AutoCloseable {
      */
     public synchronized CaptureStatus status() {
         return syncRecorderStatus();
+    }
+
+    /**
+     * Returns the live SHAFT driver wrapping the recorded browser while a capture session is
+     * ACTIVE, so element-level tools can drive the recorded browser (agent-performed codegen:
+     * start a session, perform the described actions, stop, generate).
+     *
+     * @return the active session's SHAFT driver, or empty when no session is active
+     */
+    public synchronized java.util.Optional<com.shaft.driver.SHAFT.GUI.WebDriver> activeShaftDriver() {
+        ManagedCaptureRecorder current = recorder;
+        if (current == null || !isActive(lastStatus.state())) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.ofNullable(current.activeShaftDriver());
     }
 
     /**
@@ -271,11 +310,24 @@ public final class CaptureManager implements AutoCloseable {
         lastStatus = copyWithState(currentStatus, CaptureStatus.State.STOPPING);
         return invoke(() -> {
             cancelHealthCheck();
-            lastStatus = current.stop(discard);
-            if (recorder == current) {
-                recorder = null;
+            try {
+                lastStatus = current.stop(discard);
+            } catch (RuntimeException stopFailure) {
+                // A failed stop must still release the session: without this, lastStatus stays
+                // STOPPING while the store is broken, so every stop throws and every start
+                // reports "already active" (issue #3429).
+                try {
+                    lastStatus = current.interrupt();
+                } catch (RuntimeException ignored) {
+                    lastStatus = CaptureStatus.notRunning();
+                }
+                throw stopFailure;
+            } finally {
+                if (recorder == current) {
+                    recorder = null;
+                }
+                releaseLock();
             }
-            releaseLock();
             return lastStatus;
         });
     }
@@ -381,7 +433,12 @@ public final class CaptureManager implements AutoCloseable {
     private CaptureStatus syncRecorderStatus() {
         ManagedCaptureRecorder current = recorder;
         if (current != null && isActive(lastStatus.state())) {
-            lastStatus = current.status();
+            try {
+                lastStatus = current.status();
+            } catch (RuntimeException unreadableRecorder) {
+                // Keep the last known status: the recorder's own status() is hardened, and a
+                // manager-side throw here would wedge stop() before its teardown could run.
+            }
             if (!isActive(lastStatus.state())) {
                 cancelHealthCheck();
                 recorder = null;

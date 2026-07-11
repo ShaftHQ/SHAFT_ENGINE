@@ -163,6 +163,45 @@ class CaptureSessionStoreTest {
         assertEquals("Edited: go to homepage", steps.getFirst().description());
     }
 
+    @Test
+    void vanishedSessionFileSelfHealsFromLastPersistedSnapshot(@TempDir Path temp) throws Exception {
+        Path path = temp.resolve("vanished.json");
+        CaptureSessionStore store = new CaptureSessionStore(path);
+        store.start(CaptureSession.start("vanished", CaptureFixtures.STARTED, CaptureFixtures.browser()));
+        store.append(new CaptureEvent.NavigationEvent(
+                CaptureFixtures.context(1), CaptureEvent.NavigationAction.OPEN, "https://example.test"));
+
+        // External interference (antivirus, IDE file watcher racing the Windows replace-move
+        // fallback) removes the session file mid-recording (issue #3429).
+        java.nio.file.Files.delete(path);
+
+        CaptureSession healedRead = store.read();
+        assertEquals(1, healedRead.events().size());
+        assertTrue(java.nio.file.Files.isRegularFile(path), "read() should republish the snapshot");
+
+        java.nio.file.Files.delete(path);
+        CaptureSession healedAppend = store.append(new CaptureEvent.NavigationEvent(
+                CaptureFixtures.context(2), CaptureEvent.NavigationAction.REFRESH, ""));
+        assertEquals(2, healedAppend.events().size());
+        assertEquals(3, store.nextSequence());
+        assertEquals(2, new CaptureJsonCodec().read(path).events().size());
+    }
+
+    @Test
+    void discardForgetsSnapshotSoSelfHealCannotResurrectIt(@TempDir Path temp) {
+        Path path = temp.resolve("discarded.json");
+        CaptureSessionStore store = new CaptureSessionStore(path);
+        store.start(CaptureSession.start("discarded", CaptureFixtures.STARTED, CaptureFixtures.browser()));
+        store.append(new CaptureEvent.NavigationEvent(
+                CaptureFixtures.context(1), CaptureEvent.NavigationAction.OPEN, "https://example.test"));
+
+        store.discard();
+
+        assertFalse(java.nio.file.Files.exists(path));
+        assertThrows(IllegalStateException.class, store::read);
+        assertFalse(java.nio.file.Files.exists(path), "a failed read must not resurrect the discarded file");
+    }
+
     private static EventContext contextWithAction(long sequence, String clientActionId, String description) {
         Map<String, tools.jackson.databind.JsonNode> extensions = new LinkedHashMap<>();
         extensions.put("clientActionId", StringNode.valueOf(clientActionId));

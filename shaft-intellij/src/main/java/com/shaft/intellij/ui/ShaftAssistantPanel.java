@@ -85,6 +85,9 @@ import java.util.function.Consumer;
 final class ShaftAssistantPanel extends JPanel {
     private static final int TRANSIENT_STATUS_MILLIS = 2300;
     private static final int MAX_AGENT_CONTEXT_CHARACTERS = 16_000;
+    static final String PROMPT_PLACEHOLDER =
+            "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade "
+                    + "(# adds project context)";
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";
@@ -188,7 +191,6 @@ final class ShaftAssistantPanel extends JPanel {
     private final Set<String> approvedToolsThisRun = new HashSet<>();
     private ToolApprovalService approvalServiceOverride;
     private JPopupMenu contextPopup;
-    private JPanel starterCards;
     private JButton convertSeleniumHint;
     private char contextPopupTrigger;
     private int contextTriggerOffset = -1;
@@ -332,12 +334,13 @@ final class ShaftAssistantPanel extends JPanel {
         autoCompact.setToolTipText("Send the agent CLI's compact/compress command before each new prompt, when supported");
         autoCompact.setSelected(settings.autoCompactEnabled);
         autoCompact.addActionListener(event -> settings.autoCompactEnabled = autoCompact.isSelected());
-        prompt = new JBTextArea(6, 40);
+        // Custom-painted placeholder: IntelliJ's StatusText never wraps and clips long lines even
+        // in wide tool windows, so the hint is measured against the real component width and
+        // continues onto the next line instead of being cut off.
+        prompt = new PlaceholderTextArea(PROMPT_PLACEHOLDER);
         prompt.getAccessibleContext().setAccessibleName("Assistant prompt");
         prompt.getAccessibleContext().setAccessibleDescription(
                 "Describe what you need in plain language or request guarded local Agent work.");
-        prompt.getEmptyText().setText(
-                "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade (# adds project context)");
         prompt.setLineWrap(true);
         prompt.setWrapStyleWord(true);
         transcript = new AssistantTranscriptView(project);
@@ -555,8 +558,6 @@ final class ShaftAssistantPanel extends JPanel {
         JPanel north = new JPanel(new BorderLayout(4, 4));
         north.add(setupNotice(project, settings), BorderLayout.NORTH);
         north.add(header, BorderLayout.CENTER);
-        starterCards = buildStarterCards();
-        north.add(starterCards, BorderLayout.SOUTH);
         add(north, BorderLayout.NORTH);
         add(transcriptPanel, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
@@ -567,6 +568,66 @@ final class ShaftAssistantPanel extends JPanel {
 
     JComponent preferredFocusComponent() {
         return prompt;
+    }
+
+    /**
+     * Text area with a placeholder that wraps to the component's real width. IntelliJ's
+     * {@code StatusText} empty text never wraps and clips long lines even when the tool window is
+     * wide, cutting off the invite mid-sentence.
+     */
+    static final class PlaceholderTextArea extends JBTextArea {
+        private final String placeholder;
+
+        PlaceholderTextArea(String placeholder) {
+            super(6, 40);
+            this.placeholder = placeholder;
+            putClientProperty("shaft.prompt.placeholder", placeholder);
+        }
+
+        @Override
+        protected void paintComponent(java.awt.Graphics graphics) {
+            super.paintComponent(graphics);
+            if (!getText().isEmpty() || placeholder == null || placeholder.isBlank()) {
+                return;
+            }
+            java.awt.Graphics2D paint = (java.awt.Graphics2D) graphics.create();
+            try {
+                paint.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
+                        java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                paint.setColor(java.util.Objects.requireNonNullElse(
+                        javax.swing.UIManager.getColor("Component.infoForeground"), java.awt.Color.GRAY));
+                paint.setFont(getFont());
+                java.awt.FontMetrics metrics = paint.getFontMetrics();
+                java.awt.Insets insets = getInsets();
+                int available = Math.max(60, getWidth() - insets.left - insets.right - 4);
+                int y = insets.top + metrics.getAscent();
+                for (String line : wrapToWidth(placeholder, metrics, available)) {
+                    paint.drawString(line, insets.left + 2, y);
+                    y += metrics.getHeight();
+                }
+            } finally {
+                paint.dispose();
+            }
+        }
+
+        private static java.util.List<String> wrapToWidth(
+                String text, java.awt.FontMetrics metrics, int available) {
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            StringBuilder line = new StringBuilder();
+            for (String word : text.split(" ")) {
+                String candidate = line.isEmpty() ? word : line + " " + word;
+                if (metrics.stringWidth(candidate) > available && !line.isEmpty()) {
+                    lines.add(line.toString());
+                    line = new StringBuilder(word);
+                } else {
+                    line = new StringBuilder(candidate);
+                }
+            }
+            if (!line.isEmpty()) {
+                lines.add(line.toString());
+            }
+            return lines;
+        }
     }
 
     @Override
@@ -826,48 +887,6 @@ final class ShaftAssistantPanel extends JPanel {
         prompt.setCaretPosition(start + suggestion.insertion().length());
         prompt.requestFocusInWindow();
         setStatus("Inserted " + suggestion.matchText());
-    }
-
-    /**
-     * Starter cards for the empty chat (issue #3425 A3): instead of a blank transcript, clickable
-     * cards prefill a plain-language request so the very first contact is a guided click, not a
-     * blank prompt. They disappear as soon as the chat has any content.
-     */
-    private JPanel buildStarterCards() {
-        JPanel cards = new JPanel(new java.awt.GridLayout(0, 2, 6, 6));
-        cards.getAccessibleContext().setAccessibleName("Assistant starter cards");
-        cards.setBorder(JBUI.Borders.empty(6, 8));
-        cards.add(starterCard("Record a web flow",
-                "Click through your site while SHAFT captures privacy-safe steps",
-                "Record my browser actions on https://"));
-        cards.add(starterCard("Record on Android",
-                "Drive an Android emulator while SHAFT records every step",
-                "Record my mobile actions on the Android emulator"));
-        cards.add(starterCard("Generate a test",
-                "From a saved recording file, or just describe the journey in plain words",
-                "Generate a SHAFT test that "));
-        cards.add(starterCard("Diagnose failed tests",
-                "Doctor triages your most recent Allure evidence and recommends fixes",
-                "Diagnose my last failed test run"));
-        cards.add(starterCard("Upgrade this project to the latest SHAFT",
-                "The agent previews, applies, and verifies the upgrade",
-                "Upgrade this project to the latest SHAFT"));
-        return cards;
-    }
-
-    private JButton starterCard(String title, String subtitle, String prefill) {
-        JButton card = new JButton("<html><b>" + title + "</b><br><span style='color:gray;'>"
-                + subtitle + "</span></html>");
-        card.getAccessibleContext().setAccessibleName("Starter: " + title);
-        card.setToolTipText("Prefills \"" + prefill + "\" — adjust the argument, then send");
-        card.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
-        card.addActionListener(event -> {
-            prompt.setText(prefill);
-            prompt.setCaretPosition(prefill.length());
-            prompt.requestFocusInWindow();
-            setStatus("Starter inserted — finish the argument, then send");
-        });
-        return card;
     }
 
     /**
@@ -2104,9 +2123,6 @@ final class ShaftAssistantPanel extends JPanel {
         boolean hasResponse = !lastResponse.isBlank();
         boolean hasRawResponse = !lastRawResponse.isBlank();
         boolean hasTranscript = !transcript.markdown().isBlank() || !toolEvidence.isEmpty();
-        if (starterCards != null) {
-            starterCards.setVisible(!hasTranscript && !running);
-        }
         boolean canRerun = !lastPrompt.isBlank();
         copyLastResponse.setVisible(hasResponse);
         copyLastResponse.setEnabled(hasResponse);

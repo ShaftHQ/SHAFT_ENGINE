@@ -92,6 +92,8 @@ class AssistantCommandTest {
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                Never start an interactive user-driven recording (capture_start, playwright_record_start, mobile_record_start): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
+                A scripted capture_start_codegen session that you drive and capture_stop within this same turn is allowed.
                 Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
                 Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                 Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
@@ -111,6 +113,8 @@ class AssistantCommandTest {
         assertEquals("""
                 If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                 For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                Never start an interactive user-driven recording (capture_start, playwright_record_start, mobile_record_start): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
+                A scripted capture_start_codegen session that you drive and capture_stop within this same turn is allowed.
                 Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
                 Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                 Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
@@ -617,6 +621,32 @@ class AssistantCommandTest {
 
         assertTrue(invocation.isLocal());
         assertTrue(invocation.localResponse().contains("GitHub Copilot plugin"));
+    }
+
+    @Test
+    void recordingIntentsRouteToPluginRecorderNotLocalAgent() {
+        // A recording started by a one-shot local agent turn dies with that turn's MCP child
+        // process (issue #3429), so every natural recording phrasing — including the Assistant's
+        // own suggestion prefills — must resolve to a plugin-run recorder tool instead of the agent.
+        AssistantCommand.Invocation webPrefill =
+                command("Record my browser actions on https://duckduckgo.com");
+        AssistantCommand.Invocation mobilePrefill =
+                command("Record my mobile actions on the Android emulator");
+
+        assertAll(
+                () -> assertEquals("capture_start", webPrefill.toolName()),
+                () -> assertEquals("https://duckduckgo.com",
+                        webPrefill.arguments().get("targetUrl").getAsString()),
+                () -> assertEquals("capture_start",
+                        command("record a web flow on https://example.com").toolName()),
+                () -> assertEquals("capture_start",
+                        command("Record my actions on https://example.com/login").toolName()),
+                () -> assertEquals("mobile_record_start", mobilePrefill.toolName()),
+                () -> assertEquals("mobile_record_start",
+                        command("record my app on the emulator").toolName()),
+                // Non-recording "record"-adjacent asks still go to the agent untouched.
+                () -> assertEquals("autobot_local_agent_run",
+                        command("record a video of the sprint demo").toolName()));
     }
 
     @Test

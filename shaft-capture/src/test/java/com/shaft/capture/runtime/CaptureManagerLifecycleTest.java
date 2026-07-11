@@ -188,11 +188,91 @@ class CaptureManagerLifecycleTest {
                 true);
     }
 
+    @Test
+    void failedStopStillReleasesTheSessionSoNewStartsSucceed() {
+        AtomicReference<WedgeableRecorder> recorderRef = new AtomicReference<>();
+        CaptureManager manager = new CaptureManager(request -> {
+            WedgeableRecorder recorder = new WedgeableRecorder(request);
+            recorderRef.set(recorder);
+            return recorder;
+        });
+
+        assertEquals(CaptureStatus.State.ACTIVE, manager.start(request("wedged.json")).state());
+        // The field failure (issue #3429): the session file vanished, so the recorder's stop
+        // throws. The manager must still release the session instead of reporting "already
+        // active" to every later capture_start while capture_stop keeps throwing.
+        recorderRef.get().wedgeStop();
+        assertThrows(IllegalStateException.class, () -> manager.stop(false));
+
+        assertEquals(CaptureStatus.State.ACTIVE, manager.start(request("fresh.json")).state());
+        assertEquals(CaptureStatus.State.COMPLETED, manager.stop(false).state());
+        manager.close();
+    }
+
+    @Test
+    void startSelfHealsWhenActiveLookingRecorderCannotProveItsStatus() {
+        AtomicReference<WedgeableRecorder> recorderRef = new AtomicReference<>();
+        CaptureManager manager = new CaptureManager(request -> {
+            WedgeableRecorder recorder = new WedgeableRecorder(request);
+            recorderRef.set(recorder);
+            return recorder;
+        });
+
+        assertEquals(CaptureStatus.State.ACTIVE, manager.start(request("wedged.json")).state());
+        WedgeableRecorder wedged = recorderRef.get();
+        wedged.wedgeStatus();
+
+        CaptureStatus healed = manager.start(request("fresh.json"));
+
+        assertEquals(CaptureStatus.State.ACTIVE, healed.state());
+        assertEquals(1, wedged.interruptCountForTest(), "the dead recorder should be interrupted once");
+        manager.stop(false);
+        manager.close();
+    }
+
+    private static class WedgeableRecorder extends FakeRecorder {
+        private boolean statusWedged;
+        private boolean stopWedged;
+
+        WedgeableRecorder(CaptureStartRequest request) {
+            super(request);
+        }
+
+        void wedgeStatus() {
+            statusWedged = true;
+            stopWedged = true;
+        }
+
+        void wedgeStop() {
+            stopWedged = true;
+        }
+
+        int interruptCountForTest() {
+            return interruptCount;
+        }
+
+        @Override
+        CaptureStatus status() {
+            if (statusWedged) {
+                throw new IllegalStateException("Capture session has not been started.");
+            }
+            return super.status();
+        }
+
+        @Override
+        CaptureStatus stop(boolean discard) {
+            if (stopWedged) {
+                throw new IllegalStateException("Capture session has not been started.");
+            }
+            return super.stop(discard);
+        }
+    }
+
     private static class FakeRecorder extends ManagedCaptureRecorder {
         private final CaptureStartRequest request;
         private CaptureStatus.State state = CaptureStatus.State.STARTING;
         private int checkpointCount;
-        private int interruptCount;
+        int interruptCount;
 
         FakeRecorder(CaptureStartRequest request) {
             super(request);

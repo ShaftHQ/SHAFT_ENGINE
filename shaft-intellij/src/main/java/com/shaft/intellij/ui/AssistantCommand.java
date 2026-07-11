@@ -44,6 +44,8 @@ final class AssistantCommand {
             """
                     If this request requires interacting with a browser, page element, or mobile app, use shaft-mcp.
                     For WebDriver browser tasks, call driver_initialize before browser_* tools; do not use Playwright unless requested.
+                    Never start an interactive user-driven recording (capture_start, playwright_record_start, mobile_record_start): your MCP session ends with this turn and would kill the recording seconds after it starts. Tell the user to ask the SHAFT panel to record instead.
+                    A scripted capture_start_codegen session that you drive and capture_stop within this same turn is allowed.
                     Generated Java code must use SHAFT syntax only: SHAFT.GUI.WebDriver, driver.browser(), driver.element(), driver.element().touch(), and SHAFT.GUI.Locator.
                     Never generate SHAFT.GUI.Locator.xpath(...); use smart locators, the SHAFT locator builder, or By.xpath only as a last fallback.
                     Never generate raw Selenium code such as WebDriver, ChromeDriver, driver.get(...), driver.findElement(...), or direct WebElement actions.
@@ -219,12 +221,15 @@ final class AssistantCommand {
                     (text, workingDirectory) -> browser(text)),
             new NaturalIntent(AssistantCommand::isBrowserRecordingIntent,
                     (text, workingDirectory) -> record(text)),
-            new NaturalIntent(AssistantCommand::isMobileControlIntent,
-                    (text, workingDirectory) -> mobile(naturalMobileCommand(text))),
+            // Recording starts/stops outrank general mobile control: "Record my mobile actions on
+            // the Android emulator" mentions both, and routing it to a toolchain status check
+            // instead of the recorder dead-ends the user's actual request (issue #3429).
             new NaturalIntent(AssistantCommand::isMobileRecordingStartIntent,
                     (text, workingDirectory) -> mobileRecord("start " + firstJsonLikePath(text))),
             new NaturalIntent(AssistantCommand::isMobileRecordingStopIntent,
                     (text, workingDirectory) -> mobileRecord("stop")),
+            new NaturalIntent(AssistantCommand::isMobileControlIntent,
+                    (text, workingDirectory) -> mobile(naturalMobileCommand(text))),
             new NaturalIntent(AssistantCommand::isMobileCodegenIntent,
                     (text, workingDirectory) -> mobileCodegen(firstJsonLikePath(text))),
             new NaturalIntent(AssistantCommand::isDoctorIntent,
@@ -1313,14 +1318,29 @@ final class AssistantCommand {
 
     private static boolean isBrowserRecordingIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return normalized.equals("start browser recording")
+        if (normalized.equals("start browser recording")
                 || normalized.equals("start a browser recording")
                 || normalized.equals("start webdriver recording")
                 || normalized.equals("start a webdriver recording")
                 || normalized.startsWith("start browser recording ")
                 || normalized.startsWith("start a browser recording ")
                 || normalized.startsWith("start webdriver recording ")
-                || normalized.startsWith("start a webdriver recording ");
+                || normalized.startsWith("start a webdriver recording ")) {
+            return true;
+        }
+        // Plain-language "record ..." requests must run on the plugin's long-lived MCP process:
+        // a recording started by a one-shot local agent turn dies with that turn's MCP child
+        // process seconds later (issue #3429). This must cover at least the Assistant's own
+        // suggestion prefill ("Record my browser actions on https://").
+        if (!normalized.startsWith("record ")) {
+            return false;
+        }
+        if (isMobileRecordingStartIntent(text)) {
+            return false;
+        }
+        return containsAny(normalized,
+                "browser", "web flow", "web journey", "webdriver", "http://", "https://",
+                "my actions on", "browser actions", "actions on the site", "actions on the page");
     }
 
     private static boolean isMobileControlIntent(String text) {
@@ -1355,10 +1375,17 @@ final class AssistantCommand {
 
     private static boolean isMobileRecordingStartIntent(String text) {
         String normalized = normalizeNaturalCommand(text);
-        return normalized.equals("start mobile recording")
+        if (normalized.equals("start mobile recording")
                 || normalized.equals("start app recording")
                 || normalized.startsWith("start mobile recording ")
-                || normalized.startsWith("start app recording ");
+                || normalized.startsWith("start app recording ")) {
+            return true;
+        }
+        // Same one-shot-agent hazard as browser recordings (issue #3429): plain-language mobile
+        // recording requests — including the Assistant's own "Record my mobile actions on the
+        // Android emulator" prefill — must run on the plugin's long-lived MCP process.
+        return normalized.startsWith("record ")
+                && containsAny(normalized, "mobile", "android", "emulator", "appium", " app ");
     }
 
     private static boolean isMobileRecordingStopIntent(String text) {

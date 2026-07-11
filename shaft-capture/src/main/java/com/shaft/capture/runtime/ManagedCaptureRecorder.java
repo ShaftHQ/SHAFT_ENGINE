@@ -183,12 +183,25 @@ class ManagedCaptureRecorder {
                     .skip(Math.max(0, transactions.size() - 5))
                     .map(NetworkTransaction::url)
                     .toList();
+        // Status reporting must never throw: a discarded or externally removed session file
+        // otherwise turns every later capture_status/capture_stop into an error while
+        // capture_start still reports "already active", wedging the whole lifecycle (issue #3429).
+        int eventCount = 0;
+        int pendingSignalCount = 0;
+        if (pipeline != null) {
+            try {
+                eventCount = pipeline.eventCount();
+                pendingSignalCount = pipeline.pendingSignalCount();
+            } catch (RuntimeException ignored) {
+                warn("The capture session file is unavailable; event counts may be stale.");
+            }
+        }
         return new CaptureStatus(
                 state,
                 sessionId,
                 request.browser().name().toLowerCase(),
                 currentUrl,
-                pipeline == null ? 0 : pipeline.eventCount(),
+                eventCount,
                 readiness.state(),
                 readiness.warnings().isEmpty() ? warnings : readiness.warnings(),
                 request.outputPath().toString(),
@@ -197,7 +210,7 @@ class ManagedCaptureRecorder {
                 startedAt,
                 transactions.size(),
                 lastEndpoints,
-                pipeline == null ? 0 : pipeline.pendingSignalCount());
+                pendingSignalCount);
     }
 
     /**
@@ -333,6 +346,15 @@ class ManagedCaptureRecorder {
 
     WebDriver driverForTesting() {
         return driver;
+    }
+
+    /**
+     * Returns the live SHAFT driver wrapping the recorded browser while the session is ACTIVE, or
+     * {@code null} otherwise. Lets MCP element tools drive the recorded browser during
+     * agent-performed codegen sessions; driven interactions are captured like user ones.
+     */
+    synchronized SHAFT.GUI.WebDriver activeShaftDriver() {
+        return state == CaptureStatus.State.ACTIVE ? shaftDriver : null;
     }
 
     void activeSessionForTesting(CaptureSessionStore store, CaptureEventPipeline pipeline) {
@@ -996,9 +1018,15 @@ class ManagedCaptureRecorder {
 
     private void deleteCaptureFiles() {
         try {
-            Files.deleteIfExists(request.outputPath());
+            if (store != null) {
+                // Through the store, so its vanished-file self-heal snapshot is cleared too and
+                // can never resurrect an intentionally discarded session file.
+                store.discard();
+            } else {
+                Files.deleteIfExists(request.outputPath());
+            }
             Files.deleteIfExists(request.outputPath().getParent().resolve(privacyPolicy.externalDataPath()));
-        } catch (IOException exception) {
+        } catch (IOException | java.io.UncheckedIOException exception) {
             warn("Discard completed, but one local capture artifact could not be removed.");
         }
     }

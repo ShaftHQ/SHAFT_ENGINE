@@ -15,6 +15,9 @@ final class ShaftTerminalCommands {
     private static final String MANAGER_CLASS = "org.jetbrains.plugins.terminal.TerminalToolWindowManager";
     /** Delay before typing: a freshly created shell needs a beat before it accepts input cleanly. */
     private static final int SHELL_READY_DELAY_MILLIS = 900;
+    /** Retry cadence and cap when the TTY connector is not ready yet at the first attempt. */
+    private static final int TYPE_RETRY_DELAY_MILLIS = 500;
+    private static final int MAX_TYPE_ATTEMPTS = 10;
 
     private ShaftTerminalCommands() {
         throw new IllegalStateException("Utility class");
@@ -64,20 +67,31 @@ final class ShaftTerminalCommands {
     /**
      * Types the command into the widget's TTY once the shell has had a moment to start. Uses the
      * plain jediterm {@code TtyConnector.write(String)} (types WITHOUT pressing Enter — running a
-     * just-downloaded script stays the user's explicit decision).
+     * just-downloaded script stays the user's explicit decision). A slow shell start no longer
+     * silently loses the command: while the TTY connector is missing, typing retries on a short
+     * cadence before giving up to the clipboard fallback.
      */
     private static void scheduleCommandTyping(Object widget, String command) {
-        javax.swing.Timer typeSoon = new javax.swing.Timer(SHELL_READY_DELAY_MILLIS, event -> {
+        java.util.concurrent.atomic.AtomicInteger attempts = new java.util.concurrent.atomic.AtomicInteger();
+        javax.swing.Timer typeSoon = new javax.swing.Timer(TYPE_RETRY_DELAY_MILLIS, null);
+        typeSoon.setInitialDelay(SHELL_READY_DELAY_MILLIS);
+        typeSoon.addActionListener(event -> {
+            boolean typed = false;
             try {
                 Object connector = ttyConnector(widget);
                 if (connector != null) {
                     connector.getClass().getMethod("write", String.class).invoke(connector, command);
+                    typed = true;
                 }
             } catch (Throwable ignored) {
                 // Best effort: the command is already on the clipboard.
+                typed = true;
+            }
+            if (typed || attempts.incrementAndGet() >= MAX_TYPE_ATTEMPTS) {
+                typeSoon.stop();
             }
         });
-        typeSoon.setRepeats(false);
+        typeSoon.setRepeats(true);
         typeSoon.start();
     }
 
