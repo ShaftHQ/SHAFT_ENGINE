@@ -391,7 +391,7 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 <h3>start</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_start",
-      description="starts a privacy-safe SHAFT managed-browser recording with live browser controls; sessionGoal names the generated test")
+      description="starts a privacy-safe SHAFT managed-browser recording; while it is active, element_* and natural_act tools drive the recorded browser directly (no driver_initialize needed); sessionGoal names the generated test")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.runtime.CaptureStatus</span>&nbsp;<span class="element-name">start</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
@@ -416,7 +416,7 @@ copy-paste <code>SHAFT.GUI.Locator...</code> Java snippet for the winner.</div>
 <h3>startWithOptions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_start_codegen",
-      description="starts SHAFT Capture with Playwright-codegen-compatible options and live browser controls")
+      description="starts SHAFT Capture with Playwright-codegen-compatible options; while it is active, element_* and natural_act tools drive the recorded browser directly, so an agent can perform the described actions, capture_stop, then generate code")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type">com.shaft.capture.runtime.CaptureStatus</span>&nbsp;<span class="element-name">startWithOptions</span><wbr><span class="parameters">(<a href="CaptureService.CaptureCodegenStartRequest.html" title="class in com.shaft.mcp">CaptureService.CaptureCodegenStartRequest</a>&nbsp;request)</span></div>
 <div class="block">Launches a fresh SHAFT-managed browser with Playwright-codegen-shaped options.</div>
 <dl class="notes">

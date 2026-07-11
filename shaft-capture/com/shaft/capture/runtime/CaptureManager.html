@@ -56,6 +56,7 @@
 <ol class="toc-list">
 <li><a href="#start(com.shaft.capture.runtime.CaptureStartRequest)" tabindex="0">start(CaptureStartRequest)</a></li>
 <li><a href="#status()" tabindex="0">status()</a></li>
+<li><a href="#activeShaftDriver()" tabindex="0">activeShaftDriver()</a></li>
 <li><a href="#steps()" tabindex="0">steps()</a></li>
 <li><a href="#mode()" tabindex="0">mode()</a></li>
 <li><a href="#setMode(java.lang.String)" tabindex="0">setMode(String)</a></li>
@@ -117,60 +118,67 @@ implements <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#checkpoint(java.lang.String,com.shaft.capture.model.Checkpoint.CheckpointKind)" class="member-name-link">checkpoint</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;description,
- <a href="../model/Checkpoint.CheckpointKind.html" title="enum class in com.shaft.capture.model">Checkpoint.CheckpointKind</a>&nbsp;kind)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;com.shaft.driver.SHAFT.GUI.WebDriver&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#activeShaftDriver()" class="member-name-link">activeShaftDriver</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the live SHAFT driver wrapping the recorded browser while a capture session is
+ACTIVE, so element-level tools can drive the recorded browser (agent-performed codegen:
+start a session, perform the described actions, stop, generate).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#checkpoint(java.lang.String,com.shaft.capture.model.Checkpoint.CheckpointKind)" class="member-name-link">checkpoint</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;description,
+ <a href="../model/Checkpoint.CheckpointKind.html" title="enum class in com.shaft.capture.model">Checkpoint.CheckpointKind</a>&nbsp;kind)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Adds a human-review checkpoint to the active session.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#close()" class="member-name-link">close</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#mode()" class="member-name-link">mode</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#close()" class="member-name-link">close</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#mode()" class="member-name-link">mode</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the recorder's current live authoring mode: <code>record</code> (default; the recorder
 captures interactions as replayable steps) or <code>inspect</code> (the recorder overlay
 highlights hovered elements for a live locator pick instead of recording an interaction
 step).</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="NetworkTransaction.html" title="class in com.shaft.capture.runtime">NetworkTransaction</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkTransactions()" class="member-name-link">networkTransactions</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="NetworkTransaction.html" title="class in com.shaft.capture.runtime">NetworkTransaction</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkTransactions()" class="member-name-link">networkTransactions</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the list of network transactions from the active session.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="NetworkTransaction.html" title="class in com.shaft.capture.runtime">NetworkTransaction</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkTransactions(com.shaft.capture.runtime.NetworkCaptureOptions,int)" class="member-name-link">networkTransactions</a><wbr>(<a href="NetworkCaptureOptions.html" title="class in com.shaft.capture.runtime">NetworkCaptureOptions</a>&nbsp;options,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="NetworkTransaction.html" title="class in com.shaft.capture.runtime">NetworkTransaction</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkTransactions(com.shaft.capture.runtime.NetworkCaptureOptions,int)" class="member-name-link">networkTransactions</a><wbr>(<a href="NetworkCaptureOptions.html" title="class in com.shaft.capture.runtime">NetworkCaptureOptions</a>&nbsp;options,
  int&nbsp;limit)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns network transactions from the active session filtered per the supplied capture
 options, bounded to the most recent <code>limit</code> entries in capture order.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setMode(java.lang.String)" class="member-name-link">setMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;requestedMode)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setMode(java.lang.String)" class="member-name-link">setMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;requestedMode)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Sets the recorder's live authoring mode.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.capture.runtime.CaptureStartRequest)" class="member-name-link">start</a><wbr>(<a href="CaptureStartRequest.html" title="class in com.shaft.capture.runtime">CaptureStartRequest</a>&nbsp;request)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.capture.runtime.CaptureStartRequest)" class="member-name-link">start</a><wbr>(<a href="CaptureStartRequest.html" title="class in com.shaft.capture.runtime">CaptureStartRequest</a>&nbsp;request)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts one managed browser capture.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status()" class="member-name-link">status</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status()" class="member-name-link">status</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the latest safe status without captured values.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="../model/CaptureStep.html" title="class in com.shaft.capture.model">CaptureStep</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#steps()" class="member-name-link">steps</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="../model/CaptureStep.html" title="class in com.shaft.capture.model">CaptureStep</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#steps()" class="member-name-link">steps</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the current server-side step list for the active session, so the recorder UI (or an
 external control client) can rehydrate its step list from the session store rather than
 page-scoped browser storage.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stop(boolean)" class="member-name-link">stop</a><wbr>(boolean&nbsp;discard)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="CaptureStatus.html" title="class in com.shaft.capture.runtime">CaptureStatus</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stop(boolean)" class="member-name-link">stop</a><wbr>(boolean&nbsp;discard)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Stops the active session.</div>
 </div>
 </div>
@@ -231,6 +239,21 @@ page-scoped browser storage.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>recorder status</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="activeShaftDriver()">
+<h3>activeShaftDriver</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;com.shaft.driver.SHAFT.GUI.WebDriver&gt;</span>&nbsp;<span class="element-name">activeShaftDriver</span>()</div>
+<div class="block">Returns the live SHAFT driver wrapping the recorded browser while a capture session is
+ACTIVE, so element-level tools can drive the recorded browser (agent-performed codegen:
+start a session, perform the described actions, stop, generate).</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the active session's SHAFT driver, or empty when no session is active</dd>
 </dl>
 </div>
 </section>
