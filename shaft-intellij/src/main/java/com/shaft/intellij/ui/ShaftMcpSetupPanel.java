@@ -1,11 +1,13 @@
 package com.shaft.intellij.ui;
 
+import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.ui.components.ActionLink;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.ui.FormBuilder;
@@ -56,6 +58,7 @@ import java.util.stream.Stream;
 final class ShaftMcpSetupPanel extends JPanel {
     private static final String INSTALLER_BRANCH = "main";
     private static final String MCP_DOCS_URL = "https://shafthq.github.io/docs/agentic/mcp";
+    private static final String USER_GUIDE_URL = "https://shafthq.github.io";
     private static final int TOAST_MILLIS = 2500;
     private static final String[] INSTALLER_TARGETS = {
             "CODEX",
@@ -509,20 +512,12 @@ final class ShaftMcpSetupPanel extends JPanel {
         JLabel title = new JLabel("Connect SHAFT Assistant");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
         // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
-        JLabel summary = new JLabel("<html><body style='width: 240px'>Pick an agent — the same /record-web, "
-                + "/codegen, and /doctor flows work on Codex, Claude Code, Copilot, and Gemini. SHAFT handles the "
-                + "wiring.</body></html>");
+        JLabel summary = new JLabel("<html><body style='width: 240px'>Pick an agent — recording, code "
+                + "generation, and failure diagnosis work the same on Codex, Claude Code, Copilot, and Gemini. "
+                + "SHAFT handles the wiring.</body></html>");
         summary.setForeground(ShaftStatusPresentation.pending());
-        JLabel whyShaft = new JLabel();
-        whyShaft.getAccessibleContext().setAccessibleName("Why SHAFT summary");
-        whyShaft.setText("<html><body style='width: 240px'><b>Why SHAFT?</b> Privacy-safe recording (typed values "
-                + "externalized, secrets redacted) · compile-validated codegen (generated tests compile and replay "
-                + "before you see them) · repo-aware generation (reuses your page objects and locators) · a "
-                + "maintenance loop (Doctor triage + Healer locator repair when tests break).</body></html>");
-        whyShaft.setBorder(JBUI.Borders.empty(4, 0, 0, 0));
         intro.add(title, BorderLayout.NORTH);
         intro.add(summary, BorderLayout.CENTER);
-        intro.add(whyShaft, BorderLayout.SOUTH);
         installerDetailsPanel = FormBuilder.createFormBuilder()
                 .addComponent(targetRow)
                 .addLabeledComponent("Installer command", new JBScrollPane(installerCommand))
@@ -558,6 +553,16 @@ final class ShaftMcpSetupPanel extends JPanel {
         setupScroll.getVerticalScrollBar().setUnitIncrement(16);
         setupScroll.getAccessibleContext().setAccessibleName("SHAFT MCP setup scroll pane");
         add(setupScroll, BorderLayout.CENTER);
+        // Documentation lives in the online user guide, not inside the plugin; this pinned footer
+        // link is the only doc surface the panel keeps.
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.TRAILING, 8, 2));
+        footer.setOpaque(false);
+        ActionLink userGuideLink = new ActionLink("User Guide ↗",
+                (java.awt.event.ActionListener) event -> BrowserUtil.browse(USER_GUIDE_URL));
+        userGuideLink.getAccessibleContext().setAccessibleName("Open SHAFT user guide in browser");
+        userGuideLink.setToolTipText(USER_GUIDE_URL);
+        footer.add(userGuideLink);
+        add(footer, BorderLayout.SOUTH);
         refreshPrerequisites();
         refreshRealChecks();
         runUpgradeCheck(false);

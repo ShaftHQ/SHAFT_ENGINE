@@ -63,7 +63,11 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public String localModel = "";
         public String assistantEffort = "DEFAULT";
         public String defaultAutobotClient = "CODEX";
-        public String defaultAutobotMode = "ASK";
+        /**
+         * Agent mode is the first-contact default: the assistant can actually execute recording,
+         * codegen, and diagnosis flows instead of only talking about them.
+         */
+        public String defaultAutobotMode = "AGENT";
         public String pilotAiProvider = "none";
         public String pilotAiModel = "";
         public boolean passProviderApiKeysToMcp = false;
@@ -71,7 +75,7 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public boolean autoCompactEnabled = false;
         /**
          * Recorder browser visibility preference shared by the Guided workflow panel and the
-         * assistant recording commands ({@code /record-web}, {@code /mobile web}).
+         * assistant web/mobile recording flows.
          */
         public boolean recorderHeadless = false;
 

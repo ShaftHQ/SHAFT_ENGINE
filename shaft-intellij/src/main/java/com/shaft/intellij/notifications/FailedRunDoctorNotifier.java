@@ -109,8 +109,8 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
     private static void openDoctorWorkflow(Project project) {
         if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
             ShaftNotifier.warn(project, "SHAFT",
-                    "Enable advanced workflows in Settings | SHAFT, or ask the SHAFT Assistant to "
-                            + "\"/doctor allure-results\" to run the same analysis from chat.");
+                    "Ask the SHAFT Assistant to \"diagnose my last failed test run\" to analyze the "
+                            + "failure from chat.");
             return;
         }
         ToolWindowManager.getInstance(project).invokeLater(() -> {

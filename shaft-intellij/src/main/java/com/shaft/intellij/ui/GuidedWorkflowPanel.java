@@ -90,7 +90,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 "Record without a visible browser window. Keep unchecked to interact with the recorded browser.");
         headlessBrowser.setToolTipText(
                 "Record without a visible browser window; useful for agent-driven or CI recordings. "
-                        + "Remembered across sessions and honored by /record-web and /mobile web.");
+                        + "Remembered across sessions and honored by the assistant web and mobile recording flows.");
         headlessBrowser.addItemListener(event ->
                 this.settings.recorderHeadless = headlessBrowser.isSelected());
         codeSnippet = new JBTextArea(6, 32);
@@ -272,7 +272,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         headlessBrowser.setToolTipText(playwrightBackend
                 ? "The Playwright recorder start request does not take a headless option."
                 : "Record without a visible browser window; useful for agent-driven or CI recordings. "
-                + "Remembered across sessions and honored by /record-web and /mobile web.");
+                + "Remembered across sessions and honored by the assistant web and mobile recording flows.");
         sessionPath.setToolTipText(mobile()
                 ? "Mobile recording JSON output path (mobile_record_start outputPath)."
                 : playwrightBackend
@@ -824,8 +824,8 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         WEEKLY_FLAKY_TRIAGE(
                 "Weekly flaky triage (maintenance loop)",
                 "Prefills a batch Doctor analysis with historical bundles for trend detection; follow up with "
-                        + "healer_run_failed_test per flaky test. Pair it with a weekly scheduled agent that sends "
-                        + "/doctor and consolidates the report."),
+                        + "healer_run_failed_test per flaky test. Pair it with a weekly scheduled agent that runs "
+                        + "the Doctor analysis and consolidates the report."),
         CONVERT_SELENIUM_SNIPPET(
                 "Convert Selenium snippet to SHAFT syntax",
                 "Prefills a review-only SHAFT syntax conversion workflow."),

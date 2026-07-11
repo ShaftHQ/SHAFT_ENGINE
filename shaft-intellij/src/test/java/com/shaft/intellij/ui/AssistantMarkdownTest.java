@@ -242,8 +242,9 @@ class AssistantMarkdownTest {
                 () -> assertTrue(markdown.contains("✅ READY")),
                 () -> assertFalse(markdown.contains("nothing was lost")),
                 () -> assertTrue(markdown.contains("**Output:** `recordings/intellij-capture.json`")),
-                () -> assertTrue(markdown.contains("Run codegen next:")),
-                () -> assertTrue(markdown.contains("```text\n/codegen recordings/intellij-capture.json\n```")));
+                () -> assertTrue(markdown.contains("Generate code next — send:")),
+                () -> assertTrue(markdown.contains(
+                        "```text\nGenerate a SHAFT test from recordings/intellij-capture.json\n```")));
     }
 
 

@@ -39,7 +39,7 @@ class ShaftPluginResetServiceTest {
                 () -> assertEquals("gemini", factoryDefaults.cloudProvider),
                 () -> assertEquals("gemini-3.5-flash", factoryDefaults.cloudModel),
                 () -> assertEquals("CODEX", factoryDefaults.defaultAutobotClient),
-                () -> assertEquals("ASK", factoryDefaults.defaultAutobotMode),
+                () -> assertEquals("AGENT", factoryDefaults.defaultAutobotMode),
                 () -> assertEquals("none", factoryDefaults.pilotAiProvider),
                 () -> assertEquals("", factoryDefaults.pilotAiModel),
                 () -> assertFalse(factoryDefaults.passProviderApiKeysToMcp),
