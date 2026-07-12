@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -59,6 +60,26 @@ class CaptureControlFilesTest {
         files.clearActiveControl();
         assertFalse(files.hasActiveControl());
         assertEquals(CaptureStatus.State.STARTING, files.readStatus().state());
+    }
+
+    @Test
+    void lastPickRoundTripsAndIsAbsentUntilWritten() {
+        CaptureControlFiles files = new CaptureControlFiles(temp);
+
+        assertNull(files.readLastPick(), "No pick has been persisted yet.");
+
+        CaptureControlFiles.LastPick pick = new CaptureControlFiles.LastPick(
+                "SHAFT.GUI.Locator.id(\"username\")",
+                List.of(
+                        new CaptureControlServer.RankedCandidate(
+                                "ID", "username", 100, "SHAFT.GUI.Locator.id(\"username\")"),
+                        new CaptureControlServer.RankedCandidate(
+                                "CSS", "div.form > input", 10, "SHAFT.GUI.Locator.cssSelector(\"div.form > input\")")),
+                1_700_000_000_000L);
+
+        files.writeLastPick(pick);
+
+        assertEquals(pick, files.readLastPick());
     }
 
     @Test

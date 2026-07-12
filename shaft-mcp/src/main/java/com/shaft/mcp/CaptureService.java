@@ -506,6 +506,13 @@ public class CaptureService {
      * {@code CaptureControlServer}'s {@code /locator/pick} endpoint (used by a detached recorder
      * UI); this MCP tool serves the same in-process, without a loopback HTTP round trip.
      *
+     * <p>When no valid candidates are supplied (for example, an IntelliJ Pick-Locator caret action
+     * probing readiness with an empty payload), this falls back to the last pick persisted under
+     * this service's session runtime directory by {@code CaptureControlServer}'s
+     * {@code /locator/pick} endpoint -- see {@link com.shaft.capture.control.CaptureControlFiles#readLastPick()}.
+     * Freshness of that persisted pick (how long ago it was captured) is a documented non-goal for
+     * v1; see {@link com.shaft.capture.control.CaptureControlFiles.LastPick#capturedAtMillis()}.
+     *
      * @param candidates locator candidates observed for the picked element, e.g. from the recorder
      *                   overlay's inspect-mode click handler
      * @return the winning candidate's snippet plus every candidate ranked best-first
@@ -515,7 +522,7 @@ public class CaptureService {
     public McpPickLocatorResult pickLocator(List<McpLocatorCandidate> candidates) {
         List<com.shaft.capture.model.LocatorCandidate> parsed = parseCandidates(candidates);
         if (parsed.isEmpty()) {
-            return new McpPickLocatorResult("", List.of());
+            return persistedPick();
         }
         List<com.shaft.capture.model.LocatorCandidate> ranked =
                 parsed.stream().sorted(com.shaft.capture.model.LocatorCandidate.BEST_FIRST).toList();
@@ -525,6 +532,26 @@ public class CaptureService {
                         com.shaft.capture.control.PickedLocatorSnippetBuilder.snippet(candidate)))
                 .toList();
         return new McpPickLocatorResult(rankedResult.getFirst().snippet(), rankedResult);
+    }
+
+    /**
+     * Reads the last locator pick persisted under {@link #RUNTIME_DIRECTORY} -- the same session
+     * runtime directory this service always uses to start managed capture sessions -- so a caller
+     * with no candidates of its own can still recover the user's most recent recorder pick.
+     *
+     * @return the persisted pick, or a blank result when none has been persisted yet
+     */
+    private McpPickLocatorResult persistedPick() {
+        com.shaft.capture.control.CaptureControlFiles.LastPick lastPick =
+                new com.shaft.capture.control.CaptureControlFiles(RUNTIME_DIRECTORY).readLastPick();
+        if (lastPick == null) {
+            return new McpPickLocatorResult("", List.of());
+        }
+        List<McpRankedLocatorCandidate> ranked = lastPick.candidates().stream()
+                .map(candidate -> new McpRankedLocatorCandidate(
+                        candidate.strategy(), candidate.expression(), candidate.score(), candidate.snippet()))
+                .toList();
+        return new McpPickLocatorResult(lastPick.snippet(), ranked);
     }
 
     private static List<com.shaft.capture.model.LocatorCandidate> parseCandidates(List<McpLocatorCandidate> candidates) {

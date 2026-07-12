@@ -156,6 +156,10 @@ public final class CaptureControlServer implements AutoCloseable {
      * The recorder JS computes candidates client-side (it already has the live DOM) and posts them
      * here rather than this server re-deriving them, since deriving locator evidence requires the
      * live page the browser has and this control server does not.
+     *
+     * <p>The ranked result is also persisted via {@link CaptureControlFiles#writeLastPick} so a
+     * later caller with no candidates of its own (the SHAFT MCP {@code capture_pick_locator} tool,
+     * serving an IntelliJ Pick-Locator action) can still recover the user's most recent pick.
      */
     private PickLocatorResponse pickLocator(HttpExchange exchange) {
         requireMethod(exchange, "POST");
@@ -171,7 +175,10 @@ public final class CaptureControlServer implements AutoCloseable {
                         candidate.strategy().name(), candidate.expression(), candidate.score(),
                         PickedLocatorSnippetBuilder.snippet(candidate)))
                 .toList();
-        return new PickLocatorResponse(PickedLocatorSnippetBuilder.snippet(winner), rankedResponse);
+        String winnerSnippet = PickedLocatorSnippetBuilder.snippet(winner);
+        files.writeLastPick(new CaptureControlFiles.LastPick(
+                winnerSnippet, rankedResponse, System.currentTimeMillis()));
+        return new PickLocatorResponse(winnerSnippet, rankedResponse);
     }
 
     private static List<LocatorCandidate> toCandidates(List<CandidateRequest> requested) {
