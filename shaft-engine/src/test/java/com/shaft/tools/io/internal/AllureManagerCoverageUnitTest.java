@@ -3,18 +3,24 @@ package com.shaft.tools.io.internal;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import org.testng.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.Comparator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -244,6 +250,140 @@ public class AllureManagerCoverageUnitTest {
     }
 
     @Test
+    public void patchGeneratedAllureReportIndexShouldNotRewriteAlreadyPatchedReport() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index, "<html><head></head><body></body></html>", StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+        Files.setLastModifiedTime(index, FileTime.fromMillis(0));
+        byte[] contentBeforeSecondPatch = Files.readAllBytes(index);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        Assert.assertEquals(Files.getLastModifiedTime(index), FileTime.fromMillis(0));
+        Assert.assertEquals(Files.readAllBytes(index), contentBeforeSecondPatch);
+    }
+
+    @Test
+    public void scanIndexMarkersShouldFindMarkersSpanningAnyReadBoundary() throws Exception {
+        String filler = "x".repeat(50);
+        String html = filler
+                + "id=\"shaft-allure-attachment-preview-fix\""
+                + filler
+                + "</head>"
+                + filler
+                + "</body>"
+                + filler
+                + "</body>"
+                + filler;
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        int headEndOffset = html.indexOf("</head>");
+        int lastBodyEndOffset = html.lastIndexOf("</body>");
+        Assert.assertTrue(headEndOffset >= 0 && lastBodyEndOffset >= 0);
+
+        InputStream trickleStream = new InputStream() {
+            private int position = 0;
+
+            @Override
+            public int read() {
+                if (position >= bytes.length) {
+                    return -1;
+                }
+                return bytes[position++] & 0xFF;
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) {
+                if (position >= bytes.length) {
+                    return -1;
+                }
+                int toCopy = Math.min(Math.min(length, 3), bytes.length - position);
+                System.arraycopy(bytes, position, buffer, offset, toCopy);
+                position += toCopy;
+                return toCopy;
+            }
+        };
+
+        Object scan = invoke("scanIndexMarkers", new Class[]{InputStream.class}, trickleStream);
+
+        Assert.assertEquals(recordAccessor(scan, "previewFixPresent"), true);
+        Assert.assertEquals(recordAccessor(scan, "previewScriptPresent"), false);
+        Assert.assertEquals(recordAccessor(scan, "themeColorsPresent"), false);
+        Assert.assertEquals(recordAccessor(scan, "headEndOffset"), (long) headEndOffset);
+        Assert.assertEquals(recordAccessor(scan, "bodyEndOffset"), (long) lastBodyEndOffset);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldHandleMissingHeadAndBodyTags() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index, "<main>x</main>", StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        String html = Files.readString(index, StandardCharsets.UTF_8);
+        Assert.assertTrue(html.startsWith("<style id=\"shaft-allure-attachment-preview-fix\">"), html);
+        Assert.assertTrue(html.endsWith("</style>\n"), html);
+        Assert.assertTrue(html.contains("<main>x</main>"), html);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldStreamLargeReportsWithBoundedAllocation() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+
+        String chunk = "AbCdEfGhIj0123456789".repeat(51); // ~1KB
+        ByteArrayOutputStream largeContentBuilder = new ByteArrayOutputStream();
+        largeContentBuilder.writeBytes("<html><head></head><body><img src=\"data:image/png;base64,".getBytes(StandardCharsets.UTF_8));
+        for (int i = 0; i < 24 * 1024; i++) {
+            largeContentBuilder.writeBytes(chunk.getBytes(StandardCharsets.UTF_8));
+        }
+        largeContentBuilder.writeBytes("\"></body></html>".getBytes(StandardCharsets.UTF_8));
+        byte[] largeContent = largeContentBuilder.toByteArray();
+        Files.write(index, largeContent);
+        long originalLength = Files.size(index);
+
+        Object originalScan;
+        try (InputStream in = new ByteArrayInputStream(largeContent)) {
+            originalScan = invoke("scanIndexMarkers", new Class[]{InputStream.class}, in);
+        }
+        long originalBodyEndOffset = (long) recordAccessor(originalScan, "bodyEndOffset");
+
+        var threadMxBean = ManagementFactory.getThreadMXBean();
+        if (!(threadMxBean instanceof com.sun.management.ThreadMXBean sunThreadMxBean)
+                || !sunThreadMxBean.isThreadAllocatedMemorySupported()) {
+            throw new SkipException("Per-thread allocation measurement is not supported on this JVM.");
+        }
+
+        Method method = AllureManager.class.getDeclaredMethod("patchGeneratedAllureReportIndex", Path.class);
+        method.setAccessible(true);
+        long before = sunThreadMxBean.getCurrentThreadAllocatedBytes();
+        method.invoke(null, reportDirectory);
+        long allocated = sunThreadMxBean.getCurrentThreadAllocatedBytes() - before;
+
+        Assert.assertTrue(allocated < 8L * 1024 * 1024, "allocated=" + allocated);
+        Assert.assertTrue(Files.size(index) > originalLength);
+
+        // The last </body> shifts by both patches: the head patch lands before </head>,
+        // and the theme style is inserted immediately before </body> itself.
+        long insertedByteLength = staticStringFieldByteLength("ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE")
+                + staticStringFieldByteLength("ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT")
+                + staticStringFieldByteLength("ALLURE_THEME_COLORS_STYLE");
+        try (InputStream in = Files.newInputStream(index)) {
+            Object scan = invoke("scanIndexMarkers", new Class[]{InputStream.class}, in);
+            Assert.assertEquals(recordAccessor(scan, "previewFixPresent"), true);
+            Assert.assertEquals(recordAccessor(scan, "previewScriptPresent"), true);
+            Assert.assertEquals(recordAccessor(scan, "themeColorsPresent"), true);
+            long patchedBodyEndOffset = (long) recordAccessor(scan, "bodyEndOffset");
+            Assert.assertEquals(patchedBodyEndOffset - originalBodyEndOffset, insertedByteLength);
+        }
+    }
+
+    @Test
     public void patchMissingStatusDetailsInResultsShouldPatchResultAndContainerFilesButPreserveAttachments() throws Exception {
         Path resultFile = allureResultsDirectory.resolve("sample-result.json");
         Files.writeString(resultFile, """
@@ -366,6 +506,18 @@ public class AllureManagerCoverageUnitTest {
         Field field = AllureManager.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(null, value);
+    }
+
+    private static Object recordAccessor(Object record, String componentName) throws Exception {
+        Method accessor = record.getClass().getMethod(componentName);
+        accessor.setAccessible(true);
+        return accessor.invoke(record);
+    }
+
+    private static long staticStringFieldByteLength(String fieldName) throws Exception {
+        Field field = AllureManager.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return ((String) field.get(null)).getBytes(StandardCharsets.UTF_8).length;
     }
 
     private static void resetAllureManagerState() throws Exception {

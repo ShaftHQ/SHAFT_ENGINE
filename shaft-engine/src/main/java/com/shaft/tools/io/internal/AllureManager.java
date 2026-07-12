@@ -12,16 +12,22 @@ import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.ReportManager;
 import org.apache.commons.lang3.SystemUtils;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -81,6 +87,7 @@ public class AllureManager {
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_ID = "shaft-allure-attachment-preview-fix";
     private static final String ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID = "shaft-allure-attachment-preview-script";
     private static final String ALLURE_THEME_COLORS_ID = "shaft-allure-theme-colors";
+    private static final int INDEX_PATCH_BUFFER_SIZE = 64 * 1024;
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE = """
             <style id="shaft-allure-attachment-preview-fix">
             .shaft-allure-image-modal {
@@ -730,44 +737,223 @@ public class AllureManager {
         };
     }
 
+    /**
+     * Result of a single streaming pass over {@code index.html} looking for the SHAFT patch markers
+     * and the insertion points ({@code </head>} / {@code </body>}).
+     *
+     * @param previewFixPresent    {@code true} when the attachment-preview-fix {@code <style>} id is present
+     * @param previewScriptPresent {@code true} when the attachment-preview-fix {@code <script>} id is present
+     * @param themeColorsPresent   {@code true} when the theme-colors {@code <style>} id is present
+     * @param headEndOffset        absolute byte offset of the first {@code </head>}, or {@code -1} if absent
+     * @param bodyEndOffset        absolute byte offset of the last {@code </body>}, or {@code -1} if absent
+     */
+    private record IndexMarkerScan(boolean previewFixPresent, boolean previewScriptPresent,
+                                    boolean themeColorsPresent, long headEndOffset, long bodyEndOffset) {
+    }
+
+    /** A byte-range insertion to apply while streaming {@code index.html} to its patched copy. */
+    private record IndexInsertion(long offset, byte[] bytes) {
+    }
+
+    /**
+     * Patches the generated Allure single-file report's {@code index.html} to inject SHAFT's
+     * attachment-preview-fix styling/script and theme-color overrides, without ever holding the
+     * whole file in memory.
+     *
+     * <p>Single-file Allure reports inline every attachment as base64, so {@code index.html} can
+     * grow far beyond the forked JVM's heap; the previous implementation read the whole file into a
+     * {@code String} and built additional full copies via {@code String.substring} concatenation,
+     * which could throw {@link OutOfMemoryError} during teardown (issue #3407). This implementation
+     * instead scans the file once for markers/insertion-points (bounded 64KB buffer) and then streams
+     * a second, single sequential pass to write the patched copy.
+     */
     private static void patchGeneratedAllureReportIndex(Path reportDirectory) {
         Path indexPath = reportDirectory.resolve("index.html");
         if (!Files.isRegularFile(indexPath)) {
             return;
         }
         try {
-            String html = Files.readString(indexPath, StandardCharsets.UTF_8);
+            IndexMarkerScan scan;
+            try (InputStream in = new BufferedInputStream(Files.newInputStream(indexPath), INDEX_PATCH_BUFFER_SIZE)) {
+                scan = scanIndexMarkers(in);
+            }
             String headPatch = "";
-            if (!html.contains("id=\"" + ALLURE_ATTACHMENT_PREVIEW_FIX_ID + "\"")) {
+            if (!scan.previewFixPresent()) {
                 headPatch += ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE;
             }
-            if (!html.contains("id=\"" + ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID + "\"")) {
+            if (!scan.previewScriptPresent()) {
                 headPatch += ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT;
             }
-            String bodyPatch = "";
-            if (!html.contains("id=\"" + ALLURE_THEME_COLORS_ID + "\"")) {
-                bodyPatch += ALLURE_THEME_COLORS_STYLE;
-            }
+            String bodyPatch = scan.themeColorsPresent() ? "" : ALLURE_THEME_COLORS_STYLE;
             if (headPatch.isEmpty() && bodyPatch.isEmpty()) {
                 return;
             }
-            String patchedHtml = html;
-            if (!headPatch.isEmpty()) {
-                int headEnd = patchedHtml.indexOf("</head>");
-                patchedHtml = headEnd >= 0
-                        ? patchedHtml.substring(0, headEnd) + headPatch + patchedHtml.substring(headEnd)
-                        : headPatch + patchedHtml;
-            }
-            if (!bodyPatch.isEmpty()) {
-                int bodyEnd = patchedHtml.lastIndexOf("</body>");
-                patchedHtml = bodyEnd >= 0
-                        ? patchedHtml.substring(0, bodyEnd) + bodyPatch + patchedHtml.substring(bodyEnd)
-                        : patchedHtml + bodyPatch;
-            }
-            Files.writeString(indexPath, patchedHtml, StandardCharsets.UTF_8);
+            writePatchedIndex(indexPath, scan, headPatch, bodyPatch);
         } catch (IOException e) {
             ReportManager.logDiscrete("Could not patch Allure report styling: " + e.getMessage());
         }
+    }
+
+    /**
+     * Streams {@code in} once, locating the SHAFT patch id markers and the first {@code </head>} /
+     * last {@code </body>} byte offsets. Uses a sliding window with a carried-over tail so that a
+     * marker split across two reads (regardless of chunk size) is still found.
+     */
+    private static IndexMarkerScan scanIndexMarkers(InputStream in) throws IOException {
+        byte[] previewFixMarker = ("id=\"" + ALLURE_ATTACHMENT_PREVIEW_FIX_ID + "\"").getBytes(StandardCharsets.UTF_8);
+        byte[] previewScriptMarker = ("id=\"" + ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID + "\"").getBytes(StandardCharsets.UTF_8);
+        byte[] themeColorsMarker = ("id=\"" + ALLURE_THEME_COLORS_ID + "\"").getBytes(StandardCharsets.UTF_8);
+        byte[] headEndMarker = "</head>".getBytes(StandardCharsets.UTF_8);
+        byte[] bodyEndMarker = "</body>".getBytes(StandardCharsets.UTF_8);
+
+        boolean previewFixPresent = false;
+        boolean previewScriptPresent = false;
+        boolean themeColorsPresent = false;
+        boolean headFound = false;
+        long headEndOffset = -1;
+        long bodyEndOffset = -1;
+
+        int maxMarkerLength = Math.max(previewFixMarker.length,
+                Math.max(previewScriptMarker.length,
+                        Math.max(themeColorsMarker.length,
+                                Math.max(headEndMarker.length, bodyEndMarker.length))));
+        int carryLength = maxMarkerLength - 1;
+        byte[] window = new byte[carryLength + INDEX_PATCH_BUFFER_SIZE];
+        int carried = 0;
+        long windowStartOffset = 0;
+
+        while (true) {
+            int read = in.read(window, carried, window.length - carried);
+            if (read < 0) {
+                break;
+            }
+            if (read == 0) {
+                continue;
+            }
+            int windowLength = carried + read;
+
+            if (!previewFixPresent) {
+                int minStart = Math.max(0, carried - previewFixMarker.length + 1);
+                previewFixPresent = indexOfMarker(window, windowLength, minStart, previewFixMarker, false) >= 0;
+            }
+            if (!previewScriptPresent) {
+                int minStart = Math.max(0, carried - previewScriptMarker.length + 1);
+                previewScriptPresent = indexOfMarker(window, windowLength, minStart, previewScriptMarker, false) >= 0;
+            }
+            if (!themeColorsPresent) {
+                int minStart = Math.max(0, carried - themeColorsMarker.length + 1);
+                themeColorsPresent = indexOfMarker(window, windowLength, minStart, themeColorsMarker, false) >= 0;
+            }
+            if (!headFound) {
+                int minStart = Math.max(0, carried - headEndMarker.length + 1);
+                int matchIndex = indexOfMarker(window, windowLength, minStart, headEndMarker, false);
+                if (matchIndex >= 0) {
+                    headEndOffset = windowStartOffset + matchIndex;
+                    headFound = true;
+                }
+            }
+            int bodyMinStart = Math.max(0, carried - bodyEndMarker.length + 1);
+            int bodyMatchIndex = indexOfMarker(window, windowLength, bodyMinStart, bodyEndMarker, true);
+            if (bodyMatchIndex >= 0) {
+                bodyEndOffset = windowStartOffset + bodyMatchIndex;
+            }
+
+            int newCarry = Math.min(carryLength, windowLength);
+            System.arraycopy(window, windowLength - newCarry, window, 0, newCarry);
+            windowStartOffset += windowLength - newCarry;
+            carried = newCarry;
+        }
+
+        return new IndexMarkerScan(previewFixPresent, previewScriptPresent, themeColorsPresent, headEndOffset, bodyEndOffset);
+    }
+
+    /**
+     * Naive byte-array search for {@code marker} within {@code window[0, windowLength)}, restricted
+     * to start indices {@code >= minStart}. Returns the first match when {@code findLast} is
+     * {@code false}, otherwise the last match; {@code -1} when none is found.
+     */
+    private static int indexOfMarker(byte[] window, int windowLength, int minStart, byte[] marker, boolean findLast) {
+        int maxStart = windowLength - marker.length;
+        int result = -1;
+        for (int i = minStart; i <= maxStart; i++) {
+            boolean matches = true;
+            for (int j = 0; j < marker.length; j++) {
+                if (window[i + j] != marker[j]) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                result = i;
+                if (!findLast) {
+                    return result;
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Streams {@code indexPath} to a sibling temp file, inserting {@code headPatch} immediately
+     * before {@code scan.headEndOffset()} (or at offset 0 if absent) and {@code bodyPatch}
+     * immediately before {@code scan.bodyEndOffset()} (or at EOF if absent), then atomically
+     * replaces {@code indexPath}. Offsets are computed on the original (unpatched) file; since
+     * neither patch constant contains the literals {@code </head>} or {@code </body>}, this is
+     * equivalent to the old post-insertion string arithmetic.
+     */
+    private static void writePatchedIndex(Path indexPath, IndexMarkerScan scan, String headPatch, String bodyPatch) throws IOException {
+        List<IndexInsertion> insertions = new ArrayList<>(2);
+        if (!headPatch.isEmpty()) {
+            long offset = scan.headEndOffset() >= 0 ? scan.headEndOffset() : 0L;
+            insertions.add(new IndexInsertion(offset, headPatch.getBytes(StandardCharsets.UTF_8)));
+        }
+        if (!bodyPatch.isEmpty()) {
+            long offset = scan.bodyEndOffset() >= 0 ? scan.bodyEndOffset() : Long.MAX_VALUE;
+            insertions.add(new IndexInsertion(offset, bodyPatch.getBytes(StandardCharsets.UTF_8)));
+        }
+        insertions.sort(Comparator.comparingLong(IndexInsertion::offset));
+
+        Path tempPath = indexPath.resolveSibling(indexPath.getFileName() + ".shaft-patch.tmp");
+        try {
+            try (InputStream in = new BufferedInputStream(Files.newInputStream(indexPath), INDEX_PATCH_BUFFER_SIZE);
+                 OutputStream out = new BufferedOutputStream(Files.newOutputStream(tempPath), INDEX_PATCH_BUFFER_SIZE)) {
+                long position = 0;
+                for (IndexInsertion insertion : insertions) {
+                    position = copyIndexBytes(in, out, position, insertion.offset());
+                    out.write(insertion.bytes());
+                }
+                copyIndexBytes(in, out, position, Long.MAX_VALUE);
+            }
+        } catch (IOException e) {
+            Files.deleteIfExists(tempPath);
+            throw e;
+        }
+        try {
+            Files.move(tempPath, indexPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tempPath, indexPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    /**
+     * Copies bytes from {@code in} to {@code out}, starting at absolute {@code position}, until
+     * absolute {@code targetOffset} is reached ({@code Long.MAX_VALUE} means "copy to EOF"). Reads
+     * at most {@code min(bufferLength, targetOffset - position)} per iteration. Returns the new
+     * position (which may be short of {@code targetOffset} if EOF was reached first).
+     */
+    private static long copyIndexBytes(InputStream in, OutputStream out, long position, long targetOffset) throws IOException {
+        byte[] buffer = new byte[INDEX_PATCH_BUFFER_SIZE];
+        while (targetOffset == Long.MAX_VALUE || position < targetOffset) {
+            long remaining = targetOffset == Long.MAX_VALUE ? buffer.length : targetOffset - position;
+            int toRead = (int) Math.min(buffer.length, remaining);
+            int read = in.read(buffer, 0, toRead);
+            if (read < 0) {
+                break;
+            }
+            out.write(buffer, 0, read);
+            position += read;
+        }
+        return position;
     }
 
     private static void writeAllureCategoriesIfSupported() {
