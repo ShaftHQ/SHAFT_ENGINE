@@ -116,6 +116,7 @@ public abstract class AbstractMcpClient implements McpClient {
     /**
      * @return the raw {@code result} node of a fresh {@code tools/list} call, for {@code --json} output
      */
+    @Override
     public JsonNode listToolsRaw() {
         ensureInitialized();
         JsonNode response = rpc(request("tools/list", Json.newObject()));
@@ -130,6 +131,7 @@ public abstract class AbstractMcpClient implements McpClient {
      * @param arguments the arguments object
      * @return the raw JSON-RPC {@code result} node
      */
+    @Override
     public JsonNode callToolRaw(String name, ObjectNode arguments) {
         ensureInitialized();
         ObjectNode params = Json.newObject();

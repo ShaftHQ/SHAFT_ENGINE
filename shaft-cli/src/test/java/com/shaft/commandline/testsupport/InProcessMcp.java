@@ -26,19 +26,38 @@ public final class InProcessMcp {
      */
     public static StdioMcpClient start() throws IOException {
         PipedInputStream serverIn = new PipedInputStream(PIPE_BUFFER);
-        PipedOutputStream clientToServer = new PipedOutputStream(serverIn);
-        PipedInputStream clientIn = new PipedInputStream(PIPE_BUFFER);
-        PipedOutputStream serverToClient = new PipedOutputStream(clientIn);
-        Thread serverThread = new Thread(() -> {
+        PipedOutputStream clientToServer = null;
+        PipedInputStream clientIn = null;
+        try {
+            clientToServer = new PipedOutputStream(serverIn);
+            clientIn = new PipedInputStream(PIPE_BUFFER);
+            PipedOutputStream serverToClient = new PipedOutputStream(clientIn);
+            Thread serverThread = new Thread(() -> {
+                try {
+                    FakeMcpServer.serve(serverIn, serverToClient);
+                } catch (IOException ignored) {
+                    // Pipe closed when the client closes; normal shutdown.
+                }
+            }, "fake-mcp-server");
+            serverThread.setDaemon(true);
+            serverThread.start();
+            return new StdioMcpClient(clientIn, clientToServer);
+        } catch (IOException e) {
+            closeQuietly(clientIn);
+            closeQuietly(clientToServer);
+            closeQuietly(serverIn);
+            throw e;
+        }
+    }
+
+    private static void closeQuietly(java.io.Closeable closeable) {
+        if (closeable != null) {
             try {
-                FakeMcpServer.serve(serverIn, serverToClient);
+                closeable.close();
             } catch (IOException ignored) {
-                // Pipe closed when the client closes; normal shutdown.
+                // Best-effort cleanup on a failed pipe setup.
             }
-        }, "fake-mcp-server");
-        serverThread.setDaemon(true);
-        serverThread.start();
-        return new StdioMcpClient(clientIn, clientToServer);
+        }
     }
 
     /**

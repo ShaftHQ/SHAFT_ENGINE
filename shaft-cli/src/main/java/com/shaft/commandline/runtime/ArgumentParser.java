@@ -55,11 +55,15 @@ public final class ArgumentParser {
         if ("true".equals(value) || "false".equals(value)) {
             return Json.MAPPER.getNodeFactory().booleanNode(Boolean.parseBoolean(value));
         }
-        if (isInteger(value)) {
-            return Json.MAPPER.getNodeFactory().numberNode(Long.parseLong(value));
-        }
-        if (isDecimal(value)) {
-            return Json.MAPPER.getNodeFactory().numberNode(Double.parseDouble(value));
+        try {
+            if (isInteger(value)) {
+                return Json.MAPPER.getNodeFactory().numberNode(Long.parseLong(value));
+            }
+            if (isDecimal(value)) {
+                return Json.MAPPER.getNodeFactory().numberNode(Double.parseDouble(value));
+            }
+        } catch (NumberFormatException ignored) {
+            // Passes the numeric-looking regex but overflows the type; treat as a plain string.
         }
         String trimmed = value.stripLeading();
         if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
