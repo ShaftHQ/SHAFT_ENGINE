@@ -57,6 +57,7 @@
 <li><a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path)" tabindex="0">store(byte[], String, Path)</a></li>
 <li><a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path,int)" tabindex="0">store(byte[], String, Path, int)</a></li>
 <li><a href="#read(com.shaft.capture.model.network.BodyRef,java.nio.file.Path)" tabindex="0">read(BodyRef, Path)</a></li>
+<li><a href="#readBytes(com.shaft.capture.model.network.BodyRef,java.nio.file.Path)" tabindex="0">readBytes(BodyRef, Path)</a></li>
 </ol>
 </li>
 </ol>
@@ -111,19 +112,26 @@ Mirrors ExternalTestDataWriter's atomic temp-file+move pattern.</div>
 <div class="block">Reads back a body previously stored by <a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path)"><code>store(byte[], String, Path)</code></a>, verifying it still matches its
 recorded SHA-256 digest.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../model/network/BodyRef.html" title="class in com.shaft.capture.model.network">BodyRef</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path)" class="member-name-link">store</a><wbr>(byte[]&nbsp;body,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contentType,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>byte[]</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#readBytes(com.shaft.capture.model.network.BodyRef,java.nio.file.Path)" class="member-name-link">readBytes</a><wbr>(<a href="../model/network/BodyRef.html" title="class in com.shaft.capture.model.network">BodyRef</a>&nbsp;bodyRef,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionDir)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Stores a body as an external file and returns a BodyRef with integrity metadata.</div>
+<div class="block">Reads back a body's raw bytes previously stored by <a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path)"><code>store(byte[], String, Path)</code></a>, verifying it still matches
+its recorded SHA-256 digest.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../model/network/BodyRef.html" title="class in com.shaft.capture.model.network">BodyRef</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path,int)" class="member-name-link">store</a><wbr>(byte[]&nbsp;body,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path)" class="member-name-link">store</a><wbr>(byte[]&nbsp;body,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contentType,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionDir)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Stores a body as an external file and returns a BodyRef with integrity metadata.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../model/network/BodyRef.html" title="class in com.shaft.capture.model.network">BodyRef</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path,int)" class="member-name-link">store</a><wbr>(byte[]&nbsp;body,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contentType,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionDir,
  int&nbsp;maxBodyBytes)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Stores a body as an external file with a configurable size cap and returns a BodyRef.</div>
 </div>
 </div>
@@ -223,6 +231,27 @@ same as "no body" rather than failing generation outright.</div>
 <dd><code>sessionDir</code> - directory the body was stored in (must match the <code>store</code> call)</dd>
 <dt>Returns:</dt>
 <dd>the stored body decoded as UTF-8 text, or <code>""</code> if unavailable</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="readBytes(com.shaft.capture.model.network.BodyRef,java.nio.file.Path)">
+<h3>readBytes</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">byte[]</span>&nbsp;<span class="element-name">readBytes</span><wbr><span class="parameters">(<a href="../model/network/BodyRef.html" title="class in com.shaft.capture.model.network">BodyRef</a>&nbsp;bodyRef,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;sessionDir)</span></div>
+<div class="block">Reads back a body's raw bytes previously stored by <a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path)"><code>store(byte[], String, Path)</code></a>, verifying it still matches
+its recorded SHA-256 digest. Unlike <a href="#read(com.shaft.capture.model.network.BodyRef,java.nio.file.Path)"><code>read(BodyRef, Path)</code></a>, this does not assume UTF-8 text, so callers
+that must tell binary content apart from text (for example HAR body emission, which base64-encodes
+non-textual bodies) can make that call themselves from the stored <a href="../model/network/BodyRef.html#encoding()"><code>BodyRef.encoding()</code></a>
+content type instead of losing information to a lossy UTF-8 decode.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>bodyRef</code> - reference returned by a prior <a href="#store(byte%5B%5D,java.lang.String,java.nio.file.Path)"><code>store(byte[], String, Path)</code></a> call, or <code>null</code></dd>
+<dd><code>sessionDir</code> - directory the body was stored in (must match the <code>store</code> call)</dd>
+<dt>Returns:</dt>
+<dd>the stored body's raw bytes, or an empty array if unavailable</dd>
 </dl>
 </div>
 </section>

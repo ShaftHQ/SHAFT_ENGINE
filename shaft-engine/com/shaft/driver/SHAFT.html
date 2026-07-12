@@ -80,6 +80,7 @@ classes:
 <ul>
   <li><a href="SHAFT.GUI.html" title="class in com.shaft.driver"><code>SHAFT.GUI</code></a> &ndash; Browser, element, touch, alert, and SikuliX actions.</li>
   <li><a href="SHAFT.API.html" title="class in com.shaft.driver"><code>SHAFT.API</code></a> &ndash; RESTful API interactions via REST Assured.</li>
+  <li><a href="SHAFT.Auth.html" title="class in com.shaft.driver"><code>SHAFT.Auth</code></a> &ndash; Cached-login setup that reuses a saved browser storage state.</li>
   <li><a href="SHAFT.CLI.html" title="class in com.shaft.driver"><code>SHAFT.CLI</code></a> &ndash; Terminal and file-system operations.</li>
   <li><a href="SHAFT.DB.html" title="class in com.shaft.driver"><code>SHAFT.DB</code></a>  &ndash; Database queries and result handling.</li>
   <li><a href="SHAFT.Validations.html" title="class in com.shaft.driver"><code>SHAFT.Validations</code></a> &ndash; Standalone hard and soft assertions.</li>
@@ -124,44 +125,52 @@ driver.quit();
 and executing HTTP requests (GET, POST, PUT, PATCH, DELETE).</div>
 </div>
 <div class="col-first odd-row-color"><code>static class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="SHAFT.CLI.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.CLI</a></code></div>
+<div class="col-second odd-row-color"><code><a href="SHAFT.Auth.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Auth</a></code></div>
 <div class="col-last odd-row-color">
+<div class="block">Playwright-style cached-authentication helper: runs a login <code>flow</code> once per <code>name</code>
+and caches the resulting browser storage state (cookies + <code>localStorage</code>) to disk so that
+subsequent calls &mdash; including from other tests or threads &mdash; can reuse the same
+authenticated session instead of repeating the UI login.</div>
+</div>
+<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="SHAFT.CLI.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.CLI</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">Provides access to command-line and file-system operations.</div>
 </div>
-<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="SHAFT.Contracts.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Contracts</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="SHAFT.Contracts.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Contracts</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Controls current-thread HTTP contract recording and validation for browser and API traffic.</div>
 </div>
-<div class="col-first odd-row-color"><code>static class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="SHAFT.DB.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.DB</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="SHAFT.DB.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.DB</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">Provides database connectivity and query execution.</div>
 </div>
-<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="SHAFT.GUI.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.GUI</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="SHAFT.GUI.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.GUI</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Contains GUI-related subsystems for web and mobile test automation.</div>
 </div>
-<div class="col-first odd-row-color"><code>static class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="SHAFT.Properties.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Properties</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="SHAFT.Properties.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Properties</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">Exposes SHAFT's runtime configuration properties.</div>
 </div>
-<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="SHAFT.Report.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Report</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="SHAFT.Report.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Report</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Utility class for emitting log messages and attaching artifacts to
 the Allure execution report.</div>
 </div>
-<div class="col-first odd-row-color"><code>static class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="SHAFT.TestData.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.TestData</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="SHAFT.TestData.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.TestData</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">Provides test data readers for various file formats.</div>
 </div>
-<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="SHAFT.Validations.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Validations</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="SHAFT.Validations.html" class="type-name-link" title="class in com.shaft.driver">SHAFT.Validations</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Provides standalone assertion and verification builders for use outside
 of a WebDriver context (e.g., API response validation, object comparison).</div>
 </div>
