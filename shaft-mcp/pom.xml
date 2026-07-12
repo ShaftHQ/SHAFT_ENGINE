@@ -21,6 +21,17 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Import the reactor's selenium-bom before spring-boot-dependencies: Spring Boot
+                 also manages org.seleniumhq.selenium artifacts (at an older version), and the
+                 first import wins, so without this shaft-mcp runs Selenium 4.43 test classpaths
+                 against shaft-engine/shaft-capture bytecode compiled with the reactor pin. -->
+            <dependency>
+                <groupId>org.seleniumhq.selenium</groupId>
+                <artifactId>selenium-bom</artifactId>
+                <version>${selenium.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
