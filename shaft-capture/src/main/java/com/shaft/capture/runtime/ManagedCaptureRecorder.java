@@ -17,10 +17,12 @@ import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.Checkpoint;
 import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.network.BodyRef;
 import com.shaft.capture.network.CaptureNetworkRecorder;
 import com.shaft.capture.privacy.CapturePrivacyClassifier;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
+import com.shaft.capture.storage.NetworkBodyStore;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.listeners.TestNGListener;
@@ -49,6 +51,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -85,6 +88,7 @@ class ManagedCaptureRecorder {
     private CaptureSessionStore store;
     private CaptureEventPipeline pipeline;
     private CaptureNetworkRecorder networkRecorder;
+    private final Path networkBodiesDirectory;
     private String currentUrl;
     private volatile boolean paused;
     private volatile boolean uiStopRequested;
@@ -109,6 +113,11 @@ class ManagedCaptureRecorder {
         warnings.addAll(request.options().warnings());
         currentUrl = new CapturePrivacyClassifier(this.privacyPolicy)
                 .sanitizeUrl(request.targetUrl()).value();
+        // Computed deterministically here (rather than only inside startNetworkRecorder()) so that
+        // saveHar() can always resolve where CaptureNetworkRecorder would have written bodies, even
+        // though that path depends on the same sessionId generated above.
+        networkBodiesDirectory = request.outputPath().getParent()
+                .resolve(sessionId + "-network-bodies").toAbsolutePath().normalize();
     }
 
     void start() {
@@ -351,6 +360,15 @@ class ManagedCaptureRecorder {
 
     WebDriver driverForTesting() {
         return driver;
+    }
+
+    /**
+     * Returns the directory API-capture network bodies would be persisted to for this session, so
+     * tests can plant {@link NetworkBodyStore}-written fixture bodies at the exact path
+     * {@link #saveHar()} reads back from without launching a real browser/{@code CaptureNetworkRecorder}.
+     */
+    Path networkBodiesDirectoryForTesting() {
+        return networkBodiesDirectory;
     }
 
     /**
@@ -634,7 +652,7 @@ class ManagedCaptureRecorder {
             return;
         }
         try {
-            String harJson = BrowserObservabilityRecorder.drainNetworkHarJson();
+            String harJson = buildHarJson();
             String glob = request.options().saveHarGlob();
             if (!glob.isBlank()) {
                 HarGlobFilterResult filtered = filterHarByGlob(harJson, glob);
@@ -650,6 +668,169 @@ class ManagedCaptureRecorder {
         } catch (IOException | RuntimeException exception) {
             warn("Requested capture HAR file could not be written.");
         }
+    }
+
+    /**
+     * Builds the HAR-like JSON document {@link #saveHar()} writes, honoring
+     * {@link CaptureStartOptions#saveHarContent()}.
+     *
+     * <p>The truncated-preview trace buffer ({@link BrowserObservabilityRecorder}) is always drained
+     * (and therefore cleared) exactly once here, regardless of content mode, so per-thread trace state
+     * never leaks into a later session recorded on the same thread.
+     *
+     * <p>When full-body content is requested and available, entries are sourced entirely from this
+     * session's persisted {@code CaptureEvent.NetworkEvent}s (recorded by {@code CaptureNetworkRecorder},
+     * with headers already redacted via {@code SecretHeaderReplacer}) rather than merged with the
+     * truncated-preview trace entries. Both mechanisms observe the same DevTools traffic and the
+     * network-event list is a strict superset in practice (it is the authoritative capture path), so
+     * replacing rather than correlating avoids a fragile method+URL+timestamp matching heuristic
+     * between two independently-populated event lists. The one documented limitation: transactions
+     * that {@code CaptureNetworkRecorder}'s own filters (asset/first-party/glob/transaction-cap) drop
+     * are absent from the full-body HAR even if the truncated-preview trace observed them, since the
+     * preview trace has no equivalent filtering.
+     *
+     * @return the HAR-like JSON document to write
+     */
+    private String buildHarJson() {
+        String previewHarJson = BrowserObservabilityRecorder.drainNetworkHarJson();
+        String mode = request.options().saveHarContent().toLowerCase(Locale.ROOT);
+        if (mode.isBlank() || "none".equals(mode)) {
+            return previewHarJson;
+        }
+        if (!"full".equals(mode)) {
+            warn("Capture HAR content mode `" + request.options().saveHarContent()
+                    + "` is not supported; use `full` for complete request/response bodies. "
+                    + "Falling back to truncated network trace previews.");
+            return previewHarJson;
+        }
+        List<CaptureEvent.NetworkEvent> fullBodyEvents = fullBodyNetworkEvents();
+        if (fullBodyEvents.isEmpty()) {
+            warn("Capture HAR content mode `full` was requested, but no API-capture network "
+                    + "transactions were recorded for this session (API capture may not be enabled); "
+                    + "falling back to truncated network trace previews.");
+            return previewHarJson;
+        }
+        return fullBodyHarJson(fullBodyEvents);
+    }
+
+    private List<CaptureEvent.NetworkEvent> fullBodyNetworkEvents() {
+        if (store == null) {
+            return List.of();
+        }
+        try {
+            return store.read().events().stream()
+                    .filter(CaptureEvent.NetworkEvent.class::isInstance)
+                    .map(CaptureEvent.NetworkEvent.class::cast)
+                    .toList();
+        } catch (RuntimeException exception) {
+            return List.of();
+        }
+    }
+
+    /**
+     * Builds a HAR-like JSON document whose entries carry full request/response bodies read back
+     * from {@link NetworkBodyStore}, keeping the same top-level shape
+     * {@link BrowserObservabilityRecorder#networkHarJson} produces (so {@link #filterHarByGlob} keeps
+     * working unchanged) while adding nested {@code requestBody}/{@code responseBody} objects.
+     */
+    private String fullBodyHarJson(List<CaptureEvent.NetworkEvent> events) {
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        ObjectMapper mapper = JsonMapper.builder().build();
+        ArrayNode entries = mapper.createArrayNode();
+        for (CaptureEvent.NetworkEvent event : events) {
+            entries.add(harEntry(mapper, bodyStore, event));
+        }
+        ObjectNode creator = mapper.createObjectNode();
+        creator.put("name", "SHAFT");
+        creator.put("comment", "HAR-like browser network trace emitted by SHAFT observability "
+                + "(full-body API capture)");
+        ObjectNode log = mapper.createObjectNode();
+        log.put("version", "1.2");
+        log.set("creator", creator);
+        log.set("entries", entries);
+        ObjectNode root = mapper.createObjectNode();
+        root.set("log", log);
+        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root) + System.lineSeparator();
+    }
+
+    private ObjectNode harEntry(ObjectMapper mapper, NetworkBodyStore bodyStore, CaptureEvent.NetworkEvent event) {
+        var httpRequest = event.request();
+        var httpResponse = event.response();
+        ObjectNode entry = mapper.createObjectNode();
+        entry.put("method", httpRequest.method());
+        entry.put("url", httpRequest.url());
+        entry.put("status", httpResponse == null ? 0 : httpResponse.statusCode());
+        entry.put("durationMs", networkTimingMillis(event.timing()));
+        entry.put("requestSizeBytes", httpRequest.body() == null ? 0 : httpRequest.body().sizeBytes());
+        entry.put("responseSizeBytes", httpResponse == null || httpResponse.body() == null
+                ? 0 : httpResponse.body().sizeBytes());
+        entry.set("requestHeaders", headersNode(mapper, httpRequest.headers()));
+        entry.set("responseHeaders", headersNode(mapper, httpResponse == null ? Map.of() : httpResponse.headers()));
+        entry.put("failureReason", event.failureReason());
+        entry.set("requestBody", bodyNode(mapper, bodyStore, httpRequest.body()));
+        entry.set("responseBody", bodyNode(mapper, bodyStore, httpResponse == null ? null : httpResponse.body()));
+        return entry;
+    }
+
+    private static ObjectNode headersNode(ObjectMapper mapper, Map<String, String> headers) {
+        ObjectNode node = mapper.createObjectNode();
+        headers.forEach(node::put);
+        return node;
+    }
+
+    /**
+     * Reads a body's bytes from {@link #networkBodiesDirectory} and inlines them as {@code text} for
+     * textual content types, or as base64 with {@code encoding: "base64"} for everything else (mirroring
+     * the real HAR spec's {@code content.encoding} convention: present and {@code "base64"} for binary,
+     * absent/blank for text).
+     */
+    private ObjectNode bodyNode(ObjectMapper mapper, NetworkBodyStore bodyStore, BodyRef bodyRef) {
+        ObjectNode node = mapper.createObjectNode();
+        if (bodyRef == null) {
+            node.put("mimeType", "");
+            node.put("size", 0L);
+            node.put("truncated", false);
+            node.put("encoding", "");
+            node.put("text", "");
+            return node;
+        }
+        byte[] bytes = bodyStore.readBytes(bodyRef, networkBodiesDirectory);
+        node.put("mimeType", bodyRef.encoding());
+        node.put("size", bodyRef.sizeBytes());
+        node.put("truncated", bodyRef.truncated());
+        if (bytes.length == 0) {
+            node.put("encoding", "");
+            node.put("text", "");
+        } else if (isTextualContentType(bodyRef.encoding())) {
+            node.put("encoding", "");
+            node.put("text", new String(bytes, StandardCharsets.UTF_8));
+        } else {
+            node.put("encoding", "base64");
+            node.put("text", Base64.getEncoder().encodeToString(bytes));
+        }
+        return node;
+    }
+
+    private static boolean isTextualContentType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return true;
+        }
+        String lower = contentType.toLowerCase(Locale.ROOT);
+        return lower.startsWith("text/") || lower.contains("json") || lower.contains("xml")
+                || lower.contains("javascript") || lower.contains("html") || lower.contains("css")
+                || lower.contains("urlencoded") || lower.contains("csv") || lower.contains("yaml");
+    }
+
+    private static long networkTimingMillis(com.shaft.capture.model.network.NetworkTiming timing) {
+        if (timing == null) {
+            return 0L;
+        }
+        return java.util.stream.Stream.of(
+                        timing.blocked(), timing.dns(), timing.connect(),
+                        timing.send(), timing.ttfb(), timing.receive())
+                .filter(java.util.Objects::nonNull)
+                .mapToLong(java.time.Duration::toMillis)
+                .sum();
     }
 
     /**
@@ -769,10 +950,8 @@ class ManagedCaptureRecorder {
             return;
         }
         try {
-            Path bodiesDirectory = request.outputPath().getParent()
-                    .resolve(sessionId + "-network-bodies").toAbsolutePath().normalize();
             networkRecorder = new CaptureNetworkRecorder(
-                    activeDriver, bodiesDirectory, resolvedNetworkCaptureOptions(), sessionId,
+                    activeDriver, networkBodiesDirectory, resolvedNetworkCaptureOptions(), sessionId,
                     this::acceptNetworkEvent, this::warn);
             if (!networkRecorder.start()) {
                 networkRecorder = null;

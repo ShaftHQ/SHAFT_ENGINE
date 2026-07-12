@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -170,5 +171,29 @@ class NetworkBodyStoreTest {
         String read = store.read(ref, sessionDir);
 
         assertEquals("01234", read, "Truncated bodies read back their stored (truncated) content, not the original");
+    }
+
+    @Test
+    void testReadBytesRoundTripsExactBinaryContent() {
+        byte[] body = new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x00, 0x01, (byte) 0xFF};
+        BodyRef ref = store.store(body, "image/png", sessionDir);
+
+        byte[] read = store.readBytes(ref, sessionDir);
+
+        assertArrayEquals(body, read, "readBytes must return the exact stored bytes without lossy text decoding");
+    }
+
+    @Test
+    void testReadBytesNullRef_ReturnsEmptyArray() {
+        assertEquals(0, store.readBytes(null, sessionDir).length);
+    }
+
+    @Test
+    void testReadBytesTamperedFile_DigestMismatchReturnsEmptyArray() throws Exception {
+        byte[] body = "{\"id\":\"abc-123\"}".getBytes(StandardCharsets.UTF_8);
+        BodyRef ref = store.store(body, "application/json", sessionDir);
+        Files.write(sessionDir.resolve(ref.ref()), "{\"id\":\"tampered\"}".getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(0, store.readBytes(ref, sessionDir).length);
     }
 }

@@ -4,8 +4,16 @@ import com.shaft.capture.collector.BrowserSignal;
 import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.EventContext;
+import com.shaft.capture.model.PageContext;
+import com.shaft.capture.model.network.BodyRef;
+import com.shaft.capture.model.network.HttpRequestRecord;
+import com.shaft.capture.model.network.HttpResponseRecord;
+import com.shaft.capture.model.network.NetworkTiming;
+import com.shaft.capture.model.network.ResourceKind;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
+import com.shaft.capture.storage.NetworkBodyStore;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import org.junit.jupiter.api.Test;
@@ -17,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -285,7 +294,8 @@ class ManagedCaptureRecorderControlTest {
         }
     }
 
-    private void activateEmptySession(ManagedCaptureRecorder recorder, CaptureStartRequest request) throws Exception {
+    private CaptureSessionStore activateEmptySession(ManagedCaptureRecorder recorder, CaptureStartRequest request)
+            throws Exception {
         CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
         store.start(CaptureSession.start(
                 "har-session",
@@ -298,12 +308,159 @@ class ManagedCaptureRecorderControlTest {
                 ignored -> { },
                 ignored -> { });
         recorder.activeSessionForTesting(store, pipeline);
+        return store;
     }
 
     private CaptureStartOptions harOptions(String saveHarPath, String saveHarGlob) {
+        return harOptions(saveHarPath, saveHarGlob, "");
+    }
+
+    private CaptureStartOptions harOptions(String saveHarPath, String saveHarGlob, String saveHarContent) {
         return new CaptureStartOptions(
                 "", "", "", "", "", "", "", false, false,
-                "", "", "", "", "", "", saveHarPath, saveHarGlob, Duration.ZERO, "", null);
+                "", "", "", "", "", "", saveHarPath, saveHarGlob, Duration.ZERO, "", null, "", false, null,
+                saveHarContent);
+    }
+
+    /**
+     * Builds a persisted network event as {@code CaptureNetworkRecorder} would have (with headers
+     * already redacted by the caller, mirroring {@code SecretHeaderReplacer} having run), so tests can
+     * plant full-body API-capture evidence directly in a {@link CaptureSessionStore} without launching
+     * a real browser/DevTools session.
+     */
+    private CaptureEvent.NetworkEvent networkEvent(
+            long sequence, String method, String url, int status,
+            Map<String, String> requestHeaders, Map<String, String> responseHeaders,
+            BodyRef requestBody, BodyRef responseBody) {
+        PageContext page = new PageContext("https://example.test", "Example", "window-1", List.of(), 0, 0);
+        EventContext context = new EventContext(
+                sequence, Instant.parse("2026-01-02T03:04:05Z"), page,
+                EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
+        HttpRequestRecord httpRequest = new HttpRequestRecord(method, url, requestHeaders, requestBody);
+        HttpResponseRecord httpResponse = status <= 0 ? null : new HttpResponseRecord(status, responseHeaders, responseBody);
+        NetworkTiming timing = new NetworkTiming(null, null, null, null, null, Duration.ofMillis(12));
+        return new CaptureEvent.NetworkEvent(
+                context, "txn-" + sequence, ResourceKind.XHR, httpRequest, httpResponse, timing, "",
+                "https://example.test", null);
+    }
+
+    @Test
+    void savesHarWithDefaultContentModeIgnoresApiCaptureFullBodiesAndKeepsTruncatedPreviewBodies() throws Exception {
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean originalTraceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserObservabilityRecorder.clear();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://api.example.test/users", 200, Map.of(), Map.of(), 5, 0, 0, "",
+                    "probe-marker-preview-body"));
+
+            Path harPath = temp.resolve("default-mode.har");
+            CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), ""));
+            ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+            CaptureSessionStore store = activateEmptySession(recorder, request);
+
+            NetworkBodyStore bodyStore = new NetworkBodyStore();
+            BodyRef responseBodyRef = bodyStore.store(
+                    "probe-marker-full-response-body".getBytes(StandardCharsets.UTF_8),
+                    "application/json", recorder.networkBodiesDirectoryForTesting());
+            store.append(networkEvent(1, "GET", "https://api.example.test/users", 200,
+                    Map.of(), Map.of(), null, responseBodyRef));
+
+            recorder.stop(false);
+
+            String har = Files.readString(harPath, StandardCharsets.UTF_8);
+            assertTrue(har.contains("probe-marker-preview-body"),
+                    "Default (unset) content mode must still emit the truncated network trace preview body.");
+            assertFalse(har.contains("probe-marker-full-response-body"),
+                    "Default (unset) content mode must not inline full API-capture bodies.");
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(originalTraceEnabled)
+                    .traceIncludeNetwork(originalTraceIncludeNetwork);
+            BrowserObservabilityRecorder.clear();
+        }
+    }
+
+    @Test
+    void savesHarWithFullContentModeInlinesFullBodiesAndCarriesRedactedHeadersThrough() throws Exception {
+        Path harPath = temp.resolve("full-mode.har");
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), "", "full"));
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = activateEmptySession(recorder, request);
+
+        Path bodiesDirectory = recorder.networkBodiesDirectoryForTesting();
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        BodyRef requestBodyRef = bodyStore.store(
+                "probe-marker-full-request-body".getBytes(StandardCharsets.UTF_8), "application/json", bodiesDirectory);
+        BodyRef responseBodyRef = bodyStore.store(
+                "probe-marker-full-response-body".getBytes(StandardCharsets.UTF_8), "application/json", bodiesDirectory);
+        store.append(networkEvent(1, "POST", "https://api.example.test/users", 201,
+                Map.of("authorization", "secret-ref:AUTHORIZATION_ab12cd34_ef56gh78"),
+                Map.of("content-type", "application/json"),
+                requestBodyRef, responseBodyRef));
+
+        recorder.stop(false);
+
+        String har = Files.readString(harPath, StandardCharsets.UTF_8);
+        assertTrue(har.contains("probe-marker-full-request-body"), "Full mode must inline the full request body.");
+        assertTrue(har.contains("probe-marker-full-response-body"), "Full mode must inline the full response body.");
+        assertTrue(har.contains("secret-ref:AUTHORIZATION_ab12cd34_ef56gh78"),
+                "Headers already redacted by SecretHeaderReplacer at capture time must be carried through unchanged.");
+    }
+
+    @Test
+    void savesHarWithFullContentModeBase64EncodesNonTextualBodies() throws Exception {
+        Path harPath = temp.resolve("full-mode-binary.har");
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), "", "full"));
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = activateEmptySession(recorder, request);
+
+        byte[] binaryBody = new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 1, 2, 3};
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        BodyRef responseBodyRef = bodyStore.store(
+                binaryBody, "image/png", recorder.networkBodiesDirectoryForTesting());
+        store.append(networkEvent(1, "GET", "https://cdn.example.test/logo.png", 200,
+                Map.of(), Map.of(), null, responseBodyRef));
+
+        recorder.stop(false);
+
+        String har = Files.readString(harPath, StandardCharsets.UTF_8);
+        assertTrue(har.contains("\"encoding\" : \"base64\""), "Non-textual bodies must be flagged base64-encoded.");
+        assertTrue(har.contains(Base64.getEncoder().encodeToString(binaryBody)),
+                "The binary body must be inlined as base64 text.");
+    }
+
+    @Test
+    void savesHarWithFullContentModeFallsBackToPreviewWhenNoApiCaptureTransactionsWereRecorded() throws Exception {
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean originalTraceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserObservabilityRecorder.clear();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://api.example.test/users", 200, Map.of(), Map.of(), 5, 0, 0, "",
+                    "probe-marker-preview-only-body"));
+
+            Path harPath = temp.resolve("full-mode-fallback.har");
+            CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), "", "full"));
+            ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+            activateEmptySession(recorder, request);
+
+            CaptureStatus status = recorder.stop(false);
+
+            String har = Files.readString(harPath, StandardCharsets.UTF_8);
+            assertTrue(har.contains("probe-marker-preview-only-body"),
+                    "A `full` request with no recorded API-capture transactions must fall back to the "
+                            + "truncated network trace preview.");
+            assertTrue(status.warnings().stream().anyMatch(warning -> warning.contains("falling back to truncated")),
+                    "A fallback warning must be reported: " + status.warnings());
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(originalTraceEnabled)
+                    .traceIncludeNetwork(originalTraceIncludeNetwork);
+            BrowserObservabilityRecorder.clear();
+        }
     }
 
     private CaptureStartRequest request(CaptureBrowser browser, CaptureStartOptions options) {
