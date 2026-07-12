@@ -1,5 +1,10 @@
 package com.shaft.capture.runtime;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import tools.jackson.databind.node.StringNode;
 import com.shaft.capture.collector.BidiActivityGate;
 import com.shaft.capture.collector.BidiBrowserEventCollector;
@@ -628,18 +633,60 @@ class ManagedCaptureRecorder {
         if (request.options().saveHarPath().isBlank()) {
             return;
         }
-        if (!request.options().saveHarGlob().isBlank()) {
-            warn("Capture HAR glob filtering is not yet supported; writing all observed network entries.");
-        }
         try {
+            String harJson = BrowserObservabilityRecorder.drainNetworkHarJson();
+            String glob = request.options().saveHarGlob();
+            if (!glob.isBlank()) {
+                HarGlobFilterResult filtered = filterHarByGlob(harJson, glob);
+                harJson = filtered.json();
+                warn("Capture HAR glob filter kept " + filtered.kept() + " and dropped " + filtered.dropped()
+                        + " of " + (filtered.kept() + filtered.dropped()) + " observed network entries.");
+            }
             Path path = Path.of(request.options().saveHarPath()).toAbsolutePath().normalize();
             if (path.getParent() != null) {
                 Files.createDirectories(path.getParent());
             }
-            Files.writeString(path, BrowserObservabilityRecorder.drainNetworkHarJson(), StandardCharsets.UTF_8);
+            Files.writeString(path, harJson, StandardCharsets.UTF_8);
         } catch (IOException | RuntimeException exception) {
             warn("Requested capture HAR file could not be written.");
         }
+    }
+
+    /**
+     * Filters a HAR-like JSON document's {@code log.entries} to those whose {@code url} matches the
+     * given glob, reusing {@link CaptureNetworkRecorder#matchesGlob(String, String)} so both live
+     * network filtering and HAR export share one glob implementation.
+     *
+     * @param harJson HAR-like JSON produced by {@code BrowserObservabilityRecorder.drainNetworkHarJson()}
+     * @param glob    non-blank URL glob
+     * @return the filtered JSON alongside how many entries were kept/dropped
+     */
+    static HarGlobFilterResult filterHarByGlob(String harJson, String glob) {
+        ObjectMapper mapper = JsonMapper.builder().build();
+        JsonNode root = mapper.readTree(harJson);
+        JsonNode entriesNode = root.path("log").path("entries");
+        if (!(entriesNode instanceof ArrayNode entries) || !(root.path("log") instanceof ObjectNode log)) {
+            return new HarGlobFilterResult(harJson, 0, 0);
+        }
+        ArrayNode kept = entries.arrayNode();
+        for (JsonNode entry : entries) {
+            if (CaptureNetworkRecorder.matchesGlob(entry.path("url").asText(""), glob)) {
+                kept.add(entry);
+            }
+        }
+        log.set("entries", kept);
+        String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root) + System.lineSeparator();
+        return new HarGlobFilterResult(json, kept.size(), entries.size() - kept.size());
+    }
+
+    /**
+     * Result of {@link #filterHarByGlob(String, String)}.
+     *
+     * @param json    filtered HAR JSON
+     * @param kept    entries retained by the glob
+     * @param dropped entries excluded by the glob
+     */
+    record HarGlobFilterResult(String json, int kept, int dropped) {
     }
 
     private String targetOrigin() {

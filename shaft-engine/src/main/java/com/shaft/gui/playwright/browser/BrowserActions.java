@@ -9,6 +9,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.NetworkInterceptionRequestBuilder;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
+import com.shaft.gui.browser.internal.PlaywrightStorageStateManager;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightBrowserValidationsBuilder;
 import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
@@ -419,6 +420,46 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     public BrowserActions deleteAllCookies() {
         session.browserContext().clearCookies();
         return this;
+    }
+
+    /**
+     * Saves the current browser cookies, {@code localStorage}, and {@code sessionStorage} to a JSON file.
+     *
+     * <p>Produces the same JSON schema as the WebDriver backend's {@code saveStorageState}, so files are
+     * interchangeable between backends. Example:
+     * <pre>{@code
+     * driver.browser().saveStorageState("target/auth-state.json");
+     * }</pre>
+     *
+     * @param filePath target JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions saveStorageState(String filePath) {
+        return timedBrowserAction("playwright.browser.saveStorageState", () -> {
+            PlaywrightStorageStateManager.save(session.browserContext(), page(), filePath);
+            ReportManager.log("Saved Playwright browser storage state to \"" + filePath + "\".");
+        });
+    }
+
+    /**
+     * Loads browser cookies, {@code localStorage}, and {@code sessionStorage} from a JSON file.
+     *
+     * <p>Navigate to the target origin before loading storage so browser cookie domain rules can apply.
+     * Reads the same JSON schema as the WebDriver backend's {@code loadStorageState}. Example:
+     * <pre>{@code
+     * driver.browser()
+     *       .navigateToURL("https://example.com")
+     *       .and().loadStorageState("target/auth-state.json");
+     * }</pre>
+     *
+     * @param filePath source JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions loadStorageState(String filePath) {
+        return timedBrowserAction("playwright.browser.loadStorageState", () -> {
+            PlaywrightStorageStateManager.load(session.browserContext(), page(), filePath);
+            ReportManager.log("Loaded Playwright browser storage state from \"" + filePath + "\".");
+        });
     }
 
     @Override
