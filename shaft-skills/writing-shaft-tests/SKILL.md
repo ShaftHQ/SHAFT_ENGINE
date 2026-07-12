@@ -76,7 +76,10 @@ public void userCanSignIn() {
 Every shaft-mcp tool name and description is cached in
 `../references/shaft-mcp-tools.md`. Read it to pick exact tool names instead of
 listing tools at runtime, and load only the schemas you need — on clients that
-defer tool schemas, batch the load in one lookup.
+defer tool schemas, batch the load in one lookup. When a `shaft-cli` launcher
+is installed, prefer running the same tools as shell commands per
+`../references/shaft-cli-commands.md` (`shaft-cli call <tool>`), falling back
+to `shaft-mcp:<tool>` MCP calls otherwise.
 
 ## Official Guide Routes
 

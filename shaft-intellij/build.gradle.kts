@@ -105,6 +105,10 @@ tasks {
         systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", "false"))
         systemProperty("shaft.intellij.liveMcpCommand", System.getProperty("shaft.intellij.liveMcpCommand", ""))
         systemProperty("shaft.intellij.workspaceRoot", System.getProperty("shaft.intellij.workspaceRoot", ".."))
+        systemProperty("shaft.intellij.mcp.applicationDataRoot",
+                System.getProperty("shaft.intellij.mcp.applicationDataRoot", ""))
+        systemProperty("shaft.intellij.mcp.bootstrapRoot",
+                System.getProperty("shaft.intellij.mcp.bootstrapRoot", ""))
         systemProperty("shaft.intellij.liveGeminiModel",
                 System.getProperty("shaft.intellij.liveGeminiModel", "gemini-3.5-flash"))
     }

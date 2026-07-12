@@ -232,6 +232,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertTrue(
                 (installed / "verifying-and-applying-shaft-changes" / "SKILL.md").is_file())
             self.assertTrue((installed / "references" / "shaft-mcp-tools.md").is_file())
+            self.assertTrue((installed / "references" / "shaft-cli-commands.md").is_file())
 
     def test_shaft_skills_manifest_files_exist_in_repo(self):
         source = MODULE.local_shaft_skills_source()

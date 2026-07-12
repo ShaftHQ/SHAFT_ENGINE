@@ -202,3 +202,5 @@
 {"actor":"agent","event":"memory.created","id":"decision.adopted-the-per-session-learning-loop-in-agents-md","timestamp":"2026-07-12T10:21:41+03:00"}
 {"actor":"agent","event":"memory.updated","id":"constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue","timestamp":"2026-07-12T10:21:41+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile","timestamp":"2026-07-12T12:12:35+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.shaftmcpsetuppanel-installerdetailspanel-is-dead-hidden-ui-and-screenshots-reflect-real-machine-state","timestamp":"2026-07-12T13:24:30+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows","timestamp":"2026-07-12T13:24:30+03:00"}

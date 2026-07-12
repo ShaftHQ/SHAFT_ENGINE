@@ -12,12 +12,34 @@ import stat
 import subprocess
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 INSTALLER_CLIENTS = {"claude-desktop", "copilot", "copilot-intellij", "intellij-plugin"}
 INSTALLER_RETRY_ATTEMPTS = 3
 INSTALLER_RETRY_DELAY_SECONDS = 3.0
+SHAFT_CLI_METADATA_URL = (
+    "https://repo1.maven.org/maven2/io/github/shafthq/shaft-cli/maven-metadata.xml"
+)
+
+
+def shaft_cli_published() -> bool:
+    """Whether any shaft-cli release exists on Maven Central.
+
+    shaft-cli joined the publication set in #3444, so it only exists on Central after the
+    first release cut since then; until that release, --install-shaft-cli can only 404 and
+    its verification must be skipped rather than failing every PR and main build.
+    """
+    request = urllib.request.Request(SHAFT_CLI_METADATA_URL, method="HEAD")
+    try:
+        with urllib.request.urlopen(request, timeout=30):  # nosec B310 - fixed https URL.
+            return True
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return False
+        raise
 
 
 def write_fake_copilot(bin_directory: Path) -> None:
@@ -297,8 +319,16 @@ def main() -> int:
             clients.append("claude-desktop")
 
         java = expected_java(environment)
+        verify_shaft_cli = shaft_cli_published()
+        if not verify_shaft_cli:
+            print(
+                "shaft-cli has no Maven Central release yet; skipping --install-shaft-cli "
+                "verification until the first release that publishes it.",
+                flush=True,
+            )
+        shaft_cli_args = ("--install-shaft-cli",) if verify_shaft_cli else ()
         plugin_install = run_installer(
-            installer_command("intellij-plugin", "--install-shaft-cli", "--json"),
+            installer_command("intellij-plugin", *shaft_cli_args, "--json"),
             cwd=root,
             environment=environment,
             capture=True,
@@ -310,9 +340,10 @@ def main() -> int:
         skills_path = Path(str(shaft_skills.get("path", "")))
         if not (skills_path / "writing-shaft-tests" / "SKILL.md").is_file():
             raise RuntimeError(f"Expected SHAFT skills to be installed by the unattended plugin installer: {skills_path}")
-        shaft_cli_jar = installed_shaft_cli_jar(root, home, environment)
-        shaft_cli_launcher = verify_shaft_cli_launcher(shaft_cli_jar)
-        verify_shaft_cli_result(plugin_result, shaft_cli_launcher)
+        if verify_shaft_cli:
+            shaft_cli_jar = installed_shaft_cli_jar(root, home, environment)
+            shaft_cli_launcher = verify_shaft_cli_launcher(shaft_cli_jar)
+            verify_shaft_cli_result(plugin_result, shaft_cli_launcher)
         for client in clients:
             run_installer(installer_command(client), cwd=root, environment=environment)
 

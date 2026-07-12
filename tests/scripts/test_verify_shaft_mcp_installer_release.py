@@ -38,5 +38,28 @@ class RunInstallerRetryTest(unittest.TestCase):
             run_installer(["install"], cwd=Path("."), environment={}, attempts=0)
 
 
+class ShaftCliPublishedTest(unittest.TestCase):
+    def test_metadata_present_means_published(self):
+        response = unittest.mock.MagicMock()
+        with unittest.mock.patch.object(verify.urllib.request, "urlopen", return_value=response):
+            self.assertTrue(verify.shaft_cli_published())
+        response.__enter__.assert_called_once()
+
+    def test_missing_metadata_means_unpublished(self):
+        error = verify.urllib.error.HTTPError(
+            verify.SHAFT_CLI_METADATA_URL, 404, "Not Found", None, None
+        )
+        with unittest.mock.patch.object(verify.urllib.request, "urlopen", side_effect=error):
+            self.assertFalse(verify.shaft_cli_published())
+
+    def test_other_http_errors_propagate(self):
+        error = verify.urllib.error.HTTPError(
+            verify.SHAFT_CLI_METADATA_URL, 503, "Unavailable", None, None
+        )
+        with unittest.mock.patch.object(verify.urllib.request, "urlopen", side_effect=error):
+            with self.assertRaises(verify.urllib.error.HTTPError):
+                verify.shaft_cli_published()
+
+
 if __name__ == "__main__":
     unittest.main()
