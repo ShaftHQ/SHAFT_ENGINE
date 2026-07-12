@@ -77,6 +77,8 @@ import java.util.regex.Pattern;
  * state and should not be accessed concurrently.
  */
 public class AllureManager {
+    private static final int INDEX_PATCH_BUFFER_SIZE = 64 * 1024;
+
     private AllureManager() {
         throw new IllegalStateException("Utility class");
     }
@@ -87,7 +89,6 @@ public class AllureManager {
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_ID = "shaft-allure-attachment-preview-fix";
     private static final String ALLURE_ATTACHMENT_PREVIEW_SCRIPT_ID = "shaft-allure-attachment-preview-script";
     private static final String ALLURE_THEME_COLORS_ID = "shaft-allure-theme-colors";
-    private static final int INDEX_PATCH_BUFFER_SIZE = 64 * 1024;
     private static final String ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE = """
             <style id="shaft-allure-attachment-preview-fix">
             .shaft-allure-image-modal {
@@ -747,8 +748,9 @@ public class AllureManager {
      * @param headEndOffset        absolute byte offset of the first {@code </head>}, or {@code -1} if absent
      * @param bodyEndOffset        absolute byte offset of the last {@code </body>}, or {@code -1} if absent
      */
-    private record IndexMarkerScan(boolean previewFixPresent, boolean previewScriptPresent,
-                                    boolean themeColorsPresent, long headEndOffset, long bodyEndOffset) {
+    // package-private so unit tests can assert scan results without reflection
+    record IndexMarkerScan(boolean previewFixPresent, boolean previewScriptPresent,
+                           boolean themeColorsPresent, long headEndOffset, long bodyEndOffset) {
     }
 
     /** A byte-range insertion to apply while streaming {@code index.html} to its patched copy. */
@@ -943,17 +945,18 @@ public class AllureManager {
      */
     private static long copyIndexBytes(InputStream in, OutputStream out, long position, long targetOffset) throws IOException {
         byte[] buffer = new byte[INDEX_PATCH_BUFFER_SIZE];
-        while (targetOffset == Long.MAX_VALUE || position < targetOffset) {
-            long remaining = targetOffset == Long.MAX_VALUE ? buffer.length : targetOffset - position;
+        long currentPosition = position;
+        while (targetOffset == Long.MAX_VALUE || currentPosition < targetOffset) {
+            long remaining = targetOffset == Long.MAX_VALUE ? buffer.length : targetOffset - currentPosition;
             int toRead = (int) Math.min(buffer.length, remaining);
             int read = in.read(buffer, 0, toRead);
             if (read < 0) {
                 break;
             }
             out.write(buffer, 0, read);
-            position += read;
+            currentPosition += read;
         }
-        return position;
+        return currentPosition;
     }
 
     private static void writeAllureCategoriesIfSupported() {

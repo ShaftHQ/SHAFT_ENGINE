@@ -306,13 +306,13 @@ public class AllureManagerCoverageUnitTest {
             }
         };
 
-        Object scan = invoke("scanIndexMarkers", new Class[]{InputStream.class}, trickleStream);
+        var scan = (AllureManager.IndexMarkerScan) invoke("scanIndexMarkers", new Class[]{InputStream.class}, trickleStream);
 
-        Assert.assertEquals(recordAccessor(scan, "previewFixPresent"), true);
-        Assert.assertEquals(recordAccessor(scan, "previewScriptPresent"), false);
-        Assert.assertEquals(recordAccessor(scan, "themeColorsPresent"), false);
-        Assert.assertEquals(recordAccessor(scan, "headEndOffset"), (long) headEndOffset);
-        Assert.assertEquals(recordAccessor(scan, "bodyEndOffset"), (long) lastBodyEndOffset);
+        Assert.assertTrue(scan.previewFixPresent());
+        Assert.assertFalse(scan.previewScriptPresent());
+        Assert.assertFalse(scan.themeColorsPresent());
+        Assert.assertEquals(scan.headEndOffset(), headEndOffset);
+        Assert.assertEquals(scan.bodyEndOffset(), lastBodyEndOffset);
     }
 
     @Test
@@ -347,11 +347,11 @@ public class AllureManagerCoverageUnitTest {
         Files.write(index, largeContent);
         long originalLength = Files.size(index);
 
-        Object originalScan;
+        AllureManager.IndexMarkerScan originalScan;
         try (InputStream in = new ByteArrayInputStream(largeContent)) {
-            originalScan = invoke("scanIndexMarkers", new Class[]{InputStream.class}, in);
+            originalScan = (AllureManager.IndexMarkerScan) invoke("scanIndexMarkers", new Class[]{InputStream.class}, in);
         }
-        long originalBodyEndOffset = (long) recordAccessor(originalScan, "bodyEndOffset");
+        long originalBodyEndOffset = originalScan.bodyEndOffset();
 
         var threadMxBean = ManagementFactory.getThreadMXBean();
         if (!(threadMxBean instanceof com.sun.management.ThreadMXBean sunThreadMxBean)
@@ -359,27 +359,22 @@ public class AllureManagerCoverageUnitTest {
             throw new SkipException("Per-thread allocation measurement is not supported on this JVM.");
         }
 
-        Method method = AllureManager.class.getDeclaredMethod("patchGeneratedAllureReportIndex", Path.class);
-        method.setAccessible(true);
         long before = sunThreadMxBean.getCurrentThreadAllocatedBytes();
-        method.invoke(null, reportDirectory);
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
         long allocated = sunThreadMxBean.getCurrentThreadAllocatedBytes() - before;
 
+        long patchedLength = Files.size(index);
         Assert.assertTrue(allocated < 8L * 1024 * 1024, "allocated=" + allocated);
-        Assert.assertTrue(Files.size(index) > originalLength);
+        Assert.assertTrue(patchedLength > originalLength);
 
-        // The last </body> shifts by both patches: the head patch lands before </head>,
+        // The last </body> shifts by every inserted byte: the head patches land before </head>,
         // and the theme style is inserted immediately before </body> itself.
-        long insertedByteLength = staticStringFieldByteLength("ALLURE_ATTACHMENT_PREVIEW_FIX_STYLE")
-                + staticStringFieldByteLength("ALLURE_ATTACHMENT_PREVIEW_FIX_SCRIPT")
-                + staticStringFieldByteLength("ALLURE_THEME_COLORS_STYLE");
         try (InputStream in = Files.newInputStream(index)) {
-            Object scan = invoke("scanIndexMarkers", new Class[]{InputStream.class}, in);
-            Assert.assertEquals(recordAccessor(scan, "previewFixPresent"), true);
-            Assert.assertEquals(recordAccessor(scan, "previewScriptPresent"), true);
-            Assert.assertEquals(recordAccessor(scan, "themeColorsPresent"), true);
-            long patchedBodyEndOffset = (long) recordAccessor(scan, "bodyEndOffset");
-            Assert.assertEquals(patchedBodyEndOffset - originalBodyEndOffset, insertedByteLength);
+            var scan = (AllureManager.IndexMarkerScan) invoke("scanIndexMarkers", new Class[]{InputStream.class}, in);
+            Assert.assertTrue(scan.previewFixPresent());
+            Assert.assertTrue(scan.previewScriptPresent());
+            Assert.assertTrue(scan.themeColorsPresent());
+            Assert.assertEquals(scan.bodyEndOffset() - originalBodyEndOffset, patchedLength - originalLength);
         }
     }
 
@@ -506,18 +501,6 @@ public class AllureManagerCoverageUnitTest {
         Field field = AllureManager.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(null, value);
-    }
-
-    private static Object recordAccessor(Object record, String componentName) throws Exception {
-        Method accessor = record.getClass().getMethod(componentName);
-        accessor.setAccessible(true);
-        return accessor.invoke(record);
-    }
-
-    private static long staticStringFieldByteLength(String fieldName) throws Exception {
-        Field field = AllureManager.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return ((String) field.get(null)).getBytes(StandardCharsets.UTF_8).length;
     }
 
     private static void resetAllureManagerState() throws Exception {
