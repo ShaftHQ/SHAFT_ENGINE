@@ -28,6 +28,28 @@ def property_map(path: Path) -> dict[str, str]:
     return properties
 
 
+def validate_mcp_test_selector(workflow_text: str) -> list[str]:
+    """Bound the MCP_RELATED_TESTS selector, counting Class#method entries only.
+
+    Only '#' characters on the selector's own line count as selected test
+    methods; '#' elsewhere in the workflow (YAML comments) must not trip the
+    bound (see #3466 for the substring-inference failure class).
+    """
+    selector_lines = [
+        line for line in workflow_text.splitlines() if "MCP_RELATED_TESTS:" in line
+    ]
+    if not selector_lines:
+        return ["shaft-mcp workflow must define a single-line MCP_RELATED_TESTS selector"]
+    if len(selector_lines) > 1:
+        return ["shaft-mcp workflow must define exactly one MCP_RELATED_TESTS selector"]
+    selected_methods = selector_lines[0].count("#")
+    if selected_methods == 0:
+        return ["shaft-mcp workflow MCP test selector must select explicit Class#method entries"]
+    if selected_methods > 10:
+        return ["shaft-mcp workflow MCP test selector must stay bounded to at most 10 selected test methods"]
+    return []
+
+
 def validate_tool_manifest(manifest: dict[str, object]) -> list[str]:
     errors: list[str] = []
     if manifest.get("schemaVersion") != "1.0":
@@ -213,8 +235,7 @@ def validate(root: Path = ROOT) -> list[str]:
     for required_mcp_test_token in ("MCP_RELATED_TESTS", '-Dtest="${MCP_RELATED_TESTS}"', "-DheadlessExecution=true"):
         if required_mcp_test_token not in mcp_workflow:
             errors.append(f"shaft-mcp workflow must run a bounded headless MCP test selector containing {required_mcp_test_token}")
-    if mcp_workflow.count("#") > 10:
-        errors.append("shaft-mcp workflow MCP test selector must stay bounded to at most 10 selected test methods")
+    errors.extend(validate_mcp_test_selector(mcp_workflow))
     central_workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(encoding="utf-8")
     pilot_release_workflow = (root / ".github/workflows/shaft-pilot-release.yml").read_text(encoding="utf-8")
     if "verify_shaft_mcp_installer_release.py" not in central_workflow:
