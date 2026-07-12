@@ -222,12 +222,6 @@ public class RestActions {
             enrichedTestData = (testData == null ? "" : testData) + FailureReporter.getRootCause(rootCauseException[0]);
         }
         String message = reportActionResult(actionName, enrichedTestData, requestBody, specs, response, false, null, false, rootCauseException);
-        if (message.toLowerCase().contains("assert")) {
-            if (rootCauseException.length > 0) {
-                throw new AssertionError(message, rootCauseException[0]);
-            }
-            throw new AssertionError(message);
-        }
         if (rootCauseException.length > 0) {
             throw new RuntimeException(message, rootCauseException[0]);
         }

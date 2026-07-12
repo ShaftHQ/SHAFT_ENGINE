@@ -998,7 +998,7 @@ public class ValidationsHelper {
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
                 Allure.getLifecycle().updateStep(stepResult -> ReportManagerHelper.log(finalFailureMessage, null, CheckpointStatus.FAIL));
-                FailureReporter.fail(finalFailureMessage);
+                FailureReporter.failAssertion(finalFailureMessage);
             } else {
                 // soft assert
                 ValidationsHelper.recordVerificationFailure(failureMessage);
