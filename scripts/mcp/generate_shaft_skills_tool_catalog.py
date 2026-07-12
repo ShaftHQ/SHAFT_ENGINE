@@ -398,7 +398,9 @@ def main(argv: list[str]) -> int:
                 file=sys.stderr,
             )
             return 1
-        existing = OUTPUT_PATH.read_bytes()
+        # Compare newline-insensitively: git autocrlf checkouts materialize the
+        # committed catalog with CRLF on Windows, and that is not content drift.
+        existing = OUTPUT_PATH.read_bytes().replace(b"\r\n", b"\n")
         expected = content.encode("utf-8")
         if existing != expected:
             print(
