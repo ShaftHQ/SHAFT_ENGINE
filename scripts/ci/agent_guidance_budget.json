@@ -1,7 +1,7 @@
 {
   "file_budgets": {
     "AGENTS.md": {
-      "max_bytes": 5632
+      "max_bytes": 6144
     },
     "CLAUDE.md": {
       "max_bytes": 1536,
@@ -41,7 +41,7 @@
       ".claude/skills/*/SKILL.md"
     ]
   },
-  "max_estimated_tokens_per_host": 2700,
+  "max_estimated_tokens_per_host": 2900,
   "active_guidance_globs": [
     "AGENTS.md",
     "CLAUDE.md",
@@ -64,7 +64,7 @@
     ".github/codex/prompts/refresh-agent-instructions.md"
   ],
   "reduction_baseline_bytes": 150000,
-  "minimum_reduction_percent": 68,
+  "minimum_reduction_percent": 55,
   "expected_skill_names": {
     ".agents/skills": [
       "agent-guidance-boundary-guard",
@@ -84,7 +84,10 @@
     ],
     ".claude/skills": [
       "act-as-fable",
-      "graphify"
+      "graphify",
+      "ponytail",
+      "shaft-mastery",
+      "test-driven-development"
     ],
     ".github/skills": [
       "agent-guidance-boundary-guard",
@@ -169,5 +172,6 @@
     ".github/skills/deepseek/",
     ".github/skills/qwen/"
   ],
-  "refresh_workflow": ".github/workflows/refresh-agent-instructions.yml"
+  "refresh_workflow": ".github/workflows/refresh-agent-instructions.yml",
+  "notes": "Two-tier budget: estimated_host_tokens caps the ALWAYS-LOADED per-session cost (instruction files + skill name/description metadata); the byte-reduction floor only bounds on-disk guidance sprawl - skill BODIES are lazy-loaded on trigger and dominate guidance_bytes. Judge session cost by host tokens first. 2026-07-12: floor 68->55 to admit repo-local skills (ponytail, shaft-mastery, test-driven-development); AGENTS.md cap 5632->6144 for model routing + skill roster. Host token cap 2700->2900 (copilot carries AGENTS.md + 3 instruction files; the skill-roster discovery line is worth the 85 tokens)."
 }

@@ -55,6 +55,7 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - `context7`: only past-training-cutoff APIs (Spring Boot 4.1, Spring AI 2.0, JUnit 6, Jackson 3, Selenium 4.45, Docusaurus 3.10/React 19); else repo exemplars win.
 - Skip `jdtls-lsp` for one-liners; value scales with cross-module symbol impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
 - Follow-up: `a11ymcp` belongs in the docs repo.
+- Repo `.claude/skills/`: `act-as-fable` methodology (binding for non-Fable models on nontrivial work); `shaft-mastery` 10 domain chapters -- load the matching chapter before deep BiDi/Allure/mobile/release/lifecycle/plugin/MCP/CI/flakiness/locator work; `ponytail` YAGNI minimal-diff; `test-driven-development` red-green-refactor with scoped headless runs; `graphify`.
 
 ## Agent Hierarchy & Model Routing
 
