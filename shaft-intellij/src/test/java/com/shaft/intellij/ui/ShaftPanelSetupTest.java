@@ -578,6 +578,28 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void setupPanelAppendsInstallShaftCliFlagWhenOptedIn() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        JTextComponent installer = findByAccessibleName(panel, "MCP installer command", JTextComponent.class);
+        JCheckBox installCli = findByAccessibleName(panel, "Also install shaft-cli command line", JCheckBox.class);
+
+        assertAll(
+                () -> assertNotNull(installCli),
+                () -> assertFalse(installCli.isSelected()),
+                () -> assertFalse(installer.getText().contains("--install-shaft-cli")));
+
+        installCli.doClick();
+        // The flag must sit next to --install-shaft-skills so it stays inside the quoted
+        // PowerShell command on Windows instead of being appended after the closing quote.
+        assertTrue(installer.getText().contains("--install-shaft-skills --install-shaft-cli"),
+                installer.getText());
+
+        installCli.doClick();
+        assertFalse(installer.getText().contains("--install-shaft-cli"));
+    }
+
+    @Test
     void upgradeCommandProducesCrossPlatformScriptCommand() throws Exception {
         String command = upgradeCommand();
 

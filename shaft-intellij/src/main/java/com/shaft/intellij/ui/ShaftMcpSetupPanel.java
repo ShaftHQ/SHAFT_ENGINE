@@ -106,6 +106,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final JPanel apiKeyRow;
     private final JComboBox<String> installerTarget;
     private final JCheckBox manualInstallerTarget;
+    private final JCheckBox installShaftCli;
     private final JButton copyUpgradeCommand;
     private final JButton checkUpgrade;
     private final JLabel upgradeDetail;
@@ -270,6 +271,11 @@ final class ShaftMcpSetupPanel extends JPanel {
             installerTarget.setVisible(manualInstallerTarget.isSelected());
             assistantSelectionChanged();
         });
+        installShaftCli = new JCheckBox("Also install shaft-cli");
+        installShaftCli.getAccessibleContext().setAccessibleName("Also install shaft-cli command line");
+        installShaftCli.setToolTipText("Also install the shaft-cli command line (--install-shaft-cli), "
+                + "a terminal interface to the same SHAFT MCP tools");
+        installShaftCli.addActionListener(event -> installerTargetChanged());
         installerCommand.setText(installerCommand());
         copyUpgradeCommand = new JButton("Copy command");
         copyUpgradeCommand.getAccessibleContext().setAccessibleName("Copy SHAFT upgrade command");
@@ -435,6 +441,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         installActions.setOpaque(false);
         installActions.add(copyInstallerCommand);
+        installActions.add(installShaftCli);
         upgradeRow = stepRow(upgradeStep, upgradeState, upgradeActions);
         chooseRow = stepRow(chooseStep, chooseState, agentControls);
         installRow = stepRow(installStep, installState, installActions);
@@ -872,6 +879,8 @@ final class ShaftMcpSetupPanel extends JPanel {
         boolean showTest = !complete;
         copyInstallerCommand.setVisible(showCopy);
         copyInstallerCommand.setEnabled(!running && showCopy);
+        installShaftCli.setVisible(showCopy);
+        installShaftCli.setEnabled(!running);
         test.setVisible(showTest);
         test.setEnabled(!running && showTest);
         boolean upgradeDone = upgradeCheckResult != null
@@ -1088,7 +1097,13 @@ final class ShaftMcpSetupPanel extends JPanel {
     }
 
     private String installerCommand() {
-        return installerCommandFor(installerArgumentFor(String.valueOf(installerTarget.getSelectedItem())));
+        String command = installerCommandFor(installerArgumentFor(String.valueOf(installerTarget.getSelectedItem())));
+        if (installShaftCli.isSelected()) {
+            // Insert next to the skills flag so the addition stays inside the quoted
+            // PowerShell command on Windows.
+            command = command.replace("--install-shaft-skills", "--install-shaft-skills --install-shaft-cli");
+        }
+        return command;
     }
 
     private String suggestedInstallerTarget() {
