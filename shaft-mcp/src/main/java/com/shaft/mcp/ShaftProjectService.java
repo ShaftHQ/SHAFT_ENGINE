@@ -40,6 +40,8 @@ public class ShaftProjectService {
     private static final String SHAFT_SKILLS_ROOT = "META-INF/shaft-mcp/shaft-skills";
     private static final String SKILL_FILE_NAME = "SKILL.md";
     private static final Set<String> AGENT_LOOPS = Set.of("claude", "codex");
+    private static final java.util.regex.Pattern SAFE_SKILL_NAME =
+            java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
     private static final String SHAFT_ENGINE_MAVEN_METADATA_URL =
             "https://repo.maven.apache.org/maven2/io/github/shafthq/shaft-engine/maven-metadata.xml";
     private static final int DEFAULT_COMPILE_TIMEOUT_SECONDS = 900;
@@ -389,7 +391,13 @@ public class ShaftProjectService {
                             .filter(candidate -> candidate.getName().startsWith(prefix))
                             .filter(candidate -> candidate.getName().endsWith(suffix)).toList()) {
                         String remainder = entry.getName().substring(prefix.length());
-                        names.add(remainder.substring(0, remainder.length() - suffix.length()));
+                        String skillName = remainder.substring(0, remainder.length() - suffix.length());
+                        // Only accept direct child directories with simple names; jar entry names are
+                        // attacker-influenceable in principle ('..', nested slashes) and flow into
+                        // generated file paths, so validate instead of trusting them (zip-slip guard).
+                        if (SAFE_SKILL_NAME.matcher(skillName).matches()) {
+                            names.add(skillName);
+                        }
                     }
                     return names.stream().sorted().toList();
                 }

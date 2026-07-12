@@ -125,75 +125,86 @@ public class PlannerService {
         int depthLimit = Math.max(MIN_DEPTH, Math.min(maxDepth <= 0 ? MIN_DEPTH : maxDepth, MAX_DEPTH));
         int pagesLimit = Math.max(1, Math.min(maxPages <= 0 ? DEFAULT_MAX_PAGES : maxPages, MAX_PAGES));
 
-        Deque<QueueEntry> queue = new ArrayDeque<>();
-        Set<String> visited = new LinkedHashSet<>();
-        Set<String> enqueued = new LinkedHashSet<>();
-        List<String> warnings = new ArrayList<>();
-        List<PageFlow> discovered = new ArrayList<>();
-        queue.add(new QueueEntry(startUrl, 1));
-        enqueued.add(normalizedStart);
+        CrawlState state = new CrawlState();
+        state.queue.add(new QueueEntry(startUrl, 1));
+        state.enqueued.add(normalizedStart);
 
-        int pageBudgetSkipped = 0;
-        int offOriginSkipped = 0;
-        int invalidLinksSkipped = 0;
-
-        while (!queue.isEmpty()) {
-            QueueEntry entry = queue.poll();
-            if (visited.size() >= pagesLimit) {
-                pageBudgetSkipped++;
-                continue;
-            }
-            PlannerPageSnapshot snapshot;
-            try {
-                snapshot = pageInspector.inspect(entry.url());
-            } catch (RuntimeException failure) {
-                warnings.add("Skipped page " + entry.url() + " after an inspection failure: " + failure.getMessage());
-                continue;
-            }
-            String visitedKey = normalizeUrl(snapshot.url() == null || snapshot.url().isBlank()
-                    ? entry.url() : snapshot.url());
-            if (visitedKey == null || !visited.add(visitedKey)) {
-                continue;
-            }
-            for (PlannerFlow flow : snapshot.flows()) {
-                discovered.add(new PageFlow(snapshot.url(), flow));
-            }
-            if (entry.depth() >= depthLimit) {
-                continue;
-            }
-            for (String link : snapshot.links()) {
-                String normalizedLink = normalizeUrl(link);
-                if (normalizedLink == null) {
-                    invalidLinksSkipped++;
-                    continue;
-                }
-                if (!sameOrigin(normalizedLink, origin)) {
-                    offOriginSkipped++;
-                    continue;
-                }
-                if (enqueued.add(normalizedLink)) {
-                    queue.add(new QueueEntry(link, entry.depth() + 1));
-                }
-            }
+        while (!state.queue.isEmpty()) {
+            visitNext(state, origin, depthLimit, pagesLimit);
         }
 
-        List<PageFlow> ordered = orderByGoal(discovered, goal);
+        List<PageFlow> ordered = orderByGoal(state.discovered, goal);
         List<String> plansWritten = writePlans(ordered);
-        if (pageBudgetSkipped > 0) {
-            warnings.add("Page budget (" + pagesLimit + ") reached; " + pageBudgetSkipped
+        appendSummaryWarnings(state, pagesLimit);
+        driverRestore.accept(startUrl);
+        return new McpTestPlanExploreResult("1.0", state.visited.size(), plansWritten, List.copyOf(state.warnings));
+    }
+
+    /** Mutable breadth-first crawl bookkeeping shared by {@link #crawl} and its helpers. */
+    private static final class CrawlState {
+        final Deque<QueueEntry> queue = new ArrayDeque<>();
+        final Set<String> visited = new LinkedHashSet<>();
+        final Set<String> enqueued = new LinkedHashSet<>();
+        final List<String> warnings = new ArrayList<>();
+        final List<PageFlow> discovered = new ArrayList<>();
+        int pageBudgetSkipped;
+        int offOriginSkipped;
+        int invalidLinksSkipped;
+    }
+
+    private void visitNext(CrawlState state, URI origin, int depthLimit, int pagesLimit) {
+        QueueEntry entry = state.queue.poll();
+        if (state.visited.size() >= pagesLimit) {
+            state.pageBudgetSkipped++;
+            return;
+        }
+        PlannerPageSnapshot snapshot;
+        try {
+            snapshot = pageInspector.inspect(entry.url());
+        } catch (RuntimeException failure) {
+            state.warnings.add("Skipped page " + entry.url() + " after an inspection failure: " + failure.getMessage());
+            return;
+        }
+        String visitedKey = normalizeUrl(snapshot.url() == null || snapshot.url().isBlank()
+                ? entry.url() : snapshot.url());
+        if (visitedKey == null || !state.visited.add(visitedKey)) {
+            return;
+        }
+        for (PlannerFlow flow : snapshot.flows()) {
+            state.discovered.add(new PageFlow(snapshot.url(), flow));
+        }
+        if (entry.depth() < depthLimit) {
+            enqueueLinks(state, snapshot, origin, entry.depth());
+        }
+    }
+
+    private static void enqueueLinks(CrawlState state, PlannerPageSnapshot snapshot, URI origin, int depth) {
+        for (String link : snapshot.links()) {
+            String normalizedLink = normalizeUrl(link);
+            if (normalizedLink == null) {
+                state.invalidLinksSkipped++;
+            } else if (!sameOrigin(normalizedLink, origin)) {
+                state.offOriginSkipped++;
+            } else if (state.enqueued.add(normalizedLink)) {
+                state.queue.add(new QueueEntry(link, depth + 1));
+            }
+        }
+    }
+
+    private static void appendSummaryWarnings(CrawlState state, int pagesLimit) {
+        if (state.pageBudgetSkipped > 0) {
+            state.warnings.add("Page budget (" + pagesLimit + ") reached; " + state.pageBudgetSkipped
                     + " discovered page(s) were not visited.");
         }
-        if (offOriginSkipped > 0) {
-            warnings.add(offOriginSkipped + " off-origin link(s) were skipped.");
+        if (state.offOriginSkipped > 0) {
+            state.warnings.add(state.offOriginSkipped + " off-origin link(s) were skipped.");
         }
-        if (invalidLinksSkipped > 0) {
-            warnings.add(invalidLinksSkipped + " unresolvable link(s) were skipped.");
+        if (state.invalidLinksSkipped > 0) {
+            state.warnings.add(state.invalidLinksSkipped + " unresolvable link(s) were skipped.");
         }
-        if (discovered.isEmpty()) {
-            warnings.add("No forms or primary navigation actions were discovered during exploration.");
+        if (state.discovered.isEmpty()) {
+            state.warnings.add("No forms or primary navigation actions were discovered during exploration.");
         }
-        driverRestore.accept(startUrl);
-        return new McpTestPlanExploreResult("1.0", visited.size(), plansWritten, List.copyOf(warnings));
     }
 
     private List<String> writePlans(List<PageFlow> flows) {
