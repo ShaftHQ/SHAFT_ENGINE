@@ -51,6 +51,7 @@
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
 <li><a href="#%3Cinit%3E(java.lang.String)" tabindex="0">API(String)</a></li>
+<li><a href="#%3Cinit%3E(java.lang.String,java.lang.String)" tabindex="0">API(String, String)</a></li>
 <li><a href="#%3Cinit%3E(com.shaft.api.RestActions)" tabindex="0">API(RestActions)</a></li>
 </ol>
 </li>
@@ -69,6 +70,8 @@
 <li><a href="#addCookie(java.lang.String,java.lang.String)" tabindex="0">addCookie(String, String)</a></li>
 <li><a href="#importCookiesFrom(com.shaft.gui.driver.BrowserActionsContract)" tabindex="0">importCookiesFrom(BrowserActionsContract)</a></li>
 <li><a href="#importCookiesFrom(com.shaft.gui.driver.BrowserActionsContract,java.lang.String,java.lang.String)" tabindex="0">importCookiesFrom(BrowserActionsContract, String, String)</a></li>
+<li><a href="#exportCookiesTo(com.shaft.gui.driver.BrowserActionsContract)" tabindex="0">exportCookiesTo(BrowserActionsContract)</a></li>
+<li><a href="#exportCookiesTo(com.shaft.gui.driver.BrowserActionsContract,java.lang.String,java.lang.String)" tabindex="0">exportCookiesTo(BrowserActionsContract, String, String)</a></li>
 <li><a href="#getCookies()" tabindex="0">getCookies()</a></li>
 <li><a href="#getHeaders()" tabindex="0">getHeaders()</a></li>
 <li><a href="#assertThatResponse()" tabindex="0">assertThatResponse()</a></li>
@@ -142,6 +145,13 @@ api.assertThatResponse().extractedJsonValue("$.title").isNotNull().perform();
 <div class="col-last odd-row-color">
 <div class="block">Creates a new API session pointing at the given base service URI.</div>
 </div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.lang.String,java.lang.String)" class="member-name-link">API</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceURI,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;storageStatePath)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Creates a new API session pointing at the given base service URI, seeded
+with cookies read from a SHAFT browser storage-state JSON file (the same
+file produced by <code>driver.browser().saveStorageState(String)</code>).</div>
+</div>
 </div>
 </section>
 </li>
@@ -179,6 +189,18 @@ in this session.</div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#delete(java.lang.String)" class="member-name-link">delete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Builds a DELETE request for the specified service endpoint.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SHAFT.API.html" title="class in com.shaft.driver">SHAFT.API</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#exportCookiesTo(com.shaft.gui.driver.BrowserActionsContract)" class="member-name-link">exportCookiesTo</a><wbr>(<a href="../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a>&nbsp;browserActions)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Exports all cookies from this API session into the given browser session.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SHAFT.API.html" title="class in com.shaft.driver">SHAFT.API</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#exportCookiesTo(com.shaft.gui.driver.BrowserActionsContract,java.lang.String,java.lang.String)" class="member-name-link">exportCookiesTo</a><wbr>(<a href="../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a>&nbsp;browserActions,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domainFilter,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pathFilter)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Exports API session cookies that match the optional domain and path filters into the given browser session.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../api/RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#get(java.lang.String)" class="member-name-link">get</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</code></div>
@@ -336,6 +358,25 @@ supplied query.</div>
 <dt>Parameters:</dt>
 <dd><code>serviceURI</code> - the base URI of the target web service
                   (e.g., <code>"https://api.example.com"</code>)</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(java.lang.String,java.lang.String)">
+<h3>API</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">API</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceURI,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;storageStatePath)</span></div>
+<div class="block">Creates a new API session pointing at the given base service URI, seeded
+with cookies read from a SHAFT browser storage-state JSON file (the same
+file produced by <code>driver.browser().saveStorageState(String)</code>).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>serviceURI</code> - the base URI of the target web service
+                        (e.g., <code>"https://api.example.com"</code>)</dd>
+<dd><code>storageStatePath</code> - path to a storage-state JSON file previously saved
+                        from a browser session</dd>
 </dl>
 </div>
 </section>
@@ -569,6 +610,40 @@ in this session.</div>
 <dd><code>browserActions</code> - browser actions facade to read cookies from</dd>
 <dd><code>domainFilter</code> - optional exact domain filter; pass <code>null</code> or blank to import every domain</dd>
 <dd><code>pathFilter</code> - optional exact path filter; pass <code>null</code> or blank to import every path</dd>
+<dt>Returns:</dt>
+<dd>this API session for fluent chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="exportCookiesTo(com.shaft.gui.driver.BrowserActionsContract)">
+<h3>exportCookiesTo</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SHAFT.API.html" title="class in com.shaft.driver">SHAFT.API</a></span>&nbsp;<span class="element-name">exportCookiesTo</span><wbr><span class="parameters">(<a href="../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a>&nbsp;browserActions)</span></div>
+<div class="block">Exports all cookies from this API session into the given browser session.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>browserActions</code> - browser actions facade to write cookies into</dd>
+<dt>Returns:</dt>
+<dd>this API session for fluent chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="exportCookiesTo(com.shaft.gui.driver.BrowserActionsContract,java.lang.String,java.lang.String)">
+<h3>exportCookiesTo</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SHAFT.API.html" title="class in com.shaft.driver">SHAFT.API</a></span>&nbsp;<span class="element-name">exportCookiesTo</span><wbr><span class="parameters">(<a href="../gui/driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a>&nbsp;browserActions,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domainFilter,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pathFilter)</span></div>
+<div class="block">Exports API session cookies that match the optional domain and path filters into the given browser session.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>browserActions</code> - browser actions facade to write cookies into</dd>
+<dd><code>domainFilter</code> - optional exact domain filter; pass <code>null</code> or blank to export every domain</dd>
+<dd><code>pathFilter</code> - optional exact path filter; pass <code>null</code> or blank to export every path</dd>
 <dt>Returns:</dt>
 <dd>this API session for fluent chaining</dd>
 </dl>

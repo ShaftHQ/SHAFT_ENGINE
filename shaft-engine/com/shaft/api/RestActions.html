@@ -86,6 +86,7 @@
 <li><a href="#getCookies()" tabindex="0">getCookies()</a></li>
 <li><a href="#getHeaders()" tabindex="0">getHeaders()</a></li>
 <li><a href="#importCookiesFrom(java.util.Set,java.lang.String,java.lang.String)" tabindex="0">importCookiesFrom(Set, String, String)</a></li>
+<li><a href="#importCookiesFromStorageState(java.lang.String)" tabindex="0">importCookiesFromStorageState(String)</a></li>
 <li><a href="#addHeaderVariable(java.lang.String,java.lang.String)" tabindex="0">addHeaderVariable(String, String)</a></li>
 <li><a href="#addCookieVariable(java.lang.String,java.lang.String)" tabindex="0">addCookieVariable(String, String)</a></li>
 </ol>
@@ -344,72 +345,79 @@ String title = api.getResponseJSONValue("$.title");
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Imports browser cookies into this API session.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#parseBodyToJson(io.restassured.response.Response)" class="member-name-link">parseBodyToJson</a><wbr>(io.restassured.response.Response&nbsp;response)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Parses a REST Assured <code>Response</code> body into a JSON <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link"><code>InputStream</code></a>.</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="RestActions.html" title="class in com.shaft.api">RestActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#importCookiesFromStorageState(java.lang.String)" class="member-name-link">importCookiesFromStorageState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;storageStatePath)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Seeds this session's cookies from a SHAFT browser storage-state JSON file
+&ndash; the same file format written by
+<code>com.shaft.gui.browser.BrowserActions#saveStorageState(String)</code>.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#parseBodyToJson(java.lang.Object)" class="member-name-link">parseBodyToJson</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;body)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#parseBodyToJson(io.restassured.response.Response)" class="member-name-link">parseBodyToJson</a><wbr>(io.restassured.response.Response&nbsp;response)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Parses a REST Assured <code>Response</code> body into a JSON <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link"><code>InputStream</code></a>.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#parseBodyToJson(java.lang.Object)" class="member-name-link">parseBodyToJson</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;body)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Converts an arbitrary response body object to a JSON <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link"><code>InputStream</code></a>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequest(java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequest(java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;query)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
 <div class="block"><span class="deprecated-label">Deprecated.</span>
 <div class="deprecation-comment">use <a href="../driver/SHAFT.API.html#sendGraphQlRequest(java.lang.String,java.lang.String)"><code>SHAFT.API.sendGraphQlRequest(String, String)</code></a> and <a href="RequestBuilder.html#perform()"><code>RequestBuilder.perform()</code></a> instead.</div>
 </div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;query,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;variables)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
 <div class="block"><span class="deprecated-label">Deprecated.</span>
 <div class="deprecation-comment">use <a href="../driver/SHAFT.API.html#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.Object)"><code>SHAFT.API.sendGraphQlRequest(String, String, Object)</code></a> and <a href="RequestBuilder.html#perform()"><code>RequestBuilder.perform()</code></a> instead.</div>
 </div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequest</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;query,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;variables,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fragment)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
 <div class="block"><span class="deprecated-label">Deprecated.</span>
 <div class="deprecation-comment">use <a href="../driver/SHAFT.API.html#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.Object,java.lang.String)"><code>SHAFT.API.sendGraphQlRequest(String, String, Object, String)</code></a> and <a href="RequestBuilder.html#perform()"><code>RequestBuilder.perform()</code></a> instead.</div>
 </div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequestWithHeader(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequestWithHeader</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;query,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;header_key,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;header_value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
-<div class="block"><span class="deprecated-label">Deprecated.</span>
-<div class="deprecation-comment">use <a href="../driver/SHAFT.API.html#sendGraphQlRequest(java.lang.String,java.lang.String)"><code>SHAFT.API.sendGraphQlRequest(String, String)</code></a>, <a href="RequestBuilder.html#addHeader(java.lang.String,java.lang.String)"><code>RequestBuilder.addHeader(String, String)</code></a>, and <a href="RequestBuilder.html#perform()"><code>RequestBuilder.perform()</code></a> instead.</div>
-</div>
-</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequestWithHeader(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequestWithHeader</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequestWithHeader(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequestWithHeader</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;query,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;variables,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;header_key,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;header_value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
 <div class="block"><span class="deprecated-label">Deprecated.</span>
-<div class="deprecation-comment">use <a href="../driver/SHAFT.API.html#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.Object)"><code>SHAFT.API.sendGraphQlRequest(String, String, Object)</code></a>, <a href="RequestBuilder.html#addHeader(java.lang.String,java.lang.String)"><code>RequestBuilder.addHeader(String, String)</code></a>, and <a href="RequestBuilder.html#perform()"><code>RequestBuilder.perform()</code></a> instead.</div>
+<div class="deprecation-comment">use <a href="../driver/SHAFT.API.html#sendGraphQlRequest(java.lang.String,java.lang.String)"><code>SHAFT.API.sendGraphQlRequest(String, String)</code></a>, <a href="RequestBuilder.html#addHeader(java.lang.String,java.lang.String)"><code>RequestBuilder.addHeader(String, String)</code></a>, and <a href="RequestBuilder.html#perform()"><code>RequestBuilder.perform()</code></a> instead.</div>
 </div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequestWithHeader(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequestWithHeader</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequestWithHeader(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequestWithHeader</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;query,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;variables,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;header_key,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;header_value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
+<div class="block"><span class="deprecated-label">Deprecated.</span>
+<div class="deprecation-comment">use <a href="../driver/SHAFT.API.html#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.Object)"><code>SHAFT.API.sendGraphQlRequest(String, String, Object)</code></a>, <a href="RequestBuilder.html#addHeader(java.lang.String,java.lang.String)"><code>RequestBuilder.addHeader(String, String)</code></a>, and <a href="RequestBuilder.html#perform()"><code>RequestBuilder.perform()</code></a> instead.</div>
+</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code>static io.restassured.response.Response</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6"><code><a href="#sendGraphQlRequestWithHeader(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">sendGraphQlRequestWithHeader</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;base_URI,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;query,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;variables,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;fragment,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;header_key,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;header_value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4 method-summary-table-tab6">
 <div class="block"><span class="deprecated-label">Deprecated.</span>
 <div class="deprecation-comment">use <a href="../driver/SHAFT.API.html#sendGraphQlRequest(java.lang.String,java.lang.String,java.lang.Object,java.lang.String)"><code>SHAFT.API.sendGraphQlRequest(String, String, Object, String)</code></a>, <a href="RequestBuilder.html#addHeader(java.lang.String,java.lang.String)"><code>RequestBuilder.addHeader(String, String)</code></a>, and <a href="RequestBuilder.html#perform()"><code>RequestBuilder.perform()</code></a> instead.</div>
 </div>
@@ -1097,6 +1105,23 @@ headers, cookies, and configuration.</div>
 <dd><code>cookies</code> - browser cookies to import</dd>
 <dd><code>domainFilter</code> - optional exact domain filter; pass <code>null</code> or blank to import every domain</dd>
 <dd><code>pathFilter</code> - optional exact path filter; pass <code>null</code> or blank to import every path</dd>
+<dt>Returns:</dt>
+<dd>self-reference to be used for chaining actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="importCookiesFromStorageState(java.lang.String)">
+<h3>importCookiesFromStorageState</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="RestActions.html" title="class in com.shaft.api">RestActions</a></span>&nbsp;<span class="element-name">importCookiesFromStorageState</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;storageStatePath)</span></div>
+<div class="block">Seeds this session's cookies from a SHAFT browser storage-state JSON file
+&ndash; the same file format written by
+<code>com.shaft.gui.browser.BrowserActions#saveStorageState(String)</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>storageStatePath</code> - path to a previously saved storage-state JSON file</dd>
 <dt>Returns:</dt>
 <dd>self-reference to be used for chaining actions</dd>
 </dl>
