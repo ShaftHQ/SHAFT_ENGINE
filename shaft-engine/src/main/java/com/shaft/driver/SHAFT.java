@@ -1232,15 +1232,24 @@ public class SHAFT {
             void run(Consumer<GUI.WebDriver> flow, String path);
         }
 
-        static FlowRunner flowRunner = (flow, path) -> {
-            GUI.WebDriver driver = new GUI.WebDriver();
-            try {
-                flow.accept(driver);
-                driver.browser().saveStorageState(path);
-            } finally {
-                driver.quit();
-            }
-        };
+        private static final java.util.concurrent.atomic.AtomicReference<FlowRunner> FLOW_RUNNER =
+                new java.util.concurrent.atomic.AtomicReference<>((flow, path) -> {
+                    GUI.WebDriver driver = new GUI.WebDriver();
+                    try {
+                        flow.accept(driver);
+                        driver.browser().saveStorageState(path);
+                    } finally {
+                        driver.quit();
+                    }
+                });
+
+        static FlowRunner flowRunner() {
+            return FLOW_RUNNER.get();
+        }
+
+        static void flowRunner(FlowRunner runner) {
+            FLOW_RUNNER.set(Objects.requireNonNull(runner, "runner"));
+        }
 
         private Auth() {
             throw new IllegalStateException("Utility class");
@@ -1286,7 +1295,7 @@ public class SHAFT {
                     ReportManager.logDiscrete("SHAFT.Auth cache hit for \"" + name + "\" at \"" + path + "\".");
                     return path;
                 }
-                flowRunner.run(flow, path);
+                flowRunner().run(flow, path);
                 ReportManager.logDiscrete("SHAFT.Auth cache miss for \"" + name
                         + "\"; ran the login flow and saved storage state to \"" + path + "\".");
                 return path;

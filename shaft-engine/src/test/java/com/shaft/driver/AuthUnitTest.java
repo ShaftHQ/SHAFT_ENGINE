@@ -24,20 +24,20 @@ import static org.testng.Assert.assertTrue;
 
 /**
  * Covers {@code SHAFT.Auth}'s cache-hit/cache-miss/locking decision logic in {@code setup(name, flow)}
- * without launching a real browser: {@link SHAFT.Auth#flowRunner} (package-private) is stubbed so the
+ * without launching a real browser: {@link SHAFT.Auth#flowRunner(SHAFT.Auth.FlowRunner)} (package-private) is stubbed so the
  * real driver-lifecycle interaction (create driver, run flow, save storage state, quit driver) never
  * runs.
  */
 @Test(singleThreaded = true)
 public class AuthUnitTest {
     private final String savedAuthCache = SHAFT.Properties.paths.authCache();
-    private final SHAFT.Auth.FlowRunner savedFlowRunner = SHAFT.Auth.flowRunner;
+    private final SHAFT.Auth.FlowRunner savedFlowRunner = SHAFT.Auth.flowRunner();
     private Path cacheDir;
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws IOException {
         SHAFT.Properties.paths.set().authCache(savedAuthCache);
-        SHAFT.Auth.flowRunner = savedFlowRunner;
+        SHAFT.Auth.flowRunner(savedFlowRunner);
         if (cacheDir != null && Files.exists(cacheDir)) {
             try (var walk = Files.walk(cacheDir)) {
                 walk.sorted(Collections.reverseOrder()).forEach(path -> {
@@ -92,12 +92,12 @@ public class AuthUnitTest {
         AtomicInteger invocationCount = new AtomicInteger();
         List<String> pathsSeenByRunner = new CopyOnWriteArrayList<>();
         Consumer<SHAFT.GUI.WebDriver> flow = driver -> { };
-        SHAFT.Auth.flowRunner = (passedFlow, passedPath) -> {
+        SHAFT.Auth.flowRunner((passedFlow, passedPath) -> {
             invocationCount.incrementAndGet();
             pathsSeenByRunner.add(passedPath);
             Assert.assertSame(passedFlow, flow, "flowRunner should receive the exact flow instance passed to setup().");
             writeFile(passedPath);
-        };
+        });
 
         String result = SHAFT.Auth.setup("missUser", flow);
 
@@ -114,7 +114,7 @@ public class AuthUnitTest {
         String name = "hitUser";
         writeFile(SHAFT.Auth.stateFile(name));
         AtomicInteger invocationCount = new AtomicInteger();
-        SHAFT.Auth.flowRunner = (flow, path) -> invocationCount.incrementAndGet();
+        SHAFT.Auth.flowRunner((flow, path) -> invocationCount.incrementAndGet());
 
         String result = SHAFT.Auth.setup(name, driver -> { });
 
@@ -128,18 +128,18 @@ public class AuthUnitTest {
     public void setupShouldPropagateFlowRunnerFailureAndReleaseTheLockForARetry() throws IOException {
         useTempAuthCacheDir();
         String name = "flakyUser";
-        SHAFT.Auth.flowRunner = (flow, path) -> {
+        SHAFT.Auth.flowRunner((flow, path) -> {
             throw new RuntimeException("login failed");
-        };
+        });
 
         assertThrows(RuntimeException.class, () -> SHAFT.Auth.setup(name, driver -> { }));
         assertFalse(Files.exists(Path.of(SHAFT.Auth.stateFile(name))), "A failed flow must not leave a cache file behind.");
 
         AtomicInteger secondAttemptInvocations = new AtomicInteger();
-        SHAFT.Auth.flowRunner = (flow, path) -> {
+        SHAFT.Auth.flowRunner((flow, path) -> {
             secondAttemptInvocations.incrementAndGet();
             writeFile(path);
-        };
+        });
         String result = SHAFT.Auth.setup(name, driver -> { });
 
         assertEquals(result, SHAFT.Auth.stateFile(name));
@@ -156,7 +156,7 @@ public class AuthUnitTest {
         AtomicInteger invocationCount = new AtomicInteger();
         CountDownLatch readyLatch = new CountDownLatch(threadCount);
         CountDownLatch startLatch = new CountDownLatch(1);
-        SHAFT.Auth.flowRunner = (flow, path) -> {
+        SHAFT.Auth.flowRunner((flow, path) -> {
             invocationCount.incrementAndGet();
             // Hold the per-name lock briefly so other threads pile up waiting on it,
             // proving that setup() serializes concurrent calls for the same name.
@@ -166,7 +166,7 @@ public class AuthUnitTest {
                 Thread.currentThread().interrupt();
             }
             writeFile(path);
-        };
+        });
 
         String authCacheDir = SHAFT.Properties.paths.authCache();
         ExecutorService pool = Executors.newFixedThreadPool(threadCount);
