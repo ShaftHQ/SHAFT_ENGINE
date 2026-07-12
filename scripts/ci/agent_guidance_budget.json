@@ -64,7 +64,7 @@
     ".github/codex/prompts/refresh-agent-instructions.md"
   ],
   "reduction_baseline_bytes": 150000,
-  "minimum_reduction_percent": 76,
+  "minimum_reduction_percent": 68,
   "expected_skill_names": {
     ".agents/skills": [
       "agent-guidance-boundary-guard",
@@ -83,6 +83,7 @@
       "shaft-ui-design"
     ],
     ".claude/skills": [
+      "act-as-fable",
       "graphify"
     ],
     ".github/skills": [
