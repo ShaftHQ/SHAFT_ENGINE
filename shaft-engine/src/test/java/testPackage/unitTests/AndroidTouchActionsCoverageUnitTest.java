@@ -11,6 +11,7 @@ import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
+import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -514,6 +515,35 @@ public class AndroidTouchActionsCoverageUnitTest {
 
         verify(driver, times(3)).executeScript(eq("mobile: scrollGesture"), anyMap());
         verify(driver, never()).findElements(isNull());
+    }
+
+    @Test
+    public void sessionStateApisShouldDelegateToMobileSessionStateManager() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        MutableCapabilities capabilities = new MutableCapabilities();
+        capabilities.setCapability("platformName", "Android");
+        capabilities.setCapability("appium:appPackage", "com.example.app");
+        when(driver.getCapabilities()).thenReturn(capabilities);
+        when(driver.getContext()).thenReturn("NATIVE_APP");
+
+        Path capabilitiesFile = TEMP_DIR.resolve("touchActions-session-capabilities.json");
+        Path appStateFile = TEMP_DIR.resolve("touchActions-app-state.json");
+
+        TouchActions touchActions = new TouchActions(driver);
+        touchActions.saveSessionCapabilities(capabilitiesFile.toString())
+                .saveAppState(appStateFile.toString());
+
+        SHAFT.Validations.assertThat().object(Files.exists(capabilitiesFile)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(appStateFile)).isTrue().perform();
+
+        MutableCapabilities loadedCapabilities = TouchActions.loadSessionCapabilities(capabilitiesFile.toString());
+        SHAFT.Validations.assertThat().object(loadedCapabilities.getCapability("appium:appPackage")).isEqualTo("com.example.app").perform();
+
+        touchActions.loadAppState(appStateFile.toString());
+        verify(driver).activateApp("com.example.app");
+
+        Files.deleteIfExists(capabilitiesFile);
+        Files.deleteIfExists(appStateFile);
     }
 
     private AndroidDriver createMockAndroidDriver() {

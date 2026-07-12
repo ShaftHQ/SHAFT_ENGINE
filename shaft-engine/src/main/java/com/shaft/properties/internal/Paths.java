@@ -90,6 +90,14 @@ public interface Paths extends EngineProperties<Paths> {
     @DefaultValue("target/auth-cache/")
     String authCache();
 
+    /**
+     * Folder that holds {@code TouchActions.saveSessionCapabilities}/{@code saveAppState} JSON
+     * snapshots used to reuse Appium session capabilities and mobile app state across test runs.
+     */
+    @Key("mobileSessionCacheFolderPath")
+    @DefaultValue("target/mobile-session-cache/")
+    String mobileSessionCache();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -157,6 +165,11 @@ public interface Paths extends EngineProperties<Paths> {
 
         public SetProperty authCache(String value) {
             setProperty("authCacheFolderPath", value);
+            return this;
+        }
+
+        public SetProperty mobileSessionCache(String value) {
+            setProperty("mobileSessionCacheFolderPath", value);
             return this;
         }
 
