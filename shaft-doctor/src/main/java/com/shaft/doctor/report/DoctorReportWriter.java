@@ -3,6 +3,8 @@ package com.shaft.doctor.report;
 import com.shaft.doctor.model.Diagnosis;
 import com.shaft.doctor.model.DoctorAdvisory;
 import com.shaft.doctor.model.EvidenceBundle;
+import com.shaft.doctor.model.EvidenceCategory;
+import com.shaft.doctor.model.EvidenceItem;
 import com.shaft.doctor.model.Finding;
 import com.shaft.doctor.model.Remediation;
 
@@ -80,6 +82,8 @@ public final class DoctorReportWriter {
             report.append("\n");
         }
 
+        appendAccessibility(report, bundle);
+
         report.append("## Remediation\n\n");
         if (diagnosis.remediations().isEmpty()) {
             report.append("No deterministic remediation is supported by the current evidence.\n\n");
@@ -134,6 +138,28 @@ public final class DoctorReportWriter {
         } catch (IOException exception) {
             throw new IllegalStateException("Doctor Markdown report could not be written.", exception);
         }
+    }
+
+    private static void appendAccessibility(StringBuilder report, EvidenceBundle bundle) {
+        java.util.List<EvidenceItem> audits = bundle.evidence().stream()
+                .filter(item -> item.category() == EvidenceCategory.ACCESSIBILITY_AUDIT)
+                .toList();
+        if (audits.isEmpty()) {
+            return;
+        }
+        report.append("## Accessibility\n\n");
+        report.append("| Page | Violations | Critical | Serious | Moderate | Minor | Evidence |\n");
+        report.append("|---|---:|---:|---:|---:|---:|---|\n");
+        for (EvidenceItem audit : audits) {
+            report.append("| ").append(cell(audit.attributes().getOrDefault("pageName", "unknown")))
+                    .append(" | ").append(audit.attributes().getOrDefault("violationsCount", "0"))
+                    .append(" | ").append(audit.attributes().getOrDefault("criticalCount", "0"))
+                    .append(" | ").append(audit.attributes().getOrDefault("seriousCount", "0"))
+                    .append(" | ").append(audit.attributes().getOrDefault("moderateCount", "0"))
+                    .append(" | ").append(audit.attributes().getOrDefault("minorCount", "0"))
+                    .append(" | `").append(audit.id()).append("` |\n");
+        }
+        report.append("\n");
     }
 
     private static void appendAdvisory(StringBuilder report, DoctorAdvisory advisory) {

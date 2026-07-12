@@ -6,11 +6,13 @@ import com.intellij.ui.JBColor;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsConfigurable;
 import com.shaft.intellij.settings.ShaftSettingsState;
+import com.shaft.intellij.testindex.ShaftTestIndex;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractButton;
+import javax.swing.DefaultListModel;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -125,6 +127,8 @@ class ShaftPluginScreenshotRendererTest {
         Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
         Path inspectorScreenshot = outputPath.resolve("intellij-plugin-inspector.png");
         Path triageScreenshot = outputPath.resolve("intellij-plugin-triage.png");
+        Path shaftTestsScreenshot = outputPath.resolve("intellij-plugin-shaft-tests.png");
+        Path shaftTestsDarkScreenshot = outputPath.resolve("intellij-plugin-shaft-tests-dark.png");
         Path visualBaselinesScreenshot = outputPath.resolve("intellij-plugin-visual-baselines.png");
         Path evidenceScreenshot = outputPath.resolve("intellij-plugin-evidence.png");
         Path projectsScreenshot = outputPath.resolve("intellij-plugin-projects.png");
@@ -152,11 +156,13 @@ class ShaftPluginScreenshotRendererTest {
         write(recorderScreenshot, renderToolWindow(2, "", LIGHT_THEME, false));
         write(inspectorScreenshot, renderToolWindow(3, "", LIGHT_THEME, false));
         write(triageScreenshot, renderToolWindow(4, "", LIGHT_THEME, false));
+        write(shaftTestsScreenshot, renderShaftTests(LIGHT_THEME, false));
+        write(shaftTestsDarkScreenshot, renderShaftTests(DARK_THEME, true));
         write(visualBaselinesScreenshot, renderVisualBaselines(LIGHT_THEME, false));
-        write(evidenceScreenshot, renderToolWindow(6, "", LIGHT_THEME, false));
-        write(projectsScreenshot, renderToolWindow(7, "", LIGHT_THEME, false));
-        write(advancedToolsLightScreenshot, renderToolWindow(8, "", LIGHT_THEME, false));
-        write(advancedToolsDarkScreenshot, renderToolWindow(8, "", DARK_THEME, true));
+        write(evidenceScreenshot, renderToolWindow(7, "", LIGHT_THEME, false));
+        write(projectsScreenshot, renderToolWindow(8, "", LIGHT_THEME, false));
+        write(advancedToolsLightScreenshot, renderToolWindow(9, "", LIGHT_THEME, false));
+        write(advancedToolsDarkScreenshot, renderToolWindow(9, "", DARK_THEME, true));
         Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
@@ -166,7 +172,7 @@ class ShaftPluginScreenshotRendererTest {
         write(mcpSetupErrorScreenshot, renderSetupError(DARK_THEME, true));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         write(settingsDarkScreenshot, renderSettings(DARK_THEME, true));
-        write(mcpGuideScreenshot, renderToolWindow(8, "Guide", LIGHT_THEME, false));
+        write(mcpGuideScreenshot, renderToolWindow(9, "Guide", LIGHT_THEME, false));
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantEmptyScreenshot) > 0, assistantEmptyScreenshot + " should be non-empty"),
@@ -179,6 +185,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(inspectorScreenshot) > 0, inspectorScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(triageScreenshot) > 0, triageScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(shaftTestsScreenshot) > 0, shaftTestsScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(shaftTestsDarkScreenshot) > 0, shaftTestsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(visualBaselinesScreenshot) > 0, visualBaselinesScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(evidenceScreenshot) > 0, evidenceScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(projectsScreenshot) > 0, projectsScreenshot + " should be non-empty"),
@@ -205,6 +213,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(recorderScreenshot),
                 () -> assertDimensions(inspectorScreenshot),
                 () -> assertDimensions(triageScreenshot),
+                () -> assertDimensions(shaftTestsScreenshot),
+                () -> assertDimensions(shaftTestsDarkScreenshot),
                 () -> assertDimensions(visualBaselinesScreenshot),
                 () -> assertDimensions(evidenceScreenshot),
                 () -> assertDimensions(projectsScreenshot),
@@ -222,6 +232,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(mcpGuideScreenshot),
                 () -> assertTrue(Files.mismatch(assistantLightScreenshot, assistantDarkScreenshot) >= 0,
                         "Assistant light and dark screenshots should differ"),
+                () -> assertTrue(Files.mismatch(shaftTestsScreenshot, shaftTestsDarkScreenshot) >= 0,
+                        "SHAFT Tests light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(settingsScreenshot, settingsDarkScreenshot) >= 0,
                         "Settings light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(advancedToolsLightScreenshot, advancedToolsDarkScreenshot) >= 0,
@@ -260,6 +272,44 @@ class ShaftPluginScreenshotRendererTest {
             image.set(render(component, width, height));
         });
         return image.get();
+    }
+
+    private static BufferedImage renderShaftTests(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            ShaftTestIndex testIndex = new ShaftTestIndex();
+            long now = System.currentTimeMillis();
+            testIndex.recordRun("com.example.SignInTest", 0, now - 120_000);
+            testIndex.recordRun("com.example.CheckoutTest", 1, now - 60_000);
+            testIndex.recordRun("com.example.SearchTest", 0, now);
+            ShaftTestsPanel component = new ShaftTestsPanel(screenshotProject(), testIndex);
+            selectFailRowIfPresent(component);
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    /** Selects the first FAIL row so the screenshot shows Doctor/Heal enabled, falling back to
+     * row 0 when nothing failed. */
+    private static void selectFailRowIfPresent(ShaftTestsPanel component) {
+        DefaultListModel<ShaftTestIndex.TestRowState> model =
+                (DefaultListModel<ShaftTestIndex.TestRowState>) component.rowListForTest().getModel();
+        for (int i = 0; i < model.getSize(); i++) {
+            if (ShaftTestsPanel.isFailRow(model.getElementAt(i))) {
+                component.rowListForTest().setSelectedIndex(i);
+                return;
+            }
+        }
+        if (model.getSize() > 0) {
+            component.rowListForTest().setSelectedIndex(0);
+        }
     }
 
     private static BufferedImage renderVisualBaselines(String lookAndFeelClassName, boolean dark)
@@ -527,7 +577,7 @@ class ShaftPluginScreenshotRendererTest {
                     () -> {
                     }, (client, runtime) -> ShaftMcpToolResult.success("Codex CLI executable is available on PATH."));
             invokeShowTestResult(component, ShaftMcpToolResult.success("""
-                    Initialized SHAFT MCP 10.3.20260711
+                    Initialized SHAFT MCP 10.3.20260712
                     MCP workspace: C:\\Users\\demo\\IdeaProjects\\shop-tests
                     user.dir: C:\\Users\\demo\\AppData\\Local\\ShaftHQ\\shaft-mcp\\work
                     shaft.mcp.workspaceRoot: C:\\Users\\demo\\IdeaProjects\\shop-tests
@@ -558,7 +608,7 @@ class ShaftPluginScreenshotRendererTest {
                     () -> {
                     });
             invokeShowTestResult(component, ShaftMcpToolResult.failure(
-                    "Could not resolve artifact io.github.shafthq:shaft-mcp:jar:10.3.20260711"), null);
+                    "Could not resolve artifact io.github.shafthq:shaft-mcp:jar:10.3.20260712"), null);
             component.setSize(new Dimension(WIDTH, HEIGHT));
             component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
             SwingUtilities.updateComponentTreeUI(component);

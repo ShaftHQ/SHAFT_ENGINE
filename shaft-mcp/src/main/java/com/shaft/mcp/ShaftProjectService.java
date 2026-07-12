@@ -39,7 +39,7 @@ public class ShaftProjectService {
     private static final String UPGRADER_RESOURCE = "META-INF/shaft-mcp/upgrade_to_modular_shaft.py";
     private static final String SHAFT_SKILLS_ROOT = "META-INF/shaft-mcp/shaft-skills";
     private static final String SKILL_FILE_NAME = "SKILL.md";
-    private static final Set<String> AGENT_LOOPS = Set.of("claude", "codex");
+    private static final Set<String> AGENT_LOOPS = Set.of("claude", "codex", "opencode", "vscode");
     private static final java.util.regex.Pattern SAFE_SKILL_NAME =
             java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
     private static final String SHAFT_ENGINE_MAVEN_METADATA_URL =
@@ -294,15 +294,15 @@ public class ShaftProjectService {
      * reported as a warning instead of failing the call, because {@code targetDirectory} is expected to be
      * an existing user repository that may already carry its own agent configuration.
      *
-     * @param loop claude or codex
+     * @param loop claude, codex, opencode, or vscode
      * @param targetDirectory workspace-relative existing test repo directory
      * @param overwrite whether existing generated files may be replaced
      * @return generated agent-scaffolding details
      */
     @Tool(name = "shaft_project_init_agents",
             description = "scaffolds SHAFT agent/skill bridge files and a merge-me AGENTS.md guidance file "
-                    + "into an existing test repo for a coding-agent loop (claude, codex), without "
-                    + "overwriting files that already exist unless overwrite=true")
+                    + "into an existing test repo for a coding-agent loop (claude, codex, opencode, vscode), "
+                    + "without overwriting files that already exist unless overwrite=true")
     public McpShaftProjectInitAgentsResult initAgents(String loop, String targetDirectory, boolean overwrite) {
         String selectedLoop = selectedAgentLoop(loop);
         Path target = workspacePolicy.output(text(targetDirectory).isBlank() ? "." : targetDirectory,
@@ -312,15 +312,28 @@ public class ShaftProjectService {
         try {
             Files.createDirectories(target);
             List<String> skillNames = bundledSkillNames();
-            Path skillsDirectory = target.resolve(agentLoopSkillsDirectory(selectedLoop));
-            for (String skillName : skillNames) {
-                Map<String, String> frontMatter = frontMatter(readResourceText(skillResource(skillName)));
-                String bridge = skillBridgeMarkdown(
-                        skillName,
-                        frontMatter.getOrDefault("name", skillName),
-                        frontMatter.getOrDefault("description", ""));
-                writeGeneratedFile(skillsDirectory.resolve(skillName).resolve(SKILL_FILE_NAME), target, bridge,
-                        overwrite, generatedFiles, warnings);
+            if ("vscode".equals(selectedLoop)) {
+                Path instructionsDirectory = target.resolve(".github").resolve("instructions");
+                for (String skillName : skillNames) {
+                    Map<String, String> frontMatter = frontMatter(readResourceText(skillResource(skillName)));
+                    String instructions = vscodeInstructionsMarkdown(
+                            skillName,
+                            frontMatter.getOrDefault("name", skillName),
+                            frontMatter.getOrDefault("description", ""));
+                    writeGeneratedFile(instructionsDirectory.resolve(skillName + ".instructions.md"), target,
+                            instructions, overwrite, generatedFiles, warnings);
+                }
+            } else {
+                Path skillsDirectory = target.resolve(agentLoopSkillsDirectory(selectedLoop));
+                for (String skillName : skillNames) {
+                    Map<String, String> frontMatter = frontMatter(readResourceText(skillResource(skillName)));
+                    String bridge = skillBridgeMarkdown(
+                            skillName,
+                            frontMatter.getOrDefault("name", skillName),
+                            frontMatter.getOrDefault("description", ""));
+                    writeGeneratedFile(skillsDirectory.resolve(skillName).resolve(SKILL_FILE_NAME), target, bridge,
+                            overwrite, generatedFiles, warnings);
+                }
             }
             writeGeneratedFile(target.resolve("SHAFT-AGENTS.md"), target,
                     rootGuidanceMarkdown(selectedLoop, skillNames), overwrite, generatedFiles, warnings);
@@ -453,6 +466,24 @@ public class ShaftProjectService {
                 + "and verify with `shaft-mcp:verify_run_focused` before treating it as done.\n";
     }
 
+    private static String vscodeInstructionsMarkdown(String skillName, String name, String description) {
+        return "---\n"
+                + "name: " + name + "\n"
+                + "description: " + description + "\n"
+                + "applyTo: \"**\"\n"
+                + "---\n\n"
+                + "# " + titleCase(skillName) + " (SHAFT bridge)\n\n"
+                + "Generated by `shaft_project_init_agents`; do not hand-edit. Re-run with `overwrite=true` "
+                + "after upgrading `shaft-mcp` to refresh this bridge from the latest SHAFT skill guidance.\n\n"
+                + "Use the `shaft-mcp` MCP server (`shaft-mcp:` or `mcp__shaft-mcp__` tool prefix depending on "
+                + "your GitHub Copilot MCP configuration) to carry out this skill. Call "
+                + "`shaft-mcp:shaft_guide_search` first for official SHAFT guidance, then the tools that match \""
+                + skillName + "\" (source playbook: SHAFT_ENGINE `shaft-skills/" + skillName + "/SKILL.md`). "
+                + "Treat generated or recorded code as a draft: preview it with "
+                + "`shaft-mcp:shaft_coding_partner_diff`, apply only under explicit approval, and verify with "
+                + "`shaft-mcp:verify_run_focused` before treating it as done.\n";
+    }
+
     private static String titleCase(String skillName) {
         StringBuilder title = new StringBuilder();
         for (String word : skillName.split("-")) {
@@ -472,8 +503,9 @@ public class ShaftProjectService {
                 .append("> Generated by `shaft_project_init_agents` (shaft-mcp) for the `").append(loop)
                 .append("` loop. This file is intentionally standalone so the tool never edits a file you "
                         + "already maintain. Review it, then MERGE the relevant parts into your own "
-                        + "`AGENTS.md`/`CLAUDE.md` (or your loop's equivalent guidance file), and delete this "
-                        + "file once merged.\n\n")
+                        + "`AGENTS.md`/`CLAUDE.md` (or your loop's equivalent guidance file -- "
+                        + "`.github/copilot-instructions.md` for vscode/GitHub Copilot, `AGENTS.md` for "
+                        + "opencode), and delete this file once merged.\n\n")
                 .append("## Generated skill bridges\n\n")
                 .append("Each bridge below points a coding agent at using `shaft-mcp` MCP tools for a SHAFT "
                         + "workflow:\n\n");

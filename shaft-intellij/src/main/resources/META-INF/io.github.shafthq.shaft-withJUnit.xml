@@ -1,0 +1,8 @@
+<!-- Optional JUnit-plugin integration: JUnitConfiguration and friends live in the separate bundled
+     "JUnit" plugin (not com.intellij.java), so this only loads when JUnit is enabled -- which
+     guarantees com.intellij.java is present too, since JUnit itself hard-depends on it. -->
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <runConfigurationProducer implementation="com.shaft.intellij.testrunner.ShaftJUnitRunConfigurationProducer"/>
+    </extensions>
+</idea-plugin>

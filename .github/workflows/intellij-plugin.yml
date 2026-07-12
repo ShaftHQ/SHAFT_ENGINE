@@ -12,6 +12,7 @@ on:
       - 'scripts/ci/validate_installer_contract.py'
       - 'tests/scripts/test_validate_installer_contract.py'
       - 'shaft-mcp/src/main/java/com/shaft/mcp/**'
+      - 'shaft-capture/**'
       - 'shaft-skills/**'
       - 'tests/scripts/test_generate_shaft_skills_tool_catalog.py'
   push:
@@ -26,6 +27,7 @@ on:
       - 'scripts/ci/validate_installer_contract.py'
       - 'tests/scripts/test_validate_installer_contract.py'
       - 'shaft-mcp/src/main/java/com/shaft/mcp/**'
+      - 'shaft-capture/**'
       - 'shaft-skills/**'
       - 'tests/scripts/test_generate_shaft_skills_tool_catalog.py'
   workflow_dispatch:

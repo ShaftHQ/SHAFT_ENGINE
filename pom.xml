@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>shaft-parent</artifactId>
-    <version>10.3.20260711</version>
+    <version>10.3.20260712</version>
     <packaging>pom</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Build parent and reactor aggregator for SHAFT modules.</description>
@@ -60,17 +60,17 @@
         <spring-boot.version>4.1.0</spring-boot.version>
         <spring-ai.version>2.0.0</spring-ai.version>
         <!-- Dependency BOM Versions -->
-        <junit.bom.version>6.1.1</junit.bom.version>
+        <junit.bom.version>6.1.2</junit.bom.version>
         <allure.bom.version>2.35.3</allure.bom.version>
         <cucumber.bom.version>7.34.4</cucumber.bom.version>
         <jackson.version>3.2.1</jackson.version>
         <jackson.legacy.version>2.22.1</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
-        <tools.jackson.core.version>3.2.0</tools.jackson.core.version>
-        <selenium.version>4.45.0</selenium.version>
+        <tools.jackson.core.version>3.2.1</tools.jackson.core.version>
+        <selenium.version>4.46.0</selenium.version>
         <playwright.version>1.61.0</playwright.version>
         <slf4j.version>2.0.18</slf4j.version>
-        <grpc.version>1.82.1</grpc.version>
+        <grpc.version>1.82.2</grpc.version>
         <protobuf.version>4.35.1</protobuf.version>
         <google.auth.library.version>1.49.0</google.auth.library.version>
         <kotlin.version>2.4.0</kotlin.version>

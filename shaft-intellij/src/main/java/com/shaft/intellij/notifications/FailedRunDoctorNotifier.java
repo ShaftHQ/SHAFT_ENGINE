@@ -11,11 +11,6 @@ import com.intellij.notification.NotificationGroupManager;
 import com.intellij.notification.NotificationType;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.wm.ToolWindow;
-import com.intellij.openapi.wm.ToolWindowManager;
-import com.intellij.ui.content.Content;
-import com.shaft.intellij.settings.ShaftSettingsState;
-import com.shaft.intellij.ui.ShaftToolWindowPanel;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -114,35 +109,21 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
     }
 
     private static void openDoctorWorkflow(Project project) {
-        openToolWorkflow(project, "doctor_analyze_failed_allure", doctorArguments());
+        ShaftToolWorkflowLauncher.open(project, "doctor_analyze_failed_allure", doctorArguments());
     }
 
     private static void openHealerWorkflow(Project project) {
-        openToolWorkflow(project, "healer_run_failed_test", healerArguments());
+        ShaftToolWorkflowLauncher.open(project, "healer_run_failed_test", healerArguments());
     }
 
-    private static void openToolWorkflow(Project project, String toolName, JsonObject arguments) {
-        if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
-            ShaftNotifier.warn(project, "SHAFT",
-                    "Ask the SHAFT Assistant to \"diagnose my last failed test run\" to analyze the "
-                            + "failure from chat.");
-            return;
-        }
-        ToolWindowManager.getInstance(project).invokeLater(() -> {
-            ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");
-            if (toolWindow == null) {
-                return;
-            }
-            toolWindow.show(() -> {
-                Content content = toolWindow.getContentManager().getContent(0);
-                if (content != null && content.getComponent() instanceof ShaftToolWindowPanel panel) {
-                    panel.prefillTool(toolName, arguments);
-                }
-            });
-        });
-    }
-
-    static JsonObject doctorArguments() {
+    /**
+     * Builds the {@code doctor_analyze_failed_allure} MCP arguments for the last failed run. Public
+     * so {@code ShaftTestsPanel} (issue #3467 "SHAFT Tests" tab) can reuse the same one-click
+     * Doctor prefill this notifier offers.
+     *
+     * @return MCP tool arguments
+     */
+    public static JsonObject doctorArguments() {
         JsonObject arguments = new JsonObject();
         JsonArray allurePaths = new JsonArray();
         allurePaths.add("allure-results");
@@ -161,7 +142,13 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
         return arguments;
     }
 
-    static JsonObject healerArguments() {
+    /**
+     * Builds the {@code healer_run_failed_test} MCP arguments for the last failed run. Public for
+     * the same reason as {@link #doctorArguments()}.
+     *
+     * @return MCP tool arguments
+     */
+    public static JsonObject healerArguments() {
         JsonObject arguments = new JsonObject();
         JsonArray testCommand = new JsonArray();
         testCommand.add("mvn");

@@ -62,7 +62,7 @@ jobs:
           maven-version: 3.9.5
 
       - name: Build all Java-bearing SHAFT modules
-        run: mvn -B -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-sikulix,shaft-mcp,report-aggregate -am clean package --file pom.xml -DskipTests -Dgpg.skip
+        run: mvn -B -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-capture-proxy,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-sikulix,shaft-mcp,report-aggregate -am clean package --file pom.xml -DskipTests -Dgpg.skip
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

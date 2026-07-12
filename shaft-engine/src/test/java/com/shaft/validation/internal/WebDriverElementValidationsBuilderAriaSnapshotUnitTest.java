@@ -77,4 +77,36 @@ public class WebDriverElementValidationsBuilderAriaSnapshotUnitTest {
             FileActions.getInstance(true).deleteFile(baselinePath);
         }
     }
+
+    @Test(description = "on a mobile-native session, first run should capture via the Appium accessibility XML converter instead of JavaScript execution")
+    public void matchesAriaSnapshotShouldUseMobileConverterOnMobileNativeExecution() {
+        String previousTargetPlatform = SHAFT.Properties.platform.targetPlatform();
+        SHAFT.Properties.platform.set().targetPlatform("Android");
+
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = mock(WebElement.class);
+        when(driver.findElement(SAMPLE_LOCATOR)).thenReturn(element);
+        when(element.getAttribute("outerXML")).thenReturn("""
+                <hierarchy>
+                  <android.widget.Button class="android.widget.Button" content-desc="Sign in" bounds="[0,0][100,50]"/>
+                </hierarchy>
+                """);
+
+        String baselineFile = "matchesAriaSnapshotShouldUseMobileConverterOnMobileNativeExecution_" + System.identityHashCode(this);
+        String baselinePath = SHAFT.Properties.paths.ariaSnapshot() + baselineFile + ".yaml";
+        FileActions.getInstance(true).deleteFile(baselinePath);
+
+        try {
+            WebDriverElementValidationsBuilder builder = new WebDriverElementValidationsBuilder(
+                    ValidationEnums.ValidationCategory.HARD_ASSERT, driver, SAMPLE_LOCATOR, new StringBuilder("the element "));
+
+            builder.matchesAriaSnapshot(baselineFile);
+
+            Assert.assertTrue(FileActions.getInstance(true).doesFileExist(baselinePath));
+            Assert.assertTrue(FileActions.getInstance(true).readFile(baselinePath).contains("button \"Sign in\""));
+        } finally {
+            FileActions.getInstance(true).deleteFile(baselinePath);
+            SHAFT.Properties.platform.set().targetPlatform(previousTargetPlatform);
+        }
+    }
 }

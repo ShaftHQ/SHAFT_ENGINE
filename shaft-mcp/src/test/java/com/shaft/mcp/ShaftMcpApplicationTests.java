@@ -141,15 +141,22 @@ class ShaftMcpApplicationTests {
 
     @Test
     void captureLaunchPrefixArgFileFallbackKeepsCommandLineShortOnLargeClasspaths() throws Exception {
-        Method method = ShaftMcpApplication.class.getDeclaredMethod("captureLaunchPrefix");
+        Method method = ShaftMcpApplication.class.getDeclaredMethod(
+                "captureLaunchPrefix", String[].class, String.class);
         method.setAccessible(true);
 
-        @SuppressWarnings("unchecked")
-        List<String> prefix = (List<String>) method.invoke(null);
+        String largeClassPath = java.util.stream.IntStream.range(0, 400)
+                .mapToObj(index -> "target/dependency/library-" + index + ".jar")
+                .collect(Collectors.joining(File.pathSeparator));
 
-        // A test JVM runs from a multi-entry classpath (never -jar), so this must hit the
-        // @argfile fallback -- the same one Windows CreateProcess rejects at ~32K chars when it
-        // is passed inline instead, per gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile.
+        // The launch inputs are explicit because this JVM's own launch shape is unreliable:
+        // Surefire forks tests through a manifest-only booter jar (-jar). A plain multi-entry
+        // classpath launch (dev/IDE runs) must hit the @argfile fallback -- the same one Windows
+        // CreateProcess rejects at ~32K chars when it is passed inline instead, per
+        // gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile.
+        @SuppressWarnings("unchecked")
+        List<String> prefix = (List<String>) method.invoke(null, new String[0], largeClassPath);
+
         String lastArgument = prefix.get(prefix.size() - 1);
         assertTrue(lastArgument.startsWith("@"), "expected an @argfile launch, got: " + prefix);
         int totalCommandLineLength = String.join(" ", prefix).length();

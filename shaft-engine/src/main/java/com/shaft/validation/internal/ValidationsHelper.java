@@ -3,12 +3,14 @@ package com.shaft.validation.internal;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.Actions;
 import com.shaft.gui.internal.aria.AriaSnapshotHelper;
+import com.shaft.gui.internal.aria.MobileAccessibilityTreeConverter;
 import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotHelper;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -724,7 +726,9 @@ public class ValidationsHelper {
         try {
             new SynchronizationManager(driver).fluentWait(true).until(f -> {
                 List<List<Object>> attachments = new ArrayList<>();
-                String actualYaml = AriaSnapshotHelper.captureAriaSnapshot(driver, locator);
+                String actualYaml = DriverFactoryHelper.isMobileNativeExecution()
+                        ? MobileAccessibilityTreeConverter.captureAriaSnapshot(driver, locator)
+                        : AriaSnapshotHelper.captureAriaSnapshot(driver, locator);
                 boolean updateSnapshots = SHAFT.Properties.visuals.updateSnapshots();
                 boolean baselineExists = FileActions.getInstance(true).doesFileExist(baselinePath);
                 boolean matched;
