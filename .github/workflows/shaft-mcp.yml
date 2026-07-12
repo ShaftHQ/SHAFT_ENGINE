@@ -21,6 +21,11 @@ jobs:
       matrix:
         os: [ubuntu-22.04, macos-15, windows-2025]
     steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
       - name: Checkout Code
         uses: actions/checkout@v7
       - name: Set up Python 3.13
