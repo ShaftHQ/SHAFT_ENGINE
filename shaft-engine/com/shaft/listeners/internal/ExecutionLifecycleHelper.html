@@ -51,6 +51,7 @@
 <li><a href="#engineSetup(com.shaft.tools.io.internal.ProjectStructureManager.RunType)" tabindex="0">engineSetup(ProjectStructureManager.RunType)</a></li>
 <li><a href="#logTestInformation(com.shaft.listeners.internal.TestExecutionInfo)" tabindex="0">logTestInformation(TestExecutionInfo)</a></li>
 <li><a href="#logFinishedTestInformation(com.shaft.listeners.internal.TestExecutionInfo,java.lang.String)" tabindex="0">logFinishedTestInformation(TestExecutionInfo, String)</a></li>
+<li><a href="#logFinishedTestInformation(com.shaft.listeners.internal.TestExecutionInfo,java.lang.String,java.lang.Throwable)" tabindex="0">logFinishedTestInformation(TestExecutionInfo, String, Throwable)</a></li>
 <li><a href="#attachTestArtifacts(com.shaft.listeners.internal.TestExecutionInfo)" tabindex="0">attachTestArtifacts(TestExecutionInfo)</a></li>
 <li><a href="#appendExecutionSummaryReport(com.shaft.listeners.internal.TestExecutionInfo,java.lang.String,com.shaft.tools.io.internal.ExecutionSummaryReport.StatusIcon,com.shaft.tools.io.internal.ExecutionSummaryReport.Status)" tabindex="0">appendExecutionSummaryReport(TestExecutionInfo, String, ExecutionSummaryReport.StatusIcon, ExecutionSummaryReport.Status)</a></li>
 <li><a href="#engineTearDown(long,com.shaft.listeners.internal.ExecutionCountsTracker.Counts)" tabindex="0">engineTearDown(long, ExecutionCountsTracker.Counts)</a></li>
@@ -142,8 +143,15 @@
 <div class="block">Logs the end of a test method.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logTestInformation(com.shaft.listeners.internal.TestExecutionInfo)" class="member-name-link">logTestInformation</a><wbr>(<a href="TestExecutionInfo.html" title="class in com.shaft.listeners.internal">TestExecutionInfo</a>&nbsp;info)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logFinishedTestInformation(com.shaft.listeners.internal.TestExecutionInfo,java.lang.String,java.lang.Throwable)" class="member-name-link">logFinishedTestInformation</a><wbr>(<a href="TestExecutionInfo.html" title="class in com.shaft.listeners.internal">TestExecutionInfo</a>&nbsp;info,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;status,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Throwable.html" title="class or interface in java.lang" class="external-link">Throwable</a>&nbsp;failureReason)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Logs the end of a test method including the failure root cause when available.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logTestInformation(com.shaft.listeners.internal.TestExecutionInfo)" class="member-name-link">logTestInformation</a><wbr>(<a href="TestExecutionInfo.html" title="class in com.shaft.listeners.internal">TestExecutionInfo</a>&nbsp;info)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Logs the start of a test method.</div>
 </div>
 </div>
@@ -200,6 +208,23 @@
 <dt>Parameters:</dt>
 <dd><code>info</code> - current test metadata</dd>
 <dd><code>status</code> - execution status text</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="logFinishedTestInformation(com.shaft.listeners.internal.TestExecutionInfo,java.lang.String,java.lang.Throwable)">
+<h3>logFinishedTestInformation</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">logFinishedTestInformation</span><wbr><span class="parameters">(<a href="TestExecutionInfo.html" title="class in com.shaft.listeners.internal">TestExecutionInfo</a>&nbsp;info,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;status,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Throwable.html" title="class or interface in java.lang" class="external-link">Throwable</a>&nbsp;failureReason)</span></div>
+<div class="block">Logs the end of a test method including the failure root cause when available.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>info</code> - current test metadata</dd>
+<dd><code>status</code> - execution status text</dd>
+<dd><code>failureReason</code> - throwable that ended the test, or <code>null</code></dd>
 </dl>
 </div>
 </section>
