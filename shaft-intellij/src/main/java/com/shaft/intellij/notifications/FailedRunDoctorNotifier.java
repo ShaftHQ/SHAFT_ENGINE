@@ -103,10 +103,25 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
                 openDoctorWorkflow(project);
             }
         });
+        notification.addAction(new NotificationAction("Heal failed test") {
+            @Override
+            public void actionPerformed(@NotNull AnActionEvent event, @NotNull Notification current) {
+                current.expire();
+                openHealerWorkflow(project);
+            }
+        });
         notification.notify(project);
     }
 
     private static void openDoctorWorkflow(Project project) {
+        openToolWorkflow(project, "doctor_analyze_failed_allure", doctorArguments());
+    }
+
+    private static void openHealerWorkflow(Project project) {
+        openToolWorkflow(project, "healer_run_failed_test", healerArguments());
+    }
+
+    private static void openToolWorkflow(Project project, String toolName, JsonObject arguments) {
         if (!ShaftSettingsState.getInstance().getState().advancedUiEnabled) {
             ShaftNotifier.warn(project, "SHAFT",
                     "Ask the SHAFT Assistant to \"diagnose my last failed test run\" to analyze the "
@@ -121,13 +136,13 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
             toolWindow.show(() -> {
                 Content content = toolWindow.getContentManager().getContent(0);
                 if (content != null && content.getComponent() instanceof ShaftToolWindowPanel panel) {
-                    panel.prefillTool("doctor_analyze_failed_allure", doctorArguments());
+                    panel.prefillTool(toolName, arguments);
                 }
             });
         });
     }
 
-    private static JsonObject doctorArguments() {
+    static JsonObject doctorArguments() {
         JsonObject arguments = new JsonObject();
         JsonArray allurePaths = new JsonArray();
         allurePaths.add("allure-results");
@@ -140,6 +155,28 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
         arguments.addProperty("repositoryRoot", ".");
         arguments.add("allowedSourcePaths", new JsonArray());
         arguments.addProperty("useAi", false);
+        arguments.addProperty("allowLocalAi", false);
+        arguments.addProperty("allowRemoteAi", false);
+        arguments.addProperty("driverVariableName", "driver");
+        return arguments;
+    }
+
+    static JsonObject healerArguments() {
+        JsonObject arguments = new JsonObject();
+        JsonArray testCommand = new JsonArray();
+        testCommand.add("mvn");
+        testCommand.add("-q");
+        testCommand.add("-Dtest=ExampleTest");
+        testCommand.add("test");
+        arguments.add("testCommand", testCommand);
+        arguments.addProperty("repositoryRoot", ".");
+        arguments.addProperty("outputDirectory", "target/shaft-healer");
+        arguments.addProperty("maxAttempts", 1);
+        arguments.addProperty("includeScreenshots", true);
+        arguments.addProperty("includePageSnapshots", true);
+        arguments.add("allowedSourcePaths", new JsonArray());
+        arguments.addProperty("networkValidationApproved", false);
+        arguments.addProperty("useConfiguredAi", false);
         arguments.addProperty("allowLocalAi", false);
         arguments.addProperty("allowRemoteAi", false);
         arguments.addProperty("driverVariableName", "driver");

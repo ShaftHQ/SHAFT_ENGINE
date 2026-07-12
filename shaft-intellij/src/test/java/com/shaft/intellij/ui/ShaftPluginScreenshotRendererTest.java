@@ -125,6 +125,7 @@ class ShaftPluginScreenshotRendererTest {
         Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
         Path inspectorScreenshot = outputPath.resolve("intellij-plugin-inspector.png");
         Path triageScreenshot = outputPath.resolve("intellij-plugin-triage.png");
+        Path visualBaselinesScreenshot = outputPath.resolve("intellij-plugin-visual-baselines.png");
         Path evidenceScreenshot = outputPath.resolve("intellij-plugin-evidence.png");
         Path projectsScreenshot = outputPath.resolve("intellij-plugin-projects.png");
         Path advancedToolsLightScreenshot = outputPath.resolve("intellij-plugin-advanced-tools.png");
@@ -151,10 +152,11 @@ class ShaftPluginScreenshotRendererTest {
         write(recorderScreenshot, renderToolWindow(2, "", LIGHT_THEME, false));
         write(inspectorScreenshot, renderToolWindow(3, "", LIGHT_THEME, false));
         write(triageScreenshot, renderToolWindow(4, "", LIGHT_THEME, false));
-        write(evidenceScreenshot, renderToolWindow(5, "", LIGHT_THEME, false));
-        write(projectsScreenshot, renderToolWindow(6, "", LIGHT_THEME, false));
-        write(advancedToolsLightScreenshot, renderToolWindow(7, "", LIGHT_THEME, false));
-        write(advancedToolsDarkScreenshot, renderToolWindow(7, "", DARK_THEME, true));
+        write(visualBaselinesScreenshot, renderVisualBaselines(LIGHT_THEME, false));
+        write(evidenceScreenshot, renderToolWindow(6, "", LIGHT_THEME, false));
+        write(projectsScreenshot, renderToolWindow(7, "", LIGHT_THEME, false));
+        write(advancedToolsLightScreenshot, renderToolWindow(8, "", LIGHT_THEME, false));
+        write(advancedToolsDarkScreenshot, renderToolWindow(8, "", DARK_THEME, true));
         Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
@@ -164,7 +166,7 @@ class ShaftPluginScreenshotRendererTest {
         write(mcpSetupErrorScreenshot, renderSetupError(DARK_THEME, true));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         write(settingsDarkScreenshot, renderSettings(DARK_THEME, true));
-        write(mcpGuideScreenshot, renderToolWindow(7, "Guide", LIGHT_THEME, false));
+        write(mcpGuideScreenshot, renderToolWindow(8, "Guide", LIGHT_THEME, false));
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantEmptyScreenshot) > 0, assistantEmptyScreenshot + " should be non-empty"),
@@ -177,6 +179,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(inspectorScreenshot) > 0, inspectorScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(triageScreenshot) > 0, triageScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(visualBaselinesScreenshot) > 0, visualBaselinesScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(evidenceScreenshot) > 0, evidenceScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(projectsScreenshot) > 0, projectsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(advancedToolsLightScreenshot) > 0, advancedToolsLightScreenshot + " should be non-empty"),
@@ -202,6 +205,7 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(recorderScreenshot),
                 () -> assertDimensions(inspectorScreenshot),
                 () -> assertDimensions(triageScreenshot),
+                () -> assertDimensions(visualBaselinesScreenshot),
                 () -> assertDimensions(evidenceScreenshot),
                 () -> assertDimensions(projectsScreenshot),
                 () -> assertDimensions(advancedToolsLightScreenshot),
@@ -256,6 +260,50 @@ class ShaftPluginScreenshotRendererTest {
             image.set(render(component, width, height));
         });
         return image.get();
+    }
+
+    private static BufferedImage renderVisualBaselines(String lookAndFeelClassName, boolean dark)
+            throws InterruptedException, InvocationTargetException, IOException {
+        Path fixtureDirectory = createVisualBaselineFixture();
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            VisualBaselinesPanel component = new VisualBaselinesPanel(screenshotProject());
+            component.directoryFieldForTest().setText(fixtureDirectory.toString());
+            component.scanButtonForTest().doClick();
+            if (component.rowListForTest().getModel().getSize() > 0) {
+                component.rowListForTest().setSelectedIndex(0);
+            }
+            component.setSize(new Dimension(WIDTH, HEIGHT));
+            component.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+            SwingUtilities.updateComponentTreeUI(component);
+            component.doLayout();
+            layout(component, !dark);
+            image.set(render(component, WIDTH, HEIGHT));
+        });
+        return image.get();
+    }
+
+    /**
+     * A fake baseline plus its {@code _diff.png} marker, matching the on-disk layout written by
+     * {@code ImageProcessingActions#compareScreenshotAgainstBaselineByHash}, so the screenshot
+     * evidence shows a populated triage row instead of an empty scan.
+     */
+    private static Path createVisualBaselineFixture() throws IOException {
+        Path directory = Files.createTempDirectory("shaft-visual-baselines");
+        BufferedImage baseline = new BufferedImage(48, 32, BufferedImage.TYPE_INT_RGB);
+        Graphics2D baselineGraphics = baseline.createGraphics();
+        baselineGraphics.setColor(new Color(0x2E7D32));
+        baselineGraphics.fillRect(0, 0, 48, 32);
+        baselineGraphics.dispose();
+        BufferedImage diff = new BufferedImage(48, 32, BufferedImage.TYPE_INT_RGB);
+        Graphics2D diffGraphics = diff.createGraphics();
+        diffGraphics.setColor(new Color(0xC62828));
+        diffGraphics.fillRect(0, 0, 48, 32);
+        diffGraphics.dispose();
+        ImageIO.write(baseline, "png", directory.resolve("signInHeader_chrome_windows.png").toFile());
+        ImageIO.write(diff, "png", directory.resolve("signInHeader_chrome_windows_diff.png").toFile());
+        return directory;
     }
 
     private static BufferedImage renderSettings(String lookAndFeelClassName, boolean dark)
