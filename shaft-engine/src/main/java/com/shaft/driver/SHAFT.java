@@ -29,6 +29,7 @@ import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 
+import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -37,6 +38,9 @@ import java.sql.ResultSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * The main entry point for the SHAFT test automation framework.
@@ -47,6 +51,7 @@ import java.util.Map;
  * <ul>
  *   <li>{@link GUI} &ndash; Browser, element, touch, alert, and SikuliX actions.</li>
  *   <li>{@link API} &ndash; RESTful API interactions via REST Assured.</li>
+ *   <li>{@link Auth} &ndash; Cached-login setup that reuses a saved browser storage state.</li>
  *   <li>{@link CLI} &ndash; Terminal and file-system operations.</li>
  *   <li>{@link DB}  &ndash; Database queries and result handling.</li>
  *   <li>{@link Validations} &ndash; Standalone hard and soft assertions.</li>
@@ -1170,6 +1175,134 @@ public class SHAFT {
          */
         public List<Object> getResponseXMLValueAsList(String xmlPath) {
             return RestActions.getResponseXMLValueAsList(session.getResponse(), xmlPath);
+        }
+    }
+
+    /**
+     * Playwright-style cached-authentication helper: runs a login {@code flow} once per {@code name}
+     * and caches the resulting browser storage state (cookies + {@code localStorage}) to disk so that
+     * subsequent calls &mdash; including from other tests or threads &mdash; can reuse the same
+     * authenticated session instead of repeating the UI login.
+     *
+     * <p>The cache is a JSON file per {@code name}, written in the same schema as
+     * {@link com.shaft.gui.browser.BrowserActions#saveStorageState(String)}, stored under
+     * {@link com.shaft.properties.internal.Paths#authCache()} (default {@code target/auth-cache/}).
+     *
+     * <p><b>Staleness policy:</b> deliberately simple &mdash; the cache is considered valid as long as
+     * the file exists; there is no TTL/max-age check. This keeps the feature minimal while still
+     * solving the common case (run the login once per suite). To force a re-login, delete the file
+     * returned by {@link #stateFile(String)} or call {@code setup} with a different {@code name}.
+     *
+     * <p><b>Thread-safety:</b> test suites frequently run in parallel, so concurrent {@code setup} calls
+     * for the <em>same</em> {@code name} are serialized on a per-name lock &mdash; only the first caller
+     * actually runs {@code flow}; every other concurrent caller blocks until it finishes and then sees
+     * the now-cached file. Calls for different names never block each other.
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * // Once per suite (e.g. in a @BeforeSuite), run the login flow and cache its storage state:
+     * SHAFT.Auth.setup("standardUser", driver -> {
+     *     driver.browser().navigateToURL("https://example.com/login");
+     *     driver.element().type(By.id("username"), "standard_user");
+     *     driver.element().type(By.id("password"), "secret_sauce");
+     *     driver.element().click(By.id("login-button"));
+     * });
+     *
+     * // In every test, reuse the cached session instead of logging in again:
+     * SHAFT.Properties.web.set().storageStatePath(SHAFT.Auth.stateFile("standardUser"));
+     * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+     * }</pre>
+     *
+     * @see com.shaft.gui.browser.BrowserActions#saveStorageState(String)
+     * @see com.shaft.properties.internal.Web#storageStatePath()
+     */
+    public static class Auth {
+        // Per-name locks so concurrent setup() calls for the same name serialize instead of both
+        // running the login flow; different names run fully in parallel.
+        private static final Map<String, Object> LOCKS = new ConcurrentHashMap<>();
+
+        // The default runner drives a real cache-miss: create a driver, run the login flow against
+        // it, save its storage state, then quit it. Held in an AtomicReference so unit tests can
+        // stub the driver lifecycle via the package-private flowRunner(...) seam.
+        private static final java.util.concurrent.atomic.AtomicReference<FlowRunner> FLOW_RUNNER =
+                new java.util.concurrent.atomic.AtomicReference<>((flow, path) -> {
+                    GUI.WebDriver driver = new GUI.WebDriver();
+                    try {
+                        flow.accept(driver);
+                        driver.browser().saveStorageState(path);
+                    } finally {
+                        driver.quit();
+                    }
+                });
+
+        /**
+         * Drives a cache-miss: create a driver, run the login {@code flow} against it, save its
+         * storage state to {@code path}, then quit it. Package-private seam so unit tests can stub out
+         * real driver/browser creation and assert the cache-hit/cache-miss/locking decision logic in
+         * {@link #setup(String, Consumer)} in isolation.
+         */
+        @FunctionalInterface
+        interface FlowRunner {
+            void run(Consumer<GUI.WebDriver> flow, String path);
+        }
+
+        static FlowRunner flowRunner() {
+            return FLOW_RUNNER.get();
+        }
+
+        static void flowRunner(FlowRunner runner) {
+            FLOW_RUNNER.set(Objects.requireNonNull(runner, "runner"));
+        }
+
+        private Auth() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        /**
+         * Returns the cache file for {@code name}, whether or not it currently exists. Feed the result
+         * to {@link com.shaft.properties.internal.Web.SetProperty#storageStatePath(String)} or
+         * {@link com.shaft.gui.browser.BrowserActions#loadStorageState(String)} to reuse a cached
+         * session.
+         *
+         * @param name the auth-cache name (e.g. a user role such as {@code "adminUser"})
+         * @return the absolute-or-relative path of the JSON cache file for {@code name}
+         */
+        public static String stateFile(String name) {
+            Objects.requireNonNull(name, "name");
+            if (name.isBlank()) {
+                throw new IllegalArgumentException("name must not be blank");
+            }
+            return new File(SHAFT.Properties.paths.authCache(), name + ".json").getPath();
+        }
+
+        /**
+         * Runs {@code flow} once per {@code name} and caches its resulting storage state, or reuses an
+         * already-cached storage state on subsequent calls.
+         *
+         * <p>On a cache miss, this creates a new {@link GUI.WebDriver}, runs {@code flow} against it,
+         * saves its storage state to {@link #stateFile(String)}, and quits the driver &mdash; even if
+         * {@code flow} throws. On a cache hit, {@code flow} is not invoked at all.
+         *
+         * @param name the auth-cache name to set up (e.g. a user role such as {@code "standardUser"})
+         * @param flow the login flow to run against a fresh {@link GUI.WebDriver} on a cache miss
+         * @return the path of the (now guaranteed to exist) storage-state cache file for {@code name};
+         * same value as {@link #stateFile(String)}
+         */
+        public static String setup(String name, Consumer<GUI.WebDriver> flow) {
+            Objects.requireNonNull(flow, "flow");
+            String path = stateFile(name);
+            Object lock = LOCKS.computeIfAbsent(name, key -> new Object());
+            synchronized (lock) {
+                File cacheFile = new File(path);
+                if (cacheFile.exists()) {
+                    ReportManager.logDiscrete("SHAFT.Auth cache hit for \"" + name + "\" at \"" + path + "\".");
+                    return path;
+                }
+                flowRunner().run(flow, path);
+                ReportManager.logDiscrete("SHAFT.Auth cache miss for \"" + name
+                        + "\"; ran the login flow and saved storage state to \"" + path + "\".");
+                return path;
+            }
         }
     }
 

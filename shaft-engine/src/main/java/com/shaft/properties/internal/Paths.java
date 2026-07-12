@@ -82,6 +82,14 @@ public interface Paths extends EngineProperties<Paths> {
     @DefaultValue("src/test/resources/META-INF/services/")
     String services();
 
+    /**
+     * Folder that holds {@code SHAFT.Auth.setup(name, flow)} storage-state cache files (one JSON file
+     * per {@code name}, using the same schema as {@code BrowserActions.saveStorageState}).
+     */
+    @Key("authCacheFolderPath")
+    @DefaultValue("target/auth-cache/")
+    String authCache();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -144,6 +152,11 @@ public interface Paths extends EngineProperties<Paths> {
 
         public SetProperty services(String value) {
             setProperty("servicesFolderPath", value);
+            return this;
+        }
+
+        public SetProperty authCache(String value) {
+            setProperty("authCacheFolderPath", value);
             return this;
         }
 

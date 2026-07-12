@@ -89,18 +89,34 @@ public final class NetworkBodyStore {
      * @return the stored body decoded as UTF-8 text, or {@code ""} if unavailable
      */
     public String read(BodyRef bodyRef, Path sessionDir) {
+        byte[] bytes = readBytes(bodyRef, sessionDir);
+        return bytes.length == 0 ? "" : new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Reads back a body's raw bytes previously stored by {@link #store}, verifying it still matches
+     * its recorded SHA-256 digest. Unlike {@link #read}, this does not assume UTF-8 text, so callers
+     * that must tell binary content apart from text (for example HAR body emission, which base64-encodes
+     * non-textual bodies) can make that call themselves from the stored {@link BodyRef#encoding()}
+     * content type instead of losing information to a lossy UTF-8 decode.
+     *
+     * @param bodyRef reference returned by a prior {@link #store} call, or {@code null}
+     * @param sessionDir directory the body was stored in (must match the {@code store} call)
+     * @return the stored body's raw bytes, or an empty array if unavailable
+     */
+    public byte[] readBytes(BodyRef bodyRef, Path sessionDir) {
         if (bodyRef == null || bodyRef.ref().isBlank()) {
-            return "";
+            return new byte[0];
         }
         Path storagePath = sessionDir.resolve(bodyRef.ref());
         try {
             byte[] bytes = Files.readAllBytes(storagePath);
             if (!bodyRef.truncated() && !computeSha256(bytes).equalsIgnoreCase(bodyRef.sha256())) {
-                return "";
+                return new byte[0];
             }
-            return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            return bytes;
         } catch (IOException | NoSuchAlgorithmException notAvailable) {
-            return "";
+            return new byte[0];
         }
     }
 
