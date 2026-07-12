@@ -593,4 +593,84 @@ public class RestActionsCoverageUnitTest {
         Assert.assertThrows(AssertionError.class, () -> Validations.assertThat().response(response)
                 .body().equalsIgnoringOrder("{\"name\":\"other\",\"roles\":[\"admin\",\"tester\"]}").perform());
     }
+
+    @Test
+    public void apiShouldExportCookiesToBrowserWithDomainAndPathFilter() {
+        BrowserActionsContract sourceBrowser = Mockito.mock(BrowserActionsContract.class);
+        org.openqa.selenium.Cookie matchingCookie = new org.openqa.selenium.Cookie.Builder("session", "secret")
+                .domain(".example.com")
+                .path("/app")
+                .build();
+        org.openqa.selenium.Cookie skippedCookie = new org.openqa.selenium.Cookie.Builder("other", "value")
+                .domain("other.example.com")
+                .path("/")
+                .build();
+        Mockito.when(sourceBrowser.getAllCookies()).thenReturn(Set.of(matchingCookie, skippedCookie));
+
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.importCookiesFrom(sourceBrowser);
+
+        BrowserActionsContract targetBrowser = Mockito.mock(BrowserActionsContract.class);
+
+        SHAFT.API returned = api.exportCookiesTo(targetBrowser, "example.com", "/app");
+
+        Assert.assertSame(returned, api);
+        Mockito.verify(targetBrowser).addCookie("session", "secret");
+        Mockito.verify(targetBrowser, Mockito.never()).addCookie(Mockito.eq("other"), Mockito.anyString());
+    }
+
+    @Test
+    public void apiExportCookiesToWithoutFiltersExportsAllSessionCookiesAndRejectsNull() {
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.addCookie("token", "abc123");
+
+        BrowserActionsContract targetBrowser = Mockito.mock(BrowserActionsContract.class);
+        api.exportCookiesTo(targetBrowser);
+
+        Mockito.verify(targetBrowser).addCookie("token", "abc123");
+        Assert.assertThrows(NullPointerException.class, () -> api.exportCookiesTo(null));
+    }
+
+    @Test
+    public void apiConstructorShouldSeedCookiesFromStorageStateFile() throws Exception {
+        Path storageStateFile = Files.createTempFile("shaft-storage-state", ".json");
+        try {
+            String json = "{"
+                    + "\"schemaVersion\":\"1.0\","
+                    + "\"origin\":\"https://example.com\","
+                    + "\"cookies\":[{"
+                    + "\"name\":\"session\","
+                    + "\"value\":\"secret\","
+                    + "\"domain\":\".example.com\","
+                    + "\"path\":\"/app\","
+                    + "\"expiry\":4102444800000,"
+                    + "\"secure\":true,"
+                    + "\"httpOnly\":true,"
+                    + "\"sameSite\":\"Strict\""
+                    + "}],"
+                    + "\"origins\":[]"
+                    + "}";
+            Files.writeString(storageStateFile, json);
+
+            SHAFT.API api = new SHAFT.API("https://api.example.com/", storageStateFile.toString());
+
+            Map<String, Cookie> cookies = api.getCookies();
+            Cookie imported = cookies.get("session");
+            Assert.assertNotNull(imported);
+            Assert.assertEquals(imported.getValue(), "secret");
+            Assert.assertEquals(imported.getDomain(), ".example.com");
+            Assert.assertEquals(imported.getPath(), "/app");
+            Assert.assertTrue(imported.isSecured());
+            Assert.assertTrue(imported.isHttpOnly());
+            Assert.assertEquals(imported.getSameSite(), "Strict");
+        } finally {
+            Files.deleteIfExists(storageStateFile);
+        }
+    }
+
+    @Test
+    public void apiConstructorWithStorageStatePathThrowsForMissingFile() {
+        Assert.assertThrows(IllegalStateException.class,
+                () -> new SHAFT.API("https://api.example.com/", "does-not-exist/storage-state.json"));
+    }
 }

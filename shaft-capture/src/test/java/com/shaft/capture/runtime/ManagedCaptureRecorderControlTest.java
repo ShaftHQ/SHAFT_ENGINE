@@ -6,10 +6,14 @@ import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.privacy.CapturePrivacyPolicy;
 import com.shaft.capture.storage.CaptureSessionStore;
+import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.openqa.selenium.MutableCapabilities;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -17,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -186,6 +191,119 @@ class ManagedCaptureRecorderControlTest {
 
         assertMobileEmulation(chrome.getCapability("goog:chromeOptions"));
         assertMobileEmulation(edge.getCapability("ms:edgeOptions"));
+    }
+
+    @Test
+    void filterHarByGlobKeepsOnlyEntriesWhoseUrlMatchesTheGlobAndCountsDropped() {
+        String harJson = """
+                {
+                  "log": {
+                    "version": "1.2",
+                    "creator": {"name": "SHAFT", "comment": "test"},
+                    "entries": [
+                      {"method": "GET", "url": "https://api.example.test/users", "status": 200},
+                      {"method": "GET", "url": "https://api.example.test/orders", "status": 200},
+                      {"method": "GET", "url": "https://cdn.example.test/app.js", "status": 200}
+                    ]
+                  }
+                }
+                """;
+
+        ManagedCaptureRecorder.HarGlobFilterResult result =
+                ManagedCaptureRecorder.filterHarByGlob(harJson, "*api.example.test*");
+
+        assertEquals(2, result.kept());
+        assertEquals(1, result.dropped());
+        assertTrue(result.json().contains("api.example.test/users"));
+        assertTrue(result.json().contains("api.example.test/orders"));
+        assertFalse(result.json().contains("cdn.example.test"));
+    }
+
+    @Test
+    void savesHarEndToEndAppliesGlobFilterAndReportsKeptDroppedCounts() throws Exception {
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean originalTraceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserObservabilityRecorder.clear();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://api.example.test/users", 200, Map.of(), Map.of(), 5, 0, 0, "", ""));
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://cdn.example.test/app.js", 200, Map.of(), Map.of(), 5, 0, 0, "", ""));
+
+            Path harPath = temp.resolve("filtered.har");
+            CaptureStartRequest request = request(CaptureBrowser.CHROME,
+                    harOptions(harPath.toString(), "*api.example.test*"));
+            ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+            activateEmptySession(recorder, request);
+
+            CaptureStatus status = recorder.stop(false);
+
+            String har = Files.readString(harPath, StandardCharsets.UTF_8);
+            assertTrue(har.contains("api.example.test/users"), "Matching entry must be written.");
+            assertFalse(har.contains("cdn.example.test"), "Non-matching entry must be dropped.");
+            assertTrue(status.warnings().stream().anyMatch(warning ->
+                            warning.contains("kept 1") && warning.contains("dropped 1")),
+                    "Kept/dropped counts must be reported: " + status.warnings());
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(originalTraceEnabled)
+                    .traceIncludeNetwork(originalTraceIncludeNetwork);
+            BrowserObservabilityRecorder.clear();
+        }
+    }
+
+    @Test
+    void savesHarWithoutGlobWritesAllObservedEntriesUnchanged() throws Exception {
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean originalTraceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserObservabilityRecorder.clear();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://api.example.test/users", 200, Map.of(), Map.of(), 5, 0, 0, "", ""));
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://cdn.example.test/app.js", 200, Map.of(), Map.of(), 5, 0, 0, "", ""));
+
+            Path harPath = temp.resolve("unfiltered.har");
+            CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), ""));
+            ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+            activateEmptySession(recorder, request);
+
+            CaptureStatus status = recorder.stop(false);
+
+            String har = Files.readString(harPath, StandardCharsets.UTF_8);
+            assertTrue(har.contains("api.example.test/users"), "All entries must still be written without a glob.");
+            assertTrue(har.contains("cdn.example.test"), "All entries must still be written without a glob.");
+            assertTrue(status.warnings().stream().noneMatch(warning -> warning.contains("Capture HAR glob filter")),
+                    "No filter summary should be logged when no glob is set: " + status.warnings());
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(originalTraceEnabled)
+                    .traceIncludeNetwork(originalTraceIncludeNetwork);
+            BrowserObservabilityRecorder.clear();
+        }
+    }
+
+    private void activateEmptySession(ManagedCaptureRecorder recorder, CaptureStartRequest request) throws Exception {
+        CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
+        store.start(CaptureSession.start(
+                "har-session",
+                Instant.parse("2026-01-02T03:04:05Z"),
+                new BrowserMetadata("chrome", "149", "test", "browser", Map.of())));
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store,
+                request.outputPath(),
+                CapturePrivacyPolicy.defaults(),
+                ignored -> { },
+                ignored -> { });
+        recorder.activeSessionForTesting(store, pipeline);
+    }
+
+    private CaptureStartOptions harOptions(String saveHarPath, String saveHarGlob) {
+        return new CaptureStartOptions(
+                "", "", "", "", "", "", "", false, false,
+                "", "", "", "", "", "", saveHarPath, saveHarGlob, Duration.ZERO, "", null);
     }
 
     private CaptureStartRequest request(CaptureBrowser browser, CaptureStartOptions options) {

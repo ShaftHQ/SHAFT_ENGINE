@@ -218,7 +218,6 @@ public record CaptureStartOptions(
             warnings.add("Codegen target " + targetLanguage + " is accepted for compatibility; SHAFT generates Java TestNG.");
         }
         addIfSet(warnings, channel, "Chromium channel selection is mapped through SHAFT browser selection.");
-        addIfSet(warnings, saveHarGlob, "HAR glob filtering is not yet supported; SHAFT Capture writes all observed network entries.");
         return List.copyOf(warnings);
     }
 

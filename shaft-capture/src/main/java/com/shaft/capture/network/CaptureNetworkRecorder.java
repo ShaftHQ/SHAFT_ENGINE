@@ -451,7 +451,15 @@ public final class CaptureNetworkRecorder implements AutoCloseable {
         }
     }
 
-    private static boolean matchesGlob(String url, String glob) {
+    /**
+     * Matches a URL against a Playwright-style glob (used for both live network include/exclude
+     * filters here and HAR-export filtering in {@code ManagedCaptureRecorder}).
+     *
+     * @param url  URL to test
+     * @param glob glob pattern; a blank glob never matches
+     * @return {@code true} when the URL matches the glob
+     */
+    public static boolean matchesGlob(String url, String glob) {
         if (glob == null || glob.isBlank()) {
             return false;
         }

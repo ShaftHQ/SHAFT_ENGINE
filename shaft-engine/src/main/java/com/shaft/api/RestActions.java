@@ -1268,6 +1268,31 @@ public class RestActions {
         return this;
     }
 
+    /**
+     * Seeds this session's cookies from a SHAFT browser storage-state JSON file
+     * &ndash; the same file format written by
+     * {@code com.shaft.gui.browser.BrowserActions#saveStorageState(String)}.
+     *
+     * @param storageStatePath path to a previously saved storage-state JSON file
+     * @return self-reference to be used for chaining actions
+     */
+    public RestActions importCookiesFromStorageState(String storageStatePath) {
+        Objects.requireNonNull(storageStatePath, "storageStatePath");
+        File file = new File(storageStatePath);
+        try {
+            StorageStateCookies storageState = JACKSON_MAPPER.readValue(file, StorageStateCookies.class);
+            List<StorageStateCookieEntry> cookies = storageState.cookies == null ? List.of() : storageState.cookies;
+            for (StorageStateCookieEntry cookie : cookies) {
+                if (cookie.name != null && !cookie.name.isBlank()) {
+                    putSessionCookie(toRestAssuredCookie(cookie));
+                }
+            }
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("Could not read browser storage state from `" + file.getAbsolutePath() + "`.", e);
+        }
+        return this;
+    }
+
     protected RestAssuredConfig getSessionConfig() {
         return sessionConfig;
     }
@@ -1668,6 +1693,25 @@ public class RestActions {
         return builder.build();
     }
 
+    private static Cookie toRestAssuredCookie(StorageStateCookieEntry cookie) {
+        Cookie.Builder builder = new Cookie.Builder(cookie.name, cookie.value == null ? "" : cookie.value);
+        if (cookie.domain != null && !cookie.domain.isBlank()) {
+            builder.setDomain(cookie.domain);
+        }
+        if (cookie.path != null && !cookie.path.isBlank()) {
+            builder.setPath(cookie.path);
+        }
+        if (cookie.expiry != null) {
+            builder.setExpiryDate(new Date(cookie.expiry));
+        }
+        builder.setSecured(cookie.secure);
+        builder.setHttpOnly(cookie.httpOnly);
+        if (cookie.sameSite != null && !cookie.sameSite.isBlank()) {
+            builder.setSameSite(cookie.sameSite);
+        }
+        return builder.build();
+    }
+
     private static boolean matchesBrowserCookieFilter(org.openqa.selenium.Cookie cookie, String domainFilter, String pathFilter) {
         return matchesFilter(cookie.getDomain(), domainFilter, true)
                 && matchesFilter(cookie.getPath(), pathFilter, false);
@@ -1707,5 +1751,31 @@ public class RestActions {
     /** HTTP methods supported for building API requests. */
     public enum RequestType {
         POST, GET, PATCH, DELETE, PUT
+    }
+
+    /**
+     * Mirrors the top-level shape of a SHAFT browser storage-state JSON file
+     * (see {@code com.shaft.gui.browser.internal.BrowserStorageStateManager}).
+     * Only the {@code cookies} entries are consumed here.
+     */
+    @SuppressWarnings("java:S1104")
+    private static class StorageStateCookies {
+        public String schemaVersion;
+        public String origin;
+        public List<StorageStateCookieEntry> cookies = List.of();
+        public List<Object> origins = List.of();
+    }
+
+    /** A single cookie entry within a storage-state JSON file. */
+    @SuppressWarnings("java:S1104")
+    private static class StorageStateCookieEntry {
+        public String name;
+        public String value;
+        public String domain;
+        public String path;
+        public Long expiry;
+        public boolean secure;
+        public boolean httpOnly;
+        public String sameSite;
     }
 }

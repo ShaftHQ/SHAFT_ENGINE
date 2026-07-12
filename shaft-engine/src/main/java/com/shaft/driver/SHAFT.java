@@ -793,6 +793,21 @@ public class SHAFT {
         }
 
         /**
+         * Creates a new API session pointing at the given base service URI, seeded
+         * with cookies read from a SHAFT browser storage-state JSON file (the same
+         * file produced by {@code driver.browser().saveStorageState(String)}).
+         *
+         * @param serviceURI       the base URI of the target web service
+         *                         (e.g., {@code "https://api.example.com"})
+         * @param storageStatePath path to a storage-state JSON file previously saved
+         *                         from a browser session
+         */
+        public API(String serviceURI, String storageStatePath) {
+            session = new RestActions(serviceURI, this);
+            session.importCookiesFromStorageState(storageStatePath);
+        }
+
+        /**
          * Wraps an existing {@link RestActions} session for continued use.
          *
          * @param existingSession an already-initialised REST session
@@ -950,6 +965,57 @@ public class SHAFT {
             java.util.Objects.requireNonNull(browserActions, "browserActions");
             session.importCookiesFrom(browserActions.getAllCookies(), domainFilter, pathFilter);
             return this;
+        }
+
+        /**
+         * Exports all cookies from this API session into the given browser session.
+         *
+         * @param browserActions browser actions facade to write cookies into
+         * @return this API session for fluent chaining
+         */
+        public API exportCookiesTo(BrowserActionsContract browserActions) {
+            return exportCookiesTo(browserActions, null, null);
+        }
+
+        /**
+         * Exports API session cookies that match the optional domain and path filters into the given browser session.
+         *
+         * @param browserActions browser actions facade to write cookies into
+         * @param domainFilter   optional exact domain filter; pass {@code null} or blank to export every domain
+         * @param pathFilter     optional exact path filter; pass {@code null} or blank to export every path
+         * @return this API session for fluent chaining
+         */
+        public API exportCookiesTo(BrowserActionsContract browserActions, String domainFilter, String pathFilter) {
+            java.util.Objects.requireNonNull(browserActions, "browserActions");
+            session.getCookies().values().stream()
+                    .filter(cookie -> matchesExportCookieFilter(cookie, domainFilter, pathFilter))
+                    .forEach(cookie -> browserActions.addCookie(cookie.getName(), cookie.hasValue() ? cookie.getValue() : ""));
+            return this;
+        }
+
+        private static boolean matchesExportCookieFilter(io.restassured.http.Cookie cookie, String domainFilter, String pathFilter) {
+            return matchesExportFilter(cookie.hasDomain() ? cookie.getDomain() : null, domainFilter, true)
+                    && matchesExportFilter(cookie.hasPath() ? cookie.getPath() : null, pathFilter, false);
+        }
+
+        private static boolean matchesExportFilter(String actual, String filter, boolean domain) {
+            if (filter == null || filter.isBlank()) {
+                return true;
+            }
+            if (actual == null || actual.isBlank()) {
+                return false;
+            }
+            String normalizedActual = domain ? normalizeExportDomain(actual) : actual;
+            String normalizedFilter = domain ? normalizeExportDomain(filter) : filter;
+            return normalizedActual.equals(normalizedFilter);
+        }
+
+        private static String normalizeExportDomain(String domain) {
+            String normalized = domain.toLowerCase(java.util.Locale.ROOT);
+            while (normalized.startsWith(".")) {
+                normalized = normalized.substring(1);
+            }
+            return normalized;
         }
 
         /**
