@@ -1733,6 +1733,20 @@ public class SHAFT {
         }
 
         /**
+         * Logs a message as a visible step in the Allure execution report,
+         * rendered with the exact provided status instead of the current test status.
+         * Failed and broken steps remain visible even while discrete logging is enabled.
+         *
+         * @param message    the message to report
+         * @param stepStatus the exact status to render for this step
+         *                   (e.g., {@link io.qameta.allure.model.Status#PASSED},
+         *                   {@link io.qameta.allure.model.Status#FAILED})
+         */
+        public static void report(String message, io.qameta.allure.model.Status stepStatus) {
+            ReportManager.log(message, stepStatus);
+        }
+
+        /**
          * Attaches a string artifact to the Allure report.
          *
          * @param attachmentType    the MIME type of the attachment (e.g., {@code "text/plain"})

@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.driver.DriverFactory;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -70,7 +71,8 @@ public class YAMLFileManager {
 
         ReportManagerHelper.log(
                 "Loaded YAML test data: \"" + this.filePath + "\".",
-                List.of(testDataFileAttachment)
+                List.of(testDataFileAttachment),
+                CheckpointStatus.PASS
         );
     }
 

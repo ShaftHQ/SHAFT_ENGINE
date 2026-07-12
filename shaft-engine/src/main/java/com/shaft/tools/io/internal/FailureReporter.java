@@ -3,7 +3,6 @@ package com.shaft.tools.io.internal;
 import com.google.common.base.Throwables;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.internal.support.JavaHelper;
-import com.shaft.tools.io.ReportManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,18 +26,27 @@ public class FailureReporter {
                             JavaHelper.convertToSentenceCase(actionName),
                     "Exception Stack Trace", ReportManagerHelper.formatStackTraceToLogEntry(throwable));
             attachments.add(actualValueAttachment);
-            ReportManagerHelper.log(message + rootCause, attachments);
+            ReportManagerHelper.log(message + rootCause, attachments, CheckpointStatus.FAIL);
         }
-        if (message.toLowerCase().contains("assert"))
-            throw new AssertionError(message + rootCause, throwable);
         throw new RuntimeException(message + rootCause, throwable);
     }
 
     public static void fail(String message) {
-        ReportManager.log(message);
-        if (message.toLowerCase().contains("assert"))
-            throw new AssertionError(message);
+        ReportManagerHelper.log(message, null, CheckpointStatus.FAIL);
         throw new RuntimeException(message);
+    }
+
+    /**
+     * Reports a failed assertion checkpoint and throws an {@link AssertionError} so test
+     * runners classify it as a test failure rather than an execution error. Use this for
+     * assertion outcomes; use {@link #fail(String)} for execution failures — the exception
+     * type is never inferred from the message text.
+     *
+     * @param message the assertion failure message
+     */
+    public static void failAssertion(String message) {
+        ReportManagerHelper.log(message, null, CheckpointStatus.FAIL);
+        throw new AssertionError(message);
     }
 
     public static String getRootCause(Throwable throwable) {

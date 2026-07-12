@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.api.internal.OpenApiCoverageReporter;
 import tools.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -221,12 +222,6 @@ public class RestActions {
             enrichedTestData = (testData == null ? "" : testData) + FailureReporter.getRootCause(rootCauseException[0]);
         }
         String message = reportActionResult(actionName, enrichedTestData, requestBody, specs, response, false, null, false, rootCauseException);
-        if (message.toLowerCase().contains("assert")) {
-            if (rootCauseException.length > 0) {
-                throw new AssertionError(message, rootCauseException[0]);
-            }
-            throw new AssertionError(message);
-        }
         if (rootCauseException.length > 0) {
             throw new RuntimeException(message, rootCauseException[0]);
         }
@@ -871,7 +866,8 @@ public class RestActions {
         }
 
         if (Boolean.FALSE.equals(initialLoggingState)) {
-            ReportManagerHelper.log(message, attachments);
+            ReportManagerHelper.log(message, attachments,
+                    Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL);
         } else {
             ReportManager.logDiscrete(message);
         }
@@ -1594,8 +1590,8 @@ public class RestActions {
     }
 
     protected boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
+        boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
         try {
-            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             var statusCode = response.getStatusCode();
             ReportManager.logDiscrete("Response status: " + statusCode + " (" + response.getStatusLine() + ").", Level.DEBUG);
@@ -1614,10 +1610,14 @@ public class RestActions {
                     }
                 }
             }
-            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             return true;
-        } catch (AssertionError rootCauseException) {
+        } catch (AssertionError | RuntimeException rootCauseException) {
+            // failAction reports the failed step and throws an execution exception; returning
+            // false lets the caller surface the status-code mismatch as an AssertionError so
+            // runners classify it as a failed test rather than a broken one.
             return false;
+        } finally {
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         }
     }
 

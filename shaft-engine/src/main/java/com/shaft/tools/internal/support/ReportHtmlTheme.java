@@ -238,6 +238,36 @@ public final class ReportHtmlTheme {
                 details > div { padding: 0 14px 14px; }
                 .muted { color: var(--shaft-text-muted); }
                 .warn { color: var(--shaft-warn); font-weight: 700; }
+                .donut-wrap { position: relative; display: inline-grid; place-items: center; margin-top: 8px; }
+                .donut-center {
+                  position: absolute;
+                  padding: 2px 9px;
+                  border-radius: 999px;
+                  background: var(--shaft-surface);
+                  font-size: 18px;
+                  font-weight: 700;
+                  color: var(--shaft-text);
+                }
+                .chart-legend {
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 4px 14px;
+                  margin-top: 10px;
+                  font-size: 12px;
+                  font-weight: 600;
+                  color: var(--shaft-text-muted);
+                }
+                .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+                .legend-swatch {
+                  display: inline-block;
+                  width: 10px;
+                  height: 10px;
+                  border-radius: 2px;
+                  flex: 0 0 auto;
+                }
+                .legend-swatch.pass { background: var(--shaft-pass); }
+                .legend-swatch.fail { background: var(--shaft-fail); }
+                .legend-swatch.warn { background: var(--shaft-warn); }
                 @media (max-width: 760px) {
                   .report-header-inner { align-items: flex-start; }
                   .report-main, .report-header { padding-left: 14px; padding-right: 14px; }

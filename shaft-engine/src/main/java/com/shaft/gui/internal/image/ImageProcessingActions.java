@@ -1,5 +1,7 @@
 package com.shaft.gui.internal.image;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
+import io.qameta.allure.model.Status;
 import com.google.common.hash.Hashing;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
@@ -432,7 +434,8 @@ public class ImageProcessingActions {
                 ReportManagerHelper.log(
                         "Test Screenshot \"" + relatedTestFileName + "\" and related Reference Image \""
                                 + relatedReferenceFileName + "\" match by \"" + percentage + "\" percent.",
-                        Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
+                        Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment),
+                        percentage >= threshold ? CheckpointStatus.PASS : CheckpointStatus.FAIL);
             } catch (IOException ioEx) {
                 ReportManagerHelper.logDiscrete(ioEx);
                 continue;
@@ -451,9 +454,10 @@ public class ImageProcessingActions {
         }
 
         ReportManager.log("\"" + passedImagesCount + "\" images passed, and \"" + failedImagesCount
-                + "\" images failed the threshold of \"" + threshold + "%\" matching.");
+                        + "\" images failed the threshold of \"" + threshold + "%\" matching.",
+                failedImagesCount > 0 ? Status.FAILED : Status.PASSED);
         if (failedImagesCount > 0) {
-            FailureReporter.fail("\"" + failedImagesCount + "\" images failed the threshold of \""
+            FailureReporter.failAssertion("\"" + failedImagesCount + "\" images failed the threshold of \""
                     + threshold + "%\" matching.");
         }
 

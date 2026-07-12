@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.tools.internal.support.JavaHelper;
@@ -62,7 +63,7 @@ public class JSONFileManager {
         byte[] raw = readJsonBytes();
         List<Object> testDataFileAttachment = Arrays.asList("Test Data", "JSON", new ByteArrayInputStream(raw));
         attachments.add(testDataFileAttachment);
-        ReportManagerHelper.log("Loaded JSON test data: \"" + jsonFilePath + "\".", attachments);
+        ReportManagerHelper.log("Loaded JSON test data: \"" + jsonFilePath + "\".", attachments, CheckpointStatus.PASS);
     }
 
     /**

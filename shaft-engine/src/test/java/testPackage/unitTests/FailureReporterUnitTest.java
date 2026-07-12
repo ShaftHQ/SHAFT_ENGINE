@@ -78,13 +78,26 @@ public class FailureReporterUnitTest {
         }
     }
 
-    @Test(description = "fail(message): message containing 'assert' throws AssertionError")
-    public void failWithAssertMessageThrowsAssertionError() {
+    @Test(description = "fail(message): message containing 'assert' still throws RuntimeException — kind is explicit, never text-inferred")
+    public void failWithAssertWordingStillThrowsRuntimeException() {
         try {
             FailureReporter.fail("assertion failed for element");
+            Assert.fail("Expected RuntimeException to be thrown");
+        } catch (RuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("assertion failed"),
+                    "RuntimeException message should contain the original message");
+        }
+    }
+
+    // ─── failAssertion(String) ────────────────────────────────────────────────
+
+    @Test(description = "failAssertion(message): throws AssertionError regardless of message wording")
+    public void failAssertionThrowsAssertionError() {
+        try {
+            FailureReporter.failAssertion("expected value did not match");
             Assert.fail("Expected AssertionError to be thrown");
         } catch (AssertionError e) {
-            Assert.assertTrue(e.getMessage().contains("assertion failed"),
+            Assert.assertTrue(e.getMessage().contains("expected value did not match"),
                     "AssertionError message should contain the original message");
         }
     }
@@ -102,13 +115,13 @@ public class FailureReporterUnitTest {
         }
     }
 
-    @Test(description = "fail(class, message with assert, throwable): throws AssertionError")
-    public void failWithClassAndAssertMessageThrowsAssertionError() {
+    @Test(description = "fail(class, message with assert, throwable): throws RuntimeException — kind is explicit, never text-inferred")
+    public void failWithClassAndAssertWordingThrowsRuntimeException() {
         Throwable rootCause = new RuntimeException("inner");
         try {
             FailureReporter.fail(FailureReporterUnitTest.class, "assertion failed here", rootCause);
-            Assert.fail("Expected AssertionError to be thrown");
-        } catch (AssertionError e) {
+            Assert.fail("Expected RuntimeException to be thrown");
+        } catch (RuntimeException e) {
             Assert.assertNotNull(e.getMessage());
         }
     }

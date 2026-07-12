@@ -1,5 +1,6 @@
 package com.shaft.cli;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.google.common.hash.Hashing;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
@@ -817,10 +818,11 @@ public class FileActions {
         if (parentMethod.getClassName().contains("shaft")) {
             ReportManager.logDiscrete(message);
         } else {
+            CheckpointStatus status = Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
             if (!attachments.isEmpty()) {
-                ReportManagerHelper.log(message, attachments);
+                ReportManagerHelper.log(message, attachments, status);
             } else {
-                ReportManager.log(message);
+                ReportManagerHelper.log(message, null, status);
             }
         }
 

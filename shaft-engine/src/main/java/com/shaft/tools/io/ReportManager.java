@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import io.qameta.allure.model.Status;
 import org.apache.logging.log4j.Level;
 
 import static com.shaft.tools.io.internal.ReportManagerHelper.*;
@@ -31,7 +32,7 @@ public class ReportManager {
      */
     public static void log(String logText) {
         if (logText != null && !logText.isBlank()) {
-            if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+            if (getDiscreteLogging() && isInternalStep()) {
                 createLogEntry(logText, Level.INFO);
             } else {
                 writeStepToReport(logText);
@@ -47,10 +48,31 @@ public class ReportManager {
      */
     public static void log(String logText, Level logLevel) {
         if (logText != null && !logText.isBlank()) {
-            if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+            if (getDiscreteLogging() && isInternalStep()) {
                 createLogEntry(logText, logLevel);
             } else {
                 writeStepToReport(logText, logLevel);
+            }
+        }
+    }
+
+    /**
+     * Creates a custom log entry that will also be added as a step in the execution report,
+     * rendered with the exact provided status instead of inferring it from the log text.
+     *
+     * <p>Failed and broken steps are always visible in the execution report, even while
+     * discrete logging is enabled, and are logged to the console at ERROR level.
+     *
+     * @param logText    the text that will be logged by action
+     * @param stepStatus the exact status to render for this step (e.g., {@link Status#PASSED}, {@link Status#FAILED})
+     */
+    public static void log(String logText, Status stepStatus) {
+        if (logText != null && !logText.isBlank()) {
+            boolean isFailure = Status.FAILED.equals(stepStatus) || Status.BROKEN.equals(stepStatus);
+            if (!isFailure && getDiscreteLogging() && isInternalStep()) {
+                createLogEntry(logText, Level.INFO);
+            } else {
+                writeStepToReport(logText, isFailure ? Level.ERROR : Level.INFO, stepStatus);
             }
         }
     }

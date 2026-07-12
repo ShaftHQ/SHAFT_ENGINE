@@ -13,6 +13,7 @@ import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
+import io.qameta.allure.model.StepResult;
 import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.log4j.BasicConfigurator;
@@ -38,7 +39,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 
 //@Getter
@@ -52,6 +52,9 @@ public class ReportManagerHelper {
     private static final long ASYNC_LOG_DRAIN_TIMEOUT_MILLIS = 2_000L;
     private static final String LINE_SEPARATOR = System.lineSeparator();
     private static final int SEPARATOR_WIDTH = 144;
+    // Debug-mode echo of attachment content into the engine log is capped so huge
+    // payloads (page sources, API bodies) cannot balloon the log or the heap.
+    private static final int MAX_ATTACHMENT_DEBUG_ECHO_BYTES = 32 * 1024;
     private static final String SEPARATOR_DOUBLE_LINE = "═".repeat(SEPARATOR_WIDTH);
     // ANSI escape code constants for consistent console coloring
     private static final String ANSI_RESET = "\033[0m";
@@ -629,37 +632,27 @@ public class ReportManagerHelper {
         if (engineLog.length == 0) {
             return new byte[0];
         }
-        Path source = null;
-        Path snapshot = null;
-        try {
-            source = Files.createTempFile("shaft-engine-log-source-", ".txt");
-            Files.write(source, engineLog);
-            snapshot = createDeduplicatedLogSnapshot(source);
-            return Files.readAllBytes(snapshot);
-        } catch (IOException e) {
-            logDebugFileSetupFailure("Could not deduplicate engine log in a temporary snapshot.", e);
-            return engineLog;
-        } finally {
-            try {
-                if (source != null) {
-                    Files.deleteIfExists(source);
-                }
-                if (snapshot != null) {
-                    Files.deleteIfExists(snapshot);
-                }
-            } catch (IOException e) {
-                logDebugFileSetupFailure("Could not delete temporary engine log deduplication files.", e);
+        var deduplicated = new StringBuilder(engineLog.length);
+        String previousLine = null;
+        for (String currentLine : new String(engineLog, StandardCharsets.UTF_8).split("\\R", -1)) {
+            if (!currentLine.equals(previousLine)) {
+                deduplicated.append(currentLine).append(System.lineSeparator());
+                previousLine = currentLine;
             }
         }
+        return deduplicated.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     public static void attachIssuesLog(String executionEndTimestamp) {
         String issueSummary = prepareIssuesLog();
         if (!issuesLog.get().trim().isEmpty()) {
+            boolean hasFailingTestIssues = failedTestsWithoutOpenIssuesCounter.get() > 0
+                    || openIssuesForFailedTestsCounter.get() > 0;
             log(issueSummary,
                     Collections.singletonList(
                             Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Issues log CSV: " + executionEndTimestamp,
-                                    new ByteArrayInputStream(issuesLog.get().trim().getBytes(StandardCharsets.UTF_8)))));
+                                    new ByteArrayInputStream(issuesLog.get().trim().getBytes(StandardCharsets.UTF_8)))),
+                    hasFailingTestIssues ? CheckpointStatus.FAIL : CheckpointStatus.PASS);
         }
     }
 
@@ -880,7 +873,7 @@ public class ReportManagerHelper {
     public static void writeStepToReport(String logText) {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, true);
-            Allure.step(logText, getStepStatus(logText));
+            Allure.step(logText, getStepStatus());
         }
     }
 
@@ -894,15 +887,48 @@ public class ReportManagerHelper {
     public static void writeStepToReport(String logText, Level logLevel) {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, logLevel);
-            Allure.step(logText, getStepStatus(logText));
+            Allure.step(logText, getStepStatus());
         }
     }
 
-    private static Status getStepStatus(String logText) {
-        if (logText != null && logText.toLowerCase().contains("failed")) {
-            return Status.FAILED;
+    /**
+     * Formats logText and adds timestamp, then logs it as a step in the execution
+     * report with an explicitly provided step status.
+     *
+     * @param logText    the text that needs to be logged in this action
+     * @param logLevel   the log level to use for the console log entry
+     * @param stepStatus the exact status to render for this step in the execution report
+     */
+    public static void writeStepToReport(String logText, Level logLevel, Status stepStatus) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
+            createLogEntry(logText, logLevel);
+            Allure.step(logText, stepStatus);
         }
+    }
 
+    /**
+     * Formats logText and adds timestamp, then logs it as a step in the execution
+     * report with an explicitly provided step status and a real start timestamp, so
+     * the step reflects the actual duration of the work it summarizes instead of
+     * rendering as a zero-duration entry.
+     *
+     * @param logText         the text that needs to be logged in this action
+     * @param logLevel        the log level to use for the console log entry
+     * @param stepStatus      the exact status to render for this step in the execution report
+     * @param stepStartMillis epoch milliseconds at which the summarized work started
+     */
+    public static void writeStepToReport(String logText, Level logLevel, Status stepStatus, long stepStartMillis) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
+            createLogEntry(logText, logLevel);
+            var lifecycle = Allure.getLifecycle();
+            var uuid = UUID.randomUUID().toString();
+            lifecycle.startStep(uuid, new StepResult().setName(logText).setStatus(stepStatus));
+            lifecycle.updateStep(uuid, step -> step.setStart(stepStartMillis));
+            lifecycle.stopStep(uuid);
+        }
+    }
+
+    private static Status getStepStatus() {
         Status currentStatus = ReportContext.getStatus();
         return currentStatus == null ? Status.PASSED : currentStatus;
     }
@@ -972,12 +998,12 @@ public class ReportManagerHelper {
                 && !attachmentType.toLowerCase().contains("engine logs")) {
             String timestamp = TIMESTAMP_FORMATTER.format(ZonedDateTime.now());
 
-            String theString = "";
-            try (var br = new BufferedReader(
-                    new InputStreamReader(new ByteArrayInputStream(attachmentContent.toByteArray()), StandardCharsets.UTF_8))) {
-                theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
-            } catch (IOException e) {
-                logDiscrete(e);
+            byte[] contentBytes = attachmentContent.toByteArray();
+            int echoedLength = Math.min(contentBytes.length, MAX_ATTACHMENT_DEBUG_ECHO_BYTES);
+            String theString = new String(contentBytes, 0, echoedLength, StandardCharsets.UTF_8);
+            if (contentBytes.length > echoedLength) {
+                theString += System.lineSeparator() + "... [truncated attachment debug echo at "
+                        + MAX_ATTACHMENT_DEBUG_ECHO_BYTES + " of " + contentBytes.length + " bytes]";
             }
             if (!theString.isEmpty()) {
                 String logEntry = REPORT_MANAGER_PREFIX + "Attachment debug content @" + timestamp
@@ -1041,11 +1067,13 @@ public class ReportManagerHelper {
         }
     }
 
-    public static void log(String logText, List<List<Object>> attachments) {
+    public static void log(String logText, List<List<Object>> attachments, CheckpointStatus status) {
         if (!SHAFT.Properties.reporting.disableLogging()) {
-            if (!logText.toLowerCase().contains("failed") && getDiscreteLogging() && isInternalStep()) {
+            boolean hasAttachments = attachments != null && !attachments.isEmpty()
+                    && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()));
+            if (status != CheckpointStatus.FAIL && getDiscreteLogging() && isInternalStep()) {
                 createLogEntry(logText, Level.DEBUG);
-                if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()))) {
+                if (hasAttachments) {
                     attachments.forEach(attachment -> {
                         if (attachment != null && !attachment.isEmpty()) {
                             if (attachment.get(2) instanceof String string) {
@@ -1062,20 +1090,19 @@ public class ReportManagerHelper {
                     });
                 }
             } else {
-                if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.getFirst() != null && !attachments.getFirst().isEmpty()))) {
-                    CheckpointStatus status = (!logText.toLowerCase().contains("fail")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
+                if (hasAttachments) {
                     writeStepToReport(logText, attachments, status);
                 } else {
-                    writeStepToReport(logText);
+                    writeStepToReport(logText,
+                            status == CheckpointStatus.FAIL ? Level.ERROR : Level.INFO,
+                            status == CheckpointStatus.FAIL ? Status.FAILED : Status.PASSED);
                 }
             }
         }
     }
 
-    public static void logNestedSteps(String logText, List<String> customLogMessages, List<List<Object>> attachments) {
-        CheckpointStatus status = (logText.toLowerCase().contains("passed")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
-        CheckpointType type = (logText.toLowerCase().contains("verification")) ? CheckpointType.VERIFICATION : CheckpointType.ASSERTION;
-
+    public static void logNestedSteps(String logText, List<String> customLogMessages, List<List<Object>> attachments,
+                                      CheckpointStatus status, CheckpointType type) {
         if (type.equals(CheckpointType.VERIFICATION) && status.equals(CheckpointStatus.FAIL)
                 || !SHAFT.Properties.reporting.disableLogging()) {
             if (customLogMessages != null && !customLogMessages.isEmpty() && !customLogMessages.getFirst().trim().isEmpty()) {
@@ -1097,7 +1124,9 @@ public class ReportManagerHelper {
                 if (attachments != null && !attachments.isEmpty() && !attachments.getFirst().isEmpty()) {
                     writeStepToReport(logText, attachments, status);
                 } else {
-                    writeStepToReport(logText);
+                    writeStepToReport(logText,
+                            status == CheckpointStatus.FAIL ? Level.ERROR : Level.INFO,
+                            status == CheckpointStatus.FAIL ? Status.FAILED : Status.PASSED);
                 }
                 CheckpointCounter.increment(type, logText, status);
                 ExecutionSummaryReport.validationsIncrement(status);
@@ -1152,10 +1181,12 @@ public class ReportManagerHelper {
         logText = formatStackTraceToLogEntry(throwable);
         if (throwable.getMessage() != null) {
             log("Exception occurred with message: " + throwable.getMessage().split("\n")[0].trim() + ".",
-                    Collections.singletonList(Arrays.asList("Exception Stack Trace", throwable.getClass().getName(), logText)));
+                    Collections.singletonList(Arrays.asList("Exception Stack Trace", throwable.getClass().getName(), logText)),
+                    CheckpointStatus.FAIL);
         } else {
             log("Exception occurred.",
-                    Collections.singletonList(Arrays.asList("Exception Stack Trace", throwable.getClass().getName(), logText)));
+                    Collections.singletonList(Arrays.asList("Exception Stack Trace", throwable.getClass().getName(), logText)),
+                    CheckpointStatus.FAIL);
         }
     }
 

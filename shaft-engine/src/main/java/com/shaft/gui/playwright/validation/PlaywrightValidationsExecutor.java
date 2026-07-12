@@ -138,9 +138,10 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     @Step(" {this.validationCategoryString} that {this.customReportMessage}")
     private void performPlaywrightValidation() {
+        long validationStartTime = System.currentTimeMillis();
         Outcome outcome = evaluate();
         updateAllureParameters(outcome.parameters());
-        reportValidationState(outcome);
+        reportValidationState(outcome, validationStartTime);
     }
 
     private Outcome evaluate() {
@@ -558,9 +559,9 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         Allure.getLifecycle().updateStep(stepResult -> stepResult.setParameters(allureParameters));
     }
 
-    private void reportValidationState(Outcome outcome) {
+    private void reportValidationState(Outcome outcome, long validationStartTime) {
         ValidationsHelper.reportValidationState(validationCategory, outcome.passed(), outcome.expected(),
-                outcome.actual(), attachments(outcome));
+                outcome.actual(), attachments(outcome), validationStartTime);
     }
 
     private List<List<Object>> attachments(Outcome outcome) {

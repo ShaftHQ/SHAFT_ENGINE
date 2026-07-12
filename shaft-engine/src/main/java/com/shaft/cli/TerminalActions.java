@@ -1,5 +1,6 @@
 package com.shaft.cli;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.jcraft.jsch.*;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
@@ -306,10 +307,11 @@ public class TerminalActions implements AutoCloseable {
             attachments.add(actualValueAttachment);
         }
 
+        CheckpointStatus status = Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
         if (!attachments.isEmpty()) {
-            ReportManagerHelper.log(message, attachments);
+            ReportManagerHelper.log(message, attachments, status);
         } else {
-            ReportManager.log(message);
+            ReportManagerHelper.log(message, null, status);
         }
 
         return message;
