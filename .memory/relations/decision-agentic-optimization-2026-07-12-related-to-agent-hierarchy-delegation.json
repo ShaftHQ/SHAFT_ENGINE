@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:53f4d63e3d79fc6d67db668907ca5ea23ef9d51e102efe64c812a8a319014b3a",
+  "created_at": "2026-07-12T09:07:07+03:00",
+  "from": "decision.2026-07-12-agentic-optimization-model-routing-codified-guidance-budget-68-user-level-skills-ponytail-shaft-mastery",
+  "id": "rel.decision-agentic-optimization-2026-07-12-related-to-agent-hierarchy-delegation",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "decision.agent-hierarchy-main-thread-only-with-two-bounded-delegation-exceptions",
+  "updated_at": "2026-07-12T09:07:07+03:00"
+}

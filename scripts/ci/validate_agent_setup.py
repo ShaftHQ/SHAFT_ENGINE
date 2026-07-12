@@ -41,6 +41,14 @@ GENERATED_MEMORY_PATHS = {
     ".memory/.backup/",
     ".memory/.lock",
 }
+# The Memory CLI derives relation filenames by concatenating the "from" and
+# "to" object ids around the predicate, with no length cap of its own. A
+# single overlong pair once produced a 220-character filename that broke
+# Windows checkouts (MAX_PATH) even with a short workspace prefix. Cap
+# canonical memory basenames well above the longest legitimate name on record
+# (133 characters) so new drift is caught before it reaches a clone.
+MAX_MEMORY_BASENAME_LENGTH = 160
+MEMORY_CANONICAL_GLOBS = ("memory/**/*.json", "memory/**/*.md", "relations/*.json")
 
 
 def issue(code: str, path: str, message: str) -> dict[str, str]:
@@ -117,6 +125,19 @@ def validate_memory_setup(root: Path = ROOT) -> list[dict[str, str]]:
         errors.append(
             issue("memory-ignore", ".gitignore", f"generated path is not ignored: {generated_path}")
         )
+
+    memory_dir = root / ".memory"
+    for pattern in MEMORY_CANONICAL_GLOBS:
+        for memory_path in sorted(memory_dir.glob(pattern)):
+            if len(memory_path.name) > MAX_MEMORY_BASENAME_LENGTH:
+                errors.append(
+                    issue(
+                        "memory-filename-length",
+                        str(memory_path.relative_to(root)),
+                        f"basename exceeds {MAX_MEMORY_BASENAME_LENGTH} characters "
+                        "(risks Windows MAX_PATH on checkout); shorten the object/relation id",
+                    )
+                )
 
     codex_content = (root / ".codex/config.toml").read_text(encoding="utf-8")
     server_content = toml_section(codex_content, "mcp_servers.shaft-memory")
