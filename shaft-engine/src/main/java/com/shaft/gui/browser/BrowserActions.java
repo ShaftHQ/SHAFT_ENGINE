@@ -10,6 +10,7 @@ import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.BrowserNetworkProfileManager;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
+import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.locator.LocatorBuilder;
@@ -784,6 +785,26 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
         HttpContractRecorder.browserReplayRules(contractFilePath)
                 .forEach(rule -> driverFactoryHelper.registerBrowserNetworkInterceptionRule(rule));
         browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Loaded HTTP contract replay rules.");
+        return this;
+    }
+
+    /**
+     * Replays recorded HAR (HTTP Archive) responses through the browser network interceptor.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().routeFromHar("src/test/resources/har/checkout.har");
+     * driver.browser().navigateToURL("https://shop.example/checkout");
+     * }</pre>
+     *
+     * @param harFilePath path to a HAR 1.2 JSON file
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions routeFromHar(String harFilePath) {
+        HarReplayRules.buildRules(harFilePath)
+                .forEach(rule -> driverFactoryHelper.registerBrowserNetworkInterceptionRule(rule));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Loaded HAR replay rules.");
         return this;
     }
 

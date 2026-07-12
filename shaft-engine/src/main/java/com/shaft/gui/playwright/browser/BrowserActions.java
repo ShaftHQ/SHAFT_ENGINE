@@ -9,6 +9,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.NetworkInterceptionRequestBuilder;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
+import com.shaft.gui.browser.internal.HarReplayRules;
 import com.shaft.gui.browser.internal.PlaywrightStorageStateManager;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.gui.playwright.validation.PlaywrightBrowserValidationsBuilder;
@@ -270,6 +271,26 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
         HttpContractRecorder.browserReplayRules(contractFilePath)
                 .forEach(rule -> session.networkInterceptor().addRule(rule));
         ReportManager.log("Loaded HTTP contract replay rules.");
+        return this;
+    }
+
+    /**
+     * Replays recorded HAR (HTTP Archive) responses through the Playwright network interceptor.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().routeFromHar("src/test/resources/har/checkout.har");
+     * driver.browser().navigateToURL("https://shop.example/checkout");
+     * }</pre>
+     *
+     * @param harFilePath path to a HAR 1.2 JSON file
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions routeFromHar(String harFilePath) {
+        HarReplayRules.buildRules(harFilePath)
+                .forEach(rule -> session.networkInterceptor().addRule(rule));
+        ReportManager.log("Loaded HAR replay rules.");
         return this;
     }
 

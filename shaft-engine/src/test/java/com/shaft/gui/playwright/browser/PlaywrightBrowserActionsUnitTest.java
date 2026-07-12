@@ -27,11 +27,15 @@ import static org.mockito.Mockito.when;
 
 public class PlaywrightBrowserActionsUnitTest {
     private Path storageStateFile;
+    private Path harFile;
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         if (storageStateFile != null) {
             Files.deleteIfExists(storageStateFile);
+        }
+        if (harFile != null) {
+            Files.deleteIfExists(harFile);
         }
     }
 
@@ -82,5 +86,39 @@ public class PlaywrightBrowserActionsUnitTest {
         AccessibilityActions accessibility = actions.accessibility();
 
         Assert.assertNotNull(accessibility);
+    }
+
+    @Test
+    public void shouldRegisterRouteFromHarThroughPlaywrightNetworkInterceptor() throws Exception {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        BrowserContext context = mock(BrowserContext.class);
+        Page page = mock(Page.class);
+        AtomicReference<Consumer<Route>> handler = new AtomicReference<>();
+        when(session.browserContext()).thenReturn(context);
+        when(session.page()).thenReturn(page);
+        when(session.networkInterceptor()).thenReturn(new PlaywrightNetworkInterceptor(context));
+        when(context.route(eq("**/*"), any())).thenAnswer(invocation -> {
+            handler.set(invocation.getArgument(1));
+            return (AutoCloseable) () -> { };
+        });
+        BrowserActions actions = new BrowserActions(session);
+
+        harFile = Files.createTempFile("shaft-pw-wiring-har", ".har");
+        Files.writeString(harFile, """
+                {
+                  "log": {
+                    "version": "1.2",
+                    "entries": [
+                      {
+                        "request": {"method": "GET", "url": "https://shop.test/api/items"},
+                        "response": {"status": 200, "headers": [], "content": {"text": "{\\"ok\\":true}"}}
+                      }
+                    ]
+                  }
+                }
+                """);
+
+        Assert.assertSame(actions.routeFromHar(harFile.toString()), actions);
+        Assert.assertNotNull(handler.get());
     }
 }

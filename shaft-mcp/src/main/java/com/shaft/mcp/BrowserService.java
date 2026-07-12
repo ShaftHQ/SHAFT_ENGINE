@@ -400,6 +400,56 @@ public class BrowserService {
     }
 
     /**
+     * Saves the active browser session's cookies, {@code localStorage}, and {@code sessionStorage} to a
+     * JSON file.
+     *
+     * @param filePath workspace-relative or workspace-contained output file path
+     * @return the absolute path the storage state was written to
+     */
+    @Tool(name = "browser_storage_state_save",
+            description = "saves the active browser session's cookies, localStorage, and sessionStorage to a JSON file")
+    public String saveStorageState(String filePath) {
+        try {
+            SHAFT.GUI.WebDriver driver = getDriver();
+            Path resolved = workspacePolicy.output(filePath, "Storage state output path");
+            driver.browser().saveStorageState(resolved.toString());
+            logger.info("Browser storage state saved (path length: {}).", resolved.toString().length());
+            return resolved.toString();
+        } catch (Exception e) {
+            logger.error("Failed to save browser storage state.", e);
+            throw e;
+        }
+    }
+
+    /**
+     * Loads cookies, {@code localStorage}, and {@code sessionStorage} from a JSON file into the active
+     * browser session.
+     *
+     * <p>Navigate to the target origin before loading storage state so browser cookie domain rules can
+     * apply.
+     *
+     * @param filePath workspace-contained source JSON file path
+     * @return a short confirmation including the resolved path and restored cookie count
+     */
+    @Tool(name = "browser_storage_state_load",
+            description = "loads cookies, localStorage, and sessionStorage from a JSON file into the active "
+                    + "browser session; navigate to the target origin first")
+    public String loadStorageState(String filePath) {
+        try {
+            SHAFT.GUI.WebDriver driver = getDriver();
+            Path resolved = workspacePolicy.existing(filePath, "Storage state input path");
+            driver.browser().loadStorageState(resolved.toString());
+            int cookieCount = driver.browser().getAllCookies().size();
+            logger.info("Browser storage state loaded (path length: {}, cookies: {}).",
+                    resolved.toString().length(), cookieCount);
+            return "Loaded browser storage state from " + resolved + " (cookies restored: " + cookieCount + ")";
+        } catch (Exception e) {
+            logger.error("Failed to load browser storage state.", e);
+            throw e;
+        }
+    }
+
+    /**
      * Captures an accessible-name-tree aria snapshot (SHAFT's YAML subset of Playwright's aria snapshot
      * DSL) of the whole page or a single element for MCP browser automation inspection.
      *
