@@ -82,6 +82,7 @@ public final class PickLocatorAtCaretAction extends AnAction implements DumbAwar
             case TOOL_FAILURE -> ShaftNotifier.warn(project, "SHAFT", "Pick Locator failed: " + outcome.detail());
             case NO_PICK -> ShaftNotifier.warn(project, "SHAFT", NO_PICK_MESSAGE);
             case SNIPPET -> insertSnippet(project, editor, outcome.detail());
+            default -> ShaftNotifier.warn(project, "SHAFT", "Pick Locator returned an unexpected outcome: " + outcome.kind());
         }
     }
 
