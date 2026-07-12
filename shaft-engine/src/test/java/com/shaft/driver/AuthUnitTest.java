@@ -129,10 +129,10 @@ public class AuthUnitTest {
         useTempAuthCacheDir();
         String name = "flakyUser";
         SHAFT.Auth.flowRunner((flow, path) -> {
-            throw new RuntimeException("login failed");
+            throw new IllegalStateException("login failed");
         });
 
-        assertThrows(RuntimeException.class, () -> SHAFT.Auth.setup(name, driver -> { }));
+        assertThrows(IllegalStateException.class, () -> SHAFT.Auth.setup(name, driver -> { }));
         assertFalse(Files.exists(Path.of(SHAFT.Auth.stateFile(name))), "A failed flow must not leave a cache file behind.");
 
         AtomicInteger secondAttemptInvocations = new AtomicInteger();
@@ -171,7 +171,7 @@ public class AuthUnitTest {
         String authCacheDir = SHAFT.Properties.paths.authCache();
         ExecutorService pool = Executors.newFixedThreadPool(threadCount);
         try {
-            List<Future_> futures = new CopyOnWriteArrayList<>();
+            List<String> results = new CopyOnWriteArrayList<>();
             for (int i = 0; i < threadCount; i++) {
                 pool.submit(() -> {
                     // SHAFT.Properties overrides are thread-local (mirrors real parallel-suite
@@ -184,7 +184,7 @@ public class AuthUnitTest {
                         Thread.currentThread().interrupt();
                     }
                     String result = SHAFT.Auth.setup(name, driver -> { });
-                    futures.add(new Future_(result));
+                    results.add(result);
                 });
             }
             assertTrue(readyLatch.await(5, TimeUnit.SECONDS), "All worker threads should reach the start line.");
@@ -193,9 +193,9 @@ public class AuthUnitTest {
             assertTrue(pool.awaitTermination(10, TimeUnit.SECONDS), "All setup() calls should complete.");
 
             assertEquals(invocationCount.get(), 1, "flowRunner must run exactly once across all concurrent callers for the same name.");
-            assertEquals(futures.size(), threadCount);
-            for (Future_ future : futures) {
-                assertEquals(future.value, SHAFT.Auth.stateFile(name));
+            assertEquals(results.size(), threadCount);
+            for (String result : results) {
+                assertEquals(result, SHAFT.Auth.stateFile(name));
             }
         } finally {
             pool.shutdownNow();
@@ -215,15 +215,6 @@ public class AuthUnitTest {
     private static final class UncheckedIOExceptionForTest extends RuntimeException {
         UncheckedIOExceptionForTest(IOException cause) {
             super(cause);
-        }
-    }
-
-    /** Minimal holder to collect a result string from worker threads without importing extra utilities. */
-    private static final class Future_ {
-        final String value;
-
-        Future_(String value) {
-            this.value = value;
         }
     }
 }

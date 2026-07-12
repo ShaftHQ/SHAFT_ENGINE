@@ -184,12 +184,12 @@ class NetworkBodyStoreTest {
     }
 
     @Test
-    void testReadBytesNullRef_ReturnsEmptyArray() {
+    void readBytesShouldReturnEmptyArrayForNullRef() {
         assertEquals(0, store.readBytes(null, sessionDir).length);
     }
 
     @Test
-    void testReadBytesTamperedFile_DigestMismatchReturnsEmptyArray() throws Exception {
+    void readBytesShouldReturnEmptyArrayOnDigestMismatch() throws Exception {
         byte[] body = "{\"id\":\"abc-123\"}".getBytes(StandardCharsets.UTF_8);
         BodyRef ref = store.store(body, "application/json", sessionDir);
         Files.write(sessionDir.resolve(ref.ref()), "{\"id\":\"tampered\"}".getBytes(StandardCharsets.UTF_8));

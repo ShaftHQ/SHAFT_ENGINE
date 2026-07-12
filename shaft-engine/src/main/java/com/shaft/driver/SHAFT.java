@@ -1221,17 +1221,9 @@ public class SHAFT {
         // running the login flow; different names run fully in parallel.
         private static final Map<String, Object> LOCKS = new ConcurrentHashMap<>();
 
-        /**
-         * Drives a cache-miss: create a driver, run the login {@code flow} against it, save its
-         * storage state to {@code path}, then quit it. Package-private seam so unit tests can stub out
-         * real driver/browser creation and assert the cache-hit/cache-miss/locking decision logic in
-         * {@link #setup(String, Consumer)} in isolation.
-         */
-        @FunctionalInterface
-        interface FlowRunner {
-            void run(Consumer<GUI.WebDriver> flow, String path);
-        }
-
+        // The default runner drives a real cache-miss: create a driver, run the login flow against
+        // it, save its storage state, then quit it. Held in an AtomicReference so unit tests can
+        // stub the driver lifecycle via the package-private flowRunner(...) seam.
         private static final java.util.concurrent.atomic.AtomicReference<FlowRunner> FLOW_RUNNER =
                 new java.util.concurrent.atomic.AtomicReference<>((flow, path) -> {
                     GUI.WebDriver driver = new GUI.WebDriver();
@@ -1242,6 +1234,17 @@ public class SHAFT {
                         driver.quit();
                     }
                 });
+
+        /**
+         * Drives a cache-miss: create a driver, run the login {@code flow} against it, save its
+         * storage state to {@code path}, then quit it. Package-private seam so unit tests can stub out
+         * real driver/browser creation and assert the cache-hit/cache-miss/locking decision logic in
+         * {@link #setup(String, Consumer)} in isolation.
+         */
+        @FunctionalInterface
+        interface FlowRunner {
+            void run(Consumer<GUI.WebDriver> flow, String path);
+        }
 
         static FlowRunner flowRunner() {
             return FLOW_RUNNER.get();
