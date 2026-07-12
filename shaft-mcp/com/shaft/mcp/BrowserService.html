@@ -72,6 +72,8 @@
 <li><a href="#getPageDom(int)" tabindex="0">getPageDom(int)</a></li>
 <li><a href="#openForIntent(java.lang.String,java.lang.String,int,int)" tabindex="0">openForIntent(String, String, int, int)</a></li>
 <li><a href="#takeScreenshot(java.lang.String,boolean)" tabindex="0">takeScreenshot(String, boolean)</a></li>
+<li><a href="#ariaSnapshot(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">ariaSnapshot(locatorStrategy, String)</a></li>
+<li><a href="#accessibilityAudit(java.lang.String...)" tabindex="0">accessibilityAudit(String...)</a></li>
 </ol>
 </li>
 </ol>
@@ -118,11 +120,24 @@
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#addCookie(java.lang.String,java.lang.String)" class="member-name-link">addCookie</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpAccessibilityAuditResult.html" title="class in com.shaft.mcp">McpAccessibilityAuditResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#accessibilityAudit(java.lang.String...)" class="member-name-link">accessibilityAudit</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;wcagTags)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the
+violations found.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#addCookie(java.lang.String,java.lang.String)" class="member-name-link">addCookie</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Adds a cookie to the current browser session.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#ariaSnapshot(com.shaft.mcp.locatorStrategy,java.lang.String)" class="member-name-link">ariaSnapshot</a><wbr>(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Captures an accessible-name-tree aria snapshot (SHAFT's YAML subset of Playwright's aria snapshot
+DSL) of the whole page or a single element for MCP browser automation inspection.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteAllCookies()" class="member-name-link">deleteAllCookies</a>()</code></div>
@@ -510,6 +525,47 @@
 <dd><code>includeBase64</code> - whether to include the PNG bytes as base64 in the response</dd>
 <dt>Returns:</dt>
 <dd>screenshot metadata and optional base64 payload</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="ariaSnapshot(com.shaft.mcp.locatorStrategy,java.lang.String)">
+<h3>ariaSnapshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="browser_aria_snapshot",
+      description="captures an accessible-name-tree aria snapshot (YAML) of the whole page, or of one element when a locator is supplied")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">ariaSnapshot</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue)</span></div>
+<div class="block">Captures an accessible-name-tree aria snapshot (SHAFT's YAML subset of Playwright's aria snapshot
+DSL) of the whole page or a single element for MCP browser automation inspection.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>locatorStrategy</code> - locator strategy; leave unset together with locatorValue to snapshot the
+                       whole page</dd>
+<dd><code>locatorValue</code> - locator value; leave blank to snapshot the whole page</dd>
+<dt>Returns:</dt>
+<dd>the aria snapshot serialized as YAML</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="accessibilityAudit(java.lang.String...)">
+<h3>accessibilityAudit</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="browser_accessibility_audit",
+      description="runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the violations found; never fails the call when violations exist")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAccessibilityAuditResult.html" title="class in com.shaft.mcp">McpAccessibilityAuditResult</a></span>&nbsp;<span class="element-name">accessibilityAudit</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;wcagTags)</span></div>
+<div class="block">Runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the
+violations found. Unlike <code>AccessibilityActions.assertIsAccessible</code>, this tool never fails
+the call when violations exist; it reports them so the caller can decide what to do.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>wcagTags</code> - optional axe-core WCAG tags (e.g. <code>wcag2a</code>, <code>wcag21aa</code>) to scope the
+                audit to; when empty, SHAFT's default tag set is used</dd>
+<dt>Returns:</dt>
+<dd>the audit result, including a violation count and a per-violation summary</dd>
 </dl>
 </div>
 </section>
