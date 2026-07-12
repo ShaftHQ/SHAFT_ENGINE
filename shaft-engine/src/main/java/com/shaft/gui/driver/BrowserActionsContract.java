@@ -98,6 +98,14 @@ public interface BrowserActionsContract {
 
     BrowserActionsContract replayContract(String contractFilePath);
 
+    /**
+     * Replays recorded HAR (HTTP Archive) responses through the browser network interceptor.
+     *
+     * @param harFilePath path to a HAR 1.2 JSON file
+     * @return a self-reference to be used to chain actions
+     */
+    BrowserActionsContract routeFromHar(String harFilePath);
+
     BrowserActionsContract fullScreenWindow();
 
     BrowserActionsContract switchToWindow(String nameOrHandle);

@@ -87,6 +87,26 @@ public interface Web extends EngineProperties<Web> {
     @DefaultValue("none")
     String readinessState();
 
+    /**
+     * Path to a storage-state JSON file (the schema produced by {@code BrowserActions.saveStorageState})
+     * that a freshly-initialized driver should automatically load, restoring cookies and, when possible,
+     * {@code localStorage}/{@code sessionStorage}.
+     *
+     * <p>At driver-init time there is no page loaded yet, so cookies cannot simply be added for an
+     * arbitrary domain. SHAFT reads the {@code origin} recorded inside the storage-state file (falling
+     * back to {@link #baseURL()} when the file has none) and navigates the fresh driver there first,
+     * mirroring how {@code loadStorageState} recommends navigating before loading. Origin-scoped
+     * {@code localStorage}/{@code sessionStorage} is therefore restored correctly only when an origin
+     * could be resolved; if neither is available, only cookies that the driver accepts without a page
+     * navigation are restored. A failure to load (missing file, unreachable origin, etc.) is logged as a
+     * warning and does not fail driver initialization.
+     *
+     * <p>Default is blank, meaning the feature is disabled.
+     */
+    @Key("storageStatePath")
+    @DefaultValue("")
+    String storageStatePath();
+
     default SetProperty set() {
         return new SetProperty();
     }
@@ -172,6 +192,11 @@ public interface Web extends EngineProperties<Web> {
 
         public SetProperty readinessState(String value) {
             setProperty("readinessState", value);
+            return this;
+        }
+
+        public SetProperty storageStatePath(String value) {
+            setProperty("storageStatePath", value);
             return this;
         }
     }

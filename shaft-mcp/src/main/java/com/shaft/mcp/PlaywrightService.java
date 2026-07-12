@@ -307,6 +307,50 @@ public class PlaywrightService {
     }
 
     /**
+     * Saves the active Playwright session's cookies, {@code localStorage}, and {@code sessionStorage} to
+     * a JSON file.
+     *
+     * <p>Produces the same JSON schema as {@code browser_storage_state_save}, so files are interchangeable
+     * between the WebDriver and Playwright backends.
+     *
+     * @param filePath workspace-relative or workspace-contained output file path
+     * @return the absolute path the storage state was written to
+     */
+    @Tool(name = "playwright_browser_storage_state_save",
+            description = "saves the active SHAFT Playwright session's cookies, localStorage, and sessionStorage "
+                    + "to a JSON file")
+    public String saveStorageState(String filePath) {
+        SHAFT.GUI.Playwright driver = getDriver();
+        Path resolved = workspacePolicy.output(filePath, "Storage state output path");
+        driver.browser().saveStorageState(resolved.toString());
+        logger.info("Playwright storage state saved (path length: {}).", resolved.toString().length());
+        return resolved.toString();
+    }
+
+    /**
+     * Loads cookies, {@code localStorage}, and {@code sessionStorage} from a JSON file into the active
+     * Playwright session.
+     *
+     * <p>Navigate to the target origin before loading storage state so browser cookie domain rules can
+     * apply.
+     *
+     * @param filePath workspace-contained source JSON file path
+     * @return a short confirmation including the resolved path and restored cookie count
+     */
+    @Tool(name = "playwright_browser_storage_state_load",
+            description = "loads cookies, localStorage, and sessionStorage from a JSON file into the active "
+                    + "SHAFT Playwright session; navigate to the target origin first")
+    public String loadStorageState(String filePath) {
+        SHAFT.GUI.Playwright driver = getDriver();
+        Path resolved = workspacePolicy.existing(filePath, "Storage state input path");
+        driver.browser().loadStorageState(resolved.toString());
+        int cookieCount = driver.browser().getAllCookies().size();
+        logger.info("Playwright storage state loaded (path length: {}, cookies: {}).",
+                resolved.toString().length(), cookieCount);
+        return "Loaded browser storage state from " + resolved + " (cookies restored: " + cookieCount + ")";
+    }
+
+    /**
      * Clicks a Playwright element.
      */
     @Tool(name = "playwright_element_click", description = "clicks an element using SHAFT Playwright")

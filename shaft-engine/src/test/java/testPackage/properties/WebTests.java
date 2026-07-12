@@ -18,6 +18,7 @@ public class WebTests {
     int browserWindowWidth;
     int browserWindowHeight;
     boolean incognitoMode;
+    String storageStatePath;
 
     @BeforeClass
     public void beforeClass() {
@@ -34,6 +35,7 @@ public class WebTests {
         browserWindowWidth = 1920;
         browserWindowHeight = 1080;
         incognitoMode = SHAFT.Properties.web.incognitoMode();
+        storageStatePath = SHAFT.Properties.web.storageStatePath();
     }
 
     @Test
@@ -50,6 +52,7 @@ public class WebTests {
                 .baseURL(baseURL)
                 .browserWindowWidth(browserWindowWidth)
                 .browserWindowHeight(browserWindowHeight)
-                .incognitoMode(incognitoMode);
+                .incognitoMode(incognitoMode)
+                .storageStatePath(storageStatePath);
     }
 }

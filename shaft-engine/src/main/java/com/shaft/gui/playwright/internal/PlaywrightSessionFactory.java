@@ -6,8 +6,11 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.internal.BrowserStorageStateManager;
+import com.shaft.gui.browser.internal.PlaywrightStorageStateManager;
 import com.shaft.tools.io.ReportManager;
 import org.apache.logging.log4j.Level;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.file.Path;
 import java.util.Locale;
@@ -37,7 +40,48 @@ public final class PlaywrightSessionFactory {
         PlaywrightSessionManager.setSession(session);
         String device = deviceDescriptor == null ? "" : " and device '" + deviceDescriptor.name() + "'";
         ReportManager.logDiscrete("Created Playwright GUI session using browser '" + resolvedBrowserName + "'" + device + ".", Level.INFO);
+        loadInitialStorageState(browserContext, page);
         return session;
+    }
+
+    /**
+     * Loads {@code SHAFT.Properties.web.storageStatePath()} into the freshly-created session, when configured.
+     *
+     * <p>Navigates to the origin recorded inside the storage-state file (falling back to
+     * {@code SHAFT.Properties.web.baseURL()}) before loading, so origin-scoped {@code localStorage} and
+     * {@code sessionStorage} are restored correctly. Failures are logged as warnings and never fail
+     * session creation.
+     */
+    private static void loadInitialStorageState(BrowserContext browserContext, Page page) {
+        String storageStatePath = SHAFT.Properties.web.storageStatePath();
+        if (storageStatePath.isBlank()) {
+            return;
+        }
+        try {
+            String origin = peekStorageStateOrigin(storageStatePath);
+            if (origin.isBlank()) {
+                origin = SHAFT.Properties.web.baseURL();
+            }
+            if (!origin.isBlank()) {
+                page.navigate(origin);
+            }
+            PlaywrightStorageStateManager.load(browserContext, page, storageStatePath);
+            ReportManager.logDiscrete("Loaded Playwright browser storage state from \"" + storageStatePath + "\".");
+        } catch (RuntimeException exception) {
+            ReportManager.logDiscrete("Could not load Playwright browser storage state from \"" + storageStatePath
+                    + "\". Cause: " + exception.getClass().getSimpleName(), Level.WARN);
+        }
+    }
+
+    private static String peekStorageStateOrigin(String filePath) {
+        try {
+            var mapper = JsonMapper.builder().build();
+            BrowserStorageStateManager.StorageState state = mapper.readValue(
+                    Path.of(filePath).toFile(), BrowserStorageStateManager.StorageState.class);
+            return state.origin == null ? "" : state.origin;
+        } catch (RuntimeException exception) {
+            return "";
+        }
     }
 
     public static PlaywrightSession attach(Playwright playwright, Browser browser, BrowserContext browserContext, Page page) {

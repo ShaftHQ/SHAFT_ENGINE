@@ -47,6 +47,8 @@ class McpNoDriverServiceTest {
         assertNoDriver(() -> service.ariaSnapshot(locatorStrategy.ID, "content"));
         assertNoDriver(() -> service.accessibilityAudit());
         assertNoDriver(() -> service.accessibilityAudit("wcag2a", "wcag2aa"));
+        assertNoDriver(() -> service.saveStorageState("state.json"));
+        assertNoDriver(() -> service.loadStorageState("state.json"));
     }
 
     @Test
@@ -86,6 +88,8 @@ class McpNoDriverServiceTest {
         assertNoDriver(() -> service.clickSemantic("Submit"));
         assertNoDriver(() -> service.type(locatorStrategy.ID, "name", "value"));
         assertNoDriver(() -> service.typeSemantic("Name", "value"));
+        assertNoDriver(() -> service.saveStorageState("state.json"));
+        assertNoDriver(() -> service.loadStorageState("state.json"));
     }
 
     @Test

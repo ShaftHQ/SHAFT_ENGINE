@@ -6,6 +6,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
+import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingStrategy;
 import com.shaft.gui.internal.video.RecordManager;
@@ -44,12 +45,14 @@ import org.openqa.selenium.remote.http.ClientConfig;
 import org.openqa.selenium.remote.http.ConnectionFailedException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Reporter;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayInputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1330,6 +1333,7 @@ public class DriverFactoryHelper {
                 if (SHAFT.Properties.flags.autoMaximizeBrowserWindow() && (targetBrowserName.contains(Browser.SAFARI.browserName().toLowerCase()) || targetBrowserName.contains(Browser.FIREFOX.browserName().toLowerCase()))) {
                     new BrowserActions(this).maximizeWindow();
                 }
+                loadInitialStorageState();
             }
             // start session recording
             RecordManager.startVideoRecording(driver);
@@ -1355,5 +1359,44 @@ public class DriverFactoryHelper {
         ReportManager.log("Attached to existing WebDriver session '" + driver + "'.");
         setDriver(driver);
         startBrowserObservability();
+    }
+
+    /**
+     * Loads {@code SHAFT.Properties.web.storageStatePath()} into the freshly-initialized driver, when configured.
+     *
+     * <p>Navigates to the origin recorded inside the storage-state file (falling back to
+     * {@code SHAFT.Properties.web.baseURL()}) before loading, since cookies can only be added for the
+     * driver's current origin. Failures are logged as warnings and never fail driver initialization.
+     */
+    private void loadInitialStorageState() {
+        String storageStatePath = SHAFT.Properties.web.storageStatePath();
+        if (storageStatePath.isBlank()) {
+            return;
+        }
+        try {
+            String origin = peekStorageStateOrigin(storageStatePath);
+            if (origin.isBlank()) {
+                origin = SHAFT.Properties.web.baseURL();
+            }
+            if (!origin.isBlank()) {
+                driver.navigate().to(origin);
+            }
+            BrowserStorageStateManager.load(driver, storageStatePath);
+            ReportManager.logDiscrete("Loaded browser storage state from \"" + storageStatePath + "\".");
+        } catch (Exception exception) {
+            ReportManager.logDiscrete("Could not load browser storage state from \"" + storageStatePath
+                    + "\". Cause: " + exception.getClass().getSimpleName(), Level.WARN);
+        }
+    }
+
+    private static String peekStorageStateOrigin(String filePath) {
+        try {
+            var mapper = JsonMapper.builder().build();
+            BrowserStorageStateManager.StorageState state = mapper.readValue(
+                    Path.of(filePath).toFile(), BrowserStorageStateManager.StorageState.class);
+            return state.origin == null ? "" : state.origin;
+        } catch (RuntimeException exception) {
+            return "";
+        }
     }
 }
