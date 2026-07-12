@@ -204,6 +204,5 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile","timestamp":"2026-07-12T12:12:35+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftmcpsetuppanel-installerdetailspanel-is-dead-hidden-ui-and-screenshots-reflect-real-machine-state","timestamp":"2026-07-12T13:24:30+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows","timestamp":"2026-07-12T13:24:30+03:00"}
-{"actor":"agent","event":"memory.created","id":"gotcha.new-mcp-tool-methods-require-regenerating-the-shaft-skills-tool-catalog","timestamp":"2026-07-12T16:28:50+03:00"}
-{"actor":"agent","event":"memory.created","id":"gotcha.never-trust-gh-pr-checks-piped-through-tail-head-for-green-verdicts","timestamp":"2026-07-12T16:28:50+03:00"}
-{"actor":"agent","event":"memory.created","id":"gotcha.refresh-shaft-captures-m2-snapshot-too-not-just-shaft-engine-for-shaft-mcp-builds","timestamp":"2026-07-12T17:28:33+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.new-shaft-mcp-service-needs-shafttools-bean-registration-and-a-manifest-entry","timestamp":"2026-07-12T19:24:23+03:00"}
+{"actor":"agent","event":"memory.created","id":"workflow.codacy-pr-findings-are-readable-unauthenticated-via-the-public-api","timestamp":"2026-07-12T19:24:23+03:00"}
