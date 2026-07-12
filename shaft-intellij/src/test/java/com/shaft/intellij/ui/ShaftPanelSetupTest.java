@@ -1247,8 +1247,8 @@ class ShaftPanelSetupTest {
             labels.add(selector.getItemAt(index).label());
         }
 
-        assertEquals(List.of("Assistant", "Guided", "Recorder", "Inspector", "Triage", "Evidence",
-                "Projects", "Advanced"), labels);
+        assertEquals(List.of("Assistant", "Guided", "Recorder", "Inspector", "Triage", "Visual Baselines",
+                "Evidence", "Projects", "Advanced"), labels);
     }
 
     @Test
