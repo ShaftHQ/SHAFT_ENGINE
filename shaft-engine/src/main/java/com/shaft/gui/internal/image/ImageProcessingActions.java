@@ -457,7 +457,7 @@ public class ImageProcessingActions {
                         + "\" images failed the threshold of \"" + threshold + "%\" matching.",
                 failedImagesCount > 0 ? Status.FAILED : Status.PASSED);
         if (failedImagesCount > 0) {
-            FailureReporter.fail("\"" + failedImagesCount + "\" images failed the threshold of \""
+            FailureReporter.failAssertion("\"" + failedImagesCount + "\" images failed the threshold of \""
                     + threshold + "%\" matching.");
         }
 

@@ -1590,8 +1590,8 @@ public class RestActions {
     }
 
     protected boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
+        boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
         try {
-            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             var statusCode = response.getStatusCode();
             ReportManager.logDiscrete("Response status: " + statusCode + " (" + response.getStatusLine() + ").", Level.DEBUG);
@@ -1610,10 +1610,14 @@ public class RestActions {
                     }
                 }
             }
-            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             return true;
-        } catch (AssertionError rootCauseException) {
+        } catch (AssertionError | RuntimeException rootCauseException) {
+            // failAction reports the failed step and throws an execution exception; returning
+            // false lets the caller surface the status-code mismatch as an AssertionError so
+            // runners classify it as a failed test rather than a broken one.
             return false;
+        } finally {
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         }
     }
 
