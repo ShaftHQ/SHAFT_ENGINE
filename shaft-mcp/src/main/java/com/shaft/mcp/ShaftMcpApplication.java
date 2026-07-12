@@ -107,14 +107,23 @@ public class ShaftMcpApplication {
 	}
 
     private static List<String> captureLaunchPrefix() throws IOException {
+        return captureLaunchPrefix(
+                ProcessHandle.current().info().arguments().orElse(new String[0]),
+                ManagementFactory.getRuntimeMXBean().getClassPath());
+    }
+
+    /**
+     * Builds the relaunch command from explicit launch inputs: the current JVM's launch shape is
+     * not a reliable signal inside tests, where Surefire forks through a manifest-only booter jar
+     * ({@code -jar surefirebooter*.jar}) instead of the multi-entry classpath dev/IDE runs use.
+     */
+    private static List<String> captureLaunchPrefix(String[] processArguments, String classPath) throws IOException {
         String javaCommand = ProcessHandle.current().info().command().orElse("java");
-        String[] processArguments = ProcessHandle.current().info().arguments().orElse(new String[0]);
         for (int index = 0; index + 1 < processArguments.length; index++) {
             if ("-jar".equals(processArguments[index])) {
                 return List.of(javaCommand, "-jar", processArguments[index + 1], "capture");
             }
         }
-        String classPath = ManagementFactory.getRuntimeMXBean().getClassPath();
         String[] classPathEntries = classPath.split(Pattern.quote(File.pathSeparator));
         if (classPathEntries.length == 1) {
             Path executable = Path.of(classPathEntries[0]).toAbsolutePath().normalize();
