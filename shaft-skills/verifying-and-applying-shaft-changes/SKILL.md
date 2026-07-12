@@ -52,6 +52,13 @@ calling agent) applies edits and runs verification.
 - Do not mark a change done while verification fails or was skipped; report the
   bounded output and the next step.
 
+## Tool Catalog
+
+Every shaft-mcp tool name and description is cached in
+`../references/shaft-mcp-tools.md`. Read it to pick exact tool names instead of
+listing tools at runtime, and load only the schemas you need — on clients that
+defer tool schemas, batch the load in one lookup.
+
 ## Official Guide Routes
 
 - MCP: `https://shafthq.github.io/docs/agentic/mcp`

@@ -11,6 +11,9 @@ on:
       - 'scripts/ci/verify_shaft_mcp_installer_release.py'
       - 'scripts/ci/validate_installer_contract.py'
       - 'tests/scripts/test_validate_installer_contract.py'
+      - 'shaft-mcp/src/main/java/com/shaft/mcp/**'
+      - 'shaft-skills/**'
+      - 'tests/scripts/test_generate_shaft_skills_tool_catalog.py'
   push:
     branches: [ main ]
     paths:
@@ -22,6 +25,9 @@ on:
       - 'scripts/ci/verify_shaft_mcp_installer_release.py'
       - 'scripts/ci/validate_installer_contract.py'
       - 'tests/scripts/test_validate_installer_contract.py'
+      - 'shaft-mcp/src/main/java/com/shaft/mcp/**'
+      - 'shaft-skills/**'
+      - 'tests/scripts/test_generate_shaft_skills_tool_catalog.py'
   workflow_dispatch:
 
 permissions:
@@ -53,7 +59,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Run unittest for installer script
-        run: python -m unittest tests.scripts.test_install_shaft_mcp -v
+        run: python -m unittest tests.scripts.test_install_shaft_mcp tests.scripts.test_generate_shaft_skills_tool_catalog -v
       - name: Validate installer contract
         run: python scripts/ci/validate_installer_contract.py
       - name: Verify installer release

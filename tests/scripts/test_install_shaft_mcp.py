@@ -226,11 +226,18 @@ class InstallShaftMcpTest(unittest.TestCase):
                 MODULE.local_shaft_skills_source = original_local_source
                 MODULE.download_file = original_download_file
 
-            self.assertEqual(11, len(calls))
+            self.assertEqual(len(MODULE.SHAFT_SKILLS_SOURCE_FILES), len(calls))
             self.assertTrue((installed / "writing-shaft-tests" / "SKILL.md").is_file())
             self.assertTrue((installed / "recording-shaft-tests-with-mcp" / "agents" / "openai.yaml").is_file())
             self.assertTrue(
                 (installed / "verifying-and-applying-shaft-changes" / "SKILL.md").is_file())
+            self.assertTrue((installed / "references" / "shaft-mcp-tools.md").is_file())
+
+    def test_shaft_skills_manifest_files_exist_in_repo(self):
+        source = MODULE.local_shaft_skills_source()
+        self.assertIsNotNone(source, "repo checkout should be detected as a shaft-skills source")
+        for relative in MODULE.SHAFT_SKILLS_SOURCE_FILES:
+            self.assertTrue((source / relative).is_file(), f"manifest entry missing on disk: {relative}")
 
     def test_codex_auto_approval_is_added_to_shaft_mcp_section(self):
         with tempfile.TemporaryDirectory() as temp_dir:

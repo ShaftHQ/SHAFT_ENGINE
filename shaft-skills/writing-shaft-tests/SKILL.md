@@ -71,6 +71,13 @@ public void userCanSignIn() {
 }
 ```
 
+## Tool Catalog
+
+Every shaft-mcp tool name and description is cached in
+`../references/shaft-mcp-tools.md`. Read it to pick exact tool names instead of
+listing tools at runtime, and load only the schemas you need — on clients that
+defer tool schemas, batch the load in one lookup.
+
 ## Official Guide Routes
 
 Use `shaft-mcp:shaft_guide_search` first, then fall back to these public pages when MCP is unavailable:

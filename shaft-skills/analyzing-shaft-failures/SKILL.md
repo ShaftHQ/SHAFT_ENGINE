@@ -40,6 +40,13 @@ Analyze populated evidence before changing tests. Separate product defects, test
 - Use `shaft_coding_partner_plan.reuseMatches` to keep repairs in the existing page/test owner instead of creating duplicate helper classes.
 - Validate applied fixes with `shaft-mcp:verify_run_focused` using the smallest affected test or compile check; see `verifying-and-applying-shaft-changes`.
 
+## Tool Catalog
+
+Every shaft-mcp tool name and description is cached in
+`../references/shaft-mcp-tools.md`. Read it to pick exact tool names instead of
+listing tools at runtime, and load only the schemas you need — on clients that
+defer tool schemas, batch the load in one lookup.
+
 ## Official Guide Routes
 
 - Doctor: `https://shafthq.github.io/docs/agentic/doctor`
