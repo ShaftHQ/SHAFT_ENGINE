@@ -162,6 +162,27 @@ public class ImageProcessingActionsCoverageUnitTest {
     }
 
     @Test
+    public void findImageWithinCurrentPageShouldReturnMatchWhenReportAttachmentFails() {
+        // Regression for #3450: a failure while preparing/attaching the highlighted match image to the
+        // report must not downgrade an already-successful template match into a "not found" verdict.
+        byte[] screenshot = createPatternPng(64, 64, 16, 18, 18, 14, Color.ORANGE);
+        byte[] croppedReference = createPng(18, 14, Color.ORANGE);
+        Path referenceImage = tempDir.resolve("attachment-failure-reference.png");
+        FILE_ACTIONS.writeToFile(referenceImage.toString(), croppedReference);
+
+        try (MockedConstruction<com.shaft.gui.internal.image.ScreenshotManager> ignored = Mockito.mockConstruction(
+                com.shaft.gui.internal.image.ScreenshotManager.class,
+                (mock, context) -> when(mock.prepareImageForReport(any(), anyString()))
+                        .thenThrow(new RuntimeException("forced report-attachment failure")))) {
+
+            List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(referenceImage.toString(), screenshot);
+
+            Assert.assertFalse(coordinates.isEmpty());
+            Assert.assertEquals(coordinates.size(), 2);
+        }
+    }
+
+    @Test
     public void findImageWithinCurrentPageShouldMatchReferenceCapturedAtLowerDpi() {
         assertScaledReferenceMatch(0.5);
     }
