@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -102,7 +103,7 @@ public class ShaftMcpApplication {
         return serviceList;
 	}
 
-    private static List<String> captureLaunchPrefix() {
+    private static List<String> captureLaunchPrefix() throws IOException {
         String javaCommand = ProcessHandle.current().info().command().orElse("java");
         String[] processArguments = ProcessHandle.current().info().arguments().orElse(new String[0]);
         for (int index = 0; index + 1 < processArguments.length; index++) {
@@ -127,16 +128,38 @@ public class ShaftMcpApplication {
         } catch (Exception ignored) {
             // Development and test runs use the current classpath below.
         }
-        return List.of(
-                javaCommand,
-                "-cp",
-                absoluteClassPath(classPath),
-                CaptureCli.class.getName());
+        return List.of(javaCommand,
+                "@" + writeLaunchArgsFile(absoluteClassPath(classPath), CaptureCli.class.getName()));
     }
 
     private static String absoluteClassPath(String classPath) {
         return Arrays.stream(classPath.split(Pattern.quote(File.pathSeparator)))
                 .map(entry -> Path.of(entry).toAbsolutePath().normalize().toString())
                 .collect(Collectors.joining(File.pathSeparator));
+    }
+
+    /**
+     * Writes a Java {@code @argfile} for relaunching with the given classpath: passed inline on
+     * Windows, hundreds of runtime jar paths can exceed the ~32K CreateProcess command-line limit
+     * ("The filename or extension is too long"), which fails the capture daemon relaunch before it
+     * starts. Only reached when this JVM itself wasn't started with {@code -jar} (dev/IDE runs).
+     */
+    private static Path writeLaunchArgsFile(String classpath, String mainClass) throws IOException {
+        Path argsFile = Files.createTempFile("shaft-mcp-capture-launch-", ".args");
+        argsFile.toFile().deleteOnExit();
+        Files.writeString(argsFile,
+                "-cp" + System.lineSeparator()
+                        + argFileQuote(classpath) + System.lineSeparator()
+                        + mainClass + System.lineSeparator(),
+                StandardCharsets.UTF_8);
+        return argsFile.toAbsolutePath().normalize();
+    }
+
+    /**
+     * Quotes one Java @argfile line: backslashes become forward slashes (the argfile parser
+     * treats backslashes as escapes) and embedded quotes are escaped.
+     */
+    private static String argFileQuote(String value) {
+        return '"' + value.replace("\\", "/").replace("\"", "\\\"") + '"';
     }
 }

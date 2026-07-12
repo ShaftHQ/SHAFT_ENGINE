@@ -9,6 +9,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -233,6 +234,24 @@ class CaptureCliTest {
                         new Class<?>[] {argumentsClass},
                         invalidOptions));
         assertInstanceOf(IllegalArgumentException.class, invalidBackend.getCause());
+    }
+
+    @Test
+    void defaultLaunchPrefixRelaunchesViaArgFileToAvoidWindowsCommandLineLimit() throws Exception {
+        // A test JVM runs from a multi-entry classpath; passed inline via -cp instead of an
+        // @argfile, hundreds of runtime jar paths can exceed Windows' ~32K CreateProcess
+        // command-line limit ("The filename or extension is too long"), which fails the daemon
+        // relaunch before it starts -- gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile.
+        @SuppressWarnings("unchecked")
+        List<String> prefix = (List<String>) invokeStatic("defaultLaunchPrefix", new Class<?>[] {});
+
+        assertEquals(2, prefix.size());
+        String argsFileArgument = prefix.get(1);
+        assertTrue(argsFileArgument.startsWith("@"), "expected an @argfile launch, got: " + prefix);
+
+        String argsFileContent = java.nio.file.Files.readString(Path.of(argsFileArgument.substring(1)));
+        assertTrue(argsFileContent.contains("-cp"));
+        assertTrue(argsFileContent.contains(CaptureCli.class.getName()));
     }
 
     private static Object invokeStatic(String methodName, Class<?>[] parameterTypes, Object... arguments)

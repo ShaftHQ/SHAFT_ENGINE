@@ -128,9 +128,37 @@ class ShaftMcpApplicationTests {
         @SuppressWarnings("unchecked")
         List<String> prefix = (List<String>) method.invoke(null);
 
-        assertTrue(prefix.size() >= 3);
-        assertTrue(prefix.contains("capture")
-                || prefix.contains(com.shaft.capture.cli.CaptureCli.class.getName()));
+        assertTrue(prefix.size() >= 2);
+        String lastArgument = prefix.get(prefix.size() - 1);
+        if (lastArgument.startsWith("@")) {
+            String argsFileContent = Files.readString(Path.of(lastArgument.substring(1)));
+            assertTrue(argsFileContent.contains(com.shaft.capture.cli.CaptureCli.class.getName()));
+        } else {
+            assertTrue(prefix.contains("capture")
+                    || prefix.contains(com.shaft.capture.cli.CaptureCli.class.getName()));
+        }
+    }
+
+    @Test
+    void captureLaunchPrefixArgFileFallbackKeepsCommandLineShortOnLargeClasspaths() throws Exception {
+        Method method = ShaftMcpApplication.class.getDeclaredMethod("captureLaunchPrefix");
+        method.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        List<String> prefix = (List<String>) method.invoke(null);
+
+        // A test JVM runs from a multi-entry classpath (never -jar), so this must hit the
+        // @argfile fallback -- the same one Windows CreateProcess rejects at ~32K chars when it
+        // is passed inline instead, per gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile.
+        String lastArgument = prefix.get(prefix.size() - 1);
+        assertTrue(lastArgument.startsWith("@"), "expected an @argfile launch, got: " + prefix);
+        int totalCommandLineLength = String.join(" ", prefix).length();
+        assertTrue(totalCommandLineLength < 1_000,
+                "relaunch command line should stay short regardless of classpath size: " + totalCommandLineLength);
+
+        String argsFileContent = Files.readString(Path.of(lastArgument.substring(1)));
+        assertTrue(argsFileContent.contains("-cp"));
+        assertTrue(argsFileContent.contains(com.shaft.capture.cli.CaptureCli.class.getName()));
     }
 
     @Test
