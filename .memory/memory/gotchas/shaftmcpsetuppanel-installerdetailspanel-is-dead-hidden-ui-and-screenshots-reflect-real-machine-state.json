@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/shaftmcpsetuppanel-installerdetailspanel-is-dead-hidden-ui-and-screenshots-reflect-real-machine-state.md",
+  "content_hash": "sha256:f68bc92b391abf8409f9b43a3912c34f08460402a0f100b00f428231dec18c63",
+  "created_at": "2026-07-12T13:24:30+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.shaftmcpsetuppanel-installerdetailspanel-is-dead-hidden-ui-and-screenshots-reflect-real-machine-state",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "PR #3446: shaft-cli epic #3443 parts B/D/E and #3440 documentation boundary fix"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "ui",
+    "screenshots"
+  ],
+  "title": "ShaftMcpSetupPanel installerDetailsPanel is dead-hidden; UI and screenshots reflect real machine state",
+  "type": "gotcha",
+  "updated_at": "2026-07-12T13:24:30+03:00"
+}
