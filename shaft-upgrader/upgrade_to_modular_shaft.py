@@ -15,6 +15,11 @@ When ``OPENAI_API_KEY`` is available, an upgrade-induced compilation failure
 can trigger up to three constrained repair attempts through the OpenAI
 Responses API. Only redacted diagnostics and relevant, secret-free POM/Java
 files are sent. The API key is never written to disk or printed.
+
+Without an OpenAI key, the same constrained repair runs through a detected
+local agent CLI (``claude`` or ``codex``) in non-interactive print mode; the
+agent returns a JSON repair proposal that is validated and applied through
+the same transaction. Select or disable with ``--agent-cli``.
 """
 
 from __future__ import annotations
@@ -68,6 +73,12 @@ MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2"
 DEFAULT_OPENAI_MODEL = "gpt-5.5"
 DEFAULT_OPENAI_KEY_ENV = "OPENAI_API_KEY"
 MAX_AI_REPAIR_ATTEMPTS = 3
+# Non-interactive print-mode contracts verified against the real binaries: `claude -p` and
+# `codex exec -` both read the prompt from stdin and print the final message to stdout.
+# GitHub Copilot CLI is not listed because its non-interactive contract is unverified.
+AGENT_CLI_COMMANDS = ("claude", "codex")
+AGENT_CLI_CHOICES = ("auto", *AGENT_CLI_COMMANDS, "none")
+AGENT_CLI_TIMEOUT_SECONDS = 600
 MAX_AI_CONTEXT_CHARS = 140_000
 MAX_AI_FILE_CHARS = 80_000
 MAX_AI_CHANGE_CHARS = 500_000
@@ -387,27 +398,17 @@ class FileTransaction:
         self._originals.clear()
 
 
-class OpenAIRepairClient:
-    """Minimal standard-library client for constrained compile repair."""
-
-    def __init__(self, api_key: str, model: str = DEFAULT_OPENAI_MODEL) -> None:
-        if not api_key:
-            raise ValueError("An OpenAI API key is required.")
-        self._api_key = api_key
-        self._model = model
-
-    def request_repair(
-        self,
-        compile_output: str,
-        files: Mapping[str, str],
-        shaft_version: str,
-        modules: Sequence[str],
-    ) -> dict[str, object]:
-        """Ask the Responses API for structured full-file replacements."""
-        file_context = "\n\n".join(
-            f"<<<FILE path={path}\n{content}\nFILE>>>" for path, content in files.items()
-        )
-        prompt = f"""A Maven Java project was migrated to modular SHAFT {shaft_version}.
+def build_repair_prompt(
+    compile_output: str,
+    files: Mapping[str, str],
+    shaft_version: str,
+    modules: Sequence[str],
+) -> str:
+    """Shared constrained compile-repair prompt for every AI repair client."""
+    file_context = "\n\n".join(
+        f"<<<FILE path={path}\n{content}\nFILE>>>" for path, content in files.items()
+    )
+    return f"""A Maven Java project was migrated to modular SHAFT {shaft_version}.
 The selected dependencies are: {", ".join(modules)}.
 Compilation still fails. Make the smallest source or POM correction that restores
 compilation while preserving behavior and the modular SHAFT BOM/dependencies.
@@ -428,6 +429,26 @@ DIAGNOSTICS>>>
 Editable files:
 {file_context}
 """
+
+
+class OpenAIRepairClient:
+    """Minimal standard-library client for constrained compile repair."""
+
+    def __init__(self, api_key: str, model: str = DEFAULT_OPENAI_MODEL) -> None:
+        if not api_key:
+            raise ValueError("An OpenAI API key is required.")
+        self._api_key = api_key
+        self._model = model
+
+    def request_repair(
+        self,
+        compile_output: str,
+        files: Mapping[str, str],
+        shaft_version: str,
+        modules: Sequence[str],
+    ) -> dict[str, object]:
+        """Ask the Responses API for structured full-file replacements."""
+        prompt = build_repair_prompt(compile_output, files, shaft_version, modules)
         payload = {
             "model": self._model,
             "store": False,
@@ -493,6 +514,114 @@ Editable files:
             parsed = json.loads(output_text)
         except json.JSONDecodeError as exc:
             raise UpgradeError("OpenAI returned an invalid structured repair response.") from exc
+        validate_repair_response(parsed)
+        return parsed
+
+
+AGENT_REPAIR_JSON_INSTRUCTIONS = """
+Respond with ONLY one JSON object, no prose and no markdown fences, matching:
+{"summary": "<one line>", "changes": [{"path": "<relative path>", "content": "<complete replacement file content>", "reason": "<one line>"}]}
+Do not edit, create, or run anything yourself; the JSON response is the only output.
+"""
+
+
+def extract_repair_json(text: str) -> dict[str, object] | None:
+    """Returns the last repair-shaped JSON object found in text, or None.
+
+    Agent CLIs surround the final message with progress noise on stdout (codex on Windows
+    even interleaves process-cleanup lines), so this scans every candidate object instead
+    of expecting the whole output to be JSON.
+    """
+    decoder = json.JSONDecoder()
+    candidate: dict[str, object] | None = None
+    index = text.find("{")
+    while index != -1:
+        try:
+            parsed, end = decoder.raw_decode(text, index)
+        except ValueError:
+            index = text.find("{", index + 1)
+            continue
+        if isinstance(parsed, dict) and "summary" in parsed and "changes" in parsed:
+            candidate = parsed
+            index = text.find("{", end)
+        else:
+            index = text.find("{", index + 1)
+    return candidate
+
+
+def detect_agent_cli(selection: str) -> tuple[str, str] | None:
+    """Returns (cli name, executable path) for the selected or first detected agent CLI."""
+    if selection == "none":
+        return None
+    names = AGENT_CLI_COMMANDS if selection == "auto" else (selection,)
+    for name in names:
+        executable = shutil.which(name)
+        if executable:
+            return name, executable
+    return None
+
+
+class AgentCliRepairClient:
+    """Compile-repair client that shells out to a local agent CLI in print mode.
+
+    Speaks the same request_repair contract as OpenAIRepairClient; the prompt goes to the
+    agent's stdin and the JSON proposal is recovered from stdout, so a misbehaving CLI can
+    only ever skip a repair attempt, never corrupt the transaction.
+    """
+
+    def __init__(
+        self,
+        cli_name: str,
+        executable: str,
+        timeout_seconds: int = AGENT_CLI_TIMEOUT_SECONDS,
+    ) -> None:
+        if cli_name not in AGENT_CLI_COMMANDS:
+            raise ValueError(f"Unsupported agent CLI: {cli_name}")
+        self._cli_name = cli_name
+        self._executable = executable
+        self._timeout_seconds = timeout_seconds
+
+    def _command(self) -> list[str]:
+        if self._cli_name == "claude":
+            return [self._executable, "-p"]
+        return [self._executable, "exec", "-"]
+
+    def request_repair(
+        self,
+        compile_output: str,
+        files: Mapping[str, str],
+        shaft_version: str,
+        modules: Sequence[str],
+    ) -> dict[str, object]:
+        """Ask the agent CLI for structured full-file replacements."""
+        prompt = (
+            build_repair_prompt(compile_output, files, shaft_version, modules)
+            + AGENT_REPAIR_JSON_INSTRUCTIONS
+        )
+        try:
+            completed = subprocess.run(
+                self._command(),
+                input=prompt,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=self._timeout_seconds,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise UpgradeError(
+                f"{self._cli_name} CLI invocation failed: {redact_secrets(str(exc))}"
+            ) from exc
+        if completed.returncode != 0:
+            raise UpgradeError(
+                f"{self._cli_name} CLI exited with {completed.returncode}: "
+                f"{redact_secrets(completed.stderr or completed.stdout)[:1_000]}"
+            )
+        parsed = extract_repair_json(completed.stdout)
+        if parsed is None:
+            raise UpgradeError(
+                f"{self._cli_name} CLI output did not contain a repair JSON object."
+            )
         validate_repair_response(parsed)
         return parsed
 
@@ -1765,7 +1894,7 @@ def execute_upgrade_transaction(
     compile_command: Sequence[str],
     timeout_seconds: int,
     compile_runner: Callable[[Sequence[str], Path, int], CommandResult] = run_command,
-    repair_client: OpenAIRepairClient | None = None,
+    repair_client: OpenAIRepairClient | AgentCliRepairClient | None = None,
     skip_baseline_compile: bool = False,
     upgrade_type: str = "basic",
 ) -> UpgradeExecution:
@@ -1831,7 +1960,7 @@ def execute_upgrade_transaction(
 
         for attempt in range(1, MAX_AI_REPAIR_ATTEMPTS + 1):
             ai_attempts += 1
-            log(f"OpenAI repair attempt {attempt}/{MAX_AI_REPAIR_ATTEMPTS}...")
+            log(f"AI repair attempt {attempt}/{MAX_AI_REPAIR_ATTEMPTS}...")
             context = collect_ai_context(
                 analysis.project_root,
                 analysis.candidate_poms,
@@ -1857,7 +1986,7 @@ def execute_upgrade_transaction(
                         response,
                         set(context),
                     )
-                    log(f"OpenAI proposed {applied} file replacement(s).")
+                    log(f"AI repair proposed {applied} file replacement(s).")
                     validate_upgraded_poms(
                         analysis.candidate_poms,
                         version,
@@ -2005,7 +2134,9 @@ def build_parser() -> argparse.ArgumentParser:
 Optional AI repair:
   Set OPENAI_API_KEY in the environment, then run the normal command.
   Use --prompt-for-openai-key to enter it without shell history.
-  Use --no-ai to disable API repair even when the environment variable exists.
+  Without an OpenAI key, a detected local agent CLI (claude, codex) is used
+  instead; select one explicitly or opt out with --agent-cli.
+  Use --no-ai to disable AI repair entirely.
 """,
     )
     parser.add_argument(
@@ -2073,9 +2204,19 @@ Optional AI repair:
         help="Securely prompt for an optional OpenAI API key.",
     )
     parser.add_argument(
+        "--agent-cli",
+        choices=AGENT_CLI_CHOICES,
+        default="auto",
+        help=(
+            "Local agent CLI used for compile repair when no OpenAI key is set: "
+            "auto picks the first of claude/codex found on PATH; none disables "
+            "agent-CLI repair. Default: auto."
+        ),
+    )
+    parser.add_argument(
         "--no-ai",
         action="store_true",
-        help="Disable OpenAI repair even when an API key is available.",
+        help="Disable AI repair (OpenAI and agent CLI) even when available.",
     )
     return parser
 
@@ -2135,14 +2276,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             api_key = os.environ.get(args.openai_key_env, "")
             if args.prompt_for_openai_key and not api_key:
                 api_key = getpass.getpass("Optional OpenAI API key (leave empty to disable AI repair): ")
-        repair_client = OpenAIRepairClient(api_key, args.openai_model) if api_key else None
+        repair_client: OpenAIRepairClient | AgentCliRepairClient | None = (
+            OpenAIRepairClient(api_key, args.openai_model) if api_key else None
+        )
         if repair_client:
             log(
                 f"OpenAI repair is enabled with model {args.openai_model}; "
                 f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
             )
-        else:
-            log("OpenAI repair is disabled; a failed upgraded compile will roll back immediately.")
+        elif not args.no_ai:
+            detected = detect_agent_cli(args.agent_cli)
+            if detected:
+                cli_name, executable = detected
+                repair_client = AgentCliRepairClient(cli_name, executable)
+                log(
+                    f"Agent CLI repair is enabled via {cli_name} ({executable}); "
+                    f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
+                )
+        if repair_client is None:
+            log("AI repair is disabled; a failed upgraded compile will roll back immediately.")
 
         execution = execute_upgrade_transaction(
             analysis,

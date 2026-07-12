@@ -1349,5 +1349,90 @@ class DemoTest {
         self.assertEqual(command[1:3], ["dependency:go-offline", "test-compile"])
 
 
+class AgentCliRepairTests(unittest.TestCase):
+    def test_extract_repair_json_recovers_object_from_noisy_output(self):
+        noisy = (
+            "SUCCESS: The process with PID 6024 has been terminated.\n"
+            'unrelated {"other": 1} object\n'
+            '{"summary": "fix imports", "changes": '
+            '[{"path": "pom.xml", "content": "<project/>", "reason": "r"}]}\n'
+            "trailing note\n"
+        )
+        parsed = upgrade.extract_repair_json(noisy)
+        self.assertIsNotNone(parsed)
+        self.assertEqual(parsed["summary"], "fix imports")
+        self.assertEqual(parsed["changes"][0]["path"], "pom.xml")
+
+    def test_extract_repair_json_returns_none_without_repair_object(self):
+        self.assertIsNone(upgrade.extract_repair_json('no json here {"broken": '))
+
+    def test_detect_agent_cli_honors_selection_and_availability(self):
+        def fake_which(name):
+            return {"codex": "C:/npm/codex.cmd"}.get(name)
+
+        with mock.patch.object(upgrade.shutil, "which", fake_which):
+            self.assertEqual(upgrade.detect_agent_cli("auto"), ("codex", "C:/npm/codex.cmd"))
+            self.assertEqual(upgrade.detect_agent_cli("codex"), ("codex", "C:/npm/codex.cmd"))
+            self.assertIsNone(upgrade.detect_agent_cli("claude"))
+            self.assertIsNone(upgrade.detect_agent_cli("none"))
+
+    def test_agent_cli_repair_client_parses_noisy_stdout(self):
+        recorded = {}
+
+        def fake_run(command, **kwargs):
+            recorded["command"] = command
+            recorded["input"] = kwargs.get("input")
+            return mock.Mock(
+                returncode=0,
+                stdout='progress noise\n{"summary": "s", "changes": []}\n',
+                stderr="",
+            )
+
+        client = upgrade.AgentCliRepairClient("claude", "/bin/claude")
+        with mock.patch.object(upgrade.subprocess, "run", fake_run):
+            response = client.request_repair(
+                "boom", {"pom.xml": "<project/>"}, "10.0.0", ["shaft-engine"]
+            )
+
+        self.assertEqual(response, {"summary": "s", "changes": []})
+        self.assertEqual(recorded["command"], ["/bin/claude", "-p"])
+        self.assertIn("Compiler diagnostics", recorded["input"])
+        self.assertIn("Respond with ONLY one JSON object", recorded["input"])
+
+    def test_agent_cli_repair_client_uses_codex_exec_stdin_command(self):
+        recorded = {}
+
+        def fake_run(command, **kwargs):
+            recorded["command"] = command
+            return mock.Mock(returncode=0, stdout='{"summary": "s", "changes": []}', stderr="")
+
+        client = upgrade.AgentCliRepairClient("codex", "C:/npm/codex.cmd")
+        with mock.patch.object(upgrade.subprocess, "run", fake_run):
+            client.request_repair("boom", {}, "10.0.0", [])
+
+        self.assertEqual(recorded["command"], ["C:/npm/codex.cmd", "exec", "-"])
+
+    def test_agent_cli_repair_client_rejects_failures(self):
+        client = upgrade.AgentCliRepairClient("claude", "/bin/claude")
+
+        def failing_run(command, **kwargs):
+            return mock.Mock(returncode=1, stdout="", stderr="denied")
+
+        with mock.patch.object(upgrade.subprocess, "run", failing_run):
+            with self.assertRaises(upgrade.UpgradeError):
+                client.request_repair("boom", {}, "10.0.0", [])
+
+        def json_free_run(command, **kwargs):
+            return mock.Mock(returncode=0, stdout="I could not produce a fix.", stderr="")
+
+        with mock.patch.object(upgrade.subprocess, "run", json_free_run):
+            with self.assertRaises(upgrade.UpgradeError):
+                client.request_repair("boom", {}, "10.0.0", [])
+
+    def test_agent_cli_repair_client_rejects_unsupported_cli(self):
+        with self.assertRaises(ValueError):
+            upgrade.AgentCliRepairClient("copilot", "/bin/copilot")
+
+
 if __name__ == "__main__":
     unittest.main()
