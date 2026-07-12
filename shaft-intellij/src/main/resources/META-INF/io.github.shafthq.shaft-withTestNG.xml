@@ -1,0 +1,7 @@
+<!-- Optional TestNG-plugin integration: TestNGConfiguration lives in the bundled "TestNG-J"
+     plugin, so this only loads when it is enabled. -->
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <runConfigurationProducer implementation="com.shaft.intellij.testrunner.ShaftTestNgRunConfigurationProducer"/>
+    </extensions>
+</idea-plugin>

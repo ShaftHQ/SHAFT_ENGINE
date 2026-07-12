@@ -19,6 +19,10 @@ dependencies {
     intellijPlatform {
         intellijIdea(providers.gradleProperty("platformVersion").get())
         bundledPlugin("com.intellij.java")
+        // JUnitConfiguration/TestNGConfiguration classes live in these separate bundled plugins
+        // (see io.github.shafthq.shaft-withJUnit.xml / shaft-withTestNG.xml), not in com.intellij.java.
+        bundledPlugin("JUnit")
+        bundledPlugin("TestNG-J")
     }
     implementation("com.google.code.gson:gson:2.14.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")

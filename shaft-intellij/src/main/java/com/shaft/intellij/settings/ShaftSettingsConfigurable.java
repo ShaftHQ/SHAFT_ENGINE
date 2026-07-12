@@ -86,6 +86,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JBTextField pilotAiModel;
     private JBCheckBox passProviderKeys;
     private JBCheckBox advancedUiEnabled;
+    private JBCheckBox watchModeEnabled;
     private JPasswordField openAiKey;
     private JPasswordField anthropicKey;
     private JPasswordField geminiKey;
@@ -208,6 +209,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         advancedUiEnabled.getAccessibleContext().setAccessibleDescription(
                 "Shows guided workflows, direct tool panels, cloud provider controls, and provider key forwarding.");
         advancedUiEnabled.addActionListener(event -> updateAgentConfigurationControls());
+        watchModeEnabled = new JBCheckBox("Enable watch mode (rerun the last test on source save)");
+        watchModeEnabled.getAccessibleContext().setAccessibleName("Enable SHAFT watch mode");
+        watchModeEnabled.getAccessibleContext().setAccessibleDescription(
+                "Reruns the last SHAFT test run configuration when a src/test/ file changes, "
+                        + "throttled to at most 6 reruns per rolling 5-minute window.");
         pilotAiProvider = new JComboBox<>(model("none", "openai", "anthropic", "gemini", "github", "ollama"));
         ShaftUiLabels.applyFriendlyRenderer(pilotAiProvider);
         pilotAiProvider.getAccessibleContext().setAccessibleName("SHAFT AI provider");
@@ -279,6 +285,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addLabeledComponent(defaultModeLabel, defaultMode)
                 .addComponent(advancedUiEnabled)
                 .addComponent(help("The Assistant tab is always available. Agent mode still requires explicit source mutation approval per request."))
+                .addComponent(watchModeEnabled)
                 .addComponent(shaftAiSection)
                 .addLabeledComponent(shaftAiProviderLabel, pilotAiProvider)
                 .addLabeledComponent(shaftAiModelLabel, pilotAiModel)
@@ -310,6 +317,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         String stateProviderType = state.advancedUiEnabled ? normalize(state.assistantProviderType, "LOCAL") : "LOCAL";
         return !Objects.equals(state.mcpCommand, mcpCommand.getText())
                 || state.advancedUiEnabled != advancedSelected
+                || state.watchModeEnabled != watchModeEnabled.isSelected()
                 || !Objects.equals(stateProviderType, selectedProviderType)
                 || !Objects.equals(resolveFamily(state), assistantFamily.getSelectedItem())
                 || !Objects.equals(normalize(state.assistantRuntime, "CLI"), assistantRuntime.getSelectedItem())
@@ -340,6 +348,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         }
         state.mcpCommand = command;
         state.advancedUiEnabled = advancedUiEnabled.isSelected();
+        state.watchModeEnabled = watchModeEnabled.isSelected();
         state.assistantProviderType = state.advancedUiEnabled
                 ? String.valueOf(assistantProviderType.getSelectedItem())
                 : "LOCAL";
@@ -372,6 +381,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         ShaftSettingsState.Settings state = settingsProvider.get();
         mcpCommand.setText(state.mcpCommand);
         advancedUiEnabled.setSelected(state.advancedUiEnabled);
+        watchModeEnabled.setSelected(state.watchModeEnabled);
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
         assistantFamily.setSelectedItem(resolveFamily(state));
         assistantRuntime.setSelectedItem(normalize(state.assistantRuntime, "CLI"));
@@ -422,6 +432,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         pilotAiModel = null;
         passProviderKeys = null;
         advancedUiEnabled = null;
+        watchModeEnabled = null;
         defaultModeLabel = null;
         shaftAiSection = null;
         shaftAiProviderLabel = null;

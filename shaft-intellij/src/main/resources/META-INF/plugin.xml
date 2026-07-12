@@ -6,6 +6,8 @@
     <depends>com.intellij.modules.platform</depends>
     <depends optional="true" config-file="io.github.shafthq.shaft-withJava.xml">com.intellij.java</depends>
     <depends optional="true" config-file="io.github.shafthq.shaft-withTerminal.xml">org.jetbrains.plugins.terminal</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withJUnit.xml">JUnit</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withTestNG.xml">TestNG-J</depends>
 
     <resource-bundle>messages.ShaftBundle</resource-bundle>
 
@@ -22,6 +24,8 @@
         <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpInvocationService"/>
         <projectService serviceImplementation="com.shaft.intellij.ui.ShaftAssistantChatState"/>
         <projectService serviceImplementation="com.shaft.intellij.approval.ToolApprovalService"/>
+        <projectService serviceImplementation="com.shaft.intellij.testindex.ShaftTestIndex"/>
+        <projectService serviceImplementation="com.shaft.intellij.testindex.ShaftTestWatchService"/>
         <applicationConfigurable instance="com.shaft.intellij.settings.ShaftSettingsConfigurable"
                                  id="shaft.settings"
                                  displayName="SHAFT"/>
@@ -30,6 +34,8 @@
 
     <projectListeners>
         <listener class="com.shaft.intellij.notifications.FailedRunDoctorNotifier"
+                  topic="com.intellij.execution.ExecutionListener"/>
+        <listener class="com.shaft.intellij.testindex.ShaftTestIndexListener"
                   topic="com.intellij.execution.ExecutionListener"/>
     </projectListeners>
 

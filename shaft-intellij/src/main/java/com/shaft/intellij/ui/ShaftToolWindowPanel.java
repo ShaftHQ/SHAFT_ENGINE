@@ -129,6 +129,7 @@ public final class ShaftToolWindowPanel extends JPanel {
             guidedWorkflowPanel = guided;
             views.add(new WorkflowView("Guided", guided, ShaftIcons.CODE));
             EvidenceTriagePanel triage = new EvidenceTriagePanel(project, this::prefillTool);
+            ShaftTestsPanel shaftTests = new ShaftTestsPanel(project);
             VisualBaselinesPanel visualBaselines = new VisualBaselinesPanel(project);
             ShaftFeaturePanel recorderTools = new ShaftFeaturePanel(project, settings,
                     List.of(new ToolCategory("Recorder", ToolTemplates.recorder())));
@@ -148,6 +149,7 @@ public final class ShaftToolWindowPanel extends JPanel {
             views.add(new WorkflowView("Recorder", recorderTools, ShaftIcons.VIEW));
             views.add(new WorkflowView("Inspector", inspectorTools, ShaftIcons.SEARCH));
             views.add(new WorkflowView("Triage", triage, ShaftIcons.CHECK));
+            views.add(new WorkflowView("SHAFT Tests", shaftTests, ShaftIcons.RERUN));
             views.add(new WorkflowView("Visual Baselines", visualBaselines, ShaftIcons.VIEW));
             views.add(new WorkflowView("Evidence", evidenceTools, ShaftIcons.EDIT));
             views.add(new WorkflowView("Projects", projectsTools, ShaftIcons.SETTINGS));
