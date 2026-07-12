@@ -298,7 +298,7 @@
 <h3>initAgents</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="shaft_project_init_agents",
-      description="scaffolds SHAFT agent/skill bridge files and a merge-me AGENTS.md guidance file into an existing test repo for a coding-agent loop (claude, codex), without overwriting files that already exist unless overwrite=true")
+      description="scaffolds SHAFT agent/skill bridge files and a merge-me AGENTS.md guidance file into an existing test repo for a coding-agent loop (claude, codex, opencode, vscode), without overwriting files that already exist unless overwrite=true")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpShaftProjectInitAgentsResult.html" title="class in com.shaft.mcp">McpShaftProjectInitAgentsResult</a></span>&nbsp;<span class="element-name">initAgents</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;loop,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetDirectory,
  boolean&nbsp;overwrite)</span></div>
@@ -312,7 +312,7 @@ reported as a warning instead of failing the call, because <code>targetDirectory
 an existing user repository that may already carry its own agent configuration.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>loop</code> - claude or codex</dd>
+<dd><code>loop</code> - claude, codex, opencode, or vscode</dd>
 <dd><code>targetDirectory</code> - workspace-relative existing test repo directory</dd>
 <dd><code>overwrite</code> - whether existing generated files may be replaced</dd>
 <dt>Returns:</dt>
