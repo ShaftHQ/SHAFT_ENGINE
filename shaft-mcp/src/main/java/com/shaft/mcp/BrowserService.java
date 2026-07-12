@@ -7,7 +7,9 @@ import com.shaft.capture.model.ElementSnapshot;
 import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.model.PageContext;
+import com.shaft.capture.network.CaptureNetworkRecorder;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.validation.accessibility.AccessibilityHelper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -16,12 +18,17 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.http.Contents;
+import org.openqa.selenium.remote.http.HttpMethod;
+import org.openqa.selenium.remote.http.HttpRequest;
+import org.openqa.selenium.remote.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -36,6 +43,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 import static com.shaft.mcp.EngineService.getDriver;
 import static com.shaft.mcp.EngineService.getLocator;
@@ -47,7 +56,10 @@ public class BrowserService {
     private static final int MAX_ELEMENT_LIMIT = 25;
     private static final int MAX_VIOLATION_NODES = 5;
     private static final int MAX_VIOLATION_NODE_HTML_LENGTH = 200;
+    private static final int DEFAULT_NETWORK_TRANSACTION_LIMIT = 50;
+    private static final int MAX_NETWORK_TRANSACTION_LIMIT = 500;
     private static final Logger logger = LoggerFactory.getLogger(BrowserService.class);
+    private static final AtomicInteger ROUTE_SEQUENCE = new AtomicInteger();
 
     private final McpWorkspacePolicy workspacePolicy;
 
@@ -450,6 +462,139 @@ public class BrowserService {
     }
 
     /**
+     * Lists the active browser session's observed network transactions without request/response
+     * bodies. Backed by {@link BrowserObservabilityRecorder}'s per-thread trace capture, which is
+     * active by default ({@code shaft.trace.enabled} and {@code shaft.trace.includeNetwork}) for any
+     * DevTools-capable driver started with {@code driver_initialize}.
+     *
+     * @param urlFilter optional substring the transaction URL must contain
+     * @param limit     maximum transactions to return; non-positive selects the default of 50
+     * @return matching transactions in observed order, newest last
+     */
+    @Tool(name = "browser_network_requests",
+            description = "lists the active browser session's observed network transactions (method, URL, "
+                    + "status, mimeType, sizes, timestamp; never bodies); requires the DevTools-based network "
+                    + "trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork)")
+    public McpNetworkTransactionList networkRequests(String urlFilter, int limit) {
+        try {
+            getDriver();
+            String filter = text(urlFilter);
+            List<McpNetworkTransaction> matched = BrowserObservabilityRecorder.snapshot().stream()
+                    .filter(entry -> filter.isBlank() || entry.url().contains(filter))
+                    .map(BrowserService::toTransaction)
+                    .toList();
+            int effectiveLimit = limit <= 0 ? DEFAULT_NETWORK_TRANSACTION_LIMIT : Math.min(limit, MAX_NETWORK_TRANSACTION_LIMIT);
+            boolean truncated = matched.size() > effectiveLimit;
+            List<McpNetworkTransaction> page = truncated ? matched.subList(0, effectiveLimit) : matched;
+            logger.info("Network transactions listed (total: {}, returned: {}, truncated: {}).",
+                    matched.size(), page.size(), truncated);
+            return new McpNetworkTransactionList(page, matched.size(), truncated,
+                    page.isEmpty()
+                            ? List.of("No network transactions observed for this session yet.")
+                            : List.of());
+        } catch (Exception e) {
+            logger.error("Failed to list network transactions.", e);
+            throw e;
+        }
+    }
+
+    /**
+     * Returns one observed network transaction's detail, including headers and a truncated body
+     * preview as recorded by trace capture. Full, untruncated request/response bodies are only
+     * available from a {@code capture_start}/{@code capture_start_codegen} session started with
+     * {@code saveHarContent=full}.
+     *
+     * @param id 1-based transaction id from {@link #networkRequests(String, int)}
+     * @return the transaction detail
+     */
+    @Tool(name = "browser_network_request",
+            description = "returns one observed network transaction's detail (headers and a truncated, "
+                    + "redacted response body preview) by the 1-based id from browser_network_requests; full "
+                    + "request/response bodies require a capture_start/capture_start_codegen session with "
+                    + "saveHarContent=full")
+    public McpNetworkTransactionDetail networkRequest(int id) {
+        try {
+            getDriver();
+            List<BrowserObservabilityRecorder.NetworkSnapshotEntry> snapshot = BrowserObservabilityRecorder.snapshot();
+            BrowserObservabilityRecorder.NetworkSnapshotEntry entry = snapshot.stream()
+                    .filter(candidate -> candidate.id() == id)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("No network transaction with id " + id
+                            + "; browser_network_requests currently reports " + snapshot.size() + " transaction(s)."));
+            logger.info("Network transaction detail retrieved (id: {}).", id);
+            return toTransactionDetail(entry);
+        } catch (Exception e) {
+            logger.error("Failed to retrieve network transaction detail.", e);
+            throw e;
+        }
+    }
+
+    /**
+     * Registers a mock network route on the active browser session, reusing the same
+     * {@link com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule} mock machinery that backs
+     * {@code routeFromHar} and the fluent {@code interceptRequest()} builder.
+     *
+     * @param method          optional HTTP method to match; blank matches any method
+     * @param urlGlob         optional Playwright-style URL glob ({@code *} and {@code ?}); takes
+     *                        precedence over {@code url} when both are set
+     * @param url             optional exact URL to match; ignored when {@code urlGlob} is set
+     * @param responseStatus  mocked response status code; non-positive selects 200
+     * @param responseBody    mocked response body
+     * @param responseHeaders optional mocked response headers
+     * @return a route id for reference in logs and reports
+     */
+    @Tool(name = "browser_route",
+            description = "registers a mock network route on the active browser session, matching by optional "
+                    + "HTTP method and a URL glob (Playwright-style * and ?) or an exact URL, and returning the "
+                    + "given status/body/headers instead of the real network response; returns a route id for "
+                    + "reference (individual removal is not supported -- browser_unroute always clears every route)")
+    public String route(String method, String urlGlob, String url, int responseStatus, String responseBody,
+                         Map<String, String> responseHeaders) {
+        try {
+            SHAFT.GUI.WebDriver driver = getDriver();
+            Predicate<HttpRequest> predicate = routePredicate(method, urlGlob, url);
+            HttpResponse response = buildMockResponse(responseStatus, responseBody, responseHeaders);
+            driver.browser().mock(predicate, response);
+            String routeId = "route-" + ROUTE_SEQUENCE.incrementAndGet();
+            logger.info("Browser mock route registered (id: {}, status: {}).", routeId, response.getStatus());
+            return routeId;
+        } catch (Exception e) {
+            logger.error("Failed to register browser mock route.", e);
+            throw e;
+        }
+    }
+
+    /**
+     * Clears registered browser mock routes for the active session. SHAFT's browser network
+     * interceptor ({@link com.shaft.gui.browser.internal.BrowserNetworkInterceptor}) only supports
+     * clearing every rule at once today, so {@code routeId} is accepted for symmetry with
+     * {@code browser_route} but every route is cleared regardless of its value.
+     *
+     * @param routeId optional route id returned by {@link #route}; accepted but not used to select
+     *                which route is cleared, since selective removal is not supported
+     * @return a confirmation message documenting the clear-all behavior
+     */
+    @Tool(name = "browser_unroute",
+            description = "clears registered browser mock routes for the active session; routeId is accepted "
+                    + "for reference but every route is cleared because SHAFT's network interceptor does not "
+                    + "support removing a single rule yet")
+    public String unroute(String routeId) {
+        try {
+            SHAFT.GUI.WebDriver driver = getDriver();
+            driver.browser().clearNetworkInterceptors();
+            logger.info("Browser mock routes cleared (requested id length: {}).",
+                    routeId == null ? 0 : routeId.length());
+            return text(routeId).isBlank()
+                    ? "Cleared all browser mock routes."
+                    : "Cleared all browser mock routes; individual removal by id is not supported, so \""
+                            + routeId + "\" and every other registered route were cleared.";
+        } catch (Exception e) {
+            logger.error("Failed to clear browser mock routes.", e);
+            throw e;
+        }
+    }
+
+    /**
      * Captures an accessible-name-tree aria snapshot (SHAFT's YAML subset of Playwright's aria snapshot
      * DSL) of the whole page or a single element for MCP browser automation inspection.
      *
@@ -538,6 +683,82 @@ public class BrowserService {
                 rule.getTags() == null ? List.of() : List.copyOf(rule.getTags()),
                 nodes.size(),
                 nodeSummaries);
+    }
+
+    private static McpNetworkTransaction toTransaction(BrowserObservabilityRecorder.NetworkSnapshotEntry entry) {
+        return new McpNetworkTransaction(
+                entry.id(),
+                entry.method(),
+                entry.url(),
+                entry.status(),
+                entry.mimeType(),
+                entry.durationMs(),
+                entry.requestSizeBytes(),
+                entry.responseSizeBytes(),
+                entry.timestamp(),
+                entry.failureReason());
+    }
+
+    private static McpNetworkTransactionDetail toTransactionDetail(BrowserObservabilityRecorder.NetworkSnapshotEntry entry) {
+        return new McpNetworkTransactionDetail(
+                entry.id(),
+                entry.method(),
+                entry.url(),
+                entry.status(),
+                entry.mimeType(),
+                entry.durationMs(),
+                entry.requestSizeBytes(),
+                entry.responseSizeBytes(),
+                entry.timestamp(),
+                entry.failureReason(),
+                entry.requestHeaders(),
+                entry.responseHeaders(),
+                entry.bodyPreview());
+    }
+
+    /**
+     * Builds the request predicate for {@code browser_route}, requiring at least one of
+     * {@code urlGlob}/{@code url} and matching the optional HTTP method.
+     *
+     * @param method  optional HTTP method; blank matches any method
+     * @param urlGlob optional Playwright-style URL glob; takes precedence over {@code url}
+     * @param url     optional exact URL; ignored when {@code urlGlob} is set
+     * @return the combined request predicate
+     */
+    static Predicate<HttpRequest> routePredicate(String method, String urlGlob, String url) {
+        String glob = text(urlGlob);
+        String exact = text(url);
+        if (glob.isBlank() && exact.isBlank()) {
+            throw new IllegalArgumentException("browser_route requires either urlGlob or url.");
+        }
+        HttpMethod httpMethod = parseHttpMethod(method);
+        Predicate<HttpRequest> urlPredicate = glob.isBlank()
+                ? request -> exact.equals(request.getUri())
+                : request -> CaptureNetworkRecorder.matchesGlob(request.getUri(), glob);
+        return request -> (httpMethod == null || httpMethod == request.getMethod()) && urlPredicate.test(request);
+    }
+
+    private static HttpMethod parseHttpMethod(String method) {
+        String text = text(method);
+        if (text.isBlank()) {
+            return null;
+        }
+        try {
+            return HttpMethod.valueOf(text.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Unsupported browser_route method: " + method, exception);
+        }
+    }
+
+    static HttpResponse buildMockResponse(int responseStatus, String responseBody, Map<String, String> responseHeaders) {
+        HttpResponse response = new HttpResponse().setStatus(responseStatus <= 0 ? 200 : responseStatus);
+        if (responseHeaders != null) {
+            responseHeaders.forEach(response::addHeader);
+        }
+        if (responseBody != null) {
+            response.setContent(Contents.bytes(responseBody.getBytes(StandardCharsets.UTF_8)));
+        }
+        return response;
     }
 
     private Path writeScreenshot(String outputPath, byte[] png) {

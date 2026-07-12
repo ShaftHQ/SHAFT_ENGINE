@@ -91,7 +91,8 @@ public final class BrowserObservabilityRecorder {
                 Math.max(0, observation.requestSize()),
                 Math.max(0, observation.responseSize()),
                 value(observation.failureReason()),
-                truncate(value(observation.bodyPreview()))));
+                truncate(value(observation.bodyPreview())),
+                System.currentTimeMillis()));
     }
 
     /**
@@ -170,6 +171,48 @@ public final class BrowserObservabilityRecorder {
         NETWORK.get().clear();
         NEXT_NETWORK_ID.set(0);
         return json;
+    }
+
+    /**
+     * Returns a read-only, 1-based snapshot of the current thread's observed network transactions
+     * without draining them, so a caller can list transactions repeatedly (for example an MCP tool
+     * answering separate "list" and "get by id" requests) without racing {@link FailureTraceReporter}'s
+     * end-of-test drain of the same thread-local state.
+     *
+     * @return immutable snapshot of currently recorded network transactions, oldest first
+     */
+    public static List<NetworkSnapshotEntry> snapshot() {
+        List<NetworkEvent> events = NETWORK.get();
+        List<NetworkSnapshotEntry> snapshot = new ArrayList<>(events.size());
+        for (int i = 0; i < events.size(); i++) {
+            NetworkEvent event = events.get(i);
+            snapshot.add(new NetworkSnapshotEntry(
+                    i + 1,
+                    event.method(),
+                    event.url(),
+                    event.status(),
+                    mimeType(event.responseHeaders()),
+                    event.durationMs(),
+                    event.requestSizeBytes(),
+                    event.responseSizeBytes(),
+                    event.failureReason(),
+                    event.timestamp(),
+                    event.bodyPreview(),
+                    event.requestHeaders(),
+                    event.responseHeaders()));
+        }
+        return List.copyOf(snapshot);
+    }
+
+    private static String mimeType(Map<String, String> responseHeaders) {
+        for (Map.Entry<String, String> entry : responseHeaders.entrySet()) {
+            if ("content-type".equalsIgnoreCase(entry.getKey())) {
+                String value = value(entry.getValue());
+                int separator = value.indexOf(';');
+                return separator < 0 ? value.trim() : value.substring(0, separator).trim();
+            }
+        }
+        return "";
     }
 
     /**
@@ -450,7 +493,31 @@ public final class BrowserObservabilityRecorder {
 
     private record NetworkEvent(String method, String url, int status, Map<String, String> requestHeaders,
                                 Map<String, String> responseHeaders, long durationMs, long requestSizeBytes,
-                                long responseSizeBytes, String failureReason, String bodyPreview) {
+                                long responseSizeBytes, String failureReason, String bodyPreview, long timestamp) {
+    }
+
+    /**
+     * Read-only snapshot of one observed network transaction, safe to hand to a caller outside this
+     * class (unlike {@link NetworkEvent}, which stays private since it backs the mutable trace list).
+     *
+     * @param id                 1-based position in the snapshot this entry was read from
+     * @param method             HTTP method
+     * @param url                request URL
+     * @param status             HTTP response status code, or {@code 0} when the exchange failed
+     * @param mimeType           response {@code Content-Type}, without parameters (blank when absent)
+     * @param durationMs         exchange duration in milliseconds
+     * @param requestSizeBytes   request body size in bytes
+     * @param responseSizeBytes  response body size in bytes
+     * @param failureReason      safe failure reason, blank on success
+     * @param timestamp          epoch millis when the exchange finished
+     * @param bodyPreview        truncated, redacted response body preview as recorded for trace/HAR output
+     * @param requestHeaders     sanitized request headers
+     * @param responseHeaders    sanitized response headers
+     */
+    public record NetworkSnapshotEntry(int id, String method, String url, int status, String mimeType,
+                                       long durationMs, long requestSizeBytes, long responseSizeBytes,
+                                       String failureReason, long timestamp, String bodyPreview,
+                                       Map<String, String> requestHeaders, Map<String, String> responseHeaders) {
     }
 
     private record ConsoleEvent(String source, String level, String message, long timestamp) {

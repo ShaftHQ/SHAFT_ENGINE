@@ -206,3 +206,4 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows","timestamp":"2026-07-12T13:24:30+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.new-mcp-tool-methods-require-regenerating-the-shaft-skills-tool-catalog","timestamp":"2026-07-12T16:28:50+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.never-trust-gh-pr-checks-piped-through-tail-head-for-green-verdicts","timestamp":"2026-07-12T16:28:50+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.refresh-shaft-captures-m2-snapshot-too-not-just-shaft-engine-for-shaft-mcp-builds","timestamp":"2026-07-12T17:28:33+03:00"}

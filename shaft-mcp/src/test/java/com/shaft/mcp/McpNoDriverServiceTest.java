@@ -49,6 +49,10 @@ class McpNoDriverServiceTest {
         assertNoDriver(() -> service.accessibilityAudit("wcag2a", "wcag2aa"));
         assertNoDriver(() -> service.saveStorageState("state.json"));
         assertNoDriver(() -> service.loadStorageState("state.json"));
+        assertNoDriver(() -> service.networkRequests("", 50));
+        assertNoDriver(() -> service.networkRequest(1));
+        assertNoDriver(() -> service.route("GET", "**/api/**", null, 200, "{}", null));
+        assertNoDriver(() -> service.unroute(null));
     }
 
     @Test
