@@ -22,7 +22,7 @@ import java.util.List;
  * can be attached to Allure reports for CI/CD integration.
  */
 public class LightHouseGenerateReport {
-    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a");
+    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSS");
     final WebDriver driver;
     int PortNum;
     String PageName;

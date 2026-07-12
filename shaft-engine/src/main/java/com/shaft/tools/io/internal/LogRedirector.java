@@ -27,9 +27,20 @@ public class LogRedirector extends OutputStream {
     @Override
     public void write(byte[] b, int off, int len) {
         Objects.checkFromIndexSize(off, len, b.length);
-        // len == 0 condition implicitly handled by loop bounds
-        for (int i = 0; i < len; i++) {
-            write(b[off + i]);
+        int end = off + len;
+        int segmentStart = off;
+        for (int i = off; i < end; i++) {
+            byte current = b[i];
+            if (current == '\r' || current == '\n') {
+                if (i > segmentStart) {
+                    lineBuffers.get().write(b, segmentStart, i - segmentStart);
+                }
+                flush();
+                segmentStart = i + 1;
+            }
+        }
+        if (segmentStart < end) {
+            lineBuffers.get().write(b, segmentStart, end - segmentStart);
         }
     }
 
