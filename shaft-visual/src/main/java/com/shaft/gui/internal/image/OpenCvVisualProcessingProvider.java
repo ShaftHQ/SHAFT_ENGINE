@@ -168,8 +168,12 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
                     List<List<Object>> attachments = new LinkedList<>();
                     attachments.add(screenshot);
                     ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage, attachments);
-                } catch (IOException e) {
-                    ReportManager.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage);
+                } catch (Exception e) {
+                    // Report-attachment failures (encoding/highlighting issues, etc.) must never downgrade
+                    // an already-successful template match into a "not found" verdict; log and continue.
+                    ReportManagerHelper.logDiscrete(e);
+                    ReportManager.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage
+                            + " Failed to attach the highlighted match image to the report.");
                 }
                 return Arrays.asList(x, y);
             } catch (org.opencv.core.CvException e) {
