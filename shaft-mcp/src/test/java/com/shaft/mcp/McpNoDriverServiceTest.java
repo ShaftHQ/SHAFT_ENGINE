@@ -128,6 +128,13 @@ class McpNoDriverServiceTest {
         assertNoDriver(engineService::getPageSource);
     }
 
+    @Test
+    void plannerToolShouldFailWhenNoDriverSessionExists() {
+        PlannerService service = new PlannerService(McpWorkspacePolicy.of(temp));
+
+        assertNoDriver(() -> service.exploreAndPlan("https://example.test", "", 1, 1));
+    }
+
     private static void assertNoDriver(Executable executable) {
         assertThrows(IllegalStateException.class, executable);
     }

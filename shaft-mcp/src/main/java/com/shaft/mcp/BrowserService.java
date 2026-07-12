@@ -850,7 +850,9 @@ public class BrowserService {
                 .toList();
     }
 
-    private static ElementSnapshot snapshot(Document document, Element element) {
+    // Package-private so PlannerService (test_plan_explore) can reuse the same DOM-to-locator-evidence
+    // construction instead of duplicating element inspection logic.
+    static ElementSnapshot snapshot(Document document, Element element) {
         String tag = element.tagName().toLowerCase(Locale.ROOT);
         String role = role(element);
         String label = label(document, element);
@@ -960,7 +962,9 @@ public class BrowserService {
                 "shaftLocatorCode", locatorCode(locator, target));
     }
 
-    private static String locatorCode(LocatorCandidate candidate, ElementSnapshot target) {
+    // Package-private so PlannerService (test_plan_explore) can render the same SHAFT.GUI.Locator
+    // code snippets for candidate locators discovered while crawling.
+    static String locatorCode(LocatorCandidate candidate, ElementSnapshot target) {
         String expression = candidate.expression();
         return switch (candidate.strategy()) {
             case ROLE, ACCESSIBLE_NAME, LABEL -> {
@@ -1066,7 +1070,9 @@ public class BrowserService {
         };
     }
 
-    private static String label(Document document, Element element) {
+    // Package-private so PlannerService (test_plan_explore) can reuse the same label association
+    // lookup when describing form fields.
+    static String label(Document document, Element element) {
         String id = element.id();
         if (!id.isBlank()) {
             for (Element label : document.select("label[for]")) {
@@ -1153,7 +1159,9 @@ public class BrowserService {
         return "[" + name + "=\"" + text(value).replace("\\", "\\\\").replace("\"", "\\\"") + "\"]";
     }
 
-    private static String javaString(String value) {
+    // Package-private so PlannerService (test_plan_explore) can escape fallback locator expressions
+    // using the same Java string escaping as the rest of the generated locator code.
+    static String javaString(String value) {
         return text(value).replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\r", "\\r")
