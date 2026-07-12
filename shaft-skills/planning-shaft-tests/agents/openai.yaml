@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan SHAFT Tests by Exploring the App"
+  short_description: "Explore an app and generate SHAFT test flow specifications"
+  default_prompt: "Use $planning-shaft-tests to explore the target app, generate test flow plans, and prepare automation scenarios."

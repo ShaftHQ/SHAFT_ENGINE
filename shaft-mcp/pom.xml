@@ -143,6 +143,21 @@
                 </includes>
                 <filtering>false</filtering>
             </resource>
+            <resource>
+                <!--
+                    Bundles the SHAFT skill guides straight from shaft-skills/ so
+                    shaft_project_init_agents can generate loop-specific bridge files from the
+                    live skill content instead of a hand-duplicated copy that would go stale.
+                    Only each skill's top-level SKILL.md is included (agents/*.yaml and
+                    references/*.md stay out of the jar).
+                -->
+                <directory>${project.basedir}/../shaft-skills</directory>
+                <targetPath>META-INF/shaft-mcp/shaft-skills</targetPath>
+                <includes>
+                    <include>*/SKILL.md</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
         </resources>
         <plugins>
             <plugin>

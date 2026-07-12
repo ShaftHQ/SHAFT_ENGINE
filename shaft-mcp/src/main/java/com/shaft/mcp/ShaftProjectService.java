@@ -37,6 +37,11 @@ import java.util.regex.Matcher;
 public class ShaftProjectService {
     private static final String EXAMPLES_ROOT = "META-INF/shaft-mcp/examples";
     private static final String UPGRADER_RESOURCE = "META-INF/shaft-mcp/upgrade_to_modular_shaft.py";
+    private static final String SHAFT_SKILLS_ROOT = "META-INF/shaft-mcp/shaft-skills";
+    private static final String SKILL_FILE_NAME = "SKILL.md";
+    private static final Set<String> AGENT_LOOPS = Set.of("claude", "codex");
+    private static final java.util.regex.Pattern SAFE_SKILL_NAME =
+            java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
     private static final String SHAFT_ENGINE_MAVEN_METADATA_URL =
             "https://repo.maven.apache.org/maven2/io/github/shafthq/shaft-engine/maven-metadata.xml";
     private static final int DEFAULT_COMPILE_TIMEOUT_SECONDS = 900;
@@ -277,6 +282,212 @@ public class ShaftProjectService {
                 result.stderr(),
                 result.timedOut(),
                 command);
+    }
+
+    /**
+     * Scaffolds SHAFT agent/skill bridge definitions into an existing test repo for a coding-agent loop.
+     *
+     * <p>Every bridge is generated at call time from the bundled {@code shaft-skills/&lt;skill&gt;/SKILL.md}
+     * guides shipped inside the shaft-mcp jar, rather than a hand-duplicated copy of the full skill text,
+     * so the set of skills and their descriptions always tracks {@code shaft-skills/} as of the shaft-mcp
+     * build. Existing files are left untouched unless {@code overwrite} is {@code true}; a skipped file is
+     * reported as a warning instead of failing the call, because {@code targetDirectory} is expected to be
+     * an existing user repository that may already carry its own agent configuration.
+     *
+     * @param loop claude or codex
+     * @param targetDirectory workspace-relative existing test repo directory
+     * @param overwrite whether existing generated files may be replaced
+     * @return generated agent-scaffolding details
+     */
+    @Tool(name = "shaft_project_init_agents",
+            description = "scaffolds SHAFT agent/skill bridge files and a merge-me AGENTS.md guidance file "
+                    + "into an existing test repo for a coding-agent loop (claude, codex), without "
+                    + "overwriting files that already exist unless overwrite=true")
+    public McpShaftProjectInitAgentsResult initAgents(String loop, String targetDirectory, boolean overwrite) {
+        String selectedLoop = selectedAgentLoop(loop);
+        Path target = workspacePolicy.output(text(targetDirectory).isBlank() ? "." : targetDirectory,
+                "Agent scaffolding target directory");
+        List<Path> generatedFiles = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+        try {
+            Files.createDirectories(target);
+            List<String> skillNames = bundledSkillNames();
+            Path skillsDirectory = target.resolve(agentLoopSkillsDirectory(selectedLoop));
+            for (String skillName : skillNames) {
+                Map<String, String> frontMatter = frontMatter(readResourceText(skillResource(skillName)));
+                String bridge = skillBridgeMarkdown(
+                        skillName,
+                        frontMatter.getOrDefault("name", skillName),
+                        frontMatter.getOrDefault("description", ""));
+                writeGeneratedFile(skillsDirectory.resolve(skillName).resolve(SKILL_FILE_NAME), target, bridge,
+                        overwrite, generatedFiles, warnings);
+            }
+            writeGeneratedFile(target.resolve("SHAFT-AGENTS.md"), target,
+                    rootGuidanceMarkdown(selectedLoop, skillNames), overwrite, generatedFiles, warnings);
+            return new McpShaftProjectInitAgentsResult(
+                    McpShaftProjectInitAgentsResult.CURRENT_SCHEMA_VERSION,
+                    target,
+                    selectedLoop,
+                    generatedFiles,
+                    warnings);
+        } catch (IOException exception) {
+            throw new IllegalStateException("SHAFT agent scaffolding could not be generated.", exception);
+        }
+    }
+
+    private static String selectedAgentLoop(String value) {
+        String normalized = text(value).toLowerCase(Locale.ROOT);
+        if (AGENT_LOOPS.contains(normalized)) {
+            return normalized;
+        }
+        throw new IllegalArgumentException("Unsupported SHAFT agent loop: " + value);
+    }
+
+    private static String agentLoopSkillsDirectory(String loop) {
+        return "." + loop + "/skills";
+    }
+
+    private static void writeGeneratedFile(
+            Path destination,
+            Path targetRoot,
+            String content,
+            boolean overwrite,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        Path normalized = safeDestination(destination, targetRoot);
+        if (Files.exists(normalized) && !overwrite) {
+            warnings.add("Skipped existing file (overwrite=false): " + normalized);
+            return;
+        }
+        Files.createDirectories(normalized.getParent());
+        Files.writeString(normalized, content, StandardCharsets.UTF_8);
+        generatedFiles.add(normalized);
+    }
+
+    private static String skillResource(String skillName) {
+        String resourceName = SHAFT_SKILLS_ROOT + "/" + skillName + "/" + SKILL_FILE_NAME;
+        // Normalize-and-verify barrier: skill names are derived from jar entry names, so prove the
+        // constructed resource path cannot traverse outside the skills root (zip-slip guard).
+        if (!Path.of(resourceName).normalize().startsWith(Path.of(SHAFT_SKILLS_ROOT))) {
+            throw new IllegalArgumentException("Unsafe skill name: " + skillName);
+        }
+        return resourceName;
+    }
+
+    private static List<String> bundledSkillNames() throws IOException {
+        URL url = resource(SHAFT_SKILLS_ROOT);
+        try {
+            if ("file".equalsIgnoreCase(url.getProtocol())) {
+                Path source = Path.of(url.toURI());
+                try (var children = Files.list(source)) {
+                    return children.filter(Files::isDirectory)
+                            .filter(dir -> Files.isRegularFile(dir.resolve(SKILL_FILE_NAME)))
+                            .map(dir -> dir.getFileName().toString())
+                            .sorted()
+                            .toList();
+                }
+            }
+            if ("jar".equalsIgnoreCase(url.getProtocol())) {
+                JarURLConnection connection = (JarURLConnection) url.openConnection();
+                String prefix = connection.getEntryName() + "/";
+                String suffix = "/" + SKILL_FILE_NAME;
+                try (JarFile jar = connection.getJarFile()) {
+                    Set<String> names = new LinkedHashSet<>();
+                    for (JarEntry entry : jar.stream().filter(candidate -> !candidate.isDirectory())
+                            .filter(candidate -> candidate.getName().startsWith(prefix))
+                            .filter(candidate -> candidate.getName().endsWith(suffix)).toList()) {
+                        String remainder = entry.getName().substring(prefix.length());
+                        String skillName = remainder.substring(0, remainder.length() - suffix.length());
+                        // Only accept direct child directories with simple names; jar entry names are
+                        // attacker-influenceable in principle ('..', nested slashes) and flow into
+                        // generated file paths, so validate instead of trusting them (zip-slip guard).
+                        if (SAFE_SKILL_NAME.matcher(skillName).matches()) {
+                            names.add(skillName);
+                        }
+                    }
+                    return names.stream().sorted().toList();
+                }
+            }
+            throw new IOException("Unsupported SHAFT skills resource protocol: " + url.getProtocol());
+        } catch (IOException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IOException("SHAFT skills resources could not be read.", exception);
+        }
+    }
+
+    private static String readResourceText(String resourceName) throws IOException {
+        try (var input = resource(resourceName).openStream()) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static Map<String, String> frontMatter(String skillMarkdown) {
+        Matcher matcher = java.util.regex.Pattern.compile("^---\\R(.*?)\\R---", java.util.regex.Pattern.DOTALL)
+                .matcher(skillMarkdown);
+        Map<String, String> values = new LinkedHashMap<>();
+        if (matcher.find()) {
+            for (String line : matcher.group(1).split("\\R")) {
+                int colon = line.indexOf(':');
+                if (colon > 0) {
+                    values.put(line.substring(0, colon).trim(), line.substring(colon + 1).trim());
+                }
+            }
+        }
+        return values;
+    }
+
+    private static String skillBridgeMarkdown(String skillName, String name, String description) {
+        return "---\n"
+                + "name: " + name + "\n"
+                + "description: " + description + "\n"
+                + "---\n\n"
+                + "# " + titleCase(skillName) + " (SHAFT bridge)\n\n"
+                + "Generated by `shaft_project_init_agents`; do not hand-edit. Re-run with `overwrite=true` "
+                + "after upgrading `shaft-mcp` to refresh this bridge from the latest SHAFT skill guidance.\n\n"
+                + "Use the `shaft-mcp` MCP server (`shaft-mcp:` or `mcp__shaft-mcp__` tool prefix depending on "
+                + "the client) to carry out this skill. Call `shaft-mcp:shaft_guide_search` first for official "
+                + "SHAFT guidance, then the tools that match \"" + skillName + "\" (source playbook: SHAFT_ENGINE "
+                + "`shaft-skills/" + skillName + "/SKILL.md`). Treat generated or recorded code as a draft: "
+                + "preview it with `shaft-mcp:shaft_coding_partner_diff`, apply only under explicit approval, "
+                + "and verify with `shaft-mcp:verify_run_focused` before treating it as done.\n";
+    }
+
+    private static String titleCase(String skillName) {
+        StringBuilder title = new StringBuilder();
+        for (String word : skillName.split("-")) {
+            if (title.length() > 0) {
+                title.append(' ');
+            }
+            title.append("mcp".equals(word)
+                    ? "MCP"
+                    : Character.toUpperCase(word.charAt(0)) + word.substring(1));
+        }
+        return title.toString();
+    }
+
+    private static String rootGuidanceMarkdown(String loop, List<String> skillNames) {
+        StringBuilder guidance = new StringBuilder();
+        guidance.append("# SHAFT Agent Guidance (generated)\n\n")
+                .append("> Generated by `shaft_project_init_agents` (shaft-mcp) for the `").append(loop)
+                .append("` loop. This file is intentionally standalone so the tool never edits a file you "
+                        + "already maintain. Review it, then MERGE the relevant parts into your own "
+                        + "`AGENTS.md`/`CLAUDE.md` (or your loop's equivalent guidance file), and delete this "
+                        + "file once merged.\n\n")
+                .append("## Generated skill bridges\n\n")
+                .append("Each bridge below points a coding agent at using `shaft-mcp` MCP tools for a SHAFT "
+                        + "workflow:\n\n");
+        for (String skillName : skillNames) {
+            guidance.append("- `").append(skillName).append("`\n");
+        }
+        guidance.append("\n## Using shaft-mcp\n\n")
+                .append("- Prefer `shaft-mcp:shaft_guide_search` before guessing tool behavior.\n")
+                .append("- Treat generated or recorded code as a draft: preview it with "
+                        + "`shaft-mcp:shaft_coding_partner_diff`, apply only under explicit approval, then "
+                        + "verify with `shaft-mcp:verify_run_focused`.\n")
+                .append("- Do not insert SHAFT code without review; this is SHAFT's evidence-gated AI "
+                        + "governance model, not a fire-and-forget generator.\n");
+        return guidance.toString();
     }
 
     private static Map<String, Map<String, String>> projects() {

@@ -134,6 +134,95 @@ class ShaftProjectServiceTest {
     }
 
     @Test
+    void initAgentsGeneratesClaudeSkillBridgesAndGuidanceFile() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("claude", "repo", false);
+
+        Path repo = temp.resolve("repo");
+        assertEquals(repo, result.targetDirectory());
+        assertEquals("claude", result.loop());
+        assertTrue(result.warnings().isEmpty());
+        Path bridge = repo.resolve(".claude/skills/recording-shaft-tests-with-mcp/SKILL.md");
+        assertTrue(Files.exists(bridge));
+        assertTrue(result.generatedFiles().contains(bridge));
+        String bridgeContent = Files.readString(bridge);
+        assertTrue(bridgeContent.startsWith("---\nname: recording-shaft-tests-with-mcp\n"));
+        assertTrue(bridgeContent.contains("shaft-mcp:shaft_guide_search"));
+        assertTrue(Files.exists(repo.resolve("SHAFT-AGENTS.md")));
+        String guidance = Files.readString(repo.resolve("SHAFT-AGENTS.md"));
+        assertTrue(guidance.contains("MERGE the relevant parts"));
+        assertTrue(guidance.contains("recording-shaft-tests-with-mcp"));
+    }
+
+    @Test
+    void initAgentsGeneratesCodexSkillBridgesUnderCodexDirectory() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("codex", "codex-repo", false);
+
+        assertEquals("codex", result.loop());
+        assertTrue(Files.exists(
+                temp.resolve("codex-repo/.codex/skills/writing-shaft-tests/SKILL.md")));
+        assertTrue(Files.exists(temp.resolve("codex-repo/SHAFT-AGENTS.md")));
+    }
+
+    @Test
+    void initAgentsRejectsUnsupportedLoop() {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+
+        assertThrows(IllegalArgumentException.class, () -> service.initAgents("vscode", "repo", false));
+    }
+
+    @Test
+    void initAgentsSkipsExistingFileWithWarningWhenOverwriteFalse() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+        Path repo = Files.createDirectories(temp.resolve("existing-repo"));
+        Path guidance = repo.resolve("SHAFT-AGENTS.md");
+        Files.writeString(guidance, "custom content");
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("claude", "existing-repo", false);
+
+        assertEquals("custom content", Files.readString(guidance));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("SHAFT-AGENTS.md")));
+        assertTrue(result.generatedFiles().stream().noneMatch(guidance::equals));
+    }
+
+    @Test
+    void initAgentsOverwritesExistingFileWhenOverwriteTrue() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+        Path repo = Files.createDirectories(temp.resolve("overwrite-repo"));
+        Path guidance = repo.resolve("SHAFT-AGENTS.md");
+        Files.writeString(guidance, "stale content");
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("claude", "overwrite-repo", true);
+
+        assertTrue(result.warnings().isEmpty());
+        assertTrue(result.generatedFiles().contains(guidance));
+        assertTrue(Files.readString(guidance).contains("SHAFT Agent Guidance"));
+    }
+
+    @Test
     void resourceDestinationRejectsTraversalOutsideProjectDirectory() {
         Path project = temp.resolve("project");
 
