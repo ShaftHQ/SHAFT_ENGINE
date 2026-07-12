@@ -20,7 +20,9 @@ class AssertionCatalogTest {
                 CaptureEvent.VerificationKind.TEXT_EQUALS,
                 CaptureEvent.VerificationKind.TEXT_CONTAINS,
                 CaptureEvent.VerificationKind.ATTRIBUTE_EQUALS,
-                CaptureEvent.VerificationKind.ELEMENT_IMAGE_MATCHES),
+                CaptureEvent.VerificationKind.ELEMENT_IMAGE_MATCHES,
+                CaptureEvent.VerificationKind.ARIA_SNAPSHOT_MATCHES,
+                CaptureEvent.VerificationKind.SCREENSHOT_MATCHES),
                 kinds);
     }
 
@@ -56,5 +58,22 @@ class AssertionCatalogTest {
         for (AssertionCatalog.Entry entry : AssertionCatalog.browserAssertions()) {
             assertEquals(true, entry.needsValue(), entry.kind() + " expected-value prompt flag");
         }
+    }
+
+    @Test
+    void ariaSnapshotMatchesPromptsForTheBaselineNameButScreenshotMatchesDoesNot() {
+        AssertionCatalog.Entry ariaSnapshot = AssertionCatalog.elementAssertions().stream()
+                .filter(entry -> entry.kind() == CaptureEvent.VerificationKind.ARIA_SNAPSHOT_MATCHES)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(true, ariaSnapshot.needsValue());
+        assertEquals(false, ariaSnapshot.needsAttribute());
+
+        AssertionCatalog.Entry screenshot = AssertionCatalog.elementAssertions().stream()
+                .filter(entry -> entry.kind() == CaptureEvent.VerificationKind.SCREENSHOT_MATCHES)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(false, screenshot.needsValue());
+        assertEquals(false, screenshot.needsAttribute());
     }
 }

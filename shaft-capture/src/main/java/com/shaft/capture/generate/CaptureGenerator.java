@@ -478,7 +478,7 @@ public final class CaptureGenerator {
             }
         } else if (event instanceof CaptureEvent.VerificationEvent value) {
             validateVerification(id, value.verification(), value.target(), value.expected(),
-                    value.context(), unsupported);
+                    value.negated(), value.context(), unsupported);
         } else if (event instanceof CaptureEvent.FrameEvent value
                 && backend == CodegenBackend.PLAYWRIGHT
                 && value.action() != CaptureEvent.FrameAction.TOP) {
@@ -501,6 +501,7 @@ public final class CaptureGenerator {
             CaptureEvent.VerificationKind verification,
             ElementSnapshot target,
             ExternalTestDataReference expected,
+            boolean negated,
             EventContext context,
             List<String> unsupported) {
         boolean targetRequired = switch (verification) {
@@ -509,7 +510,7 @@ public final class CaptureGenerator {
         };
         boolean expectedRequired = switch (verification) {
             case TEXT_EQUALS, TEXT_CONTAINS, ATTRIBUTE_EQUALS, URL_EQUALS, URL_CONTAINS,
-                 TITLE_EQUALS, TITLE_CONTAINS, PAGE_TEXT_CONTAINS -> true;
+                 TITLE_EQUALS, TITLE_CONTAINS, PAGE_TEXT_CONTAINS, ARIA_SNAPSHOT_MATCHES -> true;
             default -> false;
         };
         if (targetRequired && target == null) {
@@ -524,6 +525,10 @@ public final class CaptureGenerator {
         if (verification == CaptureEvent.VerificationKind.ATTRIBUTE_EQUALS
                 && extensionText(context, "attributeName").isBlank()) {
             unsupported.add(eventId + ": ATTRIBUTE_EQUALS requires context.extensions.attributeName.");
+        }
+        if ((verification == CaptureEvent.VerificationKind.ARIA_SNAPSHOT_MATCHES
+                || verification == CaptureEvent.VerificationKind.SCREENSHOT_MATCHES) && negated) {
+            unsupported.add(eventId + ": " + verification + " does not support negated verification.");
         }
     }
 
@@ -1229,6 +1234,10 @@ public final class CaptureGenerator {
                     negated ? "doesNotContain" : "contains", dataExpression(expected, data));
             case ELEMENT_IMAGE_MATCHES -> line(source, "        driver.element().assertThat(" + locator + ")."
                     + (negated ? "doesNotMatchReferenceImage" : "matchesReferenceImage") + "();");
+            case ARIA_SNAPSHOT_MATCHES -> line(source, "        driver.element().assertThat(" + locator
+                    + ").matchesAriaSnapshot(" + dataExpression(expected, data) + ");");
+            case SCREENSHOT_MATCHES -> line(source, "        driver.element().assertThat(" + locator
+                    + ").matchesScreenshot().perform();");
         }
     }
 

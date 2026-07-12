@@ -703,7 +703,9 @@
     {kind: "TEXT_EQUALS", label: "Text equals", needsValue: true, needsAttribute: false},
     {kind: "TEXT_CONTAINS", label: "Text contains", needsValue: true, needsAttribute: false},
     {kind: "ATTRIBUTE_EQUALS", label: "Attribute equals", needsValue: true, needsAttribute: true},
-    {kind: "ELEMENT_IMAGE_MATCHES", label: "Image matches reference", needsValue: false, needsAttribute: false}
+    {kind: "ELEMENT_IMAGE_MATCHES", label: "Image matches reference", needsValue: false, needsAttribute: false},
+    {kind: "ARIA_SNAPSHOT_MATCHES", label: "Aria snapshot matches", needsValue: true, needsAttribute: false},
+    {kind: "SCREENSHOT_MATCHES", label: "Screenshot matches baseline", needsValue: false, needsAttribute: false}
   ];
   const BROWSER_ASSERTIONS = [
     {kind: "URL_EQUALS", label: "URL equals", needsValue: true, needsAttribute: false},
@@ -717,6 +719,9 @@
     if (kind === "TITLE_EQUALS" || kind === "TITLE_CONTAINS") return valueText(document.title);
     if (kind === "PAGE_TEXT_CONTAINS") return valueText(document.body && document.body.innerText);
     if (kind === "ATTRIBUTE_EQUALS") return valueText(element && element.getAttribute(attributeName));
+    // The aria-snapshot baseline file name is unrelated to the element's current text/attribute
+    // content, so leave the field blank instead of prefilling it with a misleading default.
+    if (kind === "ARIA_SNAPSHOT_MATCHES") return "";
     if (isTextInput(element)) return valueText(element.value);
     return text(element && (element.innerText || element.textContent));
   };

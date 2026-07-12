@@ -535,6 +535,82 @@ class CaptureGeneratorTest {
     }
 
     @Test
+    void generatorRendersAriaSnapshotAndScreenshotVerificationCheckpoints() throws Exception {
+        ExternalTestDataReference expected = CaptureFixtures.ordinary();
+        CaptureSession verificationSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "aria-screenshot-verification-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(5),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(2),
+                                CaptureEvent.VerificationKind.ARIA_SNAPSHOT_MATCHES,
+                                CaptureFixtures.target(), expected, false),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(3),
+                                CaptureEvent.VerificationKind.SCREENSHOT_MATCHES,
+                                CaptureFixtures.target(), null, false)),
+                List.of(),
+                List.of(expected),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(verificationSession);
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("aria-screenshot-verification")));
+
+        assertTrue(result.successful(), result.report().unsupportedEvents().toString());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains(
+                "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\"))"
+                        + ".matchesAriaSnapshot(requiredData(\"username\"));"));
+        assertTrue(source.contains(
+                "driver.element().assertThat(SHAFT.GUI.Locator.inputField(\"Username\")).matchesScreenshot().perform();"));
+    }
+
+    @Test
+    void negatedAriaSnapshotAndScreenshotVerificationsAreUnsupported() throws Exception {
+        ExternalTestDataReference expected = CaptureFixtures.ordinary();
+        CaptureSession verificationSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "negated-aria-screenshot-verification-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(5),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(2),
+                                CaptureEvent.VerificationKind.ARIA_SNAPSHOT_MATCHES,
+                                CaptureFixtures.target(), expected, true),
+                        new CaptureEvent.VerificationEvent(CaptureFixtures.context(3),
+                                CaptureEvent.VerificationKind.SCREENSHOT_MATCHES,
+                                CaptureFixtures.target(), null, true)),
+                List.of(),
+                List.of(expected),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+        Path session = session(verificationSession);
+        writeCaptureData("alice");
+
+        CaptureGenerationResult result =
+                new CaptureGenerator().generate(request(session, temp.resolve("negated-aria-screenshot")));
+
+        assertFalse(result.successful());
+        assertTrue(result.report().unsupportedEvents().stream()
+                .anyMatch(unsupported -> unsupported.contains("ARIA_SNAPSHOT_MATCHES")
+                        && unsupported.contains("does not support negated verification")));
+        assertTrue(result.report().unsupportedEvents().stream()
+                .anyMatch(unsupported -> unsupported.contains("SCREENSHOT_MATCHES")
+                        && unsupported.contains("does not support negated verification")));
+    }
+
+    @Test
     void recordedElementAssertionWithChosenLocatorAndTestDataGeneratesMatchingValidationsCall() throws Exception {
         ExternalTestDataReference expected = CaptureFixtures.ordinary();
         ElementSnapshot target = CaptureFixtures.target();

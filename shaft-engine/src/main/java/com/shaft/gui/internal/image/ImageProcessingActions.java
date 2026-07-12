@@ -223,7 +223,7 @@ public class ImageProcessingActions {
     }
 
     private static byte[] getReferenceImageByHashedLocatorName(String hashedLocatorName) {
-        String referenceImagePath = getAiFolderPath() + hashedLocatorName + ".png";
+        String referenceImagePath = resolveExistingBaselinePath(hashedLocatorName, false);
         if (FileActions.getInstance(true).doesFileExist(referenceImagePath)) {
             return FileActions.getInstance(true).readFileAsByteArray(referenceImagePath);
         } else {
@@ -315,12 +315,13 @@ public class ImageProcessingActions {
 
     private static VisualProcessingProvider.ScreenshotComparisonResult compareScreenshotAgainstBaselineByHash(
             String hashedName, byte[] actualScreenshot, List<int[]> maskRects, Integer maxDiffPixels, Double maxDiffPixelRatio) {
-        String baselineImagePath = getAiFolderPath() + hashedName + ".png";
+        String newBaselineImagePath = getAiFolderPath() + hashedName + browserPlatformSuffix() + ".png";
         boolean updateSnapshots = SHAFT.Properties.visuals.updateSnapshots();
+        String baselineImagePath = resolveExistingBaselinePath(hashedName, true);
 
         if (!FileActions.getInstance(true).doesFileExist(baselineImagePath) || updateSnapshots) {
             ReportManager.logDiscrete("Passing the test and saving a reference screenshot baseline.");
-            FileActions.getInstance(true).writeToFile(baselineImagePath, actualScreenshot);
+            FileActions.getInstance(true).writeToFile(newBaselineImagePath, actualScreenshot);
             return new VisualProcessingProvider.ScreenshotComparisonResult(true, new byte[0], 0, 0.0);
         }
 
@@ -329,9 +330,59 @@ public class ImageProcessingActions {
                 .compareScreenshotAgainstBaseline(baselineImage, actualScreenshot, maskRects, maxDiffPixels, maxDiffPixelRatio);
 
         if (!result.matched() && result.diffImage() != null && result.diffImage().length > 0) {
-            FileActions.getInstance(true).writeToFile(getAiFolderPath() + hashedName + "_diff.png", result.diffImage());
+            FileActions.getInstance(true).writeToFile(getAiFolderPath() + hashedName + browserPlatformSuffix() + "_diff.png", result.diffImage());
         }
         return result;
+    }
+
+    /**
+     * Resolves the on-disk path of an existing {@code matchesScreenshot} baseline for the given hashed name,
+     * preferring the per-browser/OS naming scheme and falling back to the legacy (pre-per-browser/OS) baseline
+     * when only that one exists. When neither exists, returns the new-scheme path so callers create baselines there.
+     *
+     * @param hashedName    stable hashed baseline file name without extension or browser/OS suffix
+     * @param logFallback   whether to emit a one-line notice when falling back to a legacy baseline
+     * @return the resolved baseline path to read from (or to treat as "missing" when creating a new baseline)
+     */
+    private static String resolveExistingBaselinePath(String hashedName, boolean logFallback) {
+        String newBaselineImagePath = getAiFolderPath() + hashedName + browserPlatformSuffix() + ".png";
+        if (FileActions.getInstance(true).doesFileExist(newBaselineImagePath)) {
+            return newBaselineImagePath;
+        }
+        String legacyBaselineImagePath = getAiFolderPath() + hashedName + ".png";
+        if (FileActions.getInstance(true).doesFileExist(legacyBaselineImagePath)) {
+            if (logFallback) {
+                ReportManager.logDiscrete("No per-browser/OS baseline found at \"" + newBaselineImagePath
+                        + "\"; falling back to legacy baseline \"" + legacyBaselineImagePath + "\".");
+            }
+            return legacyBaselineImagePath;
+        }
+        return newBaselineImagePath;
+    }
+
+    /**
+     * Builds the sanitized {@code _<browser>_<platform>} suffix appended to {@code matchesScreenshot} baseline
+     * file names so that cross-browser/OS runs no longer share (and fight over) a single baseline image.
+     *
+     * @return the sanitized browser/platform suffix, e.g. {@code "_chrome_windows"}
+     */
+    private static String browserPlatformSuffix() {
+        String browser = sanitizeForBaselineFileName(SHAFT.Properties.web.targetBrowserName());
+        String platform = sanitizeForBaselineFileName(SHAFT.Properties.platform.targetPlatform());
+        return "_" + browser + "_" + platform;
+    }
+
+    /**
+     * Lowercases and strips non-alphanumeric characters so browser/platform names are safe to embed in file names.
+     *
+     * @param value raw browser or platform name
+     * @return sanitized, file-system-safe value (possibly empty)
+     */
+    private static String sanitizeForBaselineFileName(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
     private static void compareImageFolders(File[] referenceFiles, File[] testFiles, File testFolder, double threshold) throws IOException {

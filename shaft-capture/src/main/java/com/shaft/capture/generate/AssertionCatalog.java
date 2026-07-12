@@ -19,7 +19,9 @@ public final class AssertionCatalog {
             entry(CaptureEvent.VerificationKind.TEXT_EQUALS, "Text equals", true, false),
             entry(CaptureEvent.VerificationKind.TEXT_CONTAINS, "Text contains", true, false),
             entry(CaptureEvent.VerificationKind.ATTRIBUTE_EQUALS, "Attribute equals", true, true),
-            entry(CaptureEvent.VerificationKind.ELEMENT_IMAGE_MATCHES, "Image matches reference", false, false));
+            entry(CaptureEvent.VerificationKind.ELEMENT_IMAGE_MATCHES, "Image matches reference", false, false),
+            entry(CaptureEvent.VerificationKind.ARIA_SNAPSHOT_MATCHES, "Aria snapshot matches", true, false),
+            entry(CaptureEvent.VerificationKind.SCREENSHOT_MATCHES, "Screenshot matches baseline", false, false));
 
     private static final List<Entry> BROWSER_ASSERTIONS = List.of(
             entry(CaptureEvent.VerificationKind.URL_EQUALS, "URL equals", true, false),

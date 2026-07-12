@@ -17,6 +17,7 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -24,7 +25,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Coverage-focused unit tests for {@link ImageProcessingActions#compareScreenshotAgainstBaseline}, covering
- * the {@code matchesScreenshot()} baseline auto-create-on-first-run and {@code -Dshaft.updateSnapshots} lifecycle.
+ * the {@code matchesScreenshot()} baseline auto-create-on-first-run, {@code -Dshaft.updateSnapshots} lifecycle,
+ * and the per-browser/OS baseline naming scheme with legacy fallback.
  */
 public class ImageProcessingActionsScreenshotBaselineUnitTest {
     private static final FileActions FILE_ACTIONS = FileActions.getInstance(true);
@@ -50,6 +52,15 @@ public class ImageProcessingActionsScreenshotBaselineUnitTest {
         Properties.clearForCurrentThread();
     }
 
+    /**
+     * Mirrors {@code ImageProcessingActions#browserPlatformSuffix()}: lowercase, non-alphanumerics stripped.
+     */
+    private static String browserPlatformSuffix() {
+        String browser = SHAFT.Properties.web.targetBrowserName().toLowerCase().replaceAll("[^a-z0-9]", "");
+        String platform = SHAFT.Properties.platform.targetPlatform().toLowerCase().replaceAll("[^a-z0-9]", "");
+        return "_" + browser + "_" + platform;
+    }
+
     @Test
     public void compareScreenshotAgainstBaselineByLocatorShouldCreateMissingBaselineAndPass() {
         By locator = By.id("new-screenshot-baseline");
@@ -58,9 +69,11 @@ public class ImageProcessingActionsScreenshotBaselineUnitTest {
         var result = ImageProcessingActions.compareScreenshotAgainstBaseline(locator, actual, null, null, null);
 
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        String newSchemePath = tempDir.resolve(hashed + browserPlatformSuffix() + ".png").toString();
         Assert.assertTrue(result.matched());
-        Assert.assertTrue(FILE_ACTIONS.doesFileExist(tempDir.resolve(hashed + ".png").toString()));
-        Assert.assertEquals(FILE_ACTIONS.readFileAsByteArray(tempDir.resolve(hashed + ".png").toString()), actual);
+        Assert.assertTrue(FILE_ACTIONS.doesFileExist(newSchemePath), "new baseline should be written under the new per-browser/OS naming scheme");
+        Assert.assertEquals(FILE_ACTIONS.readFileAsByteArray(newSchemePath), actual);
+        Assert.assertFalse(FILE_ACTIONS.doesFileExist(tempDir.resolve(hashed + ".png").toString()), "a fresh baseline must not be written under the legacy scheme");
     }
 
     @Test
@@ -72,32 +85,52 @@ public class ImageProcessingActionsScreenshotBaselineUnitTest {
 
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(baselineKey);
         Assert.assertTrue(result.matched());
-        Assert.assertTrue(FILE_ACTIONS.doesFileExist(tempDir.resolve(hashed + ".png").toString()));
+        Assert.assertTrue(FILE_ACTIONS.doesFileExist(tempDir.resolve(hashed + browserPlatformSuffix() + ".png").toString()));
     }
 
     @Test
     public void updateSnapshotsShouldOverwriteExistingBaselineAndPass() {
         By locator = By.id("existing-baseline-to-update");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        String newSchemePath = tempDir.resolve(hashed + browserPlatformSuffix() + ".png").toString();
         byte[] oldBaseline = png(Color.GRAY);
         byte[] newScreenshot = png(Color.ORANGE);
-        FILE_ACTIONS.writeToFile(tempDir.resolve(hashed + ".png").toString(), oldBaseline);
+        FILE_ACTIONS.writeToFile(newSchemePath, oldBaseline);
         SHAFT.Properties.visuals.set().updateSnapshots(true);
 
         var result = ImageProcessingActions.compareScreenshotAgainstBaseline(locator, newScreenshot, null, null, null);
 
         Assert.assertTrue(result.matched());
-        Assert.assertEquals(FILE_ACTIONS.readFileAsByteArray(tempDir.resolve(hashed + ".png").toString()), newScreenshot);
+        Assert.assertEquals(FILE_ACTIONS.readFileAsByteArray(newSchemePath), newScreenshot);
+    }
+
+    @Test
+    public void updateSnapshotsWithOnlyLegacyBaselineShouldWriteNewSchemeBaseline() {
+        By locator = By.id("legacy-baseline-to-update");
+        String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        String legacyPath = tempDir.resolve(hashed + ".png").toString();
+        String newSchemePath = tempDir.resolve(hashed + browserPlatformSuffix() + ".png").toString();
+        byte[] legacyBaseline = png(Color.GRAY);
+        byte[] newScreenshot = png(Color.ORANGE);
+        FILE_ACTIONS.writeToFile(legacyPath, legacyBaseline);
+        SHAFT.Properties.visuals.set().updateSnapshots(true);
+
+        var result = ImageProcessingActions.compareScreenshotAgainstBaseline(locator, newScreenshot, null, null, null);
+
+        Assert.assertTrue(result.matched());
+        Assert.assertEquals(FILE_ACTIONS.readFileAsByteArray(newSchemePath), newScreenshot,
+                "-Dshaft.updateSnapshots must always write the new per-browser/OS scheme, even when only a legacy baseline existed");
     }
 
     @Test
     public void existingBaselineShouldDelegateToProviderAndPersistDiffImageOnMismatch() {
         By locator = By.id("existing-baseline-mismatch");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        String newSchemePath = tempDir.resolve(hashed + browserPlatformSuffix() + ".png").toString();
         byte[] baseline = png(Color.GREEN);
         byte[] actual = png(Color.RED);
         byte[] diffImage = png(Color.MAGENTA);
-        FILE_ACTIONS.writeToFile(tempDir.resolve(hashed + ".png").toString(), baseline);
+        FILE_ACTIONS.writeToFile(newSchemePath, baseline);
 
         VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
         when(provider.compareScreenshotAgainstBaseline(any(), any(), any(), any(), any()))
@@ -108,16 +141,17 @@ public class ImageProcessingActionsScreenshotBaselineUnitTest {
 
         Assert.assertFalse(result.matched());
         Assert.assertEquals(result.diffPixels(), 42);
-        Assert.assertEquals(FILE_ACTIONS.readFileAsByteArray(tempDir.resolve(hashed + "_diff.png").toString()), diffImage);
+        Assert.assertEquals(FILE_ACTIONS.readFileAsByteArray(tempDir.resolve(hashed + browserPlatformSuffix() + "_diff.png").toString()), diffImage);
     }
 
     @Test
     public void existingBaselineMatchShouldNotWriteDiffImage() {
         By locator = By.id("existing-baseline-match");
         String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        String newSchemePath = tempDir.resolve(hashed + browserPlatformSuffix() + ".png").toString();
         byte[] baseline = png(Color.GREEN);
         byte[] actual = png(Color.GREEN);
-        FILE_ACTIONS.writeToFile(tempDir.resolve(hashed + ".png").toString(), baseline);
+        FILE_ACTIONS.writeToFile(newSchemePath, baseline);
 
         VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
         when(provider.compareScreenshotAgainstBaseline(any(), any(), any(), any(), any()))
@@ -127,7 +161,53 @@ public class ImageProcessingActionsScreenshotBaselineUnitTest {
         var result = ImageProcessingActions.compareScreenshotAgainstBaseline(locator, actual, null, null, null);
 
         Assert.assertTrue(result.matched());
-        Assert.assertFalse(FILE_ACTIONS.doesFileExist(tempDir.resolve(hashed + "_diff.png").toString()));
+        Assert.assertFalse(FILE_ACTIONS.doesFileExist(tempDir.resolve(hashed + browserPlatformSuffix() + "_diff.png").toString()));
+    }
+
+    @Test
+    public void legacyBaselineOnlyShouldBeUsedAsFallbackAndNotBeUpgraded() {
+        By locator = By.id("legacy-only-baseline");
+        String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        String legacyPath = tempDir.resolve(hashed + ".png").toString();
+        String newSchemePath = tempDir.resolve(hashed + browserPlatformSuffix() + ".png").toString();
+        byte[] legacyBaseline = png(Color.GREEN);
+        byte[] actual = png(Color.GREEN);
+        FILE_ACTIONS.writeToFile(legacyPath, legacyBaseline);
+
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        when(provider.compareScreenshotAgainstBaseline(any(), any(), any(), any(), any()))
+                .thenReturn(new VisualProcessingProvider.ScreenshotComparisonResult(true, new byte[0], 0, 0.0));
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        var result = ImageProcessingActions.compareScreenshotAgainstBaseline(locator, actual, null, null, null);
+
+        Assert.assertTrue(result.matched(), "an existing legacy baseline should be used instead of treating it as missing");
+        Assert.assertFalse(FILE_ACTIONS.doesFileExist(newSchemePath), "a passing comparison against the legacy fallback must not silently create a new-scheme baseline");
+    }
+
+    @Test
+    public void bothSchemesPresentShouldPreferNewSchemeBaseline() {
+        By locator = By.id("both-schemes-present");
+        String hashed = ImageProcessingActions.formatElementLocatorToImagePath(locator);
+        String legacyPath = tempDir.resolve(hashed + ".png").toString();
+        String newSchemePath = tempDir.resolve(hashed + browserPlatformSuffix() + ".png").toString();
+        byte[] legacyBaseline = png(Color.RED);
+        byte[] newSchemeBaseline = png(Color.GREEN);
+        FILE_ACTIONS.writeToFile(legacyPath, legacyBaseline);
+        FILE_ACTIONS.writeToFile(newSchemePath, newSchemeBaseline);
+
+        VisualProcessingProvider provider = mock(VisualProcessingProvider.class);
+        when(provider.compareScreenshotAgainstBaseline(any(byte[].class), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    byte[] baselineArg = invocation.getArgument(0);
+                    boolean matchesNewScheme = Arrays.equals(baselineArg, newSchemeBaseline);
+                    return new VisualProcessingProvider.ScreenshotComparisonResult(matchesNewScheme, new byte[0], matchesNewScheme ? 0 : 99, matchesNewScheme ? 0.0 : 1.0);
+                });
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+
+        var result = ImageProcessingActions.compareScreenshotAgainstBaseline(locator, png(Color.GREEN), null, null, null);
+
+        Assert.assertTrue(result.matched(), "when both schemes exist, the new per-browser/OS scheme must win");
     }
 
     private static byte[] png(Color color) {
