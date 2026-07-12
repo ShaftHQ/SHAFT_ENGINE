@@ -21,15 +21,17 @@ For edits: preserve work; at session start fetch/prune, branch/worktree fresh `c
 - Docs repo `C:\Users\Mohab\IdeaProjects\shafthq.github.io`; targeted `rg`/excerpts. Function changes need guide + docs PR.
 - Never expose secrets or run deploy/publish/rewrites/cleanup/cloud suites unless asked.
 - No generated reports, binaries, or `target/`; browser tests headless unless headed approved.
-- Blockers/small issues hit while working: fix inline. Medium/large issues or enhancement ideas noticed: consolidate into one followup GitHub issue. Never go out of your way to hunt for either.
+- Blockers/small issues in path: fix inline. Enhancements/non-blocking issues noticed: never silently drop -- route via the Learning Loop. Don't hunt for extras.
 
 ## Windows/Codex Safety
 
 No GUI/shell-open: avoid `start`, `explorer`, `Invoke-Item`/`ii`, `Start-Process`, `cmd /c start`, `rundll32`, `os.startfile`, browsers/editors/installers/dialogs. Run via `py -3`, `node`, `powershell -ExecutionPolicy Bypass -File`, `Get-Content`, `mvn`, `npm`, `dotnet`, `git`. Ask before Allure report/serve, servers/watchers, browser capture, mobile inspector/emulator, waits. Maven: add GUI-off Allure/Lighthouse `-D...=false`.
 
-## Memory
+## Memory & Learning Loop
 
-Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`. Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries/end saves.
+Memory: `.memory/`; current files win. `AGENTS.md` canonical; `CLAUDE.md` adapts only. Load `memory load "<task>"`/`memory search`. Save durable decisions/constraints/gotchas/workflows/corrections with evidence; reuse IDs; no duplicates/diaries.
+
+Learning Loop (every session): note learnings as they surface; before Completion route each -- durable fact/gotcha -> `memory remember`; repo structure changed -> refresh or flag graphify; reusable procedure or guidance that misled -> add/fix a skill (`agent-guidance-boundary-guard` flow); enhancement/non-blocking issue -> followup GitHub issue (search first; consolidate related). Nothing durable is a valid outcome -- say so.
 
 ## Validation
 
@@ -54,7 +56,6 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - Deps/release: `release-dependency-guard` -> `maven-tools-mcp` for live Maven Central facts (skip when in-tree: `rg` a pom beats a Docker cold start) -> `ci-failure-investigator` on breakage.
 - `context7`: only past-training-cutoff APIs (Spring Boot 4.1, Spring AI 2.0, JUnit 6, Jackson 3, Selenium 4.45, Docusaurus 3.10/React 19); else repo exemplars win.
 - Skip `jdtls-lsp` for one-liners; value scales with cross-module symbol impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
-- Follow-up: `a11ymcp` belongs in the docs repo.
 - Repo `.claude/skills/`: `act-as-fable` methodology (binding for non-Fable models on nontrivial work); `shaft-mastery` 10 domain chapters -- load the matching chapter before deep BiDi/Allure/mobile/release/lifecycle/plugin/MCP/CI/flakiness/locator work; `ponytail` YAGNI minimal-diff; `test-driven-development` red-green-refactor with scoped headless runs; `graphify`.
 
 ## Agent Hierarchy & Model Routing
@@ -63,4 +64,4 @@ Main thread owns all substantive implementation, integration, and final verifica
 
 ## Completion
 
-Report changes/checks/outcomes.
+Report changes/checks/outcomes plus Learning Loop results: memory/graphify/skill/issue updates, or none.

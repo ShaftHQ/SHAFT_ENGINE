@@ -199,3 +199,5 @@
 {"actor":"agent","event":"memory.updated","id":"decision.2026-07-12-agentic-optimization-model-routing-codified-guidance-budget-68-user-level-skills-ponytail-shaft-mastery","timestamp":"2026-07-12T07:14:20+03:00"}
 {"actor":"agent","event":"relation.deleted","relation_id":"rel.decision-2026-07-12-agentic-optimization-model-routing-codified-guidance-budget-68-user-level-skills-ponytail-shaft-mastery-related-to-decision-agent-hierarchy-main-thread-only-with-two-bounded-delegation-exceptions","timestamp":"2026-07-12T09:07:07+03:00"}
 {"actor":"agent","event":"relation.created","relation_id":"rel.decision-agentic-optimization-2026-07-12-related-to-agent-hierarchy-delegation","timestamp":"2026-07-12T09:07:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.adopted-the-per-session-learning-loop-in-agents-md","timestamp":"2026-07-12T10:21:41+03:00"}
+{"actor":"agent","event":"memory.updated","id":"constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue","timestamp":"2026-07-12T10:21:41+03:00"}
