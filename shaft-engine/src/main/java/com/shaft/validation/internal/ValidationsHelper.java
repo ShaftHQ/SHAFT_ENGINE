@@ -20,13 +20,13 @@ import com.shaft.tools.io.internal.CheckpointCounter;
 import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.tools.io.internal.CheckpointType;
 import com.shaft.tools.io.internal.ExecutionSummaryReport;
-import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.FlakeProfiler;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.validation.ValidationEnums;
 import io.qameta.allure.Allure;
 import io.qameta.allure.model.Parameter;
+import io.qameta.allure.model.Status;
 import io.restassured.response.Response;
 import org.apache.logging.log4j.Level;
 import org.json.JSONException;
@@ -54,6 +54,9 @@ public class ValidationsHelper {
     private static final ThreadLocal<Boolean> profiledValidationSuccessful = new ThreadLocal<>();
     private final ValidationEnums.ValidationCategory validationCategory;
     private final String validationCategoryString;
+    // captured at construction (the start of the validation flow) so the reported
+    // outcome step reflects the real validation duration instead of zero
+    private long validationStartTime = System.currentTimeMillis();
 
     ValidationsHelper(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
@@ -113,8 +116,30 @@ public class ValidationsHelper {
                                              Object expected,
                                              Object actual,
                                              List<List<Object>> attachments) {
-        new ValidationsHelper(validationCategory)
-                .reportValidationState(validationState, expected, actual, null, null, attachments);
+        reportValidationState(validationCategory, validationState, expected, actual, attachments, System.currentTimeMillis());
+    }
+
+    /**
+     * Same as {@link #reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List)}
+     * with an explicit validation start timestamp so the reported outcome step carries the real
+     * validation duration.
+     *
+     * @param validationCategory  the validation category
+     * @param validationState     true when the validation passed
+     * @param expected            the reported expected value
+     * @param actual              the reported actual value
+     * @param attachments         report attachments prepared by the backend
+     * @param validationStartTime epoch milliseconds at which the validation started
+     */
+    public static void reportValidationState(ValidationEnums.ValidationCategory validationCategory,
+                                             boolean validationState,
+                                             Object expected,
+                                             Object actual,
+                                             List<List<Object>> attachments,
+                                             long validationStartTime) {
+        var validationsHelper = new ValidationsHelper(validationCategory);
+        validationsHelper.validationStartTime = validationStartTime;
+        validationsHelper.reportValidationState(validationState, expected, actual, null, null, attachments);
     }
 
     /**
@@ -995,20 +1020,23 @@ public class ValidationsHelper {
             TraceEventRecorder.finish(traceEvent, "failed",
                     this.validationCategoryString.replace("erify", "erificat") + "ion failed",
                     assertionError, traceMetadata(checkpointType, locator), summarizeAttachments(attachments));
+            // single timed outcome step: the failure message is reported exactly once,
+            // spanning the real validation duration
+            ReportManagerHelper.writeStepToReport(finalFailureMessage, Level.ERROR, Status.FAILED, this.validationStartTime);
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                Allure.getLifecycle().updateStep(stepResult -> ReportManagerHelper.log(finalFailureMessage, null, CheckpointStatus.FAIL));
-                FailureReporter.failAssertion(finalFailureMessage);
+                // the outcome step is already reported above; throw without re-logging
+                throw new AssertionError(finalFailureMessage);
             } else {
                 // soft assert
                 ValidationsHelper.recordVerificationFailure(failureMessage);
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                Allure.getLifecycle().updateStep(stepResult -> ReportManagerHelper.log(finalFailureMessage, null, CheckpointStatus.FAIL));
             }
         } else {
             CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.PASS);
             ExecutionSummaryReport.validationsIncrement(CheckpointStatus.PASS);
-            Allure.getLifecycle().updateStep(stepResult -> ReportManagerHelper.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed", null, CheckpointStatus.PASS));
+            ReportManagerHelper.writeStepToReport(this.validationCategoryString.replace("erify", "erificat") + "ion passed",
+                    Level.INFO, Status.PASSED, this.validationStartTime);
             TraceEventRecorder.finish(traceEvent, "passed",
                     this.validationCategoryString.replace("erify", "erificat") + "ion passed",
                     null, traceMetadata(checkpointType, locator), summarizeAttachments(attachments));

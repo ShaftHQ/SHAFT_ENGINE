@@ -13,6 +13,7 @@ import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
+import io.qameta.allure.model.StepResult;
 import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.log4j.BasicConfigurator;
@@ -902,6 +903,28 @@ public class ReportManagerHelper {
         if (!SHAFT.Properties.reporting.disableLogging()) {
             createLogEntry(logText, logLevel);
             Allure.step(logText, stepStatus);
+        }
+    }
+
+    /**
+     * Formats logText and adds timestamp, then logs it as a step in the execution
+     * report with an explicitly provided step status and a real start timestamp, so
+     * the step reflects the actual duration of the work it summarizes instead of
+     * rendering as a zero-duration entry.
+     *
+     * @param logText         the text that needs to be logged in this action
+     * @param logLevel        the log level to use for the console log entry
+     * @param stepStatus      the exact status to render for this step in the execution report
+     * @param stepStartMillis epoch milliseconds at which the summarized work started
+     */
+    public static void writeStepToReport(String logText, Level logLevel, Status stepStatus, long stepStartMillis) {
+        if (!SHAFT.Properties.reporting.disableLogging()) {
+            createLogEntry(logText, logLevel);
+            var lifecycle = Allure.getLifecycle();
+            var uuid = UUID.randomUUID().toString();
+            lifecycle.startStep(uuid, new StepResult().setName(logText).setStatus(stepStatus));
+            lifecycle.updateStep(uuid, step -> step.setStart(stepStartMillis));
+            lifecycle.stopStep(uuid);
         }
     }
 
