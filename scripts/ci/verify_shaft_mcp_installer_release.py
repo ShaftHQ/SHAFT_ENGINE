@@ -214,6 +214,45 @@ def verify_configuration(configuration: Path, java: Path, args: Path, root_prope
         raise RuntimeError(f"Unexpected shaft-mcp arguments in {configuration}: {entry['args']}")
 
 
+def installed_shaft_cli_jar(root: Path, home: Path, environment: dict[str, str]) -> Path:
+    system = platform.system()
+    if system == "Windows":
+        versions = root / "local-app-data" / "ShaftHQ" / "shaft-cli" / "versions"
+    elif system == "Darwin":
+        versions = home / "Library" / "Application Support" / "ShaftHQ" / "shaft-cli" / "versions"
+    elif system == "Linux":
+        versions = Path(environment["XDG_DATA_HOME"]) / "shafthq" / "shaft-cli" / "versions"
+    else:
+        raise RuntimeError(f"Unsupported release-verification operating system: {system}")
+    jars = list(versions.glob("*/shaft-cli.jar"))
+    if len(jars) != 1:
+        raise RuntimeError(f"Expected one installed shaft-cli JAR, found: {jars}")
+    return jars[0].resolve()
+
+
+def verify_shaft_cli_launcher(jar: Path) -> Path:
+    args = jar.with_name("shaft-cli.args")
+    if not args.is_file():
+        raise RuntimeError(f"Expected installed shaft-cli argfile: {args}")
+    content = args.read_text(encoding="utf-8")
+    if "-jar" not in content or jar.name not in content:
+        raise RuntimeError(f"Installed shaft-cli argfile does not reference the jar: {args}")
+    wrapper = jar.with_name("shaft-cli.cmd" if platform.system() == "Windows" else "shaft-cli")
+    if not wrapper.is_file():
+        raise RuntimeError(f"Expected installed shaft-cli launcher: {wrapper}")
+    if platform.system() != "Windows" and not os.access(wrapper, os.X_OK):
+        raise RuntimeError(f"Installed shaft-cli launcher is not executable: {wrapper}")
+    return wrapper.resolve()
+
+
+def verify_shaft_cli_result(result: dict[str, object], launcher: Path) -> None:
+    shaft_cli = result.get("shaftCli")
+    if not isinstance(shaft_cli, dict) or shaft_cli.get("installed") is not True:
+        raise RuntimeError(f"Expected IntelliJ plugin installer to install shaft-cli when requested: {result}")
+    if Path(str(shaft_cli.get("launcher", ""))).resolve() != launcher:
+        raise RuntimeError(f"Unexpected shaft-cli launcher in installer output: {result}")
+
+
 def verify_plugin_json(result: dict[str, object], java: Path, args: Path) -> None:
     if result.get("client") != "intellij-plugin":
         raise RuntimeError(f"Unexpected IntelliJ plugin installer target: {result}")
@@ -259,7 +298,7 @@ def main() -> int:
 
         java = expected_java(environment)
         plugin_install = run_installer(
-            installer_command("intellij-plugin", "--json"),
+            installer_command("intellij-plugin", "--install-shaft-cli", "--json"),
             cwd=root,
             environment=environment,
             capture=True,
@@ -271,6 +310,9 @@ def main() -> int:
         skills_path = Path(str(shaft_skills.get("path", "")))
         if not (skills_path / "writing-shaft-tests" / "SKILL.md").is_file():
             raise RuntimeError(f"Expected SHAFT skills to be installed by the unattended plugin installer: {skills_path}")
+        shaft_cli_jar = installed_shaft_cli_jar(root, home, environment)
+        shaft_cli_launcher = verify_shaft_cli_launcher(shaft_cli_jar)
+        verify_shaft_cli_result(plugin_result, shaft_cli_launcher)
         for client in clients:
             run_installer(installer_command(client), cwd=root, environment=environment)
 

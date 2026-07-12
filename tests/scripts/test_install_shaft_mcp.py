@@ -495,6 +495,68 @@ class InstallShaftMcpTest(unittest.TestCase):
             args = MODULE.parse_args(["--codex"])
         self.assertEqual("0.5.0", args.version)
 
+    def test_parse_install_shaft_cli_flag_independent_of_client(self):
+        args = MODULE.parse_args(["--codex", "--install-shaft-cli"])
+
+        self.assertEqual("codex", args.client)
+        self.assertTrue(args.install_shaft_cli)
+
+    def test_install_shaft_cli_jar_from_file_repository(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            repository = root / "repo"
+            version = "1.0.0"
+            artifact = (repository / "io" / "github" / "shafthq" / "shaft-cli" / version
+                        / f"shaft-cli-{version}.jar")
+            artifact.parent.mkdir(parents=True)
+            artifact.write_bytes(b"shaft-cli-jar-bytes")
+            artifact.with_name(artifact.name + ".sha256").write_text(
+                hashlib.sha256(b"shaft-cli-jar-bytes").hexdigest() + "\n",
+                encoding="utf-8",
+            )
+
+            with temporary_environment(
+                    HOME=str(root / "home"),
+                    USERPROFILE=str(root / "home"),
+                    LOCALAPPDATA=str(root / "local-app-data"),
+                    XDG_DATA_HOME=str(root / "xdg-data")), \
+                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                jar = MODULE.install_shaft_cli_jar(version, repository.as_uri(), root)
+                # A second run must skip the download: a verified copy already exists locally.
+                reinstalled = MODULE.install_shaft_cli_jar(version, repository.as_uri(), root)
+                expected = (MODULE.shaft_cli_application_data_root() / "versions" / version
+                            / "shaft-cli.jar").resolve()
+
+            self.assertEqual(b"shaft-cli-jar-bytes", jar.read_bytes())
+            self.assertEqual(expected, jar)
+            self.assertEqual(jar, reinstalled)
+
+    def test_write_shaft_cli_launcher(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            jar = root / "versions" / "1.0.0" / "shaft-cli.jar"
+            jar.parent.mkdir(parents=True)
+            jar.write_bytes(b"")
+
+            launcher = MODULE.write_shaft_cli_launcher(java, jar)
+
+            args_file = jar.parent / "shaft-cli.args"
+            self.assertTrue(args_file.is_file())
+            args_content = args_file.read_text(encoding="utf-8")
+            self.assertIn("-jar", args_content)
+            self.assertIn(MODULE.java_argfile_quote(str(jar.resolve())), args_content)
+
+            self.assertTrue(launcher.is_file())
+            launcher_content = launcher.read_text(encoding="utf-8")
+            self.assertIn(str(java.resolve()), launcher_content)
+            self.assertIn(str(args_file.resolve()), launcher_content)
+            if MODULE.system_name() == "Windows":
+                self.assertEqual("shaft-cli.cmd", launcher.name)
+            else:
+                self.assertEqual("shaft-cli", launcher.name)
+                self.assertTrue(os.access(launcher, os.X_OK))
+
 
 if __name__ == "__main__":
     unittest.main()

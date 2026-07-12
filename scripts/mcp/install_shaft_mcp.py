@@ -31,6 +31,8 @@ ARTIFACT_PATH = "io/github/shafthq/shaft-mcp"
 DEFAULT_REPOSITORY = "https://repo.maven.apache.org/maven2"
 MAIN_CLASS = "com.shaft.mcp.ShaftMcpApplication"
 RUNTIME_DEPENDENCIES_ENTRY = "META-INF/shaft-mcp/runtime-dependencies.txt"
+SHAFT_CLI_ARTIFACT_PATH = "io/github/shafthq/shaft-cli"
+SHAFT_CLI_MAIN_CLASS = "com.shaft.commandline.ShaftCli"
 # Explicit per-project override honored by shaft-mcp; the installer must never pin it
 # globally ("shaft.mcp.workspaceRoot") or every non-IntelliJ client would be locked out
 # of its own project. Only the fallback below is written to the launcher argfile.
@@ -214,6 +216,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Do not install SHAFT agent skills into the current directory.",
     )
+    parser.add_argument(
+        "--install-shaft-cli",
+        action="store_true",
+        help="Also install shaft-cli, a command-line client over the shaft-mcp tool set.",
+    )
     for target, _ in TARGET_CHOICES:
         parser.add_argument(f"--{target}", action="store_true", dest=target.replace("-", "_"))
     parser.add_argument(
@@ -290,6 +297,17 @@ def application_data_root() -> Path:
         return home() / "Library" / "Application Support" / "ShaftHQ" / "shaft-mcp"
     base = Path(os.environ.get("XDG_DATA_HOME") or home() / ".local" / "share")
     return base / "shafthq" / "shaft-mcp"
+
+
+def shaft_cli_application_data_root() -> Path:
+    name = system_name()
+    if name == "Windows":
+        base = Path(os.environ.get("LOCALAPPDATA") or home() / "AppData" / "Local")
+        return base / "ShaftHQ" / "shaft-cli"
+    if name == "Darwin":
+        return home() / "Library" / "Application Support" / "ShaftHQ" / "shaft-cli"
+    base = Path(os.environ.get("XDG_DATA_HOME") or home() / ".local" / "share")
+    return base / "shafthq" / "shaft-cli"
 
 
 def maven_local_repository() -> Path:
@@ -603,6 +621,31 @@ def install_shaft_mcp_jar(version: str, repository: str, root: Path) -> Path:
     return target.resolve()
 
 
+def install_shaft_cli_jar(version: str, repository: str, root: Path) -> Path:
+    """
+    Downloads and verifies shaft-cli's self-contained shaded jar. Unlike shaft-mcp's thin
+    jar, shaft-cli has no runtime-dependency manifest to resolve and is not a build-time
+    Maven dependency, so there is no local Maven repository mirror to maintain here.
+    """
+    version_path = f"{SHAFT_CLI_ARTIFACT_PATH}/{version}"
+    filename = f"shaft-cli-{version}.jar"
+    url = f"{repository}/{version_path}/{filename}"
+    expected = expected_sha256(url)
+    target_dir = shaft_cli_application_data_root() / "versions" / version
+    target = target_dir / "shaft-cli.jar"
+    if target.is_file() and file_sha256(target) == expected:
+        log(f"shaft-cli {version} is already installed and up to date (download skipped).")
+        return target.resolve()
+
+    source = root / "downloads" / filename
+    download_file(url, source, f"io.github.shafthq:shaft-cli:{version}")
+    if file_sha256(source) != expected:
+        fail(f"Checksum verification failed for {source}.", 4)
+
+    copy_verified(source, target, expected, "Installed shaft-cli JAR")
+    return target.resolve()
+
+
 def copy_verified(source: Path, target: Path, expected_sha256_digest: str, label: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
@@ -886,6 +929,36 @@ def write_launcher_args(jar: Path, dependencies: list[Path]) -> Path:
     temporary.write_text(content, encoding="utf-8", newline="\n")
     os.replace(temporary, args_file)
     return args_file.resolve()
+
+
+def write_text_with_replace(path: Path, content: str) -> None:
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(content, encoding="utf-8", newline="\n")
+    os.replace(temporary, path)
+
+
+def write_shaft_cli_launcher(java: Path, jar: Path) -> Path:
+    """
+    Writes shaft-cli.args (a Java @argfile, resolved the same way agent clients resolve
+    shaft-mcp.args) plus a directly runnable wrapper script next to the jar, so both a
+    future programmatic launcher and a human at a terminal have a stable entry point.
+    """
+    args_file = jar.parent / "shaft-cli.args"
+    args_content = "\n".join(("-jar", java_argfile_quote(str(jar.resolve())))) + "\n"
+    write_text_with_replace(args_file, args_content)
+
+    java_path = str(java.resolve())
+    args_path = str(args_file.resolve())
+    if system_name() == "Windows":
+        wrapper = jar.parent / "shaft-cli.cmd"
+        wrapper_content = f'@echo off\r\n"{java_path}" @"{args_path}" %*\r\n'
+    else:
+        wrapper = jar.parent / "shaft-cli"
+        wrapper_content = f'#!/usr/bin/env sh\nexec "{java_path}" @"{args_path}" "$@"\n'
+    write_text_with_replace(wrapper, wrapper_content)
+    if system_name() != "Windows":
+        wrapper.chmod(wrapper.stat().st_mode | 0o111)
+    return wrapper.resolve()
 
 
 def read_lines(stream: Any, target: queue.Queue[str], sink: list[str] | None = None) -> None:
@@ -1304,6 +1377,12 @@ def install(args: argparse.Namespace) -> None:
     log(f"Verifying shaft-mcp {version} over stdio...")
     probe_stdio(java, args_file)
 
+    shaft_cli_launcher = None
+    if args.install_shaft_cli:
+        log(f"Installing io.github.shafthq:shaft-cli:{version}")
+        shaft_cli_jar = install_shaft_cli_jar(version, repository, root)
+        shaft_cli_launcher = write_shaft_cli_launcher(java, shaft_cli_jar)
+
     if args.client != "intellij-plugin":
         log(f"Configuring shaft-mcp for {args.client}...")
         configure_client(args.client, java, args_file)
@@ -1341,6 +1420,11 @@ def install(args: argparse.Namespace) -> None:
             "installed": True,
             "path": str(validation_script_dir),
         }
+    if shaft_cli_launcher:
+        result["shaftCli"] = {
+            "installed": True,
+            "launcher": str(shaft_cli_launcher),
+        }
     if args.json:
         print(json.dumps(result, separators=(",", ":")))
     else:
@@ -1352,6 +1436,8 @@ def install(args: argparse.Namespace) -> None:
                 print(f"Agent validation script files installed at {validation_script_dir}.")
         else:
             print(f"SHAFT skills installation skipped for {skills_path}.")
+        if shaft_cli_launcher:
+            print(f"shaft-cli {version} installed; run it at {shaft_cli_launcher}")
         print(activation_hint(args.client))
         print(f"User guide: {USER_GUIDE_URL}")
 
