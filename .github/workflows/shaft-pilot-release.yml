@@ -98,6 +98,7 @@ jobs:
           java-version: "25"
           distribution: "zulu"
           check-latest: true
+          cache: "maven"
       - name: Set up Maven
         uses: stCarolas/setup-maven@v5.1
         with:

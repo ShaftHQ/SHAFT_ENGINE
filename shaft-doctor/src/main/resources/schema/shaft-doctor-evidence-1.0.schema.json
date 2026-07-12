@@ -21,7 +21,7 @@
             "type": "string",
             "enum": [
               "ALLURE_RESULT", "SHAFT_LOG", "EXCEPTION_CHAIN", "SCREENSHOT",
-              "PAGE_SNAPSHOT", "ENVIRONMENT", "DEPENDENCY_BUILD",
+              "PAGE_SNAPSHOT", "ACCESSIBILITY_AUDIT", "ENVIRONMENT", "DEPENDENCY_BUILD",
               "CONFIGURATION", "OTHER"
             ]
           },

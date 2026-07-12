@@ -4,6 +4,12 @@
              generated test class (issue #3425 B3). -->
         <annotator language="JAVA"
                    implementationClass="com.shaft.intellij.java.CaptureReportAnnotator"/>
+        <!-- Only needs Java PSI (method annotations); the JUnit/TestNG run-configuration producers
+             that actually create run configurations live in their own optional-dependency files
+             below because JUnitConfiguration/TestNGConfiguration classes belong to the separate
+             bundled "JUnit" and "TestNG-J" plugins, not to com.intellij.java itself. -->
+        <runLineMarkerContributor language="JAVA"
+                   implementationClass="com.shaft.intellij.testrunner.ShaftTestLineMarkerContributor"/>
     </extensions>
     <actions>
         <action id="Shaft.RecordJavaTarget"

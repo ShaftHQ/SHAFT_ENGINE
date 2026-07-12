@@ -47,6 +47,12 @@ steps:
     run: python3 scripts/ci/validate_agent_setup.py
   - if: steps.audit.outputs.needs_ai == 'true'
     uses: openai/codex-action@v1
+  - id: changes
+    run: |
+      case "$file" in
+        .agents/skills/*|.claude/skills/*|.github/instructions/*|.github/skills/*)
+          ;;
+      esac
 """,
         )
         self.budget = {

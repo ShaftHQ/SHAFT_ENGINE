@@ -74,6 +74,12 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         public boolean advancedUiEnabled = false;
         public boolean autoCompactEnabled = false;
         /**
+         * Opt-in, default-off "watch mode": reruns the last SHAFT test run configuration when a
+         * {@code src/test/} file changes, bounded by {@code WatchRerunThrottle} (see
+         * {@code ShaftTestWatchService}).
+         */
+        public boolean watchModeEnabled = false;
+        /**
          * Recorder browser visibility preference shared by the Guided workflow panel and the
          * assistant web/mobile recording flows.
          */

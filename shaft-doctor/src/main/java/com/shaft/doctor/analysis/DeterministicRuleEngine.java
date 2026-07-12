@@ -159,6 +159,7 @@ public final class DeterministicRuleEngine {
         addAttemptObservations(failures, findings);
         RetrySummary retry = addRetryFindings(validAllure, findings, remediations);
         addHistoricalSignatureFinding(failures, history, findings);
+        addAccessibilityFindings(bundle, findings);
 
         List<RuleMatch> matches = new ArrayList<>();
         for (Rule rule : RULES) {
@@ -335,6 +336,48 @@ public final class DeterministicRuleEngine {
                     "A normalized current failure signature was also present in supplied historical bundles.",
                     "historical-signature-correlation",
                     repeated.stream().map(EvidenceItem::id).toList()));
+        }
+    }
+
+    /**
+     * Adds additive observation findings summarizing accessibility-audit evidence. These findings
+     * never participate in rule matching or primary/contributing cause selection.
+     *
+     * @param bundle evidence bundle being diagnosed
+     * @param findings mutable findings list to append to
+     */
+    private static void addAccessibilityFindings(EvidenceBundle bundle, List<Finding> findings) {
+        List<EvidenceItem> audits = bundle.evidence().stream()
+                .filter(item -> item.category() == EvidenceCategory.ACCESSIBILITY_AUDIT)
+                .toList();
+        for (EvidenceItem audit : audits) {
+            int violations = integer(audit.attributes().get("violationsCount"), 0);
+            if (violations <= 0) {
+                continue;
+            }
+            int critical = integer(audit.attributes().get("criticalCount"), 0);
+            int serious = integer(audit.attributes().get("seriousCount"), 0);
+            int moderate = integer(audit.attributes().get("moderateCount"), 0);
+            int minor = integer(audit.attributes().get("minorCount"), 0);
+            Finding.Severity severity;
+            if (critical > 0 || serious > 0) {
+                severity = Finding.Severity.ERROR;
+            } else if (moderate > 0) {
+                severity = Finding.Severity.WARNING;
+            } else {
+                severity = Finding.Severity.INFO;
+            }
+            String pageName = audit.attributes().getOrDefault("pageName", "unknown page");
+            String topRuleIds = audit.attributes().getOrDefault("topRuleIds", "");
+            String detail = "Found " + violations + " accessibility violation(s) on " + pageName
+                    + " (critical=" + critical + ", serious=" + serious + ", moderate=" + moderate
+                    + ", minor=" + minor + ")"
+                    + (topRuleIds.isBlank() ? "" : "; top rule id(s): " + topRuleIds) + ".";
+            findings.add(finding("accessibility-" + audit.id(), Finding.Kind.OBSERVATION,
+                    CauseCategory.PRODUCT, severity,
+                    "Accessibility audit found violations",
+                    detail,
+                    "accessibility-audit", List.of(audit.id())));
         }
     }
 
