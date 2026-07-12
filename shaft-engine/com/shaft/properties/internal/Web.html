@@ -65,6 +65,7 @@
 <li><a href="#browserWindowHeight()" tabindex="0">browserWindowHeight()</a></li>
 <li><a href="#pageLoadStrategy()" tabindex="0">pageLoadStrategy()</a></li>
 <li><a href="#readinessState()" tabindex="0">readinessState()</a></li>
+<li><a href="#storageStatePath()" tabindex="0">storageStatePath()</a></li>
 <li><a href="#set()" tabindex="0">set()</a></li>
 </ol>
 </li>
@@ -176,8 +177,15 @@ Controls target browser type, headless mode, window size, page load strategy, an
 of individual configuration properties at runtime.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#targetBrowserName()" class="member-name-link">targetBrowserName</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#storageStatePath()" class="member-name-link">storageStatePath</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Path to a storage-state JSON file (the schema produced by <code>BrowserActions.saveStorageState</code>)
+that a freshly-initialized driver should automatically load, restoring cookies and, when possible,
+<code>localStorage</code>/<code>sessionStorage</code>.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#targetBrowserName()" class="member-name-link">targetBrowserName</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -349,6 +357,30 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("readinessState")
 @DefaultValue("none")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">readinessState</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="storageStatePath()">
+<h3>storageStatePath</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("storageStatePath")
+@DefaultValue("")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">storageStatePath</span>()</div>
+<div class="block">Path to a storage-state JSON file (the schema produced by <code>BrowserActions.saveStorageState</code>)
+that a freshly-initialized driver should automatically load, restoring cookies and, when possible,
+<code>localStorage</code>/<code>sessionStorage</code>.
+
+<p>At driver-init time there is no page loaded yet, so cookies cannot simply be added for an
+arbitrary domain. SHAFT reads the <code>origin</code> recorded inside the storage-state file (falling
+back to <a href="#baseURL()"><code>baseURL()</code></a> when the file has none) and navigates the fresh driver there first,
+mirroring how <code>loadStorageState</code> recommends navigating before loading. Origin-scoped
+<code>localStorage</code>/<code>sessionStorage</code> is therefore restored correctly only when an origin
+could be resolved; if neither is available, only cookies that the driver accepts without a page
+navigation are restored. A failure to load (missing file, unreachable origin, etc.) is logged as a
+warning and does not fail driver initialization.
+
+<p>Default is blank, meaning the feature is disabled.</div>
 </div>
 </section>
 </li>

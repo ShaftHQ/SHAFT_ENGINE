@@ -84,6 +84,7 @@
 <li><a href="#assertContract(java.lang.String,java.lang.String...)" tabindex="0">assertContract(String, String...)</a></li>
 <li><a href="#verifyContract(java.lang.String,java.lang.String...)" tabindex="0">verifyContract(String, String...)</a></li>
 <li><a href="#replayContract(java.lang.String)" tabindex="0">replayContract(String)</a></li>
+<li><a href="#routeFromHar(java.lang.String)" tabindex="0">routeFromHar(String)</a></li>
 <li><a href="#intercept(java.util.function.Predicate,org.openqa.selenium.remote.http.HttpResponse)" tabindex="0">intercept(Predicate, HttpResponse)</a></li>
 <li><a href="#clearNetworkInterceptors()" tabindex="0">clearNetworkInterceptors()</a></li>
 <li><a href="#fullScreenWindow()" tabindex="0">fullScreenWindow()</a></li>
@@ -358,43 +359,48 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 <div class="block">Replays recorded contract responses through the Playwright network interceptor.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#saveStorageState(java.lang.String)" class="member-name-link">saveStorageState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#routeFromHar(java.lang.String)" class="member-name-link">routeFromHar</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;harFilePath)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Replays recorded HAR (HTTP Archive) responses through the Playwright network interceptor.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#saveStorageState(java.lang.String)" class="member-name-link">saveStorageState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Saves the current browser cookies, <code>localStorage</code>, and <code>sessionStorage</code> to a JSON file.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
+ int&nbsp;height)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
- int&nbsp;height)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Starts recording selected Playwright browser traffic into an HTTP contract.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToWindow(java.lang.String)" class="member-name-link">switchToWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeIntoPromptAlert(java.lang.String)" class="member-name-link">typeIntoPromptAlert</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Types text into the current browser prompt dialog.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyContract(java.lang.String,java.lang.String...)" class="member-name-link">verifyContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Starts soft-verify validation of live Playwright responses against an HTTP contract.</div>
+<div class="block">Starts recording selected Playwright browser traffic into an HTTP contract.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../validation/PlaywrightBrowserValidationsBuilder.html" title="class in com.shaft.gui.playwright.validation">PlaywrightBrowserValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToWindow(java.lang.String)" class="member-name-link">switchToWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeIntoPromptAlert(java.lang.String)" class="member-name-link">typeIntoPromptAlert</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Types text into the current browser prompt dialog.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyContract(java.lang.String,java.lang.String...)" class="member-name-link">verifyContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts soft-verify validation of live Playwright responses against an HTTP contract.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../validation/PlaywrightBrowserValidationsBuilder.html" title="class in com.shaft.gui.playwright.validation">PlaywrightBrowserValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -830,6 +836,28 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <dd><code><a href="../../driver/BrowserActionsContract.html#replayContract(java.lang.String)">replayContract</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
 <dt>Parameters:</dt>
 <dd><code>contractFilePath</code> - source JSON contract path</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to chain actions</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="routeFromHar(java.lang.String)">
+<h3>routeFromHar</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">routeFromHar</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;harFilePath)</span></div>
+<div class="block">Replays recorded HAR (HTTP Archive) responses through the Playwright network interceptor.
+
+<p>Example:
+<pre><code>driver.browser().routeFromHar("src/test/resources/har/checkout.har");
+driver.browser().navigateToURL("https://shop.example/checkout");
+</code></pre></div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../driver/BrowserActionsContract.html#routeFromHar(java.lang.String)">routeFromHar</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
+<dt>Parameters:</dt>
+<dd><code>harFilePath</code> - path to a HAR 1.2 JSON file</dd>
 <dt>Returns:</dt>
 <dd>a self-reference to be used to chain actions</dd>
 </dl>
