@@ -220,7 +220,7 @@ public class AllureListenerCoverageUnitTest {
         assertEquals(result.getStatusDetails().getMessage(), "configuration exploded");
         assertTrue(result.getStatusDetails().getTrace().contains("configuration exploded"));
         assertEquals(result.getAttachments().size(), 1);
-        assertEquals(result.getAttachments().getFirst().getName(), "Exception Stacktrace");
+        assertEquals(result.getAttachments().getFirst().getName(), "Exception Stack Trace");
         assertNull(TestNGListenerHelper.getAndClearPendingConfigFailure());
         assertAttachmentFileContains("configuration exploded");
     }

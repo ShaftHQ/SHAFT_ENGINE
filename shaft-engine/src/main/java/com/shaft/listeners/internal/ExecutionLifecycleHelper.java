@@ -73,12 +73,24 @@ public final class ExecutionLifecycleHelper {
      * @param status execution status text
      */
     public static void logFinishedTestInformation(TestExecutionInfo info, String status) {
+        logFinishedTestInformation(info, status, null);
+    }
+
+    /**
+     * Logs the end of a test method including the failure root cause when available.
+     *
+     * @param info current test metadata
+     * @param status execution status text
+     * @param failureReason throwable that ended the test, or {@code null}
+     */
+    public static void logFinishedTestInformation(TestExecutionInfo info, String status, Throwable failureReason) {
         if (info != null) {
             ReportManagerHelper.logFinishedTestInformation(
                     valueOrBlank(info.className()),
                     valueOrBlank(info.methodName()),
                     valueOrBlank(info.description()),
-                    valueOrBlank(status));
+                    valueOrBlank(status),
+                    failureReason);
         }
     }
 

@@ -11,15 +11,15 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ExecutionSummaryReport {
-    private static final ConcurrentHashMap<Integer, ArrayList<?>> casesDetails = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Integer, ArrayList<?>> validations = new ConcurrentHashMap<>();
+    private static final List<ArrayList<String>> casesDetails = new CopyOnWriteArrayList<>();
     private static final AtomicInteger passedValidations = new AtomicInteger(0);
     private static final AtomicInteger failedValidations = new AtomicInteger(0);
-    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSS").withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
 
@@ -35,13 +35,10 @@ public class ExecutionSummaryReport {
         entry.add(errorMessage);
         entry.add(status);
         entry.add(issue);
-        casesDetails.put(casesDetails.size() + 1, entry);
+        casesDetails.add(entry);
     }
 
     public static void validationsIncrement(CheckpointStatus status) {
-        ArrayList<String> entry = new ArrayList<>();
-        validations.put(validations.size() + 1, entry);
-
         if (status == CheckpointStatus.PASS) {
             passedValidations.incrementAndGet();
         } else {
@@ -53,16 +50,19 @@ public class ExecutionSummaryReport {
         int total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
-        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(
-                HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(),
-                key,
-                value.getFirst(),
-                value.get(1),
-                value.get(2),
-                value.get(3),
-                ReportHtmlTheme.statusClass(String.valueOf(value.get(4))),
-                value.get(4),
-                value.get(5))));
+        int caseId = 0;
+        for (ArrayList<String> value : casesDetails) {
+            detailsBuilder.append(String.format(
+                    HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(),
+                    ++caseId,
+                    ReportHtmlTheme.escapeHtml(value.getFirst()),
+                    ReportHtmlTheme.escapeHtml(value.get(1)),
+                    ReportHtmlTheme.escapeHtml(value.get(2)),
+                    ReportHtmlTheme.escapeHtml(value.get(3)),
+                    ReportHtmlTheme.statusClass(value.get(4)),
+                    value.get(4),
+                    ReportHtmlTheme.escapeHtml(value.get(5))));
+        }
 
         var fileActionsSession = FileActions.getInstance(true);
 
@@ -102,20 +102,21 @@ public class ExecutionSummaryReport {
                     .replace("${CASES_PASSED_PERCENTAGE_PIE}", String.valueOf(passed * 100 / total))
                     .replace("${CASES_FAILED_PERCENTAGE_PIE}", String.valueOf((failed * 100 / total) + (passed * 100 / total)));
         } else {
-            report = report.replace("${CASES_PASSED_PERCENTAGE}", String.valueOf(total))
-                    .replace("${CASES_PASSED_PERCENTAGE_PIE}", String.valueOf(total))
-                    .replace("${CASES_FAILED_PERCENTAGE_PIE}", String.valueOf(total));
+            report = report.replace("${CASES_PASSED_PERCENTAGE}", "0.00")
+                    .replace("${CASES_PASSED_PERCENTAGE_PIE}", "0")
+                    .replace("${CASES_FAILED_PERCENTAGE_PIE}", "0");
         }
-        if (!validations.isEmpty()) {
+        int totalValidations = passedValidations.get() + failedValidations.get();
+        if (totalValidations > 0) {
             report = report
-                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(passedValidations.get() * 360d / validations.size()))
-                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passedValidations.get() * 100 / validations.size())))
-                    .replace("${VALIDATION_TOTAL}", String.valueOf(validations.size()));
+                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(passedValidations.get() * 360d / totalValidations))
+                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passedValidations.get() * 100 / totalValidations)))
+                    .replace("${VALIDATION_TOTAL}", String.valueOf(totalValidations));
         } else {
             report = report
-                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", String.valueOf(0))
-                    .replace("${VALIDATION_PASSED_PERCENTAGE}", String.valueOf(0))
-                    .replace("${VALIDATION_TOTAL}", String.valueOf(0));
+                    .replace("${VALIDATION_PASSED_PERCENTAGE_PIE}", "0")
+                    .replace("${VALIDATION_PASSED_PERCENTAGE}", "0.00")
+                    .replace("${VALIDATION_TOTAL}", "0");
         }
         return report;
     }

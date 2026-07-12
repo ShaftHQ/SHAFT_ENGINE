@@ -921,11 +921,6 @@ public class ValidationsHelper {
         }
     }
 
-    static boolean isExpectedOrActualValueLong(String expectedValue, String actualValue) {
-        return (expectedValue != null && expectedValue.length() >= 500)
-                || (actualValue != null && actualValue.length() >= 500);
-    }
-
     private void reportValidationState(boolean validationState, Object expected, Object actual, WebDriver driver, By locator, List<List<Object>> attachments) {
         reportValidationState(validationState, expected, actual, driver, locator, attachments, false);
     }
@@ -965,16 +960,14 @@ public class ValidationsHelper {
                 attachments.add(pageSourceAttachment);
             }
         } else {
-            // prepare testData attachments
-            boolean isExpectedOrActualValueLong = ValidationsHelper.isExpectedOrActualValueLong(String.valueOf(expected), String.valueOf(actual));
-            if (isExpectedOrActualValueLong) {
-                List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
-                        expected);
-                List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value", actual);
-                attachments.add(expectedValueAttachment);
-                attachments.add(actualValueAttachment);
-                ReportManager.logDiscrete("Expected and Actual values are attached.");
-            }
+            // prepare testData attachments; always attach expected/actual so every checkpoint carries its evidence
+            List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+                    String.valueOf(expected));
+            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+                    String.valueOf(actual));
+            attachments.add(expectedValueAttachment);
+            attachments.add(actualValueAttachment);
+            ReportManager.logDiscrete("Expected and Actual values are attached.");
         }
         // add attachments
         long profilerAttachmentStart = !attachments.isEmpty() && FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;

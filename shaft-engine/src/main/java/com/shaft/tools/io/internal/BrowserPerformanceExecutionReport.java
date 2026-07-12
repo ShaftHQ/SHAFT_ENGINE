@@ -31,7 +31,7 @@ public final class BrowserPerformanceExecutionReport {
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
     private static final String BUDGET_METRIC = "p95";
     private static final DateTimeFormatter READABLE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
-    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter FILENAME_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSS").withZone(ZoneId.systemDefault());
     private static final Map<String, List<Double>> BROWSER_ACTION_DATA = new ConcurrentHashMap<>();
     private static final Map<String, List<Double>> PAGE_LOAD_DATA = new ConcurrentHashMap<>();
 

@@ -153,7 +153,7 @@ public class JunitListener implements LauncherSessionListener {
         failedTests.add(testIdentifier);
         countsTracker.recordFailed(info);
         isLastFinishedTestOK = false;
-        ExecutionLifecycleHelper.logFinishedTestInformation(info, "Failed");
+        ExecutionLifecycleHelper.logFinishedTestInformation(info, "Failed", throwable);
         appendToExecutionSummaryReport(info, throwable == null ? "" : throwable.getMessage(), ExecutionSummaryReport.StatusIcon.FAILED, ExecutionSummaryReport.Status.FAILED);
         IssueReporter.updateIssuesLog(info, false);
     }
