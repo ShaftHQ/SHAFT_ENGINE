@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,7 +62,7 @@ class SessionStoreTest {
     void clearOnMissingFileDoesNotThrow(@TempDir Path baseDir) {
         SessionStore store = new SessionStore(baseDir);
 
-        store.clear();
+        assertDoesNotThrow(store::clear);
     }
 
     @Test
