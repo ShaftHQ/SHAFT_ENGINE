@@ -4,6 +4,7 @@ import com.shaft.commandline.mcp.McpException;
 import com.shaft.commandline.mcp.StdioMcpClient;
 import com.shaft.commandline.runtime.McpConnector;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
@@ -25,32 +26,41 @@ public final class InProcessMcp {
      * @throws IOException if the pipes cannot be created
      */
     public static StdioMcpClient start() throws IOException {
-        PipedInputStream serverIn = new PipedInputStream(PIPE_BUFFER);
+        PipedInputStream serverIn = null;
         PipedOutputStream clientToServer = null;
         PipedInputStream clientIn = null;
+        PipedOutputStream serverToClient = null;
+        boolean started = false;
         try {
+            serverIn = new PipedInputStream(PIPE_BUFFER);
             clientToServer = new PipedOutputStream(serverIn);
             clientIn = new PipedInputStream(PIPE_BUFFER);
-            PipedOutputStream serverToClient = new PipedOutputStream(clientIn);
+            serverToClient = new PipedOutputStream(clientIn);
+            final PipedInputStream serverInput = serverIn;
+            final PipedOutputStream serverOutput = serverToClient;
             Thread serverThread = new Thread(() -> {
                 try {
-                    FakeMcpServer.serve(serverIn, serverToClient);
+                    FakeMcpServer.serve(serverInput, serverOutput);
                 } catch (IOException ignored) {
                     // Pipe closed when the client closes; normal shutdown.
                 }
             }, "fake-mcp-server");
             serverThread.setDaemon(true);
             serverThread.start();
-            return new StdioMcpClient(clientIn, clientToServer);
-        } catch (IOException e) {
-            closeQuietly(clientIn);
-            closeQuietly(clientToServer);
-            closeQuietly(serverIn);
-            throw e;
+            StdioMcpClient client = new StdioMcpClient(clientIn, clientToServer);
+            started = true;
+            return client;
+        } finally {
+            if (!started) {
+                closeQuietly(serverToClient);
+                closeQuietly(clientIn);
+                closeQuietly(clientToServer);
+                closeQuietly(serverIn);
+            }
         }
     }
 
-    private static void closeQuietly(java.io.Closeable closeable) {
+    private static void closeQuietly(Closeable closeable) {
         if (closeable != null) {
             try {
                 closeable.close();
