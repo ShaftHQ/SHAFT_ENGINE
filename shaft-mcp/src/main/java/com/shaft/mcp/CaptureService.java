@@ -164,7 +164,8 @@ public class CaptureService {
                                 : workspacePolicy.output(options.userDataDirectory, "Capture user data directory"),
                         options.sessionGoal,
                         options.apiCapture,
-                        options.networkOptions)));
+                        options.networkOptions,
+                        options.saveHarContent)));
     }
 
     /**
@@ -198,6 +199,7 @@ public class CaptureService {
         public String sessionGoal;
         public boolean apiCapture;
         public NetworkCaptureOptions networkOptions;
+        public String saveHarContent;
     }
 
     /**
