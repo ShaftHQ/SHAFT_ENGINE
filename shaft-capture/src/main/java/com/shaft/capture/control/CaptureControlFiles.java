@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -63,6 +64,29 @@ public final class CaptureControlFiles {
             return CaptureStatus.notRunning();
         }
         return readJson(statusPath(), CaptureStatus.class);
+    }
+
+    /**
+     * Persists the most recent {@code /locator/pick} result so a caller with no candidates of its
+     * own (for example, the SHAFT MCP {@code capture_pick_locator} tool serving an IntelliJ
+     * Pick-Locator action) can still recover the user's most recent recorder pick.
+     *
+     * @param pick last locator pick
+     */
+    public void writeLastPick(LastPick pick) {
+        writeJson(lastPickPath(), pick, false);
+    }
+
+    /**
+     * Reads the most recent persisted {@code /locator/pick} result.
+     *
+     * @return the last persisted pick, or {@code null} when none has been persisted yet
+     */
+    public LastPick readLastPick() {
+        if (!Files.isRegularFile(lastPickPath())) {
+            return null;
+        }
+        return readJson(lastPickPath(), LastPick.class);
     }
 
     /**
@@ -175,6 +199,10 @@ public final class CaptureControlFiles {
         return runtimeDirectory.resolve("status.json");
     }
 
+    private Path lastPickPath() {
+        return runtimeDirectory.resolve("lastPick.json");
+    }
+
     private Path descriptorPath() {
         return runtimeDirectory.resolve("control.json");
     }
@@ -254,6 +282,26 @@ public final class CaptureControlFiles {
             if (port < 1 || port > 65535 || processId < 1) {
                 throw new IllegalArgumentException("Capture control endpoint metadata is invalid.");
             }
+        }
+    }
+
+    /**
+     * The most recent {@code /locator/pick} result, persisted so a later caller with no candidates
+     * of its own can recover the user's last recorder pick. {@code capturedAtMillis} is carried for
+     * future staleness checks; no consumer currently enforces freshness (v1 non-goal).
+     *
+     * @param snippet winning candidate's copy-paste Java locator expression
+     * @param candidates every supplied candidate, ranked best-first
+     * @param capturedAtMillis epoch millis when the pick was captured
+     */
+    public record LastPick(
+            String snippet, List<CaptureControlServer.RankedCandidate> candidates, long capturedAtMillis) {
+        /**
+         * Creates an immutable last-pick record.
+         */
+        public LastPick {
+            snippet = snippet == null ? "" : snippet;
+            candidates = candidates == null ? List.of() : List.copyOf(candidates);
         }
     }
 

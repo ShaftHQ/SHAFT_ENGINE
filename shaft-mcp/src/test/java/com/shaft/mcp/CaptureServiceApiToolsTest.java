@@ -1,5 +1,7 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.control.CaptureControlFiles;
+import com.shaft.capture.control.CaptureControlServer;
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
@@ -31,6 +33,7 @@ import java.util.TreeMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -343,6 +346,56 @@ class CaptureServiceApiToolsTest {
         try {
             CaptureService.McpPickLocatorResult result = service.pickLocator(
                     List.of(new CaptureService.McpLocatorCandidate("NOT_A_STRATEGY", "x", 1, true, true)));
+
+            assertTrue(result.snippet().isEmpty());
+            assertTrue(result.ranked().isEmpty());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void pickLocatorWithNoCandidatesReturnsThePersistedPickWhenOneExists() throws Exception {
+        // Mirrors CaptureService's private RUNTIME_DIRECTORY constant: capture_pick_locator falls
+        // back to the pick persisted there by CaptureControlServer's /locator/pick endpoint.
+        Path runtimeDirectory = Path.of("target", "shaft-capture-mcp");
+        CaptureControlFiles files = new CaptureControlFiles(runtimeDirectory);
+        files.writeLastPick(new CaptureControlFiles.LastPick(
+                "SHAFT.GUI.Locator.id(\"username\")",
+                List.of(new CaptureControlServer.RankedCandidate(
+                        "ID", "username", 100, "SHAFT.GUI.Locator.id(\"username\")")),
+                System.currentTimeMillis()));
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            CaptureService.McpPickLocatorResult result = service.pickLocator(List.of());
+
+            assertEquals("SHAFT.GUI.Locator.id(\"username\")", result.snippet());
+            assertEquals(1, result.ranked().size());
+            assertEquals("ID", result.ranked().getFirst().strategy());
+        } finally {
+            service.close();
+            Files.deleteIfExists(files.runtimeDirectory().resolve("lastPick.json"));
+        }
+    }
+
+    @Test
+    void pickLocatorWithNoCandidatesReturnsBlankWhenNoPickIsPersisted() throws Exception {
+        Path runtimeDirectory = Path.of("target", "shaft-capture-mcp");
+        CaptureControlFiles files = new CaptureControlFiles(runtimeDirectory);
+        // Self-contained regardless of test execution order: ensure no stray lastPick.json from a
+        // sibling test remains before asserting the blank fallback.
+        Files.deleteIfExists(files.runtimeDirectory().resolve("lastPick.json"));
+        CaptureService service = new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+        try {
+            assertNull(files.readLastPick(), "Precondition: no pick persisted for this test.");
+
+            CaptureService.McpPickLocatorResult result = service.pickLocator(List.of());
 
             assertTrue(result.snippet().isEmpty());
             assertTrue(result.ranked().isEmpty());
