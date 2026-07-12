@@ -56,6 +56,7 @@
 <li><a href="#recordConsole(java.lang.String,java.lang.String,java.lang.String,long)" tabindex="0">recordConsole(String, String, String, long)</a></li>
 <li><a href="#recordWarning(java.lang.String,java.lang.String)" tabindex="0">recordWarning(String, String)</a></li>
 <li><a href="#drainWarnings()" tabindex="0">drainWarnings()</a></li>
+<li><a href="#snapshot()" tabindex="0">snapshot()</a></li>
 <li><a href="#drainNetworkHarJson()" tabindex="0">drainNetworkHarJson()</a></li>
 <li><a href="#clear()" tabindex="0">clear()</a></li>
 </ol>
@@ -98,6 +99,12 @@
 <div class="col-second odd-row-color"><code><a href="BrowserObservabilityRecorder.NetworkObservation.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkObservation</a></code></div>
 <div class="col-last odd-row-color">
 <div class="block">Browser network exchange details recorded into the trace.</div>
+</div>
+<div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="BrowserObservabilityRecorder.NetworkSnapshotEntry.html" class="type-name-link" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkSnapshotEntry</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Read-only snapshot of one observed network transaction, safe to hand to a caller outside this
+class (unlike <code>BrowserObservabilityRecorder.NetworkEvent</code>, which stays private since it backs the mutable trace list).</div>
 </div>
 </div>
 </section>
@@ -159,9 +166,17 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Records safe browser observability metadata for unsupported capabilities.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.NetworkExchange.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="BrowserObservabilityRecorder.NetworkSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkSnapshotEntry</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#snapshot()" class="member-name-link">snapshot</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns a read-only, 1-based snapshot of the current thread's observed network transactions
+without draining them, so a caller can list transactions repeatedly (for example an MCP tool
+answering separate "list" and "get by id" requests) without racing <a href="FailureTraceReporter.html" title="class in com.shaft.tools.io.internal"><code>FailureTraceReporter</code></a>'s
+end-of-test drain of the same thread-local state.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="BrowserObservabilityRecorder.NetworkExchange.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkExchange</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startNetwork(org.openqa.selenium.remote.http.HttpRequest)" class="member-name-link">startNetwork</a><wbr>(org.openqa.selenium.remote.http.HttpRequest&nbsp;request)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts a network exchange and copies the request body so downstream filters can still read it.</div>
 </div>
 </div>
@@ -282,6 +297,22 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>recorded warnings</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="snapshot()">
+<h3>snapshot</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="BrowserObservabilityRecorder.NetworkSnapshotEntry.html" title="class in com.shaft.tools.io.internal">BrowserObservabilityRecorder.NetworkSnapshotEntry</a>&gt;</span>&nbsp;<span class="element-name">snapshot</span>()</div>
+<div class="block">Returns a read-only, 1-based snapshot of the current thread's observed network transactions
+without draining them, so a caller can list transactions repeatedly (for example an MCP tool
+answering separate "list" and "get by id" requests) without racing <a href="FailureTraceReporter.html" title="class in com.shaft.tools.io.internal"><code>FailureTraceReporter</code></a>'s
+end-of-test drain of the same thread-local state.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>immutable snapshot of currently recorded network transactions, oldest first</dd>
 </dl>
 </div>
 </section>

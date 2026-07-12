@@ -74,6 +74,10 @@
 <li><a href="#takeScreenshot(java.lang.String,boolean)" tabindex="0">takeScreenshot(String, boolean)</a></li>
 <li><a href="#saveStorageState(java.lang.String)" tabindex="0">saveStorageState(String)</a></li>
 <li><a href="#loadStorageState(java.lang.String)" tabindex="0">loadStorageState(String)</a></li>
+<li><a href="#networkRequests(java.lang.String,int)" tabindex="0">networkRequests(String, int)</a></li>
+<li><a href="#networkRequest(int)" tabindex="0">networkRequest(int)</a></li>
+<li><a href="#route(java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.util.Map)" tabindex="0">route(String, String, String, int, String, Map)</a></li>
+<li><a href="#unroute(java.lang.String)" tabindex="0">unroute(String)</a></li>
 <li><a href="#ariaSnapshot(com.shaft.mcp.locatorStrategy,java.lang.String)" tabindex="0">ariaSnapshot(locatorStrategy, String)</a></li>
 <li><a href="#accessibilityAudit(java.lang.String...)" tabindex="0">accessibilityAudit(String...)</a></li>
 </ol>
@@ -215,6 +219,19 @@ browser session.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Navigates the browser to the specified URL using Basic Authentication.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpNetworkTransactionDetail.html" title="class in com.shaft.mcp">McpNetworkTransactionDetail</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkRequest(int)" class="member-name-link">networkRequest</a><wbr>(int&nbsp;id)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns one observed network transaction's detail, including headers and a truncated body
+preview as recorded by trace capture.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpNetworkTransactionList.html" title="class in com.shaft.mcp">McpNetworkTransactionList</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#networkRequests(java.lang.String,int)" class="member-name-link">networkRequests</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlFilter,
+ int&nbsp;limit)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Lists the active browser session's observed network transactions without request/response
+bodies.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openForIntent(java.lang.String,java.lang.String,int,int)" class="member-name-link">openForIntent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;userIntent,
@@ -229,22 +246,39 @@ browser session.</div>
 <div class="block">Refreshes the current page in the browser.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#saveStorageState(java.lang.String)" class="member-name-link">saveStorageState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#route(java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.util.Map)" class="member-name-link">route</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;method,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlGlob,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;url,
+ int&nbsp;responseStatus,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;responseBody,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;responseHeaders)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Registers a mock network route on the active browser session, reusing the same
+<code>BrowserNetworkInterceptionRule</code> mock machinery that backs
+<code>routeFromHar</code> and the fluent <code>interceptRequest()</code> builder.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#saveStorageState(java.lang.String)" class="member-name-link">saveStorageState</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Saves the active browser session's cookies, <code>localStorage</code>, and <code>sessionStorage</code> to a
 JSON file.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
  int&nbsp;height)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Sets the browser window to a specific size.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpScreenshotResult.html" title="class in com.shaft.mcp">McpScreenshotResult</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#takeScreenshot(java.lang.String,boolean)" class="member-name-link">takeScreenshot</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpScreenshotResult.html" title="class in com.shaft.mcp">McpScreenshotResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#takeScreenshot(java.lang.String,boolean)" class="member-name-link">takeScreenshot</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputPath,
  boolean&nbsp;includeBase64)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Takes a PNG screenshot of the current browser viewport for MCP browser automation inspection.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#unroute(java.lang.String)" class="member-name-link">unroute</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;routeId)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Clears registered browser mock routes for the active session.</div>
 </div>
 </div>
 </div>
@@ -578,6 +612,99 @@ apply.</div>
 <dd><code>filePath</code> - workspace-contained source JSON file path</dd>
 <dt>Returns:</dt>
 <dd>a short confirmation including the resolved path and restored cookie count</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="networkRequests(java.lang.String,int)">
+<h3>networkRequests</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="browser_network_requests",
+      description="lists the active browser session's observed network transactions (method, URL, status, mimeType, sizes, timestamp; never bodies); requires the DevTools-based network trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork)")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpNetworkTransactionList.html" title="class in com.shaft.mcp">McpNetworkTransactionList</a></span>&nbsp;<span class="element-name">networkRequests</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlFilter,
+ int&nbsp;limit)</span></div>
+<div class="block">Lists the active browser session's observed network transactions without request/response
+bodies. Backed by <code>BrowserObservabilityRecorder</code>'s per-thread trace capture, which is
+active by default (<code>shaft.trace.enabled</code> and <code>shaft.trace.includeNetwork</code>) for any
+DevTools-capable driver started with <code>driver_initialize</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>urlFilter</code> - optional substring the transaction URL must contain</dd>
+<dd><code>limit</code> - maximum transactions to return; non-positive selects the default of 50</dd>
+<dt>Returns:</dt>
+<dd>matching transactions in observed order, newest last</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="networkRequest(int)">
+<h3>networkRequest</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="browser_network_request",
+      description="returns one observed network transaction's detail (headers and a truncated, redacted response body preview) by the 1-based id from browser_network_requests; full request/response bodies require a capture_start/capture_start_codegen session with saveHarContent=full")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpNetworkTransactionDetail.html" title="class in com.shaft.mcp">McpNetworkTransactionDetail</a></span>&nbsp;<span class="element-name">networkRequest</span><wbr><span class="parameters">(int&nbsp;id)</span></div>
+<div class="block">Returns one observed network transaction's detail, including headers and a truncated body
+preview as recorded by trace capture. Full, untruncated request/response bodies are only
+available from a <code>capture_start</code>/<code>capture_start_codegen</code> session started with
+<code>saveHarContent=full</code>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>id</code> - 1-based transaction id from <a href="#networkRequests(java.lang.String,int)"><code>networkRequests(String, int)</code></a></dd>
+<dt>Returns:</dt>
+<dd>the transaction detail</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="route(java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.util.Map)">
+<h3>route</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="browser_route",
+      description="registers a mock network route on the active browser session, matching by optional HTTP method and a URL glob (Playwright-style * and ?) or an exact URL, and returning the given status/body/headers instead of the real network response; returns a route id for reference (individual removal is not supported -- browser_unroute always clears every route)")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">route</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;method,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;urlGlob,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;url,
+ int&nbsp;responseStatus,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;responseBody,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;responseHeaders)</span></div>
+<div class="block">Registers a mock network route on the active browser session, reusing the same
+<code>BrowserNetworkInterceptionRule</code> mock machinery that backs
+<code>routeFromHar</code> and the fluent <code>interceptRequest()</code> builder.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>method</code> - optional HTTP method to match; blank matches any method</dd>
+<dd><code>urlGlob</code> - optional Playwright-style URL glob (<code>*</code> and <code>?</code>); takes
+                       precedence over <code>url</code> when both are set</dd>
+<dd><code>url</code> - optional exact URL to match; ignored when <code>urlGlob</code> is set</dd>
+<dd><code>responseStatus</code> - mocked response status code; non-positive selects 200</dd>
+<dd><code>responseBody</code> - mocked response body</dd>
+<dd><code>responseHeaders</code> - optional mocked response headers</dd>
+<dt>Returns:</dt>
+<dd>a route id for reference in logs and reports</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="unroute(java.lang.String)">
+<h3>unroute</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="browser_unroute",
+      description="clears registered browser mock routes for the active session; routeId is accepted for reference but every route is cleared because SHAFT's network interceptor does not support removing a single rule yet")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">unroute</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;routeId)</span></div>
+<div class="block">Clears registered browser mock routes for the active session. SHAFT's browser network
+interceptor (<code>BrowserNetworkInterceptor</code>) only supports
+clearing every rule at once today, so <code>routeId</code> is accepted for symmetry with
+<code>browser_route</code> but every route is cleared regardless of its value.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>routeId</code> - optional route id returned by <a href="#route(java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.util.Map)"><code>route(String, String, String, int, String, Map)</code></a>; accepted but not used to select
+               which route is cleared, since selective removal is not supported</dd>
+<dt>Returns:</dt>
+<dd>a confirmation message documenting the clear-all behavior</dd>
 </dl>
 </div>
 </section>
