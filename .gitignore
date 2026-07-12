@@ -107,3 +107,6 @@ __pycache__/
 # Personal Claude Code overrides -- never shared/tracked regardless of the
 # author's own machine-level git excludesFile.
 /.claude/settings.local.json
+
+# SHAFT auto-scaffolded default properties (generated when shaft-mcp/shaft-cli runs from the repo root)
+/src/main/resources/properties/

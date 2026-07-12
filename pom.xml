@@ -37,6 +37,7 @@
         <module>shaft-ai</module>
         <module>shaft-heal</module>
         <module>shaft-mcp</module>
+        <module>shaft-cli</module>
         <module>shaft-browserstack</module>
         <module>shaft-video</module>
         <module>shaft-visual</module>
@@ -118,6 +119,7 @@
         <animal.sniffer.annotations.version>1.27</animal.sniffer.annotations.version>
         <httpcore.version>4.4.16</httpcore.version>
         <owner.version>1.0.12</owner.version>
+        <picocli.version>4.7.7</picocli.version>
         <jsoup.version>1.22.2</jsoup.version>
         <json.version>20260522</json.version>
         <rhino.version>1.9.1</rhino.version>
@@ -527,6 +529,11 @@
                 <groupId>org.reactivestreams</groupId>
                 <artifactId>reactive-streams</artifactId>
                 <version>${reactive.streams.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>info.picocli</groupId>
+                <artifactId>picocli</artifactId>
+                <version>${picocli.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
