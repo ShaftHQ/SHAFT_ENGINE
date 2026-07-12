@@ -82,13 +82,29 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
         return imgThreshold;
     }
 
+    /**
+     * Decodes an image file from disk via an in-memory byte buffer instead of {@link Imgcodecs#imread(String)}.
+     * {@code imread} opens the path through the native OS file APIs, which silently fail (returning an empty
+     * {@link Mat}, not an exception) for absolute paths beyond the Windows {@code MAX_PATH} (260 character) limit —
+     * a realistic scenario for the AI-aided element identification folder nested under a long project/build path.
+     * Reading the bytes with Java NIO and decoding them with {@link Imgcodecs#imdecode} sidesteps that native path
+     * handling entirely, mirroring how the current-page screenshot bytes are already decoded above.
+     */
+    private static Mat readImage(String imagePath) {
+        try {
+            return Imgcodecs.imdecode(new MatOfByte(Files.readAllBytes(Paths.get(imagePath))), Imgcodecs.IMREAD_COLOR);
+        } catch (IOException e) {
+            return new Mat();
+        }
+    }
+
     private static List<Integer> attemptToFindImageUsingOpenCV(String referenceImagePath, byte[] currentPageScreenshot) {
         if (currentPageScreenshot == null || Arrays.equals(currentPageScreenshot, new byte[]{})) {
             //target image is empty, force fail comparison
             ReportManager.log("Failed to identify the element using AI; target screenshot is empty.");
         } else {
             Mat img_original = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
-            Mat templ_original = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+            Mat templ_original = readImage(referenceImagePath);
             if (img_original.empty() || templ_original.empty()) {
                 ReportManager.log("Failed to identify the element using AI; target or reference image is invalid.");
                 return Collections.emptyList();
