@@ -388,11 +388,36 @@ public final class CaptureCli {
 
     private static List<String> defaultLaunchPrefix() {
         String javaCommand = ProcessHandle.current().info().command().orElse("java");
-        return List.of(
-                javaCommand,
-                "-cp",
-                absoluteClassPath(ManagementFactory.getRuntimeMXBean().getClassPath()),
-                CaptureCli.class.getName());
+        String classpath = absoluteClassPath(ManagementFactory.getRuntimeMXBean().getClassPath());
+        return List.of(javaCommand, "@" + writeLaunchArgsFile(classpath, CaptureCli.class.getName()));
+    }
+
+    /**
+     * Writes a Java {@code @argfile} for relaunching with the given classpath: passed inline on
+     * Windows, hundreds of runtime jar paths can exceed the ~32K CreateProcess command-line limit
+     * ("The filename or extension is too long"), which fails the daemon relaunch before it starts.
+     */
+    private static Path writeLaunchArgsFile(String classpath, String mainClass) {
+        try {
+            Path argsFile = Files.createTempFile("shaft-capture-launch-", ".args");
+            argsFile.toFile().deleteOnExit();
+            Files.writeString(argsFile,
+                    "-cp" + System.lineSeparator()
+                            + argFileQuote(classpath) + System.lineSeparator()
+                            + mainClass + System.lineSeparator(),
+                    StandardCharsets.UTF_8);
+            return argsFile.toAbsolutePath().normalize();
+        } catch (java.io.IOException exception) {
+            throw new IllegalStateException("SHAFT Capture launch argfile could not be written.", exception);
+        }
+    }
+
+    /**
+     * Quotes one Java @argfile line: backslashes become forward slashes (the argfile parser
+     * treats backslashes as escapes) and embedded quotes are escaped.
+     */
+    private static String argFileQuote(String value) {
+        return '"' + value.replace("\\", "/").replace("\"", "\\\"") + '"';
     }
 
     private static String absoluteClassPath(String classPath) {

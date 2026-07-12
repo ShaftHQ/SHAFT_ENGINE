@@ -1,12 +1,15 @@
 {
   "body_path": "memory/gotchas/windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile.md",
-  "content_hash": "sha256:b44b0646d275e1cac253b261d95a31ac769a25fae07abe59c2c5bd8d3d1cae71",
+  "content_hash": "sha256:521a3ba6327552af1767ffb1a43f1a03a5ea99d6582a4b0018ecc2b6c9d8f7a6",
   "created_at": "2026-07-10T15:08:06+03:00",
   "evidence": [],
   "facets": {
     "applies_to": [
       "shaft-capture/src/main/java/com/shaft/capture/generate/GeneratedTestValidator.java",
-      "shaft-mcp/src/main/java/com/shaft/mcp/CaptureService.java"
+      "shaft-mcp/src/main/java/com/shaft/mcp/CaptureService.java",
+      "shaft-capture/src/main/java/com/shaft/capture/cli/CaptureCli.java",
+      "shaft-mcp/src/main/java/com/shaft/mcp/ShaftMcpApplication.java",
+      "shaft-cli/src/main/java/com/shaft/commandline/session/McpLauncherLocator.java"
     ],
     "category": "gotcha"
   },
@@ -25,9 +28,11 @@
   "tags": [
     "codegen",
     "windows",
-    "replay"
+    "replay",
+    "capture-daemon",
+    "mcp-launcher"
   ],
   "title": "Windows JVM launchers must pass large classpaths via a Java @argfile",
   "type": "gotcha",
-  "updated_at": "2026-07-10T15:08:06+03:00"
+  "updated_at": "2026-07-12T12:12:35+03:00"
 }

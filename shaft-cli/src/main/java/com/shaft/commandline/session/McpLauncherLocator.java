@@ -205,7 +205,26 @@ public final class McpLauncherLocator {
         String classpath = Stream.concat(Stream.of(thinJar), dependencyJars.stream())
                 .map(Path::toString)
                 .collect(Collectors.joining(File.pathSeparator));
-        return new LaunchSpec(List.of(javaExe, "-cp", classpath, MAIN_CLASS), thinJar.toString());
+        Path argsFile = writeDevArgsFile(thinJar, classpath);
+        return new LaunchSpec(List.of(javaExe, "@" + argsFile), thinJar.toString());
+    }
+
+    /**
+     * Writes a Java {@code @argfile} next to the dev thin jar: a dev checkout classpath spans every
+     * SHAFT module's transitive jars, and passing that inline on Windows can exceed the ~32K
+     * CreateProcess command-line limit ("The filename or extension is too long").
+     */
+    private Path writeDevArgsFile(Path thinJar, String classpath) {
+        Path argsFile = thinJar.resolveSibling("shaft-mcp-dev.args");
+        String content = "-cp" + System.lineSeparator()
+                + '"' + classpath.replace("\\", "/").replace("\"", "\\\"") + '"' + System.lineSeparator()
+                + MAIN_CLASS + System.lineSeparator();
+        try {
+            Files.writeString(argsFile, content, StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            throw new McpException("Could not write dev launch argfile next to '" + thinJar + "'.", exception);
+        }
+        return argsFile.toAbsolutePath().normalize();
     }
 
     private List<Path> resolveRuntimeDependencies(Path thinJar) {
