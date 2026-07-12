@@ -183,7 +183,86 @@ class ShaftProjectServiceTest {
                 temp.resolve("upgrade_to_modular_shaft.py"),
                 List.of("python"));
 
-        assertThrows(IllegalArgumentException.class, () -> service.initAgents("vscode", "repo", false));
+        assertThrows(IllegalArgumentException.class, () -> service.initAgents("cursor", "repo", false));
+    }
+
+    @Test
+    void initAgentsGeneratesOpencodeSkillBridgesUnderOpencodeDirectory() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("opencode", "opencode-repo", false);
+
+        assertEquals("opencode", result.loop());
+        Path bridge = temp.resolve("opencode-repo/.opencode/skills/writing-shaft-tests/SKILL.md");
+        assertTrue(Files.exists(bridge));
+        String bridgeContent = Files.readString(bridge);
+        assertTrue(bridgeContent.startsWith("---\nname: writing-shaft-tests\n"));
+        assertTrue(Files.exists(temp.resolve("opencode-repo/SHAFT-AGENTS.md")));
+    }
+
+    @Test
+    void initAgentsGeneratesVscodeInstructionsUnderGithubInstructionsDirectory() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("vscode", "vscode-repo", false);
+
+        assertEquals("vscode", result.loop());
+        Path instructions = temp.resolve(
+                "vscode-repo/.github/instructions/recording-shaft-tests-with-mcp.instructions.md");
+        assertTrue(Files.exists(instructions));
+        assertTrue(result.generatedFiles().contains(instructions));
+        String instructionsContent = Files.readString(instructions);
+        assertTrue(instructionsContent.contains("applyTo: \"**\""));
+        assertTrue(instructionsContent.contains("name: recording-shaft-tests-with-mcp"));
+        assertTrue(instructionsContent.contains("description:"));
+        assertTrue(Files.exists(temp.resolve("vscode-repo/SHAFT-AGENTS.md")));
+    }
+
+    @Test
+    void initAgentsSkipsExistingVscodeInstructionsFileWithWarningWhenOverwriteFalse() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+        Path repo = Files.createDirectories(temp.resolve("existing-vscode-repo"));
+        Path instructions = Files.createDirectories(repo.resolve(".github/instructions"))
+                .resolve("recording-shaft-tests-with-mcp.instructions.md");
+        Files.writeString(instructions, "custom content");
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("vscode", "existing-vscode-repo", false);
+
+        assertEquals("custom content", Files.readString(instructions));
+        assertTrue(result.warnings().stream()
+                .anyMatch(warning -> warning.contains("recording-shaft-tests-with-mcp.instructions.md")));
+        assertTrue(result.generatedFiles().stream().noneMatch(instructions::equals));
+    }
+
+    @Test
+    void initAgentsOverwritesExistingVscodeInstructionsFileWhenOverwriteTrue() throws Exception {
+        ShaftProjectService service = new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+        Path repo = Files.createDirectories(temp.resolve("overwrite-vscode-repo"));
+        Path instructions = Files.createDirectories(repo.resolve(".github/instructions"))
+                .resolve("recording-shaft-tests-with-mcp.instructions.md");
+        Files.writeString(instructions, "stale content");
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("vscode", "overwrite-vscode-repo", true);
+
+        assertTrue(result.warnings().isEmpty());
+        assertTrue(result.generatedFiles().contains(instructions));
+        assertTrue(Files.readString(instructions).contains("applyTo: \"**\""));
     }
 
     @Test
