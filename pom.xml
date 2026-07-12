@@ -67,7 +67,7 @@
         <jackson.legacy.version>2.22.1</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <tools.jackson.core.version>3.2.0</tools.jackson.core.version>
-        <selenium.version>4.45.0</selenium.version>
+        <selenium.version>4.46.0</selenium.version>
         <playwright.version>1.61.0</playwright.version>
         <slf4j.version>2.0.18</slf4j.version>
         <grpc.version>1.82.1</grpc.version>
