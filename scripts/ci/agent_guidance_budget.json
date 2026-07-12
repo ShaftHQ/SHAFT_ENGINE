@@ -1,7 +1,7 @@
 {
   "file_budgets": {
     "AGENTS.md": {
-      "max_bytes": 6144
+      "max_bytes": 6528
     },
     "CLAUDE.md": {
       "max_bytes": 1536,
@@ -173,5 +173,5 @@
     ".github/skills/qwen/"
   ],
   "refresh_workflow": ".github/workflows/refresh-agent-instructions.yml",
-  "notes": "Two-tier budget: estimated_host_tokens caps the ALWAYS-LOADED per-session cost (instruction files + skill name/description metadata); the byte-reduction floor only bounds on-disk guidance sprawl - skill BODIES are lazy-loaded on trigger and dominate guidance_bytes. Judge session cost by host tokens first. 2026-07-12: floor 68->55 to admit repo-local skills (ponytail, shaft-mastery, test-driven-development); AGENTS.md cap 5632->6144 for model routing + skill roster. Host token cap 2700->2900 (copilot carries AGENTS.md + 3 instruction files; the skill-roster discovery line is worth the 85 tokens)."
+  "notes": "Two-tier budget: estimated_host_tokens caps the ALWAYS-LOADED per-session cost (instruction files + skill name/description metadata); the byte-reduction floor only bounds on-disk guidance sprawl - skill BODIES are lazy-loaded on trigger and dominate guidance_bytes. Judge session cost by host tokens first. 2026-07-12: floor 68->55 to admit repo-local skills (ponytail, shaft-mastery, test-driven-development); AGENTS.md cap 5632->6144 for model routing + skill roster. Host token cap 2700->2900 (copilot carries AGENTS.md + 3 instruction files; the skill-roster discovery line is worth the 85 tokens). AGENTS.md cap 6144->6528 for the Learning Loop (route session learnings to memory/graphify/skills/followup issues; Completion must report them) -- the compounding-knowledge behavior is always-on by design, so it lives in the always-loaded file; offset partly by retiring the one-off a11ymcp note into a tracked issue."
 }

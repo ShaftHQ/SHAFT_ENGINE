@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/decisions/adopted-the-per-session-learning-loop-in-agents-md.md",
+  "content_hash": "sha256:a09a18c155bca5d16dce97d4f0c5f51cd16910bdfdbf1757c52da58d2a2733e0",
+  "created_at": "2026-07-12T10:21:41+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "decision-rationale"
+  },
+  "id": "decision.adopted-the-per-session-learning-loop-in-agents-md",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Adopt a per-session Learning Loop in agent guidance so every session compounds knowledge (memories, graphify, skills, followup issues)"
+  },
+  "status": "active",
+  "tags": [
+    "agent-guidance",
+    "learning-loop",
+    "memory",
+    "graphify",
+    "skills",
+    "followup-issues"
+  ],
+  "title": "Adopted the per-session Learning Loop in AGENTS.md",
+  "type": "decision",
+  "updated_at": "2026-07-12T10:21:41+03:00"
+}

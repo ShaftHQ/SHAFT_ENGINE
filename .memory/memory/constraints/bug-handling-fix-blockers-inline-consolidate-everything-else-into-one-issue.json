@@ -1,6 +1,6 @@
 {
   "body_path": "memory/constraints/bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue.md",
-  "content_hash": "sha256:695e10f0be4338f2d51bd1ef89e04b374f8159fff87723cb108eaaaf36f816ff",
+  "content_hash": "sha256:a7a053fa2f23443afa84ef1a5675424e94ae65fca5f5d5e2ec91d2f1475767fa",
   "created_at": "2026-07-08T17:00:20+03:00",
   "evidence": [],
   "id": "constraint.bug-handling-fix-blockers-inline-consolidate-everything-else-into-one-issue",
@@ -22,5 +22,5 @@
   ],
   "title": "Bug-handling: fix blockers inline, consolidate everything else into one issue",
   "type": "constraint",
-  "updated_at": "2026-07-08T17:00:20+03:00"
+  "updated_at": "2026-07-12T10:21:41+03:00"
 }
