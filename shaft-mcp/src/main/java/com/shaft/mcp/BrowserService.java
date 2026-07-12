@@ -1,14 +1,18 @@
 package com.shaft.mcp;
 
+import com.deque.html.axecore.results.CheckedNode;
+import com.deque.html.axecore.results.Rule;
 import com.shaft.capture.generate.LocatorRanker;
 import com.shaft.capture.model.ElementSnapshot;
 import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.LocatorCandidate;
 import com.shaft.capture.model.PageContext;
 import com.shaft.driver.SHAFT;
+import com.shaft.validation.accessibility.AccessibilityHelper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.openqa.selenium.By;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
@@ -22,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -33,12 +38,15 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.shaft.mcp.EngineService.getDriver;
+import static com.shaft.mcp.EngineService.getLocator;
 
 @Service
 public class BrowserService {
     private static final int DEFAULT_DOM_CHARACTER_LIMIT = 200_000;
     private static final int DEFAULT_ELEMENT_LIMIT = 10;
     private static final int MAX_ELEMENT_LIMIT = 25;
+    private static final int MAX_VIOLATION_NODES = 5;
+    private static final int MAX_VIOLATION_NODE_HTML_LENGTH = 200;
     private static final Logger logger = LoggerFactory.getLogger(BrowserService.class);
 
     private final McpWorkspacePolicy workspacePolicy;
@@ -389,6 +397,97 @@ public class BrowserService {
             logger.error("Failed to take browser screenshot.", e);
             throw e;
         }
+    }
+
+    /**
+     * Captures an accessible-name-tree aria snapshot (SHAFT's YAML subset of Playwright's aria snapshot
+     * DSL) of the whole page or a single element for MCP browser automation inspection.
+     *
+     * @param locatorStrategy locator strategy; leave unset together with locatorValue to snapshot the
+     *                        whole page
+     * @param locatorValue    locator value; leave blank to snapshot the whole page
+     * @return the aria snapshot serialized as YAML
+     */
+    @Tool(name = "browser_aria_snapshot",
+            description = "captures an accessible-name-tree aria snapshot (YAML) of the whole page, or of one "
+                    + "element when a locator is supplied")
+    public String ariaSnapshot(locatorStrategy locatorStrategy, String locatorValue) {
+        try {
+            SHAFT.GUI.WebDriver driver = getDriver();
+            boolean wholePage = locatorStrategy == null || locatorValue == null || locatorValue.isBlank();
+            By locator = wholePage ? By.tagName("html") : getLocator(locatorStrategy, locatorValue);
+            String snapshot = driver.element().ariaSnapshot(locator);
+            logger.info("Aria snapshot captured (wholePage: {}, characters: {}).",
+                    wholePage, snapshot == null ? 0 : snapshot.length());
+            return snapshot;
+        } catch (Exception e) {
+            logger.error("Failed to capture aria snapshot.", e);
+            throw e;
+        }
+    }
+
+    /**
+     * Runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the
+     * violations found. Unlike {@code AccessibilityActions.assertIsAccessible}, this tool never fails
+     * the call when violations exist; it reports them so the caller can decide what to do.
+     *
+     * @param wcagTags optional axe-core WCAG tags (e.g. {@code wcag2a}, {@code wcag21aa}) to scope the
+     *                 audit to; when empty, SHAFT's default tag set is used
+     * @return the audit result, including a violation count and a per-violation summary
+     */
+    @Tool(name = "browser_accessibility_audit",
+            description = "runs a non-asserting axe-core WCAG accessibility audit on the current page and "
+                    + "returns the violations found; never fails the call when violations exist")
+    public McpAccessibilityAuditResult accessibilityAudit(String... wcagTags) {
+        try {
+            SHAFT.GUI.WebDriver driver = getDriver();
+            AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig();
+            List<String> tags = wcagTags == null || wcagTags.length == 0
+                    ? List.copyOf(config.getTags())
+                    : List.of(wcagTags);
+            if (wcagTags != null && wcagTags.length > 0) {
+                config.setTags(Arrays.asList(wcagTags));
+            }
+            AccessibilityHelper.AccessibilityResult result =
+                    driver.browser().accessibility().analyzeAndReturn("mcp-accessibility-audit", config, false);
+            List<McpAccessibilityViolation> violations = result.getViolations().stream()
+                    .map(BrowserService::toAccessibilityViolation)
+                    .toList();
+            logger.info("Accessibility audit completed (violations: {}, score: {}).",
+                    result.getViolationsCount(), result.getAccessibilityScore());
+            return new McpAccessibilityAuditResult(
+                    result.getAccessibilityScore(),
+                    result.getViolationsCount(),
+                    result.getPassCount(),
+                    tags,
+                    violations,
+                    violations.isEmpty()
+                            ? List.of()
+                            : List.of("Accessibility violations were found; this tool reports them without "
+                                    + "failing the call."));
+        } catch (Exception e) {
+            logger.error("Failed to run accessibility audit.", e);
+            throw e;
+        }
+    }
+
+    private static McpAccessibilityViolation toAccessibilityViolation(Rule rule) {
+        List<CheckedNode> nodes = rule.getNodes() == null ? List.of() : rule.getNodes();
+        List<McpAccessibilityViolationNode> nodeSummaries = nodes.stream()
+                .limit(MAX_VIOLATION_NODES)
+                .map(node -> new McpAccessibilityViolationNode(
+                        String.valueOf(node.getTarget()),
+                        trimTo(node.getHtml(), MAX_VIOLATION_NODE_HTML_LENGTH)))
+                .toList();
+        return new McpAccessibilityViolation(
+                rule.getId(),
+                rule.getImpact(),
+                rule.getDescription(),
+                rule.getHelp(),
+                rule.getHelpUrl(),
+                rule.getTags() == null ? List.of() : List.copyOf(rule.getTags()),
+                nodes.size(),
+                nodeSummaries);
     }
 
     private Path writeScreenshot(String outputPath, byte[] png) {

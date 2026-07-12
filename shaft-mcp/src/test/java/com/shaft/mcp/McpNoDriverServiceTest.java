@@ -43,6 +43,10 @@ class McpNoDriverServiceTest {
         assertNoDriver(service::getTitle);
         assertNoDriver(() -> service.getPageDom(10));
         assertNoDriver(() -> service.takeScreenshot("shot.png", false));
+        assertNoDriver(() -> service.ariaSnapshot(null, null));
+        assertNoDriver(() -> service.ariaSnapshot(locatorStrategy.ID, "content"));
+        assertNoDriver(() -> service.accessibilityAudit());
+        assertNoDriver(() -> service.accessibilityAudit("wcag2a", "wcag2aa"));
     }
 
     @Test
