@@ -5,8 +5,11 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  schedule:
-    - cron: '00 1 * * *'
+  # Nightly schedule paused while the LambdaTest account is plan-blocked /
+  # minutes-exhausted (see issue #2927) — every scheduled run is guaranteed red.
+  # Re-enable once the account can start sessions again:
+  # schedule:
+  #   - cron: '00 1 * * *'
   workflow_dispatch:
 
 permissions:
