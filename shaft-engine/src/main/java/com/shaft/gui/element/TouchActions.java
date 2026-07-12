@@ -8,6 +8,7 @@ import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.element.internal.MobileSessionStateManager;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingResolution;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -834,6 +835,93 @@ public class TouchActions extends FluentWebDriverAction {
      */
     public TouchActions rotate(String orientation) {
         return rotate(enumValue(ScreenOrientation.class, orientation, "orientation"));
+    }
+
+    /**
+     * Saves the active Appium session capabilities to a JSON file, so a later test run can reuse
+     * the same device/app configuration without re-resolving it.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.touch().saveSessionCapabilities("target/mobile-session-cache/device.json");
+     * }</pre>
+     *
+     * @param filePath target JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions saveSessionCapabilities(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            MobileSessionStateManager.saveCapabilities(driver, filePath);
+            elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), filePath, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driver, filePath, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Loads previously saved Appium session capabilities from a JSON file.
+     *
+     * <p>This is a static method because capabilities must be known before a driver session exists.
+     * Example:
+     * <pre>{@code
+     * MutableCapabilities capabilities = TouchActions.loadSessionCapabilities("target/mobile-session-cache/device.json");
+     * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, capabilities);
+     * }</pre>
+     *
+     * @param filePath source JSON file path
+     * @return capabilities restored from the file
+     */
+    public static MutableCapabilities loadSessionCapabilities(String filePath) {
+        return MobileSessionStateManager.loadCapabilities(filePath);
+    }
+
+    /**
+     * Saves a snapshot of the current mobile app state (active app, context, orientation, window size)
+     * to a JSON file.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.touch().saveAppState("target/mobile-session-cache/app-state.json");
+     * }</pre>
+     *
+     * @param filePath target JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions saveAppState(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            MobileSessionStateManager.saveAppState(driver, filePath);
+            elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), filePath, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driver, filePath, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Restores what is restorable of a previously saved mobile app-state snapshot on the current
+     * live session: re-activates the app, switches context, and rotates the device when supported.
+     * Unsupported restore steps are skipped silently.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.touch().loadAppState("target/mobile-session-cache/app-state.json");
+     * }</pre>
+     *
+     * @param filePath source JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions loadAppState(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            MobileSessionStateManager.loadAppState(driver, filePath);
+            elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), filePath, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driver, filePath, null, rootCauseException);
+        }
+        return this;
     }
 
     private static <T extends Enum<T>> T enumValue(Class<T> enumType, String value, String parameterName) {
