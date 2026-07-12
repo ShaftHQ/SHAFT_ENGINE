@@ -122,6 +122,42 @@ class DoctorAnalyzerTest {
     }
 
     @Test
+    void accessibilityAuditEvidenceIsAdditiveAndDoesNotChangePrimaryCause(@TempDir Path temp) throws IOException {
+        Path input = Files.createDirectories(temp.resolve("a11y-input"));
+        writeResult(input.resolve("a11y-result.json"), "failed",
+                "NoSuchElementException: unable to locate element", "trace 1", "a11y-history", 1);
+        Files.writeString(input.resolve("AccessibilityJSON_HomePage_20260101_000000.json"), """
+                {
+                  "violations": [
+                    {"id": "color-contrast", "category": "Violation", "impact": "critical",
+                     "wcagModel": "WCAG21AA", "nodes": [{"html": "<div>x</div>", "target": "#a"}]}
+                  ],
+                  "incomplete": [],
+                  "inapplicable": [],
+                  "passes": [],
+                  "totalViolations": 1,
+                  "totalIncomplete": 0,
+                  "totalInapplicable": 0,
+                  "totalPassed": 0
+                }
+                """, StandardCharsets.UTF_8);
+
+        DoctorAnalysisResult result = analyze(temp, input, "a11y-out", 1, false, false, List.of());
+
+        assertEquals(CauseCategory.LOCATOR, result.diagnosis().primaryCause(),
+                "Accessibility findings must be additive-only and never change the deterministic primary cause");
+        String a11yEvidenceId = result.bundle().evidence().stream()
+                .filter(item -> item.category() == EvidenceCategory.ACCESSIBILITY_AUDIT)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected an ACCESSIBILITY_AUDIT evidence item"))
+                .id();
+        assertTrue(result.diagnosis().findings().stream()
+                .anyMatch(finding -> finding.ruleId().equals("accessibility-audit")
+                        && finding.evidenceIds().contains(a11yEvidenceId)),
+                "A finding citing the accessibility-audit evidence ID should be present");
+    }
+
+    @Test
     void redactsSecretsPathsAndOptInPageEvidence(@TempDir Path temp) throws IOException {
         Path input = Files.createDirectories(temp.resolve("privacy-input"));
         String canary = "DO-NOT-RETAIN-SECRET";
