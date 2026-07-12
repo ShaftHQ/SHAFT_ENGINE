@@ -2161,6 +2161,7 @@ final class ShaftAssistantPanel extends JPanel {
         boolean stored = !keyName.isBlank() && storedCloudKey(keyName);
         String providerLabel = ShaftUiLabels.friendly(provider);
         cloudKeyStatus.setText(stored ? providerLabel + " key stored" : "Enter " + providerLabel + " key");
+        cloudKeyStatus.setVisible(false);
         cloudApiKey.setVisible(!stored);
         saveCloudApiKey.setVisible(!stored);
     }
