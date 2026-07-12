@@ -63,7 +63,7 @@
         <junit.bom.version>6.1.2</junit.bom.version>
         <allure.bom.version>2.35.3</allure.bom.version>
         <cucumber.bom.version>7.34.4</cucumber.bom.version>
-        <jackson.version>3.2.0</jackson.version>
+        <jackson.version>3.2.1</jackson.version>
         <jackson.legacy.version>2.22.1</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <tools.jackson.core.version>3.2.1</tools.jackson.core.version>
