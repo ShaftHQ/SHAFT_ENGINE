@@ -93,8 +93,14 @@ public class ScreenshotHelper {
             return (BufferedImage) img;
         }
 
+        // Image#getScaledInstance() can round a dimension down to 0 for extreme downscale ratios
+        // (e.g. watermarking a very small screenshot); clamp to 1px so this never throws
+        // "Width/height cannot be <= 0" instead of just producing a barely-visible watermark.
+        int width = Math.max(1, img.getWidth(null));
+        int height = Math.max(1, img.getHeight(null));
+
         // Create a buffered image with transparency
-        BufferedImage bufferedImage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+        BufferedImage bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 
         // Draw the image on to the buffered image
         Graphics2D bGr = bufferedImage.createGraphics();
