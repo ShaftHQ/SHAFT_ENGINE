@@ -115,7 +115,11 @@ jobs:
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
       LT_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LT_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
+    # needs only serializes against LambdaTest's session-concurrency limit;
+    # if: always() keeps this job running when an upstream job fails on
+    # account-plan limits (issue #2927).
     needs: [ LambdaTest_NativeAndroid ]
+    if: always()
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -189,7 +193,9 @@ jobs:
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
       LT_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LT_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
+    # See LambdaTest_NativeIOS: serialized but tolerant of upstream plan failures.
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS ]
+    if: always()
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
@@ -238,7 +244,9 @@ jobs:
       LAMBDATEST_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
       LT_USERNAME: ${{ secrets.LAMBDATEST_USERNAME }}
       LT_ACCESS_KEY: ${{ secrets.LAMBDATEST_ACCESS_KEY }}
+    # See LambdaTest_NativeIOS: serialized but tolerant of upstream plan failures.
     needs: [ LambdaTest_NativeAndroid, LambdaTest_NativeIOS, LambdaTest_WebApp ]
+    if: always()
     outputs:
       job: ${{ steps.post_test_report.outputs.job }}
       total: ${{ steps.post_test_report.outputs.total }}
