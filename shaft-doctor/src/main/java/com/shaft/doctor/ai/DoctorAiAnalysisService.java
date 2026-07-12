@@ -595,6 +595,7 @@ public final class DoctorAiAnalysisService {
             case ALLURE_RESULT -> 2;
             case CONFIGURATION, ENVIRONMENT, DEPENDENCY_BUILD -> 3;
             case PAGE_SNAPSHOT -> 4;
+            case ACCESSIBILITY_AUDIT -> 4;
             case SCREENSHOT, OTHER -> 5;
         };
     }
@@ -604,6 +605,7 @@ public final class DoctorAiAnalysisService {
         return switch (category) {
             case EXCEPTION_CHAIN, SHAFT_LOG -> com.shaft.pilot.ai.EvidenceCategory.LOG;
             case PAGE_SNAPSHOT -> com.shaft.pilot.ai.EvidenceCategory.DOM;
+            case ACCESSIBILITY_AUDIT -> com.shaft.pilot.ai.EvidenceCategory.DOM;
             case CONFIGURATION, ENVIRONMENT, DEPENDENCY_BUILD ->
                     com.shaft.pilot.ai.EvidenceCategory.CONFIGURATION;
             case ALLURE_RESULT, OTHER, SCREENSHOT -> com.shaft.pilot.ai.EvidenceCategory.TEXT;

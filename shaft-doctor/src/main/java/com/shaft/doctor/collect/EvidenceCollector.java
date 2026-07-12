@@ -56,6 +56,8 @@ public final class EvidenceCollector {
             ".html", ".htm", ".mhtml", ".json", ".csv");
     private static final Set<String> SCREENSHOT_EXTENSIONS = Set.of(
             ".png", ".jpg", ".jpeg", ".gif", ".webp");
+    private static final java.util.regex.Pattern ACCESSIBILITY_FILENAME_PATTERN =
+            java.util.regex.Pattern.compile("(?i)^AccessibilityJSON_(.+)_\\d{8}_\\d{6}\\.json$");
 
     private final ObjectMapper mapper = JsonMapper.builder()
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
@@ -203,6 +205,10 @@ public final class EvidenceCollector {
             collectAllureResult(file, sourceReference, roots, request, redactor, items, state);
             return;
         }
+        if (isAccessibilityAudit(lowerName)) {
+            collectAccessibilityAudit(file, sourceReference, request, redactor, items, state);
+            return;
+        }
         EvidenceCategory category = inferCategory(lowerName, extension);
         collectText(file, sourceReference, category, mediaType(extension),
                 request, redactor, items, state);
@@ -253,6 +259,84 @@ public final class EvidenceCollector {
                     retained, sourceTruncated, Map.of("invalid", "true"),
                     "allure-result-json", items, state, request.maxBundleBytes());
         }
+    }
+
+    private void collectAccessibilityAudit(
+            Path file,
+            String sourceReference,
+            DoctorAnalysisRequest request,
+            DoctorRedactor redactor,
+            Map<String, EvidenceItem> items,
+            CollectionState state) {
+        byte[] source = readBounded(file, request.maxItemBytes());
+        boolean sourceTruncated = FilesSize.size(file) > source.length;
+        try {
+            JsonNode parsed = mapper.readTree(source);
+            if (parsed == null || !parsed.isObject()) {
+                throw new IllegalArgumentException("Accessibility audit root is not an object.");
+            }
+            JsonNode sanitized = redactor.redact(parsed);
+            byte[] retained = mapper.writer().with(printer)
+                    .writeValueAsBytes(sanitized);
+            retained = limit(retained, request.maxItemBytes());
+            Map<String, String> attributes = accessibilityAttributes(
+                    file.getFileName().toString(), sanitized);
+            addTextItem(sourceReference, EvidenceCategory.ACCESSIBILITY_AUDIT, "application/json",
+                    retained, sourceTruncated || retained.length >= request.maxItemBytes(),
+                    attributes, "accessibility-audit-json", items, state, request.maxBundleBytes());
+        } catch (RuntimeException exception) {
+            byte[] retained = "Malformed or truncated accessibility audit JSON."
+                    .getBytes(StandardCharsets.UTF_8);
+            addTextItem(sourceReference, EvidenceCategory.ACCESSIBILITY_AUDIT, "text/plain",
+                    retained, sourceTruncated, Map.of("invalid", "true"),
+                    "accessibility-audit-json", items, state, request.maxBundleBytes());
+        }
+    }
+
+    private static Map<String, String> accessibilityAttributes(String fileName, JsonNode audit) {
+        Map<String, String> attributes = new TreeMap<>();
+        java.util.regex.Matcher matcher = ACCESSIBILITY_FILENAME_PATTERN.matcher(fileName);
+        if (matcher.matches()) {
+            put(attributes, "pageName", matcher.group(1));
+        }
+        attributes.put("violationsCount", Integer.toString(audit.path("totalViolations").asInt(0)));
+        attributes.put("incompleteCount", Integer.toString(audit.path("totalIncomplete").asInt(0)));
+        attributes.put("passesCount", Integer.toString(audit.path("totalPassed").asInt(0)));
+        attributes.put("inapplicableCount", Integer.toString(audit.path("totalInapplicable").asInt(0)));
+
+        int critical = 0;
+        int serious = 0;
+        int moderate = 0;
+        int minor = 0;
+        Set<String> wcagModels = new LinkedHashSet<>();
+        Set<String> ruleIds = new LinkedHashSet<>();
+        for (JsonNode violation : audit.path("violations")) {
+            String impact = violation.path("impact").asText("").toLowerCase(Locale.ROOT);
+            switch (impact) {
+                case "critical" -> critical++;
+                case "serious" -> serious++;
+                case "moderate" -> moderate++;
+                case "minor" -> minor++;
+                default -> {
+                    // Unrecognized impact values are not counted in any severity bucket.
+                }
+            }
+            String wcagModel = violation.path("wcagModel").asText("");
+            if (!wcagModel.isBlank()) {
+                wcagModels.add(wcagModel);
+            }
+            String id = violation.path("id").asText("");
+            if (!id.isBlank()) {
+                ruleIds.add(id);
+            }
+        }
+        attributes.put("criticalCount", Integer.toString(critical));
+        attributes.put("seriousCount", Integer.toString(serious));
+        attributes.put("moderateCount", Integer.toString(moderate));
+        attributes.put("minorCount", Integer.toString(minor));
+        put(attributes, "wcagModels", String.join(",", wcagModels));
+        put(attributes, "topRuleIds", String.join(",", ruleIds));
+        return attributes;
     }
 
     private void collectText(
@@ -801,6 +885,10 @@ public final class EvidenceCollector {
         return lowerName.equals("diagnostics.json") || lowerName.endsWith("-diagnostics.json");
     }
 
+    private static boolean isAccessibilityAudit(String lowerName) {
+        return lowerName.startsWith("accessibilityjson_") && lowerName.endsWith(".json");
+    }
+
     private static boolean isDiagnosticsZip(String lowerName, String type, String extension) {
         return ".zip".equals(extension)
                 && (type.isBlank() || type.contains("zip"))
@@ -844,6 +932,7 @@ public final class EvidenceCollector {
             case EXCEPTION_CHAIN -> "exception-chain";
             case SCREENSHOT -> "screenshot";
             case PAGE_SNAPSHOT -> "page-snapshot";
+            case ACCESSIBILITY_AUDIT -> "accessibility-audit-json";
             case ENVIRONMENT -> "environment-metadata";
             case DEPENDENCY_BUILD -> "dependency-build-metadata";
             case CONFIGURATION -> "configuration-summary";
