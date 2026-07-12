@@ -29,6 +29,43 @@ class ValidateShaftMcpConfigurationTest(unittest.TestCase):
         self.assertIn("MCP tool manifest tool browser_get_page_dom must define boolean deprecated", errors)
         self.assertIn("MCP tool manifest contains a tool without a name", errors)
 
+    def test_selector_bound_ignores_yaml_comments(self):
+        workflow = (
+            "# leading comment\n"
+            "jobs:\n"
+            "  mcp-tests:\n"
+            "    steps:\n"
+            "      # another comment with extra # characters ##\n"
+            "      - env:\n"
+            "          MCP_RELATED_TESTS: ATest#one,ATest#two,BTest#three\n"
+        )
+
+        self.assertEqual(MODULE.validate_mcp_test_selector(workflow), [])
+
+    def test_selector_bound_rejects_more_than_ten_methods(self):
+        selector = ",".join(f"ATest#method{index}" for index in range(11))
+        workflow = f"          MCP_RELATED_TESTS: {selector}\n"
+
+        errors = MODULE.validate_mcp_test_selector(workflow)
+
+        self.assertEqual(
+            errors,
+            ["shaft-mcp workflow MCP test selector must stay bounded to at most 10 selected test methods"],
+        )
+
+    def test_selector_bound_requires_explicit_method_entries(self):
+        missing = MODULE.validate_mcp_test_selector("jobs: {}\n")
+        class_only = MODULE.validate_mcp_test_selector("MCP_RELATED_TESTS: ATest,BTest\n")
+
+        self.assertEqual(
+            missing,
+            ["shaft-mcp workflow must define a single-line MCP_RELATED_TESTS selector"],
+        )
+        self.assertEqual(
+            class_only,
+            ["shaft-mcp workflow MCP test selector must select explicit Class#method entries"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
