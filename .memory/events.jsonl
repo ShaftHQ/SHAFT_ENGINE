@@ -204,3 +204,4 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile","timestamp":"2026-07-12T12:12:35+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.shaftmcpsetuppanel-installerdetailspanel-is-dead-hidden-ui-and-screenshots-reflect-real-machine-state","timestamp":"2026-07-12T13:24:30+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.agent-cli-print-mode-contracts-claude-p-and-codex-exec-read-stdin-codex-stdout-is-noisy-on-windows","timestamp":"2026-07-12T13:24:30+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.imgcodecs-imread-fails-silently-past-windows-max-path-decode-from-bytes-instead","timestamp":"2026-07-12T14:28:57+03:00"}
