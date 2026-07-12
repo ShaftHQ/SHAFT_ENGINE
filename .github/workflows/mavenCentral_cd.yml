@@ -18,6 +18,7 @@ on:
       - 'shaft-ai/**'
       - 'shaft-heal/**'
       - 'shaft-mcp/**'
+      - 'shaft-cli/**'
       - 'shaft-browserstack/**'
       - 'shaft-video/**'
       - 'shaft-visual/**'

@@ -2,6 +2,12 @@
 
 shaft-cli is an MCP client and command-line interface to shaft-mcp. It brings all 147 shaft-mcp tools to the command line with zero tool-logic duplication, operating in two modes: stateless one-shot commands and persistent session mode for stateful tools.
 
+## Install
+
+Pass `--install-shaft-cli` to the shaft-mcp installer (`scripts/mcp/install-shaft-mcp.sh` / `.ps1`, or the public copy-paste command documented at https://shafthq.github.io/docs/agentic/mcp) to also install shaft-cli — no local Java or Python required; the installer bootstraps whatever is missing. The flag is independent of `--client`, so it can be combined with any MCP client target, or run on its own.
+
+The installer downloads and SHA-256-verifies `shaft-cli-<version>.jar` from Maven Central, then writes a runnable launcher (`shaft-cli` on macOS/Linux, `shaft-cli.cmd` on Windows) plus a `shaft-cli.args` Java argfile next to it, under the platform's application-data root — e.g. `%LOCALAPPDATA%\ShaftHQ\shaft-cli\versions\<version>\` on Windows, `~/Library/Application Support/ShaftHQ/shaft-cli/versions/<version>/` on macOS, `${XDG_DATA_HOME:-~/.local/share}/shafthq/shaft-cli/versions/<version>/` on Linux.
+
 ## Modes
 
 **One-shot mode** (default): Each command spawns an ephemeral shaft-mcp child process over stdio, runs a single tool call, and exits. Suitable for stateless tools like guide search and doctor analysis.
@@ -91,4 +97,4 @@ Only picocli and Jackson. No compile-time dependency on shaft-mcp or any shaft m
 
 ## Scope
 
-Installer `--cli` flag, docs-site page, shell completion, and native binaries are out of scope for the MVP.
+Docs-site page, shell completion, and native binaries are out of scope for the MVP. (Installer support shipped — see Install above.)
