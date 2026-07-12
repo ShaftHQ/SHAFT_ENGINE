@@ -91,12 +91,14 @@
 <li><a href="#createLogEntry(java.lang.String,org.apache.logging.log4j.Level)" tabindex="0">createLogEntry(String, Level)</a></li>
 <li><a href="#writeStepToReport(java.lang.String)" tabindex="0">writeStepToReport(String)</a></li>
 <li><a href="#writeStepToReport(java.lang.String,org.apache.logging.log4j.Level)" tabindex="0">writeStepToReport(String, Level)</a></li>
+<li><a href="#writeStepToReport(java.lang.String,org.apache.logging.log4j.Level,io.qameta.allure.model.Status)" tabindex="0">writeStepToReport(String, Level, Status)</a></li>
+<li><a href="#writeStepToReport(java.lang.String,org.apache.logging.log4j.Level,io.qameta.allure.model.Status,long)" tabindex="0">writeStepToReport(String, Level, Status, long)</a></li>
 <li><a href="#isInternalStep()" tabindex="0">isInternalStep()</a></li>
 <li><a href="#attachAsStep(java.lang.String,java.lang.String,java.io.InputStream)" tabindex="0">attachAsStep(String, String, InputStream)</a></li>
 <li><a href="#cleanExecutionSummaryReportDirectory()" tabindex="0">cleanExecutionSummaryReportDirectory()</a></li>
 <li><a href="#openExecutionSummaryReportAfterExecution()" tabindex="0">openExecutionSummaryReportAfterExecution()</a></li>
-<li><a href="#log(java.lang.String,java.util.List)" tabindex="0">log(String, List)</a></li>
-<li><a href="#logNestedSteps(java.lang.String,java.util.List,java.util.List)" tabindex="0">logNestedSteps(String, List, List)</a></li>
+<li><a href="#log(java.lang.String,java.util.List,com.shaft.tools.io.internal.CheckpointStatus)" tabindex="0">log(String, List, CheckpointStatus)</a></li>
+<li><a href="#logNestedSteps(java.lang.String,java.util.List,java.util.List,com.shaft.tools.io.internal.CheckpointStatus,com.shaft.tools.io.internal.CheckpointType)" tabindex="0">logNestedSteps(String, List, List, CheckpointStatus, CheckpointType)</a></li>
 <li><a href="#logNestedSteps(java.lang.String,java.util.List)" tabindex="0">logNestedSteps(String, List)</a></li>
 <li><a href="#attach(java.util.List)" tabindex="0">attach(List)</a></li>
 <li><a href="#log(java.lang.Throwable)" tabindex="0">log(Throwable)</a></li>
@@ -226,8 +228,9 @@ execution report.</div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#isInternalStep()" class="member-name-link">isInternalStep</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#log(java.lang.String,java.util.List)" class="member-name-link">log</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#log(java.lang.String,java.util.List,com.shaft.tools.io.internal.CheckpointStatus)" class="member-name-link">log</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments,
+ <a href="CheckpointStatus.html" title="enum class in com.shaft.tools.io.internal">CheckpointStatus</a>&nbsp;status)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#log(java.lang.Throwable)" class="member-name-link">log</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Throwable.html" title="class or interface in java.lang" class="external-link">Throwable</a>&nbsp;throwable)</code></div>
@@ -286,9 +289,11 @@ log entry.</div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logIssue(java.lang.String)" class="member-name-link">logIssue</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;issue)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logNestedSteps(java.lang.String,java.util.List,java.util.List)" class="member-name-link">logNestedSteps</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logNestedSteps(java.lang.String,java.util.List,java.util.List,com.shaft.tools.io.internal.CheckpointStatus,com.shaft.tools.io.internal.CheckpointType)" class="member-name-link">logNestedSteps</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;customLogMessages,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments)</code></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments,
+ <a href="CheckpointStatus.html" title="enum class in com.shaft.tools.io.internal">CheckpointStatus</a>&nbsp;status,
+ <a href="CheckpointType.html" title="enum class in com.shaft.tools.io.internal">CheckpointType</a>&nbsp;type)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logNestedSteps(java.lang.String,java.util.List)" class="member-name-link">logNestedSteps</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
@@ -358,6 +363,25 @@ report.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Formats logText and adds timestamp at the specified log level, then logs it as a step in the execution
 report.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#writeStepToReport(java.lang.String,org.apache.logging.log4j.Level,io.qameta.allure.model.Status)" class="member-name-link">writeStepToReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ org.apache.logging.log4j.Level&nbsp;logLevel,
+ io.qameta.allure.model.Status&nbsp;stepStatus)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Formats logText and adds timestamp, then logs it as a step in the execution
+report with an explicitly provided step status.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#writeStepToReport(java.lang.String,org.apache.logging.log4j.Level,io.qameta.allure.model.Status,long)" class="member-name-link">writeStepToReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ org.apache.logging.log4j.Level&nbsp;logLevel,
+ io.qameta.allure.model.Status&nbsp;stepStatus,
+ long&nbsp;stepStartMillis)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Formats logText and adds timestamp, then logs it as a step in the execution
+report with an explicitly provided step status and a real start timestamp, so
+the step reflects the actual duration of the work it summarizes instead of
+rendering as a zero-duration entry.</div>
 </div>
 </div>
 </div>
@@ -790,6 +814,46 @@ report.</div>
 </section>
 </li>
 <li>
+<section class="detail" id="writeStepToReport(java.lang.String,org.apache.logging.log4j.Level,io.qameta.allure.model.Status)">
+<h3>writeStepToReport</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">writeStepToReport</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ org.apache.logging.log4j.Level&nbsp;logLevel,
+ io.qameta.allure.model.Status&nbsp;stepStatus)</span></div>
+<div class="block">Formats logText and adds timestamp, then logs it as a step in the execution
+report with an explicitly provided step status.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>logText</code> - the text that needs to be logged in this action</dd>
+<dd><code>logLevel</code> - the log level to use for the console log entry</dd>
+<dd><code>stepStatus</code> - the exact status to render for this step in the execution report</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="writeStepToReport(java.lang.String,org.apache.logging.log4j.Level,io.qameta.allure.model.Status,long)">
+<h3>writeStepToReport</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">writeStepToReport</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ org.apache.logging.log4j.Level&nbsp;logLevel,
+ io.qameta.allure.model.Status&nbsp;stepStatus,
+ long&nbsp;stepStartMillis)</span></div>
+<div class="block">Formats logText and adds timestamp, then logs it as a step in the execution
+report with an explicitly provided step status and a real start timestamp, so
+the step reflects the actual duration of the work it summarizes instead of
+rendering as a zero-duration entry.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>logText</code> - the text that needs to be logged in this action</dd>
+<dd><code>logLevel</code> - the log level to use for the console log entry</dd>
+<dd><code>stepStatus</code> - the exact status to render for this step in the execution report</dd>
+<dd><code>stepStartMillis</code> - epoch milliseconds at which the summarized work started</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="isInternalStep()">
 <h3>isInternalStep</h3>
 <div class="horizontal-scroll">
@@ -833,21 +897,24 @@ displayed as a step in the execution report. Used for Screenshots.</div>
 </section>
 </li>
 <li>
-<section class="detail" id="log(java.lang.String,java.util.List)">
+<section class="detail" id="log(java.lang.String,java.util.List,com.shaft.tools.io.internal.CheckpointStatus)">
 <h3>log</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">log</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments)</span></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments,
+ <a href="CheckpointStatus.html" title="enum class in com.shaft.tools.io.internal">CheckpointStatus</a>&nbsp;status)</span></div>
 </div>
 </section>
 </li>
 <li>
-<section class="detail" id="logNestedSteps(java.lang.String,java.util.List,java.util.List)">
+<section class="detail" id="logNestedSteps(java.lang.String,java.util.List,java.util.List,com.shaft.tools.io.internal.CheckpointStatus,com.shaft.tools.io.internal.CheckpointType)">
 <h3>logNestedSteps</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">logNestedSteps</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;customLogMessages,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments)</span></div>
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments,
+ <a href="CheckpointStatus.html" title="enum class in com.shaft.tools.io.internal">CheckpointStatus</a>&nbsp;status,
+ <a href="CheckpointType.html" title="enum class in com.shaft.tools.io.internal">CheckpointType</a>&nbsp;type)</span></div>
 </div>
 </section>
 </li>

@@ -50,6 +50,7 @@
 <ol class="toc-list">
 <li><a href="#log(java.lang.String)" tabindex="0">log(String)</a></li>
 <li><a href="#log(java.lang.String,org.apache.logging.log4j.Level)" tabindex="0">log(String, Level)</a></li>
+<li><a href="#log(java.lang.String,io.qameta.allure.model.Status)" tabindex="0">log(String, Status)</a></li>
 <li><a href="#logDiscrete(java.lang.String)" tabindex="0">logDiscrete(String)</a></li>
 <li><a href="#logDiscrete(java.lang.String,org.apache.logging.log4j.Level)" tabindex="0">logDiscrete(String, Level)</a></li>
 </ol>
@@ -108,20 +109,27 @@ log file.
 <div class="block">Creates a custom log entry that will also be added as a step in the execution report</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#log(java.lang.String,org.apache.logging.log4j.Level)" class="member-name-link">log</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
- org.apache.logging.log4j.Level&nbsp;logLevel)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#log(java.lang.String,io.qameta.allure.model.Status)" class="member-name-link">log</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ io.qameta.allure.model.Status&nbsp;stepStatus)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Creates a custom log entry at the specified log level that will also be added as a step in the execution report</div>
+<div class="block">Creates a custom log entry that will also be added as a step in the execution report,
+rendered with the exact provided status instead of inferring it from the log text.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logDiscrete(java.lang.String)" class="member-name-link">logDiscrete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#log(java.lang.String,org.apache.logging.log4j.Level)" class="member-name-link">log</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ org.apache.logging.log4j.Level&nbsp;logLevel)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Creates a custom log entry that will not be added as a step in the execution report, but you can see it in the attached execution log txt file</div>
+<div class="block">Creates a custom log entry at the specified log level that will also be added as a step in the execution report</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logDiscrete(java.lang.String,org.apache.logging.log4j.Level)" class="member-name-link">logDiscrete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
- org.apache.logging.log4j.Level&nbsp;logLevel)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logDiscrete(java.lang.String)" class="member-name-link">logDiscrete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Creates a custom log entry that will not be added as a step in the execution report, but you can see it in the attached execution log txt file</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#logDiscrete(java.lang.String,org.apache.logging.log4j.Level)" class="member-name-link">logDiscrete</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ org.apache.logging.log4j.Level&nbsp;logLevel)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Creates a custom log entry at the specified log level that will not appear
 as a step in the execution report, but is recorded in the attached execution
 log text file.</div>
@@ -167,6 +175,25 @@ log text file.</div>
 <dt>Parameters:</dt>
 <dd><code>logText</code> - the text that will be logged by action</dd>
 <dd><code>logLevel</code> - the log level to use (e.g., Level.ERROR, Level.WARN, Level.INFO)</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="log(java.lang.String,io.qameta.allure.model.Status)">
+<h3>log</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">log</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;logText,
+ io.qameta.allure.model.Status&nbsp;stepStatus)</span></div>
+<div class="block">Creates a custom log entry that will also be added as a step in the execution report,
+rendered with the exact provided status instead of inferring it from the log text.
+
+<p>Failed and broken steps are always visible in the execution report, even while
+discrete logging is enabled, and are logged to the console at ERROR level.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>logText</code> - the text that will be logged by action</dd>
+<dd><code>stepStatus</code> - the exact status to render for this step (e.g., <code>Status.PASSED</code>, <code>Status.FAILED</code>)</dd>
 </dl>
 </div>
 </section>

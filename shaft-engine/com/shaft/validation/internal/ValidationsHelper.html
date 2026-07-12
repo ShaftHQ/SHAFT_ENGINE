@@ -52,6 +52,7 @@
 <li><a href="#resetVerificationStateAfterFailing()" tabindex="0">resetVerificationStateAfterFailing()</a></li>
 <li><a href="#recordVerificationFailure(java.lang.String)" tabindex="0">recordVerificationFailure(String)</a></li>
 <li><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List)" tabindex="0">reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List)</a></li>
+<li><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List,long)" tabindex="0">reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List, long)</a></li>
 </ol>
 </li>
 </ol>
@@ -103,8 +104,20 @@
 the same checkpoint, attachment, and failure-reporting semantics used by WebDriver validations.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resetVerificationStateAfterFailing()" class="member-name-link">resetVerificationStateAfterFailing</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List,long)" class="member-name-link">reportValidationState</a><wbr>(<a href="../ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
+ boolean&nbsp;validationState,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;expected,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;actual,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments,
+ long&nbsp;validationStartTime)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Same as <a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List)"><code>reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List)</code></a>
+with an explicit validation start timestamp so the reported outcome step carries the real
+validation duration.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resetVerificationStateAfterFailing()" class="member-name-link">resetVerificationStateAfterFailing</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -169,6 +182,31 @@ the same checkpoint, attachment, and failure-reporting semantics used by WebDriv
 <dd><code>expected</code> - the reported expected value</dd>
 <dd><code>actual</code> - the reported actual value</dd>
 <dd><code>attachments</code> - report attachments prepared by the backend</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List,long)">
+<h3>reportValidationState</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">reportValidationState</span><wbr><span class="parameters">(<a href="../ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
+ boolean&nbsp;validationState,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;expected,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;actual,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;&gt;&nbsp;attachments,
+ long&nbsp;validationStartTime)</span></div>
+<div class="block">Same as <a href="#reportValidationState(com.shaft.validation.ValidationEnums.ValidationCategory,boolean,java.lang.Object,java.lang.Object,java.util.List)"><code>reportValidationState(ValidationEnums.ValidationCategory, boolean, Object, Object, List)</code></a>
+with an explicit validation start timestamp so the reported outcome step carries the real
+validation duration.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>validationCategory</code> - the validation category</dd>
+<dd><code>validationState</code> - true when the validation passed</dd>
+<dd><code>expected</code> - the reported expected value</dd>
+<dd><code>actual</code> - the reported actual value</dd>
+<dd><code>attachments</code> - report attachments prepared by the backend</dd>
+<dd><code>validationStartTime</code> - epoch milliseconds at which the validation started</dd>
 </dl>
 </div>
 </section>

@@ -51,6 +51,7 @@
 <ol class="toc-list">
 <li><a href="#log(java.lang.String)" tabindex="0">log(String)</a></li>
 <li><a href="#report(java.lang.String)" tabindex="0">report(String)</a></li>
+<li><a href="#report(java.lang.String,io.qameta.allure.model.Status)" tabindex="0">report(String, Status)</a></li>
 <li><a href="#attach(java.lang.String,java.lang.String,java.lang.String)" tabindex="0">attach(String, String, String)</a></li>
 <li><a href="#attach(java.lang.String,java.lang.String,java.io.InputStream)" tabindex="0">attach(String, String, InputStream)</a></li>
 </ol>
@@ -121,6 +122,13 @@ as a report step).</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Logs a message as a visible step in the Allure execution report.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#report(java.lang.String,io.qameta.allure.model.Status)" class="member-name-link">report</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message,
+ io.qameta.allure.model.Status&nbsp;stepStatus)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Logs a message as a visible step in the Allure execution report,
+rendered with the exact provided status instead of the current test status.</div>
+</div>
 </div>
 </div>
 </div>
@@ -161,6 +169,25 @@ as a report step).</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>message</code> - the message to report</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="report(java.lang.String,io.qameta.allure.model.Status)">
+<h3>report</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">report</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message,
+ io.qameta.allure.model.Status&nbsp;stepStatus)</span></div>
+<div class="block">Logs a message as a visible step in the Allure execution report,
+rendered with the exact provided status instead of the current test status.
+Failed and broken steps remain visible even while discrete logging is enabled.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>message</code> - the message to report</dd>
+<dd><code>stepStatus</code> - the exact status to render for this step
+                  (e.g., <code>Status.PASSED</code>,
+                  <code>Status.FAILED</code>)</dd>
 </dl>
 </div>
 </section>

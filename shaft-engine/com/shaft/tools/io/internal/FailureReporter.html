@@ -56,6 +56,7 @@
 <ol class="toc-list">
 <li><a href="#fail(java.lang.Class,java.lang.String,java.lang.Throwable)" tabindex="0">fail(Class, String, Throwable)</a></li>
 <li><a href="#fail(java.lang.String)" tabindex="0">fail(String)</a></li>
+<li><a href="#failAssertion(java.lang.String)" tabindex="0">failAssertion(String)</a></li>
 <li><a href="#getRootCause(java.lang.Throwable)" tabindex="0">getRootCause(Throwable)</a></li>
 </ol>
 </li>
@@ -110,9 +111,15 @@
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#fail(java.lang.String)" class="member-name-link">fail</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getRootCause(java.lang.Throwable)" class="member-name-link">getRootCause</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Throwable.html" title="class or interface in java.lang" class="external-link">Throwable</a>&nbsp;throwable)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#failAssertion(java.lang.String)" class="member-name-link">failAssertion</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reports a failed assertion checkpoint and throws an <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/AssertionError.html" title="class or interface in java.lang" class="external-link"><code>AssertionError</code></a> so test
+runners classify it as a test failure rather than an execution error.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getRootCause(java.lang.Throwable)" class="member-name-link">getRootCause</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Throwable.html" title="class or interface in java.lang" class="external-link">Throwable</a>&nbsp;throwable)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -161,6 +168,22 @@
 <h3>fail</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">fail</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</span></div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="failAssertion(java.lang.String)">
+<h3>failAssertion</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">failAssertion</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</span></div>
+<div class="block">Reports a failed assertion checkpoint and throws an <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/AssertionError.html" title="class or interface in java.lang" class="external-link"><code>AssertionError</code></a> so test
+runners classify it as a test failure rather than an execution error. Use this for
+assertion outcomes; use <a href="#fail(java.lang.String)"><code>fail(String)</code></a> for execution failures — the exception
+type is never inferred from the message text.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>message</code> - the assertion failure message</dd>
+</dl>
 </div>
 </section>
 </li>
