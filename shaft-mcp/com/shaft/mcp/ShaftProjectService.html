@@ -57,6 +57,7 @@
 <li><a href="#createProject(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean)" tabindex="0">createProject(String, String, String, String, String, String, String, List, boolean, boolean, boolean)</a></li>
 <li><a href="#createProject(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.List,boolean,boolean,boolean)" tabindex="0">createProject(String, String, String, String, String, String, List, boolean, boolean, boolean)</a></li>
 <li><a href="#upgradeProject(java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.lang.String,int,boolean,boolean)" tabindex="0">upgradeProject(String, String, boolean, boolean, String, String, int, boolean, boolean)</a></li>
+<li><a href="#initAgents(java.lang.String,java.lang.String,boolean)" tabindex="0">initAgents(String, String, boolean)</a></li>
 </ol>
 </li>
 </ol>
@@ -135,8 +136,15 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Creates a SHAFT Maven project and resolves the generated <code>&lt;shaft.version&gt;</code> from Maven Central.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpShaftProjectUpgradeResult.html" title="class in com.shaft.mcp">McpShaftProjectUpgradeResult</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#upgradeProject(java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.lang.String,int,boolean,boolean)" class="member-name-link">upgradeProject</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectRoot,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpShaftProjectInitAgentsResult.html" title="class in com.shaft.mcp">McpShaftProjectInitAgentsResult</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#initAgents(java.lang.String,java.lang.String,boolean)" class="member-name-link">initAgents</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;loop,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetDirectory,
+ boolean&nbsp;overwrite)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Scaffolds SHAFT agent/skill bridge definitions into an existing test repo for a coding-agent loop.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpShaftProjectUpgradeResult.html" title="class in com.shaft.mcp">McpShaftProjectUpgradeResult</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#upgradeProject(java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.lang.String,int,boolean,boolean)" class="member-name-link">upgradeProject</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;upgradeType,
  boolean&nbsp;dryRun,
  boolean&nbsp;approve,
@@ -145,7 +153,7 @@
  int&nbsp;compileTimeout,
  boolean&nbsp;skipBaselineCompile,
  boolean&nbsp;allowAiRepair)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Runs the existing modular SHAFT project upgrader script against a Java project.</div>
 </div>
 </div>
@@ -281,6 +289,34 @@
 <dd><code>allowAiRepair</code> - whether to allow the upgrader to use its configured AI repair path</dd>
 <dt>Returns:</dt>
 <dd>upgrader process result</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="initAgents(java.lang.String,java.lang.String,boolean)">
+<h3>initAgents</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Tool(name="shaft_project_init_agents",
+      description="scaffolds SHAFT agent/skill bridge files and a merge-me AGENTS.md guidance file into an existing test repo for a coding-agent loop (claude, codex), without overwriting files that already exist unless overwrite=true")
+</span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpShaftProjectInitAgentsResult.html" title="class in com.shaft.mcp">McpShaftProjectInitAgentsResult</a></span>&nbsp;<span class="element-name">initAgents</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;loop,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetDirectory,
+ boolean&nbsp;overwrite)</span></div>
+<div class="block">Scaffolds SHAFT agent/skill bridge definitions into an existing test repo for a coding-agent loop.
+
+<p>Every bridge is generated at call time from the bundled <code>shaft-skills/&amp;lt;skill&amp;gt;/SKILL.md</code>
+guides shipped inside the shaft-mcp jar, rather than a hand-duplicated copy of the full skill text,
+so the set of skills and their descriptions always tracks <code>shaft-skills/</code> as of the shaft-mcp
+build. Existing files are left untouched unless <code>overwrite</code> is <code>true</code>; a skipped file is
+reported as a warning instead of failing the call, because <code>targetDirectory</code> is expected to be
+an existing user repository that may already carry its own agent configuration.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>loop</code> - claude or codex</dd>
+<dd><code>targetDirectory</code> - workspace-relative existing test repo directory</dd>
+<dd><code>overwrite</code> - whether existing generated files may be replaced</dd>
+<dt>Returns:</dt>
+<dd>generated agent-scaffolding details</dd>
 </dl>
 </div>
 </section>
