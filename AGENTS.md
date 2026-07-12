@@ -55,10 +55,11 @@ PowerShell: quote `'-Dname=value'`, `'stash@{0}'`, args with `{}`, `@`, `;`, `&`
 - `context7`: only past-training-cutoff APIs (Spring Boot 4.1, Spring AI 2.0, JUnit 6, Jackson 3, Selenium 4.45, Docusaurus 3.10/React 19); else repo exemplars win.
 - Skip `jdtls-lsp` for one-liners; value scales with cross-module symbol impact. `mcp-server-dev`: net-new tool naming/schema ergonomics only.
 - Follow-up: `a11ymcp` belongs in the docs repo.
+- Repo `.claude/skills/`: `act-as-fable` methodology (binding for non-Fable models on nontrivial work); `shaft-mastery` 10 domain chapters -- load the matching chapter before deep BiDi/Allure/mobile/release/lifecycle/plugin/MCP/CI/flakiness/locator work; `ponytail` YAGNI minimal-diff; `test-driven-development` red-green-refactor with scoped headless runs; `graphify`.
 
-## Agent Hierarchy
+## Agent Hierarchy & Model Routing
 
-Main thread only. Never create or run workflows (no Workflow tool, no saved/named workflows -- `.claude/workflows/` stays deleted; never recreate it), never spawn orchestrators. The main thread owns all substantive implementation, integration, and final verification/QA sequentially with real checks; never hand an instructed action's actual edits/commands/deliverables to a subagent. Two bounded exceptions: a Fable subagent (fallback Opus) may do read-only architecture/planning research that this session then reviews and applies itself; a Haiku subagent may make clearly minor, low-risk mechanical edits under this session's direction and review. PDCA personas Kevin (plan), Bob (implement), Bruce (check) are sequential phases of this one session, not spawned agents (`agentic-pdca-loop`). No `ralph-loop`: unbounded Stop-hook looping plus Maven fork gotchas risks Windows runaways.
+Main thread owns all substantive implementation, integration, and final verification with real checks. Never create/run workflows (no Workflow tool or saved workflows; `.claude/workflows/` stays deleted) or orchestrators. Bounded, main-thread-reviewed delegation by model tier: Opus -- read-only architecture/planning research (Explore/Plan; load `act-as-fable`; verify claims against real files/logs). Sonnet -- implementation; a subagent may build one well-bounded component against a detailed written spec, with main-thread review/tests/integration (#3433 precedent). Haiku -- minor low-risk mechanical edits under review; summarizing long logs/reports; bulk repetitive triage. Token discipline: subagents return conclusions, not file dumps; check the graphify cache before broad exploration. PDCA personas Kevin/Bob/Bruce are sequential phases of one session, not agents (`agentic-pdca-loop`). No `ralph-loop`: unbounded Stop-hook looping plus Maven fork gotchas risks Windows runaways.
 
 ## Completion
 
