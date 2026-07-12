@@ -264,7 +264,8 @@ public class ElementsHelperCoverageUnitTest {
             reportingHelper.reportActionResult(driver, "click", null, locator, existingAttachments, "Save", false);
 
             ArgumentCaptor<List> attachmentsCaptor = ArgumentCaptor.forClass(List.class);
-            reportManagerHelper.verify(() -> ReportManagerHelper.log(eq("Failed to Click \"Save\"."), attachmentsCaptor.capture()));
+            reportManagerHelper.verify(() -> ReportManagerHelper.log(eq("Failed to Click \"Save\"."), attachmentsCaptor.capture(),
+                    eq(com.shaft.tools.io.internal.CheckpointStatus.FAIL)));
 
             List<List<Object>> attachments = attachmentsCaptor.getValue();
             List<Object> pageSourceAttachment = attachments.get(1);

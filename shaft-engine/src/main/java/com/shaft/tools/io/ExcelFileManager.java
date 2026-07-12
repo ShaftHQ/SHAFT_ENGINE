@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.internal.support.JavaHelper;
@@ -81,7 +82,7 @@ public class ExcelFileManager {
             ReportManagerHelper.logDiscrete(e);
         }
         attachments.add(testDataFileAttachment);
-        ReportManagerHelper.log("Loaded Excel test data: \"" + excelFilePath + "\".", attachments);
+        ReportManagerHelper.log("Loaded Excel test data: \"" + excelFilePath + "\".", attachments, CheckpointStatus.PASS);
     }
 
     /**

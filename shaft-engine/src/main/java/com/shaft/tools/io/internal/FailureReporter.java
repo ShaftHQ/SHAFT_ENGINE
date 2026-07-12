@@ -3,7 +3,6 @@ package com.shaft.tools.io.internal;
 import com.google.common.base.Throwables;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.tools.internal.support.JavaHelper;
-import com.shaft.tools.io.ReportManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +26,7 @@ public class FailureReporter {
                             JavaHelper.convertToSentenceCase(actionName),
                     "Exception Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(throwable));
             attachments.add(actualValueAttachment);
-            ReportManagerHelper.log(message + rootCause, attachments);
+            ReportManagerHelper.log(message + rootCause, attachments, CheckpointStatus.FAIL);
         }
         if (message.toLowerCase().contains("assert"))
             throw new AssertionError(message + rootCause, throwable);
@@ -35,7 +34,7 @@ public class FailureReporter {
     }
 
     public static void fail(String message) {
-        ReportManager.log(message);
+        ReportManagerHelper.log(message, null, CheckpointStatus.FAIL);
         if (message.toLowerCase().contains("assert"))
             throw new AssertionError(message);
         throw new RuntimeException(message);

@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.api.internal.OpenApiCoverageReporter;
 import tools.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -871,7 +872,8 @@ public class RestActions {
         }
 
         if (Boolean.FALSE.equals(initialLoggingState)) {
-            ReportManagerHelper.log(message, attachments);
+            ReportManagerHelper.log(message, attachments,
+                    Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL);
         } else {
             ReportManager.logDiscrete(message);
         }

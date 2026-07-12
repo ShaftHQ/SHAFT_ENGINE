@@ -1,5 +1,6 @@
 package com.shaft.gui.browser.internal;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.google.common.net.InternetDomainName;
 import com.shaft.db.DatabaseActions;
 import com.shaft.driver.SHAFT;
@@ -206,14 +207,15 @@ public class BrowserActionsHelper {
         message = message + ".";
 
         message = message.replace("Browser Action: ", "");
+        CheckpointStatus status = Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
         if (!isSilent) {
             if (driver != null && !message.equals("Capture page snapshot.")) {
                 attachments.add(new ScreenshotManager().takeScreenshot(driver, null, actionName, passFailStatus));
-                logWithProfiledAttachments(actionName, message, attachments);
+                logWithProfiledAttachments(actionName, message, attachments, status);
             } else if (!attachments.isEmpty()) {
-                logWithProfiledAttachments(actionName, message, attachments);
+                logWithProfiledAttachments(actionName, message, attachments, status);
             } else {
-                ReportManager.log(message);
+                ReportManagerHelper.log(message, null, status);
             }
             TraceEventRecorder.record("browser", actionName, Boolean.TRUE.equals(passFailStatus) ? "passed" : "failed",
                     "", driver, message, firstThrowable(rootCauseException), Map.of(), summarizeAttachments(attachments));
@@ -252,9 +254,9 @@ public class BrowserActionsHelper {
         return "";
     }
 
-    private void logWithProfiledAttachments(String actionName, String message, List<List<Object>> attachments) {
+    private void logWithProfiledAttachments(String actionName, String message, List<List<Object>> attachments, CheckpointStatus status) {
         long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
-        ReportManagerHelper.log(message, attachments);
+        ReportManagerHelper.log(message, attachments, status);
         if (profilerStart != 0L) {
             FlakeProfiler.recordEvidenceCapture("report attachment", actionName,
                     TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));

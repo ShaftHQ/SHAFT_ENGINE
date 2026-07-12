@@ -4,6 +4,8 @@ import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.tools.io.internal.AttachmentReporter;
+import com.shaft.tools.io.internal.CheckpointStatus;
+import com.shaft.tools.io.internal.CheckpointType;
 import com.shaft.tools.io.internal.IssueReporter;
 import com.shaft.tools.io.internal.ReportContext;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -326,20 +328,22 @@ public class ReportManagerHelperUnitTests {
     public void nullAndEmptyHelpersShouldReturnSafeDefaults() throws Exception {
         Method addSpacingMethod = ReportManagerHelper.class.getDeclaredMethod("addSpacing", String.class);
         addSpacingMethod.setAccessible(true);
-        Method getStepStatusMethod = ReportManagerHelper.class.getDeclaredMethod("getStepStatus", String.class);
+        Method getStepStatusMethod = ReportManagerHelper.class.getDeclaredMethod("getStepStatus");
         getStepStatusMethod.setAccessible(true);
         Method writeNestedStepsMethod = ReportManagerHelper.class.getDeclaredMethod("writeNestedStepsToReport", String.class);
         writeNestedStepsMethod.setAccessible(true);
 
         String formattedNullTrace = ReportManagerHelper.formatStackTraceToLogEntry(null);
-        Object passedStatusForNullLog = getStepStatusMethod.invoke(null, new Object[]{null});
+        Object passedStatusForNullLog = getStepStatusMethod.invoke(null);
         String spacedEmpty = (String) addSpacingMethod.invoke(null, "");
         ReportManagerHelper.createLogEntry(null, Level.INFO);
         ReportManagerHelper.writeStepToReport(null);
         writeNestedStepsMethod.invoke(null, "nested empty-safe log");
-        ReportManagerHelper.logNestedSteps("verification failed", Collections.singletonList("   "), Collections.emptyList());
-        ReportManagerHelper.logNestedSteps("assertion failed", null, Collections.singletonList(Arrays.asList("Attachment", "Fallback", "fallback")));
-        ReportManagerHelper.log("passed log without attachments", Collections.emptyList());
+        ReportManagerHelper.logNestedSteps("verification failed", Collections.singletonList("   "), Collections.emptyList(),
+                CheckpointStatus.FAIL, CheckpointType.VERIFICATION);
+        ReportManagerHelper.logNestedSteps("assertion failed", null, Collections.singletonList(Arrays.asList("Attachment", "Fallback", "fallback")),
+                CheckpointStatus.FAIL, CheckpointType.ASSERTION);
+        ReportManagerHelper.log("passed log without attachments", Collections.emptyList(), CheckpointStatus.PASS);
 
         SHAFT.Validations.assertThat().object(formattedNullTrace).isEqualTo("").perform();
         SHAFT.Validations.assertThat().object(passedStatusForNullLog.toString()).isEqualTo("PASSED").perform();
@@ -348,7 +352,7 @@ public class ReportManagerHelperUnitTests {
 
     private static class InternalshaftCaller {
         private static void logPassedStepWithAttachments(List<List<Object>> attachments) {
-            ReportManagerHelper.log("passed internal step", attachments);
+            ReportManagerHelper.log("passed internal step", attachments, CheckpointStatus.PASS);
         }
     }
 
@@ -431,12 +435,16 @@ public class ReportManagerHelperUnitTests {
 
         List<String> customLogMessages = new ArrayList<>();
         customLogMessages.add("custom log");
-        ReportManagerHelper.log("passed log", attachments);
-        ReportManagerHelper.log("failed log", attachments);
-        ReportManagerHelper.logNestedSteps("verification passed", customLogMessages, attachments);
-        ReportManagerHelper.logNestedSteps("verification failed", customLogMessages, attachments);
-        ReportManagerHelper.logNestedSteps("assertion passed", customLogMessages, null);
-        ReportManagerHelper.logNestedSteps("assertion failed", customLogMessages, null);
+        ReportManagerHelper.log("passed log", attachments, CheckpointStatus.PASS);
+        ReportManagerHelper.log("failed log", attachments, CheckpointStatus.FAIL);
+        ReportManagerHelper.logNestedSteps("verification passed", customLogMessages, attachments,
+                CheckpointStatus.PASS, CheckpointType.VERIFICATION);
+        ReportManagerHelper.logNestedSteps("verification failed", customLogMessages, attachments,
+                CheckpointStatus.FAIL, CheckpointType.VERIFICATION);
+        ReportManagerHelper.logNestedSteps("assertion passed", customLogMessages, null,
+                CheckpointStatus.PASS, CheckpointType.ASSERTION);
+        ReportManagerHelper.logNestedSteps("assertion failed", customLogMessages, null,
+                CheckpointStatus.FAIL, CheckpointType.ASSERTION);
         ReportManagerHelper.logNestedSteps("assertion passed", attachments);
         ReportManagerHelper.log(new RuntimeException("runtime exception"));
         ReportManagerHelper.log(new RuntimeException());
@@ -523,14 +531,17 @@ public class ReportManagerHelperUnitTests {
         createSeparatorMethod.setAccessible(true);
         Method addSpacingMethod = ReportManagerHelper.class.getDeclaredMethod("addSpacing", String.class);
         addSpacingMethod.setAccessible(true);
-        Method getStepStatusMethod = ReportManagerHelper.class.getDeclaredMethod("getStepStatus", String.class);
+        Method getStepStatusMethod = ReportManagerHelper.class.getDeclaredMethod("getStepStatus");
         getStepStatusMethod.setAccessible(true);
         int separatorWidth = getPrivateStaticField("SEPARATOR_WIDTH", Integer.class);
 
         String separator = (String) createSeparatorMethod.invoke(null, '=');
         String doubleLineSeparator = (String) createSeparatorMethod.invoke(null, '═');
         String spaced = (String) addSpacingMethod.invoke(null, "one\ntwo");
-        Object failedStatus = getStepStatusMethod.invoke(null, "step failed");
+        // step status is sourced from the current test context, never from log text sniffing
+        ReportContext.setStatus(io.qameta.allure.model.Status.FAILED);
+        Object failedStatus = getStepStatusMethod.invoke(null);
+        ReportContext.setStatus(null);
 
         SHAFT.Validations.assertThat().object(separator.length()).isEqualTo(separatorWidth).perform();
         SHAFT.Validations.assertThat().object(doubleLineSeparator.length()).isEqualTo(separatorWidth).perform();

@@ -1,5 +1,7 @@
 package com.shaft.gui.internal.image;
 
+import io.qameta.allure.model.Status;
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.applitools.eyes.LogHandler;
 import com.applitools.eyes.MatchLevel;
 import com.applitools.eyes.TestResults;
@@ -101,12 +103,12 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
     private static List<Integer> attemptToFindImageUsingOpenCV(String referenceImagePath, byte[] currentPageScreenshot) {
         if (currentPageScreenshot == null || Arrays.equals(currentPageScreenshot, new byte[]{})) {
             //target image is empty, force fail comparison
-            ReportManager.log("Failed to identify the element using AI; target screenshot is empty.");
+            ReportManager.log("Failed to identify the element using AI; target screenshot is empty.", Status.FAILED);
         } else {
             Mat img_original = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
             Mat templ_original = readImage(referenceImagePath);
             if (img_original.empty() || templ_original.empty()) {
-                ReportManager.log("Failed to identify the element using AI; target or reference image is invalid.");
+                ReportManager.log("Failed to identify the element using AI; target or reference image is invalid.", Status.FAILED);
                 return Collections.emptyList();
             }
 
@@ -167,18 +169,18 @@ public class OpenCvVisualProcessingProvider implements VisualProcessingProvider 
                     var screenshot = new ScreenshotManager().prepareImageForReport(baos.toByteArray(), "AI identified element");
                     List<List<Object>> attachments = new LinkedList<>();
                     attachments.add(screenshot);
-                    ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage, attachments);
+                    ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage, attachments, CheckpointStatus.PASS);
                 } catch (Exception e) {
                     // Report-attachment failures (encoding/highlighting issues, etc.) must never downgrade
                     // an already-successful template match into a "not found" verdict; log and continue.
                     ReportManagerHelper.logDiscrete(e);
                     ReportManager.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage
-                            + " Failed to attach the highlighted match image to the report.");
+                            + " Failed to attach the highlighted match image to the report.", Status.PASSED);
                 }
                 return Arrays.asList(x, y);
             } catch (org.opencv.core.CvException e) {
                 ReportManagerHelper.logDiscrete(e);
-                ReportManager.log("Failed to identify the element using AI; openCV core exception.");
+                ReportManager.log("Failed to identify the element using AI; openCV core exception.", Status.FAILED);
             }
         }
         return Collections.emptyList();

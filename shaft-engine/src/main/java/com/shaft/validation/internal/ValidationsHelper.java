@@ -1004,18 +1004,18 @@ public class ValidationsHelper {
                     assertionError, traceMetadata(checkpointType, locator), summarizeAttachments(attachments));
             if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)) {
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(finalFailureMessage));
+                Allure.getLifecycle().updateStep(stepResult -> ReportManagerHelper.log(finalFailureMessage, null, CheckpointStatus.FAIL));
                 FailureReporter.fail(finalFailureMessage);
             } else {
                 // soft assert
                 ValidationsHelper.recordVerificationFailure(failureMessage);
                 ExecutionSummaryReport.validationsIncrement(CheckpointStatus.FAIL);
-                Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(finalFailureMessage));
+                Allure.getLifecycle().updateStep(stepResult -> ReportManagerHelper.log(finalFailureMessage, null, CheckpointStatus.FAIL));
             }
         } else {
             CheckpointCounter.increment(checkpointType, checkpointMessage, CheckpointStatus.PASS);
             ExecutionSummaryReport.validationsIncrement(CheckpointStatus.PASS);
-            Allure.getLifecycle().updateStep(stepResult -> ReportManager.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed"));
+            Allure.getLifecycle().updateStep(stepResult -> ReportManagerHelper.log(this.validationCategoryString.replace("erify", "erificat") + "ion passed", null, CheckpointStatus.PASS));
             TraceEventRecorder.finish(traceEvent, "passed",
                     this.validationCategoryString.replace("erify", "erificat") + "ion passed",
                     null, traceMetadata(checkpointType, locator), summarizeAttachments(attachments));

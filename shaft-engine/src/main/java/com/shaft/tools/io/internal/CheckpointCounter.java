@@ -69,6 +69,7 @@ public class CheckpointCounter {
         ReportManagerHelper.attach("HTML",
                 "Checkpoints Report",
                 HTMLHelper.CHECKPOINT_COUNTER.getValue()
+                        .replace("${CHECKPOINTS_PASSED_PERCENTAGE_LABEL}", String.valueOf(Math.round(passedCheckpoints.get() * 100d / checkpoints.size())))
                         .replace("${CHECKPOINTS_PASSED_PERCENTAGE}", String.valueOf(passedCheckpoints.get() * 360d / checkpoints.size()))
                         .replace("${CHECKPOINTS_TOTAL}", String.valueOf(checkpoints.size()))
                         .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints.get()))

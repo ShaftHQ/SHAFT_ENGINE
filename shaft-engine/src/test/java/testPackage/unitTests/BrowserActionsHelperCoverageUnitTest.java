@@ -138,9 +138,11 @@ public class BrowserActionsHelperCoverageUnitTest {
         nonSilentHelper.passAction((WebDriver) null, "customAction", "<html></html>");
         nonSilentHelper.passAction((WebDriver) null, "customAction", "short value");
 
-        try (MockedStatic<ReportManager> reportManager = Mockito.mockStatic(ReportManager.class)) {
+        try (MockedStatic<com.shaft.tools.io.internal.ReportManagerHelper> reportManagerHelper =
+                     Mockito.mockStatic(com.shaft.tools.io.internal.ReportManagerHelper.class)) {
             nonSilentHelper.passAction((WebDriver) null, "navigateToUrl", "https://example.com/path");
-            reportManager.verify(() -> ReportManager.log("Navigate to url \"https://example.com/path\"."));
+            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.log(
+                    "Navigate to url \"https://example.com/path\".", null, com.shaft.tools.io.internal.CheckpointStatus.PASS));
         }
     }
 }

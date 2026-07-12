@@ -1,5 +1,6 @@
 package com.shaft.db;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -288,10 +289,11 @@ public class DatabaseActions {
             attachments.add(actualValueAttachment);
         }
 
+        CheckpointStatus status = Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
         if (!attachments.isEmpty()) {
-            ReportManagerHelper.log(message, attachments);
+            ReportManagerHelper.log(message, attachments, status);
         } else {
-            ReportManager.log(message);
+            ReportManagerHelper.log(message, null, status);
         }
         return message;
     }

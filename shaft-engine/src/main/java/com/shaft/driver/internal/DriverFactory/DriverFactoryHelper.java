@@ -1,5 +1,6 @@
 package com.shaft.driver.internal.DriverFactory;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
@@ -852,7 +853,7 @@ public class DriverFactoryHelper {
                 successMessage = successMessage + " (attempt " + (attempt + 1) + "/" + (retryAttempts + 1) + ", elapsed " + (System.currentTimeMillis() - initializationStartTime) + "ms).";
                 List<Object> launchScreenshot = captureLaunchScreenshot();
                 if (launchScreenshot != null) {
-                    ReportManagerHelper.log(successMessage, List.of(launchScreenshot));
+                    ReportManagerHelper.log(successMessage, List.of(launchScreenshot), CheckpointStatus.PASS);
                 } else {
                     ReportManager.log(successMessage);
                 }
@@ -987,7 +988,7 @@ public class DriverFactoryHelper {
             String successMessageDockerized = "Started Docker WebDriver session for " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".";
             List<Object> launchScreenshotDockerized = captureLaunchScreenshot();
             if (launchScreenshotDockerized != null) {
-                ReportManagerHelper.log(successMessageDockerized, List.of(launchScreenshotDockerized));
+                ReportManagerHelper.log(successMessageDockerized, List.of(launchScreenshotDockerized), CheckpointStatus.PASS);
             } else {
                 ReportManager.log(successMessageDockerized);
             }
@@ -1164,7 +1165,7 @@ public class DriverFactoryHelper {
         String successMessageRemote = "Started remote WebDriver session for \"" + JavaHelper.convertToSentenceCase(driverName) + "\".";
         List<Object> launchScreenshotRemote = captureLaunchScreenshot();
         if (launchScreenshotRemote != null) {
-            ReportManagerHelper.log(successMessageRemote, List.of(launchScreenshotRemote));
+            ReportManagerHelper.log(successMessageRemote, List.of(launchScreenshotRemote), CheckpointStatus.PASS);
         } else {
             ReportManager.log(successMessageRemote);
         }

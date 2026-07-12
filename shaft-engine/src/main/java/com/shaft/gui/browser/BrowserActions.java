@@ -1,5 +1,6 @@
 package com.shaft.gui.browser;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
@@ -1314,7 +1315,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                     TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerScreenshotStart));
         }
         long profilerAttachmentStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
-        ReportManagerHelper.log(logText, Collections.singletonList(screenshotManager.prepareImageForReport(screenshot, "captureScreenshot")));
+        ReportManagerHelper.log(logText, Collections.singletonList(screenshotManager.prepareImageForReport(screenshot, "captureScreenshot")), CheckpointStatus.PASS);
         if (profilerAttachmentStart != 0L) {
             FlakeProfiler.recordEvidenceCapture("report attachment", logText,
                     TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerAttachmentStart));
@@ -1344,7 +1345,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
             logMessage = "Capture page HTML";
         }
         long profilerAttachmentStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
-        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, new ScreenshotManager().generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
+        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, new ScreenshotManager().generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))), CheckpointStatus.PASS);
         if (profilerAttachmentStart != 0L) {
             FlakeProfiler.recordEvidenceCapture("report attachment", logMessage,
                     TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerAttachmentStart));

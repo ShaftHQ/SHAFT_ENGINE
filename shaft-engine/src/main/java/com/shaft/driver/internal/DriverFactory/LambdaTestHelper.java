@@ -1,5 +1,6 @@
 package com.shaft.driver.internal.DriverFactory;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
@@ -278,7 +279,8 @@ public class LambdaTestHelper {
             List<List<Object>> attachments = new ArrayList<>();
             List<Object> actualValueAttachment = Arrays.asList("LambdaTest Action Exception - " + actionName, "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
             attachments.add(actualValueAttachment);
-            ReportManagerHelper.log(message, attachments);
+            ReportManagerHelper.log(message, attachments,
+                    Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL);
         } else {
             ReportManager.logDiscrete(message);
         }

@@ -41,7 +41,17 @@ public enum HTMLHelper {
                       <div class="metric-card"><div class="metric-label">Total</div><div class="metric-value">${CHECKPOINTS_TOTAL}</div></div>
                       <div class="metric-card"><div class="metric-label">Passed</div><div class="metric-value">${CHECKPOINTS_PASSED}</div></div>
                       <div class="metric-card"><div class="metric-label">Failed</div><div class="metric-value">${CHECKPOINTS_FAILED}</div></div>
-                      <div class="metric-card"><div class="metric-label">Pass Ratio</div><div class="donut" aria-label="Checkpoint pass ratio"></div></div>
+                      <div class="metric-card">
+                        <div class="metric-label">Pass Ratio</div>
+                        <div class="donut-wrap">
+                          <div class="donut" role="img" aria-label="${CHECKPOINTS_PASSED} of ${CHECKPOINTS_TOTAL} checkpoints passed"></div>
+                          <div class="donut-center">${CHECKPOINTS_PASSED_PERCENTAGE_LABEL}%</div>
+                        </div>
+                        <div class="chart-legend">
+                          <span class="legend-item"><span class="legend-swatch pass"></span>Passed: ${CHECKPOINTS_PASSED}</span>
+                          <span class="legend-item"><span class="legend-swatch fail"></span>Failed: ${CHECKPOINTS_FAILED}</span>
+                        </div>
+                      </div>
                     </div>
                   </section>
                   <section class="panel">
@@ -108,7 +118,16 @@ public enum HTMLHelper {
                       <div class="metric-card"><div class="metric-label">Passed</div><div class="metric-value">${CASES_PASSED}</div></div>
                       <div class="metric-card"><div class="metric-label">Failed</div><div class="metric-value">${CASES_FAILED}</div></div>
                       <div class="metric-card"><div class="metric-label">Skipped</div><div class="metric-value">${CASES_SKIPPED}</div></div>
-                      <div class="metric-card"><div class="metric-label">Pass Rate</div><div class="metric-value">${CASES_PASSED_PERCENTAGE}%</div><div class="donut" aria-label="Test pass ratio"></div></div>
+                      <div class="metric-card">
+                        <div class="metric-label">Pass Rate</div>
+                        <div class="metric-value">${CASES_PASSED_PERCENTAGE}%</div>
+                        <div class="donut" role="img" aria-label="${CASES_PASSED} passed, ${CASES_FAILED} failed, and ${CASES_SKIPPED} skipped of ${CASES_TOTAL} test cases"></div>
+                        <div class="chart-legend">
+                          <span class="legend-item"><span class="legend-swatch pass"></span>Passed: ${CASES_PASSED}</span>
+                          <span class="legend-item"><span class="legend-swatch fail"></span>Failed: ${CASES_FAILED}</span>
+                          <span class="legend-item"><span class="legend-swatch warn"></span>Skipped: ${CASES_SKIPPED}</span>
+                        </div>
+                      </div>
                     </div>
                   </section>
                   <section class="panel">
@@ -117,7 +136,15 @@ public enum HTMLHelper {
                       <div class="metric-card"><div class="metric-label">Total</div><div class="metric-value">${VALIDATION_TOTAL}</div></div>
                       <div class="metric-card"><div class="metric-label">Passed</div><div class="metric-value">${VALIDATION_PASSED}</div></div>
                       <div class="metric-card"><div class="metric-label">Failed</div><div class="metric-value">${VALIDATION_FAILED}</div></div>
-                      <div class="metric-card"><div class="metric-label">Pass Rate</div><div class="metric-value">${VALIDATION_PASSED_PERCENTAGE}%</div><div class="validation-donut" aria-label="Validation pass ratio"></div></div>
+                      <div class="metric-card">
+                        <div class="metric-label">Pass Rate</div>
+                        <div class="metric-value">${VALIDATION_PASSED_PERCENTAGE}%</div>
+                        <div class="validation-donut" role="img" aria-label="${VALIDATION_PASSED} of ${VALIDATION_TOTAL} validations passed"></div>
+                        <div class="chart-legend">
+                          <span class="legend-item"><span class="legend-swatch pass"></span>Passed: ${VALIDATION_PASSED}</span>
+                          <span class="legend-item"><span class="legend-swatch fail"></span>Failed: ${VALIDATION_FAILED}</span>
+                        </div>
+                      </div>
                     </div>
                   </section>
                   <section class="panel">

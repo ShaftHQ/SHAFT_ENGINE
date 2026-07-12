@@ -1,5 +1,6 @@
 package com.shaft.gui.element.internal;
 
+import com.shaft.tools.io.internal.CheckpointStatus;
 import com.google.common.base.Throwables;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
@@ -1091,22 +1092,23 @@ public class ElementActionsHelper {
         String message = createReportMessage(actionName, testData, elementName, passFailStatus);
         List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
 
-        if (message.contains("Failed") && rootCauseException != null && rootCauseException.length > 0) {
+        if (!Boolean.TRUE.equals(passFailStatus) && rootCauseException != null && rootCauseException.length > 0) {
             var rootCauseThrowable = Throwables.getRootCause(rootCauseException[0]);
             var rootCauseMessage = rootCauseThrowable.getLocalizedMessage();
             String rootCause = " Root cause: \"" + rootCauseThrowable.getClass().getName() + ": " + (rootCauseMessage != null ? rootCauseMessage.split("\n")[0] : "No message") + "\"";
             message += rootCause;
         }
+        CheckpointStatus status = Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
         if (!isSilent || actionName.equals("identifyUniqueElement")) {
             if (attachments != null && !attachments.isEmpty()) {
                 long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
-                ReportManagerHelper.log(message, attachments);
+                ReportManagerHelper.log(message, attachments, status);
                 if (profilerStart != 0L) {
                     FlakeProfiler.recordEvidenceCapture("report attachment", actionName,
                             TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
                 }
             } else {
-                ReportManager.log(message);
+                ReportManagerHelper.log(message, null, status);
             }
         }
         if (!isSilent && !calledFromElementActions()) {
