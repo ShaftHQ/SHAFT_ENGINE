@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
 //@Getter
 @SuppressWarnings("unused")
 public class ReportManagerHelper {
-    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSSS a");
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
     private static final String LOG4J_LOG_FILE_SYSTEM_PROPERTY = "shaft.log.file";
@@ -433,7 +433,7 @@ public class ReportManagerHelper {
     public static void logConfigurationMethodInformation(String className, String testMethodName, String configurationMethodType) {
         // In TestNG Reporter, this log entry is logged at the end of the previous test
         // (or null for the first test)
-        createImportantReportEntry("⚙ Starting execution of " + JavaHelper.convertToSentenceCase(configurationMethodType).toLowerCase() + " configuration method\n'"
+        createImportantReportEntry("⚙ Starting " + JavaHelper.convertToSentenceCase(configurationMethodType).toLowerCase() + " configuration\n'"
                 + className + "." + testMethodName + "'");
     }
 
@@ -462,6 +462,10 @@ public class ReportManagerHelper {
     }
 
     public static void logFinishedTestInformation(String className, String testMethodName, String testDescription, String testStatus) {
+        logFinishedTestInformation(className, testMethodName, testDescription, testStatus, null);
+    }
+
+    public static void logFinishedTestInformation(String className, String testMethodName, String testDescription, String testStatus, Throwable failureReason) {
         StringBuilder reportMessage = new StringBuilder();
 
         String statusIndicator = switch (testStatus.toUpperCase()) {
@@ -482,6 +486,9 @@ public class ReportManagerHelper {
             reportMessage.append("\nDescription: '").append(testDescription).append("'");
         }
         reportMessage.append("\nStatus: ").append(testStatus);
+        if (failureReason != null) {
+            reportMessage.append("\n").append(FailureReporter.getRootCause(failureReason).trim());
+        }
 
         createImportantReportEntry(reportMessage.toString(), logLevel);
     }
@@ -514,6 +521,8 @@ public class ReportManagerHelper {
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
         if (!attachmentContent.trim().isEmpty()) {
             createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes(StandardCharsets.UTF_8)));
+        } else {
+            createLogEntry("Skipped report attachment '" + attachmentType + " - " + attachmentName + "' because its content was empty.", Level.DEBUG);
         }
     }
 
@@ -647,19 +656,13 @@ public class ReportManagerHelper {
     }
 
     public static String getCallingMethodFullName() {
-        StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
-        var callingMethodFullName = new StringBuilder();
-        for (var i = 1; i < callingStack.length; i++) {
-            if (!callingStack[i].getClassName().contains("shaft")) {
-                callingMethodFullName.append(callingStack[i].getClassName());
-                if (!callingStack[i].getMethodName().isEmpty()) {
-                    callingMethodFullName.append(".");
-                    callingMethodFullName.append(callingStack[i].getMethodName());
-                }
-                break;
-            }
-        }
-        return callingMethodFullName.toString();
+        return STACK_WALKER.walk(frames -> frames
+                .filter(frame -> !frame.getClassName().contains("shaft"))
+                .findFirst()
+                .map(frame -> frame.getMethodName().isEmpty()
+                        ? frame.getClassName()
+                        : frame.getClassName() + "." + frame.getMethodName())
+                .orElse(""));
     }
 
     public static String getCallingClassFullName() {
@@ -1183,10 +1186,10 @@ public class ReportManagerHelper {
     }
 
     public static String getExecutionDuration(long startTime, long endTime) {
-        long durationWithMillis = TimeUnit.MILLISECONDS.toMillis(endTime - startTime);
+        long durationWithMillis = Math.max(0, endTime - startTime);
 
         String duration = "";
-        if (durationWithMillis > 0 && durationWithMillis < 1000) {
+        if (durationWithMillis < 1000) {
             duration = durationWithMillis + " millis";
         } else if (durationWithMillis >= 1000 && durationWithMillis < 60000) {
             duration = String.format("%02d sec, %02d millis",

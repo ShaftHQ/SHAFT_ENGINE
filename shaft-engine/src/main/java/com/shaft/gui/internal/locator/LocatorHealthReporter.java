@@ -35,7 +35,7 @@ public final class LocatorHealthReporter {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final ConcurrentMap<String, LocatorStats> LOCATORS = new ConcurrentHashMap<>();
     private static final DateTimeFormatter FILENAME_FORMATTER =
-            DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSSS-a").withZone(ZoneId.systemDefault());
+            DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss-SSS").withZone(ZoneId.systemDefault());
     private static final Pattern SECRET_ASSIGNMENT = Pattern.compile(
             "(?i)(password|passwd|secret|token|api[-_]?key|authorization|cookie)\\s*[:=]\\s*[^\\s,;]+");
     private static final Pattern LONG_TOKEN = Pattern.compile("\\b[a-zA-Z0-9_-]{32,}\\b");

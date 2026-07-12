@@ -301,9 +301,9 @@ public class TestNGListenerHelperCoverageUnitTest {
             TestNGListenerHelper.logFinishedTestInformation(cucumber);
 
             reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logTestInformation("sampleClass", "sampleMethod", "sample description"));
-            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logFinishedTestInformation("sampleClass", "sampleMethod", "sample description", "Passed"));
-            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logFinishedTestInformation("sampleClass", "sampleMethod", "sample description", "Failed"));
-            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logFinishedTestInformation("sampleClass", "sampleMethod", "sample description", "Skipped"));
+            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logFinishedTestInformation(Mockito.eq("sampleClass"), Mockito.eq("sampleMethod"), Mockito.eq("sample description"), Mockito.eq("Passed"), Mockito.any()));
+            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logFinishedTestInformation(Mockito.eq("sampleClass"), Mockito.eq("sampleMethod"), Mockito.eq("sample description"), Mockito.eq("Failed"), Mockito.any()));
+            reportManagerHelper.verify(() -> com.shaft.tools.io.internal.ReportManagerHelper.logFinishedTestInformation(Mockito.eq("sampleClass"), Mockito.eq("sampleMethod"), Mockito.eq("sample description"), Mockito.eq("Skipped"), Mockito.any()));
         }
     }
 

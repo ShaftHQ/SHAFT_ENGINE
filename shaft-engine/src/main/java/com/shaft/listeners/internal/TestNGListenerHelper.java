@@ -498,7 +498,7 @@ public class TestNGListenerHelper {
                 } else if (iTestResult.getStatus() == ITestResult.SKIP) {
                     methodStatus = "Skipped";
                 }
-                ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus);
+                ReportManagerHelper.logFinishedTestInformation(className, methodName, methodDescription, methodStatus, iTestResult.getThrowable());
             }
         }
     }

@@ -277,6 +277,20 @@ public final class ReportHtmlTheme {
     }
 
     /**
+     * Escapes user-supplied text for safe embedding in generated report HTML.
+     *
+     * @param value raw text, or {@code null}
+     * @return HTML-escaped text, never {@code null}
+     */
+    public static String escapeHtml(String value) {
+        return value == null ? "" : value
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
+
+    /**
      * Maps a report status to a CSS class suffix.
      *
      * @param status report status text

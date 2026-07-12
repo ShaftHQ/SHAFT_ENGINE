@@ -7,7 +7,7 @@ import com.shaft.validation.Validations;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.testng.Assert.*;
@@ -21,7 +21,6 @@ import static org.testng.Assert.*;
 public class CheckpointAndReportingTest {
 
     private static final Field CHECKPOINTS_FIELD;
-    private static final Field SEQUENCE_FIELD;
     private static final Field PASSED_FIELD;
     private static final Field FAILED_FIELD;
 
@@ -29,8 +28,6 @@ public class CheckpointAndReportingTest {
         try {
             CHECKPOINTS_FIELD = CheckpointCounter.class.getDeclaredField("checkpoints");
             CHECKPOINTS_FIELD.setAccessible(true);
-            SEQUENCE_FIELD = CheckpointCounter.class.getDeclaredField("checkpointSequence");
-            SEQUENCE_FIELD.setAccessible(true);
             PASSED_FIELD = CheckpointCounter.class.getDeclaredField("passedCheckpoints");
             PASSED_FIELD.setAccessible(true);
             FAILED_FIELD = CheckpointCounter.class.getDeclaredField("failedCheckpoints");
@@ -41,14 +38,13 @@ public class CheckpointAndReportingTest {
     }
 
     private void resetCheckpointCounter() throws Exception {
-        ((ConcurrentHashMap<?, ?>) CHECKPOINTS_FIELD.get(null)).clear();
-        ((AtomicInteger) SEQUENCE_FIELD.get(null)).set(0);
+        ((List<?>) CHECKPOINTS_FIELD.get(null)).clear();
         ((AtomicInteger) PASSED_FIELD.get(null)).set(0);
         ((AtomicInteger) FAILED_FIELD.get(null)).set(0);
     }
 
     private int getCheckpointsSize() throws Exception {
-        return ((ConcurrentHashMap<?, ?>) CHECKPOINTS_FIELD.get(null)).size();
+        return ((List<?>) CHECKPOINTS_FIELD.get(null)).size();
     }
 
     private int getPassedCount() throws Exception {

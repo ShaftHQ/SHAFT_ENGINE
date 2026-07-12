@@ -4,7 +4,8 @@ import com.shaft.tools.internal.support.HTMLHelper;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 
 import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -15,8 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * publish the generated report attachment.
  */
 public class CheckpointCounter {
-    private static final ConcurrentHashMap<Integer, ArrayList<?>> checkpoints = new ConcurrentHashMap<>();
-    private static final AtomicInteger checkpointSequence = new AtomicInteger(0);
+    private static final List<ArrayList<String>> checkpoints = new CopyOnWriteArrayList<>();
     private static final AtomicInteger passedCheckpoints = new AtomicInteger(0);
     private static final AtomicInteger failedCheckpoints = new AtomicInteger(0);
 
@@ -39,7 +39,7 @@ public class CheckpointCounter {
         entry.add(type.toString());
         entry.add(message);
         entry.add(status.toString());
-        checkpoints.put(checkpointSequence.incrementAndGet(), entry);
+        checkpoints.add(entry);
 
         if (status == CheckpointStatus.PASS) {
             passedCheckpoints.incrementAndGet();
@@ -58,19 +58,22 @@ public class CheckpointCounter {
             return;
         }
         StringBuilder detailsBuilder = new StringBuilder();
-        checkpoints.forEach((key, value) -> detailsBuilder.append(String.format(
-                HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
-                key,
-                value.get(0),
-                value.get(1),
-                ReportHtmlTheme.statusClass(String.valueOf(value.get(2))),
-                value.get(2))));
+        int checkpointId = 0;
+        for (ArrayList<String> value : checkpoints) {
+            detailsBuilder.append(String.format(
+                    HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
+                    ++checkpointId,
+                    ReportHtmlTheme.escapeHtml(value.get(0)),
+                    ReportHtmlTheme.escapeHtml(value.get(1)),
+                    ReportHtmlTheme.statusClass(value.get(2)),
+                    value.get(2)));
+        }
 
         ReportManagerHelper.attach("HTML",
                 "Checkpoints Report",
                 HTMLHelper.CHECKPOINT_COUNTER.getValue()
                         .replace("${CHECKPOINTS_PASSED_PERCENTAGE_LABEL}", String.valueOf(Math.round(passedCheckpoints.get() * 100d / checkpoints.size())))
-                        .replace("${CHECKPOINTS_PASSED_PERCENTAGE}", String.valueOf(passedCheckpoints.get() * 360d / checkpoints.size()))
+                        .replace("${CHECKPOINTS_PASSED_DEGREES}", String.valueOf(passedCheckpoints.get() * 360d / checkpoints.size()))
                         .replace("${CHECKPOINTS_TOTAL}", String.valueOf(checkpoints.size()))
                         .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints.get()))
                         .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints.get()))

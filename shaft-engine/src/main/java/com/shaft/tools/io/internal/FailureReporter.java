@@ -24,7 +24,7 @@ public class FailureReporter {
             List<List<Object>> attachments = new ArrayList<>();
             List<Object> actualValueAttachment = Arrays.asList(JavaHelper.convertToSentenceCase(failedFileManager.getSimpleName()) + " - " +
                             JavaHelper.convertToSentenceCase(actionName),
-                    "Exception Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(throwable));
+                    "Exception Stack Trace", ReportManagerHelper.formatStackTraceToLogEntry(throwable));
             attachments.add(actualValueAttachment);
             ReportManagerHelper.log(message + rootCause, attachments, CheckpointStatus.FAIL);
         }
@@ -41,9 +41,10 @@ public class FailureReporter {
     }
 
     public static String getRootCause(Throwable throwable) {
-        var rootCauseMessage = Throwables.getRootCause(throwable).getLocalizedMessage();
+        var rootCause = Throwables.getRootCause(throwable);
+        var rootCauseMessage = rootCause.getLocalizedMessage();
         if (rootCauseMessage != null)
-            return " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + rootCauseMessage.split("\n")[0] + "\"";
-        return " Root cause: \"" + Throwables.getRootCause(throwable).getClass().getName() + ": " + "\"";
+            return " Root cause: \"" + rootCause.getClass().getName() + ": " + rootCauseMessage.split("\n")[0] + "\"";
+        return " Root cause: \"" + rootCause.getClass().getName() + "\"";
     }
 }

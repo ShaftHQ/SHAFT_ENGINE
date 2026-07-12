@@ -290,7 +290,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
                 result.setStatusDetails(details);
                 // Attach the stacktrace as a readable text file so it appears in the Allure report
                 getLifecycle().addAttachment(
-                        "Exception Stacktrace",
+                        "Exception Stack Trace",
                         "text/plain",
                         ".txt",
                         new ByteArrayInputStream(trace.getBytes(StandardCharsets.UTF_8)));

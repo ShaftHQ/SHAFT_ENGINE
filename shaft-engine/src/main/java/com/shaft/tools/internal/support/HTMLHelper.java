@@ -18,7 +18,7 @@ public enum HTMLHelper {
                   width: 180px;
                   height: 180px;
                   border-radius: 50%;
-                  background: conic-gradient(var(--shaft-pass) ${CHECKPOINTS_PASSED_PERCENTAGE}deg, var(--shaft-fail) 0);
+                  background: conic-gradient(var(--shaft-pass) ${CHECKPOINTS_PASSED_DEGREES}deg, var(--shaft-fail) 0);
                   box-shadow: inset 0 0 0 28px var(--shaft-surface);
                 }
               </style>
@@ -151,9 +151,9 @@ public enum HTMLHelper {
                     <h2>Issue Signals</h2>
                     <div class="metric-grid">
                       <div class="metric-card"><div class="metric-label">Total Issues</div><div class="metric-value">${TOTAL_ISSUES}</div></div>
-                      <div class="metric-card"><div class="metric-label">Should Pass</div><div class="metric-value">${NO_OPEN_ISSUES_FAILED}</div></div>
-                      <div class="metric-card"><div class="metric-label">Resolved</div><div class="metric-value">${OPEN_ISSUES_PASSED}</div></div>
-                      <div class="metric-card"><div class="metric-label">Expected Failures</div><div class="metric-value">${OPEN_ISSUES_FAILED}</div></div>
+                      <div class="metric-card"><div class="metric-label">Failed · No Known Issue</div><div class="metric-value">${NO_OPEN_ISSUES_FAILED}</div></div>
+                      <div class="metric-card"><div class="metric-label">Passed · Issue Still Open</div><div class="metric-value">${OPEN_ISSUES_PASSED}</div></div>
+                      <div class="metric-card"><div class="metric-label">Failed · Known Issue</div><div class="metric-value">${OPEN_ISSUES_FAILED}</div></div>
                     </div>
                   </section>
                   <section class="panel">
