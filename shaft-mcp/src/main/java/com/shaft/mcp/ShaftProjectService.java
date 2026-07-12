@@ -365,7 +365,13 @@ public class ShaftProjectService {
     }
 
     private static String skillResource(String skillName) {
-        return SHAFT_SKILLS_ROOT + "/" + skillName + "/" + SKILL_FILE_NAME;
+        String resourceName = SHAFT_SKILLS_ROOT + "/" + skillName + "/" + SKILL_FILE_NAME;
+        // Normalize-and-verify barrier: skill names are derived from jar entry names, so prove the
+        // constructed resource path cannot traverse outside the skills root (zip-slip guard).
+        if (!Path.of(resourceName).normalize().startsWith(Path.of(SHAFT_SKILLS_ROOT))) {
+            throw new IllegalArgumentException("Unsafe skill name: " + skillName);
+        }
+        return resourceName;
     }
 
     private static List<String> bundledSkillNames() throws IOException {
