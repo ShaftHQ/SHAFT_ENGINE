@@ -55,6 +55,13 @@ Bring only evidence back into SHAFT: command transcript, page snapshot, locator 
 - Treat Playwright `browser_run_code_unsafe`, `playwright-cli run-code`, and `eval` as trusted-client-only evidence gathering.
 - Do not add sleeps, absolute XPath, raw Selenium calls, or coordinate-only actions when locator candidates exist.
 
+## Tool Catalog
+
+Every shaft-mcp tool name and description is cached in
+`../references/shaft-mcp-tools.md`. Read it to pick exact tool names instead of
+listing tools at runtime, and load only the schemas you need — on clients that
+defer tool schemas, batch the load in one lookup.
+
 ## Official Guide Routes
 
 - Capture: `https://shafthq.github.io/docs/agentic/capture`

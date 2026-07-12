@@ -50,6 +50,10 @@ jobs:
       skipped: ${{ steps.post_test_report.outputs.skipped }}
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
       - name: Checkout Code
         uses: actions/checkout@v7
       - name: Setup Test Environment
@@ -113,6 +117,10 @@ jobs:
       skipped: ${{ steps.post_test_report.outputs.skipped }}
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
       - name: Checkout Code
         uses: actions/checkout@v7
       - name: Setup Test Environment
@@ -143,6 +151,10 @@ jobs:
       skipped: ${{ steps.post_test_report.outputs.skipped }}
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
       - name: Checkout Code
         uses: actions/checkout@v7
       - name: Setup Test Environment
@@ -172,6 +184,10 @@ jobs:
       skipped: ${{ steps.post_test_report.outputs.skipped }}
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
       - name: Checkout Code
         uses: actions/checkout@v7
       - name: Setup Test Environment
@@ -278,6 +294,10 @@ jobs:
       skipped: ${{ steps.post_test_report.outputs.skipped }}
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
       - name: Checkout Code
         uses: actions/checkout@v7
       - name: Setup Test Environment

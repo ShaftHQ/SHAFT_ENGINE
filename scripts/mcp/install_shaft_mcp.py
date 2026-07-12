@@ -40,6 +40,7 @@ BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
 SHAFT_SKILLS_DIRECTORY = "shaft-skills"
 SHAFT_SKILLS_SOURCE_FILES = (
     "evaluation-prompts.md",
+    "references/shaft-mcp-tools.md",
     "writing-shaft-tests/SKILL.md",
     "writing-shaft-tests/agents/openai.yaml",
     "choosing-shaft-locators/SKILL.md",
