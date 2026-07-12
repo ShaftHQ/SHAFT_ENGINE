@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/decisions/2026-07-12-agentic-optimization-model-routing-codified-guidance-budget-68-user-level-skills-ponytail-shaft-mastery.md",
+  "content_hash": "sha256:71fe882e9d5b27c282b064c20db5d803a714cedc61a380317cfb85313ea52b3c",
+  "created_at": "2026-07-12T07:07:43+03:00",
+  "evidence": [],
+  "facets": {
+    "category": "decision-rationale"
+  },
+  "id": "decision.2026-07-12-agentic-optimization-model-routing-codified-guidance-budget-68-user-level-skills-ponytail-shaft-mastery",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Optimize agentic instructions, memories, and skills; codify Opus/Sonnet/Haiku orchestration; optimize token consumption"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "2026-07-12 agentic optimization: model routing codified, guidance budget 68%, user-level skills ponytail + shaft-mastery",
+  "type": "decision",
+  "updated_at": "2026-07-12T07:07:43+03:00"
+}

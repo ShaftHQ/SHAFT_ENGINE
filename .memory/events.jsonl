@@ -194,3 +194,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-statustext-empty-text-never-wraps-and-clips-even-in-wide-tool-windows","timestamp":"2026-07-11T19:41:58+03:00"}
 {"actor":"agent","event":"memory.created","id":"workflow.live-validating-shaft-mcp-fixes-end-to-end-via-a-scripted-stdio-driver","timestamp":"2026-07-11T19:41:58+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.same-origin-subframes-share-the-recorders-sessionstorage-ui-state-key-persisted-recorder-ui-state-must-be-top-frame-only","timestamp":"2026-07-11T20:56:28+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.2026-07-12-agentic-optimization-model-routing-codified-guidance-budget-68-user-level-skills-ponytail-shaft-mastery","timestamp":"2026-07-12T07:07:43+03:00"}
+{"actor":"agent","event":"relation.created","relation_id":"rel.decision-2026-07-12-agentic-optimization-model-routing-codified-guidance-budget-68-user-level-skills-ponytail-shaft-mastery-related-to-decision-agent-hierarchy-main-thread-only-with-two-bounded-delegation-exceptions","timestamp":"2026-07-12T07:07:43+03:00"}
