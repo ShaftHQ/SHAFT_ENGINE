@@ -95,7 +95,7 @@ final class ShaftMcpSetupPanel extends JPanel {
     private final AgentReadinessProbe readinessProbe;
     private final AgentReadinessProbe deepReadinessProbe;
     private final CloudKeyStore cloudKeyStore;
-    private final String recommendedFamily;
+    private final Recommendation recommendation;
     private final JBTextArea installerCommand;
     private final JBTextArea mcpCommand;
     private final JComboBox<String> family;
@@ -212,7 +212,7 @@ final class ShaftMcpSetupPanel extends JPanel {
         this.readinessProbe = readinessProbe;
         this.deepReadinessProbe = deepReadinessProbe;
         this.cloudKeyStore = cloudKeyStore;
-        recommendedFamily = recommendedFamily(settings);
+        recommendation = recommendFamily(settings);
         setBorder(JBUI.Borders.empty(12));
 
         installerCommand = commandArea(3, "MCP installer command");
@@ -1054,26 +1054,46 @@ final class ShaftMcpSetupPanel extends JPanel {
         };
     }
 
-    private String recommendedFamily(ShaftSettingsState.Settings settings) {
+    /**
+     * How the recommended-agent label earned its wording. "Detected" is only ever claimed when a
+     * readiness probe actually succeeded — the label must never assert a check that did not run
+     * (the same real-checks-only rule the step badges follow, issue #3426 A5).
+     */
+    private enum RecommendationBasis {
+        DETECTED,
+        NOT_DETECTED,
+        SAVED_SELECTION
+    }
+
+    private record Recommendation(String family, RecommendationBasis basis) {
+    }
+
+    private Recommendation recommendFamily(ShaftSettingsState.Settings settings) {
         String explicit = normalize(settings.assistantFamily, "");
         if (!explicit.isBlank()) {
-            return explicit;
+            return new Recommendation(explicit, RecommendationBasis.SAVED_SELECTION);
         }
         String resolved = resolveFamily(settings);
         if (!"CLI".equals(normalize(settings.assistantRuntime, "CLI"))) {
-            return resolved;
+            return new Recommendation(resolved, RecommendationBasis.SAVED_SELECTION);
         }
         for (String familyCandidate : List.of("CODEX", "CLAUDE", "COPILOT")) {
             ShaftMcpToolResult result = readinessProbe.test(clientFromFamily(familyCandidate), "CLI");
             if (result != null && result.success()) {
-                return familyCandidate;
+                return new Recommendation(familyCandidate, RecommendationBasis.DETECTED);
             }
         }
-        return resolved;
+        return new Recommendation(resolved, RecommendationBasis.NOT_DETECTED);
     }
 
     private String recommendedAgentText() {
-        return "Recommended: " + cliAgentLabel(recommendedFamily) + agentRecommendationSuffix(recommendedFamily);
+        String label = cliAgentLabel(recommendation.family());
+        return switch (recommendation.basis()) {
+            case DETECTED -> "Recommended: " + label + " detected";
+            case NOT_DETECTED -> "Recommended: " + label
+                    + " — not detected yet; install it from the Prerequisites step above";
+            case SAVED_SELECTION -> "Recommended: " + label + " (your saved selection)";
+        };
     }
 
     private static String cliAgentLabel(String family) {
@@ -1082,10 +1102,6 @@ final class ShaftMcpSetupPanel extends JPanel {
             case "COPILOT" -> "GitHub Copilot CLI";
             default -> "Codex CLI";
         };
-    }
-
-    private static String agentRecommendationSuffix(String family) {
-        return " detected";
     }
 
     private static String clientFromFamily(String family) {
