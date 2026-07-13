@@ -55,6 +55,7 @@
 </li>
 <li><a href="#constructor-detail" tabindex="0">Constructor Details</a>
 <ol class="toc-list">
+<li><a href="#%3Cinit%3E(java.lang.String,com.shaft.doctor.model.CauseCategory,java.util.List,com.shaft.doctor.model.Confidence,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,java.util.List)" tabindex="0">Diagnosis(String, CauseCategory, List, Confidence, String, String, List, List, List, List)</a></li>
 <li><a href="#%3Cinit%3E(java.lang.String,com.shaft.doctor.model.CauseCategory,java.util.List,com.shaft.doctor.model.Confidence,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List)" tabindex="0">Diagnosis(String, CauseCategory, List, Confidence, String, String, List, List, List)</a></li>
 </ol>
 </li>
@@ -72,6 +73,7 @@
 <li><a href="#findings()" tabindex="0">findings()</a></li>
 <li><a href="#remediations()" tabindex="0">remediations()</a></li>
 <li><a href="#missingEvidence()" tabindex="0">missingEvidence()</a></li>
+<li><a href="#rankedCauses()" tabindex="0">rankedCauses()</a></li>
 </ol>
 </li>
 </ol>
@@ -98,10 +100,12 @@
 <dd><code><span id="param-findings">findings</span></code> - cited observations and inferences</dd>
 <dd><code><span id="param-remediations">remediations</span></code> - deterministic next actions</dd>
 <dd><code><span id="param-missingEvidence">missingEvidence</span></code> - evidence gaps that limit certainty</dd>
+<dd><code><span id="param-rankedCauses">rankedCauses</span></code> - all candidate root causes ordered by descending trust percentage,
+    each with a copy/paste-ready fix prompt; never null, may be empty</dd>
 </dl>
 <hr>
 <div class="horizontal-scroll">
-<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">Diagnosis</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion, <a href="CauseCategory.html" title="enum class in com.shaft.doctor.model">CauseCategory</a>&nbsp;primaryCause, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="CauseCategory.html" title="enum class in com.shaft.doctor.model">CauseCategory</a>&gt;&nbsp;contributingCauses, <a href="Confidence.html" title="enum class in com.shaft.doctor.model">Confidence</a>&nbsp;confidence, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;summary, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;rationale, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Finding.html" title="class in com.shaft.doctor.model">Finding</a>&gt;&nbsp;findings, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Remediation.html" title="class in com.shaft.doctor.model">Remediation</a>&gt;&nbsp;remediations, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;missingEvidence)
+<div class="type-signature"><span class="modifiers">public record </span><span class="element-name type-name-label">Diagnosis</span>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion, <a href="CauseCategory.html" title="enum class in com.shaft.doctor.model">CauseCategory</a>&nbsp;primaryCause, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="CauseCategory.html" title="enum class in com.shaft.doctor.model">CauseCategory</a>&gt;&nbsp;contributingCauses, <a href="Confidence.html" title="enum class in com.shaft.doctor.model">Confidence</a>&nbsp;confidence, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;summary, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;rationale, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Finding.html" title="class in com.shaft.doctor.model">Finding</a>&gt;&nbsp;findings, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Remediation.html" title="class in com.shaft.doctor.model">Remediation</a>&gt;&nbsp;remediations, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;missingEvidence, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="RankedCause.html" title="class in com.shaft.doctor.model">RankedCause</a>&gt;&nbsp;rankedCauses)
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a></span></div>
 <div class="block">Versioned deterministic diagnosis.</div>
 </div>
@@ -143,6 +147,19 @@
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Remediation.html" title="class in com.shaft.doctor.model">Remediation</a>&gt;&nbsp;remediations,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;missingEvidence)</code></div>
 <div class="col-last even-row-color">
+<div class="block">Backward-compatible constructor for callers built before ranked-cause support existed.</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.lang.String,com.shaft.doctor.model.CauseCategory,java.util.List,com.shaft.doctor.model.Confidence,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,java.util.List)" class="member-name-link">Diagnosis</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
+ <a href="CauseCategory.html" title="enum class in com.shaft.doctor.model">CauseCategory</a>&nbsp;primaryCause,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="CauseCategory.html" title="enum class in com.shaft.doctor.model">CauseCategory</a>&gt;&nbsp;contributingCauses,
+ <a href="Confidence.html" title="enum class in com.shaft.doctor.model">Confidence</a>&nbsp;confidence,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;summary,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;rationale,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Finding.html" title="class in com.shaft.doctor.model">Finding</a>&gt;&nbsp;findings,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Remediation.html" title="class in com.shaft.doctor.model">Remediation</a>&gt;&nbsp;remediations,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;missingEvidence,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="RankedCause.html" title="class in com.shaft.doctor.model">RankedCause</a>&gt;&nbsp;rankedCauses)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Creates a validated immutable diagnosis.</div>
 </div>
 </div>
@@ -194,29 +211,34 @@
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-primaryCause"><code>primaryCause</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rationale()" class="member-name-link">rationale</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="RankedCause.html" title="class in com.shaft.doctor.model">RankedCause</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rankedCauses()" class="member-name-link">rankedCauses</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns the value of the <a href="#param-rationale"><code>rationale</code></a> record component.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="Remediation.html" title="class in com.shaft.doctor.model">Remediation</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#remediations()" class="member-name-link">remediations</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns the value of the <a href="#param-remediations"><code>remediations</code></a> record component.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#schemaVersion()" class="member-name-link">schemaVersion</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns the value of the <a href="#param-schemaVersion"><code>schemaVersion</code></a> record component.</div>
+<div class="block">Returns the value of the <a href="#param-rankedCauses"><code>rankedCauses</code></a> record component.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#summary()" class="member-name-link">summary</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#rationale()" class="member-name-link">rationale</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-rationale"><code>rationale</code></a> record component.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="Remediation.html" title="class in com.shaft.doctor.model">Remediation</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#remediations()" class="member-name-link">remediations</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-remediations"><code>remediations</code></a> record component.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#schemaVersion()" class="member-name-link">schemaVersion</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the <a href="#param-schemaVersion"><code>schemaVersion</code></a> record component.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#summary()" class="member-name-link">summary</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <a href="#param-summary"><code>summary</code></a> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a string representation of this record class.</div>
 </div>
 </div>
@@ -262,6 +284,24 @@
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
+<section class="detail" id="&lt;init&gt;(java.lang.String,com.shaft.doctor.model.CauseCategory,java.util.List,com.shaft.doctor.model.Confidence,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List,java.util.List)">
+<h3>Diagnosis</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">Diagnosis</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schemaVersion,
+ <a href="CauseCategory.html" title="enum class in com.shaft.doctor.model">CauseCategory</a>&nbsp;primaryCause,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="CauseCategory.html" title="enum class in com.shaft.doctor.model">CauseCategory</a>&gt;&nbsp;contributingCauses,
+ <a href="Confidence.html" title="enum class in com.shaft.doctor.model">Confidence</a>&nbsp;confidence,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;summary,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;rationale,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Finding.html" title="class in com.shaft.doctor.model">Finding</a>&gt;&nbsp;findings,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Remediation.html" title="class in com.shaft.doctor.model">Remediation</a>&gt;&nbsp;remediations,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;missingEvidence,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="RankedCause.html" title="class in com.shaft.doctor.model">RankedCause</a>&gt;&nbsp;rankedCauses)</span></div>
+<div class="block">Creates a validated immutable diagnosis.</div>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="&lt;init&gt;(java.lang.String,com.shaft.doctor.model.CauseCategory,java.util.List,com.shaft.doctor.model.Confidence,java.lang.String,java.lang.String,java.util.List,java.util.List,java.util.List)">
 <h3>Diagnosis</h3>
 <div class="horizontal-scroll">
@@ -274,7 +314,20 @@
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Finding.html" title="class in com.shaft.doctor.model">Finding</a>&gt;&nbsp;findings,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Remediation.html" title="class in com.shaft.doctor.model">Remediation</a>&gt;&nbsp;remediations,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;missingEvidence)</span></div>
-<div class="block">Creates a validated immutable diagnosis.</div>
+<div class="block">Backward-compatible constructor for callers built before ranked-cause support existed.
+Delegates to the canonical constructor with an empty <a href="#rankedCauses()"><code>rankedCauses()</code></a>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>schemaVersion</code> - diagnosis schema version</dd>
+<dd><code>primaryCause</code> - highest-precedence supported cause</dd>
+<dd><code>contributingCauses</code> - other supported causes</dd>
+<dd><code>confidence</code> - confidence in the primary cause</dd>
+<dd><code>summary</code> - concise diagnosis</dd>
+<dd><code>rationale</code> - rule precedence and uncertainty explanation</dd>
+<dd><code>findings</code> - cited observations and inferences</dd>
+<dd><code>remediations</code> - deterministic next actions</dd>
+<dd><code>missingEvidence</code> - evidence gaps that limit certainty</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -446,6 +499,19 @@
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the value of the <a href="#param-missingEvidence"><code>missingEvidence</code></a> record component</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="rankedCauses()">
+<h3>rankedCauses</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="RankedCause.html" title="class in com.shaft.doctor.model">RankedCause</a>&gt;</span>&nbsp;<span class="element-name">rankedCauses</span>()</div>
+<div class="block">Returns the value of the <a href="#param-rankedCauses"><code>rankedCauses</code></a> record component.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the value of the <a href="#param-rankedCauses"><code>rankedCauses</code></a> record component</dd>
 </dl>
 </div>
 </section>
