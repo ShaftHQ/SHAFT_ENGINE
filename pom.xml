@@ -92,7 +92,7 @@
         <asm.version>9.10.1</asm.version>
         <antlr.runtime.version>3.5.3</antlr.runtime.version>
         <commons.compress.version>1.28.0</commons.compress.version>
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <bouncycastle.version>1.85</bouncycastle.version>
         <littleproxy.version>2.8.0</littleproxy.version>
         <ant.version>1.10.17</ant.version>
         <poi.version>5.5.1</poi.version>
