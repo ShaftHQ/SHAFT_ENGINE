@@ -24,6 +24,7 @@ class GuidedWorkflowPanelTest {
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
         JComboBox<?> templates = findByAccessibleName(panel, "Workflow template", JComboBox.class);
         JButton useTemplate = findButton(panel, "Use template");
 
@@ -100,6 +101,7 @@ class GuidedWorkflowPanelTest {
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
         JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
         javax.swing.JCheckBox headless = findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class);
         JButton start = findButton(panel, "Start recording");
@@ -154,6 +156,7 @@ class GuidedWorkflowPanelTest {
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
         setText(panel, "Intent", "Log in as a valid user");
         findButton(panel, "Start recording").doClick();
 
@@ -170,6 +173,7 @@ class GuidedWorkflowPanelTest {
         settings.recorderHeadless = true;
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
         }, settings);
+        expandAdvanced(panel);
         javax.swing.JCheckBox headless = findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class);
 
         assertNotNull(headless);
@@ -182,6 +186,7 @@ class GuidedWorkflowPanelTest {
     void irrelevantFieldsAreDisabledPerBackend() {
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
         });
+        expandAdvanced(panel);
         JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
         javax.swing.JCheckBox headless = findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class);
         javax.swing.text.JTextComponent targetUrl =
@@ -208,6 +213,7 @@ class GuidedWorkflowPanelTest {
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
         JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
         JComboBox<?> templates = findByAccessibleName(panel, "Workflow template", JComboBox.class);
         assertNotNull(backend);
@@ -233,6 +239,7 @@ class GuidedWorkflowPanelTest {
     void starterTemplateControlsExposeAccessibleMetadata() {
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
         });
+        expandAdvanced(panel);
         JComboBox<?> templates = findByAccessibleName(panel, "Workflow template", JComboBox.class);
         JButton useTemplate = findButton(panel, "Use template");
         JButton reviewCode = findButton(panel, "Review code");
@@ -252,6 +259,7 @@ class GuidedWorkflowPanelTest {
         List<CapturedInvocation> invocations = new ArrayList<>();
         GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null,
                 (toolName, arguments) -> invocations.add(new CapturedInvocation(toolName, arguments)));
+        expandAdvanced(panel);
         JButton planPartnerWork = findButton(panel, "Plan coding partner");
 
         assertNotNull(planPartnerWork);
@@ -265,6 +273,100 @@ class GuidedWorkflowPanelTest {
                 () -> assertEquals("WebDriver", invocation.arguments().get("backend").getAsString()),
                 () -> assertEquals(10, invocation.arguments().get("maxResults").getAsInt()),
                 () -> assertEquals(0, invocation.arguments().getAsJsonArray("artifactPaths").size()));
+    }
+
+    @Test
+    void advancedOptionsAreCollapsedByDefault() {
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        javax.swing.text.JTextComponent targetUrl =
+                findByAccessibleName(panel, "Target URL", javax.swing.text.JTextComponent.class);
+        javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+        javax.swing.JCheckBox toggle =
+                findByAccessibleName(panel, "Show advanced Guided options", javax.swing.JCheckBox.class);
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        JButton planPartnerWork = findButton(panel, "Plan coding partner");
+
+        assertAll(
+                () -> assertNotNull(targetUrl),
+                () -> assertTrue(isVisibleInHierarchy(targetUrl), "Target URL must stay on the primary surface"),
+                () -> assertNotNull(status),
+                () -> assertTrue(isVisibleInHierarchy(status), "Recorder status must stay on the primary surface"),
+                () -> assertNotNull(toggle),
+                () -> assertFalse(toggle.isSelected(), "Advanced options must default to collapsed"),
+                () -> assertNotNull(backend),
+                () -> assertFalse(isVisibleInHierarchy(backend), "Backend selector must be hidden by default"),
+                () -> assertNotNull(planPartnerWork),
+                () -> assertFalse(isVisibleInHierarchy(planPartnerWork),
+                        "Coding Partner section must be hidden by default"));
+    }
+
+    @Test
+    void advancedToggleExpandsAndCollapsesTheAdvancedSurface() {
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        javax.swing.JCheckBox toggle =
+                findByAccessibleName(panel, "Show advanced Guided options", javax.swing.JCheckBox.class);
+        JComboBox<?> backend = findByAccessibleName(panel, "Guided workflow backend", JComboBox.class);
+        assertNotNull(toggle);
+        assertNotNull(backend);
+
+        assertFalse(isVisibleInHierarchy(backend));
+
+        toggle.doClick();
+        assertAll(
+                () -> assertTrue(toggle.isSelected()),
+                () -> assertTrue(isVisibleInHierarchy(backend), "Backend selector must show once expanded"));
+
+        toggle.doClick();
+        assertAll(
+                () -> assertFalse(toggle.isSelected()),
+                () -> assertFalse(isVisibleInHierarchy(backend), "Backend selector must hide again once collapsed"));
+    }
+
+    @Test
+    void allAccessibleNamesRemainReachableOnceExpanded() {
+        GuidedWorkflowPanel panel = new GuidedWorkflowPanel(null, (tool, arguments) -> {
+        });
+        expandAdvanced(panel);
+
+        assertAll(
+                () -> assertNotNull(findByAccessibleName(panel, "Target URL", javax.swing.text.JTextComponent.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Guided workflow backend", JComboBox.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Workflow template", JComboBox.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Intent", javax.swing.text.JTextComponent.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Current source path", javax.swing.text.JTextComponent.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Evidence paths", javax.swing.text.JTextComponent.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Session path", javax.swing.text.JTextComponent.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Headless browser", javax.swing.JCheckBox.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class)),
+                () -> assertNotNull(findByAccessibleName(panel, "Generated code or guardrail input", javax.swing.text.JTextComponent.class)),
+                () -> assertNotNull(findButton(panel, "Try SHAFT on a sample page")),
+                () -> assertNotNull(findButton(panel, "Start recording")),
+                () -> assertNotNull(findButton(panel, "Stop recording")),
+                () -> assertNotNull(findButton(panel, "Review code")),
+                () -> assertNotNull(findButton(panel, "Plan coding partner")),
+                () -> assertNotNull(findButton(panel, "Find reuse")),
+                () -> assertNotNull(findButton(panel, "Inspect locator")),
+                () -> assertNotNull(findButton(panel, "Guardrail check")));
+    }
+
+    private static boolean isVisibleInHierarchy(Component component) {
+        for (Component current = component; current != null; current = current.getParent()) {
+            if (!current.isVisible()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void expandAdvanced(GuidedWorkflowPanel panel) {
+        javax.swing.JCheckBox toggle =
+                findByAccessibleName(panel, "Show advanced Guided options", javax.swing.JCheckBox.class);
+        assertNotNull(toggle, "Missing Advanced options toggle");
+        if (!toggle.isSelected()) {
+            toggle.doClick();
+        }
     }
 
     private static void setText(GuidedWorkflowPanel panel, String accessibleName, String value) {

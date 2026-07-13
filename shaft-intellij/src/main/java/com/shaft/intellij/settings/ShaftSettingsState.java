@@ -60,6 +60,11 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
          * (issue #3500 A4/O4) so it never claims an agent is ready without a real check.
          */
         public boolean agentLaneReady = false;
+        /**
+         * Whether the first-run happy-path coach (issue #3500 O1) was dismissed; it never
+         * reappears once acknowledged.
+         */
+        public boolean firstRunCoachDismissed = false;
         public boolean agentGuidanceOptimizationPromptPending = false;
         public String assistantProviderType = "LOCAL";
         public String assistantFamily = "";

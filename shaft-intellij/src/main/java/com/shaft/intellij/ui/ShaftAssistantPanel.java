@@ -2175,15 +2175,52 @@ final class ShaftAssistantPanel extends JPanel {
      * composer instead of executing anything, so the user stays in control of the first send.
      */
     private javax.swing.JPanel buildEmptyStateChips() {
-        emptyStateChips = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
-        emptyStateChips.setOpaque(false);
-        emptyStateChips.add(emptyStateChip("Record a sample flow",
+        javax.swing.JPanel chipRow = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        chipRow.setOpaque(false);
+        chipRow.add(emptyStateChip("Record a sample flow",
                 "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test."));
-        emptyStateChips.add(emptyStateChip("Ask how to assert",
+        chipRow.add(emptyStateChip("Ask how to assert",
                 "How do I add assertions while recording a web flow?"));
-        emptyStateChips.add(emptyStateChip("Diagnose my last failure",
+        chipRow.add(emptyStateChip("Diagnose my last failure",
                 "Diagnose my most recent failed test run and propose a fix."));
+        emptyStateChips = new javax.swing.JPanel();
+        emptyStateChips.setLayout(new javax.swing.BoxLayout(emptyStateChips, javax.swing.BoxLayout.Y_AXIS));
+        emptyStateChips.setOpaque(false);
+        javax.swing.JPanel coach = buildFirstRunCoach();
+        if (coach != null) {
+            emptyStateChips.add(coach);
+        }
+        emptyStateChips.add(chipRow);
         return emptyStateChips;
+    }
+
+    /**
+     * First-run happy-path coach (issue #3500 O1): one dismissible line telling the whole story in
+     * three steps; never reappears once acknowledged.
+     */
+    private javax.swing.JPanel buildFirstRunCoach() {
+        if (settings.firstRunCoachDismissed) {
+            return null;
+        }
+        javax.swing.JPanel coach = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        coach.setOpaque(false);
+        javax.swing.JLabel story = new javax.swing.JLabel(
+                "First run: 1. Check setup (header strip)  2. Record a sample flow  3. Review code into a test.");
+        story.getAccessibleContext().setAccessibleName("First run happy path coach");
+        story.setForeground(ShaftStatusPresentation.pending());
+        javax.swing.JButton gotIt = new javax.swing.JButton("Got it");
+        gotIt.getAccessibleContext().setAccessibleName("Dismiss first run coach");
+        gotIt.setToolTipText("Hide this first-run guide permanently.");
+        gotIt.setMargin(JBUI.insets(1, 8));
+        gotIt.addActionListener(event -> {
+            settings.firstRunCoachDismissed = true;
+            coach.setVisible(false);
+            emptyStateChips.revalidate();
+            emptyStateChips.repaint();
+        });
+        coach.add(story);
+        coach.add(gotIt);
+        return coach;
     }
 
     private javax.swing.JButton emptyStateChip(String label, String cannedPrompt) {

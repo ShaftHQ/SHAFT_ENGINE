@@ -1259,6 +1259,23 @@ class ShaftPanelSetupTest {
     }
 
     @Test
+    void firstRunCoachShowsOnceAndDismissPersists() {
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings);
+
+        assertNotNull(findByAccessibleName(toolWindow, "First run happy path coach", JLabel.class),
+                "The first-run coach must show on an empty transcript before dismissal.");
+        JButton dismiss = findByAccessibleName(toolWindow, "Dismiss first run coach", JButton.class);
+        assertNotNull(dismiss);
+        dismiss.doClick();
+        assertTrue(settings.firstRunCoachDismissed, "Dismissing the coach must persist the acknowledgment.");
+
+        ShaftToolWindowPanel reopened = new ShaftToolWindowPanel(fakeProject(), settings);
+        assertNull(findByAccessibleName(reopened, "First run happy path coach", JLabel.class),
+                "The coach must never reappear once acknowledged.");
+    }
+
+    @Test
     void toolWindowShowsReadableWorkflowSelectorLabelsWhenAdvancedUiIsEnabled() {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), advancedConnectedMcpSettings());
 
@@ -2528,6 +2545,8 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Record a sample flow".equals(accessibleName(button)))
                 .filter(button -> !"Ask how to assert".equals(accessibleName(button)))
                 .filter(button -> !"Diagnose my last failure".equals(accessibleName(button)))
+                // The first-run coach's acknowledgment (issue #3500 O1) names its one-time action.
+                .filter(button -> !"Dismiss first run coach".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 

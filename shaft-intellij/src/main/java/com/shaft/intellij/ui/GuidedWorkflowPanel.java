@@ -102,21 +102,28 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         recorderStatus = new JLabel("Recorder idle.");
         recorderStatus.getAccessibleContext().setAccessibleName("Recorder status");
         recorderStatus.setBorder(JBUI.Borders.empty(2, 0));
+        // Status is the primary surface signal (issue #3500 G2): louder than the collapsed form.
+        recorderStatus.setFont(recorderStatus.getFont().deriveFont(Font.BOLD, recorderStatus.getFont().getSize2D() + 2f));
         updateTemplateDescription();
         applyTeamRecorderPolicy();
         backend.addActionListener(event -> updateFieldRelevance());
         updateFieldRelevance();
 
-        JPanel fields = new JPanel(new GridLayout(0, 1, 4, 4));
-        fields.add(row("Backend", 'B', backend));
-        fields.add(row("Template", 'T', templateControls(), templateSelector));
-        fields.add(row("Target URL", 'U', targetUrl));
-        fields.add(row("Intent", 'I', intent));
-        fields.add(row("Current source", 'R', currentSourcePath));
-        fields.add(row("Evidence paths", 'E', artifactPaths));
-        fields.add(row("Session path", 'S', sessionPath));
-        fields.add(row("Browser", 'H', headlessBrowser));
-        fields.add(row("Status", 'A', recorderStatus));
+        // Progressive disclosure (issue #3500 G1, #3496 B6): the primary surface is just the
+        // target, the recorder controls, the sample-page tour, and the live status. Everything
+        // else a returning power user needs stays one click away behind Advanced options.
+        JPanel primaryFields = new JPanel(new GridLayout(0, 1, 4, 4));
+        primaryFields.add(row("Target URL", 'U', targetUrl));
+        primaryFields.add(row("Status", 'A', recorderStatus));
+
+        JPanel advancedFields = new JPanel(new GridLayout(0, 1, 4, 4));
+        advancedFields.add(row("Backend", 'B', backend));
+        advancedFields.add(row("Template", 'T', templateControls(), templateSelector));
+        advancedFields.add(row("Intent", 'I', intent));
+        advancedFields.add(row("Current source", 'R', currentSourcePath));
+        advancedFields.add(row("Evidence paths", 'E', artifactPaths));
+        advancedFields.add(row("Session path", 'S', sessionPath));
+        advancedFields.add(row("Browser", 'H', headlessBrowser));
 
         JPanel partner = section("Coding Partner",
                 button("Plan coding partner", "Plan repository-aware SHAFT reuse, missing code, proof, and validation", ShaftIcons.CODE,
@@ -134,18 +141,44 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 button("Inspect locator", "Inspect the page and propose locator candidates", ShaftIcons.SEARCH, this::inspectLocator),
                 button("Guardrail check", "Check generated SHAFT code for automation anti-patterns", ShaftIcons.CHECK, this::guardrailCheck));
 
-        JPanel center = new JPanel(new BorderLayout(6, 6));
-        center.add(fields, BorderLayout.NORTH);
-        center.add(row("Code", 'C', codeSnippet), BorderLayout.CENTER);
+        JPanel advancedActions = new JPanel(new GridLayout(1, 2, 8, 8));
+        advancedActions.add(partner);
+        advancedActions.add(locator);
 
-        JPanel actions = new JPanel(new GridLayout(1, 3, 8, 8));
-        actions.add(partner);
-        actions.add(recorder);
-        actions.add(locator);
+        JPanel advancedCenter = new JPanel(new BorderLayout(6, 6));
+        advancedCenter.add(advancedFields, BorderLayout.NORTH);
+        advancedCenter.add(row("Code", 'C', codeSnippet), BorderLayout.CENTER);
+
+        JPanel advancedPanel = new JPanel(new BorderLayout(6, 6));
+        advancedPanel.setBorder(JBUI.Borders.emptyTop(8));
+        advancedPanel.add(advancedCenter, BorderLayout.CENTER);
+        advancedPanel.add(advancedActions, BorderLayout.SOUTH);
+        // Collapsed by default; a project that already opted into advanced/expert mode
+        // (ShaftSettingsState.Settings#advancedUiEnabled) starts expanded instead.
+        advancedPanel.setVisible(this.settings.advancedUiEnabled);
+
+        JCheckBox advancedToggle = new JCheckBox("Advanced options", this.settings.advancedUiEnabled);
+        advancedToggle.getAccessibleContext().setAccessibleName("Show advanced Guided options");
+        advancedToggle.getAccessibleContext().setAccessibleDescription(
+                "Show backend, template, intent, current source, evidence paths, session path, browser, "
+                        + "generated code, coding partner, and locator controls.");
+        advancedToggle.addItemListener(event -> {
+            advancedPanel.setVisible(advancedToggle.isSelected());
+            revalidate();
+            repaint();
+        });
+
+        JPanel primaryPanel = new JPanel(new BorderLayout(6, 6));
+        primaryPanel.add(primaryFields, BorderLayout.NORTH);
+        primaryPanel.add(recorder, BorderLayout.CENTER);
+        primaryPanel.add(advancedToggle, BorderLayout.SOUTH);
+
+        JPanel body = new JPanel(new BorderLayout(6, 6));
+        body.add(primaryPanel, BorderLayout.NORTH);
+        body.add(advancedPanel, BorderLayout.CENTER);
 
         add(introLabel("Guided workflows prepare reviewed SHAFT MCP requests."), BorderLayout.NORTH);
-        add(center, BorderLayout.CENTER);
-        add(actions, BorderLayout.SOUTH);
+        add(body, BorderLayout.CENTER);
     }
 
     private static ShaftSettingsState.Settings resolveSettings() {
