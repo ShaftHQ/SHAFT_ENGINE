@@ -70,6 +70,7 @@
 <li><a href="#diagnosticsMaxArtifactMb()" tabindex="0">diagnosticsMaxArtifactMb()</a></li>
 <li><a href="#traceEnabled()" tabindex="0">traceEnabled()</a></li>
 <li><a href="#traceMode()" tabindex="0">traceMode()</a></li>
+<li><a href="#traceRetainFailedAttempts()" tabindex="0">traceRetainFailedAttempts()</a></li>
 <li><a href="#traceIncludeCodeContext()" tabindex="0">traceIncludeCodeContext()</a></li>
 <li><a href="#traceIncludeFullPageSnapshots()" tabindex="0">traceIncludeFullPageSnapshots()</a></li>
 <li><a href="#traceIncludeDomSnapshots()" tabindex="0">traceIncludeDomSnapshots()</a></li>
@@ -246,6 +247,9 @@ of individual configuration properties at runtime.</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceMode()" class="member-name-link">traceMode</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#traceRetainFailedAttempts()" class="member-name-link">traceRetainFailedAttempts</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -465,8 +469,18 @@ of individual configuration properties at runtime.</div>
 <h3>traceMode</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Key("shaft.trace.mode")
-@DefaultValue("failure")
+@DefaultValue("auto")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">traceMode</span>()</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="traceRetainFailedAttempts()">
+<h3>traceRetainFailedAttempts</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("shaft.trace.retainFailedAttempts")
+@DefaultValue("true")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">traceRetainFailedAttempts</span>()</div>
 </div>
 </section>
 </li>
