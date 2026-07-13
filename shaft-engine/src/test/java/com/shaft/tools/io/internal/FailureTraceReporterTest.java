@@ -63,11 +63,11 @@ public class FailureTraceReporterTest {
             FailureTraceReporter.attachOnFailure(failingInfo, "token=raw-secret", List.of());
 
             List<Attachment> added = attachments().subList(beforePassing, attachments().size());
-            Assert.assertEquals(added.size(), 2, "The trace archive and the viewer HTML should both be attached.");
+            Assert.assertEquals(added.size(), 1, "Only the self-contained trace archive should be attached.");
             Assert.assertEquals(added.getFirst().getName(), "shaft-trace.zip");
             Assert.assertEquals(added.getFirst().getType(), "application/zip");
-            Assert.assertTrue(added.stream().anyMatch(attachment -> "text/html".equals(attachment.getType())
-                    && "SHAFT Trace Report.html".equals(attachment.getName())));
+            Assert.assertFalse(added.stream().anyMatch(attachment -> "text/html".equals(attachment.getType())),
+                    "No dangling HTML attachment outside the archive.");
             Assert.assertFalse(added.stream().anyMatch(attachment -> "application/json".equals(attachment.getType())));
             Assert.assertFalse(Files.exists(traceDirectory.resolve("SHAFT Trace Report.html")));
             Assert.assertFalse(Files.exists(traceDirectory.resolve("shaft-trace.json")));
@@ -85,6 +85,15 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(html.contains("dom-snapshot-frame"), html);
                 Assert.assertTrue(html.contains("data-tab=\"screenshot\""), html);
                 Assert.assertTrue(html.contains("screenshot-image"), html);
+                Assert.assertTrue(html.contains("data-tab=\"timeline\""), html);
+                Assert.assertTrue(html.contains("timeline-panel"), html);
+                Assert.assertTrue(html.contains("data-tab=\"environment\""), html);
+                Assert.assertTrue(html.contains("network-panel"), html);
+                Assert.assertTrue(html.contains("console-panel"), html);
+                Assert.assertTrue(html.contains("data-tab=\"log\""), html);
+                String tracedJson = readZipEntry(zip, "shaft-trace.json");
+                Assert.assertTrue(tracedJson.contains("\"environment\""), tracedJson);
+                Assert.assertTrue(tracedJson.contains("\"os\""), tracedJson);
             }
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
             Assert.assertTrue(index.contains("\"archive\": \"target/shaft-traces/id-failingScenario/shaft-trace.zip\""), index);
@@ -131,6 +140,7 @@ public class FailureTraceReporterTest {
             Assert.assertTrue(json.contains("\"name\": \"CLICK\""), json);
             Assert.assertTrue(json.contains("\"status\": \"failed\""), json);
             Assert.assertTrue(json.contains("\"locator\": \"By.id: pay\""), json);
+            Assert.assertTrue(json.contains("\"caller\""), json);
             Assert.assertTrue(json.contains("\"durationMs\""), json);
             Assert.assertTrue(json.contains("\"apiToken\": \"********\""), json);
             Assert.assertFalse(json.contains("raw-token"));
@@ -471,11 +481,13 @@ public class FailureTraceReporterTest {
             BrowserObservabilityRecorder.recordWarning("network", "Network capture is not supported by this driver.");
 
             String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
-            new tools.jackson.databind.ObjectMapper().readTree(json);
+            var root = new tools.jackson.databind.ObjectMapper().readTree(json);
 
             Assert.assertTrue(json.contains("\"network\": ["), json);
             Assert.assertTrue(json.contains("\"method\": \"POST\""), json);
             Assert.assertTrue(json.contains("\"status\": 500"), json);
+            Assert.assertTrue(root.path("network").get(0).path("timestamp").asLong(0L) > 0L,
+                    "Network events must carry an epoch timestamp for timeline correlation: " + json);
             Assert.assertTrue(json.contains("\"console\": ["), json);
             Assert.assertTrue(json.contains("\"level\": \"SEVERE\""), json);
             Assert.assertTrue(json.contains("\"browserObservability\""), json);
@@ -553,6 +565,47 @@ public class FailureTraceReporterTest {
             Assert.assertFalse(json.contains("raw-cookie"), json);
         } finally {
             BrowserObservabilityRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace JSON should include an environment section for advanced debugging context")
+    public void traceJsonShouldIncludeEnvironmentSection() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", failure()), "failed", List.of());
+            var root = new tools.jackson.databind.ObjectMapper().readTree(json);
+
+            Assert.assertTrue(root.path("environment").isObject(), json);
+            Assert.assertEquals(root.path("environment").path("os").asText(), System.getProperty("os.name", ""), json);
+            Assert.assertEquals(root.path("environment").path("javaVersion").asText(), System.getProperty("java.version", ""), json);
+            Assert.assertFalse(root.path("environment").path("thread").asText().isBlank(), json);
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Trace JSON should embed the full failing source file when it can be resolved")
+    public void traceJsonShouldEmbedFullSourceFileWhenResolvable() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceIncludeCodeContext(true);
+            RuntimeException throwable = new RuntimeException("boom");
+            throwable.setStackTrace(new StackTraceElement[]{
+                    new StackTraceElement("testPackage.unitTests.AttachmentReporterUnitTest",
+                            "someScenario", "AttachmentReporterUnitTest.java", 20)
+            });
+
+            String json = FailureTraceReporter.renderTraceJson(info("failingScenario", throwable), "failed", List.of());
+            var root = new tools.jackson.databind.ObjectMapper().readTree(json);
+
+            Assert.assertTrue(root.path("source").path("file").asText().endsWith("AttachmentReporterUnitTest.java"), json);
+            Assert.assertFalse(root.path("source").path("snippet").asText().isBlank(), json);
+            Assert.assertTrue(root.path("source").path("fileContent").asText().contains("class AttachmentReporterUnitTest"),
+                    "The full source file should be embedded for self-contained root-cause analysis.");
+        } finally {
+            TraceEventRecorder.clear();
             Properties.clearForCurrentThread();
         }
     }

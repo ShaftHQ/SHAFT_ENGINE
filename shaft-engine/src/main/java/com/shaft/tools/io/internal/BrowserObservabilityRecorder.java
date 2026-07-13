@@ -257,6 +257,7 @@ public final class BrowserObservabilityRecorder {
             field(json, 3, "method", event.method(), true);
             field(json, 3, "url", event.url(), true);
             numberField(json, 3, "status", event.status(), true);
+            numberField(json, 3, "timestamp", event.timestamp(), true);
             numberField(json, 3, "durationMs", event.durationMs(), true);
             numberField(json, 3, "requestSizeBytes", event.requestSizeBytes(), true);
             numberField(json, 3, "responseSizeBytes", event.responseSizeBytes(), true);
