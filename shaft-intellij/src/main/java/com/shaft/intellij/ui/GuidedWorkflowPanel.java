@@ -698,6 +698,8 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         }
         JsonObject status = AssistantMarkdown.jsonObjectFromMcpOutput(result.output());
         boolean active = isRecorderActive(status);
+        // Feeds the shared readiness strip's recording badge (issue #3500 A4).
+        ShaftRecordingActivity.publish(active);
         if (active) {
             recorderSeenActive = true;
             pollsWithoutActivity = 0;

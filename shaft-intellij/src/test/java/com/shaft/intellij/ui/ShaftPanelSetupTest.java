@@ -1246,10 +1246,16 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertEquals(List.of("Assistant"), labels),
                 () -> assertFalse(selector.isVisible()),
-                // The persistent setup-health chip (issue #3425 A6) rides in the same header.
+                // The persistent setup-health chip (issue #3425 A6) rides in the same header,
+                // extended into the shared readiness strip (issue #3500 O4/A4).
                 () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT MCP health", JLabel.class)),
                 () -> assertNotNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)),
-                () -> assertTrue(containsText(toolWindow, "MCP: verified")));
+                () -> assertTrue(containsText(toolWindow, "MCP: verified")),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT workspace state", JLabel.class)),
+                // No agent was verified in this settings fixture: the strip must say the lane is
+                // optional rather than inventing readiness (issue #3500 honesty pillar).
+                () -> assertTrue(containsText(toolWindow, "Agent: optional")),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT recording activity", JLabel.class)));
     }
 
     @Test
@@ -1447,6 +1453,51 @@ class ShaftPanelSetupTest {
                 () -> assertFalse(markdown.contains("Review before writing files")),
                 () -> assertNull(getField(panel, "pendingCaptureReview")),
                 () -> assertFalse((Boolean) getField(panel, "captureReviewGenerationRunning")));
+    }
+
+    @Test
+    void directCodegenToolDispatchArmsSameStickyReviewGateAsRecordFlow() throws Exception {
+        // Issue #3500 A7: a direct /codegen <recording.json> invocation dispatches
+        // capture_generate_replay straight from dispatchApprovedTool, bypassing the
+        // record -> stop -> startCaptureCodeReview() flow that normally arms
+        // captureReviewGenerationRunning. The gate must arm regardless of entry point so the
+        // sticky review strip still appears once the tool result comes back.
+        ShaftAssistantPanel panel = new ShaftAssistantPanel(null, blankMcpSettings());
+        approvalServiceOf(panel).record(ToolApprovalDecision.APPROVE_ALL_TOOLS, "unused");
+        AssistantCommand.Invocation invocation =
+                AssistantCommand.Invocation.tool("capture_generate_replay", new JsonObject());
+
+        Method startMcpInvocation = ShaftAssistantPanel.class.getDeclaredMethod(
+                "startMcpInvocation", AssistantCommand.Invocation.class);
+        startMcpInvocation.setAccessible(true);
+
+        // A null project means the real MCP dispatch fails with an NPE past the point where
+        // dispatchApprovedTool arms the gate, mirroring
+        // gateToolDispatchesImmediatelyWhenApproveAllToolsFlagIsSet.
+        assertThrows(InvocationTargetException.class, () -> startMcpInvocation.invoke(panel, invocation));
+
+        assertTrue((Boolean) getField(panel, "captureReviewGenerationRunning"),
+                "A direct /codegen dispatch of capture_generate_replay must arm the sticky review gate "
+                        + "just like the record -> stop -> generate flow");
+
+        // Simulate that same dispatch completing successfully, exactly as showResult() receives it
+        // from the real MCP invocation future.
+        showAssistantResult(panel, "capture_generate_replay", ShaftMcpToolResult.success(mcpText("""
+                {
+                  "successful": true,
+                  "codeBlocks": [
+                    {"language":"java","code":"public class DirectCodegenTest {}"}
+                  ]
+                }
+                """)));
+
+        String markdown = transcriptMarkdown(panel);
+        JComponent reviewPanel = findByAccessibleName(panel, "Capture review approval", JComponent.class);
+        assertAll(
+                () -> assertTrue(markdown.contains("public class DirectCodegenTest")),
+                () -> assertTrue(markdown.contains("Review before writing files")),
+                () -> assertNotNull(reviewPanel),
+                () -> assertTrue(reviewPanel.isVisible()));
     }
 
     @Test
@@ -2472,6 +2523,11 @@ class ShaftPanelSetupTest {
                 .filter(button -> !"Copy SHAFT Engine warm-up command".equals(accessibleName(button)))
                 .filter(button -> !"Copy assistant CLI restart command".equals(accessibleName(button)))
                 .filter(button -> !String.valueOf(accessibleName(button)).matches("Copy .+ install command"))
+                // Empty-state suggestion chips (issue #3500 A6) are content affordances that name
+                // the exact request they pre-fill — an icon alone cannot convey that on first run.
+                .filter(button -> !"Record a sample flow".equals(accessibleName(button)))
+                .filter(button -> !"Ask how to assert".equals(accessibleName(button)))
+                .filter(button -> !"Diagnose my last failure".equals(accessibleName(button)))
                 .map(button -> () -> assertIconOnlySymmetric(button)));
     }
 

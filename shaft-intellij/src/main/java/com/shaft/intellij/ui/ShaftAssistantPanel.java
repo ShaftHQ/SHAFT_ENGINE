@@ -187,6 +187,7 @@ final class ShaftAssistantPanel extends JPanel {
     private String activeCaptureRecordingPath = AssistantCommand.DEFAULT_CAPTURE_RECORDING_PATH;
     private String activePlaywrightRecordingPath = AssistantCommand.DEFAULT_PLAYWRIGHT_RECORDING_PATH;
     private RecordingBackend activeRecordingBackend = RecordingBackend.WEBDRIVER;
+    private javax.swing.JPanel emptyStateChips;
     private CaptureReview pendingCaptureReview;
     private boolean generateCaptureReviewAfterStop;
     private boolean captureReviewGenerationRunning;
@@ -553,6 +554,7 @@ final class ShaftAssistantPanel extends JPanel {
         JBScrollPane promptScroll = new JBScrollPane(prompt);
         promptScroll.setMinimumSize(JBUI.size(320, 108));
         promptScroll.setPreferredSize(JBUI.size(560, 120));
+        composer.add(buildEmptyStateChips(), BorderLayout.NORTH);
         composer.add(promptScroll, BorderLayout.CENTER);
         composer.add(cloudKeyPanel, BorderLayout.WEST);
         composer.add(composerFooter, BorderLayout.SOUTH);
@@ -1107,6 +1109,14 @@ final class ShaftAssistantPanel extends JPanel {
     private void dispatchApprovedTool(AssistantCommand.Invocation invocation) {
         addTimeline("Tool selected: " + invocation.toolName());
         addTimeline("Running");
+        // The sticky capture-review strip is keyed off captureReviewGenerationRunning, which the
+        // record -> stop -> generate flow sets in startCaptureCodeReview(). A direct invocation of
+        // the same review/replay tools (e.g. an explicit /codegen <recording.json> or "review
+        // recording" command) must arm the same gate so showResult() shows the persistent review
+        // strip regardless of which entry point produced the result (issue #3500 A7).
+        if (isRecordingCodeReviewTool(invocation.toolName())) {
+            captureReviewGenerationRunning = true;
+        }
         String narration = toolRunNarration(invocation.toolName());
         if (!narration.isBlank()) {
             append("assistant", narration, "");
@@ -1552,6 +1562,15 @@ final class ShaftAssistantPanel extends JPanel {
         showResponse("**SHAFT Assistant (" + toolName + (success ? " OK" : " failed") + ")**\n\n"
                 + body, output);
         addTerminalTimeline(success ? "Completed" : "Failed");
+        if (success && ("capture_start".equals(toolName) || "playwright_record_start".equals(toolName)
+                || "mobile_record_start".equals(toolName))) {
+            // Feeds the shared readiness strip's recording badge (issue #3500 A4).
+            ShaftRecordingActivity.publish(true);
+        }
+        if (success && ("capture_stop".equals(toolName) || "playwright_record_stop".equals(toolName)
+                || "mobile_record_stop".equals(toolName))) {
+            ShaftRecordingActivity.publish(false);
+        }
         if (success && "capture_start".equals(toolName)) {
             scheduleCaptureStartDiagnostic(output);
         }
@@ -2151,6 +2170,35 @@ final class ShaftAssistantPanel extends JPanel {
         }
     }
 
+    /**
+     * First-run empty-state chips (issue #3500 A6): three concrete next actions that pre-fill the
+     * composer instead of executing anything, so the user stays in control of the first send.
+     */
+    private javax.swing.JPanel buildEmptyStateChips() {
+        emptyStateChips = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+        emptyStateChips.setOpaque(false);
+        emptyStateChips.add(emptyStateChip("Record a sample flow",
+                "Record a sample web flow on a practice page, add one assertion, and generate a reviewed test."));
+        emptyStateChips.add(emptyStateChip("Ask how to assert",
+                "How do I add assertions while recording a web flow?"));
+        emptyStateChips.add(emptyStateChip("Diagnose my last failure",
+                "Diagnose my most recent failed test run and propose a fix."));
+        return emptyStateChips;
+    }
+
+    private javax.swing.JButton emptyStateChip(String label, String cannedPrompt) {
+        javax.swing.JButton chip = new javax.swing.JButton(label);
+        chip.getAccessibleContext().setAccessibleName(label);
+        chip.setToolTipText("Fills the message box with this request; review and send it yourself.");
+        chip.setMargin(JBUI.insets(1, 8));
+        chip.addActionListener(event -> {
+            prompt.setText(cannedPrompt);
+            prompt.setCaretPosition(cannedPrompt.length());
+            prompt.requestFocusInWindow();
+        });
+        return chip;
+    }
+
     private void updateActionChrome() {
         if (copyLastResponse == null || copyRawResponse == null || copyTranscript == null
                 || clearTranscript == null || rerunLastPrompt == null || cancel == null
@@ -2160,6 +2208,9 @@ final class ShaftAssistantPanel extends JPanel {
         boolean hasResponse = !lastResponse.isBlank();
         boolean hasRawResponse = !lastRawResponse.isBlank();
         boolean hasTranscript = !transcript.markdown().isBlank() || !toolEvidence.isEmpty();
+        if (emptyStateChips != null) {
+            emptyStateChips.setVisible(!hasTranscript);
+        }
         boolean canRerun = !lastPrompt.isBlank();
         copyLastResponse.setVisible(hasResponse);
         copyLastResponse.setEnabled(hasResponse);

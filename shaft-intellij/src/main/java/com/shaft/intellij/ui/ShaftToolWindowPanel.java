@@ -45,7 +45,7 @@ public final class ShaftToolWindowPanel extends JPanel {
     private ApiRecordingSessionPanel apiRecordingPanel;
     private GuidedWorkflowPanel guidedWorkflowPanel;
     private JLabel workflowSelectorLabel;
-    private JLabel healthChip;
+    private ShaftReadinessSummary readinessSummary;
     private javax.swing.JButton recheckHealth;
 
     public ShaftToolWindowPanel(@NotNull Project project) {
@@ -213,8 +213,9 @@ public final class ShaftToolWindowPanel extends JPanel {
      * offers reconnecting through the setup view instead of leaving a dead tool window.
      */
     private JComponent buildHealthChip() {
-        healthChip = new JLabel();
-        healthChip.getAccessibleContext().setAccessibleName("SHAFT MCP health");
+        // Shared readiness summary (issue #3500 O4/A4): MCP, workspace, agent lane, and live
+        // recording activity answered by one component with the same words as the setup ready row.
+        readinessSummary = new ShaftReadinessSummary(settings, projectBasePath());
         recheckHealth = new javax.swing.JButton("Recheck");
         recheckHealth.getAccessibleContext().setAccessibleName("Recheck SHAFT MCP health");
         recheckHealth.setToolTipText("Run a live SHAFT MCP connection check now");
@@ -223,9 +224,15 @@ public final class ShaftToolWindowPanel extends JPanel {
         applyHealthState(settings.mcpReady() ? HealthState.VERIFIED : HealthState.UNKNOWN, "");
         JPanel chip = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         chip.setOpaque(false);
-        chip.add(healthChip);
+        chip.add(readinessSummary);
         chip.add(recheckHealth);
         return chip;
+    }
+
+    private java.nio.file.Path projectBasePath() {
+        return project == null || project.getBasePath() == null
+                ? null
+                : java.nio.file.Path.of(project.getBasePath());
     }
 
     private void recheckMcpHealth() {
@@ -236,7 +243,7 @@ public final class ShaftToolWindowPanel extends JPanel {
             return;
         }
         recheckHealth.setEnabled(false);
-        healthChip.setText("MCP: checking...");
+        readinessSummary.applyMcpState(ShaftReadinessSummary.McpState.CHECKING, "");
         java.nio.file.Path root = project == null || project.getBasePath() == null
                 ? java.nio.file.Path.of(".")
                 : java.nio.file.Path.of(project.getBasePath());
@@ -253,22 +260,13 @@ public final class ShaftToolWindowPanel extends JPanel {
     }
 
     private void applyHealthState(HealthState state, String detail) {
-        healthChip.setText(switch (state) {
-            case VERIFIED -> "MCP: verified";
-            case FAILED -> "MCP: failed";
-            default -> "MCP: not checked";
-        });
-        healthChip.setForeground(switch (state) {
-            case VERIFIED -> ShaftStatusPresentation.success();
-            case FAILED -> ShaftStatusPresentation.error();
-            default -> ShaftStatusPresentation.pending();
-        });
-        healthChip.setToolTipText(switch (state) {
-            case VERIFIED -> "SHAFT MCP passed its last connection check. Click Recheck to verify again.";
-            case FAILED -> "SHAFT MCP check failed" + (detail == null || detail.isBlank() ? "" : ": " + detail)
-                    + ". Recheck, or reopen setup from the Assistant's Configure action.";
-            default -> "SHAFT MCP has not been live-checked in this window yet. Click Recheck to verify.";
-        });
+        readinessSummary.applyMcpState(switch (state) {
+            case VERIFIED -> ShaftReadinessSummary.McpState.VERIFIED;
+            case FAILED -> ShaftReadinessSummary.McpState.FAILED;
+            default -> ShaftReadinessSummary.McpState.UNKNOWN;
+        }, detail);
+        readinessSummary.applyAgentLane(settings.agentLaneReady);
+        readinessSummary.applyWorkspace(projectBasePath());
     }
 
     private enum HealthState { UNKNOWN, VERIFIED, FAILED }
