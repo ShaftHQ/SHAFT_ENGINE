@@ -1,6 +1,5 @@
 package com.shaft.intellij.ui;
 
-import com.google.gson.JsonObject;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;

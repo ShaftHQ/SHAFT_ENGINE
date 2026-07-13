@@ -68,7 +68,15 @@ final class MultiToolListServer {
 
     private static int requestId(String message) {
         Matcher matcher = CONTENT_ID.matcher(message);
-        return matcher.find() ? Integer.parseInt(matcher.group(1)) : 1;
+        if (!matcher.find()) {
+            return 1;
+        }
+        try {
+            return Integer.parseInt(matcher.group(1));
+        } catch (NumberFormatException overflow) {
+            // The digit-only regex makes overflow the sole parse failure; keep the fake server alive.
+            return 1;
+        }
     }
 
     private static String requestMethod(String message) {

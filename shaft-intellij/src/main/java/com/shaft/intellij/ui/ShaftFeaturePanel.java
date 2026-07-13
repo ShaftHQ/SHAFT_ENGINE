@@ -33,7 +33,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.datatransfer.StringSelection;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;

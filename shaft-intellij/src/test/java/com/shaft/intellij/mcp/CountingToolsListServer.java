@@ -65,9 +65,10 @@ final class CountingToolsListServer {
     }
 
     private static int incrementAndGet(Path counterFile) throws IOException {
-        int current = Files.exists(counterFile)
-                ? Integer.parseInt(Files.readString(counterFile, StandardCharsets.UTF_8).trim())
-                : 0;
+        int current = 0;
+        if (Files.exists(counterFile)) {
+            current = parseIntOrDefault(Files.readString(counterFile, StandardCharsets.UTF_8).trim(), 0);
+        }
         int next = current + 1;
         Files.writeString(counterFile, String.valueOf(next), StandardCharsets.UTF_8);
         return next;
@@ -82,7 +83,7 @@ final class CountingToolsListServer {
      */
     static int callCount(String rawPayload) {
         Matcher matcher = CALL_COUNT.matcher(rawPayload == null ? "" : rawPayload);
-        return matcher.find() ? Integer.parseInt(matcher.group(1)) : -1;
+        return matcher.find() ? parseIntOrDefault(matcher.group(1), -1) : -1;
     }
 
     private static void writeMessage(OutputStream output, int requestId, String responseTemplate) throws IOException {
@@ -95,7 +96,16 @@ final class CountingToolsListServer {
 
     private static int requestId(String message) {
         Matcher matcher = CONTENT_ID.matcher(message);
-        return matcher.find() ? Integer.parseInt(matcher.group(1)) : 1;
+        return matcher.find() ? parseIntOrDefault(matcher.group(1), 1) : 1;
+    }
+
+    /** The digit-only regexes make overflow the sole parse failure; fall back instead of crashing the fake server. */
+    private static int parseIntOrDefault(String value, int fallback) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException overflow) {
+            return fallback;
+        }
     }
 
     private static String requestMethod(String message) {

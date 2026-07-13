@@ -44,7 +44,7 @@ Agents should use these exact tool names instead of guessing or listing tools at
 - `capture_start_codegen` — starts SHAFT Capture with Playwright-codegen-compatible options; while it is active, element_* and natural_act tools drive the recorded browser directly, so an agent can perform the described actions, capture_stop, then generate code
 - `capture_codegen_features` — returns Playwright codegen features and how SHAFT Capture/MCP maps each feature
 - `capture_status` — returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status; when no session is active the warnings list persisted recordings that can be turned into code without a live session
-- `capture_stop` — stops SHAFT Capture; after COMPLETED, show outputPath and generate code by passing it as sessionPath to capture_code_blocks or capture_generate_replay
+- `capture_stop` — stops SHAFT Capture; after COMPLETED, show outputPath and generate replay-proven code by passing it as sessionPath to capture_generate_replay (or capture_code_blocks for a faster, unproven draft)
 - `capture_api_start` — starts SHAFT Capture with API network recording enabled
 - `capture_api_status` — returns SHAFT Capture session status including network transaction count and recent endpoints
 - `capture_api_stop` — stops SHAFT API Capture with the same single-session lock guarantee as capture_stop
@@ -69,8 +69,8 @@ Agents should use these exact tool names instead of guessing or listing tools at
 
 ## Doctor (DoctorService)
 
-- `doctor_analyze_failed_allure` — analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; when allureResultPaths is empty, automatically analyzes the most recent allure-results found in the workspace
-- `playwright_doctor_analyze_failed_allure` — analyzes failed Allure results and returns SHAFT Playwright remediation code blocks; when allureResultPaths is empty, automatically analyzes the most recent allure-results found in the workspace
+- `doctor_analyze_failed_allure` — analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace
+- `playwright_doctor_analyze_failed_allure` — analyzes failed Allure results and returns SHAFT Playwright remediation code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace
 - `doctor_suggest_fix` — returns copy-paste remediation code blocks from an existing SHAFT Doctor report
 - `playwright_doctor_suggest_fix` — returns SHAFT Playwright remediation code blocks from an existing Doctor report
 - `doctor_propose_healed_locator` — maps a verified SHAFT Heal report to one reviewable locator patch without editing source or publishing
