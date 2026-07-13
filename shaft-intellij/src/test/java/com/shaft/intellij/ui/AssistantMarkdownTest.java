@@ -427,6 +427,31 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void playwrightRecordingStatusInheritsTheSharedGlossaryRendering() {
+        // The Playwright recorder returns the same McpMobileRecordingStatus DTO, and markdown
+        // dispatch is structural (not tool-name based), so playwright_record_stop must render the
+        // same Steps / Readiness / Review-code treatment as mobile without a dedicated branch.
+        String stopped = AssistantMarkdown.fromMcpOutput("playwright_record_stop", mcpText("""
+                {
+                  "active": false,
+                  "outputPath": "recordings/playwright.json",
+                  "mode": "playwright",
+                  "actionCount": 4,
+                  "includeSensitiveValues": false,
+                  "warnings": [],
+                  "readiness": "READY"
+                }
+                """));
+
+        assertAll(
+                () -> assertTrue(stopped.contains("**Steps:** 4")),
+                () -> assertFalse(stopped.contains("**Actions:**")),
+                () -> assertTrue(stopped.contains("READY")),
+                () -> assertTrue(stopped.contains("Review code next")),
+                () -> assertTrue(stopped.contains("Generate a SHAFT test from recordings/playwright.json")));
+    }
+
+    @Test
     void formatsDoctorAnalysisReportWithActionsSnippetsAndReportPaths() {
         String markdown = AssistantMarkdown.fromMcpOutput("doctor_analyze_failed_allure", mcpText("""
                 {

@@ -2,6 +2,7 @@ package com.shaft.mcp;
 
 import com.shaft.capture.format.CaptureJsonCodec;
 import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureSession;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -10,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -141,6 +143,62 @@ class PlaywrightServiceTest {
 
         assertTrue(result.codeBlocks().getFirst().code().contains("probably fail"));
         assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("probably fail")));
+    }
+
+    @Test
+    void statusSpeaksSharedReadinessVocabularyLikeWebAndMobile() {
+        McpPlaywrightRecordingService recorder = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+
+        // Idle (never started) is READY.
+        assertEquals(CaptureReadiness.State.READY, recorder.status().readiness());
+
+        Path recording = temp.resolve("recordings/playwright-readiness.json");
+        recorder.start(recording.toString(), "playwright", false);
+        recorder.record(
+                "click",
+                locatorStrategy.CSS,
+                "#login",
+                Map.of(),
+                "driver.element().click(SHAFT.GUI.Locator.hasTagName(\"button\"));",
+                "driver.element().click(SHAFT.GUI.Locator.hasTagName(\"button\"));",
+                false);
+        McpMobileRecordingStatus active = recorder.status();
+        assertTrue(active.active());
+        assertEquals(1, active.actionCount());
+        assertEquals(CaptureReadiness.State.READY, active.readiness());
+        assertEquals(CaptureReadiness.State.READY, recorder.stop(false).readiness());
+    }
+
+    @Test
+    void coordinateFallbackStepsMakeReadinessRisky() {
+        McpPlaywrightRecordingService recorder = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("recordings/playwright-risky.json");
+
+        recorder.start(recording.toString(), "playwright", true);
+        recorder.record(
+                "clickCoordinates",
+                null,
+                "",
+                Map.of("x", "10", "y", "20"),
+                "driver.mouse().click(10, 20);",
+                "driver.mouse().click(10, 20);",
+                false);
+
+        assertEquals(CaptureReadiness.State.RISKY, recorder.status().readiness());
+        assertEquals(CaptureReadiness.State.RISKY, recorder.stop(false).readiness());
+    }
+
+    @Test
+    void stoppingWithNoStepsIsBlocked() {
+        McpPlaywrightRecordingService recorder = new McpPlaywrightRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("recordings/playwright-empty.json");
+
+        recorder.start(recording.toString(), "playwright", false);
+        McpMobileRecordingStatus stopped = recorder.stop(false);
+
+        assertEquals(0, stopped.actionCount());
+        assertEquals(CaptureReadiness.State.BLOCKED, stopped.readiness());
+        assertEquals(CaptureReadiness.State.BLOCKED, recorder.stop(false).readiness());
     }
 
     private static void assertArtifactDoesNotContain(Path path, String rawValue) throws Exception {
