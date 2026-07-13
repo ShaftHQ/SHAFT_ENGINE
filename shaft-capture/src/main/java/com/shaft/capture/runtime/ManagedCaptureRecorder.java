@@ -421,6 +421,11 @@ class ManagedCaptureRecorder {
         List<String> arguments = new ArrayList<>();
         arguments.add(profileArgument);
         arguments.add("--profile-directory=Default");
+        // A back/forward-cache restore resumes a page whose recorder instance has a dead BiDi
+        // script channel and a loopback sink whose fetches reject, silently losing every signal
+        // the restored page emits (most importantly the user's back/forward navigation itself).
+        // Recording fidelity needs fresh documents; bfcache is only a load-time optimization.
+        arguments.add("--disable-features=BackForwardCache");
         if (!request.options().userAgent().isBlank()) {
             arguments.add("--user-agent=" + request.options().userAgent());
         }
@@ -896,6 +901,8 @@ class ManagedCaptureRecorder {
                     activeDriver,
                     request.options().testIdAttributes(),
                     eventSinkStepsEndpoint(),
+                    eventSinkToken(),
+                    eventSinkEndpoint(),
                     eventSinkToken());
             // The polling collector reads bidiActivityGate to back off its own redundant script
             // round-trips once BiDi is proven healthy; this wrapper is what feeds that gate,

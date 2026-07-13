@@ -8,6 +8,7 @@ import org.openqa.selenium.bidi.script.ChannelValue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -21,7 +22,13 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
     private final List<String> testIdAttributes;
     private final String stepsEndpoint;
     private final String stepsToken;
+    private final String eventEndpoint;
+    private final String eventToken;
     private final Map<String, String> promptTypes = new ConcurrentHashMap<>();
+    // A subframe URL change is never a user navigation step (ads and embeds navigate on their
+    // own); only top-level contexts may produce navigation signals. Child contexts are tracked
+    // from their creation events, which BiDi delivers before any navigation within them.
+    private final Set<String> childContexts = ConcurrentHashMap.newKeySet();
     private Script script;
     private BrowsingContextInspector contexts;
     private String preloadId;
@@ -60,6 +67,29 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
             List<String> testIdAttributes,
             String stepsEndpoint,
             String stepsToken) {
+        this(driver, testIdAttributes, stepsEndpoint, stepsToken, "", "");
+    }
+
+    /**
+     * Creates a BiDi collector whose preload script also posts every signal to the loopback
+     * event sink, so preload-installed recorder instances have two delivery channels (the BiDi
+     * script channel and the HTTP sink). Single-channel preload delivery lost signals from
+     * back/forward-cache restored pages.
+     *
+     * @param driver BiDi-capable driver
+     * @param testIdAttributes locator test-id attributes
+     * @param stepsEndpoint optional loopback steps query endpoint
+     * @param stepsToken optional loopback steps query token
+     * @param eventEndpoint optional loopback event endpoint
+     * @param eventToken optional loopback event token
+     */
+    public BidiBrowserEventCollector(
+            WebDriver driver,
+            List<String> testIdAttributes,
+            String stepsEndpoint,
+            String stepsToken,
+            String eventEndpoint,
+            String eventToken) {
         if (driver == null) {
             throw new IllegalArgumentException("Capture WebDriver is required.");
         }
@@ -67,6 +97,8 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
         this.testIdAttributes = testIdAttributes == null ? List.of() : List.copyOf(testIdAttributes);
         this.stepsEndpoint = stepsEndpoint == null ? "" : stepsEndpoint;
         this.stepsToken = stepsToken == null ? "" : stepsToken;
+        this.eventEndpoint = eventEndpoint == null ? "" : eventEndpoint;
+        this.eventToken = eventToken == null ? "" : eventToken;
     }
 
     @Override
@@ -88,20 +120,33 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
             }
         });
         preloadId = script.addPreloadScript(
-                BrowserEventScript.preloadFunction(testIdAttributes, stepsEndpoint, stepsToken),
+                BrowserEventScript.preloadFunction(
+                        testIdAttributes, stepsEndpoint, stepsToken, eventEndpoint, eventToken),
                 List.of(new ChannelValue(CHANNEL)));
 
         contexts = new BrowsingContextInspector(driver);
-        contexts.onNavigationCommitted(info -> signalConsumer.accept(BrowserSignal.generated(
-                "navigation",
-                info.getBrowsingContextId(),
-                Map.of("url", info.getUrl()),
-                Map.of("action", "OPEN"))));
-        contexts.onHistoryUpdated(info -> signalConsumer.accept(BrowserSignal.generated(
-                "navigation",
-                info.getBrowsingContextId(),
-                Map.of("url", info.getUrl()),
-                Map.of("action", "OPEN"))));
+        contexts.onNavigationCommitted(info -> {
+            if (childContexts.contains(info.getBrowsingContextId())) {
+                return;
+            }
+            signalConsumer.accept(BrowserSignal.generated(
+                    "navigation",
+                    info.getBrowsingContextId(),
+                    Map.of("url", info.getUrl()),
+                    Map.of("action", "OPEN")));
+        });
+        contexts.onHistoryUpdated(info -> {
+            if (childContexts.contains(info.getBrowsingContextId())) {
+                return;
+            }
+            // pushState/replaceState rewrites are tagged so the pipeline can keep the current
+            // URL fresh without ever recording them as user navigation steps.
+            signalConsumer.accept(BrowserSignal.generated(
+                    "navigation",
+                    info.getBrowsingContextId(),
+                    Map.of("url", info.getUrl()),
+                    Map.of("action", "OPEN", "navigationSource", "history")));
+        });
         contexts.onBrowsingContextCreated(info -> {
             if (isTopLevel(info)) {
                 signalConsumer.accept(BrowserSignal.generated(
@@ -109,6 +154,8 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
                         info.getId(),
                         Map.of("url", info.getUrl()),
                         Map.of()));
+            } else {
+                childContexts.add(info.getId());
             }
         });
         contexts.onBrowsingContextDestroyed(info -> {
@@ -118,6 +165,8 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
                         info.getId(),
                         Map.of("url", info.getUrl()),
                         Map.of()));
+            } else {
+                childContexts.remove(info.getId());
             }
         });
         contexts.onUserPromptOpened(prompt ->
