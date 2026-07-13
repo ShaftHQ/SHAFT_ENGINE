@@ -32,7 +32,7 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.5.35</version>
+                <version>1.5.38</version>
             </dependency>
             <!-- Import the reactor's selenium-bom before spring-boot-dependencies: Spring Boot
                  also manages org.seleniumhq.selenium artifacts (at an older version), and the
