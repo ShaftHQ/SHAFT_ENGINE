@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.model.CaptureReadiness;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -49,7 +50,8 @@ final class McpMobileRecordingService {
 
     synchronized McpMobileRecordingStatus status() {
         if (recording == null) {
-            return new McpMobileRecordingStatus(false, outputPath, "", 0, false, List.of());
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false, List.of(),
+                    CaptureReadiness.State.READY);
         }
         return new McpMobileRecordingStatus(
                 true,
@@ -57,12 +59,14 @@ final class McpMobileRecordingService {
                 recording.mode(),
                 recording.actions().size(),
                 recording.includeSensitiveValues(),
-                recording.warnings());
+                recording.warnings(),
+                readinessFor(recording, false));
     }
 
     synchronized McpMobileRecordingStatus stop(boolean discard) {
         if (recording == null) {
-            return new McpMobileRecordingStatus(false, outputPath, "", 0, false, List.of("No active mobile recording."));
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
+                    List.of("No active mobile recording."), CaptureReadiness.State.BLOCKED);
         }
         McpMobileRecording closed = new McpMobileRecording(
                 recording.schemaVersion(),
@@ -86,8 +90,30 @@ final class McpMobileRecordingService {
         }
         recording = null;
         outputPath = null;
+        CaptureReadiness.State readiness = discard
+                ? CaptureReadiness.State.READY
+                : readinessFor(closed, true);
         return new McpMobileRecordingStatus(false, finalPath, closed.mode(), count, closed.includeSensitiveValues(),
-                discard ? List.of("Recording discarded.") : closed.warnings());
+                discard ? List.of("Recording discarded.") : closed.warnings(), readiness);
+    }
+
+    /**
+     * Rolls a mobile recording's step warnings up into the shared Ready/Risky/Blocked verdict, so
+     * the mobile status speaks the same readiness language as the web Capture recorder (#3497). A
+     * stopped recording with no steps is {@code BLOCKED} (nothing to generate); coordinate-fallback
+     * or redaction warnings on any step make it {@code RISKY}; a clean recording is {@code READY}.
+     *
+     * @param recording the live or just-closed recording
+     * @param stopped whether the recording has been stopped
+     * @return the readiness verdict
+     */
+    private static CaptureReadiness.State readinessFor(McpMobileRecording recording, boolean stopped) {
+        if (stopped && recording.actions().isEmpty()) {
+            return CaptureReadiness.State.BLOCKED;
+        }
+        return replayWarnings(recording).isEmpty()
+                ? CaptureReadiness.State.READY
+                : CaptureReadiness.State.RISKY;
     }
 
     synchronized McpMobileRecordedAction record(
