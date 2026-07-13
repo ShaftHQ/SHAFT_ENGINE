@@ -49,6 +49,7 @@
     assertionMode: false,
     locatorMode: false,
     locatorPreferences: {},
+    panelPosition: null,
     readinessState: "READY",
     readinessWarnings: [],
     actions: [],
@@ -72,6 +73,10 @@
   uiState.locatorPreferences = uiState.locatorPreferences && typeof uiState.locatorPreferences === "object"
     ? uiState.locatorPreferences
     : {};
+  uiState.panelPosition = uiState.panelPosition && typeof uiState.panelPosition === "object"
+      && Number.isFinite(uiState.panelPosition.left) && Number.isFinite(uiState.panelPosition.top)
+    ? uiState.panelPosition
+    : null;
   uiState.readinessState = ["READY", "RISKY", "BLOCKED"].includes(uiState.readinessState)
     ? uiState.readinessState
     : "READY";
@@ -89,6 +94,7 @@
         assertionMode: uiState.assertionMode,
         locatorMode: uiState.locatorMode,
         locatorPreferences: uiState.locatorPreferences,
+        panelPosition: uiState.panelPosition,
         readinessState: uiState.readinessState,
         readinessWarnings: uiState.readinessWarnings.slice(-20),
         actions: uiState.actions.slice(-80),
@@ -167,6 +173,9 @@
       uiState.actions.map(item => [clientActionId(item), item]));
     const merged = steps
       .filter(step => step && step.clientActionId)
+      // A soft-deleted step is gone locally but the server only learns about the delete after
+      // the undo grace window; never let a sync resurrect it in the meantime.
+      .filter(step => !(pendingDelete && String(step.clientActionId) === clientActionId(pendingDelete.item)))
       .sort((left, right) => Number(left.sequence || 0) - Number(right.sequence || 0))
       .map(step => {
         const existing = localByRemoteId.get(step.clientActionId);
@@ -1315,6 +1324,64 @@
         font-size: 12px;
         overflow-wrap: anywhere;
       }
+      #shaft-capture-undo-note {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 0 0 7px;
+        padding: 4px 8px;
+        border: 1px solid var(--shaft-warn);
+        border-radius: 6px;
+        background: rgba(183, 121, 31, .12);
+        font-size: 12px;
+      }
+      #shaft-capture-undo-note[hidden] { display: none; }
+      #shaft-capture-undo {
+        min-width: 0;
+        height: auto;
+        padding: 3px 10px;
+        line-height: 1.2;
+        font-weight: 700;
+      }
+      #shaft-capture-ui .step-badge {
+        display: inline-block;
+        margin-right: 6px;
+        padding: 0 6px;
+        border: 1px solid var(--shaft-primary);
+        border-radius: 999px;
+        color: var(--shaft-primary);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: .3px;
+        text-transform: uppercase;
+        vertical-align: 1px;
+      }
+      #shaft-capture-ui .step-badge.warn {
+        border-color: var(--shaft-warn);
+        color: var(--shaft-warn);
+      }
+      #shaft-capture-help {
+        margin: 8px 10px 0;
+        padding: 8px 10px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 8px;
+        background: var(--shaft-surface);
+        font-size: 12px;
+      }
+      #shaft-capture-help ul { margin: 6px 0 0; padding-left: 18px; }
+      #shaft-capture-help li { margin: 3px 0; overflow-wrap: anywhere; }
+      #shaft-capture-help kbd {
+        padding: 0 4px;
+        border: 1px solid var(--shaft-border);
+        border-radius: 4px;
+        font-size: 11px;
+      }
+      #shaft-capture-ui[data-minimized="true"] #shaft-capture-help { display: none; }
+      #shaft-capture-ui header { cursor: grab; touch-action: none; }
+      #shaft-capture-ui header:active { cursor: grabbing; }
+      #shaft-capture-ui header button { cursor: pointer; }
+      #shaft-capture-help-toggle { font-weight: 700; }
       #shaft-capture-stop-confirm {
         margin: 8px 10px 0;
         padding: 9px 10px;
@@ -1706,20 +1773,67 @@
     }
     sendVerification(target, payload);
   };
+  // Soft delete with an undo grace window (#3496 B3): the row disappears immediately but the
+  // step_delete signal is only sent once the window elapses, so Undo needs no server-side
+  // reverse operation — the server never learned about the delete.
+  const PENDING_DELETE_GRACE_MS = 5000;
+  let pendingDelete = null;
+  const undoNote = show => {
+    const note = document.getElementById("shaft-capture-undo-note");
+    if (note) note.hidden = !show;
+  };
+  const commitPendingDelete = () => {
+    if (!pendingDelete) return;
+    const committed = pendingDelete;
+    clearTimeout(committed.timer);
+    pendingDelete = null;
+    undoNote(false);
+    send({
+      kind: "step_delete",
+      page: page(),
+      data: {
+        clientActionId: clientActionId(committed.item)
+      }
+    });
+  };
+  const undoDelete = () => {
+    if (!pendingDelete) return;
+    const restored = pendingDelete;
+    clearTimeout(restored.timer);
+    pendingDelete = null;
+    const copy = uiState.actions.slice();
+    copy.splice(Math.min(Math.max(restored.index, 0), copy.length), 0, restored.item);
+    uiState.actions = copy;
+    persist();
+    undoNote(false);
+    renderActions();
+  };
   const deleteAction = item => {
+    commitPendingDelete();
+    const index = uiState.actions.findIndex(action => action.id === item.id);
     uiState.actions = uiState.actions.filter(action => action.id !== item.id);
     if (item.mergeKey && uiState.currentInputActionKey === item.mergeKey) {
       uiState.currentInputActionKey = "";
     }
     persist();
-    send({
-      kind: "step_delete",
-      page: page(),
-      data: {
-        clientActionId: clientActionId(item)
-      }
-    });
+    pendingDelete = {item, index, timer: setTimeout(commitPendingDelete, PENDING_DELETE_GRACE_MS)};
+    undoNote(true);
     renderActions();
+  };
+  // User-facing kind badge derived from the announced description (#3496 C2).
+  const stepKind = item => {
+    const value = String(item.text || "");
+    if (/^(Click|Double-click) /.test(value)) return "Click";
+    if (/^Type into /.test(value)) return "Type";
+    if (/^Select /.test(value)) return "Select";
+    if (/^Toggle /.test(value)) return "Toggle";
+    if (/^Upload /.test(value)) return "Upload";
+    if (/^Press /.test(value)) return "Keys";
+    if (/^(Navigate to|Open) /.test(value)) return "Navigate";
+    if (/^(Assert|Verify) /.test(value)) return "Assert";
+    if (/^Pin /.test(value)) return "Pin";
+    if (/^Stop recording/.test(value)) return "Stop";
+    return "Step";
   };
   function renderActions() {
     const list = document.getElementById("shaft-capture-action-list");
@@ -1730,11 +1844,15 @@
       const body = document.createElement("div");
       body.className = "action-row";
       const textWrap = document.createElement("span");
+      const details = item.details || {};
+      const badge = document.createElement("span");
+      badge.className = "step-badge" + (details.warning ? " warn" : "");
+      badge.textContent = stepKind(item);
+      textWrap.appendChild(badge);
       const labelNode = document.createElement("span");
       labelNode.textContent = item.text;
       textWrap.appendChild(labelNode);
       const detail = document.createElement("small");
-      const details = item.details || {};
       detail.textContent = [details.locator, details.warning].filter(Boolean).join(" | ");
       if (detail.textContent) textWrap.appendChild(detail);
       const assert = document.createElement("button");
@@ -1893,6 +2011,7 @@
     }
   };
   const confirmStop = () => {
+    commitPendingDelete();
     closeStopConfirm();
     uiState.stopped = true;
     lastClickEmission = null;
@@ -1950,6 +2069,7 @@
         <button id="shaft-capture-assert" type="button" title="Add assertion" aria-label="Add assertion" aria-pressed="false">${icon("assert")}</button>
         <button id="shaft-capture-pick" type="button" title="Toggle locator picker" aria-label="Toggle locator picker" aria-pressed="false">${icon("locator")}</button>
         <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
+        <button id="shaft-capture-help-toggle" type="button" title="Show recorder help" aria-label="Show recorder help" aria-expanded="false">?</button>
         <button id="shaft-capture-minimize" type="button" aria-expanded="true"></button>
       </header>
       <div id="shaft-capture-status" class="status-chip shaft-capture-readiness">
@@ -1958,9 +2078,20 @@
         <span id="shaft-capture-step-count"></span>
       </div>
       <div id="shaft-capture-warning" hidden></div>
+      <div id="shaft-capture-help" hidden>
+        <strong>Recorder controls</strong>
+        <ul>
+          <li><strong>Pause / Resume</strong> &mdash; stop capturing browser actions temporarily.</li>
+          <li><strong>Add assertion</strong> &mdash; verify an element or the page; the picking click is not recorded. <kbd>Esc</kbd> cancels.</li>
+          <li><strong>Pick locator</strong> &mdash; rank locators for any element without recording a step. <kbd>Esc</kbd> cancels.</li>
+          <li><strong>Stop</strong> &mdash; asks for confirmation, shows where the session is saved, then closes the browser.</li>
+          <li><strong>Move the panel</strong> &mdash; drag this header; the position is remembered for this session.</li>
+          <li><strong>Deleted a step by mistake?</strong> &mdash; use Undo within 5 seconds.</li>
+        </ul>
+      </div>
       <div id="shaft-capture-stop-confirm" hidden></div>
       <div id="shaft-capture-locator-panel" hidden></div>
-      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><div id="shaft-capture-ignored-note" hidden></div><ol id="shaft-capture-action-list"></ol></div>
+      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><div id="shaft-capture-ignored-note" hidden></div><div id="shaft-capture-undo-note" hidden><span>Step deleted.</span><button id="shaft-capture-undo" type="button">Undo</button></div><ol id="shaft-capture-action-list"></ol></div>
     `;
     document.body.appendChild(panel);
     document.getElementById("shaft-capture-pause").addEventListener("click", () => {
@@ -2018,7 +2149,62 @@
       persist();
       setStatus();
     });
+    document.getElementById("shaft-capture-help-toggle").addEventListener("click", () => {
+      const help = document.getElementById("shaft-capture-help");
+      const toggle = document.getElementById("shaft-capture-help-toggle");
+      if (!help || !toggle) return;
+      help.hidden = !help.hidden;
+      toggle.setAttribute("aria-expanded", String(!help.hidden));
+    });
+    document.getElementById("shaft-capture-undo").addEventListener("click", undoDelete);
+    installPanelDrag(panel);
+    if (uiState.panelPosition) {
+      applyPanelPosition(panel, uiState.panelPosition.left, uiState.panelPosition.top);
+    }
     renderActions();
+  };
+  // Draggable panel (#3496 B1): the header is the drag handle; the remembered position is
+  // page-session-scoped via the same top-frame-only persisted UI state as everything else.
+  const applyPanelPosition = (panel, left, top) => {
+    const width = panel.offsetWidth || 380;
+    const height = panel.offsetHeight || 520;
+    const clampedLeft = Math.min(Math.max(left, 0), Math.max(0, innerWidth - width));
+    const clampedTop = Math.min(Math.max(top, 0), Math.max(0, innerHeight - height));
+    panel.style.left = clampedLeft + "px";
+    panel.style.top = clampedTop + "px";
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    return {left: clampedLeft, top: clampedTop};
+  };
+  const installPanelDrag = panel => {
+    const header = panel.querySelector("header");
+    if (!header) return;
+    let dragStart = null;
+    header.addEventListener("pointerdown", event => {
+      // Toolbar buttons keep their click behavior; only the header surface drags.
+      if (event.target.closest("button")) return;
+      const rect = panel.getBoundingClientRect();
+      dragStart = {offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top};
+      header.setPointerCapture(event.pointerId);
+    });
+    header.addEventListener("pointermove", event => {
+      if (!dragStart) return;
+      applyPanelPosition(panel, event.clientX - dragStart.offsetX, event.clientY - dragStart.offsetY);
+    });
+    const endDrag = event => {
+      if (!dragStart) return;
+      dragStart = null;
+      try {
+        header.releasePointerCapture(event.pointerId);
+      } catch (ignored) {
+        // The capture may already be gone (e.g. pointercancel).
+      }
+      const rect = panel.getBoundingClientRect();
+      uiState.panelPosition = applyPanelPosition(panel, rect.left, rect.top);
+      persist();
+    };
+    header.addEventListener("pointerup", endDrag);
+    header.addEventListener("pointercancel", endDrag);
   };
   const schedulePanel = () => {
     renderPanel();

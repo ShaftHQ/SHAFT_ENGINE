@@ -739,13 +739,31 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
                 || "STOPPING".equalsIgnoreCase(state);
     }
 
+    // Mirrors the overlay's pill glossary (#3496 B7): mode, steps count, and human-cased
+    // readiness read identically in both surfaces, and either surface can stop safely.
     private static String activeStatusText(JsonObject status) {
-        StringBuilder text = new StringBuilder("Recording ACTIVE - ").append(countText(status));
+        StringBuilder text = new StringBuilder("Recording · ").append(countText(status));
+        String readiness = readinessLabel(status);
+        if (!readiness.isBlank()) {
+            text.append(" · ").append(readiness);
+        }
         if (status != null && status.has("currentUrl")
                 && !status.get("currentUrl").getAsString().isBlank()) {
-            text.append(" - ").append(displayUrl(status.get("currentUrl").getAsString()));
+            text.append(" · ").append(displayUrl(status.get("currentUrl").getAsString()));
         }
-        return text.append(". Stop recording ends the session.").toString();
+        return text.append(". Stop here or in the browser overlay - both save the session.").toString();
+    }
+
+    private static String readinessLabel(JsonObject status) {
+        if (status == null || !status.has("readiness")) {
+            return "";
+        }
+        return switch (status.get("readiness").getAsString().toUpperCase(java.util.Locale.ROOT)) {
+            case "READY" -> "Ready";
+            case "RISKY" -> "Risky";
+            case "BLOCKED" -> "Blocked";
+            default -> "";
+        };
     }
 
     // Recorded units read "steps" in every user-facing surface (shared authoring glossary,
