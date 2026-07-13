@@ -8,6 +8,7 @@ import com.shaft.capture.model.Checkpoint;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -350,10 +351,10 @@ class ManagedCaptureRecorderBrowserTest {
             waitFor(() -> elementPresent(driver, assertionChoice("Element")));
             driver.findElement(assertionChoice("Element")).click();
             waitFor(() -> driver.findElement(By.id("shaft-capture-status")).getText()
-                    .contains("Assertion mode"));
+                    .contains("Asserting"));
             driver.findElement(By.id("shaft-capture-assert")).click();
             waitFor(() -> !driver.findElement(By.id("shaft-capture-status")).getText()
-                    .contains("Assertion mode"));
+                    .contains("Asserting"));
             assertFalse(driver.findElement(By.id("shaft-capture-action-list")).getText()
                             .contains("click the target element"),
                     "Cancelling an in-progress element assertion must not leave a placeholder row.");
@@ -770,6 +771,83 @@ class ManagedCaptureRecorderBrowserTest {
                         + "return Array.from(l.querySelectorAll('li'))"
                         + ".map(li => (li.textContent || '').trim()).join(' | ');");
         return String.valueOf(value);
+    }
+
+    /**
+     * Issue #3496 P0: the overlay speaks the shared authoring glossary — readiness and mode render
+     * as separate pills ("Ready" / "Recording"), recorded units read "steps", and the Stop button
+     * opens a pre-close confirmation that names the saved session path and the "Review code" next
+     * action BEFORE the STOP control is sent (the browser closes almost immediately afterwards, so
+     * post-stop copy would never be readable).
+     */
+    @Test
+    void overlayStatusPillsAndStopConfirmGuideTheSession(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("pills.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("pills-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-status")));
+
+            String statusText = driver.findElement(By.id("shaft-capture-status")).getText();
+            assertTrue(statusText.contains("Ready"),
+                    "The readiness pill must read 'Ready', got: " + statusText);
+            assertTrue(statusText.contains("Recording"),
+                    "The mode pill must read 'Recording', got: " + statusText);
+            assertTrue(statusText.contains("step"),
+                    "Recorded units must be called steps, never events, got: " + statusText);
+            assertFalse(statusText.contains("event"),
+                    "Recorded units must be called steps, never events, got: " + statusText);
+
+            driver.findElement(By.id("username")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-status")).getText().matches("(?s).*\\d+ steps?.*"));
+
+            // First Stop click asks for confirmation and must NOT stop the recording yet.
+            driver.findElement(By.id("shaft-capture-stop")).click();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-stop-confirm-yes")));
+            String confirmText = driver.findElement(By.id("shaft-capture-stop-confirm")).getText();
+            assertTrue(confirmText.contains("Review code"),
+                    "The stop confirmation must name the 'Review code' next action, got: " + confirmText);
+            assertEquals(CaptureStatus.State.ACTIVE, recorder.status().state(),
+                    "Opening the stop confirmation must not stop the recording.");
+            // The saved-session path arrives from the /session loopback endpoint asynchronously.
+            // In-page loopback fetches are best-effort by design (see the steps-sync note above),
+            // so environments that block them still get the generic saved-session copy.
+            boolean pathObserved = waitForBestEffort(
+                    () -> driver.findElement(By.id("shaft-capture-stop-confirm")).getText()
+                            .contains("Session saved to:"), Duration.ofSeconds(8));
+            if (!pathObserved) {
+                assertTrue(driver.findElement(By.id("shaft-capture-stop-confirm")).getText()
+                                .contains("saved"),
+                        "Without the /session fetch the confirmation must still say the session is saved.");
+            }
+
+            // "Keep recording" dismisses the confirmation and recording continues.
+            driver.findElement(By.id("shaft-capture-stop-confirm-no")).click();
+            waitFor(() -> !elementPresent(driver, By.id("shaft-capture-stop-confirm-yes")));
+            assertEquals(CaptureStatus.State.ACTIVE, recorder.status().state());
+
+            // "Save & close" actually stops the session.
+            driver.findElement(By.id("shaft-capture-stop")).click();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-stop-confirm-yes")));
+            driver.findElement(By.id("shaft-capture-stop-confirm-yes")).click();
+            waitFor(() -> recorder.status().state() != CaptureStatus.State.ACTIVE);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+        assertEquals(CaptureStatus.State.COMPLETED, recorder.status().state(),
+                "Confirming the stop dialog must complete the session.");
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, session.status());
     }
 
     private static By assertionChoice(String label) {

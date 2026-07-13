@@ -36,6 +36,7 @@ final class BrowserEventSink implements AutoCloseable {
     private final String token = token();
     private final HttpServer server;
     private volatile Supplier<List<CaptureStep>> stepsSupplier = List::of;
+    private volatile Supplier<SessionInfo> sessionSupplier = () -> new SessionInfo("", "");
     private int port;
 
     BrowserEventSink(
@@ -53,6 +54,7 @@ final class BrowserEventSink implements AutoCloseable {
         }
         server.createContext("/event", this::handle);
         server.createContext("/steps", this::handleSteps);
+        server.createContext("/session", this::handleSession);
     }
 
     String start() {
@@ -69,6 +71,10 @@ final class BrowserEventSink implements AutoCloseable {
         return port == 0 ? "" : "http://127.0.0.1:" + port + "/steps";
     }
 
+    String sessionEndpoint() {
+        return port == 0 ? "" : "http://127.0.0.1:" + port + "/session";
+    }
+
     String eventToken() {
         return token;
     }
@@ -80,6 +86,16 @@ final class BrowserEventSink implements AutoCloseable {
      */
     void stepsSupplier(Supplier<List<CaptureStep>> stepsSupplier) {
         this.stepsSupplier = stepsSupplier == null ? List::of : stepsSupplier;
+    }
+
+    /**
+     * Wires the session-info supplier backing {@code GET /session}, which the recorder overlay
+     * reads to show the saved-session path in its stop-confirmation view.
+     *
+     * @param sessionSupplier current session info supplier
+     */
+    void sessionSupplier(Supplier<SessionInfo> sessionSupplier) {
+        this.sessionSupplier = sessionSupplier == null ? () -> new SessionInfo("", "") : sessionSupplier;
     }
 
     @Override
@@ -132,6 +148,42 @@ final class BrowserEventSink implements AutoCloseable {
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);
         }
+    }
+
+    private void handleSession(HttpExchange exchange) throws IOException {
+        try (exchange) {
+            applyCorsHeaders(exchange);
+            if (respondToPreflight(exchange)) {
+                return;
+            }
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                send(exchange, 405);
+                return;
+            }
+            if (!authorized(queryParameter(exchange, "token"))) {
+                send(exchange, 401);
+                return;
+            }
+            SessionInfo info;
+            try {
+                info = sessionSupplier.get();
+            } catch (RuntimeException exception) {
+                info = new SessionInfo("", "");
+            }
+            byte[] body = mapper.writeValueAsBytes(info);
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+        }
+    }
+
+    /**
+     * Session summary served to the recorder overlay.
+     *
+     * @param state current {@link CaptureStatus.State} name
+     * @param outputPath capture session JSON output path
+     */
+    record SessionInfo(String state, String outputPath) {
     }
 
     /**
