@@ -23,6 +23,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -44,6 +47,8 @@ public final class FailureTraceReporter {
     private static final int MAX_SOURCE_FILE_CHARACTERS = 100_000;
     private static final ThreadLocal<String> CURRENT_NETWORK_JSON = ThreadLocal.withInitial(() -> "[]");
     private static final ThreadLocal<Map<String, byte[]>> CURRENT_SCREENSHOTS = ThreadLocal.withInitial(Map::of);
+    private static final ConcurrentMap<String, AtomicInteger> ATTEMPT_COUNTERS = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, List<AttemptRecord>> ATTEMPT_HISTORY = new ConcurrentHashMap<>();
 
     private FailureTraceReporter() {
         throw new IllegalStateException("Utility class");
@@ -62,12 +67,14 @@ public final class FailureTraceReporter {
         }
         try {
             stopPlaywrightTraceIfRunning();
-            String json = renderTraceJson(info, logText, attachments);
-            String html = renderTraceHtml(json);
+            int attempt = ATTEMPT_COUNTERS.computeIfAbsent(safeTestId(info), id -> new AtomicInteger()).incrementAndGet();
+            String json = renderTraceJson(info, logText, attachments, attempt);
             Map<String, byte[]> screenshots = CURRENT_SCREENSHOTS.get();
+            List<String> omitted = omittedEntries(json, CURRENT_NETWORK_JSON.get(), screenshots);
+            String html = renderTraceHtml(json, omitted);
             byte[] zip = renderTraceZip(json, html, CURRENT_NETWORK_JSON.get(), screenshots);
-            persistTraceArtifacts(info, zip, screenshots);
-            attach("zip", "shaft-trace.zip", zip, "shaft-trace.zip");
+            persistTraceArtifacts(info, zip, screenshots, attempt, omitted);
+            attach("zip", "shaft-trace.zip", zip, traceAttachmentLabel(info, attempt));
         } catch (RuntimeException e) {
             ReportManagerHelper.logDiscrete("Could not attach SHAFT trace report: " + e.getMessage(), Level.WARN);
         } finally {
@@ -89,6 +96,10 @@ public final class FailureTraceReporter {
     }
 
     static String renderTraceJson(TestExecutionInfo info, String logText, List<String> attachments) {
+        return renderTraceJson(info, logText, attachments, 1);
+    }
+
+    static String renderTraceJson(TestExecutionInfo info, String logText, List<String> attachments, int attempt) {
         SourceContext source = sourceContext(info);
         Snapshot snapshot = snapshot();
         List<TraceEventRecorder.ActionEvent> actions = TraceEventRecorder.drain();
@@ -108,7 +119,10 @@ public final class FailureTraceReporter {
         field(json, 2, "methodName", value(info == null ? null : info.methodName()), true);
         field(json, 2, "displayName", value(info == null ? null : info.displayName()), true);
         field(json, 2, "description", value(info == null ? null : info.description()), true);
-        field(json, 2, "status", throwable == null ? "passed" : "failed", false);
+        field(json, 2, "status", throwable == null ? "passed" : "failed", true);
+        field(json, 2, "attempt", String.valueOf(attempt), true);
+        field(json, 2, "retried", String.valueOf(info != null && info.retried()), true);
+        field(json, 2, "traceMode", effectiveTraceMode(), false);
         objectEnd(json, 1, true);
         objectStart(json, 1, "environment");
         field(json, 2, "shaftVersion", safeProperty(() -> SHAFT.Properties.internal.shaftEngineVersion()), true);
@@ -173,15 +187,79 @@ public final class FailureTraceReporter {
         if (SHAFT.Properties.reporting == null || !SHAFT.Properties.reporting.traceEnabled() || info == null) {
             return false;
         }
-        String mode = SHAFT.Properties.reporting.traceMode().toLowerCase(Locale.ROOT).trim();
-        return switch (mode) {
+        return switch (effectiveTraceMode()) {
             case "always" -> true;
             case "retry" -> info.throwable() != null || info.retried();
             default -> info.throwable() != null;
         };
     }
 
-    private static String renderTraceHtml(String json) {
+    /**
+     * Resolves the effective trace mode. The default {@code auto} promotes itself to {@code retry}
+     * when test retries are configured ({@code retryMaximumNumberOfAttempts > 0}) so flaky-test
+     * investigations always keep a timeline, and falls back to {@code failure} otherwise.
+     * Explicit {@code always} / {@code retry} / {@code failure} values are honored unchanged.
+     */
+    static String effectiveTraceMode() {
+        String mode = SHAFT.Properties.reporting == null ? "auto"
+                : SHAFT.Properties.reporting.traceMode().toLowerCase(Locale.ROOT).trim();
+        if (!"auto".equals(mode)) {
+            return mode;
+        }
+        return retriesConfigured() ? "retry" : "failure";
+    }
+
+    private static boolean retriesConfigured() {
+        try {
+            return SHAFT.Properties.flags != null && SHAFT.Properties.flags.retryMaximumNumberOfAttempts() > 0;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    private static String traceAttachmentLabel(TestExecutionInfo info, int attempt) {
+        String label = "SHAFT Trace Report - " + safeTestId(info);
+        return attempt > 1 || (info != null && info.retried()) ? label + " (attempt " + attempt + ")" : label;
+    }
+
+    /**
+     * Names of trace bundle entries whose payload exceeds {@code shaft.trace.maxArtifactMb} and will
+     * therefore carry an omission marker inside the zip. Surfaced in the viewer and index so
+     * truncation is never silent.
+     */
+    private static List<String> omittedEntries(String json, String networkJson, Map<String, byte[]> screenshots) {
+        int maxBytes = Math.max(1, SHAFT.Properties.reporting.traceMaxArtifactMb()) * 1024 * 1024;
+        List<String> omitted = new ArrayList<>();
+        if (json.getBytes(StandardCharsets.UTF_8).length > maxBytes) {
+            omitted.add("shaft-trace.json");
+        }
+        if (BrowserObservabilityRecorder.networkHarJson(networkJson)
+                .getBytes(StandardCharsets.UTF_8).length > maxBytes) {
+            omitted.add("shaft-network.har");
+        }
+        screenshots.forEach((id, bytes) -> {
+            if (bytes.length > maxBytes) {
+                omitted.add("screenshots/" + id + ".png");
+            }
+        });
+        try {
+            Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
+            if (playwrightTrace != null && Files.isRegularFile(playwrightTrace) && Files.size(playwrightTrace) > maxBytes) {
+                omitted.add(playwrightTrace.getFileName().toString());
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // Size probing is best-effort; never let it fail trace generation.
+        }
+        return omitted;
+    }
+
+    private static String renderTraceHtml(String json, List<String> omitted) {
+        StringBuilder omittedJson = new StringBuilder("[");
+        for (int i = 0; i < omitted.size(); i++) {
+            omittedJson.append(i > 0 ? ", " : "").append("\"").append(escapeJson(omitted.get(i))).append("\"");
+        }
+        omittedJson.append("]");
+        String escapedOmittedJson = escapeHtml(omittedJson.toString());
         String escapedJson = escapeHtml(json);
         return """
                 <!doctype html>
@@ -233,6 +311,11 @@ public final class FailureTraceReporter {
                   </div>
                 </header>
                 <main class="report-main">
+                <section class="panel" id="truncation-banner" hidden
+                         style="border-left:4px solid var(--shaft-fail)">
+                  <h2>Trace partially truncated</h2>
+                  <p class="muted" id="truncation-detail"></p>
+                </section>
                 <section class="panel trace-summary" id="trace-summary"></section>
                 <div class="trace-layout">
                   <aside class="panel">
@@ -265,6 +348,14 @@ public final class FailureTraceReporter {
                     <pre id="tab-content"></pre>
                     <div id="timeline-panel" hidden>
                       <p class="muted">Every recorded action, network exchange, and console message in chronological order. Click an action to inspect it.</p>
+                      <div class="tabs" id="timeline-filters">
+                        <button data-filter="all" class="selected">All</button>
+                        <button data-filter="action">Actions</button>
+                        <button data-filter="validation">Validations</button>
+                        <button data-filter="network">Network</button>
+                        <button data-filter="console">Console</button>
+                        <button data-filter="failed">Failures</button>
+                      </div>
                       <div id="timeline-list"></div>
                     </div>
                     <div id="dom-snapshot-panel" hidden>
@@ -295,8 +386,11 @@ public final class FailureTraceReporter {
                 </div>
                 <pre hidden id="trace-data">""" + escapedJson + """
                 </pre>
+                <pre hidden id="trace-truncation">""" + escapedOmittedJson + """
+                </pre>
                 <script>
                 const trace = JSON.parse(document.getElementById('trace-data').textContent);
+                const truncation = JSON.parse(document.getElementById('trace-truncation').textContent);
                 const actions = Array.isArray(trace.actions) ? trace.actions : [];
                 const network = Array.isArray(trace.network) ? trace.network : [];
                 const consoleEvents = Array.isArray(trace.console) ? trace.console : [];
@@ -304,7 +398,21 @@ public final class FailureTraceReporter {
                 const actionSearch = document.getElementById('action-search');
                 const details = document.getElementById('details');
                 const tabContent = document.getElementById('tab-content');
-                let selected = actions.find(action => action.status !== 'passed') || actions[0] || null;
+                function actionFromHash(){
+                  const match = /^#action-(.+)$/.exec(decodeURIComponent(location.hash || ''));
+                  return match ? actions.find(action => action.id === match[1]) : null;
+                }
+                let selected = actionFromHash()
+                    || [...actions].reverse().find(action => action.status !== 'passed')
+                    || actions[0] || null;
+                function selectAction(action){
+                  selected = action;
+                  if (action && action.id) {
+                    history.replaceState(null, '', '#action-' + encodeURIComponent(action.id));
+                  }
+                  renderActions();
+                  renderDetails();
+                }
                 function esc(value){
                   return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
                 }
@@ -361,16 +469,28 @@ public final class FailureTraceReporter {
                   const failedActions = actions.filter(action => action.status === 'failed').length;
                   const failedNetwork = network.filter(networkFailed).length;
                   const consoleErrors = consoleEvents.filter(consoleFailed).length;
-                  document.getElementById('trace-subtitle').textContent = `${test.className || 'Unknown class'}.${test.methodName || 'unknown'} - ${trace.generatedAt || ''}`;
+                  const attempt = parseInt(test.attempt, 10) || 1;
+                  const retried = String(test.retried) === 'true';
+                  const attemptSuffix = attempt > 1 || retried ? ` - attempt ${attempt}${retried ? ' (retried)' : ''}` : '';
+                  document.getElementById('trace-subtitle').textContent = `${test.className || 'Unknown class'}.${test.methodName || 'unknown'}${attemptSuffix} - ${trace.generatedAt || ''}`;
+                  const attemptCard = attempt > 1 || retried
+                    ? `<div class="metric-card"><div class="metric-label">Attempt</div><div class="metric-value"><span class="status-chip warn">#${attempt}${retried ? ' retried' : ''}</span></div></div>`
+                    : '';
                   document.getElementById('trace-summary').innerHTML = `
                     <h2>Run Snapshot</h2>
                     <div class="metric-grid">
                       <div class="metric-card"><div class="metric-label">Status</div><div class="metric-value"><span class="status-chip ${statusClass(test.status)}">${esc(test.status || 'unknown')}</span></div></div>
+                      ${attemptCard}
                       <div class="metric-card"><div class="metric-label">Actions</div><div class="metric-value">${actions.length}${failedActions ? ` <span class="status-chip failed">${failedActions} failed</span>` : ''}</div></div>
                       <div class="metric-card"><div class="metric-label">Network</div><div class="metric-value">${network.length}${failedNetwork ? ` <span class="status-chip failed">${failedNetwork} failed</span>` : ''}</div></div>
                       <div class="metric-card"><div class="metric-label">Console Errors</div><div class="metric-value">${consoleErrors}</div></div>
                       <div class="metric-card"><div class="metric-label">Exception</div><div class="metric-value">${esc(exception.type || 'None')}</div></div>
                     </div>`;
+                  if (truncation.length) {
+                    document.getElementById('truncation-banner').hidden = false;
+                    document.getElementById('truncation-detail').textContent =
+                      `These bundle entries exceeded shaft.trace.maxArtifactMb and were replaced with omission markers: ${truncation.join(', ')}. Raise the cap to capture them in full.`;
+                  }
                 }
                 function renderActions(){
                   actionList.innerHTML = '';
@@ -380,7 +500,7 @@ public final class FailureTraceReporter {
                     const button = document.createElement('button');
                     button.className = `action ${action.status}${selected && selected.id === action.id ? ' selected' : ''}`;
                     button.innerHTML = `<strong>${esc(action.name || 'Action')}</strong><div class="muted">${esc(action.category)} - ${esc(action.status)} - ${esc(action.durationMs || 0)}ms${action.screenshot ? ' 📷' : ''}</div>`;
-                    button.addEventListener('click', () => { selected = action; renderActions(); renderDetails(); });
+                    button.addEventListener('click', () => selectAction(action));
                     actionList.appendChild(button);
                   });
                 }
@@ -388,22 +508,34 @@ public final class FailureTraceReporter {
                 function renderDetails(){
                   const action = selected || {};
                   document.getElementById('details-title').textContent = action.name ? `Action: ${action.name}` : 'Trace Details';
-                  details.innerHTML = row('Status', action.status) + row('Category', action.category) + row('Locator', action.locator) + row('URL', action.url) + row('Caller', action.caller) + row('Started', action.startTime) + row('Duration', action.durationMs == null ? '' : `${action.durationMs}ms`) + row('Message', action.message);
+                  const metadata = action.metadata || {};
+                  details.innerHTML = row('Status', action.status) + row('Category', action.category)
+                    + row('Expected', metadata.expected) + row('Actual', metadata.actual)
+                    + row('Locator', action.locator) + row('URL', action.url) + row('Caller', action.caller) + row('Started', action.startTime) + row('Duration', action.durationMs == null ? '' : `${action.durationMs}ms`) + row('Message', action.message);
                   renderTab(document.querySelector('.tabs button.selected').dataset.tab);
                 }
                 const timelinePanel = document.getElementById('timeline-panel');
                 const timelineList = document.getElementById('timeline-list');
+                let timelineFilter = 'all';
+                function matchesTimelineFilter(entry){
+                  if (timelineFilter === 'all') return true;
+                  if (timelineFilter === 'failed') return entry.status === 'failed';
+                  if (timelineFilter === 'validation') return entry.kind === 'action' && entry.action && entry.action.category === 'validation';
+                  return entry.kind === timelineFilter;
+                }
                 function renderTimeline(){
                   timelineList.innerHTML = '';
                   if (!allEntries.length) { timelineList.textContent = 'No timeline events were recorded.'; return; }
-                  allEntries.forEach(entry => {
+                  const visibleEntries = allEntries.filter(matchesTimelineFilter);
+                  if (!visibleEntries.length) { timelineList.textContent = 'No timeline events match this filter.'; return; }
+                  visibleEntries.forEach(entry => {
                     const div = document.createElement('div');
                     const isSelected = entry.action && selected && entry.action.id === selected.id;
                     div.className = `timeline-entry ${entry.status}${entry.action ? ' clickable' : ''}${isSelected ? ' selected' : ''}`;
                     const duration = entry.durationMs ? ` (${entry.durationMs}ms)` : '';
                     div.innerHTML = `<span class="time-cell">${esc(offsetLabel(entry.t))}</span><span class="badge kind-${entry.kind}">${entry.kind.toUpperCase()}</span><span class="timeline-label">${esc(entry.label)}${esc(duration)}</span>`;
                     if (entry.action) {
-                      div.addEventListener('click', () => { selected = entry.action; renderActions(); renderDetails(); });
+                      div.addEventListener('click', () => selectAction(entry.action));
                     }
                     timelineList.appendChild(div);
                   });
@@ -506,6 +638,11 @@ public final class FailureTraceReporter {
                   await navigator.clipboard.writeText(JSON.stringify(trace, null, 2));
                 }
                 actionSearch.addEventListener('input', renderActions);
+                document.querySelectorAll('#timeline-filters button').forEach(button => button.addEventListener('click', () => {
+                  timelineFilter = button.dataset.filter;
+                  document.querySelectorAll('#timeline-filters button').forEach(other => other.classList.toggle('selected', other === button));
+                  renderTimeline();
+                }));
                 document.querySelectorAll('#action-tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
                 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
                 renderSummary();
@@ -560,7 +697,8 @@ public final class FailureTraceReporter {
         AttachmentReporter.attachBasedOnFileType(type, name, output, description);
     }
 
-    private static void persistTraceArtifacts(TestExecutionInfo info, byte[] zip, Map<String, byte[]> screenshots) {
+    private static void persistTraceArtifacts(TestExecutionInfo info, byte[] zip, Map<String, byte[]> screenshots,
+                                              int attempt, List<String> omitted) {
         try {
             Path directory = traceDirectory(info);
             Files.createDirectories(directory);
@@ -568,6 +706,15 @@ public final class FailureTraceReporter {
             Files.deleteIfExists(directory.resolve("SHAFT Trace Report.html"));
             Files.deleteIfExists(directory.resolve("shaft-trace.json"));
             Files.write(zipPath, zip);
+            boolean failed = info != null && info.throwable() != null;
+            String archiveName = "shaft-trace.zip";
+            // Retain failed-attempt bundles under attempt-indexed names so a later passing retry
+            // (which rewrites shaft-trace.zip) never erases the flake evidence.
+            if (failed && retriesConfigured() && SHAFT.Properties.reporting.traceRetainFailedAttempts()) {
+                archiveName = "shaft-trace-attempt-" + attempt + ".zip";
+                Files.write(directory.resolve(archiveName), zip);
+            }
+            recordAttempt(info, attempt, failed ? "failed" : "passed", archiveName);
             if (!screenshots.isEmpty()) {
                 Path screenshotsDirectory = directory.resolve("screenshots");
                 Files.createDirectories(screenshotsDirectory);
@@ -576,10 +723,15 @@ public final class FailureTraceReporter {
                 }
             }
             Files.writeString(directory.resolve("index.json"),
-                    renderTraceIndexJson(info, zipPath, !screenshots.isEmpty()), StandardCharsets.UTF_8);
+                    renderTraceIndexJson(info, zipPath, !screenshots.isEmpty(), attempt, omitted), StandardCharsets.UTF_8);
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete("Could not persist SHAFT trace artifacts: " + e.getMessage(), Level.WARN);
         }
+    }
+
+    private static void recordAttempt(TestExecutionInfo info, int attempt, String status, String archiveName) {
+        ATTEMPT_HISTORY.computeIfAbsent(safeTestId(info), id -> java.util.Collections.synchronizedList(new ArrayList<>()))
+                .add(new AttemptRecord(attempt, status, archiveName, Instant.now().toString()));
     }
 
     static Path traceDirectory(TestExecutionInfo info) {
@@ -604,12 +756,20 @@ public final class FailureTraceReporter {
         return safeId.length() <= 120 ? safeId : safeId.substring(0, 120);
     }
 
-    private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots) {
+    private static String renderTraceIndexJson(TestExecutionInfo info, Path zipPath, boolean hasScreenshots,
+                                               int attempt, List<String> omitted) {
+        boolean failed = info != null && info.throwable() != null;
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         field(json, 1, "testId", safeTestId(info), true);
         field(json, 1, "generatedAt", Instant.now().toString(), true);
         field(json, 1, "archive", relative(zipPath), true);
+        field(json, 1, "attempt", String.valueOf(attempt), true);
+        field(json, 1, "status", failed ? "failed" : "passed", true);
+        field(json, 1, "retried", String.valueOf(info != null && info.retried()), true);
+        field(json, 1, "traceMode", effectiveTraceMode(), true);
+        array(json, 1, "omittedEntries", omitted, true);
+        appendAttemptHistory(json, safeTestId(info));
         objectStart(json, 1, "entries");
         field(json, 2, "html", "SHAFT Trace Report.html", true);
         field(json, 2, "json", "shaft-trace.json", true);
@@ -620,6 +780,26 @@ public final class FailureTraceReporter {
         objectEnd(json, 1, false);
         json.append("}\n");
         return json.toString();
+    }
+
+    private static void appendAttemptHistory(StringBuilder json, String testId) {
+        List<AttemptRecord> history = ATTEMPT_HISTORY.getOrDefault(testId, List.of());
+        indent(json, 1).append("\"attempts\": [");
+        synchronized (history) {
+            for (int i = 0; i < history.size(); i++) {
+                AttemptRecord record = history.get(i);
+                json.append(i > 0 ? "," : "").append("\n");
+                indent(json, 2).append("{\"attempt\": ").append(record.attempt())
+                        .append(", \"status\": \"").append(escapeJson(record.status()))
+                        .append("\", \"archive\": \"").append(escapeJson(record.archive()))
+                        .append("\", \"generatedAt\": \"").append(escapeJson(record.generatedAt())).append("\"}");
+            }
+            if (!history.isEmpty()) {
+                json.append("\n");
+                indent(json, 1);
+            }
+        }
+        json.append("],\n");
     }
 
     private static Snapshot snapshot() {
@@ -759,7 +939,7 @@ public final class FailureTraceReporter {
         }
         Path playwrightTrace = PlaywrightTraceManager.getLastTracePath();
         if (playwrightTrace != null) {
-            entries.add(redact(playwrightTrace.toString()));
+            entries.add("Playwright Trace (raw): " + redact(playwrightTrace.toString()));
         }
         return entries;
     }
@@ -864,6 +1044,9 @@ public final class FailureTraceReporter {
     }
 
     private record SourceContext(String frame, String file, String line, String snippet, String fileContent) {
+    }
+
+    private record AttemptRecord(int attempt, String status, String archive, String generatedAt) {
     }
 
     private record Snapshot(String type, String content) {

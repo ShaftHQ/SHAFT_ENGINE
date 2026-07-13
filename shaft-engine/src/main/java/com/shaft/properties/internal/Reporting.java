@@ -103,8 +103,12 @@ public interface Reporting extends EngineProperties<Reporting> {
     boolean traceEnabled();
 
     @Key("shaft.trace.mode")
-    @DefaultValue("failure")
+    @DefaultValue("auto")
     String traceMode();
+
+    @Key("shaft.trace.retainFailedAttempts")
+    @DefaultValue("true")
+    boolean traceRetainFailedAttempts();
 
     @Key("shaft.trace.includeCodeContext")
     @DefaultValue("true")
@@ -263,6 +267,11 @@ public interface Reporting extends EngineProperties<Reporting> {
 
         public SetProperty traceMode(String value) {
             setProperty("shaft.trace.mode", value);
+            return this;
+        }
+
+        public SetProperty traceRetainFailedAttempts(boolean value) {
+            setProperty("shaft.trace.retainFailedAttempts", String.valueOf(value));
             return this;
         }
 
