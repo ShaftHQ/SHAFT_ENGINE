@@ -389,6 +389,44 @@ class AssistantMarkdownTest {
     }
 
     @Test
+    void mobileRecordingStatusSpeaksWebCaptureGlossaryWithReviewCta() {
+        String active = AssistantMarkdown.fromMcpOutput("mobile_record_status", mcpText("""
+                {
+                  "active": true,
+                  "outputPath": "recordings/mobile.json",
+                  "mode": "native",
+                  "actionCount": 3,
+                  "includeSensitiveValues": false,
+                  "warnings": ["Ignored: recording is not active — call mobile_record_start to capture this step."],
+                  "readiness": "RISKY"
+                }
+                """));
+        String stopped = AssistantMarkdown.fromMcpOutput("mobile_record_stop", mcpText("""
+                {
+                  "active": false,
+                  "outputPath": "recordings/mobile.json",
+                  "mode": "native",
+                  "actionCount": 3,
+                  "includeSensitiveValues": false,
+                  "warnings": [],
+                  "readiness": "READY"
+                }
+                """));
+
+        assertAll(
+                // Glossary parity: "Steps", not "Actions"; readiness pill present.
+                () -> assertTrue(active.contains("**Steps:** 3")),
+                () -> assertFalse(active.contains("**Actions:**")),
+                () -> assertTrue(active.contains("RISKY")),
+                () -> assertTrue(active.contains("Ignored: recording is not active")),
+                // Review-code CTA fires once stopped with steps (mobile emits no web "state").
+                () -> assertFalse(active.contains("Generate a SHAFT test from")),
+                () -> assertTrue(stopped.contains("READY")),
+                () -> assertTrue(stopped.contains("Review code next")),
+                () -> assertTrue(stopped.contains("Generate a SHAFT test from recordings/mobile.json")));
+    }
+
+    @Test
     void formatsDoctorAnalysisReportWithActionsSnippetsAndReportPaths() {
         String markdown = AssistantMarkdown.fromMcpOutput("doctor_analyze_failed_allure", mcpText("""
                 {

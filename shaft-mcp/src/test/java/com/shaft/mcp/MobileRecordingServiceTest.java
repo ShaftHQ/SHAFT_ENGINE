@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import com.shaft.capture.model.CaptureReadiness;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -218,6 +219,74 @@ class MobileRecordingServiceTest {
         assertEquals(McpCodeBlock.Kind.INVESTIGATION, queue.kind());
         assertTrue(queue.code().contains("action-1"));
         assertTrue(queue.code().contains("probably fail"));
+    }
+
+    @Test
+    void statusSpeaksSharedReadinessVocabularyLikeWebCapture() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+
+        // Idle (never started) is READY, matching CaptureReadiness.ready().
+        assertEquals(CaptureReadiness.State.READY, service.status().readiness());
+
+        Path recording = temp.resolve("readiness.json");
+        service.start(recording.toString(), "native", false);
+        // A clean recorded step keeps the session READY.
+        service.record(
+                "tap",
+                locatorStrategy.ACCESSIBILITY_ID,
+                "login",
+                Map.of(),
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                "driver.element().touch().tap(SHAFT.GUI.Locator.accessibilityId(\"login\"));",
+                false);
+        McpMobileRecordingStatus active = service.status();
+        assertTrue(active.active());
+        assertEquals(1, active.actionCount());
+        assertEquals(CaptureReadiness.State.READY, active.readiness());
+
+        McpMobileRecordingStatus stopped = service.stop(false);
+        assertEquals(CaptureReadiness.State.READY, stopped.readiness());
+    }
+
+    @Test
+    void coordinateFallbackStepsMakeReadinessRisky() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("risky.json");
+
+        service.start(recording.toString(), "native", true);
+        service.record(
+                "tapCoordinates",
+                null,
+                "",
+                Map.of("x", "10", "y", "20"),
+                "driver.element().touch().tapByCoordinates(10, 20);",
+                "driver.element().touch().tapByCoordinates(10, 20);",
+                false);
+
+        assertEquals(CaptureReadiness.State.RISKY, service.status().readiness());
+        assertEquals(CaptureReadiness.State.RISKY, service.stop(false).readiness());
+    }
+
+    @Test
+    void stoppingWithNoStepsIsBlocked() {
+        McpMobileRecordingService service = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        Path recording = temp.resolve("empty.json");
+
+        service.start(recording.toString(), "native", false);
+        McpMobileRecordingStatus stopped = service.stop(false);
+
+        assertEquals(0, stopped.actionCount());
+        assertEquals(CaptureReadiness.State.BLOCKED, stopped.readiness());
+
+        // Stopping when nothing is active is also BLOCKED (nothing to review).
+        assertEquals(CaptureReadiness.State.BLOCKED, service.stop(false).readiness());
+    }
+
+    @Test
+    void backCompatConstructorDefaultsReadinessToReady() {
+        McpMobileRecordingStatus status = new McpMobileRecordingStatus(
+                false, temp.resolve("legacy.json"), "native", 3, false, List.of());
+        assertEquals(CaptureReadiness.State.READY, status.readiness());
     }
 
     private static McpCodeBlock block(List<McpCodeBlock> blocks, String id) {

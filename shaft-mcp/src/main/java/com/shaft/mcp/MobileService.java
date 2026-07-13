@@ -1006,7 +1006,7 @@ public class MobileService {
                 redactedJavaCode,
                 sensitive);
         List<String> warnings = actionWarnings(action, locatorStrategy, recorded,
-                "Action was not recorded; call mobile_record_start to capture it.");
+                "Ignored: recording is not active — call mobile_record_start to capture this step.");
         return new McpMobileActionResult(action, recorded != null, actionBlock(action, javaCode),
                 warnings);
     }

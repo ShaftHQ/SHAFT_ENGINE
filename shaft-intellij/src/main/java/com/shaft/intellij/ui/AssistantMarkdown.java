@@ -909,16 +909,20 @@ final class AssistantMarkdown {
 
     private static String mobileRecordingStatusMarkdown(JsonObject object) {
         List<String> sections = new ArrayList<>();
+        boolean active = booleanValue(object, "active");
+        String readiness = string(object, "readiness", "");
         sections.add(metadataLine(
-                "Recording", booleanValue(object, "active") ? "active" : "stopped",
+                "Recording", active ? "active" : "stopped",
                 "Mode", string(object, "mode", ""),
-                "Actions", string(object, "actionCount", ""),
+                "Steps", string(object, "actionCount", ""),
+                "Readiness", (readinessIcon(readiness) + " " + readiness).trim(),
                 "Sensitive values", booleanValue(object, "includeSensitiveValues") ? "included" : "excluded"));
         String outputPath = string(object, "outputPath", "");
         if (!outputPath.isBlank()) {
             sections.add("**Output:** `" + outputPath + "`");
-            if ("COMPLETED".equalsIgnoreCase(string(object, "state", ""))) {
-                sections.add("Generate code next — send:\n\n"
+            boolean hasSteps = !string(object, "actionCount", "0").equals("0");
+            if (!active && hasSteps) {
+                sections.add("Review code next — send:\n\n"
                         + fence("text", "Generate a SHAFT test from " + outputPath));
             }
         }
