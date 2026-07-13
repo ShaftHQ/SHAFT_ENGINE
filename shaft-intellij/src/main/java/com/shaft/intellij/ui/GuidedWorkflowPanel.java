@@ -748,16 +748,18 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         return text.append(". Stop recording ends the session.").toString();
     }
 
+    // Recorded units read "steps" in every user-facing surface (shared authoring glossary,
+    // #3496/#3501) even though the wire fields keep their eventCount/actionCount names.
     private static String countText(JsonObject status) {
         if (status == null) {
-            return "0 events";
+            return "0 steps";
         }
-        if (status.has("actionCount")) {
-            return status.get("actionCount").getAsInt() + " action(s)";
-        }
-        int events = status.has("eventCount") ? status.get("eventCount").getAsInt() : 0;
+        int steps = status.has("actionCount")
+                ? status.get("actionCount").getAsInt()
+                : status.has("eventCount") ? status.get("eventCount").getAsInt() : 0;
         int pending = status.has("pendingSignalCount") ? status.get("pendingSignalCount").getAsInt() : 0;
-        return pending > 0 ? events + " event(s) (+" + pending + " pending)" : events + " event(s)";
+        String base = steps + (steps == 1 ? " step" : " steps");
+        return pending > 0 ? base + " (+" + pending + " pending)" : base;
     }
 
     private static String displayUrl(String url) {
