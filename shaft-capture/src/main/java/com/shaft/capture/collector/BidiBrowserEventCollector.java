@@ -8,6 +8,7 @@ import org.openqa.selenium.bidi.script.ChannelValue;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -22,6 +23,10 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
     private final String stepsEndpoint;
     private final String stepsToken;
     private final Map<String, String> promptTypes = new ConcurrentHashMap<>();
+    // A subframe URL change is never a user navigation step (ads and embeds navigate on their
+    // own); only top-level contexts may produce navigation signals. Child contexts are tracked
+    // from their creation events, which BiDi delivers before any navigation within them.
+    private final Set<String> childContexts = ConcurrentHashMap.newKeySet();
     private Script script;
     private BrowsingContextInspector contexts;
     private String preloadId;
@@ -92,16 +97,28 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
                 List.of(new ChannelValue(CHANNEL)));
 
         contexts = new BrowsingContextInspector(driver);
-        contexts.onNavigationCommitted(info -> signalConsumer.accept(BrowserSignal.generated(
-                "navigation",
-                info.getBrowsingContextId(),
-                Map.of("url", info.getUrl()),
-                Map.of("action", "OPEN"))));
-        contexts.onHistoryUpdated(info -> signalConsumer.accept(BrowserSignal.generated(
-                "navigation",
-                info.getBrowsingContextId(),
-                Map.of("url", info.getUrl()),
-                Map.of("action", "OPEN"))));
+        contexts.onNavigationCommitted(info -> {
+            if (childContexts.contains(info.getBrowsingContextId())) {
+                return;
+            }
+            signalConsumer.accept(BrowserSignal.generated(
+                    "navigation",
+                    info.getBrowsingContextId(),
+                    Map.of("url", info.getUrl()),
+                    Map.of("action", "OPEN")));
+        });
+        contexts.onHistoryUpdated(info -> {
+            if (childContexts.contains(info.getBrowsingContextId())) {
+                return;
+            }
+            // pushState/replaceState rewrites are tagged so the pipeline can keep the current
+            // URL fresh without ever recording them as user navigation steps.
+            signalConsumer.accept(BrowserSignal.generated(
+                    "navigation",
+                    info.getBrowsingContextId(),
+                    Map.of("url", info.getUrl()),
+                    Map.of("action", "OPEN", "navigationSource", "history")));
+        });
         contexts.onBrowsingContextCreated(info -> {
             if (isTopLevel(info)) {
                 signalConsumer.accept(BrowserSignal.generated(
@@ -109,6 +126,8 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
                         info.getId(),
                         Map.of("url", info.getUrl()),
                         Map.of()));
+            } else {
+                childContexts.add(info.getId());
             }
         });
         contexts.onBrowsingContextDestroyed(info -> {
@@ -118,6 +137,8 @@ public final class BidiBrowserEventCollector implements BrowserEventCollector {
                         info.getId(),
                         Map.of("url", info.getUrl()),
                         Map.of()));
+            } else {
+                childContexts.remove(info.getId());
             }
         });
         contexts.onUserPromptOpened(prompt ->

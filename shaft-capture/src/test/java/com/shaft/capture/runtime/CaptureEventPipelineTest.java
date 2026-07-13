@@ -405,14 +405,104 @@ class CaptureEventPipelineTest {
                 Map.of("button", 0, "clickCount", 1, "clientActionId", "ui-2"),
                 Map.of("domSnapshot", "<html><body><button id=\"submit\">Save</button>"
                         + "<span>bearer abcdefghijklmnop</span></body></html>")));
+        // The navigation flushes the debounced click immediately; it is itself a consequence of
+        // that click (within the interaction window) so it never becomes a recorded step.
         pipeline.accept(signal("navigation", START.plusMillis(1), Map.of(),
                 Map.of("action", "OPEN"), Map.of("url", "https://example.test/next")));
 
         CaptureSession session = store.read();
-        assertEquals(2, session.events().size());
+        assertEquals(1, session.events().size());
         String dom = session.events().getFirst().context().extensions().get("domSnapshot").asText();
         assertTrue(dom.contains("button id=\"submit\""));
         assertFalse(dom.contains("abcdefghijklmnop"));
+    }
+
+    @Test
+    void suppressesNavigationsCausedByRecentInteractions(@TempDir Path temp) {
+        // A navigation shortly after a user interaction (link click, form submit, server redirect
+        // chain) is a consequence of that interaction, not a navigation the user performed;
+        // recording it generated a phantom navigateToURL step. Spontaneous navigations (address
+        // bar, initial open) must still be recorded.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("navigation", START, Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/home")));
+        pipeline.accept(signal("click", START.plusSeconds(2), buttonTarget(),
+                Map.of("button", 0, "clickCount", 1), Map.of()));
+        // Submit response page plus its redirect hop: both within the interaction window.
+        pipeline.accept(signal("navigation", START.plusSeconds(3), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/search?q=x")));
+        pipeline.accept(signal("navigation", START.plusSeconds(4), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/results?q=x")));
+        // Long after the last interaction: a genuine user navigation, recorded.
+        pipeline.accept(signal("navigation", START.plusSeconds(60), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/pricing")));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        List<CaptureEvent.NavigationEvent> navigations = events.stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .toList();
+        assertEquals(2, navigations.size(),
+                "Only the initial open and the spontaneous navigation are user steps; "
+                        + "interaction-consequence navigations must be suppressed.");
+        assertEquals("https://example.test/home", navigations.get(0).targetUrl());
+        assertEquals("https://example.test/pricing", navigations.get(1).targetUrl());
+        assertEquals(1, events.stream().filter(CaptureEvent.ClickEvent.class::isInstance).count());
+    }
+
+    @Test
+    void neverRecordsHistoryRewriteNavigationsAsSteps(@TempDir Path temp) {
+        // pushState/replaceState URL rewrites (SPA routes, results-page canonicalization such as
+        // DuckDuckGo appending query flags after a search) are tagged navigationSource=history by
+        // the BiDi collector and must never become navigation steps, even with no recent
+        // interaction.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        java.util.concurrent.atomic.AtomicReference<String> currentUrl = new java.util.concurrent.atomic.AtomicReference<>("");
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), currentUrl::set, ignored -> {
+                });
+
+        pipeline.accept(signal("navigation", START, Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/results")));
+        pipeline.accept(signal("navigation", START.plusSeconds(30), Map.of(),
+                Map.of("action", "OPEN", "navigationSource", "history"),
+                Map.of("url", "https://example.test/results?ia=web")));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertEquals(1, events.size());
+        assertEquals("https://example.test/results",
+                assertInstanceOf(CaptureEvent.NavigationEvent.class, events.getFirst()).targetUrl());
+        assertEquals("https://example.test/results?ia=web", currentUrl.get(),
+                "History rewrites must still refresh the reported current URL.");
+    }
+
+    @Test
+    void debouncesSameUrlNavigationRedeliveredAcrossChannels(@TempDir Path temp) {
+        // BiDi's navigationCommitted and the recorder's own explicit OPEN signal describe the
+        // same navigation; across a slow page load they can arrive several seconds apart.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("navigation", START, Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/home")));
+        pipeline.accept(signal("navigation", START.plusSeconds(4), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/home")));
+        pipeline.close();
+
+        assertEquals(1, store.read().events().size());
     }
 
     @Test
@@ -426,8 +516,8 @@ class CaptureEventPipelineTest {
 
         pipeline.accept(signal("click", START, buttonTarget(),
                 Map.of("button", 0, "clickCount", 1, "clientActionId", "ui-3"), Map.of()));
-        pipeline.accept(signal("navigation", START.plusMillis(1), Map.of(),
-                Map.of("action", "OPEN"), Map.of("url", "https://example.test/next")));
+        pipeline.accept(signal("keyboard", START.plusMillis(1), buttonTarget(),
+                Map.of("keys", List.of("CONTROL", "S")), Map.of()));
         pipeline.accept(signal("step_update", START.plusMillis(2), Map.of(),
                 Map.of("clientActionId", "ui-3", "description", "Click primary submit"), Map.of()));
 
@@ -440,7 +530,7 @@ class CaptureEventPipelineTest {
 
         CaptureSession deleted = store.read();
         assertEquals(1, deleted.events().size());
-        assertInstanceOf(CaptureEvent.NavigationEvent.class, deleted.events().getFirst());
+        assertInstanceOf(CaptureEvent.KeyboardEvent.class, deleted.events().getFirst());
     }
 
     @Test

@@ -530,6 +530,145 @@ class ManagedCaptureRecorderBrowserTest {
         }
     }
 
+    /**
+     * Realistic search journey against a search-engine-style fixture: type a query, press Enter
+     * (GET form submit), get 302-redirected to the results page, which then canonicalizes its own
+     * URL via {@code history.replaceState}, then click a result link. None of those page changes
+     * were performed by the user as navigations — the reported bug was the recorder announcing
+     * two "Navigate to" actions for the search redirect alone — so:
+     * <ul>
+     *   <li>the overlay must show zero "Navigate to" rows,</li>
+     *   <li>the persisted session must contain exactly one NavigationEvent (the initial open),</li>
+     *   <li>generated code must contain exactly one {@code navigateToURL} call.</li>
+     * </ul>
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void searchRedirectJourneyRecordsOnlyUserPerformedSteps(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        Path output = temp.resolve(browserName + "-search-redirect.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                baseUrl + "/search-home",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-search-redirect-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("q")));
+
+            driver.findElement(By.id("q")).sendKeys("shaft engine");
+            driver.findElement(By.id("q")).sendKeys(org.openqa.selenium.Keys.ENTER);
+            waitFor(() -> elementPresent(driver, By.id("result-link")));
+            waitFor(() -> String.valueOf(driver.getCurrentUrl()).contains("ia=web"));
+            driver.findElement(By.id("result-link")).click();
+            waitFor(() -> elementPresent(driver, By.id("detail-page")));
+
+            // Several 500ms poll ticks so a reintroduced consequence-navigation announcement has
+            // every chance to fire before the count is asserted.
+            Thread.sleep(2000);
+            assertEquals(0, navigateRowCount(js),
+                    "Form-submit redirects, history rewrites, and link-click navigations are "
+                            + "consequences of recorded interactions, never their own \"Navigate "
+                            + "to\" actions. Rows: " + actionRowTexts(js));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        List<CaptureEvent.NavigationEvent> navigations = session.events().stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .toList();
+        assertEquals(1, navigations.size(),
+                "Exactly one NavigationEvent (the initial open) must be persisted for the whole "
+                        + "search journey; got: "
+                        + navigations.stream().map(CaptureEvent.NavigationEvent::targetUrl).toList());
+        assertTrue(navigations.getFirst().targetUrl().contains("/search-home"));
+        assertTrue(session.events().stream().anyMatch(CaptureEvent.TypeEvent.class::isInstance),
+                "The typed search query must be recorded.");
+        assertTrue(session.events().stream().anyMatch(event ->
+                        event instanceof CaptureEvent.ClickEvent click
+                                && "result-link".equals(click.target().logicalElementId())),
+                "The result-link click must be recorded.");
+
+        com.shaft.capture.generate.CaptureGenerationResult generated =
+                new com.shaft.capture.generate.CaptureGenerator().generate(
+                        new com.shaft.capture.generate.CaptureGenerationRequest(
+                                output, temp.resolve(browserName + "-generated"),
+                                "generated.capture", "", false,
+                                false, false, Duration.ofMinutes(1),
+                                com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode.NONE,
+                                null, false,
+                                com.shaft.pilot.ai.ApprovalPolicy.denyAll()));
+        assertTrue(generated.successful(),
+                "Codegen must succeed for the recorded search journey: "
+                        + generated.report().unsupportedEvents());
+        String source = Files.readString(generated.sourcePath(), StandardCharsets.UTF_8);
+        long navigateCalls = source.split(java.util.regex.Pattern.quote("navigateToURL("), -1).length - 1L;
+        assertEquals(1, navigateCalls,
+                "Generated code must open the start URL exactly once and drive everything else "
+                        + "through the recorded interactions.");
+    }
+
+    /**
+     * The minimize control collapses the panel to its header toolbar so the page underneath
+     * stays usable, while recording continues and the header keeps a live step count; expanding
+     * restores the full step list.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void overlayMinimizeKeepsRecordingWhilePanelBodyIsCollapsed(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve(browserName + "-minimize.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-minimize-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-minimize")));
+
+            driver.findElement(By.id("shaft-capture-minimize")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-actions")).isDisplayed());
+            assertTrue(driver.findElement(By.id("shaft-capture-title")).getText().contains("step"),
+                    "The minimized header must keep a live step count visible.");
+
+            driver.findElement(By.id("terms")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Terms")));
+            assertFalse(driver.findElement(By.id("shaft-capture-actions")).isDisplayed(),
+                    "Recording an action must not expand the minimized panel.");
+
+            driver.findElement(By.id("shaft-capture-minimize")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-actions")).isDisplayed());
+            assertTrue(driver.findElement(By.id("shaft-capture-action-list")).getText().contains("Terms"),
+                    "Expanding must restore the full recorded step list.");
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
     private static double assertButtonTop(JavascriptExecutor js) {
         Object value = js.executeScript(
                 "return document.getElementById('shaft-capture-assert').getBoundingClientRect().top;");
@@ -675,6 +814,41 @@ class ManagedCaptureRecorderBrowserTest {
         });
         server.createContext("/popup", exchange -> respond(exchange,
                 "<!doctype html><title>Popup</title><p>Popup</p>"));
+        // Search-engine-style redirect chain (issue: DuckDuckGo search recorded two navigation
+        // actions the user never performed): a GET form submit that 302-redirects to a results
+        // page which then canonicalizes its own URL with history.replaceState.
+        server.createContext("/search-home", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Search Fixture</title></head>
+                <body>
+                  <form action="/search" method="get">
+                    <input id="q" name="q" placeholder="Search">
+                  </form>
+                </body>
+                </html>
+                """));
+        server.createContext("/search", exchange -> {
+            String query = exchange.getRequestURI().getRawQuery();
+            exchange.getResponseHeaders().set("Location",
+                    "/results" + (query == null || query.isBlank() ? "" : "?" + query));
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+        server.createContext("/results", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Results</title></head>
+                <body>
+                  <a id="result-link" href="/detail">Result detail</a>
+                  <script>
+                    history.replaceState(null, "", location.pathname + location.search + "&ia=web");
+                  </script>
+                </body>
+                </html>
+                """));
+        server.createContext("/detail", exchange -> respond(exchange,
+                "<!doctype html><title>Detail</title><p id=\"detail-page\">Detail</p>"));
         server.start();
         return server;
     }

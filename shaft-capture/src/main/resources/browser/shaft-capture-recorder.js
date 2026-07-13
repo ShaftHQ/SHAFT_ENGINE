@@ -42,6 +42,7 @@
   const uiState = {
     paused: false,
     stopped: false,
+    minimized: false,
     assertionMode: false,
     locatorMode: false,
     locatorPreferences: {},
@@ -53,6 +54,7 @@
     instanceId: "",
     currentInputActionKey: "",
     lastUrl: String(location.href || ""),
+    lastInteractionAt: 0,
     ...persisted()
   };
   uiState.actions = Array.isArray(uiState.actions) ? uiState.actions.slice(-80) : [];
@@ -62,6 +64,8 @@
   uiState.currentInputActionKey = text(uiState.currentInputActionKey);
   uiState.assertionMode = Boolean(uiState.assertionMode);
   uiState.locatorMode = Boolean(uiState.locatorMode);
+  uiState.minimized = Boolean(uiState.minimized);
+  uiState.lastInteractionAt = Number(uiState.lastInteractionAt) || 0;
   uiState.locatorPreferences = uiState.locatorPreferences && typeof uiState.locatorPreferences === "object"
     ? uiState.locatorPreferences
     : {};
@@ -78,6 +82,7 @@
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
         paused: uiState.paused,
         stopped: uiState.stopped,
+        minimized: uiState.minimized,
         assertionMode: uiState.assertionMode,
         locatorMode: uiState.locatorMode,
         locatorPreferences: uiState.locatorPreferences,
@@ -88,7 +93,8 @@
         nextId: uiState.nextId,
         instanceId: uiState.instanceId,
         currentInputActionKey: uiState.currentInputActionKey,
-        lastUrl: uiState.lastUrl
+        lastUrl: uiState.lastUrl,
+        lastInteractionAt: uiState.lastInteractionAt
       }));
     } catch (ignored) {
       // Storage can be unavailable in sandboxed frames.
@@ -150,8 +156,12 @@
       });
   };
   const applyServerSteps = steps => {
+    // Keyed by the same client action id the server persisted (locally announced rows carry it
+    // as instanceId-id, rehydrated rows as remoteId), so a sync preserves the local row object
+    // and its details (locator summary, quick-assert target, warnings) instead of replacing
+    // every recorded row with a details-less skeleton after each navigation.
     const localByRemoteId = new Map(
-      uiState.actions.filter(item => item.remoteId).map(item => [item.remoteId, item]));
+      uiState.actions.map(item => [clientActionId(item), item]));
     const merged = steps
       .filter(step => step && step.clientActionId)
       .sort((left, right) => Number(left.sequence || 0) - Number(right.sequence || 0))
@@ -624,6 +634,9 @@
     if (document.getElementById("shaft-capture-assertion-panel")) return;
     const target = snapshot(event);
     if (target) {
+      // Navigations observed shortly after this moment are consequences of this interaction
+      // (link click, form submit, redirect chain), not navigations the user performed.
+      uiState.lastInteractionAt = Date.now();
       const action = data || {};
       if (kind === "input") {
         const currentValue = String(action.value || "");
@@ -1132,6 +1145,19 @@
         font: 13px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
       #shaft-capture-ui * { box-sizing: border-box; font: inherit; letter-spacing: 0; }
+      /* Minimized: only the header toolbar stays, so the page underneath is usable while
+         recording continues; the title carries the live step count. */
+      #shaft-capture-ui[data-minimized="true"] { height: auto; }
+      #shaft-capture-ui[data-minimized="true"] .status-chip,
+      #shaft-capture-ui[data-minimized="true"] #shaft-capture-locator-panel,
+      #shaft-capture-ui[data-minimized="true"] #shaft-capture-actions,
+      #shaft-capture-ui[data-minimized="true"] #shaft-capture-dialog,
+      #shaft-capture-ui[data-minimized="true"] #shaft-capture-assertion-panel { display: none; }
+      #shaft-capture-empty-hint {
+        margin: 2px 0 0;
+        color: var(--shaft-text-muted);
+        font-size: 12px;
+      }
       #shaft-capture-assertion-banner {
         position: fixed;
         top: 16px;
@@ -1451,6 +1477,14 @@
     const pick = document.getElementById("shaft-capture-pick");
     const stop = document.getElementById("shaft-capture-stop");
     if (!status || !pause || !assert || !pick || !stop) return;
+    // Assertion and locator flows render inside the panel body; a minimized panel would hide
+    // the very UI those modes are waiting on, so entering either mode expands the panel.
+    if (uiState.minimized
+        && (uiState.assertionMode || uiState.locatorMode
+          || document.getElementById("shaft-capture-assertion-panel"))) {
+      uiState.minimized = false;
+      persist();
+    }
     if ((uiState.stopped || uiState.paused) && uiState.locatorMode) {
       uiState.locatorMode = false;
       clearLocatorHighlight();
@@ -1490,6 +1524,25 @@
     pick.setAttribute("aria-pressed", String(uiState.locatorMode));
     pick.disabled = uiState.stopped || uiState.paused;
     stop.disabled = uiState.stopped;
+    const panel = document.getElementById("shaft-capture-ui");
+    if (panel) panel.dataset.minimized = String(uiState.minimized);
+    const minimize = document.getElementById("shaft-capture-minimize");
+    if (minimize) {
+      minimize.innerHTML = icon(uiState.minimized ? "up" : "down");
+      minimize.title = uiState.minimized ? "Expand the recorder panel" : "Minimize the recorder panel";
+      minimize.setAttribute("aria-label", minimize.title);
+      minimize.setAttribute("aria-expanded", String(!uiState.minimized));
+    }
+    const title = document.getElementById("shaft-capture-title");
+    if (title) {
+      // The step count stays visible while minimized so recording progress is never hidden.
+      title.textContent = uiState.minimized
+        ? "SHAFT Capture · " + uiState.actions.length
+          + (uiState.actions.length === 1 ? " step" : " steps")
+        : "SHAFT Capture";
+    }
+    const emptyHint = document.getElementById("shaft-capture-empty-hint");
+    if (emptyHint) emptyHint.hidden = uiState.actions.length > 0;
   };
   const editAction = item => {
     showDialog("Edit captured action", [
@@ -1730,15 +1783,16 @@
     panel.innerHTML = `
       <header>
         <span class="brand-mark" aria-hidden="true">S</span>
-        <strong>SHAFT Capture</strong>
+        <strong id="shaft-capture-title">SHAFT Capture</strong>
         <button id="shaft-capture-pause" type="button"></button>
         <button id="shaft-capture-assert" type="button" title="Add assertion" aria-label="Add assertion" aria-pressed="false">${icon("assert")}</button>
         <button id="shaft-capture-pick" type="button" title="Toggle locator picker" aria-label="Toggle locator picker" aria-pressed="false">${icon("locator")}</button>
         <button id="shaft-capture-stop" type="button" title="Stop recording" aria-label="Stop recording">${icon("stop")}</button>
+        <button id="shaft-capture-minimize" type="button" aria-expanded="true"></button>
       </header>
       <div id="shaft-capture-status" class="status-chip shaft-capture-readiness"></div>
       <div id="shaft-capture-locator-panel" hidden></div>
-      <div id="shaft-capture-actions"><ol id="shaft-capture-action-list"></ol></div>
+      <div id="shaft-capture-actions"><p id="shaft-capture-empty-hint" hidden>No steps yet. Click, type, and navigate in this page &mdash; every action is recorded here as an editable step.</p><ol id="shaft-capture-action-list"></ol></div>
     `;
     document.body.appendChild(panel);
     document.getElementById("shaft-capture-pause").addEventListener("click", () => {
@@ -1792,6 +1846,11 @@
       sendControl("STOP");
       setStatus();
     });
+    document.getElementById("shaft-capture-minimize").addEventListener("click", () => {
+      uiState.minimized = !uiState.minimized;
+      persist();
+      setStatus();
+    });
     renderActions();
   };
   const schedulePanel = () => {
@@ -1802,14 +1861,26 @@
   };
   // Only the top-level frame polls for navigations: a subframe URL change is never a user
   // navigation step, and announcing it produced phantom "Navigate to" rows (#3432).
+  // Navigations observed within this window after a recorded interaction are consequences of
+  // that interaction (link click, form submit, server redirect, history rewrite) — announcing
+  // them created "Navigate to" rows for navigations the user never performed, e.g. a search
+  // redirect landing on the results page counted as two extra navigation actions.
+  const INTERACTION_NAVIGATION_WINDOW_MS = 10000;
   if (topLevel) {
     setInterval(() => {
       const current = String(location.href || "");
       if (current === uiState.lastUrl) return;
       uiState.lastUrl = current;
       if (!uiState.stopped && !uiState.paused) {
-        setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
-        announce("Navigate to " + visibleLocation());
+        const sinceInteraction = Date.now() - uiState.lastInteractionAt;
+        const description = "Navigate to " + visibleLocation();
+        const lastAction = uiState.actions[uiState.actions.length - 1];
+        // Redirect hops with the query stripped read identically; one row is the truth.
+        const repeatsLastRow = Boolean(lastAction && lastAction.text === description);
+        if (sinceInteraction > INTERACTION_NAVIGATION_WINDOW_MS && !repeatsLastRow) {
+          setReadiness("RISKY", "Step " + uiState.nextId + " needs a follow-up assertion after navigation.");
+          announce(description);
+        }
         lastClickEmission = null;
       }
       syncStepsFromServer();

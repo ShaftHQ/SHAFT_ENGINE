@@ -38,7 +38,14 @@ import java.util.function.Consumer;
  */
 final class CaptureEventPipeline implements AutoCloseable {
     private static final Duration CLICK_DEBOUNCE = Duration.ofMillis(300);
-    private static final Duration NAVIGATION_DEBOUNCE = Duration.ofMillis(750);
+    // Same-URL navigations within this window are one navigation delivered twice (racing
+    // channels, or BiDi's commit racing the recorder's own explicit OPEN across a slow load).
+    private static final Duration NAVIGATION_DEBOUNCE = Duration.ofSeconds(10);
+    // A navigation observed this soon after a recorded user interaction is a consequence of that
+    // interaction (link click, form submit, server redirect chain), not a navigation the user
+    // performed: recording it adds a phantom navigateToURL step to the generated test. Only
+    // spontaneous navigations (address bar, the initial open) become steps.
+    private static final Duration INTERACTION_NAVIGATION_WINDOW = Duration.ofSeconds(10);
 
     private final CaptureSessionStore store;
     private final CapturePrivacyClassifier privacy;
@@ -67,6 +74,7 @@ final class CaptureEventPipeline implements AutoCloseable {
     private long sequence;
     private String lastNavigationUrl = "";
     private Instant lastNavigationAt = Instant.EPOCH;
+    private Instant lastInteractionAt = Instant.EPOCH;
     private String lastWindow = "";
     private List<String> lastFramePath = List.of();
     private boolean closed;
@@ -100,6 +108,9 @@ final class CaptureEventPipeline implements AutoCloseable {
         }
         if (isDuplicate(signal)) {
             return;
+        }
+        if (isUserInteraction(signal.kind()) && signal.timestamp().isAfter(lastInteractionAt)) {
+            lastInteractionAt = signal.timestamp();
         }
         try {
             switch (signal.kind()) {
@@ -256,20 +267,33 @@ final class CaptureEventPipeline implements AutoCloseable {
 
     private void emitNavigation(BrowserSignal signal) {
         SafePage page = page(signal);
-        if (page.context().url().equals(lastNavigationUrl)
+        boolean duplicateDelivery = page.context().url().equals(lastNavigationUrl)
                 && Duration.between(lastNavigationAt, signal.timestamp()).abs()
-                .compareTo(NAVIGATION_DEBOUNCE) < 0) {
-            return;
-        }
+                .compareTo(NAVIGATION_DEBOUNCE) < 0;
+        // pushState/replaceState URL rewrites (SPA route changes, results-page canonicalization
+        // like DuckDuckGo appending query flags after a search) are never a user navigation.
+        boolean historyRewrite = "history".equals(signal.dataString("navigationSource"));
+        boolean interactionConsequence = Duration.between(lastInteractionAt, signal.timestamp()).abs()
+                .compareTo(INTERACTION_NAVIGATION_WINDOW) < 0;
         lastNavigationUrl = page.context().url();
         lastNavigationAt = signal.timestamp();
         currentUrlConsumer.accept(page.context().url());
+        if (duplicateDelivery || historyRewrite || interactionConsequence) {
+            return;
+        }
         CaptureEvent.NavigationAction action = enumValue(
                 CaptureEvent.NavigationAction.class,
                 signal.dataString("action"),
                 CaptureEvent.NavigationAction.OPEN);
         append(new CaptureEvent.NavigationEvent(context(signal, page), action, page.context().url()),
                 page.summary(), List.of());
+    }
+
+    private static boolean isUserInteraction(String kind) {
+        return switch (kind) {
+            case "click", "input", "select", "toggle", "upload", "keyboard" -> true;
+            default -> false;
+        };
     }
 
     /**
