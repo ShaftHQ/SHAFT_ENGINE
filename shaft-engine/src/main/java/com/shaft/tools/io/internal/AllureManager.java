@@ -297,6 +297,16 @@ public class AllureManager {
             </style>
             """;
 
+    /**
+     * Exposes the injected Allure theme-color overrides for the brand-palette drift-guard test
+     * (issue #3504), so consistency with {@code ReportHtmlTheme} is checked without reflection.
+     *
+     * @return the {@code <style>} block SHAFT patches into the generated Allure report
+     */
+    static String allureThemeColorsStyle() {
+        return ALLURE_THEME_COLORS_STYLE;
+    }
+
     // ─── Portable Node.js bootstrap ────────────────────────────────────────────
     /** Cache directory for the downloaded portable Node.js distribution. */
     private static final String NODEJS_CACHE_DIR = System.getProperty("user.home")
@@ -1013,6 +1023,21 @@ public class AllureManager {
                     "name": "Environment / configuration issue",
                     "matchedStatuses": ["broken"],
                     "messageRegex": ".*(configuration|property|missing|not found|permission denied|invalid).*"
+                  },
+                  {
+                    "name": "SHAFT: flaky (passed on retry)",
+                    "matchedStatuses": ["passed"],
+                    "messageRegex": ".*(retry|retried|flaky|passed on attempt).*"
+                  },
+                  {
+                    "name": "SHAFT: self-healed locator",
+                    "matchedStatuses": ["passed", "failed", "broken"],
+                    "messageRegex": ".*(self-healed|self healing|healed locator|locator healing|Healenium).*"
+                  },
+                  {
+                    "name": "SHAFT: soft verification failure",
+                    "matchedStatuses": ["failed"],
+                    "messageRegex": ".*(Verification failed|verifyThat|soft assert).*"
                   }
                 ]
                 """;
