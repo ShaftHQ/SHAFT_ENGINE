@@ -87,7 +87,7 @@ final class ShaftAssistantPanel extends JPanel {
     private static final int MAX_AGENT_CONTEXT_CHARACTERS = 16_000;
     static final String PROMPT_PLACEHOLDER =
             "Tell SHAFT what you need — record, generate a test, diagnose failures, upgrade "
-                    + "(# adds project context)";
+                    + "(# adds project context, @ inserts a workflow)";
     private static final String READY_STATUS = "Try asking me to do something...";
     private static final String SEND_TOOLTIP = "Send assistant prompt (Ctrl+Enter, Command+Enter, or Ctrl+click)";
     private static final String LOCAL_AGENT_STREAMING_HEADER = "_Running local assistant..._";

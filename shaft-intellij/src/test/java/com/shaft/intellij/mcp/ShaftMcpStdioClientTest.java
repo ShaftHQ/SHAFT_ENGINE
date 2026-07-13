@@ -33,8 +33,11 @@ class ShaftMcpStdioClientTest {
 
     @Test
     void initializeFailuresSurfaceStderrAndExitDiagnostics() {
+        // Generous timeout on purpose: the server exits immediately, so the deterministic
+        // process-exit path must win. A short timeout races JVM spawn under parallel suite load
+        // and fails with empty diagnostics (#3491).
         IOException exception = assertThrows(IOException.class, () ->
-                withClient("stderrAndExit", client -> client.initializeOnly(Duration.ofMillis(300))));
+                withClient("stderrAndExit", client -> client.initializeOnly(Duration.ofSeconds(30))));
 
         String message = exception.getMessage();
         assertTrue(message.contains("fake MCP failed during startup"));
