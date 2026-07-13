@@ -1,0 +1,39 @@
+{
+  "body_path": "memory/gotchas/recorder-overlay-hash-changes-fire-popstate-loopback-fed-ui-must-degrade-without-fetch.md",
+  "content_hash": "sha256:96b8a2e54d70d917abea56fc4656c98712f99b50f8f8ded7ce044a7adeb90364",
+  "created_at": "2026-07-13T22:02:56+03:00",
+  "evidence": [
+    {
+      "id": "shaft-capture/src/main/resources/browser/shaft-capture-recorder.js",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-capture/src/test/java/com/shaft/capture/runtime/ManagedCaptureRecorderBrowserTest.java",
+      "kind": "file"
+    }
+  ],
+  "facets": {
+    "category": "gotcha"
+  },
+  "id": "gotcha.recorder-overlay-hash-changes-fire-popstate-loopback-fed-ui-must-degrade-without-fetch",
+  "scope": {
+    "branch": null,
+    "kind": "project",
+    "project": "project.shaft-engine",
+    "task": null
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Implement #3496 P0 overlay UX (PR #3508)"
+  },
+  "status": "active",
+  "tags": [
+    "capture",
+    "recorder",
+    "overlay",
+    "testing"
+  ],
+  "title": "Recorder overlay: hash changes fire popstate; loopback-fed UI must degrade without fetch",
+  "type": "gotcha",
+  "updated_at": "2026-07-13T22:02:56+03:00"
+}

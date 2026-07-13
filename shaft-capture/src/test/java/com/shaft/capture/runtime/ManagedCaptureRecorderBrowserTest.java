@@ -342,7 +342,8 @@ class ManagedCaptureRecorderBrowserTest {
             assertFalse(actionListTextAfterElementAssertion.contains("click the target element"),
                     "The assertion-mode placeholder row must never appear in the recorded action list.");
             assertEquals(1, java.util.Arrays.stream(actionListTextAfterElementAssertion.split("\n"))
-                            .filter(line -> line.startsWith("Assert not element exists"))
+                            // Rows now carry a leading kind badge (#3496 C2), so match by content.
+                            .filter(line -> line.contains("Assert not element exists"))
                             .count(),
                     "Exactly one row for the completed element assertion must be present.");
 
@@ -848,6 +849,93 @@ class ManagedCaptureRecorderBrowserTest {
                 "Confirming the stop dialog must complete the session.");
         CaptureSession session = new CaptureJsonCodec().read(output);
         assertEquals(CaptureSession.SessionStatus.COMPLETED, session.status());
+    }
+
+    /**
+     * Issue #3496 P1: authoring ergonomics — every step row carries a kind badge, deleting a step
+     * offers a 5-second Undo (the step_delete signal is only sent after the grace window, so undo
+     * needs no server reverse-op and the server list keeps the step), the header help sheet lists
+     * the controls, and the panel can be dragged with its position remembered.
+     */
+    @Test
+    void overlayErgonomicsBadgesUndoHelpAndDrag(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("ergonomics.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("ergonomics-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-status")));
+
+            driver.findElement(By.id("username")).click();
+            driver.findElement(By.id("username")).sendKeys("alice");
+            driver.findElement(By.id("password")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-action-list")).getText()
+                    .contains("Type into"));
+
+            // Kind badges render per row.
+            String listText = driver.findElement(By.id("shaft-capture-action-list")).getText();
+            assertTrue(listText.contains("CLICK") || listText.contains("Click"),
+                    "Rows must carry a kind badge, got: " + listText);
+            assertTrue(listText.contains("TYPE") || listText.contains("Type into"),
+                    "The type step must be present, got: " + listText);
+
+            // Undo delete: the row disappears, the undo note appears, and undoing restores the
+            // row while the server-side step list never loses the step.
+            int rowsBefore = driver.findElements(By.cssSelector("#shaft-capture-action-list li")).size();
+            String deletedDescription = driver.findElements(By.cssSelector("#shaft-capture-action-list li"))
+                    .get(rowsBefore - 1)
+                    .findElement(By.cssSelector(".action-row > span > span:not(.step-badge)"))
+                    .getText().trim();
+            driver.findElements(By.cssSelector(
+                    "#shaft-capture-action-list li button[aria-label='Delete captured action']"))
+                    .get(rowsBefore - 1).click();
+            waitFor(() -> driver.findElements(By.cssSelector("#shaft-capture-action-list li")).size()
+                    == rowsBefore - 1);
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-undo"))
+                    && !driver.findElements(By.id("shaft-capture-undo-note")).isEmpty()
+                    && driver.findElement(By.id("shaft-capture-undo-note")).isDisplayed());
+            driver.findElement(By.id("shaft-capture-undo")).click();
+            waitFor(() -> driver.findElements(By.cssSelector("#shaft-capture-action-list li")).size()
+                    == rowsBefore);
+            // Past the grace window the undone step must still exist server-side (no delete sent);
+            // other pending signals may keep landing meanwhile, so assert containment, not equality.
+            Thread.sleep(5600);
+            assertTrue(stepDescriptions(recorder).stream()
+                            .anyMatch(description -> description.contains(deletedDescription)),
+                    "Undoing within the grace window must keep the step server-side; wanted '"
+                            + deletedDescription + "' in " + stepDescriptions(recorder));
+
+            // Help sheet toggle.
+            driver.findElement(By.id("shaft-capture-help-toggle")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-help")).isDisplayed());
+            assertTrue(driver.findElement(By.id("shaft-capture-help")).getText().contains("Recorder controls"));
+            driver.findElement(By.id("shaft-capture-help-toggle")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-help")).isDisplayed());
+
+            // Drag: move the panel by its header and confirm it left the bottom-right anchor.
+            org.openqa.selenium.Rectangle before = driver.findElement(By.id("shaft-capture-ui")).getRect();
+            new Actions(driver)
+                    .moveToElement(driver.findElement(By.id("shaft-capture-title")))
+                    .clickAndHold()
+                    .moveByOffset(-250, -180)
+                    .release()
+                    .perform();
+            org.openqa.selenium.Rectangle after = driver.findElement(By.id("shaft-capture-ui")).getRect();
+            assertTrue(after.getX() < before.getX() && after.getY() < before.getY(),
+                    "Dragging the header must move the panel, before=" + before.getPoint()
+                            + " after=" + after.getPoint());
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
     }
 
     private static By assertionChoice(String label) {
