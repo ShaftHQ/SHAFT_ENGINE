@@ -2,7 +2,8 @@ package com.shaft.intellij.testrunner;
 
 import com.intellij.execution.PsiLocation;
 import com.intellij.execution.actions.ConfigurationContext;
-import com.intellij.execution.actions.RunConfigurationProducer;
+import com.intellij.execution.actions.LazyRunConfigurationProducer;
+import com.intellij.execution.configurations.ConfigurationFactory;
 import com.intellij.execution.junit.JUnitConfiguration;
 import com.intellij.execution.junit.JUnitConfigurationType;
 import com.intellij.openapi.module.Module;
@@ -26,9 +27,10 @@ import java.util.List;
  * {@code io.github.shafthq.shaft-withJUnit.xml}), since {@link JUnitConfiguration} classes live
  * in that plugin, not in {@code com.intellij.java} itself.
  */
-public final class ShaftJUnitRunConfigurationProducer extends RunConfigurationProducer<JUnitConfiguration> {
-    public ShaftJUnitRunConfigurationProducer() {
-        super(JUnitConfigurationType.getInstance().getFactory());
+public final class ShaftJUnitRunConfigurationProducer extends LazyRunConfigurationProducer<JUnitConfiguration> {
+    @Override
+    public @NotNull ConfigurationFactory getConfigurationFactory() {
+        return JUnitConfigurationType.getInstance().getFactory();
     }
 
     @Override
