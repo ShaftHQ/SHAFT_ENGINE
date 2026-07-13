@@ -727,6 +727,10 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(root.toString().contains("Assertion / validation failure")).isEqualTo(true).perform();
         SHAFT.Validations.assertThat().object(root.toString().contains("Locator / element interaction")).isEqualTo(true).perform();
         SHAFT.Validations.assertThat().object(root.toString().contains("Provider / grid / device issue")).isEqualTo(true).perform();
+        // SHAFT-specific buckets (issue #3504) surface framework-native outcomes in Allure's Categories tab.
+        SHAFT.Validations.assertThat().object(root.toString().contains("SHAFT: flaky (passed on retry)")).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(root.toString().contains("SHAFT: self-healed locator")).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(root.toString().contains("SHAFT: soft verification failure")).isEqualTo(true).perform();
 
         Files.deleteIfExists(categories);
         setStaticField(AllureManager.class, "cachedIsAllure2", true);

@@ -11,7 +11,7 @@ public enum HTMLHelper {
             <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Checkpoints Report</title>
+              <title>SHAFT Overview</title>
               <style>
             """ + ReportHtmlTheme.style() + """
                 .donut {
@@ -29,8 +29,8 @@ public enum HTMLHelper {
                   <div class="report-header-inner">
                     <span class="brand-mark">S</span>
                     <div>
-                      <h1>Checkpoints Report</h1>
-                      <p class="subtitle">Assertion and verification checkpoint summary</p>
+                      <h1>SHAFT Overview</h1>
+                      <p class="subtitle">Suite checkpoints, validations, and captured traces</p>
                     </div>
                   </div>
                 </header>
@@ -41,6 +41,7 @@ public enum HTMLHelper {
                       <div class="metric-card"><div class="metric-label">Total</div><div class="metric-value">${CHECKPOINTS_TOTAL}</div></div>
                       <div class="metric-card"><div class="metric-label">Passed</div><div class="metric-value">${CHECKPOINTS_PASSED}</div></div>
                       <div class="metric-card"><div class="metric-label">Failed</div><div class="metric-value">${CHECKPOINTS_FAILED}</div></div>
+                      <div class="metric-card"><div class="metric-label">Traces captured</div><div class="metric-value">${TRACES_CAPTURED}</div></div>
                       <div class="metric-card">
                         <div class="metric-label">Pass Ratio</div>
                         <div class="donut-wrap">

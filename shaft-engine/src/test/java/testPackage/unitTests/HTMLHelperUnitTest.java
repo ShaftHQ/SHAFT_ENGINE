@@ -37,8 +37,11 @@ public class HTMLHelperUnitTest {
     @Test(description = "CHECKPOINT_COUNTER should contain expected title")
     public void checkpointCounterShouldContainTitle() {
         String value = HTMLHelper.CHECKPOINT_COUNTER.getValue();
-        Assert.assertTrue(value.contains("Checkpoints Report"),
-                "CHECKPOINT_COUNTER should contain 'Checkpoints Report' title");
+        // Re-titled to the branded suite overview (issue #3504).
+        Assert.assertTrue(value.contains("SHAFT Overview"),
+                "CHECKPOINT_COUNTER should contain the 'SHAFT Overview' title");
+        Assert.assertTrue(value.contains("Traces captured"),
+                "CHECKPOINT_COUNTER should surface the captured-traces KPI");
     }
 
     @Test(description = "CHECKPOINT_DETAILS_FORMAT should have non-null, non-empty value")

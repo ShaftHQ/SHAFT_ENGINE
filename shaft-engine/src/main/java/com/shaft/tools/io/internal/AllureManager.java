@@ -1013,6 +1013,21 @@ public class AllureManager {
                     "name": "Environment / configuration issue",
                     "matchedStatuses": ["broken"],
                     "messageRegex": ".*(configuration|property|missing|not found|permission denied|invalid).*"
+                  },
+                  {
+                    "name": "SHAFT: flaky (passed on retry)",
+                    "matchedStatuses": ["passed"],
+                    "messageRegex": ".*(retry|retried|flaky|passed on attempt).*"
+                  },
+                  {
+                    "name": "SHAFT: self-healed locator",
+                    "matchedStatuses": ["passed", "failed", "broken"],
+                    "messageRegex": ".*(self-healed|self healing|healed locator|locator healing|Healenium).*"
+                  },
+                  {
+                    "name": "SHAFT: soft verification failure",
+                    "matchedStatuses": ["failed"],
+                    "messageRegex": ".*(Verification failed|verifyThat|soft assert).*"
                   }
                 ]
                 """;

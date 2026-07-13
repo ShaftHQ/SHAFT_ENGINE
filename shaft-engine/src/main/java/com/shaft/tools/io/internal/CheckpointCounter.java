@@ -70,13 +70,33 @@ public class CheckpointCounter {
         }
 
         ReportManagerHelper.attach("HTML",
-                "Checkpoints Report",
+                "SHAFT Overview",
                 HTMLHelper.CHECKPOINT_COUNTER.getValue()
                         .replace("${CHECKPOINTS_PASSED_PERCENTAGE_LABEL}", String.valueOf(Math.round(passedCheckpoints.get() * 100d / checkpoints.size())))
                         .replace("${CHECKPOINTS_PASSED_DEGREES}", String.valueOf(passedCheckpoints.get() * 360d / checkpoints.size()))
                         .replace("${CHECKPOINTS_TOTAL}", String.valueOf(checkpoints.size()))
                         .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints.get()))
                         .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints.get()))
+                        .replace("${TRACES_CAPTURED}", String.valueOf(capturedTraceCount()))
                         .replace("${CHECKPOINTS_DETAILS}", detailsBuilder));
+    }
+
+    /**
+     * Counts persisted SHAFT trace directories (issue #3504 overview KPI, wired to the retry-aware
+     * traces from #3503) so the report answers "how many failing attempts left a timeline?" at a
+     * glance. Best-effort: any IO issue reports zero rather than failing report generation.
+     *
+     * @return number of per-test trace directories under {@code target/shaft-traces}
+     */
+    private static long capturedTraceCount() {
+        java.nio.file.Path tracesRoot = java.nio.file.Path.of("target", "shaft-traces");
+        if (!java.nio.file.Files.isDirectory(tracesRoot)) {
+            return 0;
+        }
+        try (var entries = java.nio.file.Files.list(tracesRoot)) {
+            return entries.filter(java.nio.file.Files::isDirectory).count();
+        } catch (java.io.IOException | RuntimeException e) {
+            return 0;
+        }
     }
 }
