@@ -1,14 +1,13 @@
-package com.shaft.tools.internal.support;
+package com.shaft.tools.io.internal;
 
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
 
 /**
  * Enforces the single SHAFT brand palette across both report theme surfaces (issue #3504 R3):
  * {@link ReportHtmlTheme#style()} (the {@code --shaft-*} tokens used by SHAFT's own offline HTML
- * reports) and {@code AllureManager.ALLURE_THEME_COLORS_STYLE} (the {@code --color-*} overrides
+ * reports) and {@link AllureManager#allureThemeColorsStyle()} (the {@code --color-*} overrides
  * injected into the generated Allure report). Both historically hardcoded the same hex palette
  * independently; this test is the drift-guard so the two can never diverge silently.
  */
@@ -29,19 +28,19 @@ public class ReportThemeConsistencyTest {
     private static final String[] STATUS_HEXES = {"#14804a", "#b7791f", "#c53030"};
 
     @Test(description = "The SHAFT report tokens and the Allure theme override must share one brand palette")
-    public void reportHtmlThemeAndAllureThemeShareTheBrandPalette() throws Exception {
-        String shaftTheme = ReportHtmlTheme.style();
-        String allureTheme = allureThemeColorsStyle();
+    public void reportHtmlThemeAndAllureThemeShareTheBrandPalette() {
+        String shaftTheme = ReportHtmlTheme.style().toLowerCase();
+        String allureTheme = AllureManager.allureThemeColorsStyle().toLowerCase();
 
         for (String hex : SHARED_BRAND_HEXES) {
-            Assert.assertTrue(shaftTheme.toLowerCase().contains(hex),
+            Assert.assertTrue(shaftTheme.contains(hex),
                     "ReportHtmlTheme.style() must carry the shared brand hex " + hex);
-            Assert.assertTrue(allureTheme.toLowerCase().contains(hex),
+            Assert.assertTrue(allureTheme.contains(hex),
                     "The Allure theme override must carry the shared brand hex " + hex
                             + " (palette drift between the two report surfaces).");
         }
         for (String hex : STATUS_HEXES) {
-            Assert.assertTrue(shaftTheme.toLowerCase().contains(hex),
+            Assert.assertTrue(shaftTheme.contains(hex),
                     "ReportHtmlTheme.style() must carry the status hex " + hex);
         }
         // Both surfaces theme light and dark; guard the dark hooks so a future edit can't drop one.
@@ -49,12 +48,5 @@ public class ReportThemeConsistencyTest {
                 "ReportHtmlTheme must keep its dark-mode block.");
         Assert.assertTrue(allureTheme.contains("[data-theme=\"dark\"]"),
                 "The Allure theme override must keep its dark-mode block.");
-    }
-
-    private static String allureThemeColorsStyle() throws Exception {
-        Class<?> allureManager = Class.forName("com.shaft.tools.io.internal.AllureManager");
-        Field field = allureManager.getDeclaredField("ALLURE_THEME_COLORS_STYLE");
-        field.setAccessible(true);
-        return (String) field.get(null);
     }
 }
