@@ -2,6 +2,7 @@ package com.shaft.mcp;
 
 import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.PageContext;
@@ -53,6 +54,7 @@ final class MobileApiCaptureController {
     private ApiCaptureProxyServer proxy;
     private CaptureSessionStore store;
     private Path bodiesDirectory;
+    private Path outputPath;
     private String sessionId;
     private boolean active;
 
@@ -86,6 +88,7 @@ final class MobileApiCaptureController {
         }
         warnings.clear();
         transactionCount.set(0);
+        this.outputPath = outputPath;
         sessionId = "mobile-api-" + SESSION_ID_TIME.format(java.time.LocalDateTime.now());
         try {
             Files.createDirectories(outputPath.getParent());
@@ -125,7 +128,28 @@ final class MobileApiCaptureController {
                 proxy != null && active ? proxy.port() : 0,
                 certificateAuthority != null ? certificateAuthority.exportCertificatePem() : "",
                 transactionCount.get(),
-                List.copyOf(warnings));
+                List.copyOf(warnings),
+                outputPath == null ? "" : outputPath.toString(),
+                readiness());
+    }
+
+    /**
+     * Rolls the session warnings and transaction count up into the shared Ready/Risky/Blocked
+     * verdict (#3499), so the mobile API capture speaks the same readiness language as the
+     * web/mobile/Playwright recorders. A stopped session that captured no transactions is
+     * {@code BLOCKED} (nothing to generate); any safe warning makes it {@code RISKY}; an active or
+     * clean session is {@code READY}.
+     *
+     * @return the readiness verdict
+     */
+    private CaptureReadiness.State readiness() {
+        boolean started = sessionId != null && !sessionId.isBlank();
+        if (!active && started && transactionCount.get() == 0) {
+            return CaptureReadiness.State.BLOCKED;
+        }
+        return warnings.isEmpty()
+                ? CaptureReadiness.State.READY
+                : CaptureReadiness.State.RISKY;
     }
 
     /**

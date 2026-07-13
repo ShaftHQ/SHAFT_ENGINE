@@ -1,6 +1,7 @@
 package com.shaft.mcp;
 
 import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureSession;
 import com.shaft.capture.proxy.CaptureCertificateAuthority;
 import com.shaft.capture.proxy.ProxyTransaction;
@@ -109,6 +110,42 @@ class MobileApiCaptureControllerTest {
         CaptureEvent.NetworkEvent event = (CaptureEvent.NetworkEvent) persisted.events().get(0);
         assertEquals(null, event.response());
         assertFalse(event.failureReason().isBlank());
+    }
+
+    @Test
+    void statusExposesTheSessionPathAndRollsReadinessUpFromWarnings() {
+        MobileApiCaptureController controller = new MobileApiCaptureController(
+                () -> new CaptureCertificateAuthority(tempDir.resolve("capture-ca")));
+        Path sessionPath = tempDir.resolve("recordings/readiness.json");
+
+        MobileApiCaptureStatus started = controller.start("Android", "emulator-5554", sessionPath);
+        assertTrue(started.active(), "mobile API capture failed to start: " + started.warnings());
+        // Session path is always visible so the caller can generate an API test from it.
+        assertEquals(sessionPath.toString(), started.outputPath());
+        // Android start emits pairing-guidance warnings, so readiness is RISKY.
+        assertEquals(CaptureReadiness.State.RISKY, started.readiness());
+
+        controller.acceptTransaction(new ProxyTransaction(
+                "GET", "https://api.example.test/orders", Map.of(), new byte[0],
+                200, Map.of(), "{\"status\":\"ok\"}".getBytes(StandardCharsets.UTF_8)));
+        MobileApiCaptureStatus stopped = controller.stop(false);
+        assertEquals(1, stopped.transactionCount());
+        assertEquals(sessionPath.toString(), stopped.outputPath());
+        assertEquals(CaptureReadiness.State.RISKY, stopped.readiness());
+    }
+
+    @Test
+    void stoppingWithNoTransactionsIsBlocked() {
+        MobileApiCaptureController controller = new MobileApiCaptureController(
+                () -> new CaptureCertificateAuthority(tempDir.resolve("capture-ca")));
+        Path sessionPath = tempDir.resolve("recordings/empty-api.json");
+
+        MobileApiCaptureStatus started = controller.start("iOS", "iPhone-Simulator", sessionPath);
+        assertTrue(started.active(), "mobile API capture failed to start: " + started.warnings());
+
+        MobileApiCaptureStatus stopped = controller.stop(false);
+        assertEquals(0, stopped.transactionCount());
+        assertEquals(CaptureReadiness.State.BLOCKED, stopped.readiness());
     }
 
     private static String sessionFileText(Path path) {

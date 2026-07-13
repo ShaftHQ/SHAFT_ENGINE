@@ -904,7 +904,41 @@ final class AssistantMarkdown {
         if (object.has("active") && object.has("outputPath") && object.has("actionCount")) {
             return mobileRecordingStatusMarkdown(object);
         }
+        if (object.has("proxyPort") && object.has("caCertificatePem") && object.has("transactionCount")) {
+            return mobileApiCaptureStatusMarkdown(object);
+        }
         return "";
+    }
+
+    private static String mobileApiCaptureStatusMarkdown(JsonObject object) {
+        List<String> sections = new ArrayList<>();
+        boolean active = booleanValue(object, "active");
+        String readiness = string(object, "readiness", "");
+        // The atomic unit of an API capture is a transaction (request/response), not a GUI step.
+        sections.add(metadataLine(
+                "API capture", active ? "recording" : "stopped",
+                "Transactions", string(object, "transactionCount", "0"),
+                "Readiness", (readinessIcon(readiness) + " " + readiness).trim(),
+                "Proxy port", string(object, "proxyPort", "")));
+        String certificate = string(object, "caCertificatePem", "");
+        if (!certificate.isBlank()) {
+            sections.add("_Install the returned CA certificate as a trusted CA on the device before"
+                    + " HTTPS traffic can be captured._");
+        }
+        String outputPath = string(object, "outputPath", "");
+        if (!outputPath.isBlank()) {
+            sections.add("**Session:** `" + outputPath + "`");
+            boolean hasTransactions = !string(object, "transactionCount", "0").equals("0");
+            if (!active && hasTransactions) {
+                sections.add("Review code next — send:\n\n"
+                        + fence("text", "Generate a SHAFT API test from " + outputPath));
+            }
+        }
+        String warnings = warnings(object);
+        if (!warnings.isBlank()) {
+            sections.add(warnings);
+        }
+        return joinSections(sections);
     }
 
     private static String mobileRecordingStatusMarkdown(JsonObject object) {

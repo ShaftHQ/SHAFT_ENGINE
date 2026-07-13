@@ -204,6 +204,32 @@ class ApiTestRendererTest {
                 "The anchored transaction (/a) must render before the uncorrelated one (/b), got:\n" + rendered.source());
     }
 
+    @Test
+    void businessDepthPinsStableFieldsByJsonPathAndSkipsVolatileValues() throws Exception {
+        // status + currency are stable business fields; orderId is a volatile UUID.
+        ApiTransaction order = transaction("tx-1", "GET", "https://api.example.test/orders/42",
+                Map.of(), "", 200, Map.of(),
+                "{\"status\":\"CONFIRMED\",\"orderId\":\"" + CREATED_ID + "\",\"currency\":\"USD\"}");
+
+        RenderedApiTest rendered = ApiTestRenderer.render(
+                "tests.generated", "RecordedApiTest_Business", List.of(order),
+                ApiCodegenStyle.SCENARIO, ApiValidationDepth.BUSINESS);
+
+        assertCompiles(rendered.source(), "RecordedApiTest_Business");
+        // Stable business fields are pinned by JSON path via getResponseJSONValue.
+        assertTrue(rendered.source().contains(".object(api.getResponseJSONValue(\"$.status\"))"),
+                "Expected a business assertion on $.status, got:\n" + rendered.source());
+        assertTrue(rendered.source().contains(".isEqualTo(\"CONFIRMED\")"));
+        assertTrue(rendered.source().contains(".object(api.getResponseJSONValue(\"$.currency\"))"));
+        assertTrue(rendered.source().contains(".isEqualTo(\"USD\")"));
+        // The volatile UUID must never be asserted as a business value.
+        assertTrue(!rendered.source().contains(CREATED_ID),
+                "The volatile orderId must not be pinned as a business assertion, got:\n" + rendered.source());
+        // BUSINESS depth pins live values; it needs no golden/schema artifacts.
+        assertTrue(rendered.testDataArtifacts().isEmpty(),
+                "BUSINESS depth should not need test-data artifacts");
+    }
+
     private void assertCompiles(String source, String className) throws Exception {
         Path moduleDir = Files.createDirectories(tempDir.resolve(className));
         Path sourceFile = moduleDir.resolve(className + ".java");
